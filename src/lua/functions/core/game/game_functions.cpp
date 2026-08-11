@@ -53,6 +53,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "getPlayers", GameFunctions::luaGameGetPlayers);
 	Lua::registerMethod(L, "Game", "loadMap", GameFunctions::luaGameLoadMap);
 	Lua::registerMethod(L, "Game", "loadMapChunk", GameFunctions::luaGameloadMapChunk);
+	Lua::registerMethod(L, "Game", "copyMapRegion", GameFunctions::luaGameCopyMapRegion);
 
 	Lua::registerMethod(L, "Game", "getExperienceForLevel", GameFunctions::luaGameGetExperienceForLevel);
 	Lua::registerMethod(L, "Game", "getMonsterCount", GameFunctions::luaGameGetMonsterCount);
@@ -390,6 +391,15 @@ int GameFunctions::luaGameloadMapChunk(lua_State* L) {
 	const Position &position = Lua::getPosition(L, 2);
 	g_dispatcher().addEvent([path, position]() { g_game().loadMap(path, position); }, __FUNCTION__);
 	return 0;
+}
+
+int GameFunctions::luaGameCopyMapRegion(lua_State* L) {
+	// Game.copyMapRegion(sourceFrom, sourceTo, dest)
+	const Position &sourceFrom = Lua::getPosition(L, 1);
+	const Position &sourceTo = Lua::getPosition(L, 2);
+	const Position &dest = Lua::getPosition(L, 3);
+	lua_pushnumber(L, g_game().copyMapRegion(sourceFrom, sourceTo, dest));
+	return 1;
 }
 
 int GameFunctions::luaGameGetExperienceForLevel(lua_State* L) {

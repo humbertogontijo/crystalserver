@@ -135,6 +135,16 @@ public:
 	void loadCustomMaps(const std::filesystem::path &customMapPath);
 	void loadMap(const std::string &path, const Position &pos = Position());
 
+	/**
+	 * Clone tiles from the live map into `dest` (top-left of the destination AABB).
+	 * Inclusive source range [sourceFrom, sourceTo]; same-floor expeditions use equal z.
+	 * Places fresh items via Tile::internalAddThing (no moveevents). Skips creatures,
+	 * pickupables, uniques, doors/beds/teleports/depots/mailboxes/fields/containers,
+	 * and non-blocking house furniture. Strips nothing because attributes are not cloned.
+	 * \returns number of source tiles that had ground or items copied
+	 */
+	uint32_t copyMapRegion(const Position &sourceFrom, const Position &sourceTo, const Position &dest);
+
 	uint64_t getLastMapLoadTime() const {
 		return lastMapLoadTime;
 	}
@@ -502,7 +512,7 @@ public:
 		return boostedCreature;
 	}
 
-	bool canThrowObjectTo(const Position &fromPos, const Position &toPos, SightLines_t lineOfSight = SightLine_CheckSightLine, int32_t rangex = MAP_MAX_CLIENT_VIEW_PORT_X, int32_t rangey = MAP_MAX_CLIENT_VIEW_PORT_Y);
+	bool canThrowObjectTo(const Position &fromPos, const Position &toPos, SightLines_t lineOfSight = SightLine_CheckSightLine, int32_t rangex = MAP_CLASSIC_CLIENT_VIEW_PORT_X, int32_t rangey = MAP_CLASSIC_CLIENT_VIEW_PORT_Y);
 	bool isSightClear(const Position &fromPos, const Position &toPos, bool sameFloor);
 
 	void changeSpeed(const std::shared_ptr<Creature> &creature, int32_t varSpeedDelta);

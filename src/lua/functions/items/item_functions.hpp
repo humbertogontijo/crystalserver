@@ -73,6 +73,7 @@ private:
 	static int luaItemDecay(lua_State* L);
 
 	static int luaItemSerializeAttributes(lua_State* L);
+	static int luaItemUnserializeAttributes(lua_State* L);
 	static int luaItemMoveToSlot(lua_State* L);
 
 	static int luaItemGetDescription(lua_State* L);

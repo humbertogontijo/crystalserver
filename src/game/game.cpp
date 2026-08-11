@@ -121,6 +121,24 @@ namespace {
 		}
 		return fromClause.str();
 	}
+
+	enum class IdleCombatDeny : uint8_t {
+		Walk,
+		Target,
+	};
+
+	/** Idle combat: AI owns walk/target. Cancel without chat spam (clients can flood packets). */
+	[[nodiscard]] bool denyIdleCombatClientControl(const std::shared_ptr<Player> &player, IdleCombatDeny deny) {
+		if (!player || !player->isIdleCombat()) {
+			return false;
+		}
+		if (deny == IdleCombatDeny::Target) {
+			player->sendCancelTarget();
+		} else {
+			player->sendCancelWalk();
+		}
+		return true;
+	}
 } // namespace
 
 namespace InternalGame {
@@ -870,6 +888,142 @@ void Game::loadMap(const std::string &path, const Position &pos) {
 
 		player->sendMapDescription(playerPos);
 	}
+}
+
+uint32_t Game::copyMapRegion(const Position &sourceFrom, const Position &sourceTo, const Position &dest) {
+	if (sourceFrom.x > sourceTo.x || sourceFrom.y > sourceTo.y) {
+		g_logger().warn("[Game::copyMapRegion] invalid AABB from=({},{},{}) to=({},{},{})", sourceFrom.x, sourceFrom.y, sourceFrom.z, sourceTo.x, sourceTo.y, sourceTo.z);
+		return 0;
+	}
+
+	const int32_t width = static_cast<int32_t>(sourceTo.x) - static_cast<int32_t>(sourceFrom.x) + 1;
+	const int32_t height = static_cast<int32_t>(sourceTo.y) - static_cast<int32_t>(sourceFrom.y) + 1;
+	if (width <= 0 || height <= 0 || width > 128 || height > 128) {
+		g_logger().warn("[Game::copyMapRegion] rejected size {}x{} (max 128)", width, height);
+		return 0;
+	}
+	if (static_cast<uint32_t>(dest.x) + static_cast<uint32_t>(width) > 0xFFFF
+	    || static_cast<uint32_t>(dest.y) + static_cast<uint32_t>(height) > 0xFFFF) {
+		g_logger().warn("[Game::copyMapRegion] destination overflow dest=({},{}) size={}x{}", dest.x, dest.y, width, height);
+		return 0;
+	}
+
+	uint32_t copied = 0;
+	// Single-floor clone (expedition viewports); use sourceFrom.z → dest.z.
+	const uint8_t srcZ = sourceFrom.z;
+	const uint8_t destZ = dest.z;
+
+	g_logger().debug(
+		"[Game::copyMapRegion] cloning {}x{} from ({},{},{}) → ({},{},{})",
+		width,
+		height,
+		sourceFrom.x,
+		sourceFrom.y,
+		srcZ,
+		dest.x,
+		dest.y,
+		destZ
+	);
+
+	const auto shouldSkipNonGround = [](const ItemType &it) {
+		// Match map-loader safety: do not materialize interactive / scripted fixtures.
+		return it.id == 0
+			|| it.isTeleport()
+			|| it.isDoor()
+			|| it.isBed()
+			|| it.isDepot()
+			|| it.isMailbox()
+			|| it.isTrashHolder()
+			|| it.isMagicField()
+			|| it.isRewardChest()
+			|| it.isContainer()
+			|| it.isSplash()
+			|| it.isFluidContainer()
+			|| it.movable;
+	};
+
+	for (int32_t dy = 0; dy < height; ++dy) {
+		for (int32_t dx = 0; dx < width; ++dx) {
+			const Position srcPos(
+				static_cast<uint16_t>(sourceFrom.x + dx),
+				static_cast<uint16_t>(sourceFrom.y + dy),
+				srcZ
+			);
+			const auto &srcTile = map.getTile(srcPos);
+			if (!srcTile) {
+				continue;
+			}
+
+			const Position destPos(
+				static_cast<uint16_t>(dest.x + dx),
+				static_cast<uint16_t>(dest.y + dy),
+				destZ
+			);
+			const auto &destTile = map.getOrCreateTile(destPos, true);
+			if (!destTile) {
+				continue;
+			}
+
+			bool wrote = false;
+			const bool houseSource = srcTile->getHouse() != nullptr;
+
+			const auto addFresh = [&](const std::shared_ptr<Item> &srcItem) {
+				if (!srcItem) {
+					return;
+				}
+				if (srcItem->isPickupable()) {
+					return;
+				}
+				if (srcItem->hasAttribute(ItemAttribute_t::UNIQUEID)) {
+					return;
+				}
+				const ItemType &it = Item::items.getItemType(srcItem->getID());
+				if (it.id == 0) {
+					return;
+				}
+				if (!it.isGroundTile()) {
+					if (shouldSkipNonGround(it)) {
+						return;
+					}
+					// House furniture stays on the live house; only copy terrain/walls.
+					if (houseSource && !it.blockSolid) {
+						return;
+					}
+				}
+
+				const uint16_t count = it.isGroundTile() ? 1 : srcItem->getItemCount();
+				const auto &fresh = Item::CreateItem(srcItem->getID(), count);
+				if (!fresh) {
+					return;
+				}
+				// Avoid postAddNotification / moveevents (can crash on interactive types).
+				destTile->internalAddThing(fresh);
+				wrote = true;
+			};
+
+			addFresh(srcTile->getGround());
+
+			if (const TileItemVector* items = srcTile->getItemList()) {
+				for (const auto &item : *items) {
+					if (!item || item == srcTile->getGround()) {
+						continue;
+					}
+					addFresh(item);
+				}
+			}
+
+			if (wrote) {
+				++copied;
+			}
+		}
+	}
+
+	if (copied == 0) {
+		g_logger().warn("[Game::copyMapRegion] copied 0 tiles ({}x{}) → ({},{},{})", width, height, dest.x, dest.y, dest.z);
+	} else {
+		g_logger().debug("[Game::copyMapRegion] copied {} tiles ({}x{}) → ({},{},{})", copied, width, height, dest.x, dest.y, dest.z);
+	}
+	return copied;
 }
 
 std::shared_ptr<Cylinder> Game::internalGetCylinder(const std::shared_ptr<Player> &player, const Position &pos) {
@@ -2997,7 +3151,23 @@ void Game::addMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money, u
 			}
 
 			if (ret != RETURNVALUE_NOERROR) {
-				internalAddItem(cylinder->getTile(), remaindItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
+				// Prefer bank over ground drops when coin change cannot fit in inventory
+				// (same pattern as market withdrawals / NPC sale refunds).
+				if (const auto &player = std::dynamic_pointer_cast<Player>(cylinder)) {
+					const uint64_t remaining = remaindItem->getWorth();
+					if (remaining > 0) {
+						player->setBankBalance(player->getBankBalance() + remaining);
+						player->sendResourceBalance(RESOURCE_BANK, player->getBankBalance());
+						g_logger().debug(
+							"Game::addMoney: deposited {} gold change to player {}'s bank (inventory full).",
+							remaining, player->getName()
+						);
+					} else if (const auto &tile = cylinder->getTile()) {
+						internalAddItem(tile, remaindItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
+					}
+				} else if (const auto &tile = cylinder->getTile()) {
+					internalAddItem(tile, remaindItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
+				}
 			}
 
 			count -= createCount;
@@ -3805,6 +3975,10 @@ void Game::playerMove(uint32_t playerId, Direction direction) {
 		return;
 	}
 
+	if (denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
+		return;
+	}
+
 	player->resetIdleTime();
 	player->setNextWalkActionTask(nullptr);
 	player->cancelPush();
@@ -3994,6 +4168,10 @@ void Game::playerAutoWalk(uint32_t playerId, const std::vector<Direction> &listD
 		return;
 	}
 
+	if (denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
+		return;
+	}
+
 	player->resetIdleTime();
 	player->setNextWalkTask(nullptr);
 	player->startAutoWalk(listDir, false);
@@ -4094,7 +4272,7 @@ void Game::playerUseItemEx(uint32_t playerId, const Position &fromPos, uint8_t f
 			}
 
 			std::vector<Direction> listDir;
-			if (player->getPathTo(walkToPos, listDir, 0, 1, true, true)) {
+			if (player->getPathTo(walkToPos, listDir, 0, 1, true, true, MAP_MAX_CLIENT_VIEW_PORT_X)) {
 				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
 				const auto &task = createPlayerTask(
 					400,
@@ -4215,7 +4393,7 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 	if (ret != RETURNVALUE_NOERROR) {
 		if (ret == RETURNVALUE_TOOFARAWAY) {
 			std::vector<Direction> listDir;
-			if (player->getPathTo(pos, listDir, 0, 1, true, true)) {
+			if (player->getPathTo(pos, listDir, 0, 1, true, true, MAP_MAX_CLIENT_VIEW_PORT_X)) {
 				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
 				const auto &task = createPlayerTask(
 					400,
@@ -4791,20 +4969,31 @@ void Game::playerWrapableItem(uint32_t playerId, const Position &pos, uint8_t st
 		return;
 	}
 
-	const auto houseTile = tile->dynamic_self_cast<HouseTile>();
-	if (!tile->hasFlag(TILESTATE_PROTECTIONZONE) || !houseTile) {
-		player->sendCancelMessage("You may construct this only inside a house.");
-		return;
-	}
-	const auto &house = houseTile->getHouse();
-	if (!house) {
-		player->sendCancelMessage("You may construct this only inside a house.");
-		return;
+	// tibiajs personal-home instances use Zone("player-home-*") without HouseTiles.
+	bool inPlayerHome = false;
+	for (const auto &zone : Zone::getZones(item->getPosition())) {
+		if (zone && zone->getName().starts_with("player-home-")) {
+			inPlayerHome = true;
+			break;
+		}
 	}
 
-	if (house->getHouseAccessLevel(player) < HOUSE_OWNER) {
-		player->sendCancelMessage("You are not allowed to construct this here.");
-		return;
+	const auto houseTile = tile->dynamic_self_cast<HouseTile>();
+	const std::shared_ptr<House> house = houseTile ? houseTile->getHouse() : nullptr;
+	if (!inPlayerHome) {
+		if (!tile->hasFlag(TILESTATE_PROTECTIONZONE) || !houseTile) {
+			player->sendCancelMessage("You may construct this only inside a house.");
+			return;
+		}
+		if (!house) {
+			player->sendCancelMessage("You may construct this only inside a house.");
+			return;
+		}
+
+		if (house->getHouseAccessLevel(player) < HOUSE_OWNER) {
+			player->sendCancelMessage("You are not allowed to construct this here.");
+			return;
+		}
 	}
 
 	if (!item || item->getID() != itemId || item->hasAttribute(ItemAttribute_t::UNIQUEID) || (!item->isWrapable() && item->getID() != ITEM_DECORATION_KIT)) {
@@ -4817,7 +5006,7 @@ void Game::playerWrapableItem(uint32_t playerId, const Position &pos, uint8_t st
 		return;
 	}
 
-	if (g_configManager().getBoolean(ONLY_INVITED_CAN_MOVE_HOUSE_ITEMS) && !InternalGame::playerCanUseItemOnHouseTile(player, item)) {
+	if (g_configManager().getBoolean(ONLY_INVITED_CAN_MOVE_HOUSE_ITEMS) && house && !InternalGame::playerCanUseItemOnHouseTile(player, item)) {
 		player->sendCancelMessage(RETURNVALUE_CANNOTUSETHISOBJECT);
 		return;
 	}
@@ -4869,9 +5058,9 @@ void Game::playerWrapableItem(uint32_t playerId, const Position &pos, uint8_t st
 	}
 
 	if (item->isWrapable() && item->getID() != ITEM_DECORATION_KIT) {
-		wrapItem(item, houseTile->getHouse());
+		wrapItem(item, house);
 	} else if (item->getID() == ITEM_DECORATION_KIT && unWrapId != 0) {
-		unwrapItem(item, unWrapId, houseTile->getHouse(), player);
+		unwrapItem(item, unWrapId, house, player);
 	}
 	addMagicEffect(pos, CONST_ME_POFF, player);
 }
@@ -6277,6 +6466,14 @@ void Game::playerSetAttackedCreature(uint32_t playerId, uint32_t creatureId) {
 		return;
 	}
 
+	// Idle combat: AI owns the attack target (including ClearTarget while hunting).
+	if (player->isIdleCombat()) {
+		if (creatureId != 0) {
+			denyIdleCombatClientControl(player, IdleCombatDeny::Target);
+		}
+		return;
+	}
+
 	if (player->getAttackedCreature() && creatureId == 0) {
 		player->setAttackedCreature(nullptr);
 		player->sendCancelTarget();
@@ -6306,6 +6503,13 @@ void Game::playerSetAttackedCreature(uint32_t playerId, uint32_t creatureId) {
 void Game::playerFollowCreature(uint32_t playerId, uint32_t creatureId) {
 	const auto &player = getPlayerByID(playerId);
 	if (!player) {
+		return;
+	}
+
+	if (player->isIdleCombat()) {
+		if (creatureId != 0) {
+			denyIdleCombatClientControl(player, IdleCombatDeny::Walk);
+		}
 		return;
 	}
 
@@ -6906,7 +7110,7 @@ std::shared_ptr<Task> Game::createPlayerTask(uint32_t delay, std::function<void(
 }
 
 //--
-bool Game::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= Map::maxClientViewportX*/, const int32_t rangey /*= Map::maxClientViewportY*/) {
+bool Game::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/) {
 	return map.canThrowObjectTo(fromPos, toPos, lineOfSight, rangex, rangey);
 }
 
@@ -7037,43 +7241,43 @@ void Game::checkCreatures() {
 		return;
 	}
 
-	// Manual loop for better control and tracking
-	size_t writeIndex = 0;
-	for (size_t i = 0; i < bucket.size(); ++i) {
-		const auto &weak = bucket[i];
-		if (const auto creature = weak.lock()) {
-			if (creature->creatureCheck && creature->isAlive()) {
-				creature->onThink(EVENT_CREATURE_THINK_INTERVAL);
-				if (creature->getMonster()) {
-					// Monster's onThink runs asynchronously, so delay attacking/conditions
-					g_dispatcher().addEvent([creature] {
-						if (creature->isAlive()) {
-							creature->onAttacking(EVENT_CREATURE_THINK_INTERVAL);
-							creature->executeConditions(EVENT_CREATURE_THINK_INTERVAL);
-						} }, __FUNCTION__);
-				} else {
+	// Move the bucket out first: onThink may call addCreatureCheck, which must not
+	// emplace into the vector while we iterate/compact it.
+	std::vector<std::weak_ptr<Creature>> creatures = std::move(bucket);
+	bucket.clear();
+
+	for (const auto &weak : creatures) {
+		const auto creature = weak.lock();
+		if (!creature) {
+			continue;
+		}
+
+		if (!creature->creatureCheck || !creature->isAlive()) {
+			creature->inCheckCreaturesVector = false;
+			continue;
+		}
+
+		creature->onThink(EVENT_CREATURE_THINK_INTERVAL);
+		if (creature->getMonster()) {
+			// Monster's onThink runs asynchronously, so delay attacking/conditions
+			g_dispatcher().addEvent([creature] {
+				if (creature->isAlive()) {
 					creature->onAttacking(EVENT_CREATURE_THINK_INTERVAL);
 					creature->executeConditions(EVENT_CREATURE_THINK_INTERVAL);
-				}
-				// Keep entry (alive and active)
-				if (writeIndex != i) {
-					bucket[writeIndex] = std::move(bucket[i]);
-				}
-				writeIndex++;
-			} else {
-				creature->inCheckCreaturesVector = false;
-			}
+				} }, __FUNCTION__);
+		} else {
+			creature->onAttacking(EVENT_CREATURE_THINK_INTERVAL);
+			creature->executeConditions(EVENT_CREATURE_THINK_INTERVAL);
 		}
-		// Dead/expired: don't increment writeIndex (remove entry)
+
+		bucket.emplace_back(creature);
 	}
 
-	// Shrink if too many empty slots
-	bucket.resize(writeIndex);
 	if (bucket.capacity() > 64 && bucket.size() < bucket.capacity() / 4) {
 		bucket.shrink_to_fit();
 	}
 
-	checkCreatureSizes[index] = writeIndex;
+	checkCreatureSizes[index] = bucket.size();
 	index = (index + 1) % EVENT_CREATURECOUNT;
 }
 

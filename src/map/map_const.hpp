@@ -17,8 +17,16 @@
 
 #pragma once
 
-static constexpr int32_t MAP_MAX_CLIENT_VIEW_PORT_X = 8;
-static constexpr int32_t MAP_MAX_CLIENT_VIEW_PORT_Y = 6;
+// Classic Tibia FOV — throw / combat reach stays on these even when the
+// streamed client viewport is widened for widescreen Idle.
+static constexpr int32_t MAP_CLASSIC_CLIENT_VIEW_PORT_X = 8;
+static constexpr int32_t MAP_CLASSIC_CLIENT_VIEW_PORT_Y = 6;
+static constexpr int32_t MAP_CLASSIC_VIEW_PORT_X = MAP_CLASSIC_CLIENT_VIEW_PORT_X + 3;
+static constexpr int32_t MAP_CLASSIC_VIEW_PORT_Y = MAP_CLASSIC_CLIENT_VIEW_PORT_Y + 5;
+
+// Streamed / protocol aware footprint (widescreen Idle FOV + preload).
+static constexpr int32_t MAP_MAX_CLIENT_VIEW_PORT_X = 13;
+static constexpr int32_t MAP_MAX_CLIENT_VIEW_PORT_Y = 7;
 static constexpr int32_t MAP_MAX_VIEW_PORT_X = MAP_MAX_CLIENT_VIEW_PORT_X + 3; // min value: maxClientViewportX + 1
 static constexpr int32_t MAP_MAX_VIEW_PORT_Y = MAP_MAX_CLIENT_VIEW_PORT_Y + 5; // min value: maxClientViewportY + 1
 

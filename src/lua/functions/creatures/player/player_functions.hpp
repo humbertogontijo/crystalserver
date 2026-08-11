@@ -119,6 +119,8 @@ class PlayerFunctions {
 
 	static int luaPlayerGetIsTraining(lua_State* L);
 	static int luaPlayerSetTraining(lua_State* L);
+	static int luaPlayerGetIsIdleCombat(lua_State* L);
+	static int luaPlayerSetIdleCombat(lua_State* L);
 
 	static int luaPlayerGetKills(lua_State* L);
 	static int luaPlayerSetKills(lua_State* L);
@@ -339,6 +341,7 @@ class PlayerFunctions {
 
 	static int luaPlayerGetInstantSpells(lua_State* L);
 	static int luaPlayerCanCast(lua_State* L);
+	static int luaPlayerCastSpell(lua_State* L);
 
 	static int luaPlayerHasChaseMode(lua_State* L);
 	static int luaPlayerHasSecureMode(lua_State* L);

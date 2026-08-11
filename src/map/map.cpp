@@ -453,7 +453,7 @@ void Map::moveCreature(const std::shared_ptr<Creature> &creature, const std::sha
 	}
 }
 
-bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= Map::maxClientViewportX*/, const int32_t rangey /*= Map::maxClientViewportY*/) {
+bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/) {
 	// z checks
 	// underground 8->15
 	// ground level and above 7->0

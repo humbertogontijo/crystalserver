@@ -55,6 +55,7 @@ private:
 
 	static int luaMonsterChangeTargetDistance(lua_State* L);
 	static int luaMonsterIsChallenged(lua_State* L);
+	static int luaMonsterRunHealth(lua_State* L);
 
 	static int luaMonsterSelectTarget(lua_State* L);
 	static int luaMonsterSearchTarget(lua_State* L);
