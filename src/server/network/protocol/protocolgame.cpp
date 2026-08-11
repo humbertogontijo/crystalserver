@@ -1467,6 +1467,9 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 		case 0xCD:
 			parseInspectionObject(msg);
 			break;
+		case 0xCE:
+			parseInspectPlayer(msg);
+			break;
 		case 0xCF:
 			sendBlessingWindow();
 			break;
@@ -2348,6 +2351,130 @@ void ProtocolGame::parseInspectionObject(NetworkMessage &msg) {
 		uint16_t itemCount = msg.getByte();
 		g_game().playerInspectItem(player, itemId, static_cast<int8_t>(itemCount), inspectionType);
 	}
+}
+
+void ProtocolGame::parseInspectPlayer(NetworkMessage &msg) {
+	if (oldProtocol || !player) {
+		return;
+	}
+
+	// OTClient: sendInspectCharacter(tab, creatureId). Tab values 1–5 carry a creature id.
+	const uint8_t inspectionState = msg.getByte();
+	uint32_t creatureId = 0;
+	if (inspectionState >= 1 && inspectionState <= 5) {
+		creatureId = msg.get<uint32_t>();
+	}
+	if (creatureId == 0) {
+		return;
+	}
+
+	const auto &creature = g_game().getCreatureByID(creatureId);
+	if (!creature || !canSee(creature)) {
+		return;
+	}
+
+	const auto &targetPlayer = creature->getPlayer();
+	if (!targetPlayer) {
+		return;
+	}
+
+	sendPlayerInspection(targetPlayer);
+}
+
+void ProtocolGame::sendPlayerInspection(const std::shared_ptr<Player> &target) {
+	if (!player || oldProtocol || !target) {
+		return;
+	}
+
+	// 0x76 windowsType=1 is OTC's character-inspection branch (parseCyclopediaItemDetail).
+	NetworkMessage msg;
+	msg.addByte(0x76);
+	msg.addByte(0x01); // character window
+	msg.addByte(static_cast<uint8_t>(INSPECT_CYCLOPEDIA));
+	msg.add<uint32_t>(target->getID());
+
+	uint8_t inventoryItems = 0;
+	const auto startInventory = msg.getBufferPosition();
+	msg.skipBytes(1);
+	for (std::underlying_type<Slots_t>::type slot = CONST_SLOT_FIRST; slot <= CONST_SLOT_LAST; slot++) {
+		const std::shared_ptr<Item> inventoryItem = target->getInventoryItem(static_cast<Slots_t>(slot));
+		if (!inventoryItem) {
+			continue;
+		}
+		++inventoryItems;
+
+		msg.addByte(static_cast<uint8_t>(slot));
+		msg.addString(inventoryItem->getName());
+		AddItem(msg, inventoryItem);
+
+		uint8_t itemImbuements = 0;
+		const auto startImbuements = msg.getBufferPosition();
+		msg.skipBytes(1);
+		for (uint8_t slotid = 0; slotid < inventoryItem->getImbuementSlot(); slotid++) {
+			ImbuementInfo imbuementInfo;
+			if (!inventoryItem->getImbuementInfo(slotid, &imbuementInfo)) {
+				continue;
+			}
+			msg.add<uint16_t>(imbuementInfo.imbuement->getIconID());
+			itemImbuements++;
+		}
+		const auto endImbuements = msg.getBufferPosition();
+		msg.setBufferPosition(startImbuements);
+		msg.addByte(itemImbuements);
+		msg.setBufferPosition(endImbuements);
+
+		const auto descriptions = Item::getDescriptions(Item::items[inventoryItem->getID()], inventoryItem);
+		msg.addByte(static_cast<uint8_t>(std::min<size_t>(descriptions.size(), 255)));
+		for (const auto &description : descriptions) {
+			msg.addString(description.first);
+			msg.addString(description.second);
+		}
+	}
+
+	msg.addString(target->getName());
+	AddOutfit(msg, target->getDefaultOutfit(), false);
+
+	uint8_t playerDescriptionSize = 0;
+	const auto playerDescriptionPosition = msg.getBufferPosition();
+	msg.skipBytes(1);
+
+	if (target->title() && target->title()->getCurrentTitle() != 0) {
+		playerDescriptionSize++;
+		msg.addString("Character Title");
+		msg.addString(target->title()->getCurrentTitleName());
+	}
+
+	playerDescriptionSize++;
+	msg.addString("Level");
+	msg.addString(std::to_string(target->getLevel()));
+
+	if (target->getVocation()) {
+		playerDescriptionSize++;
+		msg.addString("Vocation");
+		msg.addString(target->getVocation()->getVocName());
+	}
+
+	if (!target->getLoyaltyTitle().empty()) {
+		playerDescriptionSize++;
+		msg.addString("Loyalty Title");
+		msg.addString(target->getLoyaltyTitle());
+	}
+
+	playerDescriptionSize++;
+	msg.addString("Outfit");
+	if (const auto outfit = Outfits::getInstance().getOutfitByLookType(target, target->getDefaultOutfit().lookType)) {
+		msg.addString(outfit->name);
+	} else {
+		msg.addString("unknown");
+	}
+
+	msg.setBufferPosition(startInventory);
+	msg.addByte(inventoryItems);
+
+	msg.setBufferPosition(playerDescriptionPosition);
+	msg.addByte(playerDescriptionSize);
+
+	writeToOutputBuffer(msg);
 }
 
 void ProtocolGame::sendSessionEndInformation(SessionEndInformations information) {
@@ -10643,8 +10770,18 @@ void ProtocolGame::sendOpenWheelWindow(uint32_t ownerId) {
 		return;
 	}
 
+	const uint32_t resolvedOwnerId = ownerId != 0 ? ownerId : player->getID();
+	std::shared_ptr<Player> source = player;
+	if (resolvedOwnerId != player->getID()) {
+		source = g_game().getPlayerByID(resolvedOwnerId);
+		if (!source) {
+			return;
+		}
+	}
+
 	NetworkMessage msg;
-	player->wheel()->sendOpenWheelWindow(msg, ownerId);
+	// Deliver this character's (or companion's) wheel UI to the connected client.
+	source->wheel()->sendOpenWheelWindow(msg, resolvedOwnerId, getThis());
 	writeToOutputBuffer(msg);
 }
 

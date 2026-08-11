@@ -1597,8 +1597,10 @@ std::tuple<int, int> PlayerWheel::getGreaterGradeCost(uint8_t grade) const {
 	}
 }
 
-void PlayerWheel::sendOpenWheelWindow(NetworkMessage &msg, uint32_t ownerId) {
-	if (m_player.client && m_player.client->oldProtocol) {
+void PlayerWheel::sendOpenWheelWindow(NetworkMessage &msg, uint32_t ownerId, const std::shared_ptr<ProtocolGame> &toClient) {
+	// Deliver to another same-account client (e.g. account-squad companion) or the owner.
+	const auto &client = toClient ? toClient : m_player.client;
+	if (client && client->oldProtocol) {
 		return;
 	}
 
@@ -1611,7 +1613,9 @@ void PlayerWheel::sendOpenWheelWindow(NetworkMessage &msg, uint32_t ownerId) {
 	}
 
 	addInitialGems();
-	msg.addByte(getOptions(ownerId)); // Options
+	// Full edit for same-account remote open (toClient set, owner is this m_player).
+	const uint8_t options = (toClient && toClient != m_player.client) ? 1 : getOptions(ownerId);
+	msg.addByte(options); // Options
 	msg.addByte(m_player.getPlayerVocationEnum()); // Vocation id
 
 	msg.add<uint16_t>(getWheelPoints(false)); // Points (false param for not send extra points)
@@ -1631,16 +1635,20 @@ void PlayerWheel::sendOpenWheelWindow(NetworkMessage &msg, uint32_t ownerId) {
 		return;
 	}
 
+	if (!client) {
+		return;
+	}
+
 	const auto totalLesserFragment = m_player.getItemTypeCount(ITEM_LESSER_FRAGMENT) + m_player.getStashItemCount(ITEM_LESSER_FRAGMENT);
 	const auto totalGreaterFragment = m_player.getItemTypeCount(ITEM_GREATER_FRAGMENT) + m_player.getStashItemCount(ITEM_GREATER_FRAGMENT);
 
-	m_player.client->sendResourceBalance(RESOURCE_BANK, m_player.getBankBalance());
-	m_player.client->sendResourceBalance(RESOURCE_INVENTORY_MONEY, m_player.getMoney());
-	m_player.client->sendResourceBalance(RESOURCE_LESSER_GEMS, m_player.getItemTypeCount(voc->getWheelGemId(WheelGemQuality_t::Lesser)));
-	m_player.client->sendResourceBalance(RESOURCE_REGULAR_GEMS, m_player.getItemTypeCount(voc->getWheelGemId(WheelGemQuality_t::Regular)));
-	m_player.client->sendResourceBalance(RESOURCE_GREATER_GEMS, m_player.getItemTypeCount(voc->getWheelGemId(WheelGemQuality_t::Greater)));
-	m_player.client->sendResourceBalance(RESOURCE_LESSER_FRAGMENT, totalLesserFragment);
-	m_player.client->sendResourceBalance(RESOURCE_GREATER_FRAGMENT, totalGreaterFragment);
+	client->sendResourceBalance(RESOURCE_BANK, m_player.getBankBalance());
+	client->sendResourceBalance(RESOURCE_INVENTORY_MONEY, m_player.getMoney());
+	client->sendResourceBalance(RESOURCE_LESSER_GEMS, m_player.getItemTypeCount(voc->getWheelGemId(WheelGemQuality_t::Lesser)));
+	client->sendResourceBalance(RESOURCE_REGULAR_GEMS, m_player.getItemTypeCount(voc->getWheelGemId(WheelGemQuality_t::Regular)));
+	client->sendResourceBalance(RESOURCE_GREATER_GEMS, m_player.getItemTypeCount(voc->getWheelGemId(WheelGemQuality_t::Greater)));
+	client->sendResourceBalance(RESOURCE_LESSER_FRAGMENT, totalLesserFragment);
+	client->sendResourceBalance(RESOURCE_GREATER_FRAGMENT, totalGreaterFragment);
 }
 
 void PlayerWheel::sendGiftOfLifeCooldown() const {

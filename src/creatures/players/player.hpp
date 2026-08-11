@@ -661,6 +661,9 @@ public:
 		return lastLoginSaved;
 	}
 
+	/// Bump last-login timestamps (headless companions / scripts without ProtocolGame).
+	void stampLoginTimestamps();
+
 	time_t getLastLogout() const {
 		return lastLogout;
 	}
@@ -1187,6 +1190,15 @@ public:
 	void receivePing();
 
 	void sendOpenStash(bool isNpc = false) const;
+
+	// Same-account companion wheel edit (Account Squad)
+	void setWheelEditOwnerId(uint32_t ownerId) {
+		m_wheelEditOwnerId = ownerId;
+	}
+	uint32_t getWheelEditOwnerId() const {
+		return m_wheelEditOwnerId;
+	}
+	void sendOpenWheelWindow(uint32_t ownerId) const;
 
 	void sendBannerType(Banner_t bannerType) const;
 	void sendScreenshotAndBannerUnlockedAchievement(const uint16_t achievementId) const;
@@ -1900,6 +1912,7 @@ private:
 	uint32_t walkTaskEvent = 0;
 	uint32_t MessageBufferTicks = 0;
 	uint32_t lastIP = 0;
+	uint32_t m_wheelEditOwnerId = 0;
 	uint32_t guid = 0;
 	uint32_t loyaltyPoints = 0;
 	uint8_t isDailyReward = DAILY_REWARD_NOTCOLLECTED;

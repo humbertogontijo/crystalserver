@@ -28,6 +28,8 @@
 #include "game/scheduling/dispatcher.hpp"
 #include "io/io_bosstiary.hpp"
 #include "io/iobestiary.hpp"
+#include "io/iologindata.hpp"
+#include "io/functions/iologindata_load_player.hpp"
 #include "items/item.hpp"
 #include "lua/callbacks/event_callback.hpp"
 #include "lua/callbacks/events_callbacks.hpp"
@@ -94,6 +96,8 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "hasDistanceEffect", GameFunctions::luaGameHasDistanceEffect);
 	Lua::registerMethod(L, "Game", "hasEffect", GameFunctions::luaGameHasEffect);
 	Lua::registerMethod(L, "Game", "getOfflinePlayer", GameFunctions::luaGameGetOfflinePlayer);
+	Lua::registerMethod(L, "Game", "loginCompanion", GameFunctions::luaGameLoginCompanion);
+	Lua::registerMethod(L, "Game", "logoutCompanion", GameFunctions::luaGameLogoutCompanion);
 	Lua::registerMethod(L, "Game", "getNormalizedPlayerName", GameFunctions::luaGameGetNormalizedPlayerName);
 	Lua::registerMethod(L, "Game", "getNormalizedGuildName", GameFunctions::luaGameGetNormalizedGuildName);
 
@@ -860,6 +864,138 @@ int GameFunctions::luaGameGetOfflinePlayer(lua_State* L) {
 		Lua::setMetatable(L, -1, "Player");
 	}
 
+	return 1;
+}
+
+int GameFunctions::luaGameLoginCompanion(lua_State* L) {
+	// Game.loginCompanion(name or guid[, position])
+	// Places a headless Player (no ProtocolGame) online for account-squad control.
+	Position position;
+	const bool hasPosition = lua_gettop(L) >= 2 && !Lua::isNil(L, 2);
+	if (hasPosition) {
+		position = Lua::getPosition(L, 2);
+	}
+
+	std::shared_ptr<Player> existing = nullptr;
+	std::string name;
+	uint32_t guid = 0;
+	if (Lua::isNumber(L, 1)) {
+		guid = Lua::getNumber<uint32_t>(L, 1);
+		existing = g_game().getPlayerByGUID(guid, false);
+		if (!existing) {
+			name = IOLoginData::getNameByGuid(guid);
+		}
+	} else if (Lua::isString(L, 1)) {
+		name = Lua::getString(L, 1);
+		existing = g_game().getPlayerByName(name, false);
+	} else {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	if (existing) {
+		// protocolVersion > 0 implies a live ProtocolGame (headless companions report 0).
+		if (existing->getProtocolVersion() > 0) {
+			// Real client session — cannot steal for companion control.
+			lua_pushnil(L);
+			return 1;
+		}
+		// Already an online headless companion.
+		if (hasPosition) {
+			g_game().internalTeleport(existing, position, true);
+		}
+		Lua::pushUserdata<Player>(L, existing);
+		Lua::setMetatable(L, -1, "Player");
+		return 1;
+	}
+
+	if (name.empty() && guid == 0) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	auto player = std::make_shared<Player>(nullptr);
+	if (!name.empty()) {
+		player->setName(name);
+		player->setID();
+		if (!IOLoginDataLoad::preLoadPlayer(player, name)) {
+			g_logger().warn("[Game.loginCompanion] preLoad failed for '{}'", name);
+			lua_pushnil(L);
+			return 1;
+		}
+	} else {
+		player->setID();
+		if (!IOLoginData::loadPlayerById(player, guid, false)) {
+			g_logger().warn("[Game.loginCompanion] loadPlayerById failed for guid {}", guid);
+			lua_pushnil(L);
+			return 1;
+		}
+	}
+
+	if (name.empty()) {
+		name = player->getName();
+	}
+
+	if (!player->getGUID()) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	// Full inventory / skills load (preLoad only sets id/account).
+	if (!IOLoginData::loadPlayerById(player, player->getGUID(), false)) {
+		g_logger().warn("[Game.loginCompanion] full load failed for '{}'", name);
+		lua_pushnil(L);
+		return 1;
+	}
+
+	if (!hasPosition) {
+		position = player->getLoginPosition();
+	}
+
+	// Real client logins stamp lastLoginSaved after place (see ProtocolGame). Headless
+	// companions never did, so lastlogin stayed 0 in the DB and first-login scripts
+	// (SendFirstItems starter kits, etc.) re-ran on every expedition deploy — backpack
+	// overflow drops items on the controller's pre-expedition tile.
+	// Stamp *before* place so those scripts never fire for companion materialization.
+	player->stampLoginTimestamps();
+
+	// Forced place so companions can stack near the controller / temple.
+	if (!g_game().placeCreature(player, position, false, true) && !g_game().placeCreature(player, player->getTemplePosition(), false, true)) {
+		g_logger().warn("[Game.loginCompanion] could not place '{}'", name);
+		lua_pushnil(L);
+		return 1;
+	}
+
+	// Ensure think/AI ticks even with zero spectators momentarily.
+	g_game().addCreatureCheck(player);
+
+	player->setOnline(true);
+
+	g_logger().info("[Game.loginCompanion] '{}' online (headless companion)", player->getName());
+
+	Lua::pushUserdata<Player>(L, player);
+	Lua::setMetatable(L, -1, "Player");
+	return 1;
+}
+
+int GameFunctions::luaGameLogoutCompanion(lua_State* L) {
+	// Game.logoutCompanion(player) — save + remove offline without a client.
+	const auto &player = Lua::getPlayer(L, 1);
+	if (!player) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	if (player->getProtocolVersion() > 0) {
+		// Refuse logging out a real session via companion API.
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	g_logger().info("[Game.logoutCompanion] '{}'", player->getName());
+	// removePlayer → playerLogout event → removeCreature when client is null;
+	// onRemoveCreature saves the player and updates online status.
+	player->removePlayer(true, true);
+	Lua::pushBoolean(L, true);
 	return 1;
 }
 

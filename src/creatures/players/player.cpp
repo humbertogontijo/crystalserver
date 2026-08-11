@@ -168,6 +168,11 @@ void Player::setID() {
 	}
 }
 
+void Player::stampLoginTimestamps() {
+	lastLoad = OTSYS_TIME();
+	lastLoginSaved = std::max<time_t>(time(nullptr), lastLoginSaved + 1);
+}
+
 std::string Player::getDescription(int32_t lookDistance) {
 	std::ostringstream s;
 	std::string subjectPronoun = getSubjectPronoun();
@@ -1613,6 +1618,16 @@ std::shared_ptr<Container> Player::getManagedContainer(ObjectCategory_t category
 		category = OBJECTCATEGORY_DEFAULT;
 	}
 
+	// Unassigned loot is hard-locked to the gold/loot pouch when the player has one.
+	if (isLootContainer && category == OBJECTCATEGORY_DEFAULT) {
+		const auto &pouchItems = getInventoryItemsFromId(ITEM_GOLD_POUCH);
+		if (!pouchItems.empty() && pouchItems.front()) {
+			if (const auto &pouch = pouchItems.front()->getContainer()) {
+				return pouch;
+			}
+		}
+	}
+
 	const auto it = m_managedContainers.find(category);
 	std::shared_ptr<Container> container = nullptr;
 	if (it != m_managedContainers.end()) {
@@ -2277,6 +2292,13 @@ void Player::sendPing() {
 	// Idle combat / exercise training keep the attack target while disconnected.
 	if ((hasLostConnection || noPongTime >= 7000) && attackedCreature && attackedCreature->getPlayer() && !keepsDisconnectedCombat()) {
 		setAttackedCreature(nullptr);
+	}
+
+	// Headless companions (loginCompanion: no ProtocolGame, protocolVersion 0) never
+	// pong — do not kick them for "ping timeout" after 60s.
+	if (noPongTime >= 60000 && !client && getProtocolVersion() == 0) {
+		lastPong = timeNow;
+		return;
 	}
 
 	if (noPongTime >= 60000 && canLogout() && g_creatureEvents().playerLogout(static_self_cast<Player>())) {
@@ -8454,6 +8476,12 @@ void Player::receivePing() {
 void Player::sendOpenStash(bool isNpc) const {
 	if (client && ((getLastDepotId() != -1) || isNpc)) {
 		client->sendOpenStash();
+	}
+}
+
+void Player::sendOpenWheelWindow(uint32_t ownerId) const {
+	if (client) {
+		client->sendOpenWheelWindow(ownerId);
 	}
 }
 

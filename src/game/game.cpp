@@ -3525,7 +3525,9 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 
 std::shared_ptr<Container> Game::findManagedContainer(const std::shared_ptr<Player> &player, bool &fallbackConsumed, ObjectCategory_t category, bool isLootContainer) {
 	auto lootContainer = player->getManagedContainer(category, isLootContainer);
-	if (!lootContainer && player->quickLootFallbackToMainContainer && !fallbackConsumed) {
+	// Do not promote the main backpack to Unassigned when a loot pouch exists (Unassigned is hard-locked).
+	const bool hasLootPouch = isLootContainer && !player->getInventoryItemsFromId(ITEM_GOLD_POUCH).empty();
+	if (!lootContainer && player->quickLootFallbackToMainContainer && !fallbackConsumed && !hasLootPouch) {
 		auto fallbackItem = player->getInventoryItem(CONST_SLOT_BACKPACK);
 		auto mainBackpack = fallbackItem ? fallbackItem->getContainer() : nullptr;
 
@@ -6283,7 +6285,41 @@ void Game::playerLootAllCorpses(const std::shared_ptr<Player> &player, const Pos
 
 void Game::playerSetManagedContainer(uint32_t playerId, ObjectCategory_t category, const Position &pos, uint16_t itemId, uint8_t stackPos, bool isLootContainer) {
 	const auto &player = getPlayerByID(playerId);
-	if (!player || pos.x != 0xffff) {
+	if (!player) {
+		return;
+	}
+
+	// Unassigned (DEFAULT) loot container is hard-locked to the gold/loot pouch.
+	if (isLootContainer && category == OBJECTCATEGORY_DEFAULT) {
+		const auto &pouchItems = player->getInventoryItemsFromId(ITEM_GOLD_POUCH);
+		if (pouchItems.empty() || !pouchItems.front()) {
+			player->sendTextMessage(MESSAGE_FAILURE, "You need a loot pouch.");
+			return;
+		}
+		const auto &pouch = pouchItems.front()->getContainer();
+		if (!pouch) {
+			player->sendTextMessage(MESSAGE_FAILURE, "You need a loot pouch.");
+			return;
+		}
+
+		std::shared_ptr<Container> previousContainer = player->refreshManagedContainer(category, pouch, true);
+		player->sendLootContainers();
+
+		std::shared_ptr<Cylinder> parent = pouch->getParent();
+		if (parent) {
+			parent->updateThing(pouch, pouch->getID(), pouch->getItemCount());
+		}
+
+		if (previousContainer != nullptr && previousContainer != pouch) {
+			parent = previousContainer->getParent();
+			if (parent) {
+				parent->updateThing(previousContainer, previousContainer->getID(), previousContainer->getItemCount());
+			}
+		}
+		return;
+	}
+
+	if (pos.x != 0xffff) {
 		return;
 	}
 
@@ -6329,6 +6365,32 @@ void Game::playerSetManagedContainer(uint32_t playerId, ObjectCategory_t categor
 void Game::playerClearManagedContainer(uint32_t playerId, ObjectCategory_t category, bool isLootContainer) {
 	const auto &player = getPlayerByID(playerId);
 	if (!player) {
+		return;
+	}
+
+	// Unassigned loot container cannot be cleared — always rebind the loot pouch.
+	if (isLootContainer && category == OBJECTCATEGORY_DEFAULT) {
+		const auto &pouchItems = player->getInventoryItemsFromId(ITEM_GOLD_POUCH);
+		if (!pouchItems.empty() && pouchItems.front()) {
+			if (const auto &pouch = pouchItems.front()->getContainer()) {
+				std::shared_ptr<Container> previousContainer = player->refreshManagedContainer(category, pouch, true);
+				player->sendLootContainers();
+				std::shared_ptr<Cylinder> parent = pouch->getParent();
+				if (parent) {
+					parent->updateThing(pouch, pouch->getID(), pouch->getItemCount());
+				}
+				if (previousContainer != nullptr && previousContainer != pouch) {
+					parent = previousContainer->getParent();
+					if (parent) {
+						parent->updateThing(previousContainer, previousContainer->getID(), previousContainer->getItemCount());
+					}
+				}
+				player->sendTextMessage(MESSAGE_FAILURE, "Unassigned loot is fixed to your loot pouch.");
+				return;
+			}
+		}
+		player->sendTextMessage(MESSAGE_FAILURE, "Unassigned loot is fixed to your loot pouch.");
+		player->sendLootContainers();
 		return;
 	}
 
@@ -11457,14 +11519,44 @@ void Game::playerRequestInventoryImbuements(uint32_t playerId, bool isTrackerOpe
 	player->sendInventoryImbuements(itemsWithImbueSlotMap);
 }
 
+namespace {
+	std::shared_ptr<Player> resolveSameAccountWheelOwner(const std::shared_ptr<Player> &viewer, uint32_t ownerId) {
+		if (!viewer) {
+			return nullptr;
+		}
+		if (ownerId == 0 || ownerId == viewer->getID()) {
+			return viewer;
+		}
+		const auto &owner = g_game().getPlayerByID(ownerId);
+		if (!owner) {
+			return nullptr;
+		}
+		const auto viewerAccount = viewer->getAccountId();
+		const auto ownerAccount = owner->getAccountId();
+		if (viewerAccount == 0 || ownerAccount == 0 || viewerAccount != ownerAccount) {
+			return nullptr;
+		}
+		return owner;
+	}
+
+	void deliverOpenWheelToViewer(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &owner) {
+		if (!viewer || !owner) {
+			return;
+		}
+		viewer->setWheelEditOwnerId(owner->getID());
+		viewer->sendOpenWheelWindow(owner->getID());
+	}
+} // namespace
+
 void Game::playerOpenWheel(uint32_t playerId, uint32_t ownerId) {
 	const auto &player = getPlayerByID(playerId);
 	if (!player) {
 		return;
 	}
 
-	if (playerId != ownerId) {
-		g_logger().error("[{}] player {} is trying to open wheel of another player", __FUNCTION__, player->getName());
+	const auto &owner = resolveSameAccountWheelOwner(player, ownerId);
+	if (!owner) {
+		g_logger().error("[{}] player {} is trying to open wheel of another account or offline character ({})", __FUNCTION__, player->getName(), ownerId);
 		return;
 	}
 
@@ -11473,7 +11565,7 @@ void Game::playerOpenWheel(uint32_t playerId, uint32_t ownerId) {
 		return;
 	}
 
-	player->wheel()->sendOpenWheelWindow(ownerId);
+	deliverOpenWheelToViewer(player, owner);
 	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
 }
 
@@ -11488,8 +11580,24 @@ void Game::playerSaveWheel(uint32_t playerId, NetworkMessage &msg) {
 		return;
 	}
 
+	uint32_t editOwnerId = player->getID();
+	const auto tracked = player->getWheelEditOwnerId();
+	if (tracked != 0) {
+		editOwnerId = tracked;
+	}
+
+	const auto &owner = resolveSameAccountWheelOwner(player, editOwnerId);
+	if (!owner) {
+		g_logger().error("[{}] player {} save wheel denied for owner {}", __FUNCTION__, player->getName(), editOwnerId);
+		return;
+	}
+
 	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
-	player->wheel()->saveSlotPointsOnPressSaveButton(msg);
+	owner->wheel()->saveSlotPointsOnPressSaveButton(msg);
+	// Refresh UI on the editor (save may no-op send when owner is a headless companion).
+	if (owner.get() != player.get()) {
+		deliverOpenWheelToViewer(player, owner);
+	}
 }
 
 void Game::playerWheelGemAction(uint32_t playerId, NetworkMessage &msg) {
@@ -11503,30 +11611,46 @@ void Game::playerWheelGemAction(uint32_t playerId, NetworkMessage &msg) {
 		return;
 	}
 
+	uint32_t editOwnerId = player->getID();
+	const auto tracked = player->getWheelEditOwnerId();
+	if (tracked != 0) {
+		editOwnerId = tracked;
+	}
+
+	const auto &owner = resolveSameAccountWheelOwner(player, editOwnerId);
+	if (!owner) {
+		g_logger().error("[{}] player {} gem action denied for owner {}", __FUNCTION__, player->getName(), editOwnerId);
+		return;
+	}
+
 	const auto action = msg.getByte();
 	const auto param = msg.getByte();
 	uint8_t pos = 0;
 
 	switch (static_cast<WheelGemAction_t>(action)) {
 		case WheelGemAction_t::Destroy:
-			player->wheel()->destroyGem(param);
+			owner->wheel()->destroyGem(param);
 			break;
 		case WheelGemAction_t::Reveal:
-			player->wheel()->revealGem(static_cast<WheelGemQuality_t>(param));
+			owner->wheel()->revealGem(static_cast<WheelGemQuality_t>(param));
 			break;
 		case WheelGemAction_t::SwitchDomain:
-			player->wheel()->switchGemDomain(param);
+			owner->wheel()->switchGemDomain(param);
 			break;
 		case WheelGemAction_t::ToggleLock:
-			player->wheel()->toggleGemLock(param);
+			owner->wheel()->toggleGemLock(param);
 			break;
 		case WheelGemAction_t::ImproveGrade:
 			pos = msg.getByte();
-			player->wheel()->improveGemGrade(static_cast<WheelFragmentType_t>(param), pos);
+			owner->wheel()->improveGemGrade(static_cast<WheelFragmentType_t>(param), pos);
 			break;
 		default:
 			g_logger().error("[{}] player {} is trying to do invalid action {} on wheel", __FUNCTION__, player->getName(), action);
 			break;
+	}
+	if (owner.get() != player.get()) {
+		// Companion gem helpers may not refresh a headless client; resend to editor.
+		deliverOpenWheelToViewer(player, owner);
 	}
 	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
 }

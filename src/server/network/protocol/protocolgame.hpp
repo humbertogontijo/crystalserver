@@ -182,6 +182,8 @@ private:
 
 	void sendItemInspection(uint16_t itemId, uint8_t itemCount, const std::shared_ptr<Item> &item, uint8_t inspectionType);
 	void parseInspectionObject(NetworkMessage &msg);
+	void parseInspectPlayer(NetworkMessage &msg);
+	void sendPlayerInspection(const std::shared_ptr<Player> &target);
 
 	void parseFriendSystemAction(NetworkMessage &msg);
 
@@ -554,7 +556,7 @@ private:
 
 	void getForgeInfoMap(const std::shared_ptr<Item> &item, std::map<uint16_t, std::map<uint8_t, uint16_t>> &itemsMap) const;
 
-	// Wheel
+	// Wheel (m_wheelEditOwnerId tracks same-account companion being edited)
 	void parseOpenWheel(NetworkMessage &msg);
 	void sendOpenWheelWindow(uint32_t ownerId);
 	void parseSaveWheel(NetworkMessage &msg);

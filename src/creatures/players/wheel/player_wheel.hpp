@@ -25,6 +25,7 @@ class IOWheel;
 class KV;
 class NetworkMessage;
 class Player;
+class ProtocolGame;
 class Spell;
 class WheelModifierContext;
 class ValueWrapper;
@@ -128,7 +129,7 @@ public:
 	void addGems(NetworkMessage &msg) const;
 	void addGradeModifiers(NetworkMessage &msg) const;
 	void improveGemGrade(WheelFragmentType_t fragmentType, uint8_t pos);
-	void sendOpenWheelWindow(NetworkMessage &msg, uint32_t ownerId);
+	void sendOpenWheelWindow(NetworkMessage &msg, uint32_t ownerId, const std::shared_ptr<ProtocolGame> &toClient = nullptr);
 	void sendGiftOfLifeCooldown() const;
 
 	/*
