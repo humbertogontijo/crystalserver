@@ -170,42 +170,26 @@ public:
 				}
 				return static_cast<T>(value);
 			}
-			// Check if the type T is signed or unsigned
+			// Signed/unsigned by width — not only fixed-width typedefs.
+			// On LP64 (macOS), time_t is long while int64_t is long long; both need this path.
 			if constexpr (std::is_signed_v<T>) {
-				// Check if the type T is int8_t or int16_t
-				if constexpr (std::is_same_v<T, int8_t> || std::is_same_v<T, int16_t>) {
-					// Use std::stoi to convert string to int8_t
+				if constexpr (sizeof(T) <= 2) {
 					data = static_cast<T>(std::stoi(row[it->second]));
-				}
-				// Check if the type T is int32_t
-				else if constexpr (std::is_same_v<T, int32_t>) {
-					// Use std::stol to convert string to int32_t
+				} else if constexpr (sizeof(T) <= 4) {
 					data = static_cast<T>(std::stol(row[it->second]));
-				}
-				// Check if the type T is int64_t
-				else if constexpr (std::is_same_v<T, int64_t>) {
-					// Use std::stoll to convert string to int64_t
+				} else {
 					data = static_cast<T>(std::stoll(row[it->second]));
-				} else {
-					// Throws exception indicating that type T is invalid
-					g_logger().error("Invalid signed type T");
 				}
-			} else if (std::is_same<T, bool>::value) {
+			} else if constexpr (std::is_same_v<T, bool>) {
 				data = static_cast<T>(std::stoi(row[it->second]));
-			} else {
-				// Check if the type T is uint8_t or uint16_t or uint32_t
-				if constexpr (std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint32_t>) {
-					// Use std::stoul to convert string to uint8_t
+			} else if constexpr (std::is_unsigned_v<T>) {
+				if constexpr (sizeof(T) <= 4) {
 					data = static_cast<T>(std::stoul(row[it->second]));
-				}
-				// Check if the type T is uint64_t
-				else if constexpr (std::is_same_v<T, uint64_t>) {
-					// Use std::stoull to convert string to uint64_t
-					data = static_cast<T>(std::stoull(row[it->second]));
 				} else {
-					// Send log indicating that type T is invalid
-					g_logger().error("Column '{}' has an invalid unsigned T is invalid", s);
+					data = static_cast<T>(std::stoull(row[it->second]));
 				}
+			} else {
+				g_logger().error("Column '{}' has an unsupported getNumber type", s);
 			}
 		} catch (std::invalid_argument &e) {
 			// Value of string is invalid

@@ -685,7 +685,7 @@ CREATE TABLE IF NOT EXISTS `player_items` (
         PRIMARY KEY (`player_id`, `pid`, `sid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Table structure `player_home_items` (tibiajs personal home instance floor)
+-- Table structure `player_home_items` (personal home instance floor)
 CREATE TABLE IF NOT EXISTS `player_home_items` (
     `player_id` int(11) NOT NULL,
     `rel_x` tinyint(3) unsigned NOT NULL DEFAULT 0,

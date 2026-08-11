@@ -4969,7 +4969,7 @@ void Game::playerWrapableItem(uint32_t playerId, const Position &pos, uint8_t st
 		return;
 	}
 
-	// tibiajs personal-home instances use Zone("player-home-*") without HouseTiles.
+	// Personal-home instances use Zone("player-home-*") without HouseTiles.
 	bool inPlayerHome = false;
 	for (const auto &zone : Zone::getZones(item->getPosition())) {
 		if (zone && zone->getName().starts_with("player-home-")) {
