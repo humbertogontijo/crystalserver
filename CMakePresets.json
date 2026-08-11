@@ -77,6 +77,36 @@
       }
     },
     {
+      "name": "macos-release",
+      "inherits": "base",
+      "displayName": "macOS - Release",
+      "description": "macOS Release build (Apple Silicon and Intel)",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+          "type": "FILEPATH"
+        },
+        "OPTIONS_ENABLE_SCCACHE": "OFF",
+        "RUN_TESTS_AFTER_BUILD": "OFF"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "macos-debug",
+      "inherits": "macos-release",
+      "displayName": "macOS - Debug",
+      "description": "macOS Debug build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "DEBUG_LOG": "ON",
+        "SPEED_UP_BUILD_UNITY": "OFF"
+      }
+    },
+    {
       "name": "linux-debug",
       "inherits": "linux-release",
       "displayName": "Linux - Debug Build",
@@ -122,6 +152,14 @@
     {
       "name": "linux-test",
       "configurePreset": "linux-test"
+    },
+    {
+      "name": "macos-release",
+      "configurePreset": "macos-release"
+    },
+    {
+      "name": "macos-debug",
+      "configurePreset": "macos-debug"
     },
     {
       "name": "windows-release",
