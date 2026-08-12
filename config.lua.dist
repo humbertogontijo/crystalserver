@@ -87,8 +87,8 @@ serverMotd = "Welcome to the Crystal Server!"
 statusTimeout = 5 * 1000
 replaceKickOnLogin = true
 maxPacketsPerSecond = 25
-maxPlayersOnlinePerAccount = 4
-maxPlayersOutsidePZPerAccount = 4
+maxPlayersOnlinePerAccount = 1
+maxPlayersOutsidePZPerAccount = 1
 toggleMaxConnectionsByIP = false
 maxIPConnections = 3
 
@@ -728,7 +728,7 @@ metricsOstreamInterval = 1000
 -- NOTE: Features added in this list will be forced to be used on OTCR
 -- These features can be found in "modules/gamelib/const.lua"
 OTCRFeatures = {
-    enableFeature = {
+    enableFeature = { 
         101, -- g_game.enableFeature(GameItemShader)
         102, -- g_game.enableFeature(GameCreatureAttachedEffect)
         103, -- g_game.enableFeature(GameCreatureShader)
