@@ -364,6 +364,7 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "getInstantSpells", PlayerFunctions::luaPlayerGetInstantSpells);
 	Lua::registerMethod(L, "Player", "canCast", PlayerFunctions::luaPlayerCanCast);
 	Lua::registerMethod(L, "Player", "castSpell", PlayerFunctions::luaPlayerCastSpell);
+	Lua::registerMethod(L, "Player", "castRune", PlayerFunctions::luaPlayerCastRune);
 
 	Lua::registerMethod(L, "Player", "hasChaseMode", PlayerFunctions::luaPlayerHasChaseMode);
 	Lua::registerMethod(L, "Player", "hasSecureMode", PlayerFunctions::luaPlayerHasSecureMode);
@@ -4108,7 +4109,8 @@ int PlayerFunctions::luaPlayerCanCast(lua_State* L) {
 }
 
 int PlayerFunctions::luaPlayerCastSpell(lua_State* L) {
-	// player:castSpell(words) — casts an instant spell by words (mana/voc/cooldown checks apply).
+	// player:castSpell(words[, param]) — casts an instant spell by words (mana/voc/cooldown checks apply).
+	// Optional param is required for hasPlayerNameParam spells (e.g. exura sio "Name").
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (!player) {
 		lua_pushnil(L);
@@ -4129,7 +4131,56 @@ int PlayerFunctions::luaPlayerCastSpell(lua_State* L) {
 	}
 
 	std::string param;
+	if (lua_gettop(L) >= 3 && !Lua::isNil(L, 3)) {
+		param = Lua::getString(L, 3);
+	}
 	Lua::pushBoolean(L, instantSpell->playerCastInstant(player, param));
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerCastRune(lua_State* L) {
+	// player:castRune(runeItemId[, target])
+	// Runs the registered rune script on the target (real Combat area/effects/cooldowns).
+	// Does not consume an inventory rune — callers charge supplies separately.
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	const auto runeItemId = Lua::getNumber<uint16_t>(L, 2, 0);
+	if (runeItemId == 0) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const auto &rune = g_spells().getRuneSpell(runeItemId);
+	if (!rune) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	std::shared_ptr<Creature> targetCreature;
+	if (lua_gettop(L) >= 3 && !Lua::isNil(L, 3)) {
+		targetCreature = Lua::getCreature(L, 3);
+	} else {
+		targetCreature = player->getAttackedCreature();
+	}
+	if (!targetCreature || targetCreature->isRemoved() || targetCreature->getHealth() <= 0) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const auto item = Item::CreateItem(rune->getRuneItemId(), 1);
+	if (!item) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const Position &fromPos = player->getPosition();
+	const Position &toPos = targetCreature->getPosition();
+	// Unbound item: charge decrement in executeUse no-ops (no parent cylinder).
+	Lua::pushBoolean(L, rune->executeUse(player, item, fromPos, targetCreature, toPos, false));
 	return 1;
 }
 

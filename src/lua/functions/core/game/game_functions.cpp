@@ -952,19 +952,19 @@ int GameFunctions::luaGameLoginCompanion(lua_State* L) {
 		position = player->getLoginPosition();
 	}
 
-	// Real client logins stamp lastLoginSaved after place (see ProtocolGame). Headless
-	// companions never did, so lastlogin stayed 0 in the DB and first-login scripts
-	// (SendFirstItems starter kits, etc.) re-ran on every expedition deploy — backpack
-	// overflow drops items on the controller's pre-expedition tile.
-	// Stamp *before* place so those scripts never fire for companion materialization.
-	player->stampLoginTimestamps();
-
 	// Forced place so companions can stack near the controller / temple.
+	// onPlacedCreature → playerLogin (SendFirstItems, product onLogin, …) must see the
+	// DB lastLoginSaved — same order as ProtocolGame. Stamping *before* place permanently
+	// skipped first-login kits for companions that never had a real client session.
 	if (!g_game().placeCreature(player, position, false, true) && !g_game().placeCreature(player, player->getTemplePosition(), false, true)) {
 		g_logger().warn("[Game.loginCompanion] could not place '{}'", name);
 		lua_pushnil(L);
 		return 1;
 	}
+
+	// Stamp after place so subsequent companion deploys load lastlogin != 0 and do not
+	// re-run first-login scripts (previously lastlogin stayed 0 forever → backpack overflow).
+	player->stampLoginTimestamps();
 
 	// Ensure think/AI ticks even with zero spectators momentarily.
 	g_game().addCreatureCheck(player);

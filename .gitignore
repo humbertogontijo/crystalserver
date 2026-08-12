@@ -396,3 +396,16 @@ database_backup
 # CLION
 cmake-build-*
 /data/logs
+
+# Product overlay islands (monorepo `data/product` → linked under */custom/).
+# Prefer the monorepo runtime cwd `data/crystalserver/data-global/`; these
+# patterns keep the submodule clean if a local datapack is present.
+/data-global/lib/custom
+/data-global/scripts/custom/combat_automation/
+/data-global/scripts/custom/expeditions/
+/data-global/scripts/custom/player_home/
+/data-global/scripts/custom/remote_hireling/
+/data-global/scripts/custom/autoloot/
+/data-global/scripts/custom/squad/
+/data-global/scripts/custom/promotion/
+/data-global/npc/custom/

@@ -977,7 +977,9 @@ bool Monster::isTarget(const std::shared_ptr<Creature> &creature) {
 	}
 
 	if (!isSummon()) {
-		if (creature->getPlayer() && creature->getPlayer()->isDisconnected()) {
+		// Disconnected players are invalid targets unless idle combat / exercise keeps them in fight.
+		const auto &targetPlayer = creature->getPlayer();
+		if (targetPlayer && targetPlayer->isDisconnected() && !targetPlayer->keepsDisconnectedCombat()) {
 			return false;
 		}
 
@@ -1170,7 +1172,8 @@ void Monster::onThink(uint32_t interval) {
 			setFollowCreature(master);
 		}
 	} else if (!targetList.empty()) {
-		const bool attackedCreatureIsDisconnected = attackedCreature && attackedCreature->getPlayer() && attackedCreature->getPlayer()->isDisconnected();
+		const auto &attackedPlayer = attackedCreature ? attackedCreature->getPlayer() : nullptr;
+		const bool attackedCreatureIsDisconnected = attackedPlayer && attackedPlayer->isDisconnected() && !attackedPlayer->keepsDisconnectedCombat();
 		const bool attackedCreatureIsUnattackable = attackedCreature && !canUseAttack(getPosition(), attackedCreature);
 		const bool attackedCreatureIsUnreachable = targetDistance <= 1 && attackedCreature && followCreature && !hasFollowPath;
 		if (!attackedCreature || attackedCreatureIsDisconnected || attackedCreatureIsUnattackable || attackedCreatureIsUnreachable) {
