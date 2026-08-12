@@ -29,7 +29,6 @@
 #include "io/io_bosstiary.hpp"
 #include "io/iobestiary.hpp"
 #include "io/iologindata.hpp"
-#include "io/functions/iologindata_load_player.hpp"
 #include "items/item.hpp"
 #include "lua/callbacks/event_callback.hpp"
 #include "lua/callbacks/events_callbacks.hpp"
@@ -915,35 +914,18 @@ int GameFunctions::luaGameLoginCompanion(lua_State* L) {
 	}
 
 	auto player = std::make_shared<Player>(nullptr);
-	if (!name.empty()) {
-		player->setName(name);
-		player->setID();
-		if (!IOLoginDataLoad::preLoadPlayer(player, name)) {
-			g_logger().warn("[Game.loginCompanion] preLoad failed for '{}'", name);
-			lua_pushnil(L);
-			return 1;
-		}
-	} else {
-		player->setID();
-		if (!IOLoginData::loadPlayerById(player, guid, false)) {
-			g_logger().warn("[Game.loginCompanion] loadPlayerById failed for guid {}", guid);
-			lua_pushnil(L);
-			return 1;
-		}
-	}
-
-	if (name.empty()) {
-		name = player->getName();
-	}
-
-	if (!player->getGUID()) {
+	player->setID();
+	const bool loaded = guid != 0
+		? IOLoginData::loadPlayerById(player, guid, false)
+		: IOLoginData::loadPlayerByName(player, name, false);
+	if (!loaded) {
+		g_logger().warn("[Game.loginCompanion] load failed for '{}'/guid {}", name, guid);
 		lua_pushnil(L);
 		return 1;
 	}
 
-	// Full inventory / skills load (preLoad only sets id/account).
-	if (!IOLoginData::loadPlayerById(player, player->getGUID(), false)) {
-		g_logger().warn("[Game.loginCompanion] full load failed for '{}'", name);
+	name = player->getName();
+	if (!player->getGUID()) {
 		lua_pushnil(L);
 		return 1;
 	}

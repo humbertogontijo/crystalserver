@@ -1620,11 +1620,8 @@ std::shared_ptr<Container> Player::getManagedContainer(ObjectCategory_t category
 
 	// Unassigned loot is hard-locked to the gold/loot pouch when the player has one.
 	if (isLootContainer && category == OBJECTCATEGORY_DEFAULT) {
-		const auto &pouchItems = getInventoryItemsFromId(ITEM_GOLD_POUCH);
-		if (!pouchItems.empty() && pouchItems.front()) {
-			if (const auto &pouch = pouchItems.front()->getContainer()) {
-				return pouch;
-			}
+		if (const auto &pouch = getInventoryGoldPouch()) {
+			return pouch;
 		}
 	}
 
@@ -12119,6 +12116,14 @@ void Player::sendLootMessage(const std::string &message) const {
 	}
 }
 
+std::shared_ptr<Container> Player::getInventoryGoldPouch() const {
+	const auto &inventoryItems = getInventoryItemsFromId(ITEM_GOLD_POUCH);
+	if (inventoryItems.empty() || !inventoryItems.front()) {
+		return nullptr;
+	}
+	return inventoryItems.front()->getContainer();
+}
+
 std::shared_ptr<Container> Player::getLootPouch() {
 	// Allow players with CM access or higher have the loot pouch anywhere
 	const auto &parentItem = getParent() ? getParent()->getItem() : nullptr;
@@ -12126,20 +12131,7 @@ std::shared_ptr<Container> Player::getLootPouch() {
 		return nullptr;
 	}
 
-	const auto &inventoryItems = getInventoryItemsFromId(ITEM_GOLD_POUCH);
-	if (inventoryItems.empty()) {
-		return nullptr;
-	}
-	const auto &containerItem = inventoryItems.front();
-	if (!containerItem) {
-		return nullptr;
-	}
-	const auto &container = containerItem->getContainer();
-	if (!container) {
-		return nullptr;
-	}
-
-	return container;
+	return getInventoryGoldPouch();
 }
 
 std::shared_ptr<Container> Player::getStoreInbox() const {

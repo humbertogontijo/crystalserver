@@ -3523,10 +3523,36 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 	player->lastQuickLootNotification = OTSYS_TIME();
 }
 
+namespace {
+/**
+ * Rebind Unassigned (DEFAULT) loot to the inventory gold/loot pouch and refresh clients.
+ * @return true when a pouch was found and bound.
+ */
+bool bindUnassignedLootToPouch(const std::shared_ptr<Player> &player) {
+	const auto &pouch = player->getInventoryGoldPouch();
+	if (!pouch) {
+		return false;
+	}
+
+	const auto previousContainer = player->refreshManagedContainer(OBJECTCATEGORY_DEFAULT, pouch, true);
+	player->sendLootContainers();
+
+	if (const auto &parent = pouch->getParent()) {
+		parent->updateThing(pouch, pouch->getID(), pouch->getItemCount());
+	}
+	if (previousContainer && previousContainer != pouch) {
+		if (const auto &parent = previousContainer->getParent()) {
+			parent->updateThing(previousContainer, previousContainer->getID(), previousContainer->getItemCount());
+		}
+	}
+	return true;
+}
+} // namespace
+
 std::shared_ptr<Container> Game::findManagedContainer(const std::shared_ptr<Player> &player, bool &fallbackConsumed, ObjectCategory_t category, bool isLootContainer) {
 	auto lootContainer = player->getManagedContainer(category, isLootContainer);
 	// Do not promote the main backpack to Unassigned when a loot pouch exists (Unassigned is hard-locked).
-	const bool hasLootPouch = isLootContainer && !player->getInventoryItemsFromId(ITEM_GOLD_POUCH).empty();
+	const bool hasLootPouch = isLootContainer && static_cast<bool>(player->getInventoryGoldPouch());
 	if (!lootContainer && player->quickLootFallbackToMainContainer && !fallbackConsumed && !hasLootPouch) {
 		auto fallbackItem = player->getInventoryItem(CONST_SLOT_BACKPACK);
 		auto mainBackpack = fallbackItem ? fallbackItem->getContainer() : nullptr;
@@ -6291,30 +6317,8 @@ void Game::playerSetManagedContainer(uint32_t playerId, ObjectCategory_t categor
 
 	// Unassigned (DEFAULT) loot container is hard-locked to the gold/loot pouch.
 	if (isLootContainer && category == OBJECTCATEGORY_DEFAULT) {
-		const auto &pouchItems = player->getInventoryItemsFromId(ITEM_GOLD_POUCH);
-		if (pouchItems.empty() || !pouchItems.front()) {
+		if (!bindUnassignedLootToPouch(player)) {
 			player->sendTextMessage(MESSAGE_FAILURE, "You need a loot pouch.");
-			return;
-		}
-		const auto &pouch = pouchItems.front()->getContainer();
-		if (!pouch) {
-			player->sendTextMessage(MESSAGE_FAILURE, "You need a loot pouch.");
-			return;
-		}
-
-		std::shared_ptr<Container> previousContainer = player->refreshManagedContainer(category, pouch, true);
-		player->sendLootContainers();
-
-		std::shared_ptr<Cylinder> parent = pouch->getParent();
-		if (parent) {
-			parent->updateThing(pouch, pouch->getID(), pouch->getItemCount());
-		}
-
-		if (previousContainer != nullptr && previousContainer != pouch) {
-			parent = previousContainer->getParent();
-			if (parent) {
-				parent->updateThing(previousContainer, previousContainer->getID(), previousContainer->getItemCount());
-			}
 		}
 		return;
 	}
@@ -6370,27 +6374,10 @@ void Game::playerClearManagedContainer(uint32_t playerId, ObjectCategory_t categ
 
 	// Unassigned loot container cannot be cleared — always rebind the loot pouch.
 	if (isLootContainer && category == OBJECTCATEGORY_DEFAULT) {
-		const auto &pouchItems = player->getInventoryItemsFromId(ITEM_GOLD_POUCH);
-		if (!pouchItems.empty() && pouchItems.front()) {
-			if (const auto &pouch = pouchItems.front()->getContainer()) {
-				std::shared_ptr<Container> previousContainer = player->refreshManagedContainer(category, pouch, true);
-				player->sendLootContainers();
-				std::shared_ptr<Cylinder> parent = pouch->getParent();
-				if (parent) {
-					parent->updateThing(pouch, pouch->getID(), pouch->getItemCount());
-				}
-				if (previousContainer != nullptr && previousContainer != pouch) {
-					parent = previousContainer->getParent();
-					if (parent) {
-						parent->updateThing(previousContainer, previousContainer->getID(), previousContainer->getItemCount());
-					}
-				}
-				player->sendTextMessage(MESSAGE_FAILURE, "Unassigned loot is fixed to your loot pouch.");
-				return;
-			}
+		if (!bindUnassignedLootToPouch(player)) {
+			player->sendLootContainers();
 		}
 		player->sendTextMessage(MESSAGE_FAILURE, "Unassigned loot is fixed to your loot pouch.");
-		player->sendLootContainers();
 		return;
 	}
 

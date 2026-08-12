@@ -1624,6 +1624,8 @@ public:
 	void sendLootMessage(const std::string &message) const;
 
 	std::shared_ptr<Container> getLootPouch();
+	/** Inventory gold/loot pouch container (no store-inbox / CM placement rules). */
+	std::shared_ptr<Container> getInventoryGoldPouch() const;
 
 	bool hasPermittedConditionInPZ() const;
 
