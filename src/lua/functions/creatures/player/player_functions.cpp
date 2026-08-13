@@ -146,6 +146,7 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "setTraining", PlayerFunctions::luaPlayerSetTraining);
 	Lua::registerMethod(L, "Player", "isIdleCombat", PlayerFunctions::luaPlayerGetIsIdleCombat);
 	Lua::registerMethod(L, "Player", "setIdleCombat", PlayerFunctions::luaPlayerSetIdleCombat);
+	Lua::registerMethod(L, "Player", "hasVip", PlayerFunctions::luaPlayerHasVip);
 
 	Lua::registerMethod(L, "Player", "getFreeCapacity", PlayerFunctions::luaPlayerGetFreeCapacity);
 
@@ -1423,6 +1424,31 @@ int PlayerFunctions::luaPlayerGetIsIdleCombat(lua_State* L) {
 	}
 
 	Lua::pushBoolean(L, player->isIdleCombat());
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerHasVip(lua_State* L) {
+	// player:hasVip(guidOrName) — true if guid/name is on this player's VIP (friend) list.
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player || !player->vip()) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	uint32_t guid = 0;
+	if (Lua::isNumber(L, 2)) {
+		guid = Lua::getNumber<uint32_t>(L, 2);
+	} else if (Lua::isString(L, 2)) {
+		const std::string name = Lua::getString(L, 2);
+		const auto &online = g_game().getPlayerByName(name);
+		if (online) {
+			guid = online->getGUID();
+		} else {
+			guid = IOLoginData::getGuidByName(name);
+		}
+	}
+
+	Lua::pushBoolean(L, guid != 0 && player->vip()->exists(guid));
 	return 1;
 }
 
