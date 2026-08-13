@@ -374,9 +374,41 @@ bool IOLoginData::formatPlayerName(std::string &name) {
 }
 
 void IOLoginData::increaseBankBalance(uint32_t guid, uint64_t bankBalance) {
-	std::ostringstream query;
-	query << "UPDATE `players` SET `balance` = `balance` + " << bankBalance << " WHERE `id` = " << guid;
-	Database::getInstance().executeQuery(query.str());
+	Database &db = Database::getInstance();
+	DBResult_ptr result = db.storeQuery(fmt::format("SELECT `account_id` FROM `players` WHERE `id` = {}", guid));
+	if (!result) {
+		g_logger().error("[{}] - Player id {} not found", __FUNCTION__, guid);
+		return;
+	}
+
+	const auto accountId = result->getNumber<uint32_t>("account_id");
+	if (accountId == 0) {
+		g_logger().error("[{}] - Player id {} has no account", __FUNCTION__, guid);
+		return;
+	}
+
+	if (!db.executeQuery(fmt::format(
+			"UPDATE `accounts` SET `balance` = `balance` + {} WHERE `id` = {}",
+			bankBalance,
+			accountId
+		))) {
+		g_logger().error("[{}] - Failed to credit account {} bank balance", __FUNCTION__, accountId);
+		return;
+	}
+
+	result = db.storeQuery(fmt::format("SELECT `balance` FROM `accounts` WHERE `id` = {}", accountId));
+	if (!result) {
+		return;
+	}
+
+	const auto newBalance = result->getNumber<uint64_t>("balance");
+	for (const auto &[_, player] : g_game().getPlayers()) {
+		if (player && player->getAccountId() == accountId) {
+			player->setBankBalance(newBalance);
+			player->sendResourceBalance(RESOURCE_BANK, newBalance);
+			break; // setBankBalance syncs the rest of the account
+		}
+	}
 }
 
 std::vector<VIPEntry> IOLoginData::getVIPEntries(uint32_t accountId) {

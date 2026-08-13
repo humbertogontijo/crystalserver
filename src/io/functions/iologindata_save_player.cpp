@@ -303,7 +303,8 @@ bool IOLoginDataSave::savePlayerFirst(const std::shared_ptr<Player> &player) {
 	}
 
 	query << "`lastlogout` = " << player->getLastLogout() << ",";
-	query << "`balance` = " << player->bankBalance << ",";
+	// Character balance is non-authoritative; account balance is the shared bank.
+	query << "`balance` = 0,";
 	query << "`offlinetraining_time` = " << player->getOfflineTrainingTime() / 1000 << ",";
 	query << "`offlinetraining_skill` = " << std::to_string(player->getOfflineTrainingSkill()) << ",";
 	query << "`stamina` = " << player->getStaminaMinutes() << ",";
@@ -373,6 +374,18 @@ bool IOLoginDataSave::savePlayerFirst(const std::shared_ptr<Player> &player) {
 
 	if (!db.executeQuery(query.str())) {
 		return false;
+	}
+
+	const auto accountId = player->getAccountId();
+	if (accountId != 0) {
+		if (!db.executeQuery(fmt::format(
+				"UPDATE `accounts` SET `balance` = {} WHERE `id` = {}",
+				player->bankBalance,
+				accountId
+			))) {
+			g_logger().error("[IOLoginData::savePlayer] - Failed to save account bank balance for player {}", player->getName());
+			return false;
+		}
 	}
 
 	if (advanceLastLoginSaved) {

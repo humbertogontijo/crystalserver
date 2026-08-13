@@ -3089,6 +3089,16 @@ bool Game::removeMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money
 		return aUnitWorth < bUnitWorth;
 	});
 
+	// Keep OTC Cap/Gold (resource balance) in sync after Lua/C++ removeMoney —
+	// inventory item deletes alone do not refresh RESOURCE_INVENTORY_MONEY / BANK.
+	auto syncPlayerMoneyResources = [&player]() {
+		if (!player) {
+			return;
+		}
+		player->sendResourceBalance(RESOURCE_BANK, player->getBankBalance());
+		player->sendResourceBalance(RESOURCE_INVENTORY_MONEY, player->getMoney());
+	};
+
 	for (const auto &entry : moneyItems) {
 		const uint32_t worthTotal = entry.first;
 		const std::shared_ptr<Item> &item = entry.second;
@@ -3096,6 +3106,7 @@ bool Game::removeMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money
 			internalRemoveItem(item);
 			money -= worthTotal;
 			if (money == 0) {
+				syncPlayerMoneyResources();
 				return true;
 			}
 		} else if (worthTotal > money) {
@@ -3103,9 +3114,11 @@ bool Game::removeMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money
 			const uint32_t removeCount = std::ceil(money / static_cast<double>(unitWorth));
 			addMoney(cylinder, (unitWorth * removeCount) - money, flags);
 			internalRemoveItem(item, removeCount);
+			syncPlayerMoneyResources();
 			return true;
 		} else {
 			internalRemoveItem(item);
+			syncPlayerMoneyResources();
 			return true;
 		}
 	}
@@ -3115,6 +3128,7 @@ bool Game::removeMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money
 		player->setBankBalance(player->getBankBalance() - money);
 	}
 
+	syncPlayerMoneyResources();
 	return true;
 }
 
@@ -6423,6 +6437,44 @@ void Game::playerQuickLootBlackWhitelist(uint32_t playerId, QuickLootFilter_t fi
 
 	player->quickLootFilter = filter;
 	player->quickLootListItemIds = itemIds;
+
+	// Account-shared filter: keep online alts / headless squad companions in sync.
+	const auto accountId = player->getAccountId();
+	if (accountId == 0) {
+		return;
+	}
+
+	for (const auto &[_, other] : getPlayers()) {
+		if (!other || other.get() == player.get() || other->getAccountId() != accountId) {
+			continue;
+		}
+		other->quickLootFilter = filter;
+		other->quickLootListItemIds = itemIds;
+	}
+}
+
+void Game::inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player) {
+	if (!player) {
+		return;
+	}
+
+	const auto accountId = player->getAccountId();
+	if (accountId == 0) {
+		return;
+	}
+
+	for (const auto &[_, other] : getPlayers()) {
+		if (!other || other.get() == player.get() || other->getAccountId() != accountId) {
+			continue;
+		}
+		// Prefer a real client session (companions report protocolVersion 0).
+		if (other->getProtocolVersion() == 0) {
+			continue;
+		}
+		player->quickLootFilter = other->quickLootFilter;
+		player->quickLootListItemIds = other->quickLootListItemIds;
+		return;
+	}
 }
 
 /*******************************************************************************

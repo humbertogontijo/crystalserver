@@ -903,6 +903,7 @@ int GameFunctions::luaGameLoginCompanion(lua_State* L) {
 		if (hasPosition) {
 			g_game().internalTeleport(existing, position, true);
 		}
+		g_game().inheritAccountQuickLootFilter(existing);
 		Lua::pushUserdata<Player>(L, existing);
 		Lua::setMetatable(L, -1, "Player");
 		return 1;
@@ -952,6 +953,8 @@ int GameFunctions::luaGameLoginCompanion(lua_State* L) {
 	g_game().addCreatureCheck(player);
 
 	player->setOnline(true);
+
+	g_game().inheritAccountQuickLootFilter(player);
 
 	g_logger().info("[Game.loginCompanion] '{}' online (headless companion)", player->getName());
 

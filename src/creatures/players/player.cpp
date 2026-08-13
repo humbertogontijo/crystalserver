@@ -349,16 +349,23 @@ bool Player::hasWeaponDistanceEquipped() const {
 }
 
 std::shared_ptr<Item> Player::getQuiverAmmoOfType(const ItemType &it) const {
-	if (!hasQuiverEquipped()) {
-		return nullptr;
+	// Prefer the classic ammo slot so combat-automation can pin a specific ammo typeId
+	// (quiver iteration would otherwise return the first matching arrow/bolt kind).
+	const auto &ammoSlot = inventory[CONST_SLOT_AMMO];
+	if (ammoSlot && ammoSlot->getAmmoType() == it.ammoType) {
+		if (level >= Item::items[ammoSlot->getID()].minReqLevel) {
+			return ammoSlot;
+		}
 	}
 
-	const auto &quiver = inventory[CONST_SLOT_RIGHT];
-	for (const auto &container = quiver->getContainer();
-	     const auto &ammoItem : container->getItemList()) {
-		if (ammoItem->getAmmoType() == it.ammoType) {
-			if (level >= Item::items[ammoItem->getID()].minReqLevel) {
-				return ammoItem;
+	if (hasQuiverEquipped()) {
+		const auto &quiver = inventory[CONST_SLOT_RIGHT];
+		for (const auto &container = quiver->getContainer();
+		     const auto &ammoItem : container->getItemList()) {
+			if (ammoItem->getAmmoType() == it.ammoType) {
+				if (level >= Item::items[ammoItem->getID()].minReqLevel) {
+					return ammoItem;
+				}
 			}
 		}
 	}
@@ -8224,7 +8231,28 @@ uint64_t Player::getBankBalance() const {
 }
 
 void Player::setBankBalance(uint64_t balance) {
+	if (bankBalance == balance) {
+		return;
+	}
+
 	bankBalance = balance;
+
+	// Account-shared bank (per world/DB): keep online alts in sync.
+	const auto accountId = getAccountId();
+	if (accountId == 0) {
+		return;
+	}
+
+	for (const auto &[_, other] : g_game().getPlayers()) {
+		if (!other || other.get() == this || other->getAccountId() != accountId) {
+			continue;
+		}
+		if (other->bankBalance == balance) {
+			continue;
+		}
+		other->bankBalance = balance;
+		other->sendResourceBalance(RESOURCE_BANK, balance);
+	}
 }
 
 std::shared_ptr<Town> Player::getTown() const {

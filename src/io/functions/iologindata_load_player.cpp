@@ -160,7 +160,30 @@ bool IOLoginDataLoad::loadPlayerBasicInfo(const std::shared_ptr<Player> &player,
 		return false;
 	}
 
-	player->setBankBalance(result->getNumber<uint64_t>("balance"));
+	// Bank gold is account-scoped (per world/DB). Prefer an online alt's
+	// in-memory balance so unsaved deposits are not overwritten on login.
+	uint64_t accountBankBalance = 0;
+	bool foundOnlineAccountBank = false;
+	const auto accountId = player->getAccountId();
+	if (accountId != 0) {
+		for (const auto &[_, other] : g_game().getPlayers()) {
+			if (!other || other.get() == player.get() || other->getAccountId() != accountId) {
+				continue;
+			}
+			accountBankBalance = other->getBankBalance();
+			foundOnlineAccountBank = true;
+			break;
+		}
+		if (!foundOnlineAccountBank) {
+			const auto bankResult = Database::getInstance().storeQuery(
+				fmt::format("SELECT `balance` FROM `accounts` WHERE `id` = {}", accountId)
+			);
+			if (bankResult) {
+				accountBankBalance = bankResult->getNumber<uint64_t>("balance");
+			}
+		}
+	}
+	player->bankBalance = accountBankBalance;
 	player->quickLootFallbackToMainContainer = result->getNumber<bool>("quickloot_fallback");
 	player->setSex(static_cast<PlayerSex_t>(result->getNumber<uint16_t>("sex")));
 	player->setPronoun(static_cast<PlayerPronoun_t>(result->getNumber<uint16_t>("pronoun")));

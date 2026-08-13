@@ -441,6 +441,8 @@ public:
 	void playerOpenManagedContainer(uint32_t playerId, ObjectCategory_t category, bool isLootContainer);
 	void playerSetQuickLootFallback(uint32_t playerId, bool fallback);
 	void playerQuickLootBlackWhitelist(uint32_t playerId, QuickLootFilter_t filter, const std::vector<uint16_t> &itemIds);
+	/** Copy account-shared quick loot filter onto `player` from an online real client on the same account. */
+	void inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player);
 
 	// Auto loot
 	void schedulePlayerQuickLoot(const std::shared_ptr<Player> &player, const Position &pos, uint16_t itemId, uint8_t stackPos, const std::shared_ptr<Item> &defaultItem, bool lootAllCorpses, bool autoLoot);
