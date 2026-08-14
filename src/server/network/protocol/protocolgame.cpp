@@ -2359,21 +2359,25 @@ void ProtocolGame::parseInspectPlayer(NetworkMessage &msg) {
 	}
 
 	// OTClient: sendInspectCharacter(tab, creatureId). Tab values 1–5 carry a creature id.
+	// Friends/Social search may pass a database GUID when the target is offline.
 	const uint8_t inspectionState = msg.getByte();
-	uint32_t creatureId = 0;
+	uint32_t id = 0;
 	if (inspectionState >= 1 && inspectionState <= 5) {
-		creatureId = msg.get<uint32_t>();
+		id = msg.get<uint32_t>();
 	}
-	if (creatureId == 0) {
+	if (id == 0) {
 		return;
 	}
 
-	const auto &creature = g_game().getCreatureByID(creatureId);
-	if (!creature || !canSee(creature)) {
-		return;
+	std::shared_ptr<Player> targetPlayer = nullptr;
+	const auto &creature = g_game().getCreatureByID(id);
+	if (creature) {
+		targetPlayer = creature->getPlayer();
 	}
-
-	const auto &targetPlayer = creature->getPlayer();
+	if (!targetPlayer) {
+		// Offline / not in viewport: resolve by player GUID.
+		targetPlayer = g_game().getPlayerByGUID(id, true);
+	}
 	if (!targetPlayer) {
 		return;
 	}
