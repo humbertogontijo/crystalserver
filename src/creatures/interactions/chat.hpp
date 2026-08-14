@@ -81,6 +81,7 @@ public:
 	bool isInvited(uint32_t guid) const;
 
 	void invitePlayer(const std::shared_ptr<Player> &player, const std::shared_ptr<Player> &invitePlayer);
+	void invitePlayer(const std::shared_ptr<Player> &player, const std::shared_ptr<Player> &invitePlayer, bool notify);
 	void excludePlayer(const std::shared_ptr<Player> &player, const std::shared_ptr<Player> &excludePlayer);
 
 	bool removeInvite(uint32_t guid);
@@ -110,6 +111,11 @@ public:
 
 	std::shared_ptr<ChatChannel> createChannel(const std::shared_ptr<Player> &player, uint16_t channelId);
 	bool deleteChannel(const std::shared_ptr<Player> &player, uint16_t channelId);
+
+	// Social LFG team channel ("<leader>'s Team Channel"). Uses the private-channel
+	// slot; closes any existing owned private channel first. No premium required.
+	std::shared_ptr<PrivateChatChannel> createTeamChannel(const std::shared_ptr<Player> &player);
+	bool closeTeamChannel(const std::shared_ptr<Player> &player, const std::string &closeMessage);
 
 	std::shared_ptr<ChatChannel> addUserToChannel(const std::shared_ptr<Player> &player, uint16_t channelId);
 	bool removeUserFromChannel(const std::shared_ptr<Player> &player, uint16_t channelId);

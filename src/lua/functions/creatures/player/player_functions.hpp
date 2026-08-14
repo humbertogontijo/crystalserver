@@ -121,7 +121,6 @@ class PlayerFunctions {
 	static int luaPlayerSetTraining(lua_State* L);
 	static int luaPlayerGetIsIdleCombat(lua_State* L);
 	static int luaPlayerSetIdleCombat(lua_State* L);
-	static int luaPlayerHasVip(lua_State* L);
 
 	static int luaPlayerGetKills(lua_State* L);
 	static int luaPlayerSetKills(lua_State* L);
@@ -262,6 +261,10 @@ class PlayerFunctions {
 	static int luaPlayerChannelSay(lua_State* L);
 	static int luaPlayerOpenChannel(lua_State* L);
 	static int luaPlayerCloseChannel(lua_State* L);
+	static int luaPlayerCreateTeamChannel(lua_State* L);
+	static int luaPlayerInviteToTeamChannel(lua_State* L);
+	static int luaPlayerExcludeFromTeamChannel(lua_State* L);
+	static int luaPlayerCloseTeamChannel(lua_State* L);
 
 	static int luaPlayerGetSlotItem(lua_State* L);
 

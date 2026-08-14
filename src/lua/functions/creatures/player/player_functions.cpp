@@ -146,7 +146,6 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "setTraining", PlayerFunctions::luaPlayerSetTraining);
 	Lua::registerMethod(L, "Player", "isIdleCombat", PlayerFunctions::luaPlayerGetIsIdleCombat);
 	Lua::registerMethod(L, "Player", "setIdleCombat", PlayerFunctions::luaPlayerSetIdleCombat);
-	Lua::registerMethod(L, "Player", "hasVip", PlayerFunctions::luaPlayerHasVip);
 
 	Lua::registerMethod(L, "Player", "getFreeCapacity", PlayerFunctions::luaPlayerGetFreeCapacity);
 
@@ -286,6 +285,10 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "channelSay", PlayerFunctions::luaPlayerChannelSay);
 	Lua::registerMethod(L, "Player", "openChannel", PlayerFunctions::luaPlayerOpenChannel);
 	Lua::registerMethod(L, "Player", "closeChannel", PlayerFunctions::luaPlayerCloseChannel);
+	Lua::registerMethod(L, "Player", "createTeamChannel", PlayerFunctions::luaPlayerCreateTeamChannel);
+	Lua::registerMethod(L, "Player", "inviteToTeamChannel", PlayerFunctions::luaPlayerInviteToTeamChannel);
+	Lua::registerMethod(L, "Player", "excludeFromTeamChannel", PlayerFunctions::luaPlayerExcludeFromTeamChannel);
+	Lua::registerMethod(L, "Player", "closeTeamChannel", PlayerFunctions::luaPlayerCloseTeamChannel);
 
 	Lua::registerMethod(L, "Player", "getSlotItem", PlayerFunctions::luaPlayerGetSlotItem);
 
@@ -1424,31 +1427,6 @@ int PlayerFunctions::luaPlayerGetIsIdleCombat(lua_State* L) {
 	}
 
 	Lua::pushBoolean(L, player->isIdleCombat());
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerHasVip(lua_State* L) {
-	// player:hasVip(guidOrName) — true if guid/name is on this player's VIP (friend) list.
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (!player || !player->vip()) {
-		Lua::pushBoolean(L, false);
-		return 1;
-	}
-
-	uint32_t guid = 0;
-	if (Lua::isNumber(L, 2)) {
-		guid = Lua::getNumber<uint32_t>(L, 2);
-	} else if (Lua::isString(L, 2)) {
-		const std::string name = Lua::getString(L, 2);
-		const auto &online = g_game().getPlayerByName(name);
-		if (online) {
-			guid = online->getGUID();
-		} else {
-			guid = IOLoginData::getGuidByName(name);
-		}
-	}
-
-	Lua::pushBoolean(L, guid != 0 && player->vip()->exists(guid));
 	return 1;
 }
 
@@ -3113,6 +3091,101 @@ int PlayerFunctions::luaPlayerCloseChannel(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
+	return 1;
+}
+
+namespace {
+const std::string kTeamChannelClosedMessage =
+	"The channel has been closed. Either the corresponding team has been unlisted or you have been rejected by the team leader.";
+}
+
+int PlayerFunctions::luaPlayerCreateTeamChannel(lua_State* L) {
+	// player:createTeamChannel()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	const auto &channel = g_chat().createTeamChannel(player);
+	if (!channel || !channel->addUser(player)) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	player->sendCreatePrivateChannel(channel->getId(), channel->getName());
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerInviteToTeamChannel(lua_State* L) {
+	// player:inviteToTeamChannel(target)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	const auto &target = Lua::getUserdataShared<Player>(L, 2);
+	if (!player || !target || player == target) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const auto &channel = g_chat().getPrivateChannel(player);
+	if (!channel) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	channel->invitePlayer(player, target, false);
+	if (!channel->hasUser(target) && !g_chat().addUserToChannel(target, channel->getId())) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const UsersMap* users = &channel->getUsers();
+	const InvitedMap* invitedUsers = channel->getInvitedUsers();
+	target->sendChannel(channel->getId(), channel->getName(), users, invitedUsers);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerExcludeFromTeamChannel(lua_State* L) {
+	// player:excludeFromTeamChannel(target)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	const auto &target = Lua::getUserdataShared<Player>(L, 2);
+	if (!player || !target || player == target) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const auto &channel = g_chat().getPrivateChannel(player);
+	if (!channel) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	if (channel->hasUser(target)) {
+		target->sendChannelMessage("", kTeamChannelClosedMessage, TALKTYPE_CHANNEL_R1, channel->getId());
+	}
+	channel->excludePlayer(player, target);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerCloseTeamChannel(lua_State* L) {
+	// player:closeTeamChannel([message])
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	std::string closeMessage = kTeamChannelClosedMessage;
+	if (lua_gettop(L) >= 2 && !Lua::isNil(L, 2)) {
+		const std::string &custom = Lua::getString(L, 2);
+		if (!custom.empty()) {
+			closeMessage = custom;
+		}
+	}
+
+	Lua::pushBoolean(L, g_chat().closeTeamChannel(player, closeMessage));
 	return 1;
 }
 
