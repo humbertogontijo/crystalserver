@@ -5760,9 +5760,13 @@ void ProtocolGame::sendLootStats(const std::shared_ptr<Item> &item, uint8_t coun
 		return;
 	}
 
-	std::shared_ptr<Item> lootedItem = nullptr;
-	lootedItem = item->clone();
-	lootedItem->setItemCount(count);
+	// Build a detached stack for the analyser packet. Auto-bank removes corpse
+	// coins before this runs; cloning an orphaned/partial stack is unreliable.
+	const uint16_t stackCount = count > 0 ? count : std::max<uint16_t>(1, item->getItemCount());
+	const auto &lootedItem = Item::CreateItem(item->getID(), stackCount);
+	if (!lootedItem) {
+		return;
+	}
 
 	NetworkMessage msg;
 	msg.addByte(0xCF);
@@ -5770,8 +5774,6 @@ void ProtocolGame::sendLootStats(const std::shared_ptr<Item> &item, uint8_t coun
 	msg.addString(lootedItem->getName());
 	item->setIsLootTrackeable(false);
 	writeToOutputBuffer(msg);
-
-	lootedItem = nullptr;
 }
 
 void ProtocolGame::sendShop(const std::shared_ptr<Npc> &npc) {

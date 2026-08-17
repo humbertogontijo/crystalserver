@@ -3410,6 +3410,7 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 	for (const std::shared_ptr<Item> &item : itemList) {
 		uint32_t worth = item->getWorth();
 		uint16_t baseCount = item->getItemCount();
+		const uint16_t itemId = item->getID();
 		ObjectCategory_t category = getObjectCategory(item);
 
 		ReturnValue ret = internalCollectManagedItems(player, item, category);
@@ -3423,7 +3424,11 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 		if (worth != 0) {
 			missedAnyGold = missedAnyGold || !success;
 			if (success) {
-				player->sendLootStats(item, baseCount);
+				// Auto-bank removes coins from the corpse before analysers run.
+				// Always report via a fresh stack so hunt/loot/party still count gold.
+				if (const auto &statsItem = Item::CreateItem(itemId, baseCount)) {
+					player->sendLootStats(statsItem, static_cast<uint8_t>(baseCount));
+				}
 				totalLootedGold += worth;
 			} else {
 				// item is not completely moved
@@ -3666,22 +3671,23 @@ ReturnValue Game::internalCollectManagedItems(const std::shared_ptr<Player> &pla
 	// Send money to the bank
 	if (g_configManager().getBoolean(AUTOBANK)) {
 		if (item->getID() == ITEM_GOLD_COIN || item->getID() == ITEM_PLATINUM_COIN || item->getID() == ITEM_CRYSTAL_COIN) {
+			const uint16_t coinCount = item->getItemCount();
 			uint64_t money = 0;
 			if (item->getID() == ITEM_PLATINUM_COIN) {
-				money = item->getItemCount() * 100;
+				money = coinCount * 100;
 			} else if (item->getID() == ITEM_CRYSTAL_COIN) {
-				money = item->getItemCount() * 10000;
+				money = coinCount * 10000;
 			} else {
-				money = item->getItemCount();
+				money = coinCount;
 			}
 			auto parent = item->getParent();
-			if (parent) {
-				parent->removeThing(item, item->getItemCount());
-			} else {
+			if (!parent) {
 				g_logger().debug("Item has no parent");
 				return RETURNVALUE_NOTPOSSIBLE;
 			}
+			parent->removeThing(item, coinCount);
 			player->setBankBalance(player->getBankBalance() + money);
+			player->sendResourceBalance(RESOURCE_BANK, player->getBankBalance());
 			g_metrics().addCounter("balance_increase", money, { { "player", player->getName() }, { "context", "loot" } });
 			return RETURNVALUE_NOERROR;
 		}
@@ -6203,12 +6209,18 @@ bool Game::isDirectLoot(const Position &pos, const std::shared_ptr<Container> &c
 
 void Game::handleDirectLoot(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, const std::shared_ptr<Container> &corpse) {
 	uint32_t worth = item->getWorth();
+	const uint16_t baseCount = item->getItemCount();
+	const uint16_t itemId = item->getID();
 	auto category = getObjectCategory(item);
 	auto result = internalCollectManagedItems(player, item, category);
 
 	std::stringstream msg;
 	if (result == RETURNVALUE_NOERROR) {
-		player->sendLootStats(item, item->getItemCount());
+		// Gold may already be auto-banked (item gone); non-gold still uses the live
+		// stack, but CreateItem keeps one path for analyser packets either way.
+		if (const auto &statsItem = Item::CreateItem(itemId, baseCount)) {
+			player->sendLootStats(statsItem, static_cast<uint8_t>(baseCount));
+		}
 		msg << "You looted " << (worth ? std::to_string(worth) + " gold." : "1 item.");
 	} else if (result == RETURNVALUE_NOTENOUGHCAPACITY) {
 		msg << "Attention! The loot you are trying to pick up is too heavy.";

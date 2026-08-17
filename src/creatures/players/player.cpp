@@ -1748,7 +1748,11 @@ void Player::sendLootStats(const std::shared_ptr<Item> &item, uint8_t count) {
 	}
 
 	if (m_party) {
-		m_party->addPlayerLoot(getPlayer(), item);
+		// Party hunt analyser reads item->getItemCount(); use a detached stack so
+		// auto-banked coins (already removed from the corpse) still count.
+		if (const auto &partyItem = Item::CreateItem(item->getID(), count)) {
+			m_party->addPlayerLoot(getPlayer(), partyItem);
+		}
 	}
 }
 
