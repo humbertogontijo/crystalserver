@@ -41,6 +41,8 @@ void CreatureFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Creature", "canSeeCreature", CreatureFunctions::luaCreatureCanSeeCreature);
 	Lua::registerMethod(L, "Creature", "getParent", CreatureFunctions::luaCreatureGetParent);
 	Lua::registerMethod(L, "Creature", "getId", CreatureFunctions::luaCreatureGetId);
+	Lua::registerMethod(L, "Creature", "getInstanceId", CreatureFunctions::luaCreatureGetInstanceId);
+	Lua::registerMethod(L, "Creature", "setInstanceId", CreatureFunctions::luaCreatureSetInstanceId);
 	Lua::registerMethod(L, "Creature", "getName", CreatureFunctions::luaCreatureGetName);
 	Lua::registerMethod(L, "Creature", "getTypeName", CreatureFunctions::luaCreatureGetTypeName);
 	Lua::registerMethod(L, "Creature", "getTarget", CreatureFunctions::luaCreatureGetTarget);
@@ -269,6 +271,29 @@ int CreatureFunctions::luaCreatureGetId(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
+	return 1;
+}
+
+int CreatureFunctions::luaCreatureGetInstanceId(lua_State* L) {
+	// creature:getInstanceId()
+	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
+	if (creature) {
+		lua_pushnumber(L, creature->getInstanceId());
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int CreatureFunctions::luaCreatureSetInstanceId(lua_State* L) {
+	// creature:setInstanceId(id)
+	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
+	if (!creature) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	creature->setInstanceId(Lua::getNumber<uint32_t>(L, 2));
+	Lua::pushBoolean(L, true);
 	return 1;
 }
 

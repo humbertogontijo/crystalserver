@@ -44,6 +44,8 @@ private:
 	static int luaCreatureGetParent(lua_State* L);
 
 	static int luaCreatureGetId(lua_State* L);
+	static int luaCreatureGetInstanceId(lua_State* L);
+	static int luaCreatureSetInstanceId(lua_State* L);
 	static int luaCreatureGetName(lua_State* L);
 	static int luaCreatureGetTypeName(lua_State* L);
 

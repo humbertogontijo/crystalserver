@@ -58,6 +58,11 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "loadMapChunk", GameFunctions::luaGameloadMapChunk);
 	Lua::registerMethod(L, "Game", "copyMapRegion", GameFunctions::luaGameCopyMapRegion);
 	Lua::registerMethod(L, "Game", "loadOccupancyMask", GameFunctions::luaGameLoadOccupancyMask);
+	Lua::registerMethod(L, "Game", "allocateInstance", GameFunctions::luaGameAllocateInstance);
+	Lua::registerMethod(L, "Game", "releaseInstance", GameFunctions::luaGameReleaseInstance);
+	Lua::registerMethod(L, "Game", "disableWorldSpawns", GameFunctions::luaGameDisableWorldSpawns);
+	Lua::registerMethod(L, "Game", "getNpcs", GameFunctions::luaGameGetNpcs);
+	Lua::registerMethod(L, "Game", "getMonsters", GameFunctions::luaGameGetMonsters);
 
 	Lua::registerMethod(L, "Game", "getExperienceForLevel", GameFunctions::luaGameGetExperienceForLevel);
 	Lua::registerMethod(L, "Game", "getMonsterCount", GameFunctions::luaGameGetMonsterCount);
@@ -291,7 +296,7 @@ int GameFunctions::luaGameGetBestiaryList(lua_State* L) {
 }
 
 int GameFunctions::luaGameCreateSoulPitMonster(lua_State* L) {
-	// Game.createSoulPitMonster(monsterName, position, [stack = 1, [, extended = false[, force = false[, master = nil]]]])
+	// Game.createSoulPitMonster(monsterName, position, [stack = 1, [, extended = false[, force = false[, master = nil[, instanceId = 0]]]]])
 	const auto &monster = Monster::createMonster(Lua::getString(L, 1));
 	if (!monster) {
 		lua_pushnil(L);
@@ -299,11 +304,14 @@ int GameFunctions::luaGameCreateSoulPitMonster(lua_State* L) {
 	}
 
 	bool isSummon = false;
-	if (lua_gettop(L) >= 6) {
+	if (lua_gettop(L) >= 6 && lua_type(L, 6) != LUA_TNIL) {
 		if (const auto &master = Lua::getCreature(L, 6)) {
 			monster->setMaster(master, true);
 			isSummon = true;
 		}
+	}
+	if (lua_gettop(L) >= 7) {
+		monster->setInstanceId(Lua::getNumber<uint32_t>(L, 7, 0));
 	}
 
 	const Position &position = Lua::getPosition(L, 2);
@@ -467,6 +475,50 @@ int GameFunctions::luaGameLoadOccupancyMask(lua_State* L) {
 	lua_setfield(L, -2, "bits");
 	lua_pushcfunction(L, luaOccupancyMaskContains);
 	lua_setfield(L, -2, "contains");
+	return 1;
+}
+
+int GameFunctions::luaGameAllocateInstance(lua_State* L) {
+	// Game.allocateInstance()
+	lua_pushnumber(L, g_game().allocateInstanceId());
+	return 1;
+}
+
+int GameFunctions::luaGameReleaseInstance(lua_State* L) {
+	// Game.releaseInstance(id)
+	g_game().releaseInstanceId(Lua::getNumber<uint32_t>(L, 1));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameDisableWorldSpawns(lua_State* L) {
+	// Game.disableWorldSpawns()
+	g_game().disableWorldSpawns();
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameGetNpcs(lua_State* L) {
+	// Game.getNpcs()
+	lua_createtable(L, static_cast<int>(g_game().getNpcs().size()), 0);
+	int index = 0;
+	for (const auto &[id, npc] : g_game().getNpcs()) {
+		Lua::pushUserdata<Npc>(L, npc);
+		Lua::setMetatable(L, -1, "Npc");
+		lua_rawseti(L, -2, ++index);
+	}
+	return 1;
+}
+
+int GameFunctions::luaGameGetMonsters(lua_State* L) {
+	// Game.getMonsters()
+	lua_createtable(L, static_cast<int>(g_game().getMonsters().size()), 0);
+	int index = 0;
+	for (const auto &[id, monster] : g_game().getMonsters()) {
+		Lua::pushUserdata<Monster>(L, monster);
+		Lua::setMetatable(L, -1, "Monster");
+		lua_rawseti(L, -2, ++index);
+	}
 	return 1;
 }
 
@@ -711,7 +763,7 @@ int GameFunctions::luaGameCreateContainer(lua_State* L) {
 }
 
 int GameFunctions::luaGameCreateMonster(lua_State* L) {
-	// Game.createMonster(monsterName, position[, extended = false[, force = false[, master = nil]]])
+	// Game.createMonster(monsterName, position[, extended = false[, force = false[, master = nil[, instanceId = 0]]]])
 	const auto &monster = Monster::createMonster(Lua::getString(L, 1));
 	if (!monster) {
 		lua_pushnil(L);
@@ -719,11 +771,14 @@ int GameFunctions::luaGameCreateMonster(lua_State* L) {
 	}
 
 	bool isSummon = false;
-	if (lua_gettop(L) >= 5) {
+	if (lua_gettop(L) >= 5 && lua_type(L, 5) != LUA_TNIL) {
 		if (const auto &master = Lua::getCreature(L, 5)) {
 			monster->setMaster(master, true);
 			isSummon = true;
 		}
+	}
+	if (lua_gettop(L) >= 6) {
+		monster->setInstanceId(Lua::getNumber<uint32_t>(L, 6, 0));
 	}
 
 	const Position &position = Lua::getPosition(L, 2);

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "creatures/appearance/outfit/outfit.hpp"
 #include "creatures/players/cyclopedia/player_badge.hpp"
 #include "creatures/players/cyclopedia/player_title.hpp"
@@ -144,6 +146,15 @@ public:
 	 * \returns number of source tiles that had ground or items copied
 	 */
 	uint32_t copyMapRegion(const Position &sourceFrom, const Position &sourceTo, const Position &dest);
+
+	static constexpr uint32_t INSTANCE_PRIVATE_BASE = 3000000;
+	uint32_t allocateInstanceId();
+	void releaseInstanceId(uint32_t id);
+	bool routeInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destPos);
+	bool canWalkInstance(const std::shared_ptr<Creature> &creature, const Position &toPos);
+	void disableWorldSpawns();
+	void bindPlayerInstance(const std::shared_ptr<Player> &player);
+	bool consumeInstanceFenceMessage();
 
 	uint64_t getLastMapLoadTime() const {
 		return lastMapLoadTime;
@@ -821,6 +832,8 @@ public:
 	void refreshItem(const std::shared_ptr<Item> &item);
 
 private:
+	bool callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult);
+
 	std::map<uint16_t, Achievement> m_achievements;
 	std::map<std::string, uint16_t> m_achievementsNameToId;
 
@@ -978,6 +991,10 @@ private:
 	int32_t lightHourDelta = (LIGHT_DAY_LENGTH * (EVENT_LIGHTINTERVAL_MS / 1000)) / DAY_LENGTH_SECONDS;
 
 	uint64_t lastMapLoadTime = 0;
+
+	uint32_t nextPrivateInstanceId = INSTANCE_PRIVATE_BASE;
+	std::vector<uint32_t> freePrivateInstanceIds;
+	bool pendingInstanceFenceMessage = false;
 
 	ServiceManager* serviceManager = nullptr;
 

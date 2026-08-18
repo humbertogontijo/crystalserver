@@ -69,6 +69,8 @@
 #include "lua/creature/talkaction.hpp"
 #include "lua/global/globalevent.hpp"
 #include "lua/scripts/lua_environment.hpp"
+#include "lua/scripts/scripts.hpp"
+#include "lua/functions/lua_functions_loader.hpp"
 #include "map/spectators.hpp"
 #include "server/network/protocol/protocollogin.hpp"
 #include "server/network/protocol/protocolstatus.hpp"
@@ -698,14 +700,10 @@ void Game::setGameState(GameState_t newState) {
 			groups.load();
 			g_chat().load();
 
-			// Load monsters and npcs stored by the "loadFromXML" function
-			map.spawnsMonster.startup();
+			// NPCs stay; world monsters are instance 0 and would leak into city/hunt views.
 			map.spawnsNpc.startup();
-
-			// Load monsters and npcs custom stored by the "loadFromXML" function
 			for (int i = 0; i < 50; i++) {
 				map.spawnsNpcCustomMaps[i].startup();
-				map.spawnsMonsterCustomMaps[i].startup();
 			}
 
 			raids.loadFromXml();
@@ -1024,6 +1022,98 @@ uint32_t Game::copyMapRegion(const Position &sourceFrom, const Position &sourceT
 		g_logger().debug("[Game::copyMapRegion] copied {} tiles ({}x{}) → ({},{},{})", copied, width, height, dest.x, dest.y, dest.z);
 	}
 	return copied;
+}
+
+uint32_t Game::allocateInstanceId() {
+	if (!freePrivateInstanceIds.empty()) {
+		const uint32_t id = freePrivateInstanceIds.back();
+		freePrivateInstanceIds.pop_back();
+		return id;
+	}
+	return nextPrivateInstanceId++;
+}
+
+void Game::releaseInstanceId(uint32_t id) {
+	if (id >= INSTANCE_PRIVATE_BASE) {
+		freePrivateInstanceIds.push_back(id);
+	}
+}
+
+bool Game::callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult) {
+	auto &scriptInterface = g_scripts().getScriptInterface();
+	lua_State* L = scriptInterface.getLuaState();
+	if (!L || !creature) {
+		return defaultResult;
+	}
+	if (!Lua::reserveScriptEnv()) {
+		g_logger().error("[Game::callInstanceWorld] Lua call stack overflow ({})", method);
+		return defaultResult;
+	}
+
+	ScriptEnvironment* env = Lua::getScriptEnv();
+	env->setScriptId(EVENT_ID_USER, &scriptInterface);
+
+	lua_getglobal(L, "InstanceWorld");
+	if (lua_type(L, -1) != LUA_TTABLE) {
+		lua_pop(L, 1);
+		Lua::resetScriptEnv();
+		return defaultResult;
+	}
+	lua_getfield(L, -1, method);
+	lua_remove(L, -2);
+	if (lua_type(L, -1) != LUA_TFUNCTION) {
+		lua_pop(L, 1);
+		Lua::resetScriptEnv();
+		return defaultResult;
+	}
+	Lua::pushUserdata<Creature>(L, creature);
+	Lua::setCreatureMetatable(L, -1, creature);
+	Lua::pushPosition(L, pos);
+	return scriptInterface.callFunction(2);
+}
+
+bool Game::routeInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destPos) {
+	static thread_local bool routing = false;
+	if (routing) {
+		return true;
+	}
+	routing = true;
+	const bool ok = callInstanceWorld("onEngineTravel", creature, destPos, true);
+	routing = false;
+	return ok;
+}
+
+bool Game::canWalkInstance(const std::shared_ptr<Creature> &creature, const Position &toPos) {
+	return callInstanceWorld("canWalk", creature, toPos, true);
+}
+
+void Game::disableWorldSpawns() {
+	map.spawnsMonster.clear();
+	for (auto &custom : map.spawnsMonsterCustomMaps) {
+		custom.clear();
+	}
+
+	std::vector<std::shared_ptr<Monster>> leftover;
+	for (const auto &[id, monster] : getMonsters()) {
+		if (monster && monster->getInstanceId() == 0 && !monster->getMaster()) {
+			leftover.push_back(monster);
+		}
+	}
+	for (const auto &monster : leftover) {
+		removeCreature(monster, false);
+	}
+}
+
+void Game::bindPlayerInstance(const std::shared_ptr<Player> &player) {
+	if (player) {
+		callInstanceWorld("bindLogin", player, player->getLoginPosition(), true);
+	}
+}
+
+bool Game::consumeInstanceFenceMessage() {
+	const bool pending = pendingInstanceFenceMessage;
+	pendingInstanceFenceMessage = false;
+	return pending;
 }
 
 std::shared_ptr<Cylinder> Game::internalGetCylinder(const std::shared_ptr<Player> &player, const Position &pos) {
@@ -1472,7 +1562,7 @@ bool Game::placeCreature(const std::shared_ptr<Creature> &creature, const Positi
 	}
 
 	bool hasPlayerSpectators = false;
-	for (const auto &spectator : Spectators().find<Creature>(creature->getPosition(), true)) {
+	for (const auto &spectator : Spectators().find<Creature>(creature->getPosition(), true, 0, 0, 0, 0, true, creature->getInstanceId())) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
 			tmpPlayer->sendCreatureAppear(creature, creature->getPosition(), true);
 			hasPlayerSpectators = true;
@@ -1506,7 +1596,7 @@ bool Game::removeCreature(const std::shared_ptr<Creature> &creature, bool isLogo
 
 	if (tile) {
 		std::vector<int32_t> oldStackPosVector;
-		auto spectators = Spectators().find<Creature>(tile->getPosition(), true);
+		auto spectators = Spectators().find<Creature>(tile->getPosition(), true, 0, 0, 0, 0, true, creature->getInstanceId());
 		auto playersSpectators = spectators.filter<Player>();
 
 		for (const auto &spectator : playersSpectators) {
@@ -1946,6 +2036,13 @@ ReturnValue Game::internalMoveCreature(const std::shared_ptr<Creature> &creature
 	}
 
 	// check if we can move the creature to the destination
+	if (!canWalkInstance(creature, toTile->getPosition())) {
+		if (creature->getPlayer()) {
+			pendingInstanceFenceMessage = true;
+		}
+		return RETURNVALUE_NOTPOSSIBLE;
+	}
+
 	ReturnValue ret = toTile->queryAdd(0, creature, 1, flags);
 	if (ret != RETURNVALUE_NOERROR) {
 		return ret;
@@ -3362,6 +3459,9 @@ ReturnValue Game::internalTeleport(const std::shared_ptr<Thing> &thing, const Po
 	}
 
 	if (std::shared_ptr<Creature> creature = thing->getCreature()) {
+		if (!routeInstanceTravel(creature, newPos)) {
+			return RETURNVALUE_NOTPOSSIBLE;
+		}
 		ReturnValue ret = toTile->queryAdd(0, creature, 1, FLAG_NOLIMIT);
 		if (ret != RETURNVALUE_NOERROR) {
 			return ret;
@@ -8116,6 +8216,9 @@ bool Game::combatChangeHealth(const std::shared_ptr<Creature> &attacker, const s
 	if (!target || !target->isAlive()) {
 		return false;
 	}
+	if (attacker && attacker->getInstanceId() != target->getInstanceId()) {
+		return false;
+	}
 
 	const Position &targetPos = target->getPosition();
 	if (damage.primary.value > 0) {
@@ -8973,6 +9076,9 @@ int32_t Game::calculateLeechAmount(const int32_t &realDamage, const uint16_t &sk
 }
 
 bool Game::combatChangeMana(const std::shared_ptr<Creature> &attacker, const std::shared_ptr<Creature> &target, CombatDamage &damage) {
+	if (attacker && target && attacker->getInstanceId() != target->getInstanceId()) {
+		return false;
+	}
 	const Position &targetPos = target->getPosition();
 	auto manaChange = damage.primary.value + damage.secondary.value;
 	auto spectators = Spectators().find<Player>(targetPos);
@@ -11989,6 +12095,13 @@ uint32_t Game::makeFiendishMonster(uint32_t forgeableMonsterId /* = 0*/, bool cr
 				continue;
 			}
 
+			// Private hunt/raid instances are a tiny slice of the map. Including
+			// them in the global forge quota concentrates every Fiendish/Influenced
+			// roll onto expedition spawns once world spawn.xml is disabled.
+			if (monster->getInstanceId() >= INSTANCE_PRIVATE_BASE) {
+				continue;
+			}
+
 			if (monster->canBeForgeMonster() && !monsterTile->hasFlag(TILESTATE_NOLOGOUT)) {
 				forgeableMonsters.push_back(monster->getID());
 			}
@@ -12170,6 +12283,10 @@ void Game::updateForgeableMonsters() {
 		for (const auto &[monsterId, monster] : monsters) {
 			const auto monsterTile = monster->getTile();
 			if (!monsterTile) {
+				continue;
+			}
+
+			if (monster->getInstanceId() >= INSTANCE_PRIVATE_BASE) {
 				continue;
 			}
 

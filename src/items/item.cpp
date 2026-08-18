@@ -361,6 +361,7 @@ std::shared_ptr<Item> Item::clone() const {
 	if (attributePtr) {
 		item->attributePtr = std::make_unique<ItemAttribute>(*attributePtr);
 	}
+	item->setInstanceId(instanceId);
 
 	return item;
 }

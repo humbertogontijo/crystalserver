@@ -660,8 +660,8 @@ void Monster::updateTargetList() {
 		return !target || target->getHealth() <= 0 || !canSee(target->getPosition());
 	});
 
-	for (const auto &spectator : Spectators().find<Creature>(position, true, 0, 0, 0, 0, false)) {
-		if (spectator.get() != this && canSee(spectator->getPosition())) {
+	for (const auto &spectator : Spectators().find<Creature>(position, true, 0, 0, 0, 0, false, getInstanceId())) {
+		if (spectator.get() != this && canSee(spectator->getPosition()) && canSeeCreature(spectator)) {
 			onCreatureFound(spectator);
 		}
 	}
@@ -2378,7 +2378,8 @@ bool Monster::canWalkTo(Position pos, Direction moveDirection) {
 }
 
 void Monster::death(const std::shared_ptr<Creature> &) {
-	if (monsterForgeClassification > ForgeClassifications_t::FORGE_NORMAL_MONSTER) {
+	if (monsterForgeClassification > ForgeClassifications_t::FORGE_NORMAL_MONSTER
+	    && getInstanceId() < Game::INSTANCE_PRIVATE_BASE) {
 		g_game().removeForgeMonster(getID(), monsterForgeClassification, true);
 	}
 	const auto &attackedCreature = getAttackedCreature();
@@ -2541,6 +2542,9 @@ void Monster::dropLoot(const std::shared_ptr<Container> &corpse, const std::shar
 			auto sliverCount = static_cast<uint16_t>(uniform_random(minSlivers, maxSlivers));
 
 			const auto &sliver = Item::CreateItem(ITEM_FORGE_SLIVER, sliverCount);
+			if (sliver) {
+				sliver->setInstanceId(getInstanceId());
+			}
 			if (g_game().internalAddItem(corpse, sliver) != RETURNVALUE_NOERROR) {
 				corpse->internalAddThing(sliver);
 			}
@@ -2563,6 +2567,7 @@ void Monster::dropLoot(const std::shared_ptr<Container> &corpse, const std::shar
 				if (!newItem) {
 					continue;
 				}
+				newItem->setInstanceId(getInstanceId());
 
 				if (g_game().internalAddItem(corpse, newItem) != RETURNVALUE_NOERROR) {
 					corpse->internalAddThing(newItem);

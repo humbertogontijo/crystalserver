@@ -761,6 +761,7 @@ void ProtocolGame::login(const std::string &name, uint32_t accountId, OperatingS
 			}
 		}
 
+		g_game().bindPlayerInstance(player);
 		if (!g_game().placeCreature(player, player->getLoginPosition()) && !g_game().placeCreature(player, player->getTemplePosition(), false, true)) {
 			disconnectClient("Temple position is wrong. Please, contact the administrator.");
 			g_logger().warn("Player {} temple position is wrong", player->getName());
@@ -828,6 +829,7 @@ void ProtocolGame::connect(const std::string &playerName, OperatingSystem_t oper
 	player->sendStanceProtocol();
 	player->resyncSpellCooldowns();
 
+	g_game().bindPlayerInstance(player);
 	sendAddCreature(player, player->getPosition(), 0, true);
 	player->lastIP = player->getIP();
 	player->lastLoad = OTSYS_TIME();
@@ -1680,6 +1682,9 @@ void ProtocolGame::GetTileDescription(const std::shared_ptr<Tile> &tile, Network
 
 	if (items) {
 		for (auto it = items->getBeginDownItem(), end = items->getEndDownItem(); it != end; ++it) {
+			if (!(*it)->isVisibleInInstance(player->getInstanceId())) {
+				continue;
+			}
 			AddItem(msg, *it);
 
 			if (++count == 10) {
@@ -8010,7 +8015,11 @@ void ProtocolGame::sendAllowBugReport() {
 }
 
 void ProtocolGame::sendAddCreature(const std::shared_ptr<Creature> &creature, const Position &pos, int32_t stackpos, bool isLogin) {
-	if (!canSee(pos)) {
+	if (creature != player) {
+		if (!canSee(creature)) {
+			return;
+		}
+	} else if (!canSee(pos)) {
 		return;
 	}
 
@@ -8173,6 +8182,12 @@ void ProtocolGame::sendAddCreature(const std::shared_ptr<Creature> &creature, co
 }
 
 void ProtocolGame::sendMoveCreature(const std::shared_ptr<Creature> &creature, const Position &newPos, int32_t newStackPos, const Position &oldPos, int32_t oldStackPos, bool teleport) {
+	if (creature != player && player && !player->canSeeCreature(creature)) {
+		if (oldStackPos >= 0 && canSee(oldPos)) {
+			sendRemoveTileThing(oldPos, oldStackPos);
+		}
+		return;
+	}
 	if (creature == player) {
 		if (oldStackPos >= 10) {
 			sendMapDescription(newPos);

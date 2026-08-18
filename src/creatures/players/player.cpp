@@ -2099,6 +2099,10 @@ void Player::sendCancelMessage(const std::string &msg) const {
 }
 
 void Player::sendCancelMessage(ReturnValue message) const {
+	if (message == RETURNVALUE_NOTPOSSIBLE && g_game().consumeInstanceFenceMessage()) {
+		sendCancelMessage("You cannot leave an instance area.");
+		return;
+	}
 	sendCancelMessage(getReturnMessage(message));
 }
 

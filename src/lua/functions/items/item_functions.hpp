@@ -35,6 +35,8 @@ private:
 	static int luaItemGetTopParent(lua_State* L);
 
 	static int luaItemGetId(lua_State* L);
+	static int luaItemGetInstanceId(lua_State* L);
+	static int luaItemSetInstanceId(lua_State* L);
 
 	static int luaItemClone(lua_State* L);
 	static int luaItemSplit(lua_State* L);

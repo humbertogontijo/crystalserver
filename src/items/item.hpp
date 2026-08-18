@@ -660,6 +660,16 @@ public:
 		loadedFromMap = value;
 	}
 
+	uint32_t getInstanceId() const {
+		return instanceId;
+	}
+	void setInstanceId(uint32_t id) {
+		instanceId = id;
+	}
+	bool isVisibleInInstance(uint32_t viewerInstanceId) const {
+		return instanceId == 0 || instanceId == viewerInstanceId;
+	}
+
 	bool isDecayDisabled() const {
 		return decayDisabled;
 	}
@@ -768,6 +778,7 @@ protected:
 	uint8_t count = 1; // number of stacked items
 
 	bool loadedFromMap = false;
+	uint32_t instanceId = 0;
 	bool isLootTrackeable = false;
 	bool decayDisabled = false;
 	bool m_hasActor = false;

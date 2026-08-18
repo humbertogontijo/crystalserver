@@ -369,10 +369,10 @@ void Map::moveCreature(const std::shared_ptr<Creature> &creature, const std::sha
 			++minRangeX;
 		}
 
-		spectators.find<Creature>(oldPos, true, minRangeX, maxRangeX, minRangeY, maxRangeY, false);
+		spectators.find<Creature>(oldPos, true, minRangeX, maxRangeX, minRangeY, maxRangeY, false, creature->getInstanceId());
 	} else {
-		spectators.find<Creature>(oldPos, true, 0, 0, 0, 0, false);
-		spectators.find<Creature>(newPos, true, 0, 0, 0, 0, false);
+		spectators.find<Creature>(oldPos, true, 0, 0, 0, 0, false, creature->getInstanceId());
+		spectators.find<Creature>(newPos, true, 0, 0, 0, 0, false, creature->getInstanceId());
 	}
 
 	const auto playersSpectators = spectators.filter<Player>();

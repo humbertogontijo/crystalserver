@@ -145,6 +145,11 @@ public:
 	virtual bool canSee(const Position &pos);
 	virtual bool canSeeCreature(const std::shared_ptr<Creature> &creature) const;
 
+	uint32_t getInstanceId() const {
+		return instanceId;
+	}
+	void setInstanceId(uint32_t id);
+
 	virtual RaceType_t getRace() const {
 		return RACE_NONE;
 	}
@@ -772,6 +777,7 @@ protected:
 
 	uint64_t lastStep = 0;
 	uint32_t id = 0;
+	uint32_t instanceId = 0;
 	uint32_t scriptEventsBitField = 0;
 	uint32_t eventWalk = 0;
 	uint32_t walkUpdateTicks = 0;

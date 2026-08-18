@@ -638,6 +638,9 @@ ReturnValue Tile::queryAdd(int32_t, const std::shared_ptr<Thing> &thing, uint32_
 			if (monster->canPushCreatures() && !monster->isSummon()) {
 				if (creatures) {
 					for (const auto &tileCreature : *creatures) {
+						if (tileCreature->getInstanceId() != creature->getInstanceId()) {
+							continue;
+						}
 						if (tileCreature->getPlayer() && tileCreature->getPlayer()->isInGhostMode()) {
 							continue;
 						}
@@ -650,6 +653,9 @@ ReturnValue Tile::queryAdd(int32_t, const std::shared_ptr<Thing> &thing, uint32_
 				}
 			} else if (creatures && !creatures->empty()) {
 				for (const auto &tileCreature : *creatures) {
+					if (tileCreature->getInstanceId() != creature->getInstanceId()) {
+						continue;
+					}
 					if (!tileCreature->isInGhostMode()) {
 						return RETURNVALUE_NOTENOUGHROOM;
 					}
@@ -697,6 +703,9 @@ ReturnValue Tile::queryAdd(int32_t, const std::shared_ptr<Thing> &thing, uint32_
 
 				if (!g_configManager().getBoolean(WALK_THROUGH_PLAYERS)) {
 					for (const auto &tileCreature : *creatures) {
+						if (tileCreature->getInstanceId() != creature->getInstanceId()) {
+							continue;
+						}
 						if (tileCreature->getPlayer()) {
 							return RETURNVALUE_NOTENOUGHROOM;
 						}
@@ -704,6 +713,9 @@ ReturnValue Tile::queryAdd(int32_t, const std::shared_ptr<Thing> &thing, uint32_
 				}
 
 				for (const auto &tileCreature : *creatures) {
+					if (tileCreature->getInstanceId() != creature->getInstanceId()) {
+						continue;
+					}
 					if (!player->canWalkthrough(tileCreature)) {
 						return RETURNVALUE_NOTPOSSIBLE;
 					}
@@ -759,6 +771,9 @@ ReturnValue Tile::queryAdd(int32_t, const std::shared_ptr<Thing> &thing, uint32_
 			}
 		} else if (creatures && !creatures->empty() && !hasBitSet(FLAG_IGNOREBLOCKCREATURE, tileFlags)) {
 			for (const auto &tileCreature : *creatures) {
+				if (tileCreature->getInstanceId() != creature->getInstanceId()) {
+					continue;
+				}
 				if (!tileCreature->isInGhostMode()) {
 					return RETURNVALUE_NOTENOUGHROOM;
 				}
@@ -815,6 +830,9 @@ ReturnValue Tile::queryAdd(int32_t, const std::shared_ptr<Thing> &thing, uint32_
 		const CreatureVector* creatures = getCreatures();
 		if (creatures && !creatures->empty() && item->isBlocking() && !hasBitSet(FLAG_IGNOREBLOCKCREATURE, tileFlags)) {
 			for (const auto &tileCreature : *creatures) {
+				if (item->getInstanceId() != 0 && tileCreature->getInstanceId() != item->getInstanceId()) {
+					continue;
+				}
 				if (!tileCreature->isInGhostMode()) {
 					return RETURNVALUE_NOTENOUGHROOM;
 				}
@@ -1500,8 +1518,11 @@ int32_t Tile::getStackposOfItem(const std::shared_ptr<Player> &player, const std
 		for (auto it = items->getBeginDownItem(), end = items->getEndDownItem(); it != end; ++it) {
 			if (*it == item) {
 				return n;
-			} else if (++n >= 10) {
-				return -1;
+			}
+			if ((*it)->isVisibleInInstance(player->getInstanceId())) {
+				if (++n >= 10) {
+					return -1;
+				}
 			}
 		}
 	}
@@ -1570,7 +1591,17 @@ void Tile::postAddNotification(const std::shared_ptr<Thing> &thing, const std::s
 	}
 
 	for (const auto &spectator : Spectators().find<Player>(getPosition(), true)) {
-		spectator->getPlayer()->postAddNotification(thing, oldParent, index, LINK_NEAR);
+		const auto &player = spectator->getPlayer();
+		if (const auto &seenCreature = thing->getCreature()) {
+			if (!player->canSeeCreature(seenCreature)) {
+				continue;
+			}
+		} else if (const auto &seenItem = thing->getItem()) {
+			if (!seenItem->isVisibleInInstance(player->getInstanceId())) {
+				continue;
+			}
+		}
+		player->postAddNotification(thing, oldParent, index, LINK_NEAR);
 	}
 
 	// add a reference to this item, it may be deleted after being added (mailbox for example)
@@ -1621,7 +1652,17 @@ void Tile::postRemoveNotification(const std::shared_ptr<Thing> &thing, const std
 	}
 
 	for (const auto &spectator : spectators) {
-		spectator->getPlayer()->postRemoveNotification(thing, newParent, index, LINK_NEAR);
+		const auto &player = spectator->getPlayer();
+		if (const auto &seenCreature = thing->getCreature()) {
+			if (!player->canSeeCreature(seenCreature)) {
+				continue;
+			}
+		} else if (const auto &seenItem = thing->getItem()) {
+			if (!seenItem->isVisibleInInstance(player->getInstanceId())) {
+				continue;
+			}
+		}
+		player->postRemoveNotification(thing, newParent, index, LINK_NEAR);
 	}
 
 	// calling movement scripts

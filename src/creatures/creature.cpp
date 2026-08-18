@@ -37,6 +37,14 @@ Creature::Creature() {
 	Creature::onIdleStatus();
 }
 
+void Creature::setInstanceId(uint32_t id) {
+	if (instanceId == id) {
+		return;
+	}
+	instanceId = id;
+	Spectators::clearCache();
+}
+
 Creature::~Creature() {
 	for (const auto &summon : m_summons) {
 		summon->setAttackedCreature(nullptr);
@@ -70,6 +78,12 @@ bool Creature::canSee(const Position &pos) {
 }
 
 bool Creature::canSeeCreature(const std::shared_ptr<Creature> &creature) const {
+	if (!creature) {
+		return false;
+	}
+	if (instanceId != creature->getInstanceId()) {
+		return false;
+	}
 	if (!canSeeInvisibility() && creature->isInvisible()) {
 		return false;
 	}
@@ -776,7 +790,11 @@ bool Creature::hasBeenAttacked(uint32_t attackerId) const {
 
 std::shared_ptr<Item> Creature::getCorpse(const std::shared_ptr<Creature> &, const std::shared_ptr<Creature> &) {
 	if (getLookCorpse() != 0) {
-		return Item::CreateItem(getLookCorpse());
+		const auto &corpse = Item::CreateItem(getLookCorpse());
+		if (corpse) {
+			corpse->setInstanceId(getInstanceId());
+		}
+		return corpse;
 	}
 	return nullptr;
 }
@@ -1274,6 +1292,7 @@ bool Creature::setMaster(const std::shared_ptr<Creature> &newMaster, bool reload
 	}
 	if (newMaster) {
 		newMaster->m_summons.emplace_back(self);
+		setInstanceId(newMaster->getInstanceId());
 	}
 
 	m_master = newMaster;

@@ -95,6 +95,9 @@ void Teleport::addThing(int32_t, const std::shared_ptr<Thing> &thing) {
 	const MagicEffectClasses effect = Item::items[id].magicEffect;
 
 	if (const auto &creature = thing->getCreature()) {
+		if (!g_game().routeInstanceTravel(creature, destPos)) {
+			return;
+		}
 		Position origPos = creature->getPosition();
 		g_game().internalCreatureTurn(creature, origPos.x > destPos.x ? DIRECTION_WEST : DIRECTION_EAST);
 		g_game().map.moveCreature(creature, destTile);
