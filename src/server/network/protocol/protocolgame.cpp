@@ -4004,6 +4004,14 @@ void ProtocolGame::sendCreatureIcon(const std::shared_ptr<Creature> &creature) {
 		return;
 	}
 
+	// Icons are already embedded in AddCreature. refreshTaskIcons() walks
+	// multifloor spectators, which includes monsters the client never got in
+	// the map description — OTC then logs parseCreatureData/addCreatureIcon
+	// "could not get creature" on every login.
+	if (!knownCreatureSet.contains(creature->getID())) {
+		return;
+	}
+
 	NetworkMessage msg;
 	msg.addByte(0x8B);
 	msg.add<uint32_t>(creature->getID());

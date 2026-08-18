@@ -24,9 +24,10 @@ static constexpr int32_t MAP_CLASSIC_CLIENT_VIEW_PORT_Y = 6;
 static constexpr int32_t MAP_CLASSIC_VIEW_PORT_X = MAP_CLASSIC_CLIENT_VIEW_PORT_X + 3;
 static constexpr int32_t MAP_CLASSIC_VIEW_PORT_Y = MAP_CLASSIC_CLIENT_VIEW_PORT_Y + 5;
 
-// Streamed / protocol aware footprint (widescreen Idle FOV + preload).
-static constexpr int32_t MAP_MAX_CLIENT_VIEW_PORT_X = 13;
-static constexpr int32_t MAP_MAX_CLIENT_VIEW_PORT_Y = 7;
+// Streamed / protocol aware footprint (widescreen Idle FOV + 1-sqm walk preload).
+// Visible Y is 8 sqm above/below the character; +1 is rendering room while walking.
+static constexpr int32_t MAP_MAX_CLIENT_VIEW_PORT_X = 21;
+static constexpr int32_t MAP_MAX_CLIENT_VIEW_PORT_Y = 9;
 static constexpr int32_t MAP_MAX_VIEW_PORT_X = MAP_MAX_CLIENT_VIEW_PORT_X + 3; // min value: maxClientViewportX + 1
 static constexpr int32_t MAP_MAX_VIEW_PORT_Y = MAP_MAX_CLIENT_VIEW_PORT_Y + 5; // min value: maxClientViewportY + 1
 
