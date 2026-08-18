@@ -18,6 +18,7 @@
     "pugixml",
     "spdlog",
     "zlib",
+    "liblzma",
     "bshoshany-thread-pool",
     "atomic-queue",
     "boost-locale",

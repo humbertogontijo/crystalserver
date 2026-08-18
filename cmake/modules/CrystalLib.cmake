@@ -74,6 +74,7 @@ target_link_libraries(${PROJECT_NAME}_lib
         ${LUAJIT_LIBRARIES}
         CURL::libcurl
         ZLIB::ZLIB
+        LibLZMA::LibLZMA
         absl::any absl::log absl::base absl::bits
         asio::asio
         eventpp::eventpp

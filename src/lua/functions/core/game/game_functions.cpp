@@ -18,6 +18,7 @@
 #include "lua/functions/core/game/game_functions.hpp"
 
 #include "core.hpp"
+#include <cstdint>
 #include "creatures/monsters/monster.hpp"
 #include "creatures/monsters/monsters.hpp"
 #include "creatures/npcs/npc.hpp"
@@ -26,6 +27,7 @@
 #include "game/functions/game_reload.hpp"
 #include "game/game.hpp"
 #include "game/scheduling/dispatcher.hpp"
+#include "io/occupancy_mask.hpp"
 #include "io/io_bosstiary.hpp"
 #include "io/iobestiary.hpp"
 #include "io/iologindata.hpp"
@@ -55,6 +57,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "loadMap", GameFunctions::luaGameLoadMap);
 	Lua::registerMethod(L, "Game", "loadMapChunk", GameFunctions::luaGameloadMapChunk);
 	Lua::registerMethod(L, "Game", "copyMapRegion", GameFunctions::luaGameCopyMapRegion);
+	Lua::registerMethod(L, "Game", "loadOccupancyMask", GameFunctions::luaGameLoadOccupancyMask);
 
 	Lua::registerMethod(L, "Game", "getExperienceForLevel", GameFunctions::luaGameGetExperienceForLevel);
 	Lua::registerMethod(L, "Game", "getMonsterCount", GameFunctions::luaGameGetMonsterCount);
@@ -402,6 +405,68 @@ int GameFunctions::luaGameCopyMapRegion(lua_State* L) {
 	const Position &sourceTo = Lua::getPosition(L, 2);
 	const Position &dest = Lua::getPosition(L, 3);
 	lua_pushnumber(L, g_game().copyMapRegion(sourceFrom, sourceTo, dest));
+	return 1;
+}
+
+namespace {
+	int luaOccupancyMaskContains(lua_State* L) {
+		// occupancy:contains(worldX, worldY)
+		lua_getfield(L, 1, "originX");
+		const auto originX = Lua::getNumber<int32_t>(L, -1);
+		lua_pop(L, 1);
+		lua_getfield(L, 1, "originY");
+		const auto originY = Lua::getNumber<int32_t>(L, -1);
+		lua_pop(L, 1);
+		lua_getfield(L, 1, "width");
+		const auto width = Lua::getNumber<int32_t>(L, -1);
+		lua_pop(L, 1);
+		lua_getfield(L, 1, "height");
+		const auto height = Lua::getNumber<int32_t>(L, -1);
+		lua_pop(L, 1);
+		lua_getfield(L, 1, "bits");
+		size_t bitsLen = 0;
+		const char* bits = lua_tolstring(L, -1, &bitsLen);
+		lua_pop(L, 1);
+
+		const auto worldX = Lua::getNumber<int32_t>(L, 2);
+		const auto worldY = Lua::getNumber<int32_t>(L, 3);
+		const int32_t lx = worldX - originX;
+		const int32_t ly = worldY - originY;
+		if (bits == nullptr || width <= 0 || height <= 0 || lx < 0 || ly < 0 || lx >= width || ly >= height) {
+			lua_pushboolean(L, 0);
+			return 1;
+		}
+		const size_t i = static_cast<size_t>(ly) * static_cast<size_t>(width) + static_cast<size_t>(lx);
+		const size_t byteIndex = i >> 3;
+		if (byteIndex >= bitsLen) {
+			lua_pushboolean(L, 0);
+			return 1;
+		}
+		lua_pushboolean(L, (static_cast<uint8_t>(bits[byteIndex]) & (1u << (i & 7))) != 0);
+		return 1;
+	}
+}
+
+int GameFunctions::luaGameLoadOccupancyMask(lua_State* L) {
+	// Game.loadOccupancyMask(path, originX, originY)
+	const auto path = Lua::getString(L, 1);
+	const auto originX = Lua::getNumber<int32_t>(L, 2);
+	const auto originY = Lua::getNumber<int32_t>(L, 3);
+	OccupancyMask occ;
+	if (!loadOccupancyMaskFile(path, originX, originY, occ)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_createtable(L, 0, 7);
+	Lua::setField(L, "originX", occ.originX);
+	Lua::setField(L, "originY", occ.originY);
+	Lua::setField(L, "width", occ.width);
+	Lua::setField(L, "height", occ.height);
+	Lua::setField(L, "tiles", occ.tiles);
+	lua_pushlstring(L, reinterpret_cast<const char*>(occ.bits.data()), occ.bits.size());
+	lua_setfield(L, -2, "bits");
+	lua_pushcfunction(L, luaOccupancyMaskContains);
+	lua_setfield(L, -2, "contains");
 	return 1;
 }
 
