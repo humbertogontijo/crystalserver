@@ -583,6 +583,9 @@ std::shared_ptr<Tile> Map::canWalkTo(const std::shared_ptr<Creature> &creature, 
 		if (!tile || tile->queryAdd(0, creature, 1, FLAG_PATHFINDING | FLAG_IGNOREFIELDDAMAGE) != RETURNVALUE_NOERROR) {
 			return nullptr;
 		}
+		if (!g_game().canWalkInstance(creature, pos)) {
+			return nullptr;
+		}
 	}
 
 	return tile;
