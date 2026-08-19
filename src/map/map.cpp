@@ -293,7 +293,7 @@ bool Map::placeCreature(const Position &centerPos, const std::shared_ptr<Creatur
 			}
 
 			if (tile->queryAdd(0, creature, 1, FLAG_IGNOREBLOCKITEM | FLAG_IGNOREFIELDDAMAGE) == RETURNVALUE_NOERROR) {
-				if (!extendedPos || isSightClear(centerPos, tryPos, false)) {
+				if (!extendedPos || isSightClear(centerPos, tryPos, false, creature->getInstanceId())) {
 					foundTile = true;
 					break;
 				}
@@ -453,7 +453,7 @@ void Map::moveCreature(const std::shared_ptr<Creature> &creature, const std::sha
 	}
 }
 
-bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/) {
+bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/, const uint32_t instanceId /*= 0*/) {
 	// z checks
 	// underground 8->15
 	// ground level and above 7->0
@@ -479,10 +479,10 @@ bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const
 		return true;
 	}
 
-	return isSightClear(fromPos, toPos, lineOfSight & SightLine_FloorCheck);
+	return isSightClear(fromPos, toPos, lineOfSight & SightLine_FloorCheck, instanceId);
 }
 
-bool Map::checkSightLine(Position start, Position destination) {
+bool Map::checkSightLine(Position start, Position destination, uint32_t instanceId) {
 	if (start.x == destination.x && start.y == destination.y) {
 		return true;
 	}
@@ -512,14 +512,14 @@ bool Map::checkSightLine(Position start, Position destination) {
 		}
 
 		const auto &tile = getTile(start.x, start.y, start.z);
-		if (tile && tile->hasProperty(CONST_PROP_BLOCKPROJECTILE)) {
+		if (tile && tile->hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId)) {
 			return false;
 		}
 	}
 	return true;
 }
 
-bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck) {
+bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck, uint32_t instanceId) {
 	// Check if this sight line should be even possible
 	if (floorCheck && fromPos.z != toPos.z) {
 		return false;
@@ -536,10 +536,10 @@ bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floo
 	}
 
 	// Perform check for current floor
-	bool sightClear = checkSightLine(fromPos, toPos);
+	bool sightClear = checkSightLine(fromPos, toPos, instanceId);
 	if (fromPos.z == toPos.z && !sightClear) {
 		// Corner cases around solid tiles can be asymmetric, so test the reverse ray too.
-		sightClear = checkSightLine(toPos, fromPos);
+		sightClear = checkSightLine(toPos, fromPos, instanceId);
 	}
 	if (floorCheck || (fromPos.z == toPos.z && sightClear)) {
 		return sightClear;
@@ -551,7 +551,7 @@ bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floo
 	} else {
 		// Check if we can throw above obstacle
 		const auto &tile = getTile(fromPos.x, fromPos.y, fromPos.z - 1);
-		if ((tile && (tile->getGround() || tile->hasProperty(CONST_PROP_BLOCKPROJECTILE))) || !checkSightLine(Position(fromPos.x, fromPos.y, fromPos.z - 1), Position(toPos.x, toPos.y, toPos.z - 1))) {
+		if ((tile && (tile->getGround() || tile->hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId))) || !checkSightLine(Position(fromPos.x, fromPos.y, fromPos.z - 1), Position(toPos.x, toPos.y, toPos.z - 1), instanceId)) {
 			return false;
 		}
 
@@ -566,7 +566,7 @@ bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floo
 	// now we need to perform a jump between floors to see if everything is clear (literally)
 	for (; startZ != toPos.z; ++startZ) {
 		const auto &tile = getTile(toPos.x, toPos.y, startZ);
-		if (tile && (tile->getGround() || tile->hasProperty(CONST_PROP_BLOCKPROJECTILE))) {
+		if (tile && (tile->getGround() || tile->hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId))) {
 			return false;
 		}
 	}

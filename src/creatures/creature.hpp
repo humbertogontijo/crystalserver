@@ -57,8 +57,9 @@ static constexpr int32_t EVENT_CHECK_CREATURE_INTERVAL = (EVENT_CREATURE_THINK_I
 
 class FrozenPathingConditionCall {
 public:
-	explicit FrozenPathingConditionCall(Position newTargetPos) :
-		targetPos(newTargetPos) { }
+	explicit FrozenPathingConditionCall(Position newTargetPos, uint32_t newInstanceId = 0) :
+		targetPos(newTargetPos),
+		instanceId(newInstanceId) { }
 
 	bool operator()(const Position &startPos, const Position &testPos, const FindPathParams &fpp, int32_t &bestMatchDist) const;
 
@@ -70,6 +71,7 @@ public:
 
 private:
 	Position targetPos;
+	uint32_t instanceId = 0;
 };
 
 //////////////////////////////////////////////////////////////////////

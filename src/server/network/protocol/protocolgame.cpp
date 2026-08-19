@@ -864,7 +864,7 @@ void ProtocolGame::logout(bool displayEffect, bool forced) {
 
 	displayEffect = displayEffect && !player->isRemoved() && player->getHealth() > 0 && !player->isInGhostMode();
 	if (displayEffect) {
-		g_game().addMagicEffect(player->getPosition(), CONST_ME_POFF);
+		g_game().addMagicEffect(player->getPosition(), CONST_ME_POFF, player);
 	}
 
 	sendSessionEndInformation(forced ? SESSION_END_FORCECLOSE : SESSION_END_LOGOUT);
@@ -1638,6 +1638,9 @@ void ProtocolGame::GetTileDescription(const std::shared_ptr<Tile> &tile, Network
 	const TileItemVector* items = tile->getItemList();
 	if (items) {
 		for (auto it = items->getBeginTopItem(), end = items->getEndTopItem(); it != end; ++it) {
+			if (!(*it)->isVisibleInInstance(player->getInstanceId())) {
+				continue;
+			}
 			AddItem(msg, *it);
 
 			count++;

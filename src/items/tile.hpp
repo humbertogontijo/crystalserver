@@ -145,12 +145,14 @@ public:
 	}
 
 	std::shared_ptr<MagicField> getFieldItem() const;
+	std::shared_ptr<MagicField> getFieldItem(uint32_t instanceId) const;
 	std::shared_ptr<Teleport> getTeleportItem() const;
 	std::shared_ptr<TrashHolder> getTrashHolder() const;
 	std::shared_ptr<Mailbox> getMailbox() const;
 	std::shared_ptr<BedItem> getBedItem() const;
 
 	std::shared_ptr<Creature> getTopCreature() const;
+	std::shared_ptr<Creature> getTopCreature(uint32_t instanceId) const;
 	std::shared_ptr<Creature> getBottomCreature() const;
 	std::shared_ptr<Creature> getTopVisibleCreature(const std::shared_ptr<Creature> &creature) const;
 
@@ -175,7 +177,9 @@ public:
 	uint32_t getDownItemCount() const;
 
 	bool hasProperty(ItemProperty prop) const;
+	bool hasProperty(ItemProperty prop, uint32_t instanceId) const;
 	bool hasProperty(const std::shared_ptr<Item> &exclude, ItemProperty prop) const;
+	std::shared_ptr<Item> findStatefulMapFork(const Item &reference, uint32_t instanceId) const;
 
 	bool hasFlag(uint32_t flag) const;
 	void setFlag(uint32_t flag) {
@@ -279,6 +283,7 @@ private:
 	void setTileFlags(const std::shared_ptr<Item> &item);
 	void resetTileFlags(const std::shared_ptr<Item> &item);
 	bool hasHarmfulField() const;
+	bool hasHarmfulField(uint32_t instanceId) const;
 	ReturnValue checkNpcCanWalkIntoTile() const;
 
 protected:

@@ -135,17 +135,18 @@ public:
 	 *	\param checkLineOfSight checks if there is any blocking objects in the way
 	 *	\returns The result if you can throw there or not
 	 */
-	bool canThrowObjectTo(const Position &fromPos, const Position &toPos, SightLines_t lineOfSight = SightLine_CheckSightLine, int32_t rangex = MAP_CLASSIC_CLIENT_VIEW_PORT_X, int32_t rangey = MAP_CLASSIC_CLIENT_VIEW_PORT_Y);
+	bool canThrowObjectTo(const Position &fromPos, const Position &toPos, SightLines_t lineOfSight = SightLine_CheckSightLine, int32_t rangex = MAP_CLASSIC_CLIENT_VIEW_PORT_X, int32_t rangey = MAP_CLASSIC_CLIENT_VIEW_PORT_Y, uint32_t instanceId = 0);
 	/**
 	 * Checks if path is clear from fromPos to toPos
 	 * Notice: This only checks a straight line if the path is clear, for path finding use getPathTo.
 	 *	\param fromPos from Source point
 	 *	\param toPos Destination point
 	 *	\param floorCheck if true then view is not clear if fromPos.z is not the same as toPos.z
+	 *	\param instanceId viewer instance (0 = map template only); instance walls/fields block that instance
 	 *	\returns The result if there is no obstacles
 	 */
-	bool isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck);
-	bool checkSightLine(Position start, Position destination);
+	bool isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck, uint32_t instanceId = 0);
+	bool checkSightLine(Position start, Position destination, uint32_t instanceId = 0);
 
 	std::shared_ptr<Tile> canWalkTo(const std::shared_ptr<Creature> &creature, const Position &pos);
 

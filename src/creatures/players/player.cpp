@@ -1412,6 +1412,10 @@ bool Player::canSeeCreature(const std::shared_ptr<Creature> &creature) const {
 		return true;
 	}
 
+	if (!creature || getInstanceId() != creature->getInstanceId()) {
+		return false;
+	}
+
 	if (creature->isInGhostMode() && !group->access) {
 		return false;
 	}
@@ -3023,7 +3027,7 @@ void Player::onWalk(Direction &dir) {
 
 		const auto &tile = g_game().map.getTile(pos);
 		if (tile) {
-			const auto &field = tile->getFieldItem();
+			const auto &field = tile->getFieldItem(getInstanceId());
 			if (field && !field->isBlocking() && field->getDamage() != 0) {
 				setNextActionTask(nullptr);
 				setNextAction(OTSYS_TIME() + getStepDuration(dir));
@@ -3688,7 +3692,7 @@ void Player::addExperience(const std::shared_ptr<Creature> &target, uint64_t exp
 		message.primary.color = TEXTCOLOR_WHITE_EXP;
 		sendTextMessage(message);
 
-		auto spectators = Spectators().find<Player>(position);
+		auto spectators = Spectators::around<Player>(position, getInstanceId());
 		spectators.erase(static_self_cast<Player>());
 		if (!spectators.empty()) {
 			message.type = MESSAGE_EXPERIENCE_OTHERS;
@@ -3776,7 +3780,7 @@ void Player::removeExperience(uint64_t exp, bool sendText /* = false*/) {
 		message.primary.color = TEXTCOLOR_RED;
 		sendTextMessage(message);
 
-		auto spectators = Spectators().find<Player>(position);
+		auto spectators = Spectators::around<Player>(position, getInstanceId());
 		spectators.erase(static_self_cast<Player>());
 		if (!spectators.empty()) {
 			message.type = MESSAGE_EXPERIENCE_OTHERS;
@@ -10488,7 +10492,7 @@ void Player::triggerMomentum() {
 			++it;
 		}
 		if (triggered) {
-			g_game().addMagicEffect(getPosition(), CONST_ME_HOURGLASS);
+			g_game().addMagicEffect(getPosition(), CONST_ME_HOURGLASS, static_self_cast<Player>());
 			sendTextMessage(MESSAGE_ATTENTION, "Momentum was triggered.");
 		}
 	}
@@ -10543,7 +10547,7 @@ void Player::triggerTranscendence() {
 		outfit.lookType = getVocation()->getAvatarLookType();
 		g_game().createIllusion(static_self_cast<Player>(), outfit, duration);
 		wheel()->setOnThinkTimer(WheelOnThink_t::AVATAR_FORGE, OTSYS_TIME() + duration);
-		g_game().addMagicEffect(getPosition(), CONST_ME_AVATAR_APPEAR);
+		g_game().addMagicEffect(getPosition(), CONST_ME_AVATAR_APPEAR, static_self_cast<Player>());
 
 		sendSkills();
 		sendStats();

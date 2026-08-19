@@ -173,7 +173,8 @@ void Creature::onAttacking(uint32_t interval) {
 	onAttacked();
 	attackedCreature->onAttacked();
 
-	if (g_game().isSightClear(getPosition(), attackedCreature->getPosition(), true)) {
+	InstanceActorScope instanceActorScope(getCreature());
+	if (g_game().isSightClear(getPosition(), attackedCreature->getPosition(), true, getInstanceId())) {
 		doAttacking(interval);
 	}
 }
@@ -693,7 +694,7 @@ bool Creature::dropCorpse(const std::shared_ptr<Creature> &lastHitCreature, cons
 			}
 		}
 
-		g_game().addMagicEffect(getPosition(), CONST_ME_POFF);
+		g_game().addMagicEffect(getPosition(), CONST_ME_POFF, static_self_cast<Creature>());
 	} else {
 		std::shared_ptr<Item> splash;
 		switch (getRace()) {
@@ -724,6 +725,7 @@ bool Creature::dropCorpse(const std::shared_ptr<Creature> &lastHitCreature, cons
 
 		const auto &tile = getTile();
 		if (tile && splash) {
+			splash->setInstanceId(getInstanceId());
 			g_game().internalAddItem(tile, splash, INDEX_WHEREEVER, FLAG_NOLIMIT);
 			splash->startDecaying();
 		}
@@ -756,7 +758,7 @@ bool Creature::dropCorpse(const std::shared_ptr<Creature> &lastHitCreature, cons
 				fpp.maxSearchDist = 0;
 
 				std::vector<Direction> dirList;
-				auto isReachable = g_game().map.getPathMatching(player->getPosition(), dirList, FrozenPathingConditionCall(corpse->getPosition()), fpp);
+				auto isReachable = g_game().map.getPathMatching(player->getPosition(), dirList, FrozenPathingConditionCall(corpse->getPosition(), player->getInstanceId()), fpp);
 
 				if (player->checkAutoLoot(monster->isRewardBoss()) && isReachable) {
 					g_dispatcher().addEvent([player, corpseContainer, corpsePosition = corpse->getPosition()] {
@@ -1168,7 +1170,7 @@ void Creature::onEndCondition(ConditionType_t) {
 
 void Creature::onTickCondition(ConditionType_t type, bool &bRemove) {
 	const auto &tile = getTile();
-	const auto &field = tile ? tile->getFieldItem() : nullptr;
+	const auto &field = tile ? tile->getFieldItem(getInstanceId()) : nullptr;
 	if (!field) {
 		return;
 	}
@@ -1256,7 +1258,7 @@ void Creature::onGainExperience(uint64_t gainExp, const std::shared_ptr<Creature
 	master->onGainExperience(gainExp, target);
 
 	if (!m->isFamiliar()) {
-		auto spectators = Spectators().find<Player>(position);
+		auto spectators = Spectators::around<Player>(position, getInstanceId());
 		if (spectators.empty()) {
 			return;
 		}
@@ -1725,7 +1727,7 @@ bool FrozenPathingConditionCall::operator()(const Position &startPos, const Posi
 		return false;
 	}
 
-	if (fpp.clearSight && !g_game().isSightClear(testPos, targetPos, true)) {
+	if (fpp.clearSight && !g_game().isSightClear(testPos, targetPos, true, instanceId)) {
 		return false;
 	}
 
@@ -1768,9 +1770,9 @@ ZoneType_t Creature::getZoneType() {
 bool Creature::getPathTo(const Position &targetPos, std::vector<Direction> &dirList, const FindPathParams &fpp) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
 	if (fpp.maxSearchDist != 0 || fpp.keepDistance) {
-		return g_game().map.getPathMatchingCond(getCreature(), targetPos, dirList, FrozenPathingConditionCall(targetPos), fpp);
+		return g_game().map.getPathMatchingCond(getCreature(), targetPos, dirList, FrozenPathingConditionCall(targetPos, getInstanceId()), fpp);
 	}
-	return g_game().map.getPathMatching(getCreature(), targetPos, dirList, FrozenPathingConditionCall(targetPos), fpp);
+	return g_game().map.getPathMatching(getCreature(), targetPos, dirList, FrozenPathingConditionCall(targetPos, getInstanceId()), fpp);
 }
 
 bool Creature::getPathTo(const Position &targetPos, std::vector<Direction> &dirList, int32_t minTargetDist, int32_t maxTargetDist, bool fullPathSearch /*= true*/, bool clearSight /*= true*/, int32_t maxSearchDist /*= 7*/) {
@@ -1826,7 +1828,7 @@ void Creature::handleLostSummon(bool teleportSummons) {
 	} else {
 		g_game().removeCreature(static_self_cast<Creature>(), true);
 	}
-	g_game().addMagicEffect(getPosition(), CONST_ME_POFF);
+	g_game().addMagicEffect(getPosition(), CONST_ME_POFF, static_self_cast<Creature>());
 }
 
 double_t Creature::getReflectPercent(CombatType_t combatType, bool useCharges /*= false*/) const {
@@ -1927,7 +1929,7 @@ void Creature::iconChanged() {
 		return;
 	}
 
-	for (const auto &spectator : Spectators().find<Player>(tile->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(tile->getPosition(), getInstanceId())) {
 		spectator->getPlayer()->sendCreatureIcon(getCreature());
 	}
 }

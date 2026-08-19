@@ -666,9 +666,11 @@ public:
 	void setInstanceId(uint32_t id) {
 		instanceId = id;
 	}
-	bool isVisibleInInstance(uint32_t viewerInstanceId) const {
-		return instanceId == 0 || instanceId == viewerInstanceId;
-	}
+	bool isVisibleInInstance(uint32_t viewerInstanceId) const;
+	/** Shared map layer (instanceId 0): OTBM tiles, doors, transform-on-use fixtures (levers/lamps), etc. */
+	bool isMapTemplateItem() const;
+	/** Interactive map fixtures (levers, lamps, doors) that can be forked per instance. */
+	bool isStatefulMapTemplate() const;
 
 	bool isDecayDisabled() const {
 		return decayDisabled;
@@ -684,6 +686,9 @@ public:
 
 	bool hasMarketAttributes() const;
 
+	std::shared_ptr<Cylinder> getParent() const {
+		return m_parent.lock();
+	}
 	std::shared_ptr<Cylinder> getParent() override {
 		return m_parent.lock();
 	}

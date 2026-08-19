@@ -87,6 +87,7 @@
 #include "enums/account_type.hpp"
 #include "enums/object_category.hpp"
 
+#include <algorithm>
 #include <appearances.pb.h>
 
 std::vector<std::weak_ptr<Creature>> checkCreatureLists[EVENT_CREATURECOUNT];
@@ -124,6 +125,39 @@ namespace {
 		return fromClause.str();
 	}
 
+	uint32_t spectatorInstanceId(const std::shared_ptr<Creature> &actor) {
+		return actor ? actor->getInstanceId() : std::numeric_limits<uint32_t>::max();
+	}
+
+	std::vector<uint32_t> effectInstanceIds(const Position &pos) {
+		std::vector<uint32_t> ids;
+		const auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, std::numeric_limits<uint32_t>::max());
+		ids.reserve(spectators.size());
+		for (const auto &creature : spectators) {
+			if (creature) {
+				ids.push_back(creature->getInstanceId());
+			}
+		}
+		std::ranges::sort(ids);
+		ids.erase(std::ranges::unique(ids).begin(), ids.end());
+		if (ids.empty()) {
+			ids.push_back(0);
+		}
+		return ids;
+	}
+
+	std::vector<uint32_t> effectInstanceIds(const Position &fromPos, const Position &toPos) {
+		auto ids = effectInstanceIds(fromPos);
+		const auto toIds = effectInstanceIds(toPos);
+		ids.insert(ids.end(), toIds.begin(), toIds.end());
+		std::ranges::sort(ids);
+		ids.erase(std::ranges::unique(ids).begin(), ids.end());
+		if (ids.empty()) {
+			ids.push_back(0);
+		}
+		return ids;
+	}
+
 	enum class IdleCombatDeny : uint8_t {
 		Walk,
 		Target,
@@ -142,6 +176,26 @@ namespace {
 		return true;
 	}
 } // namespace
+
+thread_local std::shared_ptr<Creature> g_instanceActor;
+
+static uint32_t sightInstanceId(uint32_t instanceId) {
+	if (instanceId != 0) {
+		return instanceId;
+	}
+	return g_instanceActor ? g_instanceActor->getInstanceId() : 0;
+}
+
+InstanceActorScope::InstanceActorScope(const std::shared_ptr<Creature> &creature) :
+	previous(g_instanceActor) {
+	if (creature) {
+		g_instanceActor = creature;
+	}
+}
+
+InstanceActorScope::~InstanceActorScope() {
+	g_instanceActor = previous;
+}
 
 namespace InternalGame {
 	void sendBlockEffect(BlockType_t blockType, CombatType_t combatType, const Position &targetPos, const std::shared_ptr<Creature> &source) {
@@ -1045,6 +1099,13 @@ bool Game::callInstanceWorld(const char* method, const std::shared_ptr<Creature>
 	if (!L || !creature) {
 		return defaultResult;
 	}
+	// A* (WalkParallel) must not touch Lua: setCreatureMetatable/pushPosition/protectedCall
+	// are ignored in async mode and then report "Stack size changed!". Occupancy fences
+	// are still enforced on the serial walk in internalMoveCreature; queryAdd already
+	// applies instance-scoped BLOCKSOLID for physical walls.
+	if (g_dispatcher().context().isAsync()) {
+		return defaultResult;
+	}
 	if (!Lua::reserveScriptEnv()) {
 		g_logger().error("[Game::callInstanceWorld] Lua call stack overflow ({})", method);
 		return defaultResult;
@@ -1084,6 +1145,10 @@ bool Game::routeInstanceTravel(const std::shared_ptr<Creature> &creature, const 
 }
 
 bool Game::canWalkInstance(const std::shared_ptr<Creature> &creature, const Position &toPos) {
+	if (g_dispatcher().context().isAsync()) {
+		// Match InstanceWorld.canWalk's instance-0 deny without calling Lua from A*.
+		return creature && creature->getInstanceId() != 0;
+	}
 	return callInstanceWorld("canWalk", creature, toPos, true);
 }
 
@@ -1108,6 +1173,13 @@ void Game::bindPlayerInstance(const std::shared_ptr<Player> &player) {
 	if (player) {
 		callInstanceWorld("bindLogin", player, player->getLoginPosition(), true);
 	}
+}
+
+void Game::syncCreatureInstance(const std::shared_ptr<Creature> &creature) {
+	if (!creature || creature->getInstanceId() != 0) {
+		return;
+	}
+	callInstanceWorld("syncCreatureInstance", creature, creature->getPosition(), false);
 }
 
 bool Game::consumeInstanceFenceMessage() {
@@ -2049,7 +2121,7 @@ ReturnValue Game::internalMoveCreature(const std::shared_ptr<Creature> &creature
 	}
 
 	if (creature->hasCondition(CONDITION_FEARED)) {
-		std::shared_ptr<MagicField> field = toTile->getFieldItem();
+		std::shared_ptr<MagicField> field = toTile->getFieldItem(creature->getInstanceId());
 		if (field && !field->isBlocking() && field->getDamage() != 0) {
 			return RETURNVALUE_NOTPOSSIBLE;
 		}
@@ -2290,7 +2362,7 @@ void Game::playerMoveItem(const std::shared_ptr<Player> &player, const Position 
 		return;
 	}
 
-	if (!canThrowObjectTo(mapFromPos, mapToPos)) {
+	if (!canThrowObjectTo(mapFromPos, mapToPos, SightLine_CheckSightLine, MAP_CLASSIC_CLIENT_VIEW_PORT_X, MAP_CLASSIC_CLIENT_VIEW_PORT_Y, player->getInstanceId())) {
 		player->sendCancelMessage(RETURNVALUE_CANNOTTHROW);
 		return;
 	}
@@ -2649,6 +2721,9 @@ ReturnValue Game::internalMoveItem(std::shared_ptr<Cylinder> fromCylinder, std::
 
 	// add item
 	if (moveItem /*m - n > 0*/) {
+		if (actor && actor->getInstanceId() != 0 && toCylinder->getTile() && moveItem->getInstanceId() == 0 && !moveItem->isMapTemplateItem()) {
+			moveItem->setInstanceId(actor->getInstanceId());
+		}
 		toCylinder->addThing(index, moveItem);
 	}
 
@@ -2752,6 +2827,17 @@ ReturnValue Game::internalAddItem(std::shared_ptr<Cylinder> toCylinder, const st
 	if (item == nullptr) {
 		g_logger().error("[{}] item is nullptr", __FUNCTION__);
 		return RETURNVALUE_NOTPOSSIBLE;
+	}
+
+	if (item->getInstanceId() == 0 && !item->isMapTemplateItem() && g_instanceActor) {
+		uint32_t actorInstanceId = g_instanceActor->getInstanceId();
+		if (actorInstanceId == 0) {
+			syncCreatureInstance(g_instanceActor);
+			actorInstanceId = g_instanceActor->getInstanceId();
+		}
+		if (actorInstanceId != 0) {
+			item->setInstanceId(actorInstanceId);
+		}
 	}
 
 	auto addedItem = toCylinder->getItem();
@@ -3302,8 +3388,59 @@ void Game::addMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money, u
 	}
 }
 
+std::shared_ptr<Item> Game::resolveInstancedMapItem(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item) {
+	if (!player || !item) {
+		return item;
+	}
+	if (player->getInstanceId() == 0) {
+		syncCreatureInstance(player);
+		if (player->getInstanceId() == 0) {
+			return item;
+		}
+	}
+	if (!item->isStatefulMapTemplate() || item->getInstanceId() != 0) {
+		return item;
+	}
+
+	const auto &tile = item->getTile();
+	if (!tile) {
+		return item;
+	}
+
+	if (const auto &fork = tile->findStatefulMapFork(*item, player->getInstanceId())) {
+		return fork;
+	}
+
+	const auto &fork = item->clone();
+	if (!fork) {
+		return item;
+	}
+
+	fork->setInstanceId(player->getInstanceId());
+	if (internalAddItem(tile, fork, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
+		return item;
+	}
+
+	const Position &pos = tile->getPosition();
+	for (const auto &spectator : Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, player->getInstanceId())) {
+		if (const auto &instancePlayer = spectator->getPlayer()) {
+			instancePlayer->sendUpdateTile(tile, pos);
+		}
+	}
+
+	return fork;
+}
+
 std::shared_ptr<Item> Game::transformItem(std::shared_ptr<Item> item, uint16_t newId, int32_t newCount /*= -1*/) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
+	if (g_instanceActor && item) {
+		if (const auto &actorPlayer = g_instanceActor->getPlayer()) {
+			item = resolveInstancedMapItem(actorPlayer, item);
+		}
+	}
+	if (!item) {
+		return nullptr;
+	}
 	if (item->getID() == newId && (newCount == -1 || (newCount == item->getSubType() && newCount != 0))) { // chargeless item placed on map = infinite
 		return item;
 	}
@@ -4489,7 +4626,9 @@ void Game::playerUseItemEx(uint32_t playerId, const Position &fromPos, uint8_t f
 		}
 	}
 
-	g_actions().useItemEx(player, fromPos, toPos, toStackPos, item, isHotkey);
+	const auto &useItem = resolveInstancedMapItem(player, item);
+	InstanceActorScope instanceActorScope(player);
+	g_actions().useItemEx(player, fromPos, toPos, toStackPos, useItem, isHotkey);
 
 	if (mustReloadDepotSearch) {
 		player->requestDepotSearchItem(fromItemId, fromStackPos);
@@ -4599,7 +4738,9 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 		refreshDepotSearch = true;
 	}
 
-	g_actions().useItem(player, pos, index, item, isHotkey);
+	const auto &useItem = resolveInstancedMapItem(player, item);
+	InstanceActorScope instanceActorScope(player);
+	g_actions().useItem(player, pos, index, useItem, isHotkey);
 
 	if (refreshDepotSearch) {
 		player->requestDepotSearchItem(itemId, stackPos);
@@ -4760,6 +4901,7 @@ void Game::playerUseWithCreature(uint32_t playerId, const Position &fromPos, uin
 		player->setNextActionTask(nullptr);
 	}
 
+	InstanceActorScope instanceActorScope(player);
 	g_actions().useItemEx(player, fromPos, creature->getPosition(), creature->getParent()->getThingIndex(creature), item, isHotkey, creature);
 }
 
@@ -5089,7 +5231,10 @@ void Game::playerSetShowOffSocket(uint32_t playerId, Outfit_t &outfit, const Pos
 
 	// Send to client
 	for (const auto &spectator : Spectators().find<Player>(pos, true)) {
-		spectator->getPlayer()->sendUpdateTileItem(tile, pos, item);
+		const auto &tmpPlayer = spectator->getPlayer();
+		if (tmpPlayer && item->isVisibleInInstance(tmpPlayer->getInstanceId())) {
+			tmpPlayer->sendUpdateTileItem(tile, pos, item);
+		}
 	}
 }
 
@@ -5565,7 +5710,7 @@ void Game::playerRequestTrade(uint32_t playerId, const Position &pos, uint8_t st
 		return;
 	}
 
-	if (!canThrowObjectTo(tradePartner->getPosition(), player->getPosition(), SightLine_CheckSightLineAndFloor)) {
+	if (!canThrowObjectTo(tradePartner->getPosition(), player->getPosition(), SightLine_CheckSightLineAndFloor, MAP_CLASSIC_CLIENT_VIEW_PORT_X, MAP_CLASSIC_CLIENT_VIEW_PORT_Y, player->getInstanceId())) {
 		player->sendCancelMessage(RETURNVALUE_CREATUREISNOTREACHABLE);
 		return;
 	}
@@ -5737,7 +5882,7 @@ void Game::playerAcceptTrade(uint32_t playerId) {
 		return;
 	}
 
-	if (!canThrowObjectTo(tradePartner->getPosition(), player->getPosition(), SightLine_CheckSightLineAndFloor)) {
+	if (!canThrowObjectTo(tradePartner->getPosition(), player->getPosition(), SightLine_CheckSightLineAndFloor, MAP_CLASSIC_CLIENT_VIEW_PORT_X, MAP_CLASSIC_CLIENT_VIEW_PORT_Y, player->getInstanceId())) {
 		player->sendCancelMessage(RETURNVALUE_CREATUREISNOTREACHABLE);
 		return;
 	}
@@ -7217,7 +7362,10 @@ bool Game::playerSaySpell(const std::shared_ptr<Player> &player, SpeakClasses ty
 		}
 	}
 
-	result = g_spells().playerSaySpell(player, words, lowerWords);
+	{
+		InstanceActorScope instanceActorScope(player);
+		result = g_spells().playerSaySpell(player, words, lowerWords);
+	}
 	if (result == TALKACTION_BREAK) {
 		if (!g_configManager().getBoolean(PUSH_WHEN_ATTACKING)) {
 			player->cancelPush();
@@ -7231,7 +7379,7 @@ bool Game::playerSaySpell(const std::shared_ptr<Player> &player, SpeakClasses ty
 }
 
 void Game::playerWhisper(const std::shared_ptr<Player> &player, const std::string &text) {
-	auto spectators = Spectators().find<Player>(player->getPosition(), false, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_Y, MAP_MAX_CLIENT_VIEW_PORT_Y);
+	auto spectators = Spectators().find<Player>(player->getPosition(), false, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_Y, MAP_MAX_CLIENT_VIEW_PORT_Y, true, player->getInstanceId());
 
 	// Send to client
 	for (const auto &spectator : spectators) {
@@ -7323,12 +7471,12 @@ std::shared_ptr<Task> Game::createPlayerTask(uint32_t delay, std::function<void(
 }
 
 //--
-bool Game::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/) {
-	return map.canThrowObjectTo(fromPos, toPos, lineOfSight, rangex, rangey);
+bool Game::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/, const uint32_t instanceId /*= 0*/) {
+	return map.canThrowObjectTo(fromPos, toPos, lineOfSight, rangex, rangey, sightInstanceId(instanceId));
 }
 
-bool Game::isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck) {
-	return map.isSightClear(fromPos, toPos, floorCheck);
+bool Game::isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck, uint32_t instanceId) {
+	return map.isSightClear(fromPos, toPos, floorCheck, sightInstanceId(instanceId));
 }
 
 bool Game::internalCreatureTurn(const std::shared_ptr<Creature> &creature, Direction dir) {
@@ -7344,7 +7492,7 @@ bool Game::internalCreatureTurn(const std::shared_ptr<Creature> &creature, Direc
 		creature->setDirection(dir);
 	}
 
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition(), true)) {
+	for (const auto &spectator : Spectators().find<Player>(creature->getPosition(), true, 0, 0, 0, 0, true, creature->getInstanceId())) {
 		spectator->getPlayer()->sendCreatureTurn(creature);
 	}
 	return true;
@@ -7367,9 +7515,9 @@ bool Game::internalCreatureSay(const std::shared_ptr<Creature> &creature, SpeakC
 		// used (hopefully the compiler will optimize away the construction of
 		// the temporary when it's not used).
 		if (type != TALKTYPE_YELL && type != TALKTYPE_MONSTER_YELL) {
-			spectators.find<Creature>(*pos, false, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_Y, MAP_MAX_CLIENT_VIEW_PORT_Y);
+			spectators.find<Creature>(*pos, false, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_Y, MAP_MAX_CLIENT_VIEW_PORT_Y, true, creature->getInstanceId());
 		} else {
-			spectators.find<Creature>(*pos, true, (MAP_MAX_CLIENT_VIEW_PORT_X + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_X + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_Y + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_Y + 1) * 2);
+			spectators.find<Creature>(*pos, true, (MAP_MAX_CLIENT_VIEW_PORT_X + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_X + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_Y + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_Y + 1) * 2, true, creature->getInstanceId());
 		}
 	} else {
 		spectators = (*spectatorsPtr);
@@ -7378,6 +7526,9 @@ bool Game::internalCreatureSay(const std::shared_ptr<Creature> &creature, SpeakC
 	// Send to client
 	for (const auto &spectator : spectators) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
+			if (tmpPlayer->getInstanceId() != creature->getInstanceId()) {
+				continue;
+			}
 			if (!ghostMode || tmpPlayer->canSeeCreature(creature)) {
 				tmpPlayer->sendCreatureSay(creature, type, text, pos);
 			}
@@ -7386,6 +7537,9 @@ bool Game::internalCreatureSay(const std::shared_ptr<Creature> &creature, SpeakC
 
 	// event method
 	for (const auto &spectator : spectators) {
+		if (spectator->getInstanceId() != creature->getInstanceId()) {
+			continue;
+		}
 		spectator->onCreatureSay(creature, type, text);
 	}
 	return true;
@@ -7501,7 +7655,7 @@ void Game::changeSpeed(const std::shared_ptr<Creature> &creature, int32_t varSpe
 	creature->setSpeed(varSpeed);
 
 	// Send to clients
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition())) {
+	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		spectator->getPlayer()->sendChangeSpeed(creature, creature->getStepSpeed());
 	}
 }
@@ -7510,7 +7664,7 @@ void Game::setCreatureSpeed(const std::shared_ptr<Creature> &creature, int32_t s
 	creature->setBaseSpeed(static_cast<uint16_t>(speed));
 
 	// Send creature speed to client
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition())) {
+	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		spectator->getPlayer()->sendChangeSpeed(creature, creature->getStepSpeed());
 	}
 }
@@ -7522,7 +7676,7 @@ void Game::changePlayerSpeed(const std::shared_ptr<Player> &player, int32_t varS
 	player->setSpeed(varSpeed);
 
 	// Send new player speed to the spectators
-	for (const auto &creatureSpectator : Spectators().find<Player>(player->getPosition())) {
+	for (const auto &creatureSpectator : Spectators::around<Player>(player->getPosition(), player->getInstanceId())) {
 		creatureSpectator->getPlayer()->sendChangeSpeed(player, player->getStepSpeed());
 	}
 }
@@ -7543,28 +7697,28 @@ void Game::internalCreatureChangeOutfit(const std::shared_ptr<Creature> &creatur
 	}
 
 	// Send to clients
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		spectator->getPlayer()->sendCreatureChangeOutfit(creature, outfit);
 	}
 }
 
 void Game::internalCreatureChangeVisible(const std::shared_ptr<Creature> &creature, bool visible) {
 	// Send to clients
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		spectator->getPlayer()->sendCreatureChangeVisible(creature, visible);
 	}
 }
 
 void Game::changeLight(const std::shared_ptr<Creature> &creature) {
 	// Send to clients
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		spectator->getPlayer()->sendCreatureLight(creature);
 	}
 }
 
 void Game::updateCreatureIcon(const std::shared_ptr<Creature> &creature) {
 	// Send to clients
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		spectator->getPlayer()->sendCreatureIcon(creature);
 	}
 }
@@ -7575,7 +7729,7 @@ void Game::reloadCreature(const std::shared_ptr<Creature> &creature) {
 		return;
 	}
 
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition())) {
+	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		spectator->getPlayer()->reloadCreature(creature);
 	}
 }
@@ -7586,17 +7740,26 @@ void Game::sendSingleSoundEffect(const Position &pos, SoundEffect_t soundId, con
 	}
 
 	using enum SourceEffect_t;
-	for (const auto &spectator : Spectators().find<Player>(pos)) {
-		SourceEffect_t source = CREATURES;
-		if (!actor || actor->getNpc()) {
-			source = GLOBAL;
-		} else if (actor == spectator) {
-			source = OWN;
-		} else if (actor->getPlayer()) {
-			source = OTHERS;
-		}
+	auto sendToInstance = [&](uint32_t instanceId) {
+		for (const auto &spectator : Spectators().find<Player>(pos, false, 0, 0, 0, 0, true, instanceId)) {
+			SourceEffect_t source = CREATURES;
+			if (!actor || actor->getNpc()) {
+				source = GLOBAL;
+			} else if (actor == spectator) {
+				source = OWN;
+			} else if (actor->getPlayer()) {
+				source = OTHERS;
+			}
 
-		spectator->getPlayer()->sendSingleSoundEffect(pos, soundId, source);
+			spectator->getPlayer()->sendSingleSoundEffect(pos, soundId, source);
+		}
+	};
+	if (actor) {
+		sendToInstance(actor->getInstanceId());
+		return;
+	}
+	for (const uint32_t instanceId : effectInstanceIds(pos)) {
+		sendToInstance(instanceId);
 	}
 }
 
@@ -7607,17 +7770,26 @@ void Game::sendDoubleSoundEffect(const Position &pos, SoundEffect_t mainSoundEff
 	}
 
 	using enum SourceEffect_t;
-	for (const auto &spectator : Spectators().find<Player>(pos)) {
-		SourceEffect_t source = CREATURES;
-		if (!actor || actor->getNpc()) {
-			source = GLOBAL;
-		} else if (actor == spectator) {
-			source = OWN;
-		} else if (actor->getPlayer()) {
-			source = OTHERS;
-		}
+	auto sendToInstance = [&](uint32_t instanceId) {
+		for (const auto &spectator : Spectators().find<Player>(pos, false, 0, 0, 0, 0, true, instanceId)) {
+			SourceEffect_t source = CREATURES;
+			if (!actor || actor->getNpc()) {
+				source = GLOBAL;
+			} else if (actor == spectator) {
+				source = OWN;
+			} else if (actor->getPlayer()) {
+				source = OTHERS;
+			}
 
-		spectator->getPlayer()->sendDoubleSoundEffect(pos, mainSoundEffect, source, secondarySoundEffect, source);
+			spectator->getPlayer()->sendDoubleSoundEffect(pos, mainSoundEffect, source, secondarySoundEffect, source);
+		}
+	};
+	if (actor) {
+		sendToInstance(actor->getInstanceId());
+		return;
+	}
+	for (const uint32_t instanceId : effectInstanceIds(pos)) {
+		sendToInstance(instanceId);
 	}
 }
 
@@ -7868,6 +8040,7 @@ void Game::combatGetTypeInfo(CombatType_t combatType, const std::shared_ptr<Crea
 			}
 
 			if (splash) {
+				splash->setInstanceId(target->getInstanceId());
 				internalAddItem(target->getTile(), splash, INDEX_WHEREEVER, FLAG_NOLIMIT);
 				splash->startDecaying();
 			}
@@ -8285,7 +8458,7 @@ bool Game::combatChangeHealth(const std::shared_ptr<Creature> &attacker, const s
 			message.primary.value = realHealthChange;
 			message.primary.color = TEXTCOLOR_PASTELRED;
 
-			for (const auto &spectator : Spectators().find<Player>(targetPos)) {
+			for (const auto &spectator : Spectators::around<Player>(targetPos, target->getInstanceId())) {
 				const auto &tmpPlayer = spectator->getPlayer();
 				if (!tmpPlayer) {
 					continue;
@@ -8501,7 +8674,7 @@ bool Game::combatChangeHealth(const std::shared_ptr<Creature> &attacker, const s
 			return true;
 		}
 
-		auto spectators = Spectators().find<Player>(targetPos, true);
+		auto spectators = Spectators().find<Player>(targetPos, true, 0, 0, 0, 0, true, target->getInstanceId());
 
 		if (targetPlayer && attackerMonster) {
 			handleHazardSystemAttack(damage, targetPlayer, attackerMonster, false);
@@ -8718,7 +8891,7 @@ bool Game::combatChangeHealth(const std::shared_ptr<Creature> &attacker, const s
 		}
 
 		if (spectators.empty()) {
-			spectators.find<Player>(targetPos, true);
+			spectators.find<Player>(targetPos, true, 0, 0, 0, 0, true, target->getInstanceId());
 		}
 
 		addCreatureHealth(spectators.data(), target);
@@ -8816,6 +8989,9 @@ void Game::sendMessages(
 	for (const std::shared_ptr<Creature> &spectator : spectators) {
 		std::shared_ptr<Player> tmpPlayer = spectator->getPlayer();
 		if (!tmpPlayer || tmpPlayer->getPosition().z != targetPos.z) {
+			continue;
+		}
+		if (tmpPlayer->getInstanceId() != target->getInstanceId()) {
 			continue;
 		}
 
@@ -9081,7 +9257,7 @@ bool Game::combatChangeMana(const std::shared_ptr<Creature> &attacker, const std
 	}
 	const Position &targetPos = target->getPosition();
 	auto manaChange = damage.primary.value + damage.secondary.value;
-	auto spectators = Spectators().find<Player>(targetPos);
+	auto spectators = Spectators::around<Player>(targetPos, target->getInstanceId());
 	if (manaChange > 0) {
 		std::shared_ptr<Player> attackerPlayer;
 		if (attacker) {
@@ -9320,7 +9496,7 @@ bool Game::combatChangeMana(const std::shared_ptr<Creature> &attacker, const std
 }
 
 void Game::addCreatureHealth(const std::shared_ptr<Creature> &target) {
-	auto spectators = Spectators().find<Player>(target->getPosition(), true);
+	auto spectators = Spectators::around<Player>(target->getPosition(), target->getInstanceId());
 	addCreatureHealth(spectators.data(), target);
 }
 
@@ -9339,6 +9515,9 @@ void Game::addCreatureHealth(const CreatureVector &spectators, const std::shared
 	}
 	for (const auto &spectator : spectators) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
+			if (tmpPlayer->getInstanceId() != target->getInstanceId()) {
+				continue;
+			}
 			tmpPlayer->sendCreatureHealth(target);
 		}
 	}
@@ -9356,14 +9535,16 @@ void Game::addPlayerVocation(const std::shared_ptr<Player> &target) {
 		party->updatePlayerVocation(target);
 	}
 
-	for (const auto &spectator : Spectators().find<Player>(target->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(target->getPosition(), target->getInstanceId())) {
 		spectator->getPlayer()->sendPlayerVocation(target);
 	}
 }
 
 void Game::addMagicEffect(const Position &pos, uint16_t effect) {
-	auto spectators = Spectators().find<Player>(pos, true);
-	addMagicEffect(spectators.data(), pos, effect);
+	for (const uint32_t instanceId : effectInstanceIds(pos)) {
+		auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId);
+		addMagicEffect(spectators.data(), pos, effect);
+	}
 }
 
 void Game::addMagicEffect(const CreatureVector &spectators, const Position &pos, uint16_t effect) {
@@ -9375,14 +9556,18 @@ void Game::addMagicEffect(const CreatureVector &spectators, const Position &pos,
 }
 
 void Game::addMagicEffect(const Position &pos, uint16_t effect, const std::shared_ptr<Creature> &actor) {
-	auto spectators = Spectators().find<Player>(pos, true);
+	auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, spectatorInstanceId(actor));
 	addMagicEffect(spectators.data(), pos, effect, actor);
 }
 
 void Game::addMagicEffect(const CreatureVector &spectators, const Position &pos, uint16_t effect, const std::shared_ptr<Creature> &actor) {
 	using enum SourceEffect_t;
+	const uint32_t instanceId = spectatorInstanceId(actor);
 	for (const auto &spectator : spectators) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
+			if (instanceId != std::numeric_limits<uint32_t>::max() && tmpPlayer->getInstanceId() != instanceId) {
+				continue;
+			}
 			SourceEffect_t source = CREATURES;
 			if (!actor || actor->getNpc()) {
 				source = GLOBAL;
@@ -9397,8 +9582,10 @@ void Game::addMagicEffect(const CreatureVector &spectators, const Position &pos,
 }
 
 void Game::removeMagicEffect(const Position &pos, uint16_t effect) {
-	auto spectators = Spectators().find<Player>(pos, true);
-	removeMagicEffect(spectators.data(), pos, effect);
+	for (const uint32_t instanceId : effectInstanceIds(pos)) {
+		auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId);
+		removeMagicEffect(spectators.data(), pos, effect);
+	}
 }
 
 void Game::removeMagicEffect(const CreatureVector &spectators, const Position &pos, uint16_t effect) {
@@ -9410,8 +9597,10 @@ void Game::removeMagicEffect(const CreatureVector &spectators, const Position &p
 }
 
 void Game::addDistanceEffect(const Position &fromPos, const Position &toPos, uint16_t effect) {
-	auto spectators = Spectators().find<Player>(fromPos).find<Player>(toPos);
-	addDistanceEffect(spectators.data(), fromPos, toPos, effect);
+	for (const uint32_t instanceId : effectInstanceIds(fromPos, toPos)) {
+		auto spectators = Spectators().find<Player>(fromPos, false, 0, 0, 0, 0, true, instanceId).find<Player>(toPos, false, 0, 0, 0, 0, true, instanceId);
+		addDistanceEffect(spectators.data(), fromPos, toPos, effect);
+	}
 }
 
 void Game::addDistanceEffect(const CreatureVector &spectators, const Position &fromPos, const Position &toPos, uint16_t effect) {
@@ -9423,14 +9612,19 @@ void Game::addDistanceEffect(const CreatureVector &spectators, const Position &f
 }
 
 void Game::addDistanceEffect(const Position &fromPos, const Position &toPos, uint16_t effect, const std::shared_ptr<Creature> &actor) {
-	auto spectators = Spectators().find<Player>(fromPos).find<Player>(toPos);
+	const uint32_t instanceId = spectatorInstanceId(actor);
+	auto spectators = Spectators().find<Player>(fromPos, false, 0, 0, 0, 0, true, instanceId).find<Player>(toPos, false, 0, 0, 0, 0, true, instanceId);
 	addDistanceEffect(spectators.data(), fromPos, toPos, effect, actor);
 }
 
 void Game::addDistanceEffect(const CreatureVector &spectators, const Position &fromPos, const Position &toPos, uint16_t effect, const std::shared_ptr<Creature> &actor) {
 	using enum SourceEffect_t;
+	const uint32_t instanceId = spectatorInstanceId(actor);
 	for (const auto &spectator : spectators) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
+			if (instanceId != std::numeric_limits<uint32_t>::max() && tmpPlayer->getInstanceId() != instanceId) {
+				continue;
+			}
 			SourceEffect_t source = CREATURES;
 			if (!actor || actor->getNpc()) {
 				source = GLOBAL;
@@ -9609,7 +9803,7 @@ void Game::broadcastMessage(const std::string &text, MessageClasses type) const 
 
 void Game::updateCreatureWalkthrough(const std::shared_ptr<Creature> &creature) {
 	// Send to clients
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		const auto &tmpPlayer = spectator->getPlayer();
 		tmpPlayer->sendCreatureWalkthrough(creature, tmpPlayer->canWalkthroughEx(creature));
 	}
@@ -9620,13 +9814,13 @@ void Game::updateCreatureSkull(const std::shared_ptr<Creature> &creature) const 
 		return;
 	}
 
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		spectator->getPlayer()->sendCreatureSkull(creature);
 	}
 }
 
 void Game::updatePlayerShield(const std::shared_ptr<Player> &player) {
-	for (const auto &spectator : Spectators().find<Player>(player->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(player->getPosition(), player->getInstanceId())) {
 		spectator->getPlayer()->sendCreatureShield(player);
 	}
 }
@@ -9652,7 +9846,7 @@ void Game::updateCreatureType(const std::shared_ptr<Creature> &creature) {
 	}
 
 	// Send to clients
-	auto spectators = Spectators().find<Player>(creature->getPosition(), true);
+	auto spectators = Spectators::around<Player>(creature->getPosition(), creature->getInstanceId());
 	if (creatureType == CREATURETYPE_SUMMON_OTHERS) {
 		for (const auto &spectator : spectators) {
 			spectator->getPlayer()->sendCreatureType(creature, masterPlayer == spectator ? CREATURETYPE_SUMMON_PLAYER : creatureType);
@@ -9768,7 +9962,7 @@ void Game::updatePlayerHelpers(const std::shared_ptr<Player> &player) {
 	}
 
 	const uint16_t helpers = player->getHelpers();
-	for (const auto &spectator : Spectators().find<Player>(player->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(player->getPosition(), player->getInstanceId())) {
 		spectator->getPlayer()->sendCreatureHelpers(player->getID(), helpers);
 	}
 }
@@ -10527,7 +10721,7 @@ void Game::playerNpcGreet(uint32_t playerId, uint32_t npcId) {
 		return;
 	}
 
-	auto spectators = Spectators().find<Player>(player->getPosition(), true);
+	auto spectators = Spectators::around<Player>(player->getPosition(), player->getInstanceId());
 	spectators.insert(npc);
 	internalCreatureSay(player, TALKTYPE_SAY, "hi", false, &spectators);
 
@@ -11548,7 +11742,10 @@ void Game::playerSetMonsterPodium(uint32_t playerId, uint32_t monsterRaceId, con
 	}
 
 	for (const auto &spectator : Spectators().find<Player>(pos, true)) {
-		spectator->getPlayer()->sendUpdateTileItem(tile, pos, item);
+		const auto &tmpPlayer = spectator->getPlayer();
+		if (tmpPlayer && item->isVisibleInInstance(tmpPlayer->getInstanceId())) {
+			tmpPlayer->sendUpdateTileItem(tile, pos, item);
+		}
 	}
 
 	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
@@ -12029,7 +12226,7 @@ void Game::sendUpdateCreature(const std::shared_ptr<Creature> &creature) {
 		return;
 	}
 
-	for (const auto &spectator : Spectators().find<Player>(creature->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		spectator->getPlayer()->sendUpdateCreature(creature);
 	}
 }
@@ -13469,7 +13666,7 @@ void Game::internalDecayItem(const std::shared_ptr<Item> &item) {
 }
 
 void Game::sendAttachedEffect(const std::shared_ptr<Creature> &creature, uint16_t effectId) {
-	auto spectators = Spectators().find<Player>(creature->getPosition(), true);
+	auto spectators = Spectators::around<Player>(creature->getPosition(), creature->getInstanceId());
 	for (const auto &spectator : spectators) {
 		const auto &player = spectator->getPlayer();
 		if (player) {
@@ -13479,7 +13676,7 @@ void Game::sendAttachedEffect(const std::shared_ptr<Creature> &creature, uint16_
 }
 
 void Game::sendDetachEffect(const std::shared_ptr<Creature> &creature, uint16_t effectId) {
-	auto spectators = Spectators().find<Player>(creature->getPosition(), true);
+	auto spectators = Spectators::around<Player>(creature->getPosition(), creature->getInstanceId());
 	for (const auto &spectator : spectators) {
 		const auto &player = spectator->getPlayer();
 		if (player) {
@@ -13489,7 +13686,7 @@ void Game::sendDetachEffect(const std::shared_ptr<Creature> &creature, uint16_t 
 }
 
 void Game::updateCreatureShader(const std::shared_ptr<Creature> &creature) {
-	auto spectators = Spectators().find<Player>(creature->getPosition(), true);
+	auto spectators = Spectators::around<Player>(creature->getPosition(), creature->getInstanceId());
 	for (const auto &spectator : spectators) {
 		const auto &player = spectator->getPlayer();
 		if (player) {
@@ -13503,7 +13700,7 @@ void Game::playerSetTyping(uint32_t playerId, uint8_t typing) {
 	if (!player) {
 		return;
 	}
-	for (const auto &spectator : Spectators().find<Player>(player->getPosition(), true)) {
+	for (const auto &spectator : Spectators::around<Player>(player->getPosition(), player->getInstanceId())) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
 			tmpPlayer->sendPlayerTyping(player, typing);
 		}

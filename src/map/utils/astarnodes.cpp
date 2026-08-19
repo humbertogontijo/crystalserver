@@ -292,7 +292,7 @@ int_fast32_t AStarNodes::getTileWalkCost(const std::shared_ptr<Creature> &creatu
 		if (tile->getTopVisibleCreature(creature) != nullptr) {
 			cost += MAP_NORMALWALKCOST * 4;
 		}
-		if (const auto &field = tile->getFieldItem()) {
+		if (const auto &field = tile->getFieldItem(creature->getInstanceId())) {
 			const CombatType_t combatType = field->getCombatType();
 			if (combatType != COMBAT_NONE && !creature->isImmune(combatType) && !creature->hasCondition(Combat::DamageToConditionType(combatType)) && (creature->getMonster() && !creature->getMonster()->canWalkOnFieldType(combatType))) {
 				cost += MAP_NORMALWALKCOST * 18;

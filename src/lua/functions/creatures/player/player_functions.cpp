@@ -4233,6 +4233,7 @@ int PlayerFunctions::luaPlayerCastSpell(lua_State* L) {
 	if (lua_gettop(L) >= 3 && !Lua::isNil(L, 3)) {
 		param = Lua::getString(L, 3);
 	}
+	InstanceActorScope instanceActorScope(player);
 	Lua::pushBoolean(L, instantSpell->playerCastInstant(player, param));
 	return 1;
 }
@@ -4279,6 +4280,7 @@ int PlayerFunctions::luaPlayerCastRune(lua_State* L) {
 	const Position &fromPos = player->getPosition();
 	const Position &toPos = targetCreature->getPosition();
 	// Unbound item: charge decrement in executeUse no-ops (no parent cylinder).
+	InstanceActorScope instanceActorScope(player);
 	Lua::pushBoolean(L, rune->executeUse(player, item, fromPos, targetCreature, toPos, false));
 	return 1;
 }

@@ -146,11 +146,12 @@ int PositionFunctions::luaPositionGetPathTo(lua_State* L) {
 }
 
 int PositionFunctions::luaPositionIsSightClear(lua_State* L) {
-	// position:isSightClear(positionEx[, sameFloor = true])
+	// position:isSightClear(positionEx[, sameFloor = true[, instanceId = 0]])
 	const bool sameFloor = Lua::getBoolean(L, 3, true);
+	const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 4, 0);
 	const Position &positionEx = Lua::getPosition(L, 2);
 	const Position &position = Lua::getPosition(L, 1);
-	Lua::pushBoolean(L, g_game().isSightClear(position, positionEx, sameFloor));
+	Lua::pushBoolean(L, g_game().isSightClear(position, positionEx, sameFloor, instanceId));
 	return 1;
 }
 

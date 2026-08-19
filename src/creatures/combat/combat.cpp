@@ -413,7 +413,8 @@ ReturnValue Combat::canTargetCreature(const std::shared_ptr<Player> &player, con
 }
 
 ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Tile> &tile, bool aggressive) {
-	if (tile->hasProperty(CONST_PROP_BLOCKPROJECTILE)) {
+	const uint32_t instanceId = caster ? caster->getInstanceId() : 0;
+	if (tile->hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId)) {
 		return RETURNVALUE_CANNOTTHROW;
 	}
 	if (aggressive && tile->hasFlag(TILESTATE_PROTECTIONZONE)) {
@@ -468,6 +469,10 @@ bool Combat::isProtected(const std::shared_ptr<Player> &attacker, const std::sha
 }
 
 ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &attacker, const std::shared_ptr<Creature> &target, bool aggressive) {
+	if (attacker && target && attacker->getInstanceId() != target->getInstanceId()) {
+		return RETURNVALUE_NOTPOSSIBLE;
+	}
+
 	if (!aggressive) {
 		return RETURNVALUE_NOERROR;
 	}
@@ -475,7 +480,7 @@ ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &attacker, const
 	const auto &targetPlayer = target ? target->getPlayer() : nullptr;
 	if (target) {
 		const std::shared_ptr<Tile> &tile = target->getTile();
-		if (tile->hasProperty(CONST_PROP_BLOCKPROJECTILE)) {
+		if (tile->hasProperty(CONST_PROP_BLOCKPROJECTILE, target->getInstanceId())) {
 			return RETURNVALUE_NOTENOUGHROOM;
 		}
 		if (targetPlayer && tile->hasFlag(TILESTATE_PROTECTIONZONE)) {
@@ -1152,6 +1157,7 @@ void Combat::CombatNullFunc(const std::shared_ptr<Creature> &caster, const std::
 }
 
 void Combat::combatTileEffects(const CreatureVector &spectators, const std::shared_ptr<Creature> &caster, const std::shared_ptr<Tile> &tile, const CombatParams &params) {
+	InstanceActorScope instanceActorScope(caster);
 	if (params.itemId != 0) {
 		uint16_t itemId = params.itemId;
 		switch (itemId) {
@@ -1233,9 +1239,13 @@ void Combat::combatTileEffects(const CreatureVector &spectators, const std::shar
 
 					if (CreatureVector* creatures = tile->getCreatures()) {
 						for (const auto &creature : *creatures) {
-							if (creature->getPosition().z == fieldZ) {
-								magicField->onStepInField(creature);
+							if (creature->getPosition().z != fieldZ) {
+								continue;
 							}
+							if (item->getInstanceId() != 0 && creature->getInstanceId() != item->getInstanceId()) {
+								continue;
+							}
+							magicField->onStepInField(creature);
 						}
 					}
 				}
@@ -1534,6 +1544,7 @@ bool Combat::doCombat(const std::shared_ptr<Creature> &caster, const Position &p
 }
 
 void Combat::CombatFunc(const std::shared_ptr<Creature> &caster, const Position &origin, const Position &toPos, const std::unique_ptr<AreaCombat> &area, const CombatParams &params, const CombatFunction &func, CombatDamage* data) {
+	InstanceActorScope instanceActorScope(caster);
 	std::vector<std::shared_ptr<Tile>> tileList;
 
 	const std::shared_ptr<Player> &casterPlayer = caster ? caster->getPlayer() : nullptr;
@@ -1575,7 +1586,7 @@ void Combat::CombatFunc(const std::shared_ptr<Creature> &caster, const Position 
 		}
 
 		if (CreatureVector* creatures = tile->getCreatures()) {
-			const auto &topCreature = tile->getTopCreature();
+			const auto &topCreature = caster ? tile->getTopCreature(caster->getInstanceId()) : tile->getTopCreature();
 			CreatureVector creaturesCopy = *creatures;
 			for (const auto &creature : creaturesCopy) {
 				if (params.targetCasterOrTopMost) {
@@ -1588,7 +1599,7 @@ void Combat::CombatFunc(const std::shared_ptr<Creature> &caster, const Position 
 					}
 				}
 
-				if (!params.aggressive || (caster != creature && Combat::canDoCombat(caster, creature, params.aggressive) == RETURNVALUE_NOERROR)) {
+				if (Combat::canDoCombat(caster, creature, params.aggressive) == RETURNVALUE_NOERROR && (!params.aggressive || caster != creature)) {
 					affectedTargets.push_back(creature);
 				}
 			}
@@ -1604,7 +1615,7 @@ void Combat::CombatFunc(const std::shared_ptr<Creature> &caster, const Position 
 	}
 
 	// Wheel of destiny get beam affected total
-	auto spectators = Spectators().find<Player>(toPos, true, rangeX, rangeX, rangeY, rangeY);
+	auto spectators = Spectators().find<Player>(toPos, true, rangeX, rangeX, rangeY, rangeY, true, caster ? caster->getInstanceId() : std::numeric_limits<uint32_t>::max());
 	uint8_t beamAffectedTotal = casterPlayer ? casterPlayer->wheel()->getBeamAffectedTotal(tmpDamage) : 0;
 	uint8_t beamAffectedCurrent = 0;
 
@@ -1619,7 +1630,7 @@ void Combat::CombatFunc(const std::shared_ptr<Creature> &caster, const Position 
 		}
 
 		if (CreatureVector* creatures = tile->getCreatures()) {
-			const auto &topCreature = tile->getTopCreature();
+			const auto &topCreature = caster ? tile->getTopCreature(caster->getInstanceId()) : tile->getTopCreature();
 			// A copy of the tile's creature list is made because modifications to this vector, such as adding or removing creatures through a Lua callback, may occur during the iteration within the for loop.
 			CreatureVector creaturesCopy = *creatures;
 			for (const auto &creature : creaturesCopy) {
@@ -1633,7 +1644,7 @@ void Combat::CombatFunc(const std::shared_ptr<Creature> &caster, const Position 
 					}
 				}
 
-				if (!params.aggressive || (caster != creature && Combat::canDoCombat(caster, creature, params.aggressive) == RETURNVALUE_NOERROR)) {
+				if (Combat::canDoCombat(caster, creature, params.aggressive) == RETURNVALUE_NOERROR && (!params.aggressive || caster != creature)) {
 					// Wheel of destiny update beam mastery damage
 					if (casterPlayer) {
 						casterPlayer->wheel()->updateBeamMasteryDamage(tmpDamage, beamAffectedTotal, beamAffectedCurrent);
@@ -1670,7 +1681,7 @@ void Combat::doCombatHealth(const std::shared_ptr<Creature> &caster, const std::
 }
 
 void Combat::doCombatHealth(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &target, const Position &origin, CombatDamage &damage, const CombatParams &params) {
-	bool canCombat = !params.aggressive || (caster != target && Combat::canDoCombat(caster, target, params.aggressive) == RETURNVALUE_NOERROR);
+	bool canCombat = Combat::canDoCombat(caster, target, params.aggressive) == RETURNVALUE_NOERROR && (!params.aggressive || caster != target);
 	if ((caster && target)
 	    && (caster == target || canCombat)
 	    && (params.impactEffect != CONST_ME_NONE)) {
@@ -1715,7 +1726,7 @@ void Combat::doCombatMana(const std::shared_ptr<Creature> &caster, const std::sh
 }
 
 void Combat::doCombatMana(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &target, const Position &origin, CombatDamage &damage, const CombatParams &params) {
-	bool canCombat = !params.aggressive || (caster != target && Combat::canDoCombat(caster, target, params.aggressive) == RETURNVALUE_NOERROR);
+	bool canCombat = Combat::canDoCombat(caster, target, params.aggressive) == RETURNVALUE_NOERROR && (!params.aggressive || caster != target);
 	if ((caster && target)
 	    && (caster == target || canCombat)
 	    && (params.impactEffect != CONST_ME_NONE)) {
@@ -1755,7 +1766,7 @@ void Combat::doCombatCondition(const std::shared_ptr<Creature> &caster, const Po
 }
 
 void Combat::doCombatCondition(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &target, const CombatParams &params) {
-	bool canCombat = !params.aggressive || (caster != target && Combat::canDoCombat(caster, target, params.aggressive) == RETURNVALUE_NOERROR);
+	bool canCombat = Combat::canDoCombat(caster, target, params.aggressive) == RETURNVALUE_NOERROR && (!params.aggressive || caster != target);
 	if ((caster == target || canCombat) && params.impactEffect != CONST_ME_NONE) {
 		g_game().addMagicEffect(target->getPosition(), params.impactEffect, caster);
 	}
@@ -1784,7 +1795,7 @@ void Combat::doCombatDispel(const std::shared_ptr<Creature> &caster, const Posit
 }
 
 void Combat::doCombatDispel(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &target, const CombatParams &params) {
-	bool canCombat = !params.aggressive || (caster != target && Combat::canDoCombat(caster, target, params.aggressive) == RETURNVALUE_NOERROR);
+	bool canCombat = Combat::canDoCombat(caster, target, params.aggressive) == RETURNVALUE_NOERROR && (!params.aggressive || caster != target);
 	if ((caster && target)
 	    && (caster == target || canCombat)
 	    && (params.impactEffect != CONST_ME_NONE)) {
@@ -1814,8 +1825,8 @@ void Combat::doCombatDispel(const std::shared_ptr<Creature> &caster, const std::
 }
 
 void Combat::doCombatDefault(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &target, const Position &origin, const CombatParams &params) {
-	if (!params.aggressive || (caster != target && Combat::canDoCombat(caster, target, params.aggressive) == RETURNVALUE_NOERROR)) {
-		auto spectators = Spectators().find<Player>(target->getPosition(), true);
+	if (Combat::canDoCombat(caster, target, params.aggressive) == RETURNVALUE_NOERROR && (!params.aggressive || caster != target)) {
+		auto spectators = Spectators().find<Player>(target->getPosition(), true, 0, 0, 0, 0, true, caster ? caster->getInstanceId() : std::numeric_limits<uint32_t>::max());
 
 		CombatNullFunc(caster, target, params, nullptr);
 		combatTileEffects(spectators.data(), caster, target->getTile(), params);
@@ -1873,7 +1884,7 @@ std::vector<std::pair<Position, std::vector<uint32_t>>> Combat::pickChainTargets
 	int backtrackingAttempts = 10;
 	while (!targets.empty() && targets.size() <= maxTargets && backtrackingAttempts > 0) {
 		auto currentTarget = targets.back();
-		auto spectators = Spectators().find<Creature>(currentTarget->getPosition(), false, chainDistance, chainDistance, chainDistance, chainDistance);
+		auto spectators = Spectators().find<Creature>(currentTarget->getPosition(), false, chainDistance, chainDistance, chainDistance, chainDistance, true, caster ? caster->getInstanceId() : std::numeric_limits<uint32_t>::max());
 		g_logger().debug("Combat::pickChainTargets: currentTarget: {}, spectators: {}", currentTarget->getName(), spectators.size());
 
 		double closestDistance = std::numeric_limits<double>::max();
@@ -1975,7 +1986,7 @@ std::vector<std::pair<Position, std::vector<uint32_t>>> Combat::pickChainTargets
 bool Combat::isValidChainTarget(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &currentTarget, const std::shared_ptr<Creature> &potentialTarget, const CombatParams &params, bool aggressive) {
 	bool canCombat = canDoCombat(caster, potentialTarget, aggressive) == RETURNVALUE_NOERROR;
 	bool pick = params.chainPickerCallback ? params.chainPickerCallback->onChainCombat(caster, potentialTarget) : true;
-	bool hasSight = g_game().isSightClear(currentTarget->getPosition(), potentialTarget->getPosition(), true);
+	bool hasSight = g_game().isSightClear(currentTarget->getPosition(), potentialTarget->getPosition(), true, caster ? caster->getInstanceId() : 0);
 	return canCombat && pick && hasSight;
 }
 
@@ -2631,6 +2642,13 @@ void AreaCombat::setupExtArea(const std::list<uint32_t> &list, uint32_t rows) {
 //**********************************************************//
 
 void MagicField::onStepInField(const std::shared_ptr<Creature> &creature) {
+	if (!creature) {
+		return;
+	}
+	if (getInstanceId() != 0 && creature->getInstanceId() != getInstanceId()) {
+		return;
+	}
+
 	// remove magic walls/wild growth
 	if ((!isBlocking() && g_game().getWorldType() == WORLDTYPE_OPTIONAL && id == ITEM_MAGICWALL_SAFE) || id == ITEM_WILDGROWTH_SAFE) {
 		if (!creature->isInGhostMode()) {

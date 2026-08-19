@@ -75,6 +75,12 @@ public:
 	Spectators excludePlayerMaster() const;
 	Spectators matchingInstance(uint32_t instanceId) const;
 
+	template <typename T>
+		requires std::is_base_of_v<Creature, T>
+	static Spectators around(const Position &centerPos, uint32_t instanceId, bool multifloor = true) {
+		return Spectators().find<T>(centerPos, multifloor, 0, 0, 0, 0, true, instanceId);
+	}
+
 	Spectators insert(const std::shared_ptr<Creature> &creature);
 	Spectators insertAll(const CreatureVector &list);
 	Spectators join(const Spectators &anotherSpectators) {

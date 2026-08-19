@@ -102,6 +102,23 @@ struct PositionHasher {
 	}
 };
 
+class Player;
+class Map;
+class Tile;
+
+/** While active, map item creates/transforms inherit this creature's instanceId. */
+class InstanceActorScope {
+public:
+	explicit InstanceActorScope(const std::shared_ptr<Creature> &creature);
+	~InstanceActorScope();
+
+	InstanceActorScope(const InstanceActorScope &) = delete;
+	InstanceActorScope &operator=(const InstanceActorScope &) = delete;
+
+private:
+	std::shared_ptr<Creature> previous;
+};
+
 class Game {
 public:
 	Game();
@@ -154,6 +171,8 @@ public:
 	bool canWalkInstance(const std::shared_ptr<Creature> &creature, const Position &toPos);
 	void disableWorldSpawns();
 	void bindPlayerInstance(const std::shared_ptr<Player> &player);
+	/** Re-bind creature instanceId from active InstanceWorld session (expedition hunt). */
+	void syncCreatureInstance(const std::shared_ptr<Creature> &creature);
 	bool consumeInstanceFenceMessage();
 
 	uint64_t getLastMapLoadTime() const {
@@ -274,6 +293,7 @@ public:
 	void addMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money, uint32_t flags = 0);
 
 	std::shared_ptr<Item> transformItem(std::shared_ptr<Item> item, uint16_t newId, int32_t newCount = -1);
+	std::shared_ptr<Item> resolveInstancedMapItem(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item);
 
 	ReturnValue internalTeleport(const std::shared_ptr<Thing> &thing, const Position &newPos, bool pushMove = true, uint32_t flags = 0);
 
@@ -525,8 +545,8 @@ public:
 		return boostedCreature;
 	}
 
-	bool canThrowObjectTo(const Position &fromPos, const Position &toPos, SightLines_t lineOfSight = SightLine_CheckSightLine, int32_t rangex = MAP_CLASSIC_CLIENT_VIEW_PORT_X, int32_t rangey = MAP_CLASSIC_CLIENT_VIEW_PORT_Y);
-	bool isSightClear(const Position &fromPos, const Position &toPos, bool sameFloor);
+	bool canThrowObjectTo(const Position &fromPos, const Position &toPos, SightLines_t lineOfSight = SightLine_CheckSightLine, int32_t rangex = MAP_CLASSIC_CLIENT_VIEW_PORT_X, int32_t rangey = MAP_CLASSIC_CLIENT_VIEW_PORT_Y, uint32_t instanceId = 0);
+	bool isSightClear(const Position &fromPos, const Position &toPos, bool sameFloor, uint32_t instanceId = 0);
 
 	void changeSpeed(const std::shared_ptr<Creature> &creature, int32_t varSpeedDelta);
 	void setCreatureSpeed(const std::shared_ptr<Creature> &creature, int32_t speed); // setCreatureSpeed

@@ -1368,7 +1368,7 @@ bool ConditionRegeneration::executeCondition(const std::shared_ptr<Creature> &cr
 					message.primary.color = TEXTCOLOR_PASTELRED;
 					player->sendTextMessage(message);
 
-					auto spectators = Spectators().find<Player>(player->getPosition());
+					auto spectators = Spectators::around<Player>(player->getPosition(), player->getInstanceId());
 					spectators.erase(player);
 					if (!spectators.empty()) {
 						message.type = MESSAGE_HEALED_OTHERS;
@@ -2053,7 +2053,7 @@ bool ConditionFeared::canWalkTo(const std::shared_ptr<Creature> &creature, Posit
 
 	auto tile = g_game().map.getTile(pos);
 	if (tile && tile->getTopVisibleCreature(creature) == nullptr && tile->queryAdd(0, creature, 1, FLAG_PATHFINDING) == RETURNVALUE_NOERROR) {
-		const auto &field = tile->getFieldItem();
+		const auto &field = tile->getFieldItem(creature->getInstanceId());
 		if (field && !field->isBlocking() && field->getDamage() != 0) {
 			return false;
 		}

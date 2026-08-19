@@ -19,6 +19,7 @@
 
 #include "core.hpp"
 #include <cstdint>
+#include <limits>
 #include "creatures/monsters/monster.hpp"
 #include "creatures/monsters/monsters.hpp"
 #include "creatures/npcs/npc.hpp"
@@ -219,7 +220,7 @@ int GameFunctions::luaGameCreateNpcType(lua_State* L) {
 }
 
 int GameFunctions::luaGameGetSpectators(lua_State* L) {
-	// Game.getSpectators(position[, multifloor = false[, onlyPlayer = false[, minRangeX = 0[, maxRangeX = 0[, minRangeY = 0[, maxRangeY = 0]]]]]])
+	// Game.getSpectators(position[, multifloor = false[, onlyPlayer = false[, minRangeX = 0[, maxRangeX = 0[, minRangeY = 0[, maxRangeY = 0[, instanceId]]]]]]])
 	const Position &position = Lua::getPosition(L, 1);
 	const bool multifloor = Lua::getBoolean(L, 2, false);
 	const bool onlyPlayers = Lua::getBoolean(L, 3, false);
@@ -227,13 +228,17 @@ int GameFunctions::luaGameGetSpectators(lua_State* L) {
 	const auto maxRangeX = Lua::getNumber<int32_t>(L, 5, 0);
 	const auto minRangeY = Lua::getNumber<int32_t>(L, 6, 0);
 	const auto maxRangeY = Lua::getNumber<int32_t>(L, 7, 0);
+	uint32_t instanceId = std::numeric_limits<uint32_t>::max();
+	if (lua_gettop(L) >= 8 && !lua_isnil(L, 8)) {
+		instanceId = Lua::getNumber<uint32_t>(L, 8);
+	}
 
 	Spectators spectators;
 
 	if (onlyPlayers) {
-		spectators.find<Player>(position, multifloor, minRangeX, maxRangeX, minRangeY, maxRangeY);
+		spectators.find<Player>(position, multifloor, minRangeX, maxRangeX, minRangeY, maxRangeY, true, instanceId);
 	} else {
-		spectators.find<Creature>(position, multifloor, minRangeX, maxRangeX, minRangeY, maxRangeY);
+		spectators.find<Creature>(position, multifloor, minRangeX, maxRangeX, minRangeY, maxRangeY, true, instanceId);
 	}
 
 	lua_createtable(L, spectators.size(), 0);
@@ -788,7 +793,7 @@ int GameFunctions::luaGameCreateMonster(lua_State* L) {
 		monster->onSpawn(position);
 		const auto &mtype = monster->getMonsterType();
 		if (mtype && mtype->info.raceid > 0 && mtype->info.bosstiaryRace == BosstiaryRarity_t::RARITY_ARCHFOE) {
-			for (const auto &spectator : Spectators().find<Player>(monster->getPosition(), true)) {
+			for (const auto &spectator : Spectators().find<Player>(monster->getPosition(), true, 0, 0, 0, 0, true, monster->getInstanceId())) {
 				if (const auto &tmpPlayer = spectator->getPlayer()) {
 					tmpPlayer->sendBosstiaryCooldownTimer();
 				}

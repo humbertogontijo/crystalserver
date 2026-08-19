@@ -554,26 +554,30 @@ int TileFunctions::luaTileGetCreatureCount(lua_State* L) {
 }
 
 int TileFunctions::luaTileHasProperty(lua_State* L) {
-	// tile:hasProperty(property[, item])
+	// tile:hasProperty(property[, instanceId])
+	// tile:hasProperty(property, item)
 	const auto &tile = Lua::getUserdataShared<Tile>(L, 1);
 	if (!tile) {
 		lua_pushnil(L);
 		return 1;
 	}
 
-	std::shared_ptr<Item> item;
+	ItemProperty property = Lua::getNumber<ItemProperty>(L, 2);
 	if (lua_gettop(L) >= 3) {
-		item = Lua::getUserdataShared<Item>(L, 3);
-	} else {
-		item = nullptr;
+		if (lua_isnumber(L, 3)) {
+			const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 3);
+			Lua::pushBoolean(L, tile->hasProperty(property, instanceId));
+			return 1;
+		}
+
+		const auto &item = Lua::getUserdataShared<Item>(L, 3);
+		if (item) {
+			Lua::pushBoolean(L, tile->hasProperty(item, property));
+			return 1;
+		}
 	}
 
-	ItemProperty property = Lua::getNumber<ItemProperty>(L, 2);
-	if (item) {
-		Lua::pushBoolean(L, tile->hasProperty(item, property));
-	} else {
-		Lua::pushBoolean(L, tile->hasProperty(property));
-	}
+	Lua::pushBoolean(L, tile->hasProperty(property));
 	return 1;
 }
 
