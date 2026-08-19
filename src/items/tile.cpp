@@ -45,8 +45,14 @@ namespace {
 		if (candidate.getID() == reference.getID()) {
 			return true;
 		}
-		if (!reference.isStatefulMapTemplate()) {
-			return false;
+
+		const ItemType &refType = Item::items[reference.getID()];
+		const ItemType &candType = Item::items[candidate.getID()];
+		if (refType.isDoor() && candType.isDoor()) {
+			return true;
+		}
+		if (refType.isBed() && candType.isBed()) {
+			return true;
 		}
 
 		const uint16_t refId = reference.getID();
@@ -55,7 +61,25 @@ namespace {
 			return false;
 		}
 
-		return Item::items[refId].name == Item::items[candId].name;
+		return refType.name == candType.name;
+	}
+
+	// Forks already skip shared flags. Doors/beds/transform fixtures also skip
+	// so closed templates do not stamp TILESTATE_BLOCKSOLID on the shared tile.
+	// Walls stay flagged: isStatefulMapTemplate includes all immovable map items.
+	bool skipSharedTileFlags(const std::shared_ptr<Item> &item) {
+		if (!item) {
+			return true;
+		}
+		if (item->getInstanceId() != 0 && !item->isMapTemplateItem()) {
+			return true;
+		}
+		if (!item->isStatefulMapTemplate()) {
+			return false;
+		}
+		const ItemType &it = Item::items[item->getID()];
+		return it.isDoor() || it.isBed()
+			|| it.transformToOnUse[0] != 0 || it.transformToOnUse[1] != 0 || it.m_transformOnUse != 0;
 	}
 } // namespace
 
@@ -1903,7 +1927,7 @@ void Tile::updateTileFlags(const std::shared_ptr<Item> &item) {
 }
 
 void Tile::setTileFlags(const std::shared_ptr<Item> &item) {
-	if (item->getInstanceId() != 0 && !item->isMapTemplateItem()) {
+	if (skipSharedTileFlags(item)) {
 		return;
 	}
 
@@ -1994,7 +2018,7 @@ void Tile::setTileFlags(const std::shared_ptr<Item> &item) {
 }
 
 void Tile::resetTileFlags(const std::shared_ptr<Item> &item) {
-	if (item->getInstanceId() != 0 && !item->isMapTemplateItem()) {
+	if (skipSharedTileFlags(item)) {
 		return;
 	}
 

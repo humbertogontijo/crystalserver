@@ -2144,6 +2144,13 @@ ReturnValue Game::internalMoveCreature(const std::shared_ptr<Creature> &creature
 			break;
 		}
 
+		if (!canWalkInstance(creature, subCylinder->getPosition())) {
+			if (creature->getPlayer()) {
+				pendingInstanceFenceMessage = true;
+			}
+			break;
+		}
+
 		map.moveCreature(creature, subCylinder);
 
 		if (creature->getParent() != subCylinder) {

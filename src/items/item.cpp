@@ -3541,6 +3541,9 @@ std::shared_ptr<Item> Item::transform(uint16_t itemId, uint16_t itemCount /*= -1
 		newItem->setDuration(duration);
 	}
 	newItem->setInstanceId(getInstanceId());
+	if (attributePtr) {
+		newItem->attributePtr = std::make_unique<ItemAttribute>(*attributePtr);
+	}
 
 	cylinder->replaceThing(itemIndex, newItem);
 	cylinder->postAddNotification(newItem, cylinder, itemIndex);
