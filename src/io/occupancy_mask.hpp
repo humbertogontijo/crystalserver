@@ -41,3 +41,14 @@ struct OccupancyMask {
 bool occupancyFromBmp(const uint8_t* bmp, size_t size, int32_t originX, int32_t originY, OccupancyMask &out);
 bool occupancyFromPacked(const uint8_t* packed, size_t size, int32_t originX, int32_t originY, OccupancyMask &out);
 bool loadOccupancyMaskFile(const std::string &path, int32_t originX, int32_t originY, OccupancyMask &out);
+
+/** Encode occupancy as a bottom-up 32-bit BMP (opaque white = inside). */
+bool occupancyToBmp(const OccupancyMask &occ, std::vector<uint8_t> &out);
+
+/** Encode occupancy as 32-byte prefix + LZMA1-alone BMP (CIP catalog format). */
+bool occupancyToPacked(const OccupancyMask &occ, std::vector<uint8_t> &out);
+
+bool writeOccupancyMaskFile(const std::string &path, const OccupancyMask &occ);
+
+/** Fill enclosed holes + expand by radius without growing the outer silhouette. */
+void occupancyCloseInterior(OccupancyMask &occ, int radius = 2);

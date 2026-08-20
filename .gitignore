@@ -386,6 +386,7 @@ sftp-config.json
 # Binaries
 crystalserver
 crystalserver.old
+cip-occupancy
 
 # VCPKG
 vcpkg_installed

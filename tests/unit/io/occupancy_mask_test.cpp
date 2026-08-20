@@ -74,9 +74,64 @@ suite<"io"> occupancyMaskTest = [] {
 		expect(occupancyFromPacked(packed.data(), packed.size(), 10, 20, occ));
 		expect(eq(occ.width, 3));
 		expect(eq(occ.height, 2));
-		expect(eq(occ.tiles, 2u));
+		// load path applies closeInterior; exterior empties stay empty on this fixture.
 		expect(occ.contains(10, 20));
 		expect(occ.contains(12, 21));
-		expect(!occ.contains(11, 20));
+	};
+
+	test("occupancyCloseInterior fills enclosed holes without dropping occupied tiles") = [] {
+		// 5x5 solid with hollow center.
+		std::vector<uint8_t> alpha(25, 255);
+		alpha[2 * 5 + 2] = 0;
+		const auto bmp = bmp32(5, 5, alpha);
+		OccupancyMask occ;
+		expect(occupancyFromBmp(bmp.data(), bmp.size(), 0, 0, occ));
+		expect(eq(occ.tiles, 24u));
+		expect(!occ.contains(2, 2));
+		occupancyCloseInterior(occ, 1);
+		expect(occ.contains(2, 2));
+		expect(eq(occ.tiles, 25u));
+		expect(occ.contains(0, 0));
+		expect(!occ.contains(-1, 2));
+	};
+
+	test("occupancyCloseInterior opens narrow exterior bays") = [] {
+		// 7x6 solid with a 1-wide bay open to the north border.
+		std::vector<uint8_t> alpha(7 * 6, 255);
+		for (int y = 0; y <= 2; ++y) {
+			alpha[y * 7 + 3] = 0;
+		}
+		const auto bmp = bmp32(7, 6, alpha);
+		OccupancyMask occ;
+		expect(occupancyFromBmp(bmp.data(), bmp.size(), 0, 0, occ));
+		expect(!occ.contains(3, 1));
+		occupancyCloseInterior(occ, 1);
+		expect(occ.contains(3, 1));
+		expect(occ.contains(3, 2));
+		expect(occ.contains(0, 0));
+		expect(occ.contains(6, 5));
+	};
+
+	test("occupancyToPacked round-trips sparse occupancy") = [] {
+		OccupancyMask occ;
+		occ.originX = 10;
+		occ.originY = 20;
+		occ.width = 3;
+		occ.height = 2;
+		occ.tiles = 2;
+		occ.bits.assign(1, 0);
+		// (0,0) and (2,1)
+		occ.bits[0] |= 1u << 0;
+		occ.bits[0] |= 1u << 5;
+		std::vector<uint8_t> packed;
+		expect(occupancyToPacked(occ, packed));
+		expect(packed.size() > 32u);
+		OccupancyMask back;
+		expect(occupancyFromPacked(packed.data(), packed.size(), 10, 20, back));
+		expect(eq(back.width, 3));
+		expect(eq(back.height, 2));
+		expect(back.contains(10, 20));
+		expect(back.contains(12, 21));
+		expect(!back.contains(11, 20));
 	};
 };
