@@ -1014,6 +1014,8 @@ private:
 
 	uint32_t nextPrivateInstanceId = INSTANCE_PRIVATE_BASE;
 	std::vector<uint32_t> freePrivateInstanceIds;
+	// Prevents double-free recycling the same private id while a hunt still holds it.
+	phmap::flat_hash_set<uint32_t> usedPrivateInstanceIds;
 	bool pendingInstanceFenceMessage = false;
 
 	ServiceManager* serviceManager = nullptr;

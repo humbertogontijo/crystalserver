@@ -1408,16 +1408,17 @@ void Monster::onThinkDefense(uint32_t interval) {
 				continue;
 			}
 
-			const auto &summon = Monster::createMonster(summonName);
-			if (summon && g_game().placeCreature(summon, getPosition(), false, summonForce)) {
-				if (getSoulPit()) {
-					const auto stack = getForgeStack();
-					summon->setSoulPitStack(stack, true);
+			if (const auto &summon = Monster::createMonster(summonName)) {
+				if (g_game().placeCreature(summon, getPosition(), false, summonForce)) {
+					if (getSoulPit()) {
+						const auto stack = getForgeStack();
+						summon->setSoulPitStack(stack, true);
+					}
+					summon->setMaster(static_self_cast<Monster>(), true);
+					g_game().addMagicEffect(getPosition(), CONST_ME_MAGIC_BLUE);
+					g_game().addMagicEffect(summon->getPosition(), CONST_ME_TELEPORT);
+					g_game().sendSingleSoundEffect(summon->getPosition(), SoundEffect_t::MONSTER_SPELL_SUMMON, getMonster());
 				}
-				summon->setMaster(static_self_cast<Monster>(), true);
-				g_game().addMagicEffect(getPosition(), CONST_ME_MAGIC_BLUE);
-				g_game().addMagicEffect(summon->getPosition(), CONST_ME_TELEPORT);
-				g_game().sendSingleSoundEffect(summon->getPosition(), SoundEffect_t::MONSTER_SPELL_SUMMON, getMonster());
 			}
 		}
 	}

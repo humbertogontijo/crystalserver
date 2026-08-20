@@ -485,7 +485,12 @@ int GameFunctions::luaGameLoadOccupancyMask(lua_State* L) {
 
 int GameFunctions::luaGameAllocateInstance(lua_State* L) {
 	// Game.allocateInstance()
-	lua_pushnumber(L, g_game().allocateInstanceId());
+	const uint32_t id = g_game().allocateInstanceId();
+	if (id == 0) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_pushnumber(L, id);
 	return 1;
 }
 

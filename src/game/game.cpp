@@ -129,35 +129,6 @@ namespace {
 		return actor ? actor->getInstanceId() : std::numeric_limits<uint32_t>::max();
 	}
 
-	std::vector<uint32_t> effectInstanceIds(const Position &pos) {
-		std::vector<uint32_t> ids;
-		const auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, std::numeric_limits<uint32_t>::max());
-		ids.reserve(spectators.size());
-		for (const auto &creature : spectators) {
-			if (creature) {
-				ids.push_back(creature->getInstanceId());
-			}
-		}
-		std::ranges::sort(ids);
-		ids.erase(std::ranges::unique(ids).begin(), ids.end());
-		if (ids.empty()) {
-			ids.push_back(0);
-		}
-		return ids;
-	}
-
-	std::vector<uint32_t> effectInstanceIds(const Position &fromPos, const Position &toPos) {
-		auto ids = effectInstanceIds(fromPos);
-		const auto toIds = effectInstanceIds(toPos);
-		ids.insert(ids.end(), toIds.begin(), toIds.end());
-		std::ranges::sort(ids);
-		ids.erase(std::ranges::unique(ids).begin(), ids.end());
-		if (ids.empty()) {
-			ids.push_back(0);
-		}
-		return ids;
-	}
-
 	enum class IdleCombatDeny : uint8_t {
 		Walk,
 		Target,
@@ -184,6 +155,44 @@ static uint32_t sightInstanceId(uint32_t instanceId) {
 		return instanceId;
 	}
 	return g_instanceActor ? g_instanceActor->getInstanceId() : 0;
+}
+
+/** Resolve which private instance should receive an effect that has no explicit actor.
+ *  Prefer the current InstanceActorScope; otherwise infer from creatures on the tile.
+ *  If multiple instance ids share the tile, fall back to 0 (open world) — never fan out. */
+static uint32_t resolveEffectInstanceId(const Position &pos) {
+	if (g_instanceActor) {
+		return g_instanceActor->getInstanceId();
+	}
+	uint32_t inferred = std::numeric_limits<uint32_t>::max();
+	if (const auto &tile = g_game().map.getTile(pos)) {
+		if (const CreatureVector* creatures = tile->getCreatures()) {
+			for (const auto &creature : *creatures) {
+				if (!creature) {
+					continue;
+				}
+				const uint32_t id = creature->getInstanceId();
+				if (inferred == std::numeric_limits<uint32_t>::max()) {
+					inferred = id;
+				} else if (inferred != id) {
+					return 0;
+				}
+			}
+		}
+	}
+	return inferred == std::numeric_limits<uint32_t>::max() ? 0 : inferred;
+}
+
+static uint32_t resolveEffectInstanceId(const Position &fromPos, const Position &toPos) {
+	if (g_instanceActor) {
+		return g_instanceActor->getInstanceId();
+	}
+	const uint32_t fromId = resolveEffectInstanceId(fromPos);
+	const uint32_t toId = resolveEffectInstanceId(toPos);
+	if (fromId != 0 && toId != 0 && fromId != toId) {
+		return 0;
+	}
+	return fromId != 0 ? fromId : toId;
 }
 
 InstanceActorScope::InstanceActorScope(const std::shared_ptr<Creature> &creature) :
@@ -1079,18 +1088,44 @@ uint32_t Game::copyMapRegion(const Position &sourceFrom, const Position &sourceT
 }
 
 uint32_t Game::allocateInstanceId() {
-	if (!freePrivateInstanceIds.empty()) {
+	while (!freePrivateInstanceIds.empty()) {
 		const uint32_t id = freePrivateInstanceIds.back();
 		freePrivateInstanceIds.pop_back();
-		return id;
+		if (id < INSTANCE_PRIVATE_BASE) {
+			continue;
+		}
+		if (usedPrivateInstanceIds.insert(id).second) {
+			return id;
+		}
+		// Stale duplicate on the free list (released while still in use elsewhere).
+		g_logger().warn("[Game::allocateInstanceId] skipped still-in-use recycled id {}", id);
 	}
-	return nextPrivateInstanceId++;
+
+	for (int attempt = 0; attempt < 1024; ++attempt) {
+		const uint32_t id = nextPrivateInstanceId++;
+		if (id < INSTANCE_PRIVATE_BASE) {
+			nextPrivateInstanceId = INSTANCE_PRIVATE_BASE;
+			continue;
+		}
+		if (usedPrivateInstanceIds.insert(id).second) {
+			return id;
+		}
+		g_logger().warn("[Game::allocateInstanceId] skipped collision on next id {}", id);
+	}
+
+	g_logger().error("[Game::allocateInstanceId] failed to allocate a private instance id");
+	return 0;
 }
 
 void Game::releaseInstanceId(uint32_t id) {
-	if (id >= INSTANCE_PRIVATE_BASE) {
-		freePrivateInstanceIds.push_back(id);
+	if (id < INSTANCE_PRIVATE_BASE) {
+		return;
 	}
+	if (usedPrivateInstanceIds.erase(id) == 0) {
+		g_logger().warn("[Game::releaseInstanceId] id {} was not in use (ignored)", id);
+		return;
+	}
+	freePrivateInstanceIds.push_back(id);
 }
 
 bool Game::callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult) {
@@ -3625,6 +3660,12 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 		return;
 	}
 
+	// Headless companions may have logged in before the controlling client synced the
+	// quick-loot filter. Always refresh from a live account session before looting.
+	if (player->getProtocolVersion() == 0) {
+		inheritAccountQuickLootFilter(player);
+	}
+
 	std::vector<std::shared_ptr<Item>> itemList;
 	bool ignoreListItems = (player->quickLootFilter == QUICKLOOTFILTER_SKIPPEDLOOT);
 
@@ -3633,6 +3674,11 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 
 	for (ContainerIterator it = corpse->iterator(); it.hasNext(); it.advance()) {
 		const auto &item = *it;
+		// Iterator also descends into nested bags; never move a non-empty container as a
+		// unit or skipped items inside would ride along into the loot pouch.
+		if (const auto &sub = item->getContainer(); sub && !sub->empty()) {
+			continue;
+		}
 		bool listed = player->isQuickLootListedItem(item);
 		if ((listed && ignoreListItems) || (!listed && !ignoreListItems)) {
 			if (item->getWorth() != 0) {
@@ -3691,6 +3737,10 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 	for (ContainerIterator it = corpse->iterator(); it.hasNext(); it.advance()) {
 		const auto &corpseItem = *it;
 		if (!corpseItem) {
+			continue;
+		}
+
+		if (const auto &sub = corpseItem->getContainer(); sub && !sub->empty()) {
 			continue;
 		}
 
@@ -3912,6 +3962,17 @@ ReturnValue Game::internalCollectManagedItems(const std::shared_ptr<Player> &pla
 		return RETURNVALUE_NOTPOSSIBLE;
 	}
 
+	// Quick-loot filter must run before Autobank so skipped coins stay on the corpse.
+	if (!player->quickLootListItemIds.empty()) {
+		uint16_t itemId = item->getID();
+		bool isInList = std::ranges::find(player->quickLootListItemIds, itemId) != player->quickLootListItemIds.end();
+		if (player->quickLootFilter == QuickLootFilter_t::QUICKLOOTFILTER_ACCEPTEDLOOT && !isInList) {
+			return RETURNVALUE_NOTPOSSIBLE;
+		} else if (player->quickLootFilter == QuickLootFilter_t::QUICKLOOTFILTER_SKIPPEDLOOT && isInList) {
+			return RETURNVALUE_NOTPOSSIBLE;
+		}
+	}
+
 	// Send money to the bank
 	if (g_configManager().getBoolean(AUTOBANK)) {
 		if (item->getID() == ITEM_GOLD_COIN || item->getID() == ITEM_PLATINUM_COIN || item->getID() == ITEM_CRYSTAL_COIN) {
@@ -3934,16 +3995,6 @@ ReturnValue Game::internalCollectManagedItems(const std::shared_ptr<Player> &pla
 			player->sendResourceBalance(RESOURCE_BANK, player->getBankBalance());
 			g_metrics().addCounter("balance_increase", money, { { "player", player->getName() }, { "context", "loot" } });
 			return RETURNVALUE_NOERROR;
-		}
-	}
-
-	if (!player->quickLootListItemIds.empty()) {
-		uint16_t itemId = item->getID();
-		bool isInList = std::ranges::find(player->quickLootListItemIds, itemId) != player->quickLootListItemIds.end();
-		if (player->quickLootFilter == QuickLootFilter_t::QUICKLOOTFILTER_ACCEPTEDLOOT && !isInList) {
-			return RETURNVALUE_NOTPOSSIBLE;
-		} else if (player->quickLootFilter == QuickLootFilter_t::QUICKLOOTFILTER_SKIPPEDLOOT && isInList) {
-			return RETURNVALUE_NOTPOSSIBLE;
 		}
 	}
 
@@ -7765,9 +7816,7 @@ void Game::sendSingleSoundEffect(const Position &pos, SoundEffect_t soundId, con
 		sendToInstance(actor->getInstanceId());
 		return;
 	}
-	for (const uint32_t instanceId : effectInstanceIds(pos)) {
-		sendToInstance(instanceId);
-	}
+	sendToInstance(resolveEffectInstanceId(pos));
 }
 
 void Game::sendDoubleSoundEffect(const Position &pos, SoundEffect_t mainSoundEffect, SoundEffect_t secondarySoundEffect, const std::shared_ptr<Creature> &actor /* = nullptr*/) {
@@ -7795,9 +7844,7 @@ void Game::sendDoubleSoundEffect(const Position &pos, SoundEffect_t mainSoundEff
 		sendToInstance(actor->getInstanceId());
 		return;
 	}
-	for (const uint32_t instanceId : effectInstanceIds(pos)) {
-		sendToInstance(instanceId);
-	}
+	sendToInstance(resolveEffectInstanceId(pos));
 }
 
 bool Game::combatBlockHit(CombatDamage &damage, const std::shared_ptr<Creature> &attacker, const std::shared_ptr<Creature> &target, bool checkDefense, bool checkArmor, bool field) {
@@ -9548,10 +9595,9 @@ void Game::addPlayerVocation(const std::shared_ptr<Player> &target) {
 }
 
 void Game::addMagicEffect(const Position &pos, uint16_t effect) {
-	for (const uint32_t instanceId : effectInstanceIds(pos)) {
-		auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId);
-		addMagicEffect(spectators.data(), pos, effect);
-	}
+	const uint32_t instanceId = resolveEffectInstanceId(pos);
+	auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId);
+	addMagicEffect(spectators.data(), pos, effect);
 }
 
 void Game::addMagicEffect(const CreatureVector &spectators, const Position &pos, uint16_t effect) {
@@ -9589,10 +9635,9 @@ void Game::addMagicEffect(const CreatureVector &spectators, const Position &pos,
 }
 
 void Game::removeMagicEffect(const Position &pos, uint16_t effect) {
-	for (const uint32_t instanceId : effectInstanceIds(pos)) {
-		auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId);
-		removeMagicEffect(spectators.data(), pos, effect);
-	}
+	const uint32_t instanceId = resolveEffectInstanceId(pos);
+	auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId);
+	removeMagicEffect(spectators.data(), pos, effect);
 }
 
 void Game::removeMagicEffect(const CreatureVector &spectators, const Position &pos, uint16_t effect) {
@@ -9604,10 +9649,9 @@ void Game::removeMagicEffect(const CreatureVector &spectators, const Position &p
 }
 
 void Game::addDistanceEffect(const Position &fromPos, const Position &toPos, uint16_t effect) {
-	for (const uint32_t instanceId : effectInstanceIds(fromPos, toPos)) {
-		auto spectators = Spectators().find<Player>(fromPos, false, 0, 0, 0, 0, true, instanceId).find<Player>(toPos, false, 0, 0, 0, 0, true, instanceId);
-		addDistanceEffect(spectators.data(), fromPos, toPos, effect);
-	}
+	const uint32_t instanceId = resolveEffectInstanceId(fromPos, toPos);
+	auto spectators = Spectators().find<Player>(fromPos, false, 0, 0, 0, 0, true, instanceId).find<Player>(toPos, false, 0, 0, 0, 0, true, instanceId);
+	addDistanceEffect(spectators.data(), fromPos, toPos, effect);
 }
 
 void Game::addDistanceEffect(const CreatureVector &spectators, const Position &fromPos, const Position &toPos, uint16_t effect) {

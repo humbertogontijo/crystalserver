@@ -1336,7 +1336,7 @@ void Combat::addDistanceEffect(const std::shared_ptr<Creature> &caster, const Po
 	}
 }
 
-void Combat::doChainEffect(const Position &origin, const Position &dest, uint8_t effect) {
+void Combat::doChainEffect(const Position &origin, const Position &dest, uint8_t effect, const std::shared_ptr<Creature> &caster) {
 	if (effect > 0) {
 		std::vector<Direction> dirList;
 
@@ -1348,10 +1348,10 @@ void Combat::doChainEffect(const Position &origin, const Position &dest, uint8_t
 		if (g_game().map.getPathMatching(origin, dirList, FrozenPathingConditionCall(dest), fpp)) {
 			for (const auto &dir : dirList) {
 				pos = getNextPosition(dir, pos);
-				g_game().addMagicEffect(pos, effect);
+				g_game().addMagicEffect(pos, effect, caster);
 			}
 		}
-		g_game().addMagicEffect(dest, effect);
+		g_game().addMagicEffect(dest, effect, caster);
 	}
 }
 
