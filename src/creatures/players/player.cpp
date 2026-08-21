@@ -2546,7 +2546,9 @@ void Player::sendNpcDialogOptions(const NpcDialogOptions &dialogOptions) const {
 }
 
 void Player::sendMarketEnter(uint32_t depotId) const {
-	if (!client || this->getLastDepotId() == -1 || !depotId) {
+	// lastDepotId stays -1 until a depot locker is opened. Depot id 0 is valid
+	// (OTBM lockers often omit the depot attribute and keep the default 0).
+	if (!client || this->getLastDepotId() == -1) {
 		return;
 	}
 
