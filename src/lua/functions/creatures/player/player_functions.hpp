@@ -130,6 +130,9 @@ class PlayerFunctions {
 	static int luaPlayerGetReward(lua_State* L);
 	static int luaPlayerRemoveReward(lua_State* L);
 	static int luaPlayerGetRewardList(lua_State* L);
+	static int luaPlayerLinkRewardChestParents(lua_State* L);
+	static int luaPlayerOpenRewardChest(lua_State* L);
+	static int luaPlayerCollectRewardChest(lua_State* L);
 
 	static int luaPlayerSetDailyReward(lua_State* L);
 
@@ -500,6 +503,7 @@ class PlayerFunctions {
 	static int luaPlayerRemoveCustomOutfit(lua_State* L);
 
 	static int luaPlayerDropConnection(lua_State* L);
+	static int luaPlayerSellAllShopItems(lua_State* L);
 
 	friend class CreatureFunctions;
 };

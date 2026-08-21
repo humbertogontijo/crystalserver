@@ -1274,6 +1274,40 @@ void Player::removeEmptyRewards() {
 	});
 }
 
+void Player::refreshRewardChestAfterCollect() {
+	// Close nested reward-bag windows that are now empty (before removing them from the chest).
+	std::vector<uint8_t> closeIds;
+	for (const auto &[containerId, containerInfo] : openContainers) {
+		const auto &container = containerInfo.container;
+		if (!container) {
+			continue;
+		}
+		if (container->getID() == ITEM_REWARD_CONTAINER && container->empty()) {
+			closeIds.emplace_back(containerId);
+		}
+	}
+	for (const uint8_t cid : closeIds) {
+		onCloseContainer(getContainerByID(cid));
+		closeContainer(cid);
+	}
+
+	removeEmptyRewards();
+
+	const auto &chest = getRewardChest();
+	const int8_t chestCid = getContainerID(chest);
+	if (chestCid == -1) {
+		return;
+	}
+
+	if (chest->empty()) {
+		onCloseContainer(chest);
+		closeContainer(static_cast<uint8_t>(chestCid));
+	} else {
+		// Resync so emptied bags disappear from the open chest window.
+		onSendContainer(chest);
+	}
+}
+
 bool Player::hasOtherRewardContainerOpen(const std::shared_ptr<Container> &container) const {
 	return std::ranges::any_of(openContainers.begin(), openContainers.end(), [container](const auto &containerPair) {
 		return containerPair.second.container != container && containerPair.second.container->isAnyKindOfRewardContainer();
@@ -2050,6 +2084,72 @@ std::shared_ptr<RewardChest> Player::getRewardChest() {
 
 	rewardChest = std::make_shared<RewardChest>(ITEM_REWARD_CHEST);
 	return rewardChest;
+}
+
+void Player::linkRewardChestParents() {
+	const auto &playerRewardChest = getRewardChest();
+	// Parent on the player so remote moves / open chest stay in range while walking.
+	playerRewardChest->setParent(static_self_cast<Player>());
+	for (const auto &[mapRewardId, reward] : rewardMap) {
+		reward->setParent(playerRewardChest);
+	}
+}
+
+ReturnValue Player::openRewardChest() {
+	const auto &playerRewardChest = getRewardChest();
+	if (!hasOtherRewardContainerOpen(playerRewardChest)) {
+		removeEmptyRewards();
+	}
+
+	if (playerRewardChest->empty()) {
+		return RETURNVALUE_REWARDCHESTISEMPTY;
+	}
+
+	linkRewardChestParents();
+
+	const int32_t oldContainerId = getContainerID(playerRewardChest);
+	if (oldContainerId != -1) {
+		onSendContainer(playerRewardChest);
+		return RETURNVALUE_NOERROR;
+	}
+
+	const uint8_t limit = getOpenedContainersLimit();
+	uint8_t cid = 0;
+	for (; cid < limit; ++cid) {
+		if (!getContainerByID(cid)) {
+			break;
+		}
+	}
+	if (cid >= limit) {
+		return RETURNVALUE_NOTPOSSIBLE;
+	}
+
+	addContainer(cid, playerRewardChest);
+	onSendContainer(playerRewardChest);
+	return RETURNVALUE_NOERROR;
+}
+
+ReturnValue Player::collectRewardChest(uint32_t maxMoveItems /* = 0 */) {
+	if (!g_configManager().getBoolean(REWARD_CHEST_COLLECT_ENABLED)) {
+		return RETURNVALUE_NOTPOSSIBLE;
+	}
+
+	const auto &playerRewardChest = getRewardChest();
+	if (!hasOtherRewardContainerOpen(playerRewardChest)) {
+		removeEmptyRewards();
+	}
+	if (playerRewardChest->empty()) {
+		return RETURNVALUE_REWARDCHESTISEMPTY;
+	}
+
+	linkRewardChestParents();
+
+	if (maxMoveItems == 0) {
+		maxMoveItems = static_cast<uint32_t>(g_configManager().getNumber(REWARD_CHEST_MAX_COLLECT_ITEMS));
+	}
+
+	std::scoped_lock<std::mutex> lock(quickLootMutex);
+	return g_game().collectRewardChestItems(static_self_cast<Player>(), maxMoveItems);
 }
 
 std::shared_ptr<Reward> Player::getReward(const uint64_t rewardId, const bool autoCreate) {

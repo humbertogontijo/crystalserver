@@ -155,6 +155,9 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "getReward", PlayerFunctions::luaPlayerGetReward);
 	Lua::registerMethod(L, "Player", "removeReward", PlayerFunctions::luaPlayerRemoveReward);
 	Lua::registerMethod(L, "Player", "getRewardList", PlayerFunctions::luaPlayerGetRewardList);
+	Lua::registerMethod(L, "Player", "linkRewardChestParents", PlayerFunctions::luaPlayerLinkRewardChestParents);
+	Lua::registerMethod(L, "Player", "openRewardChest", PlayerFunctions::luaPlayerOpenRewardChest);
+	Lua::registerMethod(L, "Player", "collectRewardChest", PlayerFunctions::luaPlayerCollectRewardChest);
 
 	Lua::registerMethod(L, "Player", "setDailyReward", PlayerFunctions::luaPlayerSetDailyReward);
 
@@ -527,6 +530,7 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "addCustomOutfit", PlayerFunctions::luaPlayerAddCustomOutfit);
 
 	Lua::registerMethod(L, "Player", "dropConnection", PlayerFunctions::luaPlayerDropConnection);
+	Lua::registerMethod(L, "Player", "sellAllShopItems", PlayerFunctions::luaPlayerSellAllShopItems);
 
 	GroupFunctions::init(L);
 	GuildFunctions::init(L);
@@ -1542,6 +1546,56 @@ int PlayerFunctions::luaPlayerGetRewardList(lua_State* L) {
 	for (const auto &rewardId : rewardVec) {
 		lua_pushnumber(L, static_cast<lua_Number>(rewardId));
 		lua_rawseti(L, -2, ++index);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerLinkRewardChestParents(lua_State* L) {
+	// player:linkRewardChestParents()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	player->linkRewardChestParents();
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerOpenRewardChest(lua_State* L) {
+	// player:openRewardChest()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	const ReturnValue ret = player->openRewardChest();
+	if (ret != RETURNVALUE_NOERROR) {
+		player->sendCancelMessage(ret);
+		Lua::pushBoolean(L, false);
+	} else {
+		Lua::pushBoolean(L, true);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerCollectRewardChest(lua_State* L) {
+	// player:collectRewardChest([maxMoveItems = 0])
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	const uint32_t maxMoveItems = Lua::getNumber<uint32_t>(L, 2, 0);
+	const ReturnValue ret = player->collectRewardChest(maxMoveItems);
+	if (ret != RETURNVALUE_NOERROR) {
+		player->sendCancelMessage(ret);
+		Lua::pushBoolean(L, false);
+	} else {
+		Lua::pushBoolean(L, true);
 	}
 	return 1;
 }
@@ -6069,6 +6123,37 @@ int PlayerFunctions::luaPlayerDropConnection(lua_State* L) {
 	}
 
 	player->disconnect();
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSellAllShopItems(lua_State* L) {
+	// player:sellAllShopItems(ignoreEquipped, filterMode, itemIds)
+	// filterMode: 0 = skipped (sell all except list), 1 = accepted (sell only list)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const bool ignoreEquipped = Lua::getBoolean(L, 2, true);
+	const auto filterMode = Lua::getNumber<uint8_t>(L, 3, 0);
+
+	std::vector<uint16_t> itemIds;
+	if (lua_istable(L, 4) != 0) {
+		lua_pushnil(L);
+		while (lua_next(L, 4) != 0) {
+			if (itemIds.size() >= 512) {
+				lua_pop(L, 1);
+				break;
+			}
+			itemIds.push_back(Lua::getNumber<uint16_t>(L, -1));
+			lua_pop(L, 1);
+		}
+	}
+
+	g_game().playerSellAllItems(player->getID(), ignoreEquipped, filterMode, itemIds);
 	Lua::pushBoolean(L, true);
 	return 1;
 }

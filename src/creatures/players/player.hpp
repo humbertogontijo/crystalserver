@@ -761,6 +761,12 @@ public:
 	void removeReward(uint64_t rewardId);
 	void getRewardList(std::vector<uint64_t> &rewards) const;
 	std::shared_ptr<RewardChest> getRewardChest();
+	/** Wire reward bag → chest → player parents without opening a container window. */
+	void linkRewardChestParents();
+	/** Open the player's virtual boss reward chest (no map fixture required). */
+	ReturnValue openRewardChest();
+	/** Move all reward items into managed loot containers (quick-loot path). */
+	ReturnValue collectRewardChest(uint32_t maxMoveItems = 0);
 
 	std::vector<std::shared_ptr<Item>> getRewardsFromContainer(const std::shared_ptr<Container> &container) const;
 
@@ -2121,6 +2127,8 @@ private:
 	double_t calculateDamageReduction(double_t currentTotal, int16_t resistance) const;
 
 	void removeEmptyRewards();
+	/** After Collect all: drop empty reward bags, refresh or close open reward windows. */
+	void refreshRewardChestAfterCollect();
 	bool hasOtherRewardContainerOpen(const std::shared_ptr<Container> &container) const;
 
 	void checkAndShowBlessingMessage();

@@ -206,6 +206,10 @@ InstanceActorScope::~InstanceActorScope() {
 	g_instanceActor = previous;
 }
 
+uint32_t Game::getInstanceActorId() {
+	return g_instanceActor ? g_instanceActor->getInstanceId() : 0;
+}
+
 namespace InternalGame {
 	void sendBlockEffect(BlockType_t blockType, CombatType_t combatType, const Position &targetPos, const std::shared_ptr<Creature> &source) {
 		if (blockType == BLOCK_DEFENSE) {
@@ -4015,6 +4019,12 @@ ReturnValue Game::collectRewardChestItems(const std::shared_ptr<Player> &player,
 		return RETURNVALUE_REWARDCHESTISEMPTY;
 	}
 
+	// Collect-all must take every reward item, ignoring the quick-loot accept/skip list.
+	const auto savedLootList = player->quickLootListItemIds;
+	player->quickLootListItemIds.clear();
+	const bool savedFallback = player->quickLootFallbackToMainContainer;
+	player->quickLootFallbackToMainContainer = true;
+
 	auto rewardItemsVector = player->getRewardsFromContainer(rewardChest->getContainer());
 	auto rewardCount = rewardItemsVector.size();
 	uint32_t movedRewardItems = 0;
@@ -4031,6 +4041,9 @@ ReturnValue Game::collectRewardChestItems(const std::shared_ptr<Player> &player,
 		if (limitMove) {
 			lootedItemsMessage = fmt::format("You can only collect {} items at a time. {} of {} objects were picked up.", maxMoveItems, movedRewardItems, rewardCount);
 			player->sendTextMessage(MESSAGE_EVENT_ADVANCE, lootedItemsMessage);
+			player->quickLootListItemIds = savedLootList;
+			player->quickLootFallbackToMainContainer = savedFallback;
+			player->refreshRewardChestAfterCollect();
 			return RETURNVALUE_NOERROR;
 		}
 
@@ -4040,13 +4053,20 @@ ReturnValue Game::collectRewardChestItems(const std::shared_ptr<Player> &player,
 		}
 	}
 
+	player->quickLootListItemIds = savedLootList;
+	player->quickLootFallbackToMainContainer = savedFallback;
+
 	lootedItemsMessage = fmt::format("{} of {} objects were picked up.", movedRewardItems, rewardCount);
 	player->sendTextMessage(MESSAGE_EVENT_ADVANCE, lootedItemsMessage);
 
 	if (movedRewardItems == 0) {
+		if (rewardCount == 0) {
+			return RETURNVALUE_REWARDCHESTISEMPTY;
+		}
 		return RETURNVALUE_NOTPOSSIBLE;
 	}
 
+	player->refreshRewardChestAfterCollect();
 	return RETURNVALUE_NOERROR;
 }
 
@@ -6254,6 +6274,104 @@ void Game::playerSellItem(uint32_t playerId, uint16_t itemId, uint8_t count, uin
 
 	merchant->onPlayerSellItem(player, it.id, count, amount, ignoreEquipped);
 	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
+}
+
+void Game::playerSellAllItems(uint32_t playerId, bool ignoreEquipped, uint8_t filterMode, const std::vector<uint16_t> &itemIds) {
+	metrics::method_latency measure(__METRICS_METHOD_NAME__);
+	const auto &player = getPlayerByID(playerId);
+	if (!player) {
+		return;
+	}
+
+	const auto &merchant = player->getShopOwner();
+	if (!merchant) {
+		return;
+	}
+
+	if (!player->canDoExAction()) {
+		player->sendCancelMessage(RETURNVALUE_YOUAREEXHAUSTED);
+		return;
+	}
+
+	// One exhaust for the whole dump (avoids the client 550ms sell loop).
+	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
+
+	phmap::flat_hash_set<uint16_t> listed;
+	listed.reserve(std::min<size_t>(itemIds.size(), 512));
+	for (size_t i = 0; i < itemIds.size() && i < 512; ++i) {
+		listed.insert(itemIds[i]);
+	}
+
+	const bool acceptedMode = (filterMode == 1);
+	const auto &shopVector = merchant->getShopItemVector(player->getGUID());
+
+	auto countEligible = [&](uint16_t itemId) -> uint32_t {
+		uint32_t eligible = 0;
+		for (const auto &item : player->getInventoryItemsFromId(itemId, ignoreEquipped)) {
+			if (!item || item->getTier() > 0 || item->hasImbuements()) {
+				continue;
+			}
+			if (const auto &container = item->getContainer()) {
+				if (container->size() > 0) {
+					continue;
+				}
+			}
+			if (!item->hasMarketAttributes()) {
+				continue;
+			}
+			eligible += item->getItemCount();
+		}
+		return eligible;
+	};
+
+	auto passesFilter = [&](uint16_t itemId) -> bool {
+		const bool isListed = listed.contains(itemId);
+		if (acceptedMode) {
+			return isListed;
+		}
+		return !isListed;
+	};
+
+	uint64_t totalPrice = 0;
+	for (const ShopBlock &shopBlock : shopVector) {
+		if (shopBlock.itemSellPrice == 0) {
+			continue;
+		}
+
+		const uint16_t itemId = shopBlock.itemId;
+		if (itemId == 0 || itemId == ITEM_GOLD_POUCH) {
+			continue;
+		}
+		if (!passesFilter(itemId)) {
+			continue;
+		}
+
+		const ItemType &it = Item::items[itemId];
+		if (it.id == 0) {
+			continue;
+		}
+
+		const uint16_t maxCap = it.stackable ? 10000 : 100;
+		bool stopAll = false;
+		for (;;) {
+			const uint32_t eligible = countEligible(itemId);
+			if (eligible == 0) {
+				break;
+			}
+
+			const uint16_t chunk = static_cast<uint16_t>(std::min<uint32_t>(eligible, maxCap));
+			const uint64_t before = totalPrice;
+			merchant->onPlayerSellItem(player, itemId, 0, chunk, ignoreEquipped, totalPrice);
+			if (totalPrice == before) {
+				// Capacity / bag space or nothing removable — stop the dump.
+				stopAll = true;
+				break;
+			}
+		}
+		if (stopAll) {
+			break;
+		}
+	}
 }
 
 void Game::playerCloseShop(uint32_t playerId) {

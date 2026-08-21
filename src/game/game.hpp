@@ -174,6 +174,8 @@ public:
 	/** Re-bind creature instanceId from active InstanceWorld session (expedition hunt). */
 	void syncCreatureInstance(const std::shared_ptr<Creature> &creature);
 	bool consumeInstanceFenceMessage();
+	/** Instance id of the creature currently in InstanceActorScope (0 if none). */
+	static uint32_t getInstanceActorId();
 
 	uint64_t getLastMapLoadTime() const {
 		return lastMapLoadTime;
@@ -382,6 +384,11 @@ public:
 
 	void playerRewardChestCollect(uint32_t playerId, const Position &pos, uint16_t itemId, uint8_t stackPos, uint32_t maxMoveItems = 0);
 
+	/**
+	 * @brief Collects items from the player's virtual reward chest into loot containers.
+	 */
+	ReturnValue collectRewardChestItems(const std::shared_ptr<Player> &player, uint32_t maxMoveItems = 0);
+
 	void playerReportRuleViolationReport(uint32_t playerId, const std::string &targetName, uint8_t reportType, uint8_t reportReason, const std::string &comment, const std::string &translation);
 
 	void playerFriendSystemAction(const std::shared_ptr<Player> &player, uint8_t type, uint8_t titleId);
@@ -455,6 +462,8 @@ public:
 	void playerLookInTrade(uint32_t playerId, bool lookAtCounterOffer, uint8_t index);
 	void playerBuyItem(uint32_t playerId, uint16_t itemId, uint8_t count, uint16_t amount, bool ignoreCap = false, bool inBackpacks = false);
 	void playerSellItem(uint32_t playerId, uint16_t itemId, uint8_t count, uint16_t amount, bool ignoreEquipped = false);
+	/** One-shot NPC shop sell-all using a client-supplied skip/accept filter list. */
+	void playerSellAllItems(uint32_t playerId, bool ignoreEquipped, uint8_t filterMode, const std::vector<uint16_t> &itemIds);
 	void playerCloseShop(uint32_t playerId);
 	void playerLookInShop(uint32_t playerId, uint16_t itemId, uint8_t count);
 	void playerCloseTrade(uint32_t playerId);
@@ -932,15 +941,6 @@ private:
 	 * @return Return value indicating success or error.
 	 */
 	ReturnValue internalCollectManagedItems(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, ObjectCategory_t category, bool isLootContainer = true);
-
-	/**
-	 * @brief Collects items from the reward chest.
-	 *
-	 * @param player Pointer to the player object.
-	 * @param maxMoveItems Maximum number of items to move (default is 0, which means no limit).
-	 * @return Return value indicating success or error.
-	 */
-	ReturnValue collectRewardChestItems(const std::shared_ptr<Player> &player, uint32_t maxMoveItems = 0);
 
 	phmap::flat_hash_map<std::string, QueryHighscoreCacheEntry> queryCache;
 	phmap::flat_hash_map<std::string, HighscoreCacheEntry> highscoreCache;

@@ -120,6 +120,8 @@ int32_t Creature::getWalkSize() {
 
 void Creature::onThink(uint32_t interval) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
+	// Script summons (Game.createMonster) inherit this creature's private instance.
+	InstanceActorScope instanceActorScope(getCreature());
 
 	const auto &followCreature = getFollowCreature();
 	const auto &master = getMaster();
@@ -301,8 +303,11 @@ bool Creature::getNextStep(Direction &dir, uint32_t &) {
 	return true;
 }
 
-void Creature::startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions /* = false*/, bool immediate /* = false*/) {
+void Creature::startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions /* = false*/, bool immediate /* = false*/, uint32_t walkFlags /* = 0*/) {
 	listWalkDir.clear();
+	// Always assign (including 0) so C++ follow/client walks never inherit Lua
+	// FLAG_IGNOREBLOCKCREATURE from a prior aborted expedition path.
+	autoWalkFlags = walkFlags;
 
 	if (!ignoreConditions && (hasCondition(CONDITION_ROOTED) || hasCondition(CONDITION_FEARED))) {
 		autoWalkFlags = 0;
@@ -1094,6 +1099,7 @@ bool Creature::setFollowCreature(const std::shared_ptr<Creature> &creature) {
 
 		if (!listWalkDir.empty()) {
 			listWalkDir.clear();
+			autoWalkFlags = 0;
 			onWalkAborted();
 		}
 

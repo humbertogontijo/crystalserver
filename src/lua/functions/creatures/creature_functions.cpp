@@ -1139,9 +1139,10 @@ int CreatureFunctions::luaCreatureAutoWalk(lua_State* L) {
 	std::reverse(dirList.begin(), dirList.end());
 	const auto flags = Lua::getNumber<uint32_t>(L, 3, 0);
 	const bool ignoreConditions = Lua::getBoolean(L, 4, false);
-	creature->setAutoWalkFlags(flags);
-	// immediate=true: don't wait a full stepDuration before the first tile.
-	creature->startAutoWalk(dirList, ignoreConditions, true);
+	// immediate=false: wait a normal stepDuration before the first tile so OTC
+	// can play walk frames. (immediate=true used ticks==1 and looked like a slide.)
+	// Single-step paths still get firstStep via startAutoWalk (size == 1).
+	creature->startAutoWalk(dirList, ignoreConditions, false, flags);
 	Lua::pushBoolean(L, true);
 	return 1;
 }

@@ -338,10 +338,9 @@ public:
 	std::unordered_set<std::shared_ptr<Zone>> getZones();
 
 	// walk functions
-	void startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions = false, bool immediate = false);
-	void setAutoWalkFlags(uint32_t flags) {
-		autoWalkFlags = flags;
-	}
+	// walkFlags: OR'd into onCreatureWalk (e.g. FLAG_IGNOREBLOCKCREATURE). Always
+	// replaced for this path — never left over from a previous autoWalk.
+	void startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions = false, bool immediate = false, uint32_t walkFlags = 0);
 	void addEventWalk(bool firstStep = false);
 	void stopEventWalk();
 	void resetMovementState();

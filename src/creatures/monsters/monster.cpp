@@ -1099,6 +1099,8 @@ void Monster::onEndCondition(ConditionType_t type) {
 }
 
 void Monster::onThink(uint32_t interval) {
+	// Covers mType.onThink as well as CreatureEvent think (nested scope is fine).
+	InstanceActorScope instanceActorScope(getMonster());
 	Creature::onThink(interval);
 
 	if (mType->info.thinkEvent != -1) {

@@ -788,7 +788,17 @@ int GameFunctions::luaGameCreateMonster(lua_State* L) {
 		}
 	}
 	if (lua_gettop(L) >= 6) {
-		monster->setInstanceId(Lua::getNumber<uint32_t>(L, 6, 0));
+		const auto explicitId = Lua::getNumber<uint32_t>(L, 6, 0);
+		if (explicitId != 0) {
+			monster->setInstanceId(explicitId);
+		}
+	}
+	// Faceless-style script summons omit instanceId; inherit from thinking boss.
+	if (monster->getInstanceId() == 0) {
+		const auto actorId = Game::getInstanceActorId();
+		if (actorId != 0) {
+			monster->setInstanceId(actorId);
+		}
 	}
 
 	const Position &position = Lua::getPosition(L, 2);
