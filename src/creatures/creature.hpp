@@ -338,7 +338,10 @@ public:
 	std::unordered_set<std::shared_ptr<Zone>> getZones();
 
 	// walk functions
-	void startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions = false);
+	void startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions = false, bool immediate = false);
+	void setAutoWalkFlags(uint32_t flags) {
+		autoWalkFlags = flags;
+	}
 	void addEventWalk(bool firstStep = false);
 	void stopEventWalk();
 	void resetMovementState();
@@ -761,6 +764,7 @@ protected:
 	ConditionList conditions;
 
 	std::vector<Direction> listWalkDir;
+	uint32_t autoWalkFlags = 0;
 
 	std::weak_ptr<Tile> m_tile;
 	std::weak_ptr<Creature> m_attackedCreature;

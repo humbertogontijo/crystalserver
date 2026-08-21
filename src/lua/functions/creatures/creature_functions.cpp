@@ -17,6 +17,8 @@
 
 #include "lua/functions/creatures/creature_functions.hpp"
 
+#include <algorithm>
+
 #include "config/configmanager.hpp"
 #include "creatures/combat/condition.hpp"
 #include "creatures/creature.hpp"
@@ -91,6 +93,7 @@ void CreatureFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Creature", "getDescription", CreatureFunctions::luaCreatureGetDescription);
 	Lua::registerMethod(L, "Creature", "getPathTo", CreatureFunctions::luaCreatureGetPathTo);
 	Lua::registerMethod(L, "Creature", "move", CreatureFunctions::luaCreatureMove);
+	Lua::registerMethod(L, "Creature", "autoWalk", CreatureFunctions::luaCreatureAutoWalk);
 	Lua::registerMethod(L, "Creature", "getZoneType", CreatureFunctions::luaCreatureGetZoneType);
 	Lua::registerMethod(L, "Creature", "getZones", CreatureFunctions::luaCreatureGetZones);
 	Lua::registerMethod(L, "Creature", "setIcon", CreatureFunctions::luaCreatureSetIcon);
@@ -1097,6 +1100,46 @@ int CreatureFunctions::luaCreatureMove(lua_State* L) {
 		}
 		lua_pushnumber(L, g_game().internalMoveCreature(creature, tile, Lua::getNumber<uint32_t>(L, 3)));
 	}
+	return 1;
+}
+
+int CreatureFunctions::luaCreatureAutoWalk(lua_State* L) {
+	// creature:autoWalk({dir1, dir2, ...}[, flags = 0])
+	// dirs[1] is the first step. Engine pops from the back, so we reverse.
+	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
+	if (!creature) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	if (!Lua::isTable(L, 2)) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	std::vector<Direction> dirList;
+	const int len = static_cast<int>(lua_objlen(L, 2));
+	dirList.reserve(static_cast<size_t>(std::max(0, len)));
+	for (int i = 1; i <= len; ++i) {
+		lua_rawgeti(L, 2, i);
+		if (Lua::isNumber(L, -1)) {
+			const auto dir = Lua::getNumber<Direction>(L, -1);
+			if (dir <= DIRECTION_LAST) {
+				dirList.emplace_back(dir);
+			}
+		}
+		lua_pop(L, 1);
+	}
+	if (dirList.empty()) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	std::reverse(dirList.begin(), dirList.end());
+	const auto flags = Lua::getNumber<uint32_t>(L, 3, 0);
+	creature->setAutoWalkFlags(flags);
+	// immediate=true: don't wait a full stepDuration before the first tile.
+	creature->startAutoWalk(dirList, true, true);
+	Lua::pushBoolean(L, true);
 	return 1;
 }
 

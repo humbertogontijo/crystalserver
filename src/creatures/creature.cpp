@@ -203,7 +203,7 @@ void Creature::onCreatureWalk() {
 
 		if (getWalkDelay() <= 0) {
 			Direction dir;
-			uint32_t flags = FLAG_IGNOREFIELDDAMAGE;
+			uint32_t flags = FLAG_IGNOREFIELDDAMAGE | autoWalkFlags;
 			if (getNextStep(dir, flags)) {
 				ReturnValue ret = g_game().internalMoveCreature(static_self_cast<Creature>(), dir, flags);
 				if (ret != RETURNVALUE_NOERROR) {
@@ -220,11 +220,13 @@ void Creature::onCreatureWalk() {
 				}
 
 				stopEventWalk();
+				autoWalkFlags = 0;
 			}
 		}
 
 		if (cancelNextWalk) {
 			listWalkDir.clear();
+			autoWalkFlags = 0;
 			onWalkAborted();
 			cancelNextWalk = false;
 		}
@@ -277,6 +279,7 @@ void Creature::onWalk(Direction &dir) {
 
 void Creature::resetMovementState() {
 	listWalkDir.clear();
+	autoWalkFlags = 0;
 	cancelNextWalk = false;
 	eventWalk = 0;
 	if (const auto player = getPlayer()) {
@@ -298,20 +301,23 @@ bool Creature::getNextStep(Direction &dir, uint32_t &) {
 	return true;
 }
 
-void Creature::startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions /* = false*/) {
+void Creature::startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions /* = false*/, bool immediate /* = false*/) {
 	listWalkDir.clear();
 
 	if (!ignoreConditions && (hasCondition(CONDITION_ROOTED) || hasCondition(CONDITION_FEARED))) {
+		autoWalkFlags = 0;
 		return;
 	}
 
 	listWalkDir = { listDir.begin(), listDir.end() };
 
 	if (listWalkDir.empty()) {
+		autoWalkFlags = 0;
 		return;
 	}
 
-	addEventWalk(listWalkDir.size() == 1);
+	// `immediate` → first step on next dispatcher tick (no full stepDuration wait).
+	addEventWalk(immediate || listWalkDir.size() == 1);
 }
 
 void Creature::addEventWalk(bool firstStep) {
