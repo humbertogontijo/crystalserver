@@ -1978,6 +1978,14 @@ void Game::playerMoveCreature(const std::shared_ptr<Player> &player, const std::
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
 
 	g_dispatcher().addWalkEvent([=, this] {
+		// Idle combat (expedition): AI owns formation — players cannot push creatures.
+		if (player->isIdleCombat()) {
+			player->pushEvent(false);
+			player->setNextActionPushTask(nullptr);
+			player->sendCancelMessage(RETURNVALUE_NOTMOVABLE);
+			return;
+		}
+
 		if (!player->canDoAction()) {
 			const auto &task = createPlayerTask(
 				600,
@@ -4563,6 +4571,11 @@ void Game::playerStopAutoWalk(uint32_t playerId) {
 		return;
 	}
 
+	// Idle combat: AI owns the walk queue (direction keys / sendStop must not abort autoWalk).
+	if (denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
+		return;
+	}
+
 	player->stopWalk();
 }
 
@@ -6991,6 +7004,10 @@ void Game::playerCancelAttackAndFollow(uint32_t playerId) {
 
 	playerSetAttackedCreature(playerId, 0);
 	playerFollowCreature(playerId, 0);
+	// Idle combat: keep AI autoWalk (Escape / cancelAttackAndFollow must not abort pathing).
+	if (player->isIdleCombat()) {
+		return;
+	}
 	player->stopWalk();
 }
 
