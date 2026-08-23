@@ -102,6 +102,7 @@
       "description": "macOS Debug build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "DEBUG_LOG": "ON",
         "SPEED_UP_BUILD_UNITY": "OFF"
       }
@@ -138,36 +139,6 @@
       "cacheVariables": {
         "BUILD_TESTS": "ON"
       }
-    },
-    {
-      "name": "macos-release",
-      "inherits": "base",
-      "displayName": "macOS - Release",
-      "description": "macOS Release Build (Apple Silicon or Intel)",
-      "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": {
-          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-          "type": "FILEPATH"
-        },
-        "RUN_TESTS_AFTER_BUILD": "OFF"
-      },
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      }
-    },
-    {
-      "name": "macos-debug",
-      "inherits": "macos-release",
-      "displayName": "macOS - Debug Build",
-      "description": "Build Debug Mode",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "DEBUG_LOG": "ON",
-        "SPEED_UP_BUILD_UNITY": "OFF"
-      }
     }
   ],
   "buildPresets": [
@@ -202,14 +173,6 @@
     {
       "name": "windows-Xdebug",
       "configurePreset": "windows-debug"
-    },
-    {
-      "name": "macos-release",
-      "configurePreset": "macos-release"
-    },
-    {
-      "name": "macos-debug",
-      "configurePreset": "macos-debug"
     }
   ]
 }
