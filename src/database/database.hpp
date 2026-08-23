@@ -173,23 +173,28 @@ public:
 			// Signed/unsigned by width — not only fixed-width typedefs.
 			// On LP64 (macOS), time_t is long while int64_t is long long; both need this path.
 			if constexpr (std::is_signed_v<T>) {
-				if constexpr (sizeof(T) <= 2) {
-					data = static_cast<T>(std::stoi(row[it->second]));
-				} else if constexpr (sizeof(T) <= 4) {
+				// Dispatch on width, not on exact type: int64_t is `long` on LP64 (Linux)
+				// but `long long` on macOS, so `long`/`time_t` matches neither there.
+				if constexpr (std::is_integral_v<T> && sizeof(T) <= sizeof(int32_t)) {
 					data = static_cast<T>(std::stol(row[it->second]));
-				} else {
+				} else if constexpr (std::is_integral_v<T> && sizeof(T) <= sizeof(long long)) {
 					data = static_cast<T>(std::stoll(row[it->second]));
-				}
-			} else if constexpr (std::is_same_v<T, bool>) {
-				data = static_cast<T>(std::stoi(row[it->second]));
-			} else if constexpr (std::is_unsigned_v<T>) {
-				if constexpr (sizeof(T) <= 4) {
-					data = static_cast<T>(std::stoul(row[it->second]));
 				} else {
-					data = static_cast<T>(std::stoull(row[it->second]));
+					// Throws exception indicating that type T is invalid
+					g_logger().error("Invalid signed type T");
 				}
+			} else if (std::is_same<T, bool>::value) {
+				data = static_cast<T>(std::stoi(row[it->second]));
 			} else {
-				g_logger().error("Column '{}' has an unsupported getNumber type", s);
+				// Dispatch on width, not on exact type (see the signed branch above).
+				if constexpr (std::is_integral_v<T> && sizeof(T) <= sizeof(uint32_t)) {
+					data = static_cast<T>(std::stoul(row[it->second]));
+				} else if constexpr (std::is_integral_v<T> && sizeof(T) <= sizeof(unsigned long long)) {
+					data = static_cast<T>(std::stoull(row[it->second]));
+				} else {
+					// Send log indicating that type T is invalid
+					g_logger().error("Column '{}' has an invalid unsigned T is invalid", s);
+				}
 			}
 		} catch (std::invalid_argument &e) {
 			// Value of string is invalid

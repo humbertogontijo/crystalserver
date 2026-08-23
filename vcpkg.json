@@ -33,7 +33,7 @@
     },
     {
       "name": "gmp",
-      "platform": "linux"
+      "platform": "!windows"
     },
     {
       "name": "mpir",
