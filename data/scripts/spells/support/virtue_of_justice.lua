@@ -6,7 +6,7 @@ function spell.onCastSpell(creature, var)
 	return true
 end
 
-spell:group("support", "stance")
+spell:group("support")
 spell:id(275)
 spell:name("Virtue of Justice")
 spell:words("utito virtu")

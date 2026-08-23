@@ -5,7 +5,7 @@
 #include <fstream>
 #include <vector>
 
-#include "io/occupancy_mask.hpp"
+#include "occupancy_mask.hpp"
 
 using namespace boost::ut;
 

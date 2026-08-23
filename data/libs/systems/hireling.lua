@@ -464,6 +464,7 @@ end
 
 function HirelingsInit()
 	local query = string.format("SELECT `ph`.* FROM `player_hirelings` AS `ph` INNER JOIN `players` as `p` ON `p`.`id` = `ph`.`player_id` WHERE `p`.`world_id` = %d", configManager.getNumber(configKeys.WORLD_ID))
+	local rows = db.storeQuery(query)
 	if rows then
 		local player_id, hireling
 		repeat
@@ -582,7 +583,14 @@ function Player:addNewHireling(name, sex)
 	local lamp = inbox:addItem(HIRELING_LAMP, 1, INDEX_WHEREEVER, FLAG_NOLIMIT)
 	if not lamp then
 		logger.error("[Player:addNewHireling] error to add hireling lamp '{}' for player {}", name, self:getName())
-		return false
+		-- Still register in memory so remote/home hireling trade works; lamp can be re-granted on login.
+		if not PLAYER_HIRELINGS[self:getGuid()] then
+			PLAYER_HIRELINGS[self:getGuid()] = {}
+		end
+		table.insert(PLAYER_HIRELINGS[self:getGuid()], hireling)
+		table.insert(HIRELINGS, hireling)
+		hireling.active = 0
+		return hireling
 	end
 
 	if not PLAYER_HIRELINGS[self:getGuid()] then

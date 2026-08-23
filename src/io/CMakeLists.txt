@@ -11,7 +11,6 @@ target_sources(${PROJECT_NAME}_lib PRIVATE
     functions/iologindata_save_player.cpp
     iomap.cpp
     iomapserialize.cpp
-    occupancy_mask.cpp
     iomarket.cpp
     ioprey.cpp
     ioweeklytasks.cpp

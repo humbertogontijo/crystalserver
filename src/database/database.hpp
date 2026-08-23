@@ -170,8 +170,7 @@ public:
 				}
 				return static_cast<T>(value);
 			}
-			// Signed/unsigned by width — not only fixed-width typedefs.
-			// On LP64 (macOS), time_t is long while int64_t is long long; both need this path.
+			// Check if the type T is signed or unsigned
 			if constexpr (std::is_signed_v<T>) {
 				// Dispatch on width, not on exact type: int64_t is `long` on LP64 (Linux)
 				// but `long long` on macOS, so `long`/`time_t` matches neither there.

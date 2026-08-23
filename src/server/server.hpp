@@ -19,6 +19,7 @@
 
 #include "lib/metrics/metrics.hpp"
 #include "server/network/connection/connection.hpp"
+#include "server/network/websocket/websocket_port.hpp"
 #include "server/signals.hpp"
 
 class Protocol;
@@ -100,17 +101,20 @@ public:
 	void run();
 	void stop();
 
+	bool addWebSocketGame(uint16_t port);
+
 	template <typename ProtocolType>
 	bool add(uint16_t port);
 
 	bool is_running() const {
-		return acceptors.empty() == false;
+		return acceptors.empty() == false || static_cast<bool>(websocketGamePort);
 	}
 
 private:
 	void die();
 
 	phmap::flat_hash_map<uint16_t, ServicePort_ptr> acceptors;
+	std::shared_ptr<WebSocketServicePort> websocketGamePort;
 
 	asio::io_service io_service;
 	Signals signals { io_service };

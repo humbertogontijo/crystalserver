@@ -219,7 +219,6 @@ public:
 	uint16_t secondReward = 0;
 };
 
-// After complete type defs — constructing unique_ptr with incomplete types fails on Apple libc++.
 static const std::unique_ptr<PreySlot> &PreySlotNull {};
 static const std::unique_ptr<TaskHuntingSlot> &TaskHuntingSlotNull {};
 static const std::unique_ptr<TaskHuntingOption> &TaskHuntingOptionNull {};

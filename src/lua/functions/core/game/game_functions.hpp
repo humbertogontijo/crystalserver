@@ -34,7 +34,9 @@ private:
 	static int luaGameLoadMap(lua_State* L);
 	static int luaGameloadMapChunk(lua_State* L);
 	static int luaGameCopyMapRegion(lua_State* L);
+#ifdef IDLEOT_HAS_OCCUPANCY
 	static int luaGameLoadOccupancyMask(lua_State* L);
+#endif
 	static int luaGameAllocateInstance(lua_State* L);
 	static int luaGameReleaseInstance(lua_State* L);
 	static int luaGameDisableWorldSpawns(lua_State* L);

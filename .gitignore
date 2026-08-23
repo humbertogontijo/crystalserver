@@ -387,6 +387,9 @@ sftp-config.json
 crystalserver
 crystalserver.old
 cip-occupancy
+map-query
+libmap_query_ffi.dylib
+libmap_query_ffi.so
 
 # VCPKG
 vcpkg_installed

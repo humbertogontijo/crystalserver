@@ -88,13 +88,18 @@ endif()
 option(BUILD_TESTS "Build tests" OFF) # By default, tests will not be built
 option(RUN_TESTS_AFTER_BUILD "Run tests when building" OFF) # By default, tests will only run if requested
 
+# IdleOT map tooling (occupancy + map-query) lives in packages/map-tools.
+set(IDLEOT_MAP_TOOLS_DIR "" CACHE PATH "Path to packages/map-tools (set by tibiajs Makefile)")
+
 # *****************************************************************************
 # Add project
 # *****************************************************************************
 add_subdirectory(src)
-add_subdirectory(tools/cip_occupancy)
-add_subdirectory(tools/map_query)
+
+if(IDLEOT_MAP_TOOLS_DIR)
+	add_subdirectory(${IDLEOT_MAP_TOOLS_DIR} ${CMAKE_BINARY_DIR}/idleot-map-tools)
+endif()
 
 if(BUILD_TESTS OR PACKAGE_TESTS)
-    add_subdirectory(tests)
+	add_subdirectory(tests)
 endif()

@@ -28,7 +28,9 @@
 #include "game/functions/game_reload.hpp"
 #include "game/game.hpp"
 #include "game/scheduling/dispatcher.hpp"
-#include "io/occupancy_mask.hpp"
+#ifdef IDLEOT_HAS_OCCUPANCY
+#include "occupancy_mask.hpp"
+#endif
 #include "io/io_bosstiary.hpp"
 #include "io/iobestiary.hpp"
 #include "io/iologindata.hpp"
@@ -58,7 +60,9 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "loadMap", GameFunctions::luaGameLoadMap);
 	Lua::registerMethod(L, "Game", "loadMapChunk", GameFunctions::luaGameloadMapChunk);
 	Lua::registerMethod(L, "Game", "copyMapRegion", GameFunctions::luaGameCopyMapRegion);
+#ifdef IDLEOT_HAS_OCCUPANCY
 	Lua::registerMethod(L, "Game", "loadOccupancyMask", GameFunctions::luaGameLoadOccupancyMask);
+#endif
 	Lua::registerMethod(L, "Game", "allocateInstance", GameFunctions::luaGameAllocateInstance);
 	Lua::registerMethod(L, "Game", "releaseInstance", GameFunctions::luaGameReleaseInstance);
 	Lua::registerMethod(L, "Game", "disableWorldSpawns", GameFunctions::luaGameDisableWorldSpawns);
@@ -420,6 +424,7 @@ int GameFunctions::luaGameCopyMapRegion(lua_State* L) {
 	return 1;
 }
 
+#ifdef IDLEOT_HAS_OCCUPANCY
 namespace {
 	int luaOccupancyMaskContains(lua_State* L) {
 		// occupancy:contains(worldX, worldY)
@@ -481,6 +486,7 @@ int GameFunctions::luaGameLoadOccupancyMask(lua_State* L) {
 	lua_setfield(L, -2, "contains");
 	return 1;
 }
+#endif
 
 int GameFunctions::luaGameAllocateInstance(lua_State* L) {
 	// Game.allocateInstance()

@@ -124,7 +124,7 @@ void Connection::acceptInternal(bool toggleParseHeader) {
 	readTimer.async_wait([self = std::weak_ptr<Connection>(shared_from_this())](const std::error_code &error) { Connection::handleTimeout(self, error); });
 
 	try {
-		asio::async_read(socket, asio::buffer(m_msg.getBuffer(), HEADER_LENGTH), [self = shared_from_this(), toggleParseHeader](const std::error_code &error, std::size_t N) {
+		scheduleRead(HEADER_LENGTH, m_msg.getBuffer(), [self = shared_from_this(), toggleParseHeader](const std::error_code &error) {
 			if (toggleParseHeader) {
 				self->parseHeader(error);
 			} else {
@@ -167,7 +167,7 @@ void Connection::parseProxyIdentification(const std::error_code &error) {
 					readTimer.async_wait([self = std::weak_ptr<Connection>(shared_from_this())](const std::error_code &error) { Connection::handleTimeout(self, error); });
 
 					// Read the remainder of proxy identification
-					asio::async_read(socket, asio::buffer(m_msg.getBuffer(), remainder), [self = shared_from_this()](const std::error_code &error, std::size_t N) { self->parseProxyIdentification(error); });
+					scheduleRead(remainder, m_msg.getBuffer(), [self = shared_from_this()](const std::error_code &error) { self->parseProxyIdentification(error); });
 				} catch (const std::system_error &e) {
 					g_logger().error("Connection::parseProxyIdentification] - error: {}", e.what());
 					close(FORCE_CLOSE);
@@ -239,7 +239,7 @@ void Connection::parseHeader(const std::error_code &error) {
 		// Read packet content
 		m_msg.setLength(size + HEADER_LENGTH);
 		// Read the remainder of proxy identification
-		asio::async_read(socket, asio::buffer(m_msg.getBodyBuffer(), size), [self = shared_from_this()](const std::error_code &error, std::size_t N) { self->parsePacket(error); });
+		scheduleRead(size, m_msg.getBodyBuffer(), [self = shared_from_this()](const std::error_code &error) { self->parsePacket(error); });
 	} catch (const std::system_error &e) {
 		g_logger().error("[Connection::parseHeader] - error: {}", e.what());
 		close(FORCE_CLOSE);
@@ -310,7 +310,7 @@ void Connection::parsePacket(const std::error_code &error) {
 
 		if (!skipReadingNextPacket) {
 			// Wait to the next packet
-			asio::async_read(socket, asio::buffer(m_msg.getBuffer(), HEADER_LENGTH), [self = shared_from_this()](const std::error_code &error, std::size_t N) { self->parseHeader(error); });
+			scheduleRead(HEADER_LENGTH, m_msg.getBuffer(), [self = shared_from_this()](const std::error_code &error) { self->parseHeader(error); });
 		}
 	} catch (const std::system_error &e) {
 		g_logger().error("[Connection::parsePacket] - error: {}", e.what());
@@ -330,7 +330,7 @@ void Connection::resumeWork() {
 		readTimer.expires_from_now(std::chrono::seconds(CONNECTION_READ_TIMEOUT));
 		readTimer.async_wait([self = std::weak_ptr<Connection>(shared_from_this())](const std::error_code &error) { Connection::handleTimeout(self, error); });
 
-		asio::async_read(socket, asio::buffer(m_msg.getBuffer(), HEADER_LENGTH), [self = shared_from_this()](const std::error_code &error, std::size_t N) { self->parseHeader(error); });
+		scheduleRead(HEADER_LENGTH, m_msg.getBuffer(), [self = shared_from_this()](const std::error_code &error) { self->parseHeader(error); });
 	} catch (const std::system_error &e) {
 		g_logger().error("[Connection::resumeWork] - Exception in async_read: {}", e.what());
 		close(FORCE_CLOSE);
@@ -399,6 +399,10 @@ void Connection::internalSend(const OutputMessage_ptr &outputMessage) {
 	writeTimer.async_wait([self = std::weak_ptr<Connection>(shared_from_this())](const std::error_code &error) { Connection::handleTimeout(self, error); });
 
 	try {
+		if (useWebSocket) {
+			wsSendBinary(outputMessage);
+			return;
+		}
 		asio::async_write(socket, asio::buffer(outputMessage->getOutputBuffer(), outputMessage->getLength()), [self = shared_from_this()](const std::error_code &error, std::size_t N) { self->onWriteOperation(error); });
 	} catch (const std::system_error &e) {
 		g_logger().error("[Connection::internalSend] - Exception in async_write: {}", e.what());

@@ -694,6 +694,9 @@ void Game::start(ServiceManager* manager) {
 	// OT protocols
 	manager->add<ProtocolStatus>(currentWorld->portStatus);
 
+	const auto websocketPort = static_cast<uint16_t>(g_configManager().getNumber(WEBSOCKET_GAME_PORT));
+	manager->addWebSocketGame(websocketPort);
+
 	serviceManager = manager;
 
 	const auto now = getTimeNow();
