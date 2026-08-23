@@ -95,6 +95,7 @@ option(RUN_TESTS_AFTER_BUILD "Run tests when building" OFF) # By default, tests 
 # *****************************************************************************
 add_subdirectory(src)
 add_subdirectory(tools/cip_occupancy)
+add_subdirectory(tools/map_query)
 
 if(BUILD_TESTS OR PACKAGE_TESTS)
     add_subdirectory(tests)

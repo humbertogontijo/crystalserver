@@ -29,6 +29,36 @@
 #include "map/spectators.hpp"
 #include "utils/astarnodes.hpp"
 
+void Map::forEachCachedBasicTile(
+	const std::function<void(uint16_t x, uint16_t y, uint8_t z, const std::shared_ptr<BasicTile> &tile)> &fn
+) const {
+	for (const auto &[index, sector] : mapSectors) {
+		auto &mutableSector = const_cast<MapSector &>(sector);
+		const uint32_t sectorX = (index & 0xFFFF) * SECTOR_SIZE;
+		const uint32_t sectorY = (index >> 16) * SECTOR_SIZE;
+		for (uint8_t z = 0; z < MAP_MAX_LAYERS; ++z) {
+			const auto floor = mutableSector.getFloor(z);
+			if (!floor) {
+				continue;
+			}
+			const auto &tiles = floor->getTiles();
+			for (uint32_t dx = 0; dx < SECTOR_SIZE; ++dx) {
+				for (uint32_t dy = 0; dy < SECTOR_SIZE; ++dy) {
+					const auto &cache = tiles[dx][dy].second;
+					if (cache) {
+						fn(
+							static_cast<uint16_t>(sectorX + dx),
+							static_cast<uint16_t>(sectorY + dy),
+							z,
+							cache
+						);
+					}
+				}
+			}
+		}
+	}
+}
+
 void Map::load(const std::string &identifier, const Position &pos) {
 	try {
 		path = identifier;

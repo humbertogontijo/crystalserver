@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "mapcache.hpp"
 #include "map/town.hpp"
 #include "map/house/house.hpp"
@@ -170,6 +172,11 @@ public:
 	SpawnsMonster spawnsMonsterCustomMaps[50];
 	SpawnsNpc spawnsNpcCustomMaps[50];
 	Houses housesCustomMaps[50];
+
+	/** Walk every OTBM BasicTile in the sector cache (map-query / tooling). */
+	void forEachCachedBasicTile(
+		const std::function<void(uint16_t x, uint16_t y, uint8_t z, const std::shared_ptr<BasicTile> &tile)> &fn
+	) const;
 
 private:
 	/**
