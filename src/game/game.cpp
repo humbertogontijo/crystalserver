@@ -5377,10 +5377,10 @@ void Game::playerWrapableItem(uint32_t playerId, const Position &pos, uint8_t st
 		return;
 	}
 
-	// Personal-home instances use Zone("player-home-*") without HouseTiles.
+	// Personal-home instances use Zone("player-home") with shared HouseTiles + instance owners.
 	bool inPlayerHome = false;
 	for (const auto &zone : Zone::getZones(item->getPosition())) {
-		if (zone && zone->getName().starts_with("player-home-")) {
+		if (zone && zone->getName().starts_with("player-home")) {
 			inPlayerHome = true;
 			break;
 		}
@@ -13435,6 +13435,9 @@ void Game::playerCyclopediaHousesByTown(uint32_t playerId, const std::string &to
 		const auto &housesList = g_game().map.houses.getHouses();
 		for (const auto &it : housesList) {
 			const auto &house = it.second;
+			if (house->isEphemeral()) {
+				continue;
+			}
 			const auto &town = g_game().map.towns.getTown(house->getTownId());
 			if (!town) {
 				continue;
@@ -13456,7 +13459,7 @@ void Game::playerCyclopediaHousesByTown(uint32_t playerId, const std::string &to
 			}
 		}
 		const auto house = g_game().map.houses.getHouseByBidderName(player->getName());
-		if (house) {
+		if (house && !house->isEphemeral()) {
 			houses.emplace(house->getClientId(), house);
 		}
 	}

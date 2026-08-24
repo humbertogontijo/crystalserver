@@ -67,6 +67,15 @@ void HouseFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "House", "kickPlayer", HouseFunctions::luaHouseKickPlayer);
 	Lua::registerMethod(L, "House", "isInvited", HouseFunctions::luaHouseIsInvited);
+
+	Lua::registerMethod(L, "House", "setEphemeral", HouseFunctions::luaHouseSetEphemeral);
+	Lua::registerMethod(L, "House", "isEphemeral", HouseFunctions::luaHouseIsEphemeral);
+	Lua::registerMethod(L, "House", "setName", HouseFunctions::luaHouseSetName);
+	Lua::registerMethod(L, "House", "setSize", HouseFunctions::luaHouseSetSize);
+	Lua::registerMethod(L, "House", "setEntryPosition", HouseFunctions::luaHouseSetEntryPosition);
+	Lua::registerMethod(L, "House", "addTile", HouseFunctions::luaHouseAddTile);
+	Lua::registerMethod(L, "House", "setInstanceOwner", HouseFunctions::luaHouseSetInstanceOwner);
+	Lua::registerMethod(L, "House", "clearInstanceOwner", HouseFunctions::luaHouseClearInstanceOwner);
 }
 
 int HouseFunctions::luaHouseCreate(lua_State* L) {
@@ -581,5 +590,109 @@ int HouseFunctions::luaHouseIsGuildhall(lua_State* L) {
 	}
 
 	Lua::pushBoolean(L, house->isGuildhall());
+	return 1;
+}
+
+int HouseFunctions::luaHouseSetEphemeral(lua_State* L) {
+	// house:setEphemeral(value)
+	const auto &house = Lua::getUserdataShared<House>(L, 1);
+	if (!house) {
+		lua_pushnil(L);
+		return 1;
+	}
+	house->setEphemeral(Lua::getBoolean(L, 2));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int HouseFunctions::luaHouseIsEphemeral(lua_State* L) {
+	// house:isEphemeral()
+	const auto &house = Lua::getUserdataShared<House>(L, 1);
+	if (!house) {
+		lua_pushnil(L);
+		return 1;
+	}
+	Lua::pushBoolean(L, house->isEphemeral());
+	return 1;
+}
+
+int HouseFunctions::luaHouseSetName(lua_State* L) {
+	// house:setName(name)
+	const auto &house = Lua::getUserdataShared<House>(L, 1);
+	if (!house) {
+		lua_pushnil(L);
+		return 1;
+	}
+	house->setName(Lua::getString(L, 2));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int HouseFunctions::luaHouseSetSize(lua_State* L) {
+	// house:setSize(size)
+	const auto &house = Lua::getUserdataShared<House>(L, 1);
+	if (!house) {
+		lua_pushnil(L);
+		return 1;
+	}
+	house->setSize(Lua::getNumber<uint32_t>(L, 2));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int HouseFunctions::luaHouseSetEntryPosition(lua_State* L) {
+	// house:setEntryPosition(position)
+	const auto &house = Lua::getUserdataShared<House>(L, 1);
+	if (!house) {
+		lua_pushnil(L);
+		return 1;
+	}
+	house->setEntryPos(Lua::getPosition(L, 2));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int HouseFunctions::luaHouseAddTile(lua_State* L) {
+	// house:addTile(position)
+	const auto &house = Lua::getUserdataShared<House>(L, 1);
+	if (!house) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const Position pos = Lua::getPosition(L, 2);
+	const auto &houseTile = g_game().map.getOrCreateHouseTile(pos, house);
+	if (houseTile) {
+		Lua::pushUserdata<Tile>(L, houseTile);
+		Lua::setMetatable(L, -1, "Tile");
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int HouseFunctions::luaHouseSetInstanceOwner(lua_State* L) {
+	// house:setInstanceOwner(instanceId, guid)
+	const auto &house = Lua::getUserdataShared<House>(L, 1);
+	if (!house) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 2);
+	const uint32_t guid = Lua::getNumber<uint32_t>(L, 3);
+	house->setInstanceOwner(instanceId, guid);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int HouseFunctions::luaHouseClearInstanceOwner(lua_State* L) {
+	// house:clearInstanceOwner(instanceId)
+	const auto &house = Lua::getUserdataShared<House>(L, 1);
+	if (!house) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 2);
+	house->clearInstanceOwner(instanceId);
+	Lua::pushBoolean(L, true);
 	return 1;
 }

@@ -117,6 +117,8 @@ public:
 		return getOrCreateTile(pos.x, pos.y, pos.z, isDynamic);
 	}
 
+	std::shared_ptr<HouseTile> getOrCreateHouseTile(const Position &pos, const std::shared_ptr<House> &house);
+
 	/**
 	 * Place a creature on the map
 	 * \param centerPos The position to place the creature

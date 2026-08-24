@@ -77,6 +77,7 @@ void GameFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Game", "getTowns", GameFunctions::luaGameGetTowns);
 	Lua::registerMethod(L, "Game", "getHouses", GameFunctions::luaGameGetHouses);
+	Lua::registerMethod(L, "Game", "createHouse", GameFunctions::luaGameCreateHouse);
 
 	Lua::registerMethod(L, "Game", "getGameState", GameFunctions::luaGameGetGameState);
 	Lua::registerMethod(L, "Game", "setGameState", GameFunctions::luaGameSetGameState);
@@ -601,10 +602,22 @@ int GameFunctions::luaGameGetHouses(lua_State* L) {
 
 	int index = 0;
 	for (const auto &houseEntry : houses) {
+		if (houseEntry.second->isEphemeral()) {
+			continue;
+		}
 		Lua::pushUserdata<House>(L, houseEntry.second);
 		Lua::setMetatable(L, -1, "House");
 		lua_rawseti(L, -2, ++index);
 	}
+	return 1;
+}
+
+int GameFunctions::luaGameCreateHouse(lua_State* L) {
+	// Game.createHouse(houseId)
+	const uint32_t houseId = Lua::getNumber<uint32_t>(L, 1);
+	const auto &house = g_game().map.houses.addHouse(houseId);
+	Lua::pushUserdata<House>(L, house);
+	Lua::setMetatable(L, -1, "House");
 	return 1;
 }
 
@@ -1441,6 +1454,9 @@ int GameFunctions::luaHouseGetHouseCountByAccount(lua_State* L) {
 	uint32_t accountId = Lua::getNumber<uint32_t>(L, 2);
 	uint16_t count = 0;
 	for (const auto &[id, house] : houses) {
+		if (house->isEphemeral()) {
+			continue;
+		}
 		if (house->getOwnerAccountId() == accountId) {
 			++count;
 		}
