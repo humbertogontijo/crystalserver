@@ -1210,6 +1210,14 @@ public:
 	}
 	void sendOpenWheelWindow(uint32_t ownerId) const;
 
+	// Same-account companion UI for prey / forge / proficiency / reward wall
+	void setFeatureEditOwnerId(uint32_t ownerId) {
+		m_featureEditOwnerId = ownerId;
+	}
+	uint32_t getFeatureEditOwnerId() const {
+		return m_featureEditOwnerId;
+	}
+
 	void sendBannerType(Banner_t bannerType) const;
 	void sendScreenshotAndBannerUnlockedAchievement(const uint16_t achievementId) const;
 	void sendScreenshotAndBannerUnlockedTitle(const uint8_t titleId) const;
@@ -1371,6 +1379,12 @@ public:
 	// Prey system
 	void initializePrey();
 	void removePreySlotById(PreySlot_t slotid);
+
+	void deliverPreyUiTo(const std::shared_ptr<Player> &viewer) const;
+	void deliverForgeUiTo(const std::shared_ptr<Player> &viewer) const;
+	void deliverProficiencyUiTo(const std::shared_ptr<Player> &viewer) const;
+	void deliverTaskBoardUiTo(const std::shared_ptr<Player> &viewer);
+	void deliverHuntingTaskShopUiTo(const std::shared_ptr<Player> &viewer) const;
 
 	void sendPreyData() const;
 
@@ -1925,6 +1939,7 @@ private:
 	uint32_t MessageBufferTicks = 0;
 	uint32_t lastIP = 0;
 	uint32_t m_wheelEditOwnerId = 0;
+	uint32_t m_featureEditOwnerId = 0;
 	uint32_t guid = 0;
 	uint32_t loyaltyPoints = 0;
 	uint8_t isDailyReward = DAILY_REWARD_NOTCOLLECTED;

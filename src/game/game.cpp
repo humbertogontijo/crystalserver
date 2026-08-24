@@ -95,6 +95,9 @@ std::vector<std::weak_ptr<Creature>> checkCreatureLists[EVENT_CREATURECOUNT];
 size_t checkCreatureSizes[EVENT_CREATURECOUNT] = {}; // Track sizes for reserve
 
 namespace {
+	std::shared_ptr<Player> resolveFeatureEditTarget(const std::shared_ptr<Player> &viewer);
+	void syncCompanionTaskBoardUi(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target);
+
 	bool isBountyHighscoreCategory(const std::string &categoryName) {
 		return categoryName == "bounty_points";
 	}
@@ -10714,12 +10717,21 @@ void Game::playerReportBug(uint32_t playerId, const std::string &message, const 
 }
 
 void Game::playerPreyAction(uint32_t playerId, uint8_t slot, uint8_t action, uint8_t option, int8_t index, uint16_t raceId) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_ioprey().parsePreyAction(player, static_cast<PreySlot_t>(slot), static_cast<PreyAction_t>(action), static_cast<PreyOption_t>(option), index, raceId);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_ioprey().parsePreyAction(target, static_cast<PreySlot_t>(slot), static_cast<PreyAction_t>(action), static_cast<PreyOption_t>(option), index, raceId);
+
+	if (target.get() != viewer.get()) {
+		target->deliverPreyUiTo(viewer);
+	}
 }
 
 void Game::playerSoulSealsFight(uint32_t playerId, uint16_t raceId) {
@@ -10772,49 +10784,79 @@ void Game::playerSoulSealsFight(uint32_t playerId, uint16_t raceId) {
  ******************************************************************************/
 
 void Game::playerOpenBountyTask(uint32_t playerId) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	if (player->getPlayerVocationEnum() == Vocation_t::VOCATION_NONE) {
-		player->sendMessageDialog("Bounty Tasks are not available in Rookgaard.");
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
 		return;
 	}
 
-	auto &bountyData = player->getBountyTaskData();
+	if (target->getPlayerVocationEnum() == Vocation_t::VOCATION_NONE) {
+		viewer->sendMessageDialog("Bounty Tasks are not available in Rookgaard.");
+		return;
+	}
+
+	auto &bountyData = target->getBountyTaskData();
 	if (bountyData.state == BOUNTY_STATE_NONE) {
-		g_iobountytasks().generateCreatureList(player, bountyData.selectedDifficulty);
+		g_iobountytasks().generateCreatureList(target, bountyData.selectedDifficulty);
 	} else {
 		if (bountyData.state == BOUNTY_STATE_SELECTION && bountyData.currentCreaturesList.size() < BOUNTY_MAX_CREATURES) {
-			g_iobountytasks().fillMissingCreatures(player);
+			g_iobountytasks().fillMissingCreatures(target);
 		}
-		player->sendBountyTaskData();
+		if (target.get() == viewer.get()) {
+			target->sendBountyTaskData();
+		}
 	}
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerOpenWeeklyTask(uint32_t playerId) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_ioweeklytasks().initializeWeeklyTasks(player);
-	player->sendWeeklyTaskData();
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_ioweeklytasks().initializeWeeklyTasks(target);
+	if (target.get() == viewer.get()) {
+		target->sendWeeklyTaskData();
+	}
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerOpenHuntingTaskShop(uint32_t playerId) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	player->sendHuntingTaskShopData();
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	if (target.get() == viewer.get()) {
+		target->sendHuntingTaskShopData();
+	} else {
+		target->deliverHuntingTaskShopUiTo(viewer);
+	}
 }
 
 void Game::playerWeeklyTasksRegenerate(uint32_t playerId, uint8_t difficulty) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
+		return;
+	}
+
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
 		return;
 	}
 
@@ -10823,28 +10865,42 @@ void Game::playerWeeklyTasksRegenerate(uint32_t playerId, uint8_t difficulty) {
 	}
 
 	uint32_t minLevel = IOWeeklyTasks::getMinLevelForDifficulty(difficulty);
-	if (player->getLevel() < minLevel) {
-		player->sendTextMessage(MESSAGE_STATUS, fmt::format("You need at least level {} to select this difficulty.", minLevel));
+	if (target->getLevel() < minLevel) {
+		viewer->sendTextMessage(MESSAGE_STATUS, fmt::format("You need at least level {} to select this difficulty.", minLevel));
 		return;
 	}
 
-	g_ioweeklytasks().generateWeeklyTasks(player, difficulty);
-	player->sendWeeklyTaskData();
-	player->refreshTaskIcons();
+	g_ioweeklytasks().generateWeeklyTasks(target, difficulty);
+	if (target.get() == viewer.get()) {
+		target->sendWeeklyTaskData();
+		target->refreshTaskIcons();
+	}
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerWeeklyTaskDeliver(uint32_t playerId, uint8_t taskIndex) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_ioweeklytasks().deliverWeeklyTask(player, taskIndex);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_ioweeklytasks().deliverWeeklyTask(target, taskIndex);
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerBountyTaskChangeDifficulty(uint32_t playerId, uint8_t difficulty) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
+		return;
+	}
+
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
 		return;
 	}
 
@@ -10852,88 +10908,143 @@ void Game::playerBountyTaskChangeDifficulty(uint32_t playerId, uint8_t difficult
 		return;
 	}
 
-	g_iobountytasks().changeDifficulty(player, static_cast<BountyTaskDifficulty_t>(difficulty));
+	g_iobountytasks().changeDifficulty(target, static_cast<BountyTaskDifficulty_t>(difficulty));
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerBountyTaskClaimReroll(uint32_t playerId) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_iobountytasks().claimDailyReroll(player);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_iobountytasks().claimDailyReroll(target);
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerBountyTaskReroll(uint32_t playerId) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_iobountytasks().rerollCreatureList(player);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_iobountytasks().rerollCreatureList(target);
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerBountyTaskSelectTask(uint32_t playerId, uint8_t taskIndex) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_iobountytasks().selectTask(player, taskIndex);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_iobountytasks().selectTask(target, taskIndex);
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerBountyTaskSetPreferred(uint32_t playerId, uint8_t listType, uint8_t slot, uint16_t raceId) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_iobountytasks().setPreferredMonster(player, listType, slot, raceId);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_iobountytasks().setPreferredMonster(target, listType, slot, raceId);
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerBountyTaskSetUnwanted(uint32_t playerId, uint8_t listType, uint8_t slot, uint16_t raceId) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_iobountytasks().setUnwantedMonster(player, listType, slot, raceId);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_iobountytasks().setUnwantedMonster(target, listType, slot, raceId);
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerBountyTaskClaimReward(uint32_t playerId) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_iobountytasks().claimTaskReward(player);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_iobountytasks().claimTaskReward(target);
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerBountyTaskUpgradeTalisman(uint32_t playerId, uint8_t pathIndex) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_iobountytasks().upgradeTalisman(player, pathIndex);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_iobountytasks().upgradeTalisman(target, pathIndex);
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerBountyTaskBuyShopOffer(uint32_t playerId, uint8_t offerIndex) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_ioweeklytasks().buyShopOffer(player, offerIndex);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_ioweeklytasks().buyShopOffer(target, offerIndex);
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 void Game::playerBountyTaskUnlockListSlot(uint32_t playerId, uint8_t slot) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	g_iobountytasks().unlockListSlot(player, slot);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	g_iobountytasks().unlockListSlot(target, slot);
+	syncCompanionTaskBoardUi(viewer, target);
 }
 
 /*******************************************************************************/
@@ -11774,13 +11885,18 @@ void Game::playerAnswerModalWindow(uint32_t playerId, uint32_t modalWindowId, ui
 
 void Game::playerForgeFuseItems(uint32_t playerId, ForgeAction_t actionType, uint16_t firstItemId, uint8_t tier, uint16_t secondItemId, bool usedCore, bool reduceTierLoss, bool convergence) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	if (!player->canDoExAction()) {
-		player->sendCancelMessage(RETURNVALUE_YOUAREEXHAUSTED);
+	if (!viewer->canDoExAction()) {
+		viewer->sendCancelMessage(RETURNVALUE_YOUAREEXHAUSTED);
+		return;
+	}
+
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
 		return;
 	}
 
@@ -11800,38 +11916,60 @@ void Game::playerForgeFuseItems(uint32_t playerId, ForgeAction_t actionType, uin
 	auto chance = uniform_random(0, 10000);
 	uint8_t bonus = convergence ? 0 : forgeBonus(chance);
 
-	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
-	player->forgeFuseItems(actionType, firstItemId, tier, secondItemId, success, reduceTierLoss, convergence, bonus, coreCount);
+	viewer->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
+	target->forgeFuseItems(actionType, firstItemId, tier, secondItemId, success, reduceTierLoss, convergence, bonus, coreCount);
+
+	if (target.get() != viewer.get()) {
+		target->deliverForgeUiTo(viewer);
+	}
 }
 
 void Game::playerForgeTransferItemTier(uint32_t playerId, ForgeAction_t actionType, uint16_t donorItemId, uint8_t tier, uint16_t receiveItemId, bool convergence) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	if (!player->canDoExAction()) {
-		player->sendCancelMessage(RETURNVALUE_YOUAREEXHAUSTED);
+	if (!viewer->canDoExAction()) {
+		viewer->sendCancelMessage(RETURNVALUE_YOUAREEXHAUSTED);
 		return;
 	}
 
-	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
-	player->forgeTransferItemTier(actionType, donorItemId, tier, receiveItemId, convergence);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	viewer->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
+	target->forgeTransferItemTier(actionType, donorItemId, tier, receiveItemId, convergence);
+
+	if (target.get() != viewer.get()) {
+		target->deliverForgeUiTo(viewer);
+	}
 }
 
 void Game::playerForgeResourceConversion(uint32_t playerId, ForgeAction_t actionType) {
-	const auto &player = getPlayerByID(playerId);
-	if (!player) {
+	const auto &viewer = getPlayerByID(playerId);
+	if (!viewer) {
 		return;
 	}
 
-	if (!player->canDoExAction()) {
-		player->sendCancelMessage(RETURNVALUE_YOUAREEXHAUSTED);
+	if (!viewer->canDoExAction()) {
+		viewer->sendCancelMessage(RETURNVALUE_YOUAREEXHAUSTED);
 		return;
 	}
 
-	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
-	player->forgeResourceConversion(actionType);
+	const auto &target = resolveFeatureEditTarget(viewer);
+	if (!target) {
+		return;
+	}
+
+	viewer->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
+	target->forgeResourceConversion(actionType);
+
+	if (target.get() != viewer.get()) {
+		target->deliverForgeUiTo(viewer);
+	}
 }
 
 void Game::playerBrowseForgeHistory(uint32_t playerId, uint8_t page) {
@@ -12137,7 +12275,54 @@ namespace {
 		viewer->setWheelEditOwnerId(owner->getID());
 		viewer->sendOpenWheelWindow(owner->getID());
 	}
+
+	std::shared_ptr<Player> resolveFeatureEditTarget(const std::shared_ptr<Player> &viewer) {
+		if (!viewer) {
+			return nullptr;
+		}
+		const uint32_t ownerId = viewer->getFeatureEditOwnerId();
+		if (ownerId == 0 || ownerId == viewer->getID()) {
+			return viewer;
+		}
+		return resolveSameAccountWheelOwner(viewer, ownerId);
+	}
+
+	void syncCompanionTaskBoardUi(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target) {
+		if (viewer && target && target.get() != viewer.get()) {
+			target->deliverTaskBoardUiTo(viewer);
+		}
+	}
 } // namespace
+
+bool Game::deliverCompanionFeatureUI(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &owner, std::string_view feature) {
+	if (!viewer || !owner) {
+		return false;
+	}
+	if (viewer->getAccountId() == 0 || owner->getAccountId() == 0 || viewer->getAccountId() != owner->getAccountId()) {
+		return false;
+	}
+	if (feature == "prey") {
+		owner->deliverPreyUiTo(viewer);
+		return true;
+	}
+	if (feature == "forge") {
+		owner->deliverForgeUiTo(viewer);
+		return true;
+	}
+	if (feature == "proficiency") {
+		owner->deliverProficiencyUiTo(viewer);
+		return true;
+	}
+	if (feature == "rewardWall") {
+		viewer->setFeatureEditOwnerId(owner->getID());
+		return true;
+	}
+	if (feature == "taskBoard") {
+		owner->deliverTaskBoardUiTo(viewer);
+		return true;
+	}
+	return false;
+}
 
 void Game::playerOpenWheel(uint32_t playerId, uint32_t ownerId) {
 	const auto &player = getPlayerByID(playerId);

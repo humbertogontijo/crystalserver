@@ -200,7 +200,7 @@ private:
 	void parsePreyAction(NetworkMessage &msg);
 
 	void parseBountyTaskAction(NetworkMessage &msg);
-	void parseSendResourceBalance();
+	void parseSendResourceBalance(const Player *dataPlayer = nullptr);
 	void parseSendResourceBalance(NetworkMessage &msg);
 	void parseRuleViolationReport(NetworkMessage &msg);
 
@@ -309,8 +309,8 @@ private:
 	void sendItemsPrice();
 
 	// Forge System
-	void sendForgingData();
-	void sendOpenForge();
+	void sendForgingData(const Player *dataPlayer = nullptr);
+	void sendOpenForge(const Player *dataPlayer = nullptr);
 	void sendForgeError(ReturnValue returnValue);
 	void closeForgeWindow();
 	void parseForgeEnter(NetworkMessage &msg);
@@ -403,9 +403,9 @@ private:
 	void sendResourceBalance(Resource_t resourceType, uint64_t value);
 	void sendSoulSealsWindow();
 
-	void sendBountyTaskData(const BountyTaskData &bountyData);
-	void sendWeeklyTaskData(const WeeklyTaskData &weeklyData);
-	void sendHuntingTaskShopData();
+	void sendBountyTaskData(const BountyTaskData &bountyData, const Player *dataPlayer = nullptr);
+	void sendWeeklyTaskData(const WeeklyTaskData &weeklyData, const Player *dataPlayer = nullptr);
+	void sendHuntingTaskShopData(const Player *dataPlayer = nullptr);
 
 	void sendCharmResourcesBalance(uint32_t charm = 0, uint32_t minorCharm = 0, uint32_t maxCharm = 0, uint32_t maxMinorCharm = 0);
 	void sendCharmResourceBalance(CharmResource_t resourceType, uint32_t value);
@@ -453,7 +453,7 @@ private:
 	void sendCoinBalance();
 
 	void sendPreyTimeLeft(const std::unique_ptr<PreySlot> &slot);
-	void sendPreyData(const std::unique_ptr<PreySlot> &slot);
+	void sendPreyData(const std::unique_ptr<PreySlot> &slot, const Player *dataPlayer = nullptr);
 	void sendPreyPrices();
 
 	// tiles
@@ -570,7 +570,7 @@ private:
 	void parseImbuementWindow(NetworkMessage &msg);
 	void parseWeaponProficiency(NetworkMessage &msg);
 	void sendWeaponProficiencyExperience(const uint16_t itemId, const uint32_t experience);
-	void sendWeaponProficiencyInfo(const uint16_t itemId);
+	void sendWeaponProficiencyInfo(const uint16_t itemId, const Player *dataPlayer = nullptr);
 
 	friend class Player;
 	friend class PlayerWheel;

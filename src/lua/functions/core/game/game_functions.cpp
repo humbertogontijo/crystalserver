@@ -109,6 +109,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "getOfflinePlayer", GameFunctions::luaGameGetOfflinePlayer);
 	Lua::registerMethod(L, "Game", "loginCompanion", GameFunctions::luaGameLoginCompanion);
 	Lua::registerMethod(L, "Game", "logoutCompanion", GameFunctions::luaGameLogoutCompanion);
+	Lua::registerMethod(L, "Game", "deliverCompanionFeatureUI", GameFunctions::luaGameDeliverCompanionFeatureUI);
 	Lua::registerMethod(L, "Game", "getNormalizedPlayerName", GameFunctions::luaGameGetNormalizedPlayerName);
 	Lua::registerMethod(L, "Game", "getNormalizedGuildName", GameFunctions::luaGameGetNormalizedGuildName);
 
@@ -1113,6 +1114,19 @@ int GameFunctions::luaGameLogoutCompanion(lua_State* L) {
 	// onRemoveCreature saves the player and updates online status.
 	player->removePlayer(true, true);
 	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameDeliverCompanionFeatureUI(lua_State* L) {
+	// Game.deliverCompanionFeatureUI(viewer, owner, feature)
+	const auto &viewer = Lua::getPlayer(L, 1);
+	const auto &owner = Lua::getPlayer(L, 2);
+	const auto feature = Lua::getString(L, 3);
+	if (!viewer || !owner || feature.empty()) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	Lua::pushBoolean(L, g_game().deliverCompanionFeatureUI(viewer, owner, feature));
 	return 1;
 }
 

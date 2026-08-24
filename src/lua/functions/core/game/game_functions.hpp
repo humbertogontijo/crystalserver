@@ -82,6 +82,7 @@ private:
 	// Headless account companions (no ProtocolGame): login near controller for squad expeditions.
 	static int luaGameLoginCompanion(lua_State* L);
 	static int luaGameLogoutCompanion(lua_State* L);
+	static int luaGameDeliverCompanionFeatureUI(lua_State* L);
 	static int luaGameGetNormalizedPlayerName(lua_State* L);
 	static int luaGameGetNormalizedGuildName(lua_State* L);
 	static int luaGameHasEffect(lua_State* L);

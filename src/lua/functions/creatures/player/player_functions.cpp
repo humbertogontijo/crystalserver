@@ -283,6 +283,7 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "showTextDialog", PlayerFunctions::luaPlayerShowTextDialog);
 
 	Lua::registerMethod(L, "Player", "sendTextMessage", PlayerFunctions::luaPlayerSendTextMessage);
+	Lua::registerMethod(L, "Player", "sendMapDescription", PlayerFunctions::luaPlayerSendMapDescription);
 	Lua::registerMethod(L, "Player", "sendChannelMessage", PlayerFunctions::luaPlayerSendChannelMessage);
 	Lua::registerMethod(L, "Player", "sendPrivateMessage", PlayerFunctions::luaPlayerSendPrivateMessage);
 	Lua::registerMethod(L, "Player", "channelSay", PlayerFunctions::luaPlayerChannelSay);
@@ -3029,6 +3030,20 @@ int PlayerFunctions::luaPlayerShowTextDialog(lua_State* L) {
 	item->setParent(player);
 	player->setWriteItem(item, length);
 	player->sendTextWindow(item, length, canWrite);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSendMapDescription(lua_State* L) {
+	// player:sendMapDescription([position])
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	const Position &pos = lua_gettop(L) >= 2 ? Lua::getPosition(L, 2) : player->getPosition();
+	player->sendMapDescription(pos);
 	Lua::pushBoolean(L, true);
 	return 1;
 }

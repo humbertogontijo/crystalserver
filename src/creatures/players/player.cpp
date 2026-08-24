@@ -9780,6 +9780,78 @@ void Player::sendPreyData() const {
 	}
 }
 
+void Player::deliverPreyUiTo(const std::shared_ptr<Player> &viewer) const {
+	if (!viewer || !viewer->client) {
+		return;
+	}
+	viewer->setFeatureEditOwnerId(getID());
+	for (const std::unique_ptr<PreySlot> &slot : preys) {
+		viewer->client->sendPreyData(slot, this);
+	}
+	auto [sliverCount, coreCount] = getForgeSliversAndCores();
+	viewer->client->sendResourcesBalance(
+		getMoney(),
+		getBankBalance(),
+		getPreyCards(),
+		getTaskHuntingPoints(),
+		getSoulsealsPoints(),
+		getForgeDusts(),
+		sliverCount,
+		coreCount
+	);
+}
+
+void Player::deliverForgeUiTo(const std::shared_ptr<Player> &viewer) const {
+	if (!viewer || !viewer->client) {
+		return;
+	}
+	viewer->setFeatureEditOwnerId(getID());
+	viewer->client->sendForgingData(this);
+	viewer->client->sendOpenForge(this);
+}
+
+void Player::deliverProficiencyUiTo(const std::shared_ptr<Player> &viewer) const {
+	if (!viewer || !viewer->client) {
+		return;
+	}
+	viewer->setFeatureEditOwnerId(getID());
+	for (const auto &[itemId, _] : weaponProficiencies) {
+		viewer->client->sendWeaponProficiencyInfo(itemId, this);
+	}
+}
+
+void Player::deliverTaskBoardUiTo(const std::shared_ptr<Player> &viewer) {
+	if (!viewer || !viewer->client) {
+		return;
+	}
+
+	viewer->setFeatureEditOwnerId(getID());
+
+	if (getPlayerVocationEnum() != Vocation_t::VOCATION_NONE) {
+		auto &bountyData = getBountyTaskData();
+		if (bountyData.state == BOUNTY_STATE_NONE) {
+			g_iobountytasks().generateCreatureList(getPlayer(), bountyData.selectedDifficulty);
+		} else if (bountyData.state == BOUNTY_STATE_SELECTION && bountyData.currentCreaturesList.size() < BOUNTY_MAX_CREATURES) {
+			g_iobountytasks().fillMissingCreatures(getPlayer());
+		}
+		viewer->client->sendBountyTaskData(bountyTaskData, this);
+	}
+
+	g_ioweeklytasks().initializeWeeklyTasks(getPlayer());
+	g_ioweeklytasks().ensureWeeklyTaskCount(getPlayer());
+	viewer->client->sendWeeklyTaskData(weeklyTaskData, this);
+	viewer->client->parseSendResourceBalance(this);
+}
+
+void Player::deliverHuntingTaskShopUiTo(const std::shared_ptr<Player> &viewer) const {
+	if (!viewer || !viewer->client) {
+		return;
+	}
+
+	viewer->setFeatureEditOwnerId(getID());
+	viewer->client->sendHuntingTaskShopData(this);
+}
+
 void Player::sendPreyTimeLeft(const std::unique_ptr<PreySlot> &slot) const {
 	if (g_configManager().getBoolean(PREY_ENABLED) && client) {
 		client->sendPreyTimeLeft(slot);

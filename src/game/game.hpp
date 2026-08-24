@@ -538,6 +538,8 @@ public:
 	void playerSaveWheel(uint32_t playerId, NetworkMessage &msg);
 	void playerWheelGemAction(uint32_t playerId, NetworkMessage &msg);
 
+	bool deliverCompanionFeatureUI(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &owner, std::string_view feature);
+
 	void updatePlayerHelpers(const std::shared_ptr<Player> &player);
 
 	void shutdown();
