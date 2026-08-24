@@ -1790,6 +1790,12 @@ bool ConditionDamage::startCondition(std::shared_ptr<Creature> creature) {
 
 bool ConditionDamage::executeCondition(const std::shared_ptr<Creature> &creature, int32_t interval) {
 	if (periodDamage != 0) {
+		bool bRemove = (ticks != -1);
+		creature->onTickCondition(getType(), bRemove);
+		if (field && bRemove) {
+			return false;
+		}
+
 		periodDamageTick += interval;
 
 		if (periodDamageTick >= tickInterval) {
@@ -1801,6 +1807,9 @@ bool ConditionDamage::executeCondition(const std::shared_ptr<Creature> &creature
 
 		bool bRemove = (ticks != -1);
 		creature->onTickCondition(getType(), bRemove);
+		if (field && bRemove) {
+			return false;
+		}
 		damageInfo.timeLeft -= interval;
 
 		if (damageInfo.timeLeft <= 0) {

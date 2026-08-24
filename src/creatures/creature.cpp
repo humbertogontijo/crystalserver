@@ -1184,6 +1184,7 @@ void Creature::onTickCondition(ConditionType_t type, bool &bRemove) {
 	const auto &tile = getTile();
 	const auto &field = tile ? tile->getFieldItem(getInstanceId()) : nullptr;
 	if (!field) {
+		bRemove = true;
 		return;
 	}
 
