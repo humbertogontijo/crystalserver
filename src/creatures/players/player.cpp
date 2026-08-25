@@ -12332,10 +12332,21 @@ void Player::sendLootMessage(const std::string &message) const {
 
 std::shared_ptr<Container> Player::getInventoryGoldPouch() const {
 	const auto &inventoryItems = getInventoryItemsFromId(ITEM_GOLD_POUCH);
-	if (inventoryItems.empty() || !inventoryItems.front()) {
+	if (!inventoryItems.empty() && inventoryItems.front()) {
+		return inventoryItems.front()->getContainer();
+	}
+
+	// Starter kit grants the loot pouch in the store inbox (SendFirstItems product overlay).
+	const auto &storeInbox = getStoreInbox();
+	if (!storeInbox) {
 		return nullptr;
 	}
-	return inventoryItems.front()->getContainer();
+	for (const auto &item : storeInbox->getItemList()) {
+		if (item && item->getID() == ITEM_GOLD_POUCH) {
+			return item->getContainer();
+		}
+	}
+	return nullptr;
 }
 
 std::shared_ptr<Container> Player::getLootPouch() {
