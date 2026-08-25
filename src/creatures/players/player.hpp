@@ -1571,6 +1571,8 @@ public:
 	bool isConcoctionActive(Concoction_t concotion) const;
 
 	bool checkAutoLoot(bool isBoss) const;
+	// Headless team companions route corpse auto-loot to their controller (product team storage).
+	std::shared_ptr<Player> getAutoLootPlayer();
 	bool checkChainSystem() const;
 	bool checkMute() const;
 

@@ -747,7 +747,8 @@ bool Creature::dropCorpse(const std::shared_ptr<Creature> &lastHitCreature, cons
 			dropLoot(corpse->getContainer(), lastHitCreature);
 			corpse->startDecaying();
 			const bool disallowedCorpses = corpse->isRewardCorpse() || (corpse->getID() == ITEM_MALE_CORPSE || corpse->getID() == ITEM_FEMALE_CORPSE);
-			const auto &player = mostDamageCreature ? mostDamageCreature->getPlayer() : nullptr;
+			const auto &killerPlayer = mostDamageCreature ? mostDamageCreature->getPlayer() : nullptr;
+			const auto &player = killerPlayer ? killerPlayer->getAutoLootPlayer() : nullptr;
 			const auto &corpseContainer = corpse->getContainer();
 			if (corpseContainer && player && !disallowedCorpses) {
 				const auto &monster = getMonster();
@@ -769,7 +770,9 @@ bool Creature::dropCorpse(const std::shared_ptr<Creature> &lastHitCreature, cons
 				fpp.maxSearchDist = 0;
 
 				std::vector<Direction> dirList;
-				auto isReachable = g_game().map.getPathMatching(player->getPosition(), dirList, FrozenPathingConditionCall(corpse->getPosition(), player->getInstanceId()), fpp);
+				const auto &reachPlayer = killerPlayer ? killerPlayer : player;
+				const auto instanceId = reachPlayer->getInstanceId();
+				auto isReachable = g_game().map.getPathMatching(reachPlayer->getPosition(), dirList, FrozenPathingConditionCall(corpse->getPosition(), instanceId), fpp);
 
 				if (player->checkAutoLoot(monster->isRewardBoss()) && isReachable) {
 					g_dispatcher().addEvent([player, corpseContainer, corpsePosition = corpse->getPosition()] {

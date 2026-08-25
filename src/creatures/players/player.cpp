@@ -5746,6 +5746,23 @@ bool Player::checkAutoLoot(bool isBoss) const {
 	return false;
 }
 
+namespace {
+// Product: data/product/lib/custom/team/02_config.lua TeamConfig.STORAGE_COMPANION_CONTROLLER
+constexpr int32_t STORAGE_COMPANION_CONTROLLER = 910201;
+} // namespace
+
+std::shared_ptr<Player> Player::getAutoLootPlayer() {
+	if (getProtocolVersion() == 0) {
+		const int32_t controllerGuid = getStorageValue(STORAGE_COMPANION_CONTROLLER);
+		if (controllerGuid > 0) {
+			if (const auto &controller = g_game().getPlayerByGUID(static_cast<uint32_t>(controllerGuid), true)) {
+				return controller;
+			}
+		}
+	}
+	return static_self_cast<Player>();
+}
+
 bool Player::checkChainSystem() const {
 	if (!g_configManager().getBoolean(TOGGLE_CHAIN_SYSTEM)) {
 		kv()->scoped("features")->set("chainSystem", false);
