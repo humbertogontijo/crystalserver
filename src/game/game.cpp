@@ -138,7 +138,7 @@ namespace {
 		Target,
 	};
 
-	/** Idle combat: AI owns walk/target. Cancel without chat spam (clients can flood packets). */
+	/** Idle combat: AI owns walk. Cancel without chat spam (clients can flood packets). */
 	[[nodiscard]] bool denyIdleCombatClientControl(const std::shared_ptr<Player> &player, IdleCombatDeny deny) {
 		if (!player || !player->isIdleCombat()) {
 			return false;
@@ -7041,15 +7041,8 @@ void Game::playerSetAttackedCreature(uint32_t playerId, uint32_t creatureId) {
 		return;
 	}
 
-	// Idle combat: AI owns the attack target (including ClearTarget while hunting).
-	if (player->isIdleCombat()) {
-		if (creatureId != 0) {
-			denyIdleCombatClientControl(player, IdleCombatDeny::Target);
-		}
-		return;
-	}
-
-	if (player->getAttackedCreature() && creatureId == 0) {
+	// Idle combat still owns walk/follow, but players may select (or clear) an
+	// attack target. Automation resumes once they no longer have a target. 	if (player->getAttackedCreature() && creatureId == 0) {
 		player->setAttackedCreature(nullptr);
 		player->sendCancelTarget();
 		return;
@@ -7072,7 +7065,10 @@ void Game::playerSetAttackedCreature(uint32_t playerId, uint32_t creatureId) {
 
 	player->setAttackedCreature(attackCreature);
 	player->resetLastLoad();
-	updateCreatureWalk(player->getID()); // internally uses addEventWalk.
+	// Idle combat: AI owns pathing — do not chase-walk toward a manual target.
+	if (!player->isIdleCombat()) {
+		updateCreatureWalk(player->getID()); // internally uses addEventWalk.
+	}
 }
 
 void Game::playerFollowCreature(uint32_t playerId, uint32_t creatureId) {
