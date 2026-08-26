@@ -97,6 +97,7 @@ size_t checkCreatureSizes[EVENT_CREATURECOUNT] = {}; // Track sizes for reserve
 namespace {
 	std::shared_ptr<Player> resolveFeatureEditTarget(const std::shared_ptr<Player> &viewer);
 	void syncCompanionTaskBoardUi(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target);
+	void persistOfflineCompanionEditTarget(const std::shared_ptr<Player> &target);
 
 	bool isBountyHighscoreCategory(const std::string &categoryName) {
 		return categoryName == "bounty_points";
@@ -10742,6 +10743,7 @@ void Game::playerPreyAction(uint32_t playerId, uint8_t slot, uint8_t action, uin
 
 	if (target.get() != viewer.get()) {
 		target->deliverPreyUiTo(viewer);
+		persistOfflineCompanionEditTarget(target);
 	}
 }
 
@@ -12260,50 +12262,83 @@ void Game::playerRequestInventoryImbuements(uint32_t playerId, bool isTrackerOpe
 }
 
 namespace {
-	std::shared_ptr<Player> resolveSameAccountWheelOwner(const std::shared_ptr<Player> &viewer, uint32_t ownerId) {
-		if (!viewer) {
-			return nullptr;
-		}
-		if (ownerId == 0 || ownerId == viewer->getID()) {
-			return viewer;
-		}
-		const auto &owner = g_game().getPlayerByID(ownerId);
+	uint32_t companionEditOwnerKey(const std::shared_ptr<Player> &owner) {
 		if (!owner) {
-			return nullptr;
+			return 0;
 		}
-		const auto viewerAccount = viewer->getAccountId();
-		const auto ownerAccount = owner->getAccountId();
-		if (viewerAccount == 0 || ownerAccount == 0 || viewerAccount != ownerAccount) {
-			return nullptr;
+		if (owner->getID() != 0) {
+			return owner->getID();
 		}
-		return owner;
+		return owner->getGUID();
+	}
+
+	std::shared_ptr<Player> resolveSameAccountWheelOwner(const std::shared_ptr<Player> &viewer, uint32_t ownerKey) {
+		return g_game().resolveSameAccountCompanionOwner(viewer, ownerKey);
+	}
+
+	void persistOfflineCompanionEditTarget(const std::shared_ptr<Player> &target) {
+		if (target && target->isOffline()) {
+			g_saveManager().savePlayer(target);
+		}
 	}
 
 	void deliverOpenWheelToViewer(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &owner) {
 		if (!viewer || !owner) {
 			return;
 		}
-		viewer->setWheelEditOwnerId(owner->getID());
-		viewer->sendOpenWheelWindow(owner->getID());
+		const uint32_t editKey = companionEditOwnerKey(owner);
+		viewer->setWheelEditOwnerId(editKey);
+		viewer->sendOpenWheelWindow(editKey);
 	}
 
 	std::shared_ptr<Player> resolveFeatureEditTarget(const std::shared_ptr<Player> &viewer) {
 		if (!viewer) {
 			return nullptr;
 		}
-		const uint32_t ownerId = viewer->getFeatureEditOwnerId();
-		if (ownerId == 0 || ownerId == viewer->getID()) {
+		const uint32_t ownerKey = viewer->getFeatureEditOwnerId();
+		if (ownerKey == 0 || ownerKey == viewer->getID() || ownerKey == viewer->getGUID()) {
 			return viewer;
 		}
-		return resolveSameAccountWheelOwner(viewer, ownerId);
+		return resolveSameAccountWheelOwner(viewer, ownerKey);
 	}
 
 	void syncCompanionTaskBoardUi(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target) {
 		if (viewer && target && target.get() != viewer.get()) {
 			target->deliverTaskBoardUiTo(viewer);
+			persistOfflineCompanionEditTarget(target);
 		}
 	}
 } // namespace
+
+std::shared_ptr<Player> Game::resolveSameAccountCompanionOwner(const std::shared_ptr<Player> &viewer, uint32_t ownerKey) {
+	if (!viewer) {
+		return nullptr;
+	}
+	if (ownerKey == 0 || ownerKey == viewer->getID() || ownerKey == viewer->getGUID()) {
+		return viewer;
+	}
+
+	const auto viewerAccount = viewer->getAccountId();
+	if (viewerAccount == 0) {
+		return nullptr;
+	}
+
+	std::shared_ptr<Player> owner;
+	// companionEditOwnerKey encodes online runtime ids (>= playerFirstID) and offline DB guids.
+	if (ownerKey >= Player::getFirstID()) {
+		owner = getPlayerByID(ownerKey);
+	} else {
+		owner = getPlayerByGUID(ownerKey, true);
+	}
+	if (!owner) {
+		return nullptr;
+	}
+	const auto ownerAccount = owner->getAccountId();
+	if (ownerAccount == 0 || viewerAccount != ownerAccount) {
+		return nullptr;
+	}
+	return owner;
+}
 
 bool Game::deliverCompanionFeatureUI(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &owner, std::string_view feature) {
 	if (!viewer || !owner) {
@@ -12325,11 +12360,15 @@ bool Game::deliverCompanionFeatureUI(const std::shared_ptr<Player> &viewer, cons
 		return true;
 	}
 	if (feature == "rewardWall") {
-		viewer->setFeatureEditOwnerId(owner->getID());
+		viewer->setFeatureEditOwnerId(companionEditOwnerKey(owner));
 		return true;
 	}
 	if (feature == "taskBoard") {
 		owner->deliverTaskBoardUiTo(viewer);
+		return true;
+	}
+	if (feature == "wheel") {
+		deliverOpenWheelToViewer(viewer, owner);
 		return true;
 	}
 	return false;
@@ -12381,6 +12420,7 @@ void Game::playerSaveWheel(uint32_t playerId, NetworkMessage &msg) {
 
 	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
 	owner->wheel()->saveSlotPointsOnPressSaveButton(msg);
+	persistOfflineCompanionEditTarget(owner);
 	// Refresh UI on the editor (save may no-op send when owner is a headless companion).
 	if (owner.get() != player.get()) {
 		deliverOpenWheelToViewer(player, owner);
@@ -12439,6 +12479,7 @@ void Game::playerWheelGemAction(uint32_t playerId, NetworkMessage &msg) {
 		// Companion gem helpers may not refresh a headless client; resend to editor.
 		deliverOpenWheelToViewer(player, owner);
 	}
+	persistOfflineCompanionEditTarget(owner);
 	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
 }
 

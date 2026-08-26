@@ -10851,12 +10851,9 @@ void ProtocolGame::sendOpenWheelWindow(uint32_t ownerId) {
 	}
 
 	const uint32_t resolvedOwnerId = ownerId != 0 ? ownerId : player->getID();
-	std::shared_ptr<Player> source = player;
-	if (resolvedOwnerId != player->getID()) {
-		source = g_game().getPlayerByID(resolvedOwnerId);
-		if (!source) {
-			return;
-		}
+	const auto &source = g_game().resolveSameAccountCompanionOwner(player, resolvedOwnerId);
+	if (!source) {
+		return;
 	}
 
 	NetworkMessage msg;

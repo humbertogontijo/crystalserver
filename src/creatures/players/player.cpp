@@ -9801,7 +9801,8 @@ void Player::deliverPreyUiTo(const std::shared_ptr<Player> &viewer) const {
 	if (!viewer || !viewer->client) {
 		return;
 	}
-	viewer->setFeatureEditOwnerId(getID());
+	const uint32_t editKey = getID() != 0 ? getID() : getGUID();
+	viewer->setFeatureEditOwnerId(editKey);
 	for (const std::unique_ptr<PreySlot> &slot : preys) {
 		viewer->client->sendPreyData(slot, this);
 	}
@@ -9822,7 +9823,8 @@ void Player::deliverForgeUiTo(const std::shared_ptr<Player> &viewer) const {
 	if (!viewer || !viewer->client) {
 		return;
 	}
-	viewer->setFeatureEditOwnerId(getID());
+	const uint32_t editKey = getID() != 0 ? getID() : getGUID();
+	viewer->setFeatureEditOwnerId(editKey);
 	viewer->client->sendForgingData(this);
 	viewer->client->sendOpenForge(this);
 }
@@ -9831,7 +9833,8 @@ void Player::deliverProficiencyUiTo(const std::shared_ptr<Player> &viewer) const
 	if (!viewer || !viewer->client) {
 		return;
 	}
-	viewer->setFeatureEditOwnerId(getID());
+	const uint32_t editKey = getID() != 0 ? getID() : getGUID();
+	viewer->setFeatureEditOwnerId(editKey);
 	for (const auto &[itemId, _] : weaponProficiencies) {
 		viewer->client->sendWeaponProficiencyInfo(itemId, this);
 	}
@@ -9842,7 +9845,7 @@ void Player::deliverTaskBoardUiTo(const std::shared_ptr<Player> &viewer) {
 		return;
 	}
 
-	viewer->setFeatureEditOwnerId(getID());
+	viewer->setFeatureEditOwnerId(getID() != 0 ? getID() : getGUID());
 
 	if (getPlayerVocationEnum() != Vocation_t::VOCATION_NONE) {
 		auto &bountyData = getBountyTaskData();
@@ -9865,7 +9868,7 @@ void Player::deliverHuntingTaskShopUiTo(const std::shared_ptr<Player> &viewer) c
 		return;
 	}
 
-	viewer->setFeatureEditOwnerId(getID());
+	viewer->setFeatureEditOwnerId(getID() != 0 ? getID() : getGUID());
 	viewer->client->sendHuntingTaskShopData(this);
 }
 
