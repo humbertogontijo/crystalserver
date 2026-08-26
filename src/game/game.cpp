@@ -4580,7 +4580,8 @@ void Game::forcePlayerAutoWalk(uint32_t playerId, const std::vector<Direction> &
 
 	player->stopEventWalk();
 
-	player->sendCancelTarget();
+	// Drop chase-follow for the forced path, but do not CancelTarget — that clears
+	// the client red attack square while the server may still be attacking.
 	player->setFollowCreature(nullptr);
 
 	player->resetIdleTime();
@@ -7026,12 +7027,19 @@ void Game::playerCancelAttackAndFollow(uint32_t playerId) {
 		return;
 	}
 
-	playerSetAttackedCreature(playerId, 0);
-	playerFollowCreature(playerId, 0);
-	// Idle combat: keep AI autoWalk (Escape / cancelAttackAndFollow must not abort pathing).
+	// Idle combat: Escape releases the attack target so automation can re-pick,
+	// but must not abort AI autoWalk.
 	if (player->isIdleCombat()) {
+		if (player->getAttackedCreature()) {
+			player->setAttackedCreature(nullptr);
+			player->sendCancelTarget();
+		}
+		playerFollowCreature(playerId, 0);
 		return;
 	}
+
+	playerSetAttackedCreature(playerId, 0);
+	playerFollowCreature(playerId, 0);
 	player->stopWalk();
 }
 
@@ -7041,8 +7049,15 @@ void Game::playerSetAttackedCreature(uint32_t playerId, uint32_t creatureId) {
 		return;
 	}
 
-	// Idle combat still owns walk/follow, but players may select (or clear) an
-	// attack target. Automation resumes once they no longer have a target. 	if (player->getAttackedCreature() && creatureId == 0) {
+	// Idle combat owns walk/follow. Players may pick a new attack target; ignore
+	// attack(0) echoes from CancelTarget → client cancelAttack (those would wipe
+	// the AI target and re-send CancelTarget, leaving the red square stuck off).
+	// Intentional clear goes through playerCancelAttackAndFollow (Escape).
+	if (player->isIdleCombat() && creatureId == 0) {
+		return;
+	}
+
+	if (player->getAttackedCreature() && creatureId == 0) {
 		player->setAttackedCreature(nullptr);
 		player->sendCancelTarget();
 		return;
