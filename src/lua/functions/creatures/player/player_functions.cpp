@@ -34,6 +34,7 @@
 #include "creatures/players/wheel/player_wheel.hpp"
 #include "server/network/protocol/protocolgame.hpp"
 #include "game/game.hpp"
+#include "game/game_definitions.hpp"
 #include "game/scheduling/save_manager.hpp"
 #include "io/iobestiary.hpp"
 #include "io/iologindata.hpp"
@@ -533,6 +534,8 @@ void PlayerFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Player", "dropConnection", PlayerFunctions::luaPlayerDropConnection);
 	Lua::registerMethod(L, "Player", "sellAllShopItems", PlayerFunctions::luaPlayerSellAllShopItems);
+	// Product live party loot split: same accept/skip rules as Game::playerQuickLootCorpse.
+	Lua::registerMethod(L, "Player", "acceptsQuickLootItem", PlayerFunctions::luaPlayerAcceptsQuickLootItem);
 
 	GroupFunctions::init(L);
 	GuildFunctions::init(L);
@@ -6183,6 +6186,33 @@ int PlayerFunctions::luaPlayerSellAllShopItems(lua_State* L) {
 
 	g_game().playerSellAllItems(player->getID(), ignoreEquipped, filterMode, itemIds);
 	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerAcceptsQuickLootItem(lua_State* L) {
+	// player:acceptsQuickLootItem(item) — mirrors Game::playerQuickLootCorpse list filter.
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	const auto &item = Lua::getUserdataShared<Item>(L, 2);
+	if (!item) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_ITEM_NOT_FOUND));
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	// Headless companions may not have received the client filter push yet.
+	if (player->getProtocolVersion() == 0) {
+		g_game().inheritAccountQuickLootFilter(player);
+	}
+
+	const bool listed = player->isQuickLootListedItem(item);
+	const bool ignoreListItems = player->getQuickLootFilter() == QUICKLOOTFILTER_SKIPPEDLOOT;
+	const bool rejected = (listed && ignoreListItems) || (!listed && !ignoreListItems);
+	Lua::pushBoolean(L, !rejected);
 	return 1;
 }
 

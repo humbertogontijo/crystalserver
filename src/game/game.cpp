@@ -7790,13 +7790,21 @@ bool Game::internalCreatureSay(const std::shared_ptr<Creature> &creature, SpeakC
 		spectators = (*spectatorsPtr);
 	}
 
+	// Public local speech stays instance-scoped. Private messages (player PM and
+	// NPC PRIVATE_NP/PN) must cross instances — e.g. expedition ↔ world, or an
+	// off-map remote hireling talking to a player in a private home instance.
+	// Player PMs already use sendPrivateMessage; NPC replies go through here.
+	const bool privateSpeak = type == TALKTYPE_PRIVATE_FROM || type == TALKTYPE_PRIVATE_TO
+		|| type == TALKTYPE_PRIVATE_NP || type == TALKTYPE_PRIVATE_PN
+		|| type == TALKTYPE_PRIVATE_RED_FROM || type == TALKTYPE_PRIVATE_RED_TO;
+
 	// Send to client
 	for (const auto &spectator : spectators) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
-			if (tmpPlayer->getInstanceId() != creature->getInstanceId()) {
+			if (!privateSpeak && tmpPlayer->getInstanceId() != creature->getInstanceId()) {
 				continue;
 			}
-			if (!ghostMode || tmpPlayer->canSeeCreature(creature)) {
+			if (!ghostMode || privateSpeak || tmpPlayer->canSeeCreature(creature)) {
 				tmpPlayer->sendCreatureSay(creature, type, text, pos);
 			}
 		}
@@ -7804,7 +7812,7 @@ bool Game::internalCreatureSay(const std::shared_ptr<Creature> &creature, SpeakC
 
 	// event method
 	for (const auto &spectator : spectators) {
-		if (spectator->getInstanceId() != creature->getInstanceId()) {
+		if (!privateSpeak && spectator->getInstanceId() != creature->getInstanceId()) {
 			continue;
 		}
 		spectator->onCreatureSay(creature, type, text);

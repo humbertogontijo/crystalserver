@@ -106,4 +106,5 @@ private:
 	static int luaItemSetShader(lua_State* L);
 	static int luaItemGetShader(lua_State* L);
 	static int luaItemHasShader(lua_State* L);
+	static int luaItemGetWorth(lua_State* L);
 };

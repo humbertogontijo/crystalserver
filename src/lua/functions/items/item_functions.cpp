@@ -108,6 +108,7 @@ void ItemFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Item", "setShader", ItemFunctions::luaItemSetShader);
 	Lua::registerMethod(L, "Item", "getShader", ItemFunctions::luaItemGetShader);
 	Lua::registerMethod(L, "Item", "hasShader", ItemFunctions::luaItemHasShader);
+	Lua::registerMethod(L, "Item", "getWorth", ItemFunctions::luaItemGetWorth);
 
 	ContainerFunctions::init(L);
 	ImbuementFunctions::init(L);
@@ -1222,6 +1223,18 @@ int ItemFunctions::luaItemHasShader(lua_State* L) {
 		return 1;
 	}
 	Lua::pushBoolean(L, item->hasShader());
+	return 1;
+}
+
+int ItemFunctions::luaItemGetWorth(lua_State* L) {
+	// item:getWorth() — gold/platinum/crystal coin value in gold pieces.
+	const auto &item = Lua::getUserdataShared<Item>(L, 1);
+	if (!item) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_ITEM_NOT_FOUND));
+		lua_pushnumber(L, 0);
+		return 1;
+	}
+	lua_pushnumber(L, item->getWorth());
 	return 1;
 }
 
