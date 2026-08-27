@@ -1197,6 +1197,44 @@ bool Game::callInstanceWorld(const char* method, const std::shared_ptr<Creature>
 	return scriptInterface.callFunction(2);
 }
 
+static void callActivityBoostOnBountyClaim(const std::shared_ptr<Player> &player) {
+	if (!player) {
+		return;
+	}
+	auto &scriptInterface = g_scripts().getScriptInterface();
+	lua_State* L = scriptInterface.getLuaState();
+	if (!L) {
+		return;
+	}
+	if (g_dispatcher().context().isAsync()) {
+		return;
+	}
+	if (!Lua::reserveScriptEnv()) {
+		g_logger().error("[Game] ActivityBoost bounty claim Lua call stack overflow");
+		return;
+	}
+
+	ScriptEnvironment* env = Lua::getScriptEnv();
+	env->setScriptId(EVENT_ID_USER, &scriptInterface);
+
+	lua_getglobal(L, "ActivityBoostActivities");
+	if (lua_type(L, -1) != LUA_TTABLE) {
+		lua_pop(L, 1);
+		Lua::resetScriptEnv();
+		return;
+	}
+	lua_getfield(L, -1, "onBountyTaskClaimed");
+	lua_remove(L, -2);
+	if (lua_type(L, -1) != LUA_TFUNCTION) {
+		lua_pop(L, 1);
+		Lua::resetScriptEnv();
+		return;
+	}
+	Lua::pushUserdata<Player>(L, player);
+	Lua::setMetatable(L, -1, "Player");
+	scriptInterface.callFunction(1);
+}
+
 bool Game::routeInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destPos) {
 	static thread_local bool routing = false;
 	if (routing) {
@@ -11011,7 +11049,14 @@ void Game::playerBountyTaskClaimReward(uint32_t playerId) {
 		return;
 	}
 
+	const bool hadCompletedTask = target->getBountyTaskData().state == BOUNTY_STATE_COMPLETED;
+
 	g_iobountytasks().claimTaskReward(target);
+
+	if (hadCompletedTask) {
+		callActivityBoostOnBountyClaim(target);
+	}
+
 	syncCompanionTaskBoardUi(viewer, target);
 }
 
