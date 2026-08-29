@@ -32,32 +32,44 @@ RUN --mount=type=cache,id=idleot-crystal-apt,target=/var/cache/apt,sharing=locke
 	&& apt-get update && apt-get install -y --no-install-recommends \
 	cmake git unzip build-essential ca-certificates curl zip tar \
 	pkg-config ninja-build autoconf automake libtool \
-	python3 ccache rsync
+	python3 ccache rsync util-linux
 
 SHELL ["/bin/bash", "-lc"]
 
 WORKDIR /opt
 COPY vcpkg.json /opt/vcpkg.json
-# Persist blobless (not shallow) vcpkg on host — versioning needs full history.
-# Compose build.network=host; retries cover flaky github.com:443.
+# Shared host tree (/data/idleot/cache/vcpkg-src) with Crystal + OTC. flock around
+# checkout — blobless clone (not --depth 1); versioning needs full history.
 RUN --mount=type=bind,from=idleot_vcpkg_src,source=.,target=/var/cache/vcpkg-src,rw \
 	set -euo pipefail \
 	&& vcpkgCommitId=$(grep 'builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n') \
 	&& echo "vcpkg commit: $vcpkgCommitId" \
-	&& if [ ! -f "/var/cache/vcpkg-src/${vcpkgCommitId}.ok" ]; then \
-		rm -rf /var/cache/vcpkg-src/vcpkg \
-		&& ok=0 \
-		&& for i in 1 2 3 4 5; do \
-			if git -c http.version=HTTP/1.1 clone --filter=blob:none \
-				https://github.com/microsoft/vcpkg.git /var/cache/vcpkg-src/vcpkg \
-				&& git -C /var/cache/vcpkg-src/vcpkg checkout "$vcpkgCommitId"; then ok=1; break; fi; \
-			echo "[vcpkg] clone attempt $i failed; retrying..." >&2; \
-			rm -rf /var/cache/vcpkg-src/vcpkg; \
-			sleep $((i * 5)); \
-		done \
-		&& [ "$ok" = 1 ] \
-		&& touch "/var/cache/vcpkg-src/${vcpkgCommitId}.ok"; \
-	fi \
+	&& mkdir -p /var/cache/vcpkg-src \
+	&& flock /var/cache/vcpkg-src/.lock bash -c 'set -euo pipefail
+		commit="$1"
+		if [ ! -d /var/cache/vcpkg-src/vcpkg/.git ]; then
+			ok=0
+			for i in 1 2 3 4 5; do
+				if git -c http.version=HTTP/1.1 clone --filter=blob:none \
+					https://github.com/microsoft/vcpkg.git /var/cache/vcpkg-src/vcpkg; then ok=1; break; fi
+				echo "[vcpkg] clone attempt $i failed; retrying..." >&2
+				rm -rf /var/cache/vcpkg-src/vcpkg
+				sleep $((i * 5))
+			done
+			[ "$ok" = 1 ]
+		fi
+		if ! git -C /var/cache/vcpkg-src/vcpkg cat-file -e "${commit}^{commit}" 2>/dev/null; then
+			ok=0
+			for i in 1 2 3 4 5; do
+				if git -C /var/cache/vcpkg-src/vcpkg -c http.version=HTTP/1.1 fetch --filter=blob:none origin "$commit"; then ok=1; break; fi
+				echo "[vcpkg] fetch attempt $i failed; retrying..." >&2
+				sleep $((i * 5))
+			done
+			[ "$ok" = 1 ]
+		fi
+		git -C /var/cache/vcpkg-src/vcpkg checkout -q "$commit"
+		touch "/var/cache/vcpkg-src/${commit}.ok"
+	' bash "$vcpkgCommitId" \
 	&& rm -rf /opt/vcpkg \
 	&& cp -a /var/cache/vcpkg-src/vcpkg /opt/vcpkg \
 	&& /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics

@@ -2,7 +2,7 @@
 # additional_contexts bind host dirs so vcpkg/ccache survive `docker builder prune`.
 #
 # Host (create once):
-#   mkdir -p /data/idleot/cache/{vcpkg-binaries,vcpkg-downloads,ccache}
+#   mkdir -p /data/idleot/cache/{vcpkg-binaries,vcpkg-downloads,vcpkg-src,ccache}
 #
 # Coolify storages still supply datapack binds (or declare them here).
 
