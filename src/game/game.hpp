@@ -486,6 +486,12 @@ public:
 	/** Copy account-shared quick loot filter onto `player` from an online real client on the same account. */
 	void inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player);
 
+	/**
+	 * Collect one item into the player's managed loot/obtain container (capacity-aware).
+	 * Public for Lua `Player:collectQuickLootItem` (LootSplit).
+	 */
+	ReturnValue internalCollectManagedItems(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, ObjectCategory_t category, bool isLootContainer = true);
+
 	// Auto loot
 	void schedulePlayerQuickLoot(const std::shared_ptr<Player> &player, const Position &pos, uint16_t itemId, uint8_t stackPos, const std::shared_ptr<Item> &defaultItem, bool lootAllCorpses, bool autoLoot);
 	bool isPlayerInLootRange(const std::shared_ptr<Player> &player, const Position &pos);
@@ -938,16 +944,6 @@ private:
 	 * @return Return value indicating success or error.
 	 */
 	ReturnValue processLootItems(const std::shared_ptr<Player> &player, std::shared_ptr<Container> lootContainer, const std::shared_ptr<Item> &item, bool &fallbackConsumed);
-
-	/**
-	 * @brief Internally collects loot or obtain items from a given item and places them into the managed container.
-	 *
-	 * @param player Pointer to the player object.
-	 * @param item Pointer to the item being collected.
-	 * @param category Category of the item (default is OBJECTCATEGORY_DEFAULT).
-	 * @return Return value indicating success or error.
-	 */
-	ReturnValue internalCollectManagedItems(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, ObjectCategory_t category, bool isLootContainer = true);
 
 	phmap::flat_hash_map<std::string, QueryHighscoreCacheEntry> queryCache;
 	phmap::flat_hash_map<std::string, HighscoreCacheEntry> highscoreCache;
