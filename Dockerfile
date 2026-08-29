@@ -75,6 +75,8 @@ FROM ubuntu:24.04 AS product
 ARG DEBIAN_FRONTEND=noninteractive
 ARG IDLEOT_PRODUCT_SHA=
 ARG IDLEOT_UMBRELLA_REPO=https://github.com/idleot/idleot.git
+# Coolify: set build-time env GITHUB_TOKEN (PAT or GH App token) for private umbrella clone.
+ARG GITHUB_TOKEN=
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	git ca-certificates \
@@ -88,6 +90,7 @@ RUN --mount=type=secret,id=github_token,required=false \
 	fi \
 	&& TOKEN="" \
 	&& if [ -f /run/secrets/github_token ]; then TOKEN="$(cat /run/secrets/github_token)"; fi \
+	&& if [ -z "$TOKEN" ] && [ -n "${GITHUB_TOKEN}" ]; then TOKEN="${GITHUB_TOKEN}"; fi \
 	&& REPO="${IDLEOT_UMBRELLA_REPO}" \
 	&& if [ -n "$TOKEN" ]; then \
 		REPO="$(echo "$REPO" | sed -E "s#https://github.com/#https://x-access-token:${TOKEN}@github.com/#")"; \
