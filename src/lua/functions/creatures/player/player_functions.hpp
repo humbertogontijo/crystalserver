@@ -507,6 +507,7 @@ class PlayerFunctions {
 	static int luaPlayerDropConnection(lua_State* L);
 	static int luaPlayerSellAllShopItems(lua_State* L);
 	static int luaPlayerAcceptsQuickLootItem(lua_State* L);
+	static int luaPlayerCollectQuickLootItem(lua_State* L);
 
 	friend class CreatureFunctions;
 };

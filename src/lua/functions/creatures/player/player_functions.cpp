@@ -536,6 +536,8 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "sellAllShopItems", PlayerFunctions::luaPlayerSellAllShopItems);
 	// Product live party loot split: same accept/skip rules as Game::playerQuickLootCorpse.
 	Lua::registerMethod(L, "Player", "acceptsQuickLootItem", PlayerFunctions::luaPlayerAcceptsQuickLootItem);
+	// Same managed-container + capacity path as one item in Game::playerQuickLootCorpse.
+	Lua::registerMethod(L, "Player", "collectQuickLootItem", PlayerFunctions::luaPlayerCollectQuickLootItem);
 
 	GroupFunctions::init(L);
 	GuildFunctions::init(L);
@@ -6213,6 +6215,31 @@ int PlayerFunctions::luaPlayerAcceptsQuickLootItem(lua_State* L) {
 	const bool ignoreListItems = player->getQuickLootFilter() == QUICKLOOTFILTER_SKIPPEDLOOT;
 	const bool rejected = (listed && ignoreListItems) || (!listed && !ignoreListItems);
 	Lua::pushBoolean(L, !rejected);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerCollectQuickLootItem(lua_State* L) {
+	// player:collectQuickLootItem(item) — managed loot containers + capacity (one item).
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	const auto &item = Lua::getUserdataShared<Item>(L, 2);
+	if (!item) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_ITEM_NOT_FOUND));
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	if (player->getProtocolVersion() == 0) {
+		g_game().inheritAccountQuickLootFilter(player);
+	}
+
+	const ObjectCategory_t category = g_game().getObjectCategory(item);
+	const ReturnValue ret = g_game().internalCollectManagedItems(player, item, category);
+	Lua::pushBoolean(L, ret == RETURNVALUE_NOERROR);
 	return 1;
 }
 
