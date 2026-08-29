@@ -41,8 +41,75 @@ void Creature::setInstanceId(uint32_t id) {
 	if (instanceId == id) {
 		return;
 	}
+
+	const auto self = static_self_cast<Creature>();
+	const auto &tile = getTile();
+	// Not on the map yet (login / spawn bind): only store the id.
+	if (!tile || isRemoved()) {
+		instanceId = id;
+		Spectators::clearCache();
+		return;
+	}
+
+	const uint32_t oldInstanceId = instanceId;
+	const Position &pos = tile->getPosition();
+
+	// Capture old-instance viewers before the id change. moveCreature / teleport
+	// spectators are filtered by the *current* instanceId, so binding first and
+	// then teleporting never sends remove to players who stay behind — they keep
+	// a ghost at the old tile.
+	auto oldSpectators = Spectators().find<Creature>(pos, true, 0, 0, 0, 0, true, oldInstanceId);
+	auto oldPlayers = oldSpectators.filter<Player>();
+	std::vector<int32_t> oldStackPos;
+	oldStackPos.reserve(oldPlayers.size());
+	for (const auto &spectator : oldPlayers) {
+		const auto &player = spectator->getPlayer();
+		oldStackPos.push_back(player && player->canSeeCreature(self) ? tile->getStackposOfCreature(player, self) : -1);
+	}
+
 	instanceId = id;
 	Spectators::clearCache();
+
+	size_t i = 0;
+	for (const auto &spectator : oldPlayers) {
+		const int32_t stackpos = oldStackPos[i++];
+		if (stackpos == -1 || spectator == self) {
+			continue;
+		}
+		if (const auto &player = spectator->getPlayer()) {
+			player->sendRemoveTileThing(pos, stackpos);
+		}
+	}
+	for (const auto &spectator : oldSpectators) {
+		if (spectator == self) {
+			continue;
+		}
+		spectator->onRemoveCreature(self, false);
+	}
+
+	for (const auto &spectator : Spectators().find<Creature>(pos, true, 0, 0, 0, 0, true, id)) {
+		if (spectator == self) {
+			continue;
+		}
+		if (const auto &tmpPlayer = spectator->getPlayer()) {
+			tmpPlayer->sendCreatureAppear(self, pos, false);
+		}
+		spectator->onCreatureAppear(self, false);
+	}
+
+	// Drop combat/follow on creatures that are no longer same-instance.
+	if (const auto &attacked = getAttackedCreature(); attacked && attacked->getInstanceId() != id) {
+		onCreatureDisappear(attacked, false);
+	}
+	if (const auto &followed = getFollowCreature(); followed && followed->getInstanceId() != id) {
+		onCreatureDisappear(followed, false);
+	}
+
+	// Same-tile instance switches never teleport; refresh the mover's viewport so
+	// old-instance creatures/items disappear and new-instance ones appear.
+	if (const auto &player = getPlayer()) {
+		player->sendMapDescription(pos);
+	}
 }
 
 Creature::~Creature() {
