@@ -1,0 +1,10 @@
+.git
+.github
+build
+crystalserver
+crystalserver-debug
+**/*.md
+docs
+src/tests
+**/__pycache__
+*.log
