@@ -27,8 +27,7 @@ SHELL ["/bin/bash", "-lc"]
 WORKDIR /opt
 COPY vcpkg.json deploy/ensure-vcpkg-src.sh /opt/
 RUN --mount=type=bind,from=idleot_vcpkg_src,source=.,target=/var/cache/vcpkg-src,rw \
-	chmod +x /opt/ensure-vcpkg-src.sh \
-	&& commit="$(grep 'builtin-baseline' /opt/vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n')" \
+	commit="$(grep 'builtin-baseline' /opt/vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n')" \
 	&& /opt/ensure-vcpkg-src.sh "$commit" \
 	&& rm -rf /opt/vcpkg \
 	&& cp -a /var/cache/vcpkg-src/vcpkg /opt/vcpkg \
@@ -92,11 +91,7 @@ SHELL ["/bin/bash", "-lc"]
 COPY deploy/sparse-clone-umbrella.sh /tmp/sparse-clone-umbrella.sh
 WORKDIR /opt/idleot
 RUN --mount=type=secret,id=github_token,required=false \
-	chmod +x /tmp/sparse-clone-umbrella.sh \
-	&& IDLEOT_PRODUCT_SHA="${IDLEOT_PRODUCT_SHA}" \
-		IDLEOT_UMBRELLA_REPO="${IDLEOT_UMBRELLA_REPO}" \
-		GITHUB_TOKEN="${GITHUB_TOKEN}" \
-		/tmp/sparse-clone-umbrella.sh /opt/idleot/umbrella data/product \
+	/tmp/sparse-clone-umbrella.sh /opt/idleot/umbrella data/product \
 	&& test -d /opt/idleot/umbrella/data/product
 
 FROM ubuntu:24.04 AS runtime
