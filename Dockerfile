@@ -38,25 +38,24 @@ SHELL ["/bin/bash", "-lc"]
 
 WORKDIR /opt
 COPY vcpkg.json /opt/vcpkg.json
-# Host network + host-persisted src: BuildKit bridge often times out on github.com:443.
-RUN --network=host \
-	--mount=type=bind,from=idleot_vcpkg_src,source=.,target=/var/cache/vcpkg-src,rw \
+# Persist blobless (not shallow) vcpkg on host — versioning needs full history.
+# Compose build.network=host; retries cover flaky github.com:443.
+RUN --mount=type=bind,from=idleot_vcpkg_src,source=.,target=/var/cache/vcpkg-src,rw \
 	set -euo pipefail \
 	&& vcpkgCommitId=$(grep 'builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n') \
 	&& echo "vcpkg commit: $vcpkgCommitId" \
 	&& if [ ! -f "/var/cache/vcpkg-src/${vcpkgCommitId}.ok" ]; then \
 		rm -rf /var/cache/vcpkg-src/vcpkg \
-		&& mkdir -p /var/cache/vcpkg-src/vcpkg \
-		&& git -C /var/cache/vcpkg-src/vcpkg init \
-		&& git -C /var/cache/vcpkg-src/vcpkg remote add origin https://github.com/microsoft/vcpkg.git \
 		&& ok=0 \
 		&& for i in 1 2 3 4 5; do \
-			if git -C /var/cache/vcpkg-src/vcpkg -c http.version=HTTP/1.1 fetch --depth 1 origin "$vcpkgCommitId"; then ok=1; break; fi; \
-			echo "[vcpkg] fetch attempt $i failed; retrying..." >&2; \
+			if git -c http.version=HTTP/1.1 clone --filter=blob:none \
+				https://github.com/microsoft/vcpkg.git /var/cache/vcpkg-src/vcpkg \
+				&& git -C /var/cache/vcpkg-src/vcpkg checkout "$vcpkgCommitId"; then ok=1; break; fi; \
+			echo "[vcpkg] clone attempt $i failed; retrying..." >&2; \
+			rm -rf /var/cache/vcpkg-src/vcpkg; \
 			sleep $((i * 5)); \
 		done \
 		&& [ "$ok" = 1 ] \
-		&& git -C /var/cache/vcpkg-src/vcpkg checkout FETCH_HEAD \
 		&& touch "/var/cache/vcpkg-src/${vcpkgCommitId}.ok"; \
 	fi \
 	&& rm -rf /opt/vcpkg \
@@ -122,8 +121,8 @@ RUN --mount=type=cache,id=idleot-crystal-apt,target=/var/cache/apt,sharing=locke
 SHELL ["/bin/bash", "-lc"]
 
 WORKDIR /opt/idleot
-# Host network: BuildKit bridge often times out on github.com:443 from this host.
-RUN --network=host --mount=type=secret,id=github_token,required=false \
+# Product pin: retries + compose build.network=host (RUN --network=host needs BuildKit entitlement).
+RUN --mount=type=secret,id=github_token,required=false \
 	set -euo pipefail \
 	&& if [ -z "${IDLEOT_PRODUCT_SHA}" ]; then \
 		echo "[product] IDLEOT_PRODUCT_SHA is required" >&2; exit 1; \
