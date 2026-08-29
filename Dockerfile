@@ -17,10 +17,11 @@
 #   host dirs under /data/idleot/cache/*. Those binds survive `docker builder prune`.
 #   Local builds: pass the same --build-context flags, or leave defaults (empty).
 
-# Overridden on Coolify via docker-compose.yml additional_contexts → /data/idleot/cache/...
+# Overridden on Coolify via docker-compose.yaml additional_contexts → /data/idleot/cache/...
 FROM scratch AS idleot_vcpkg_binaries
 FROM scratch AS idleot_vcpkg_downloads
 FROM scratch AS idleot_ccache
+FROM scratch AS idleot_vcpkg_src
 
 FROM ubuntu:24.04 AS dependencies
 
@@ -33,12 +34,33 @@ RUN --mount=type=cache,id=idleot-crystal-apt,target=/var/cache/apt,sharing=locke
 	pkg-config ninja-build autoconf automake libtool \
 	python3 ccache rsync
 
+SHELL ["/bin/bash", "-lc"]
+
 WORKDIR /opt
 COPY vcpkg.json /opt/vcpkg.json
-RUN vcpkgCommitId=$(grep 'builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n') \
+# Host network + host-persisted src: BuildKit bridge often times out on github.com:443.
+RUN --network=host \
+	--mount=type=bind,from=idleot_vcpkg_src,source=.,target=/var/cache/vcpkg-src,rw \
+	set -euo pipefail \
+	&& vcpkgCommitId=$(grep 'builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n') \
 	&& echo "vcpkg commit: $vcpkgCommitId" \
-	&& git clone --filter=blob:none https://github.com/microsoft/vcpkg.git /opt/vcpkg \
-	&& git -C /opt/vcpkg checkout "$vcpkgCommitId" \
+	&& if [ ! -f "/var/cache/vcpkg-src/${vcpkgCommitId}.ok" ]; then \
+		rm -rf /var/cache/vcpkg-src/vcpkg \
+		&& mkdir -p /var/cache/vcpkg-src/vcpkg \
+		&& git -C /var/cache/vcpkg-src/vcpkg init \
+		&& git -C /var/cache/vcpkg-src/vcpkg remote add origin https://github.com/microsoft/vcpkg.git \
+		&& ok=0 \
+		&& for i in 1 2 3 4 5; do \
+			if git -C /var/cache/vcpkg-src/vcpkg -c http.version=HTTP/1.1 fetch --depth 1 origin "$vcpkgCommitId"; then ok=1; break; fi; \
+			echo "[vcpkg] fetch attempt $i failed; retrying..." >&2; \
+			sleep $((i * 5)); \
+		done \
+		&& [ "$ok" = 1 ] \
+		&& git -C /var/cache/vcpkg-src/vcpkg checkout FETCH_HEAD \
+		&& touch "/var/cache/vcpkg-src/${vcpkgCommitId}.ok"; \
+	fi \
+	&& rm -rf /opt/vcpkg \
+	&& cp -a /var/cache/vcpkg-src/vcpkg /opt/vcpkg \
 	&& /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
 ENV VCPKG_ROOT=/opt/vcpkg

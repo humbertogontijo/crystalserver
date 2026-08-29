@@ -16,6 +16,7 @@ services:
         idleot_vcpkg_binaries: /data/idleot/cache/vcpkg-binaries
         idleot_vcpkg_downloads: /data/idleot/cache/vcpkg-downloads
         idleot_ccache: /data/idleot/cache/ccache
+        idleot_vcpkg_src: /data/idleot/cache/vcpkg-src
       args:
         IDLEOT_PRODUCT_SHA: ${IDLEOT_PRODUCT_SHA:-}
         IDLEOT_UMBRELLA_REPO: ${IDLEOT_UMBRELLA_REPO:-https://github.com/idleot/idleot.git}
