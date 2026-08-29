@@ -1,23 +1,11 @@
 # syntax=docker/dockerfile:1.7
-# IdleOT CrystalServer — Coolify build from idleot/crystalserver (repo root context).
-# Datapack/world come from host bind mounts (/data/idleot/crystalserver/).
-# Product overlay is sparse-cloned from idleot/idleot at IDLEOT_PRODUCT_SHA.
+# IdleOT CrystalServer — Coolify compose build (idleot/crystalserver).
 #
-# Volumes (Coolify → Storage → Bind mount):
-#   /data/idleot/crystalserver/data        → /crystalserver/data
-#   /data/idleot/crystalserver/data-global → /crystalserver/data-global
-#
-# Build args:
-#   IDLEOT_PRODUCT_SHA — umbrella commit that owns data/product (required for product)
-#   IDLEOT_UMBRELLA_REPO — default https://github.com/idleot/idleot.git
-#   GITHUB_TOKEN — build-time env for private umbrella clone (Coolify injects ARGs)
-#
-# Vcpkg / ccache durability (Coolify always passes --no-cache):
-#   Named stages below are overridden by Compose `additional_contexts` pointing at
-#   host dirs under /data/idleot/cache/*. Those binds survive `docker builder prune`.
-#   Local builds: pass the same --build-context flags, or leave defaults (empty).
+# Host binds (compose additional_contexts → /data/idleot/cache/*):
+#   vcpkg-src, vcpkg-binaries, vcpkg-downloads, ccache
+# Datapack: /data/idleot/crystalserver/{data,data-global}
+# Product: sparse-clone umbrella at IDLEOT_PRODUCT_SHA (isolated stage).
 
-# Overridden on Coolify via docker-compose.yaml additional_contexts → /data/idleot/cache/...
 FROM scratch AS idleot_vcpkg_binaries
 FROM scratch AS idleot_vcpkg_downloads
 FROM scratch AS idleot_ccache
@@ -37,60 +25,27 @@ RUN --mount=type=cache,id=idleot-crystal-apt,target=/var/cache/apt,sharing=locke
 SHELL ["/bin/bash", "-lc"]
 
 WORKDIR /opt
-COPY vcpkg.json /opt/vcpkg.json
-# Shared host tree (/data/idleot/cache/vcpkg-src) with Crystal + OTC. flock around
-# checkout — blobless clone (not --depth 1); versioning needs full history.
+COPY vcpkg.json deploy/ensure-vcpkg-src.sh /opt/
 RUN --mount=type=bind,from=idleot_vcpkg_src,source=.,target=/var/cache/vcpkg-src,rw \
-	<<'EOS'
-set -euo pipefail
-vcpkgCommitId=$(grep 'builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n')
-echo "vcpkg commit: $vcpkgCommitId"
-mkdir -p /var/cache/vcpkg-src
-flock /var/cache/vcpkg-src/.lock bash -c '
-	set -euo pipefail
-	commit="$1"
-	if [ ! -d /var/cache/vcpkg-src/vcpkg/.git ]; then
-		ok=0
-		for i in 1 2 3 4 5; do
-			if git -c http.version=HTTP/1.1 clone --filter=blob:none \
-				https://github.com/microsoft/vcpkg.git /var/cache/vcpkg-src/vcpkg; then ok=1; break; fi
-			echo "[vcpkg] clone attempt $i failed; retrying..." >&2
-			rm -rf /var/cache/vcpkg-src/vcpkg
-			sleep $((i * 5))
-		done
-		[ "$ok" = 1 ]
-	fi
-	if ! git -C /var/cache/vcpkg-src/vcpkg cat-file -e "${commit}^{commit}" 2>/dev/null; then
-		ok=0
-		for i in 1 2 3 4 5; do
-			if git -C /var/cache/vcpkg-src/vcpkg -c http.version=HTTP/1.1 fetch --filter=blob:none origin "$commit"; then ok=1; break; fi
-			echo "[vcpkg] fetch attempt $i failed; retrying..." >&2
-			sleep $((i * 5))
-		done
-		[ "$ok" = 1 ]
-	fi
-	git -C /var/cache/vcpkg-src/vcpkg checkout -q "$commit"
-	touch "/var/cache/vcpkg-src/${commit}.ok"
-' bash "$vcpkgCommitId"
-rm -rf /opt/vcpkg
-cp -a /var/cache/vcpkg-src/vcpkg /opt/vcpkg
-/opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
-EOS
+	chmod +x /opt/ensure-vcpkg-src.sh \
+	&& commit="$(grep 'builtin-baseline' /opt/vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n')" \
+	&& /opt/ensure-vcpkg-src.sh "$commit" \
+	&& rm -rf /opt/vcpkg \
+	&& cp -a /var/cache/vcpkg-src/vcpkg /opt/vcpkg \
+	&& /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
 ENV VCPKG_ROOT=/opt/vcpkg
 
 WORKDIR /opt/vcpkg
 COPY vcpkg.json /opt/vcpkg/
 
-# Host-dir binds (Compose additional_contexts). Writes persist on the Coolify disk.
 RUN --mount=type=bind,from=idleot_vcpkg_binaries,source=.,target=/var/cache/vcpkg-binaries,rw \
 	--mount=type=bind,from=idleot_vcpkg_downloads,source=.,target=/var/cache/vcpkg-downloads,rw \
 	mkdir -p /var/cache/vcpkg-binaries /var/cache/vcpkg-downloads \
 	&& export VCPKG_DEFAULT_BINARY_CACHE=/var/cache/vcpkg-binaries \
 		VCPKG_DOWNLOADS=/var/cache/vcpkg-downloads \
 		VCPKG_BINARY_SOURCES="clear;files,/var/cache/vcpkg-binaries,readwrite" \
-	&& ./vcpkg --feature-flags=manifests,versions install \
-	&& echo "[vcpkg] binary cache entries: $(find /var/cache/vcpkg-binaries -type f 2>/dev/null | wc -l)"
+	&& ./vcpkg --feature-flags=manifests,versions install
 
 FROM dependencies AS build
 
@@ -119,7 +74,7 @@ RUN --mount=type=bind,from=idleot_vcpkg_binaries,source=.,target=/var/cache/vcpk
 	&& cmake --build --preset linux-release -j"$(nproc)" \
 	&& (ccache -s || true)
 
-# Product args live ONLY here so product pin bumps never touch vcpkg.
+# Product pin isolated so SHA bumps never invalidate vcpkg layers.
 FROM ubuntu:24.04 AS product
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -134,35 +89,15 @@ RUN --mount=type=cache,id=idleot-crystal-apt,target=/var/cache/apt,sharing=locke
 	git ca-certificates
 
 SHELL ["/bin/bash", "-lc"]
-
+COPY deploy/sparse-clone-umbrella.sh /tmp/sparse-clone-umbrella.sh
 WORKDIR /opt/idleot
-# Product pin: retries + compose build.network=host (RUN --network=host needs BuildKit entitlement).
 RUN --mount=type=secret,id=github_token,required=false \
-	set -euo pipefail \
-	&& if [ -z "${IDLEOT_PRODUCT_SHA}" ]; then \
-		echo "[product] IDLEOT_PRODUCT_SHA is required" >&2; exit 1; \
-	fi \
-	&& TOKEN="" \
-	&& if [ -f /run/secrets/github_token ]; then TOKEN="$(cat /run/secrets/github_token)"; fi \
-	&& if [ -z "$TOKEN" ] && [ -n "${GITHUB_TOKEN}" ]; then TOKEN="${GITHUB_TOKEN}"; fi \
-	&& git init umbrella \
-	&& cd umbrella \
-	&& git remote add origin "${IDLEOT_UMBRELLA_REPO}" \
-	&& if [ -n "$TOKEN" ]; then \
-		git config --local "http.https://github.com/.extraheader" "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0 2>/dev/null || printf 'x-access-token:%s' "$TOKEN" | base64)"; \
-	fi \
-	&& git config core.sparseCheckout true \
-	&& printf 'data/product\n' > .git/info/sparse-checkout \
-	&& ok=0 \
-	&& for i in 1 2 3 4 5; do \
-		if git -c http.version=HTTP/1.1 fetch --depth 1 origin "${IDLEOT_PRODUCT_SHA}"; then ok=1; break; fi; \
-		echo "[product] fetch attempt $i failed; retrying..." >&2; \
-		sleep $((i * 5)); \
-	done \
-	&& [ "$ok" = 1 ] \
-	&& git checkout FETCH_HEAD \
-	&& test -d data/product \
-	&& echo "[product] pinned ${IDLEOT_PRODUCT_SHA}"
+	chmod +x /tmp/sparse-clone-umbrella.sh \
+	&& IDLEOT_PRODUCT_SHA="${IDLEOT_PRODUCT_SHA}" \
+		IDLEOT_UMBRELLA_REPO="${IDLEOT_UMBRELLA_REPO}" \
+		GITHUB_TOKEN="${GITHUB_TOKEN}" \
+		/tmp/sparse-clone-umbrella.sh /opt/idleot/umbrella data/product \
+	&& test -d /opt/idleot/umbrella/data/product
 
 FROM ubuntu:24.04 AS runtime
 
