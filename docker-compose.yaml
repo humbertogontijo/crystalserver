@@ -1,0 +1,53 @@
+# Coolify: Docker Compose build pack (idleot/crystalserver).
+# additional_contexts bind host dirs so vcpkg/ccache survive `docker builder prune`.
+#
+# Host (create once):
+#   mkdir -p /data/idleot/cache/{vcpkg-binaries,vcpkg-downloads,ccache}
+#
+# Coolify storages still supply datapack binds (or declare them here).
+
+services:
+  crystalserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      additional_contexts:
+        idleot_vcpkg_binaries: /data/idleot/cache/vcpkg-binaries
+        idleot_vcpkg_downloads: /data/idleot/cache/vcpkg-downloads
+        idleot_ccache: /data/idleot/cache/ccache
+      args:
+        IDLEOT_PRODUCT_SHA: ${IDLEOT_PRODUCT_SHA:-}
+        IDLEOT_UMBRELLA_REPO: ${IDLEOT_UMBRELLA_REPO:-https://github.com/idleot/idleot.git}
+        GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    restart: unless-stopped
+    ports:
+      - "7171:7171"
+      - "7172:7172"
+      - "7173:7173"
+      - "7174:7174"
+    volumes:
+      - type: bind
+        source: /data/idleot/crystalserver/data
+        target: /crystalserver/data
+      - type: bind
+        source: /data/idleot/crystalserver/data-global
+        target: /crystalserver/data-global
+    environment:
+      MYSQL_HOST: ${MYSQL_HOST:-}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USER: ${MYSQL_USER:-crystal}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-crystalserver}
+      SERVER_IP: ${SERVER_IP:-auto}
+      STATUS_PORT: ${STATUS_PORT:-7171}
+      GAME_PORT: ${GAME_PORT:-7172}
+      WEBSOCKET_GAME_PORT: ${WEBSOCKET_GAME_PORT:-7174}
+      WORLD_STATUS_PORT: ${WORLD_STATUS_PORT:-7173}
+      STATUS_ADVERTISE_IP: ${STATUS_ADVERTISE_IP:-}
+      SERVER_NAME: ${SERVER_NAME:-Idlebra}
+      SERVER_MOTD: ${SERVER_MOTD:-}
+      OWNER_NAME: ${OWNER_NAME:-}
+      OWNER_EMAIL: ${OWNER_EMAIL:-}
+      SERVER_URL: ${SERVER_URL:-}
+      COIN_IMAGES_URL: ${COIN_IMAGES_URL:-}
+      IDLEOT_ASSET_BASE: ${IDLEOT_ASSET_BASE:-}
