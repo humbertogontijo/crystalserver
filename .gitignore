@@ -406,3 +406,4 @@ cmake-build-*
 /data-global/lib/custom
 /data-global/scripts/custom/
 /data-global/npc/custom/
+out/

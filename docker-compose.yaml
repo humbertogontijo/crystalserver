@@ -1,8 +1,9 @@
 # Coolify compose pack — idleot/crystalserver
-# additional_contexts → /data/idleot/cache (survives docker builder prune)
-# build.network=host: BuildKit default bridge often times out to github.com:443
 #
-#   mkdir -p /data/idleot/cache/{vcpkg-binaries,vcpkg-downloads,vcpkg-src,ccache}
+# Build: Coolify custom command → bash deploy/coolify-build.sh
+#   (real -v binds under /data/idleot/cache; survives docker builder prune)
+#
+#   mkdir -p /data/idleot/cache/{vcpkg-binaries,vcpkg-downloads,vcpkg-src,ccache,work}
 
 services:
   crystalserver:
@@ -10,11 +11,6 @@ services:
       context: .
       dockerfile: Dockerfile
       network: host
-      additional_contexts:
-        idleot_vcpkg_binaries: /data/idleot/cache/vcpkg-binaries
-        idleot_vcpkg_downloads: /data/idleot/cache/vcpkg-downloads
-        idleot_vcpkg_src: /data/idleot/cache/vcpkg-src
-        idleot_ccache: /data/idleot/cache/ccache
       args:
         IDLEOT_PRODUCT_SHA: ${IDLEOT_PRODUCT_SHA:-}
         IDLEOT_UMBRELLA_REPO: ${IDLEOT_UMBRELLA_REPO:-https://github.com/idleot/idleot.git}
