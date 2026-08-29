@@ -100,7 +100,8 @@ RUN --mount=type=cache,id=idleot-crystal-apt,target=/var/cache/apt,sharing=locke
 SHELL ["/bin/bash", "-lc"]
 
 WORKDIR /opt/idleot
-RUN --mount=type=secret,id=github_token,required=false \
+# Host network: BuildKit bridge often times out on github.com:443 from this host.
+RUN --network=host --mount=type=secret,id=github_token,required=false \
 	set -euo pipefail \
 	&& if [ -z "${IDLEOT_PRODUCT_SHA}" ]; then \
 		echo "[product] IDLEOT_PRODUCT_SHA is required" >&2; exit 1; \
@@ -108,16 +109,21 @@ RUN --mount=type=secret,id=github_token,required=false \
 	&& TOKEN="" \
 	&& if [ -f /run/secrets/github_token ]; then TOKEN="$(cat /run/secrets/github_token)"; fi \
 	&& if [ -z "$TOKEN" ] && [ -n "${GITHUB_TOKEN}" ]; then TOKEN="${GITHUB_TOKEN}"; fi \
-	&& REPO="${IDLEOT_UMBRELLA_REPO}" \
-	&& if [ -n "$TOKEN" ]; then \
-		REPO="$(echo "$REPO" | sed -E "s#https://github.com/#https://x-access-token:${TOKEN}@github.com/#")"; \
-	fi \
 	&& git init umbrella \
 	&& cd umbrella \
-	&& git remote add origin "$REPO" \
+	&& git remote add origin "${IDLEOT_UMBRELLA_REPO}" \
+	&& if [ -n "$TOKEN" ]; then \
+		git config --local "http.https://github.com/.extraheader" "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0 2>/dev/null || printf 'x-access-token:%s' "$TOKEN" | base64)"; \
+	fi \
 	&& git config core.sparseCheckout true \
 	&& printf 'data/product\n' > .git/info/sparse-checkout \
-	&& git fetch --depth 1 origin "${IDLEOT_PRODUCT_SHA}" \
+	&& ok=0 \
+	&& for i in 1 2 3 4 5; do \
+		if git -c http.version=HTTP/1.1 fetch --depth 1 origin "${IDLEOT_PRODUCT_SHA}"; then ok=1; break; fi; \
+		echo "[product] fetch attempt $i failed; retrying..." >&2; \
+		sleep $((i * 5)); \
+	done \
+	&& [ "$ok" = 1 ] \
 	&& git checkout FETCH_HEAD \
 	&& test -d data/product \
 	&& echo "[product] pinned ${IDLEOT_PRODUCT_SHA}"

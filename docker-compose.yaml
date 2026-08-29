@@ -11,6 +11,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      network: host
       additional_contexts:
         idleot_vcpkg_binaries: /data/idleot/cache/vcpkg-binaries
         idleot_vcpkg_downloads: /data/idleot/cache/vcpkg-downloads
