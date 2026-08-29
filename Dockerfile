@@ -10,39 +10,55 @@
 # Build args:
 #   IDLEOT_PRODUCT_SHA — umbrella commit that owns data/product (required for product)
 #   IDLEOT_UMBRELLA_REPO — default https://github.com/idleot/idleot.git
+#   GITHUB_TOKEN — build-time env for private umbrella clone (Coolify injects ARGs)
 #
-# BuildKit secret (optional):
-#   id=github_token — GitHub App / PAT for private umbrella clone
+# Caching (critical — Coolify always passes --no-cache, so layer cache never hits):
+#   BuildKit cache mounts with stable ids survive --no-cache and restore vcpkg packages
+#   in minutes instead of ~45m. Do NOT enable Coolify "force docker cleanup" / builder
+#   prune on this host or those mounts are wiped (see deploy/README.md).
 
 FROM ubuntu:24.04 AS dependencies
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,id=idleot-crystal-apt,target=/var/cache/apt,sharing=locked \
+	--mount=type=cache,id=idleot-crystal-apt-lists,target=/var/lib/apt/lists,sharing=locked \
+	rm -f /etc/apt/apt.conf.d/docker-clean \
+	&& apt-get update && apt-get install -y --no-install-recommends \
 	cmake git unzip build-essential ca-certificates curl zip tar \
 	pkg-config ninja-build autoconf automake libtool \
-	python3 ccache \
-	&& apt-get clean && rm -rf /var/lib/apt/lists/*
+	python3 ccache
 
 WORKDIR /opt
+# Only vcpkg.json (baseline) busts this layer's *logic*; Coolify --no-cache still
+# re-runs it, but binary/download mounts below make restore cheap.
 COPY vcpkg.json /opt/vcpkg.json
-RUN vcpkgCommitId=$(grep 'builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n') \
+RUN --mount=type=cache,id=idleot-vcpkg-git,target=/var/cache/vcpkg-git,sharing=locked \
+	vcpkgCommitId=$(grep 'builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n') \
 	&& echo "vcpkg commit: $vcpkgCommitId" \
-	&& git clone --filter=blob:none https://github.com/microsoft/vcpkg.git \
-	&& cd vcpkg \
-	&& git checkout "$vcpkgCommitId" \
-	&& ./bootstrap-vcpkg.sh
+	&& if [ ! -d /var/cache/vcpkg-git/vcpkg/.git ]; then \
+		git clone --filter=blob:none https://github.com/microsoft/vcpkg.git /var/cache/vcpkg-git/vcpkg; \
+	fi \
+	&& git -C /var/cache/vcpkg-git/vcpkg fetch --depth 1 origin "$vcpkgCommitId" \
+	&& git -C /var/cache/vcpkg-git/vcpkg checkout --force FETCH_HEAD \
+	&& rm -rf /opt/vcpkg \
+	&& cp -a /var/cache/vcpkg-git/vcpkg /opt/vcpkg \
+	&& /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
 ENV VCPKG_ROOT=/opt/vcpkg
 
 WORKDIR /opt/vcpkg
 COPY vcpkg.json /opt/vcpkg/
 
+# Binary packages + downloads persist on the Coolify Docker host via BuildKit.
+# VCPKG_BINARY_SOURCES=files is the durable form Coolify --no-cache still hits.
 RUN --mount=type=cache,id=idleot-vcpkg-binaries,target=/var/cache/vcpkg-binaries,sharing=locked \
 	--mount=type=cache,id=idleot-vcpkg-downloads,target=/var/cache/vcpkg-downloads,sharing=locked \
 	mkdir -p /var/cache/vcpkg-binaries /var/cache/vcpkg-downloads \
-	&& VCPKG_DEFAULT_BINARY_CACHE=/var/cache/vcpkg-binaries \
+	&& export VCPKG_DEFAULT_BINARY_CACHE=/var/cache/vcpkg-binaries \
 		VCPKG_DOWNLOADS=/var/cache/vcpkg-downloads \
-		./vcpkg --feature-flags=manifests,versions install
+		VCPKG_BINARY_SOURCES="clear;files,/var/cache/vcpkg-binaries,readwrite" \
+	&& ./vcpkg --feature-flags=manifests,versions install \
+	&& echo "[vcpkg] binary cache entries: $(find /var/cache/vcpkg-binaries -type f 2>/dev/null | wc -l)"
 
 FROM dependencies AS build
 
@@ -55,6 +71,8 @@ COPY CMakeLists.txt \
 	recompile.sh \
 	./
 
+# Remount the same vcpkg caches so cmake's embedded `vcpkg install` restores
+# packages instead of compiling again (and so the cache dir exists).
 RUN --mount=type=cache,id=idleot-vcpkg-binaries,target=/var/cache/vcpkg-binaries,sharing=locked \
 	--mount=type=cache,id=idleot-vcpkg-downloads,target=/var/cache/vcpkg-downloads,sharing=locked \
 	--mount=type=cache,id=idleot-ccache,target=/var/cache/ccache,sharing=locked \
@@ -62,7 +80,9 @@ RUN --mount=type=cache,id=idleot-vcpkg-binaries,target=/var/cache/vcpkg-binaries
 	&& export VCPKG_ROOT=/opt/vcpkg \
 		VCPKG_DEFAULT_BINARY_CACHE=/var/cache/vcpkg-binaries \
 		VCPKG_DOWNLOADS=/var/cache/vcpkg-downloads \
+		VCPKG_BINARY_SOURCES="clear;files,/var/cache/vcpkg-binaries,readwrite" \
 		CCACHE_DIR=/var/cache/ccache \
+		CCACHE_MAXSIZE=20G \
 	&& cmake --preset linux-release \
 		-DOPTIONS_ENABLE_CCACHE=ON \
 		-DOPTIONS_ENABLE_SCCACHE=OFF \
@@ -70,17 +90,19 @@ RUN --mount=type=cache,id=idleot-vcpkg-binaries,target=/var/cache/vcpkg-binaries
 	&& (ccache -s || true)
 
 # Sparse-clone data/product from the umbrella at a pinned SHA.
+# Product args live ONLY in this stage so product pin bumps never touch vcpkg.
 FROM ubuntu:24.04 AS product
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG IDLEOT_PRODUCT_SHA=
 ARG IDLEOT_UMBRELLA_REPO=https://github.com/idleot/idleot.git
-# Coolify: set build-time env GITHUB_TOKEN (PAT or GH App token) for private umbrella clone.
 ARG GITHUB_TOKEN=
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-	git ca-certificates \
-	&& apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,id=idleot-crystal-apt,target=/var/cache/apt,sharing=locked \
+	--mount=type=cache,id=idleot-crystal-apt-lists,target=/var/lib/apt/lists,sharing=locked \
+	rm -f /etc/apt/apt.conf.d/docker-clean \
+	&& apt-get update && apt-get install -y --no-install-recommends \
+	git ca-certificates
 
 SHELL ["/bin/bash", "-lc"]
 
@@ -110,9 +132,11 @@ RUN --mount=type=secret,id=github_token,required=false \
 FROM ubuntu:24.04 AS runtime
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
-	mariadb-client curl ca-certificates \
-	&& apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,id=idleot-crystal-apt,target=/var/cache/apt,sharing=locked \
+	--mount=type=cache,id=idleot-crystal-apt-lists,target=/var/lib/apt/lists,sharing=locked \
+	rm -f /etc/apt/apt.conf.d/docker-clean \
+	&& apt-get update && apt-get install -y --no-install-recommends \
+	mariadb-client curl ca-certificates
 
 WORKDIR /crystalserver
 
