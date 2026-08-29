@@ -30,13 +30,16 @@ mkdir -p "$CACHE"/{vcpkg-binaries,vcpkg-downloads,vcpkg-src,ccache,work} "$WS" "
 chmod +x "$ROOT/deploy/"*.sh
 
 echo "[coolify-build] sync sources → $WS"
-rsync -a --delete \
-	--exclude '.git/' \
-	--exclude 'build/' \
-	--exclude 'out/' \
-	--exclude 'crystalserver' \
-	--exclude 'crystalserver-debug' \
-	"$ROOT"/ "$WS/"
+rm -rf "$WS"
+mkdir -p "$WS"
+# coolify-helper has no rsync — tar is enough
+tar -C "$ROOT" \
+	--exclude='.git' \
+	--exclude='build' \
+	--exclude='out' \
+	--exclude='crystalserver' \
+	--exclude='crystalserver-debug' \
+	-cf - . | tar -C "$WS" -xf -
 
 echo "[coolify-build] toolchain image ($TOOLIMG)"
 docker build --network=host --target toolchain -t "$TOOLIMG" -f "$ROOT/Dockerfile" "$ROOT"
