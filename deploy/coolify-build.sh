@@ -45,20 +45,31 @@ else
 fi
 
 echo "[coolify-build] sync sources → $WS"
-# Checksum rsync keeps mtimes for unchanged files so cmake/ninja stay incremental
-# (ccache still helps when mtimes do change).
+# Artifact clones live in the Coolify helper overlay. `docker run -v "$ROOT:..."`
+# resolves on the *host*, where /artifacts/<uuid> is empty — rsync --delete then
+# wipes the workspace. Stream the overlay tree into a toolchain container that
+# only bind-mounts the host cache workspace, then checksum-rsync (keeps mtimes).
 mkdir -p "$WS"
-docker run --rm \
-	-v "$ROOT:/src:ro" \
+tar -C "$ROOT" \
+	--exclude='.git' \
+	--exclude='./build' \
+	--exclude='./out' \
+	--exclude='./crystalserver' \
+	--exclude='./crystalserver-debug' \
+	-cf - . | docker run --rm -i \
 	-v "$WS:/dst" \
 	"$TOOLIMG" \
-	rsync -a --delete --checksum \
-		--exclude '.git/' \
-		--exclude 'build/' \
-		--exclude 'out/' \
-		--exclude 'crystalserver' \
-		--exclude 'crystalserver-debug' \
-		/src/ /dst/
+	bash -c 'set -euo pipefail
+		stage=$(mktemp -d)
+		trap "rm -rf \"$stage\"" EXIT
+		tar -C "$stage" -xf -
+		rsync -a --delete --checksum \
+			--exclude ".git/" \
+			--exclude "build/" \
+			--exclude "out/" \
+			--exclude "crystalserver" \
+			--exclude "crystalserver-debug" \
+			"$stage"/ /dst/'
 if [[ -d "$WS/build" ]]; then
 	echo "[coolify-build] keeping build/ ($(du -sh "$WS/build" | awk '{print $1}'))"
 else
