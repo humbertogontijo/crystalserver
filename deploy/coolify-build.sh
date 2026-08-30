@@ -2,8 +2,8 @@
 # Coolify custom compose build — host-bind vcpkg/ccache (survives builder prune).
 #
 # Coolify helper only has docker.sock + /data/idleot/cache. Artifact clones live
-# inside the helper overlay, so we tar-copy the tree onto the shared host cache
-# path before `docker run -v` (daemon resolves host paths).
+# inside the helper overlay, so we sync onto the shared host cache path before
+# `docker run -v` (daemon resolves host paths).
 #
 # Set Coolify → idleot-server → "Docker Compose Custom Build Command" to:
 #   bash deploy/coolify-build.sh
@@ -29,29 +29,6 @@ TOOLIMG="${IDLEOT_CRYSTAL_TOOLCHAIN_IMAGE:-idleot-crystal-toolchain}"
 mkdir -p "$CACHE"/{vcpkg-binaries,vcpkg-downloads,vcpkg-src,ccache,work} "$WS" "$ROOT/out"
 chmod +x "$ROOT/deploy/"*.sh
 
-echo "[coolify-build] sync sources → $WS"
-# Keep CMake/ccache object tree so Crystal rebuilds are incremental.
-BUILD_KEEP="$CACHE/work/crystalserver-build"
-if [[ -d "$WS/build" ]]; then
-	rm -rf "$BUILD_KEEP"
-	mv "$WS/build" "$BUILD_KEEP"
-	echo "[coolify-build] stashed build/ ($(du -sh "$BUILD_KEEP" | awk '{print $1}'))"
-fi
-rm -rf "$WS"
-mkdir -p "$WS"
-# coolify-helper has no rsync — tar is enough
-tar -C "$ROOT" \
-	--exclude='.git' \
-	--exclude='build' \
-	--exclude='out' \
-	--exclude='crystalserver' \
-	--exclude='crystalserver-debug' \
-	-cf - . | tar -C "$WS" -xf -
-if [[ -d "$BUILD_KEEP" ]]; then
-	mv "$BUILD_KEEP" "$WS/build"
-	echo "[coolify-build] restored build/ (incremental cmake + ccache)"
-fi
-
 echo "[coolify-build] toolchain image ($TOOLIMG)"
 # Coolify's default compose path uses --no-cache; this custom script must not.
 # Toolchain stage has no COPY — only rebuild when the Dockerfile changes or the
@@ -65,6 +42,27 @@ else
 	DOCKER_BUILDKIT=1 docker build --network=host --target toolchain \
 		-t "$TOOLIMG" -f "$ROOT/Dockerfile" "$ROOT"
 	echo "$df_hash" >"$df_marker"
+fi
+
+echo "[coolify-build] sync sources → $WS"
+# Checksum rsync keeps mtimes for unchanged files so cmake/ninja stay incremental
+# (ccache still helps when mtimes do change).
+mkdir -p "$WS"
+docker run --rm \
+	-v "$ROOT:/src:ro" \
+	-v "$WS:/dst" \
+	"$TOOLIMG" \
+	rsync -a --delete --checksum \
+		--exclude '.git/' \
+		--exclude 'build/' \
+		--exclude 'out/' \
+		--exclude 'crystalserver' \
+		--exclude 'crystalserver-debug' \
+		/src/ /dst/
+if [[ -d "$WS/build" ]]; then
+	echo "[coolify-build] keeping build/ ($(du -sh "$WS/build" | awk '{print $1}'))"
+else
+	echo "[coolify-build] no prior build/ — cold cmake this run"
 fi
 
 echo "[coolify-build] compile with host cache binds"
