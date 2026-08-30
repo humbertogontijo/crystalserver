@@ -7131,10 +7131,11 @@ void Game::playerFollowCreature(uint32_t playerId, uint32_t creatureId) {
 		return;
 	}
 
+	// Idle combat: AI owns pathing — deny client follow (cancel walk only when starting one).
+	if (creatureId != 0 && denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
+		return;
+	}
 	if (player->isIdleCombat()) {
-		if (creatureId != 0) {
-			denyIdleCombatClientControl(player, IdleCombatDeny::Walk);
-		}
 		return;
 	}
 
