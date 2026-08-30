@@ -30,6 +30,13 @@ mkdir -p "$CACHE"/{vcpkg-binaries,vcpkg-downloads,vcpkg-src,ccache,work} "$WS" "
 chmod +x "$ROOT/deploy/"*.sh
 
 echo "[coolify-build] sync sources → $WS"
+# Keep CMake/ccache object tree so Crystal rebuilds are incremental.
+BUILD_KEEP="$CACHE/work/crystalserver-build"
+if [[ -d "$WS/build" ]]; then
+	rm -rf "$BUILD_KEEP"
+	mv "$WS/build" "$BUILD_KEEP"
+	echo "[coolify-build] stashed build/ ($(du -sh "$BUILD_KEEP" | awk '{print $1}'))"
+fi
 rm -rf "$WS"
 mkdir -p "$WS"
 # coolify-helper has no rsync — tar is enough
@@ -40,9 +47,25 @@ tar -C "$ROOT" \
 	--exclude='crystalserver' \
 	--exclude='crystalserver-debug' \
 	-cf - . | tar -C "$WS" -xf -
+if [[ -d "$BUILD_KEEP" ]]; then
+	mv "$BUILD_KEEP" "$WS/build"
+	echo "[coolify-build] restored build/ (incremental cmake + ccache)"
+fi
 
 echo "[coolify-build] toolchain image ($TOOLIMG)"
-docker build --network=host --target toolchain -t "$TOOLIMG" -f "$ROOT/Dockerfile" "$ROOT"
+# Coolify's default compose path uses --no-cache; this custom script must not.
+# Toolchain stage has no COPY — only rebuild when the Dockerfile changes or the
+# tagged image is missing.
+df_hash="$(sha256sum "$ROOT/Dockerfile" | awk '{print $1}')"
+df_marker="$CACHE/crystal-toolchain.dockerfile.sha256"
+if docker image inspect "$TOOLIMG" >/dev/null 2>&1 \
+	&& [[ -f "$df_marker" && "$(cat "$df_marker")" == "$df_hash" ]]; then
+	echo "[coolify-build] toolchain up to date (Dockerfile $df_hash) — skip docker build"
+else
+	DOCKER_BUILDKIT=1 docker build --network=host --target toolchain \
+		-t "$TOOLIMG" -f "$ROOT/Dockerfile" "$ROOT"
+	echo "$df_hash" >"$df_marker"
+fi
 
 echo "[coolify-build] compile with host cache binds"
 docker run --rm --network=host \
@@ -71,6 +94,6 @@ compose_file="$ROOT/docker-compose.yaml"
 	--project-name "$project" \
 	--project-directory "$ROOT" \
 	-f "$compose_file" \
-	build --pull
+	build
 
 echo "[coolify-build] done"
