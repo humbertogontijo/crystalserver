@@ -3,7 +3,8 @@
 # Build: DOCKER_BUILDKIT=1 docker compose build
 # (do not use Coolify's --pull --no-cache; it resets BuildKit cache mounts)
 #
-# Cache mount ids (shared with otclient for vcpkg): idleot-vcpkg-*, idleot-ccache
+# Cache mount ids (shared with otclient for vcpkg): idleot-vcpkg-* use
+# sharing=shared so concurrent Coolify builds do not block each other.
 
 services:
   crystalserver:

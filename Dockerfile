@@ -22,9 +22,13 @@ FROM toolchain AS builder
 WORKDIR /src
 COPY . .
 
-RUN --mount=type=cache,id=idleot-vcpkg-src,target=/var/cache/vcpkg-src,sharing=locked \
-	--mount=type=cache,id=idleot-vcpkg-binaries,target=/var/cache/vcpkg-binaries,sharing=locked \
-	--mount=type=cache,id=idleot-vcpkg-downloads,target=/var/cache/vcpkg-downloads,sharing=locked \
+# Compile holds these mounts for the whole RUN. Client + server used to share
+# idleot-vcpkg-* with sharing=locked, so a long WASM build blocked Crystal.
+# sharing=shared: concurrent builds OK (ensure-vcpkg-src.sh flocks the git tree;
+# vcpkg binary/download caches are content-addressed).
+RUN --mount=type=cache,id=idleot-vcpkg-src,target=/var/cache/vcpkg-src,sharing=shared \
+	--mount=type=cache,id=idleot-vcpkg-binaries,target=/var/cache/vcpkg-binaries,sharing=shared \
+	--mount=type=cache,id=idleot-vcpkg-downloads,target=/var/cache/vcpkg-downloads,sharing=shared \
 	--mount=type=cache,id=idleot-ccache,target=/var/cache/ccache,sharing=locked \
 	bash deploy/compile.sh \
 	&& test -x /src/out/crystalserver
