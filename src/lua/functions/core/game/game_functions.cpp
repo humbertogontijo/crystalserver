@@ -1082,7 +1082,7 @@ int GameFunctions::luaGameLoginCompanion(lua_State* L) {
 	}
 
 	// Forced place so companions can stack near the controller / temple.
-	// onPlacedCreature → playerLogin (SendFirstItems, product onLogin, …) must see the
+	// onPlacedCreature → playerLogin (SendFirstItems, product onLogin, ...) must see the
 	// DB lastLoginSaved — same order as ProtocolGame. Stamping *before* place permanently
 	// skipped first-login kits for companions that never had a real client session.
 	if (!g_game().placeCreature(player, position, false, true) && !g_game().placeCreature(player, player->getTemplePosition(), false, true)) {

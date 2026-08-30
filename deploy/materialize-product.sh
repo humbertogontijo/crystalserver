@@ -77,7 +77,7 @@ if [[ -d "$PRODUCT/patches" ]]; then
     rel="${f#"$PRODUCT/patches/"}"
     safe_cp_file "$f" "$TARGET/$rel"
     echo "[product] patch $rel → datapack"
-    # Also apply into core data when the path is under scripts/ (creaturescripts, actions, …).
+    # Also apply into core data when the path is under scripts/ (creaturescripts, actions, ...).
     if [[ "$rel" == scripts/* ]]; then
       safe_cp_file "$f" "$CORE_DATA/$rel"
       echo "[product] patch $rel → core"
