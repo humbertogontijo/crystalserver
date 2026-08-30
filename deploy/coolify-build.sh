@@ -2,7 +2,7 @@
 # Coolify custom compose build — host-bind vcpkg/ccache (survives builder prune).
 #
 # Coolify helper only has docker.sock + /data/idleot/cache. Artifact clones live
-# inside the helper overlay, so we rsync the tree onto the shared host cache
+# inside the helper overlay, so we tar-copy the tree onto the shared host cache
 # path before `docker run -v` (daemon resolves host paths).
 #
 # Set Coolify → idleot-server → "Docker Compose Custom Build Command" to:
