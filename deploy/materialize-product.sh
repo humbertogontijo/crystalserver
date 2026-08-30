@@ -51,17 +51,17 @@ if [[ -d "$PRODUCT/tibia" ]]; then
   echo "[product] copied tibia"
 fi
 
-# scripts/custom/<feature>
+# scripts/custom/<feature> — every directory under product/scripts/
 mkdir -p "$TARGET/scripts/custom"
-for feature in combat_automation expeditions player_home remote_hireling hireling remote_dialog \
-  autoloot team social promotion quests remote_blessings soulpit_expedition instance_world \
-  npcsell reward_chest; do
-  if [[ -d "$PRODUCT/scripts/$feature" ]]; then
+if [[ -d "$PRODUCT/scripts" ]]; then
+  for feature_dir in "$PRODUCT/scripts"/*/; do
+    [[ -d "$feature_dir" ]] || continue
+    feature="$(basename "$feature_dir")"
     rm -rf "$TARGET/scripts/custom/$feature"
-    cp -a "$PRODUCT/scripts/$feature" "$TARGET/scripts/custom/$feature"
+    cp -a "$feature_dir" "$TARGET/scripts/custom/$feature"
     echo "[product] copied scripts/custom/$feature"
-  fi
-done
+  done
+fi
 
 # npc/custom
 if [[ -f "$PRODUCT/npc/remote_hireling_trader.lua" ]]; then
