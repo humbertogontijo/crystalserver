@@ -1,6 +1,7 @@
 .git
 .github
 build
+out
 crystalserver
 crystalserver-debug
 **/*.md
@@ -8,4 +9,3 @@ docs
 src/tests
 **/__pycache__
 *.log
-# out/crystalserver is required by the runtime stage (coolify-build.sh)

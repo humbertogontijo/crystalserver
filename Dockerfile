@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
 # IdleOT CrystalServer — Coolify compose build (idleot/crystalserver).
 #
-# Compile uses deploy/coolify-build.sh (real -v binds under /data/idleot/cache).
-# This Dockerfile only builds the apt toolchain + packages the runtime image
-# from out/crystalserver (produced by deploy/compile.sh).
+# Compile in the builder stage with BuildKit cache mounts (vcpkg + ccache).
+# Coolify custom build command must NOT pass --no-cache (resets those mounts
+# on this host): DOCKER_BUILDKIT=1 docker compose build
 
 FROM ubuntu:24.04 AS toolchain
 
@@ -16,6 +16,18 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean \
 	&& rm -rf /var/lib/apt/lists/*
 
 SHELL ["/bin/bash", "-lc"]
+
+FROM toolchain AS builder
+
+WORKDIR /src
+COPY . .
+
+RUN --mount=type=cache,id=idleot-vcpkg-src,target=/var/cache/vcpkg-src,sharing=locked \
+	--mount=type=cache,id=idleot-vcpkg-binaries,target=/var/cache/vcpkg-binaries,sharing=locked \
+	--mount=type=cache,id=idleot-vcpkg-downloads,target=/var/cache/vcpkg-downloads,sharing=locked \
+	--mount=type=cache,id=idleot-ccache,target=/var/cache/ccache,sharing=locked \
+	bash deploy/compile.sh \
+	&& test -x /src/out/crystalserver
 
 # Product pin isolated from the binary build.
 FROM ubuntu:24.04 AS product
@@ -47,7 +59,7 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean \
 
 WORKDIR /crystalserver
 
-COPY out/crystalserver /crystalserver/crystalserver
+COPY --from=builder /src/out/crystalserver /crystalserver/crystalserver
 COPY schema.sql /crystalserver/schema.sql
 COPY key.pem /crystalserver/key.pem
 COPY config.lua.dist /crystalserver/config.lua

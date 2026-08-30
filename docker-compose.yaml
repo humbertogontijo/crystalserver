@@ -1,9 +1,9 @@
 # Coolify compose pack — idleot/crystalserver
 #
-# Build: Coolify custom command → bash deploy/coolify-build.sh
-#   (real -v binds under /data/idleot/cache; survives docker builder prune)
+# Build: DOCKER_BUILDKIT=1 docker compose build
+# (do not use Coolify's --pull --no-cache; it resets BuildKit cache mounts)
 #
-#   mkdir -p /data/idleot/cache/{vcpkg-binaries,vcpkg-downloads,vcpkg-src,ccache,work}
+# Cache mount ids (shared with otclient for vcpkg): idleot-vcpkg-*, idleot-ccache
 
 services:
   crystalserver:

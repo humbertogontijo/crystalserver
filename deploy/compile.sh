@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Compile CrystalServer inside a toolchain container with *real* host binds:
+# Compile CrystalServer (Dockerfile builder stage or local toolchain container).
+# Expects WORKDIR /src and BuildKit/host caches at:
 #   /var/cache/vcpkg-{src,binaries,downloads}  /var/cache/ccache
-# Writes binary to /src/out/crystalserver (repo workdir mounted at /src).
+# Writes binary to /src/out/crystalserver.
 set -euo pipefail
 
 cd /src
