@@ -3,8 +3,8 @@
 # Shared by Crystal + OTC via BuildKit cache mounts; flock so concurrent builds don't race.
 # Never use --depth 1 — vcpkg versioning needs full history.
 #
-# Optional host seed (Coolify): set IDLEOT_VCPKG_HOST_SEED=/host-vcpkg when the Dockerfile
-# bind-mounts /data/idleot/cache/vcpkg-src there — skips a GitHub clone on cold cache.
+# Optional host seed: set IDLEOT_VCPKG_HOST_SEED when a vcpkg tree is bind-mounted
+# at that path (local tooling only — Coolify builds use BuildKit cache mounts).
 set -euo pipefail
 
 commit="${1:?usage: ensure-vcpkg-src.sh <commit> [cache_root]}"
