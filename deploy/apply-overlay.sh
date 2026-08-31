@@ -220,19 +220,25 @@ for e in runtime_patches:
         apply_patch_file(e.source, target)
 
 # Sync stock numbered core migrations only (product scripts are custom_migrations).
+# Skip when stock and target are the same tree (Coolify: IDLEOT_APP_ROOT=image root,
+# core=/crystalserver/data — identical to apps/crystalserver/data in the image).
 if core:
     mig_dir = os.path.join(core, "migrations")
     stock_mig = os.path.join(os.environ.get("IDLEOT_APP_ROOT", os.path.join(root, "apps", "crystalserver")), "data", "migrations")
     os.makedirs(mig_dir, exist_ok=True)
     if os.path.isdir(stock_mig):
-        for stock in sorted(Path(stock_mig).glob("[0-9]*.lua")):
-            shutil.copy2(stock, os.path.join(mig_dir, stock.name))
-        stock_names = {p.name for p in Path(stock_mig).glob("[0-9]*.lua")}
-        for extra in Path(mig_dir).glob("[0-9]*.lua"):
-            if extra.name not in stock_names:
-                extra.unlink()
-                print(f"[idleot] removed leftover numbered migration {extra.name}")
-        print("[idleot] synced stock migrations")
+        same = os.path.samefile(stock_mig, mig_dir) if os.path.isdir(mig_dir) else False
+        if same:
+            print("[idleot] stock migrations already at core (skip sync)")
+        else:
+            for stock in sorted(Path(stock_mig).glob("[0-9]*.lua")):
+                shutil.copy2(stock, os.path.join(mig_dir, stock.name))
+            stock_names = {p.name for p in Path(stock_mig).glob("[0-9]*.lua")}
+            for extra in Path(mig_dir).glob("[0-9]*.lua"):
+                if extra.name not in stock_names:
+                    extra.unlink()
+                    print(f"[idleot] removed leftover numbered migration {extra.name}")
+            print("[idleot] synced stock migrations")
 
 # Drop retired product migration path (renamed game_migrations → custom_migrations).
 stale_migrations = os.path.join(target, "scripts", "game_migrations")
