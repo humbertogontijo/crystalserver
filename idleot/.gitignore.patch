@@ -1,5 +1,8 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] .gitignore
+
 diff --git a/.gitignore b/.gitignore
-index 70d20c4c..fc96491c 100644
+index 70d20c4c..92f5cff0 100644
 --- a/.gitignore
 +++ b/.gitignore
 @@ -386,6 +386,10 @@ sftp-config.json
@@ -13,15 +16,17 @@ index 70d20c4c..fc96491c 100644
  
  # VCPKG
  vcpkg_installed
-@@ -397,5 +401,9 @@ database_backup
+@@ -397,5 +401,11 @@ database_backup
  cmake-build-*
  /data/logs
  
 -# macOS
 -.DS_Store
-+# Product overlay islands (monorepo `data/product` → linked under */custom/).
-+# Prefer the monorepo runtime cwd `data/crystalserver/data-global/`.
++# Product overlay islands (`idleot/` → linked under */custom/).
++# Prefer the monorepo runtime cwd `run/crystalserver/data-global/`.
++# Do not gitignore idleot/ — it is source of truth in this fork.
 +/data-global/lib/custom
 +/data-global/scripts/custom/
++/data-global/scripts/custom_migrations/
 +/data-global/npc/custom/
 +out/

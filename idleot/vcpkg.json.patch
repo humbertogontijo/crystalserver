@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] vcpkg.json
+
 diff --git a/vcpkg.json b/vcpkg.json
 index 41107a95..98376d33 100644
 --- a/vcpkg.json

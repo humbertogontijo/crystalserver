@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/creatures/players/player.hpp
+
 diff --git a/src/creatures/players/player.hpp b/src/creatures/players/player.hpp
 index 316aead0..adad29ff 100644
 --- a/src/creatures/players/player.hpp

@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/creatures/combat/combat.hpp
+
 diff --git a/src/creatures/combat/combat.hpp b/src/creatures/combat/combat.hpp
 index e9b500e7..8ad7a2eb 100644
 --- a/src/creatures/combat/combat.hpp

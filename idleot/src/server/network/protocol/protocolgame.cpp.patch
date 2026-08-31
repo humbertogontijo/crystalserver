@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/server/network/protocol/protocolgame.cpp
+
 diff --git a/src/server/network/protocol/protocolgame.cpp b/src/server/network/protocol/protocolgame.cpp
 index ea1744ba..1d4669fa 100644
 --- a/src/server/network/protocol/protocolgame.cpp

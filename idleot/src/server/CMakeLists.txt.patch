@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/server/CMakeLists.txt
+
 diff --git a/src/server/CMakeLists.txt b/src/server/CMakeLists.txt
 index 8743067d..6f239692 100644
 --- a/src/server/CMakeLists.txt

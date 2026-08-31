@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/lua/functions/core/game/game_functions.hpp
+
 diff --git a/src/lua/functions/core/game/game_functions.hpp b/src/lua/functions/core/game/game_functions.hpp
 index 77c86c26..04274903 100644
 --- a/src/lua/functions/core/game/game_functions.hpp

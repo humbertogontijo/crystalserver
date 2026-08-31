@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/map/house/house.hpp
+
 diff --git a/src/map/house/house.hpp b/src/map/house/house.hpp
 index 0e2061da..5ee86de4 100644
 --- a/src/map/house/house.hpp

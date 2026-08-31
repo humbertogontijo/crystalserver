@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/lua/functions/creatures/player/player_functions.hpp
+
 diff --git a/src/lua/functions/creatures/player/player_functions.hpp b/src/lua/functions/creatures/player/player_functions.hpp
 index f02d1704..ee93b2d4 100644
 --- a/src/lua/functions/creatures/player/player_functions.hpp

@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/config/configmanager.cpp
+
 diff --git a/src/config/configmanager.cpp b/src/config/configmanager.cpp
 index 8767c10f..2aeb1da7 100644
 --- a/src/config/configmanager.cpp

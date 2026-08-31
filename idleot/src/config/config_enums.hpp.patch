@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/config/config_enums.hpp
+
 diff --git a/src/config/config_enums.hpp b/src/config/config_enums.hpp
 index 298c71f0..423273a3 100644
 --- a/src/config/config_enums.hpp

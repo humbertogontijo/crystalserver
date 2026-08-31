@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/game/movement/teleport.cpp
+
 diff --git a/src/game/movement/teleport.cpp b/src/game/movement/teleport.cpp
 index ec54a2d9..7878599b 100644
 --- a/src/game/movement/teleport.cpp

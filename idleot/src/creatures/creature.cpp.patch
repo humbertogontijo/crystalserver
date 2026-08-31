@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/creatures/creature.cpp
+
 diff --git a/src/creatures/creature.cpp b/src/creatures/creature.cpp
 index d1e52e58..4387f9c0 100644
 --- a/src/creatures/creature.cpp

@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/map/map.cpp
+
 diff --git a/src/map/map.cpp b/src/map/map.cpp
 index e728634b..d5110272 100644
 --- a/src/map/map.cpp

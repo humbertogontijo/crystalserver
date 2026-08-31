@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/creatures/interactions/chat.cpp
+
 diff --git a/src/creatures/interactions/chat.cpp b/src/creatures/interactions/chat.cpp
 index d7d5b1ba..4ba303bc 100644
 --- a/src/creatures/interactions/chat.cpp

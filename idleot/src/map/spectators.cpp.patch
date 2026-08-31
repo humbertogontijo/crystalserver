@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/map/spectators.cpp
+
 diff --git a/src/map/spectators.cpp b/src/map/spectators.cpp
 index 3d155a34..6e4dc8ea 100644
 --- a/src/map/spectators.cpp

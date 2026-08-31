@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/game/game.hpp
+
 diff --git a/src/game/game.hpp b/src/game/game.hpp
 index 4c50982f..275b6b20 100644
 --- a/src/game/game.hpp

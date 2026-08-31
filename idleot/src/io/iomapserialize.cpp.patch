@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/io/iomapserialize.cpp
+
 diff --git a/src/io/iomapserialize.cpp b/src/io/iomapserialize.cpp
 index a946b52d..7f692767 100644
 --- a/src/io/iomapserialize.cpp

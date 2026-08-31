@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] config.lua.dist
+
 diff --git a/config.lua.dist b/config.lua.dist
 index 6b5094cd..1101a517 100644
 --- a/config.lua.dist

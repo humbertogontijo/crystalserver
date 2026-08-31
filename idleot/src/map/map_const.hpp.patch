@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/map/map_const.hpp
+
 diff --git a/src/map/map_const.hpp b/src/map/map_const.hpp
 index 6ed3dde1..84117103 100644
 --- a/src/map/map_const.hpp

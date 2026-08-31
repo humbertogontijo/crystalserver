@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/database/databasemanager.cpp
+
 diff --git a/src/database/databasemanager.cpp b/src/database/databasemanager.cpp
 index 6bdd3962..728fb540 100644
 --- a/src/database/databasemanager.cpp

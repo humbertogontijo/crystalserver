@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/server/network/connection/connection.hpp
+
 diff --git a/src/server/network/connection/connection.hpp b/src/server/network/connection/connection.hpp
 index 2fd53ba2..6a5f8133 100644
 --- a/src/server/network/connection/connection.hpp

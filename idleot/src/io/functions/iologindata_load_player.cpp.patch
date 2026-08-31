@@ -1,3 +1,6 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] src/io/functions/iologindata_load_player.cpp
+
 diff --git a/src/io/functions/iologindata_load_player.cpp b/src/io/functions/iologindata_load_player.cpp
 index 1f0313c8..adff9e1b 100644
 --- a/src/io/functions/iologindata_load_player.cpp

@@ -1,5 +1,8 @@
+From: IdleOT fork export <noreply@idleot.local>
+Subject: [IdleOT] CMakeLists.txt
+
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index b76dbaa6..407b79c2 100644
+index b76dbaa6..267db769 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -32,7 +32,7 @@ endif()
