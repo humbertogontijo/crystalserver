@@ -37,7 +37,7 @@ if [[ -z "${IDLEOT_APP_ROOT:-}" || ! -d "$IDLEOT_APP_ROOT/idleot" ]]; then
   exit 1
 fi
 if [[ -z "$APPLY" ]]; then
-  echo "[idleot] missing apply-overlay.sh next to materialize (run make engine-stubs-sync)" >&2
+  echo "[idleot] missing apply-overlay.sh next to materialize (keep it in engine deploy/)" >&2
   exit 1
 fi
 
