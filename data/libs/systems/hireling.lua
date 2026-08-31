@@ -92,18 +92,16 @@ local function checkHouseAccess(hireling)
 
 	-- Player is not invited anymore, return to lamp
 	logger.debug("Returning Hireling: {} to owner '{}' Inbox", hireling:getName(), player:getName())
-	if not player:findHirelingLamp(hireling:getId()) then
-		local inbox = player:getStoreInbox()
-		if not inbox then
-			return false
-		end
+	local inbox = player:getStoreInbox()
+	if not inbox then
+		return false
+	end
 
-		-- Using FLAG_NOLIMIT to avoid losing the hireling after being kicked out of the house and having no slots available in the store inbox
-		local lamp = inbox:addItem(HIRELING_LAMP, 1, INDEX_WHEREEVER, FLAG_NOLIMIT)
-		if lamp then
-			lamp:setAttribute(ITEM_ATTRIBUTE_DESCRIPTION, "This mysterious lamp summons your very own personal hireling.\nThis item cannot be traded.\nThis magic lamp is the home of " .. hireling:getName() .. ".")
-			lamp:setCustomAttribute("Hireling", hireling:getId())
-		end
+	-- Using FLAG_NOLIMIT to avoid losing the hireling after being kicked out of the house and having no slots available in the store inbox
+	local lamp = inbox:addItem(HIRELING_LAMP, 1, INDEX_WHEREEVER, FLAG_NOLIMIT)
+	if lamp then
+		lamp:setAttribute(ITEM_ATTRIBUTE_DESCRIPTION, "This mysterious lamp summons your very own personal hireling.\nThis item cannot be traded.\nThis magic lamp is the home of " .. hireling:getName() .. ".")
+		lamp:setCustomAttribute("Hireling", hireling:getId())
 	end
 
 	player:save()
@@ -374,15 +372,11 @@ function Hireling:returnToLamp(player_id)
 		end
 
 		npc:say("As you wish!", TALKTYPE_PRIVATE_NP, false, owner, npc:getPosition())
+		local lamp = inbox:addItem(HIRELING_LAMP, 1, INDEX_WHEREEVER, FLAG_NOLIMIT)
 		npc:getPosition():sendMagicEffect(CONST_ME_PURPLESMOKE)
 		npc:remove() --remove hireling
-		if not owner:findHirelingLamp(hirelingId) then
-			local lamp = inbox:addItem(HIRELING_LAMP, 1, INDEX_WHEREEVER, FLAG_NOLIMIT)
-			if lamp then
-				lamp:setAttribute(ITEM_ATTRIBUTE_DESCRIPTION, "This mysterious lamp summons your very own personal hireling.\nThis item cannot be traded.\nThis magic lamp is the home of " .. hireling:getName() .. ".")
-				lamp:setCustomAttribute("Hireling", hirelingId) --save hirelingId on item
-			end
-		end
+		lamp:setAttribute(ITEM_ATTRIBUTE_DESCRIPTION, "This mysterious lamp summons your very own personal hireling.\nThis item cannot be traded.\nThis magic lamp is the home of " .. self:getName() .. ".")
+		lamp:setCustomAttribute("Hireling", hirelingId) --save hirelingId on item
 		hireling:setPosition({ x = 0, y = 0, z = 0 })
 	end, 1000, self.cid, player:getGuid(), self.id)
 end
@@ -470,7 +464,6 @@ end
 
 function HirelingsInit()
 	local query = string.format("SELECT `ph`.* FROM `player_hirelings` AS `ph` INNER JOIN `players` as `p` ON `p`.`id` = `ph`.`player_id` WHERE `p`.`world_id` = %d", configManager.getNumber(configKeys.WORLD_ID))
-	local rows = db.storeQuery(query)
 	if rows then
 		local player_id, hireling
 		repeat
@@ -586,20 +579,10 @@ function Player:addNewHireling(name, sex)
 		return false
 	end
 
-	local lamp = self:findHirelingLamp(hireling:getId())
-	if not lamp then
-		lamp = inbox:addItem(HIRELING_LAMP, 1, INDEX_WHEREEVER, FLAG_NOLIMIT)
-	end
+	local lamp = inbox:addItem(HIRELING_LAMP, 1, INDEX_WHEREEVER, FLAG_NOLIMIT)
 	if not lamp then
 		logger.error("[Player:addNewHireling] error to add hireling lamp '{}' for player {}", name, self:getName())
-		-- Still register in memory so remote/home hireling trade works; lamp can be re-granted on login.
-		if not PLAYER_HIRELINGS[self:getGuid()] then
-			PLAYER_HIRELINGS[self:getGuid()] = {}
-		end
-		table.insert(PLAYER_HIRELINGS[self:getGuid()], hireling)
-		table.insert(HIRELINGS, hireling)
-		hireling.active = 0
-		return hireling
+		return false
 	end
 
 	if not PLAYER_HIRELINGS[self:getGuid()] then
@@ -673,58 +656,19 @@ function Player:hasHirelings()
 	return PLAYER_HIRELINGS[self:getGuid()] and #PLAYER_HIRELINGS[self:getGuid()] > 0 or false
 end
 
-local function lampHirelingId(item)
-	if not item or item:getId() ~= HIRELING_LAMP then
-		return nil
-	end
-	local attr = item:getCustomAttribute("Hireling")
-	if attr == nil then
-		return nil
-	end
-	return tonumber(attr)
-end
-
-local function scanForHirelingLamp(item, hirelingId)
-	if not item then
-		return nil
-	end
-	local lampId = lampHirelingId(item)
-	if lampId and lampId == hirelingId then
-		return item
-	end
-	if item.isContainer and item:isContainer() then
-		local size = item:getSize() or 0
-		for i = 0, size - 1 do
-			local found = scanForHirelingLamp(item:getItem(i), hirelingId)
-			if found then
-				return found
-			end
-		end
-	end
-	return nil
-end
-
 function Player:findHirelingLamp(hirelingId)
-	hirelingId = tonumber(hirelingId)
-	if not hirelingId then
+	local inbox = self:getStoreInbox()
+	if not inbox then
 		return nil
 	end
 
-	local inbox = self:getStoreInbox()
-	if inbox then
-		local found = scanForHirelingLamp(inbox, hirelingId)
-		if found then
-			return found
+	local lastIndex = inbox:getSize() - 1
+	for i = 0, lastIndex do
+		local item = inbox:getItem(i)
+		if item and item:getId() == HIRELING_LAMP and item:getCustomAttribute("Hireling") == hirelingId then
+			return item
 		end
 	end
-
-	for slot = CONST_SLOT_FIRST, CONST_SLOT_LAST do
-		local found = scanForHirelingLamp(self:getSlotItem(slot), hirelingId)
-		if found then
-			return found
-		end
-	end
-
 	return nil
 end
 
