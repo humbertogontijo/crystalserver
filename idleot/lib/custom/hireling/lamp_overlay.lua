@@ -1,7 +1,7 @@
 -- Thin overlay on stock data/libs/systems/hireling.lua (do NOT full-copy core/).
 -- Product deltas: deep lamp find, no duplicate lamps, register hireling if lamp add fails,
 -- and HirelingsInit db.storeQuery (stock bug — also upstream-candidate).
--- Loaded after stock hireling via lib/custom/hireling/load.lua.
+-- Loaded after stock hireling via data/libs/systems/load.lua.patch.
 
 local function lampHirelingId(item)
 	if not item or item:getId() ~= HIRELING_LAMP then

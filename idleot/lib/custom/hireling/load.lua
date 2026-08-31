@@ -1,8 +1,8 @@
 dofile(DATA_DIRECTORY .. "/lib/custom/hireling/shop_items.lua")
 dofile(DATA_DIRECTORY .. "/lib/custom/hireling/buy_loot.lua")
 dofile(DATA_DIRECTORY .. "/lib/custom/hireling/sync.lua")
--- After stock data/libs/systems/hireling.lua — lamp find/dedup + HirelingsInit fix.
-dofile(DATA_DIRECTORY .. "/lib/custom/hireling/lamp_overlay.lua")
+-- lamp_overlay.lua patches stock Hireling; loaded from data/libs/systems/load.lua.patch
+-- after core.lua finishes libs/systems/hireling.lua (global.lua runs before libs).
 
 -- Attach loot-sell catalog (Sell all is a client trade-UI button, not a row).
 if HirelingShopItems and HirelingBuyLootItems then

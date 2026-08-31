@@ -1,0 +1,12 @@
+diff --git a/data/libs/systems/load.lua b/data/libs/systems/load.lua
+--- a/data/libs/systems/load.lua
++++ b/data/libs/systems/load.lua
+@@ -7,6 +7,8 @@ dofile(CORE_DIRECTORY .. "/libs/systems/familiar.lua")
+ dofile(CORE_DIRECTORY .. "/libs/systems/features.lua")
+ dofile(CORE_DIRECTORY .. "/libs/systems/hazard.lua")
+ dofile(CORE_DIRECTORY .. "/libs/systems/hireling.lua")
++-- Product overlay: lamp find/dedup + HirelingsInit db.storeQuery fix (see idleot/lib/custom/hireling/lamp_overlay.lua).
++dofile(DATA_DIRECTORY .. "/lib/custom/hireling/lamp_overlay.lua")
+ dofile(CORE_DIRECTORY .. "/libs/systems/raids.lua")
+ dofile(CORE_DIRECTORY .. "/libs/systems/reward_boss.lua")
+ dofile(CORE_DIRECTORY .. "/libs/systems/vip.lua")
