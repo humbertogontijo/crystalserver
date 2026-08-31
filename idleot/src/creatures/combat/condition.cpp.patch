@@ -1,0 +1,45 @@
+diff --git a/src/creatures/combat/condition.cpp b/src/creatures/combat/condition.cpp
+index ad062c3b..6528cb6b 100644
+--- a/src/creatures/combat/condition.cpp
++++ b/src/creatures/combat/condition.cpp
+@@ -1368,7 +1368,7 @@ bool ConditionRegeneration::executeCondition(const std::shared_ptr<Creature> &cr
+ 					message.primary.color = TEXTCOLOR_PASTELRED;
+ 					player->sendTextMessage(message);
+ 
+-					auto spectators = Spectators().find<Player>(player->getPosition());
++					auto spectators = Spectators::around<Player>(player->getPosition(), player->getInstanceId());
+ 					spectators.erase(player);
+ 					if (!spectators.empty()) {
+ 						message.type = MESSAGE_HEALED_OTHERS;
+@@ -1790,6 +1790,12 @@ bool ConditionDamage::startCondition(std::shared_ptr<Creature> creature) {
+ 
+ bool ConditionDamage::executeCondition(const std::shared_ptr<Creature> &creature, int32_t interval) {
+ 	if (periodDamage != 0) {
++		bool bRemove = (ticks != -1);
++		creature->onTickCondition(getType(), bRemove);
++		if (field && bRemove) {
++			return false;
++		}
++
+ 		periodDamageTick += interval;
+ 
+ 		if (periodDamageTick >= tickInterval) {
+@@ -1801,6 +1807,9 @@ bool ConditionDamage::executeCondition(const std::shared_ptr<Creature> &creature
+ 
+ 		bool bRemove = (ticks != -1);
+ 		creature->onTickCondition(getType(), bRemove);
++		if (field && bRemove) {
++			return false;
++		}
+ 		damageInfo.timeLeft -= interval;
+ 
+ 		if (damageInfo.timeLeft <= 0) {
+@@ -2053,7 +2062,7 @@ bool ConditionFeared::canWalkTo(const std::shared_ptr<Creature> &creature, Posit
+ 
+ 	auto tile = g_game().map.getTile(pos);
+ 	if (tile && tile->getTopVisibleCreature(creature) == nullptr && tile->queryAdd(0, creature, 1, FLAG_PATHFINDING) == RETURNVALUE_NOERROR) {
+-		const auto &field = tile->getFieldItem();
++		const auto &field = tile->getFieldItem(creature->getInstanceId());
+ 		if (field && !field->isBlocking() && field->getDamage() != 0) {
+ 			return false;
+ 		}

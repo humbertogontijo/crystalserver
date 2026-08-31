@@ -1,0 +1,61 @@
+diff --git a/src/server/network/connection/connection.hpp b/src/server/network/connection/connection.hpp
+index 2fd53ba2..6a5f8133 100644
+--- a/src/server/network/connection/connection.hpp
++++ b/src/server/network/connection/connection.hpp
+@@ -22,6 +22,11 @@
+ #include "server/network/message/networkmessage.hpp"
+ #include "server/network/protocol/protocolgame.hpp"
+ 
++#include <array>
++#include <functional>
++#include <optional>
++#include <vector>
++
+ static constexpr int32_t CONNECTION_WRITE_TIMEOUT = 30;
+ static constexpr int32_t CONNECTION_READ_TIMEOUT = 30;
+ 
+@@ -40,6 +45,7 @@ class ServicePort;
+ using ServicePort_ptr = std::shared_ptr<ServicePort>;
+ using ConstServicePort_ptr = std::shared_ptr<const ServicePort>;
+ class NetworkMessage;
++class WebSocketServicePort;
+ 
+ class ConnectionManager {
+ public:
+@@ -79,7 +85,29 @@ public:
+ 
+ 	uint32_t getIP();
+ 
++	void enableWebSocket();
++
+ private:
++	void scheduleRead(size_t nbytes, uint8_t* buffer, std::function<void(const std::error_code &)> handler);
++	void wsPumpRead();
++	void wsReadNextFrame();
++	void wsOnFrameHeader(const std::error_code &error, const std::array<uint8_t, 2> &header);
++	void wsOnFrameExtended(const std::error_code &error, const std::vector<uint8_t> &extra, uint8_t opcode, uint64_t payloadLen, bool masked);
++	void wsOnFramePayload(const std::error_code &error, const std::shared_ptr<std::vector<uint8_t>> &payload, const std::array<uint8_t, 4> &mask, uint8_t opcode);
++	void wsSendBinary(const OutputMessage_ptr &outputMessage);
++
++	bool useWebSocket = false;
++	asio::streambuf wsHttpBuffer;
++	std::vector<uint8_t> wsStream;
++	bool wsReadingFrame = false;
++	struct PendingRead {
++		uint8_t* buffer = nullptr;
++		size_t length = 0;
++		size_t offset = 0;
++		std::function<void(const std::error_code &)> handler;
++	};
++	std::optional<PendingRead> wsPendingRead;
++
+ 	void parseProxyIdentification(const std::error_code &error);
+ 	void parseHeader(const std::error_code &error);
+ 	void parsePacket(const std::error_code &error);
+@@ -118,5 +146,6 @@ private:
+ 	bool receivedFirst = false;
+ 
+ 	friend class ServicePort;
++	friend class WebSocketServicePort;
+ 	friend class ConnectionManager;
+ };

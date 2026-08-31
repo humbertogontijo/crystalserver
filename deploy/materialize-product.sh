@@ -1,145 +1,68 @@
 #!/usr/bin/env bash
-# Copy data/product into a datapack (no symlinks — Docker-safe).
-# Usage: materialize-product.sh <datapack-dir> <product-dir> <core-data-dir>
+# Copy idleot overlays into a datapack (no symlinks — Docker-safe).
+# Usage: materialize-product.sh <datapack-dir> [idleot-dir] <core-data-dir>
 set -euo pipefail
 
 TARGET="${1:?datapack dir}"
-PRODUCT="${2:?product dir}"
+PRODUCT_DIR="${2:-}"
 CORE_DATA="${3:?core data dir}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
 
-if [[ ! -d "$TARGET" || ! -d "$PRODUCT" ]]; then
-  echo "[product] missing target or product" >&2
+if [[ -n "$PRODUCT_DIR" && -d "$PRODUCT_DIR" ]]; then
+  if [[ -d "$PRODUCT_DIR/idleot" ]]; then
+    export IDLEOT_APP_ROOT="$(cd "$PRODUCT_DIR" && pwd)"
+  else
+    export IDLEOT_APP_ROOT="$(cd "$PRODUCT_DIR/.." && pwd)"
+  fi
+elif [[ -d /crystalserver/idleot ]]; then
+  export IDLEOT_APP_ROOT=/crystalserver
+elif [[ -d /src/idleot ]]; then
+  export IDLEOT_APP_ROOT=/src
+fi
+
+APPLY=""
+if [[ -f "$HERE/apply-overlay.sh" ]]; then
+  APPLY="$HERE/apply-overlay.sh"
+  export IDLEOT_LIB="${IDLEOT_LIB:-$HERE/idleot-lib.py}"
+elif [[ -n "${IDLEOT_MONOREPO:-}" && -f "$IDLEOT_MONOREPO/scripts/idleot/apply-overlay.sh" ]]; then
+  APPLY="$IDLEOT_MONOREPO/scripts/idleot/apply-overlay.sh"
+fi
+
+if [[ ! -d "$TARGET" ]]; then
+  echo "[idleot] missing target $TARGET" >&2
+  exit 1
+fi
+if [[ -z "${IDLEOT_APP_ROOT:-}" || ! -d "$IDLEOT_APP_ROOT/idleot" ]]; then
+  echo "[idleot] missing idleot tree (set IDLEOT_APP_ROOT)" >&2
+  exit 1
+fi
+if [[ -z "$APPLY" ]]; then
+  echo "[idleot] missing apply-overlay.sh next to materialize (run make engine-stubs-sync)" >&2
   exit 1
 fi
 
-echo "[product] materializing → $TARGET (core → $CORE_DATA)"
+echo "[idleot] materializing → $TARGET (core → $CORE_DATA) from $IDLEOT_APP_ROOT/idleot"
+bash "$APPLY" "$TARGET" "$CORE_DATA"
 
-# GNU cp refuses to write through dangling symlinks (common after rsync of
-# product-apply links that pointed at a local data/product tree).
-safe_cp_file() {
-  local src="$1"
-  local dest="$2"
-  mkdir -p "$(dirname "$dest")"
-  if [[ -e "$dest" || -L "$dest" ]]; then
-    rm -f "$dest"
-  fi
-  cp -a "$src" "$dest"
-}
+python3 - "$TARGET" <<'PY' || true
+import os, shutil, sys
+target = sys.argv[1]
 
-copy_tree() {
-  local src="$1"
-  local dest="$2"
-  local label="$3"
-  [[ -d "$src" ]] || return 0
-  mkdir -p "$dest"
-  cp -a "$src"/. "$dest"/
-  echo "[product] copied $label"
-}
+def deref_tree(path: str):
+    if not os.path.isdir(path):
+        return
+    for root, dirs, files in os.walk(path, followlinks=False):
+        for name in files:
+            p = os.path.join(root, name)
+            if os.path.islink(p):
+                real = os.path.realpath(p)
+                os.unlink(p)
+                if os.path.isfile(real):
+                    shutil.copy2(real, p)
 
-# lib/custom
-if [[ -d "$PRODUCT/lib/custom" ]]; then
-  mkdir -p "$TARGET/lib"
-  rm -rf "$TARGET/lib/custom"
-  cp -a "$PRODUCT/lib/custom" "$TARGET/lib/custom"
-  echo "[product] copied lib/custom"
-fi
+for sub in ("lib/custom", "scripts/custom", "scripts/custom_migrations", "npc/custom", "tibia"):
+    deref_tree(os.path.join(target, sub))
+print("[idleot] dereferenced symlinks for Docker")
+PY
 
-# tibia masks
-if [[ -d "$PRODUCT/tibia" ]]; then
-  rm -rf "$TARGET/tibia"
-  cp -a "$PRODUCT/tibia" "$TARGET/tibia"
-  echo "[product] copied tibia"
-fi
-
-# scripts/custom/<feature> — every directory under product/scripts/
-mkdir -p "$TARGET/scripts/custom"
-if [[ -d "$PRODUCT/scripts" ]]; then
-  for feature_dir in "$PRODUCT/scripts"/*/; do
-    [[ -d "$feature_dir" ]] || continue
-    feature="$(basename "$feature_dir")"
-    rm -rf "$TARGET/scripts/custom/$feature"
-    cp -a "$feature_dir" "$TARGET/scripts/custom/$feature"
-    echo "[product] copied scripts/custom/$feature"
-  done
-fi
-
-# npc/custom
-if [[ -f "$PRODUCT/npc/remote_hireling_trader.lua" ]]; then
-  mkdir -p "$TARGET/npc/custom"
-  safe_cp_file "$PRODUCT/npc/remote_hireling_trader.lua" "$TARGET/npc/custom/remote_hireling_trader.lua"
-  echo "[product] copied npc/custom/remote_hireling_trader.lua"
-fi
-
-# patches overwrite stock — prefer coreDirectory for creaturescripts/actions so they
-# replace engine scripts (datapack-only copies may not override core registrations).
-if [[ -d "$PRODUCT/patches" ]]; then
-  while IFS= read -r -d '' f; do
-    rel="${f#"$PRODUCT/patches/"}"
-    safe_cp_file "$f" "$TARGET/$rel"
-    echo "[product] patch $rel → datapack"
-    # Also apply into core data when the path is under scripts/ (creaturescripts, actions, ...).
-    if [[ "$rel" == scripts/* ]]; then
-      safe_cp_file "$f" "$CORE_DATA/$rel"
-      echo "[product] patch $rel → core"
-    fi
-  done < <(find "$PRODUCT/patches" -type f -print0)
-fi
-
-# core overlays
-if [[ -d "$PRODUCT/core" ]]; then
-  mkdir -p "$CORE_DATA"
-  while IFS= read -r -d '' f; do
-    rel="${f#"$PRODUCT/core/"}"
-    safe_cp_file "$f" "$CORE_DATA/$rel"
-    echo "[product] core $rel"
-  done < <(find "$PRODUCT/core" -type f -print0)
-fi
-
-# lib.lua hooks
-LIB="$TARGET/lib/lib.lua"
-APPEND="$PRODUCT/hooks/lib.lua.append"
-if [[ -f "$LIB" && -f "$APPEND" ]]; then
-  if grep -q 'lib/custom/load.lua' "$LIB"; then
-    echo "[product] lib/lib.lua already has product hooks"
-  else
-    cat "$APPEND" >> "$LIB"
-    echo "[product] appended hooks to lib/lib.lua"
-  fi
-fi
-
-# Migrations: stock already in CORE_DATA; append product numbered migrations
-MIG_DIR="$CORE_DATA/migrations"
-mkdir -p "$MIG_DIR"
-MANIFEST="$PRODUCT/migrations/manifest.txt"
-STOCK_MAX=0
-for stock in "$MIG_DIR"/[0-9]*.lua; do
-  [[ -f "$stock" ]] || continue
-  n=$(basename "$stock" .lua)
-  [[ "$n" =~ ^[0-9]+$ ]] || continue
-  if [[ "$n" -gt "$STOCK_MAX" ]]; then STOCK_MAX=$n; fi
-done
-RUNTIME_MAX=$STOCK_MAX
-if [[ -f "$MANIFEST" ]]; then
-  while IFS=$'\t ' read -r num file _; do
-    [[ "$num" =~ ^[0-9]+$ ]] || continue
-    [[ "$file" == *.product ]] || continue
-    src="$PRODUCT/migrations/$file"
-    [[ -f "$src" ]] || continue
-    cp -a "$src" "$MIG_DIR/${num}.lua"
-    echo "[product] migration → ${num}.lua from $file"
-    if [[ "$num" -gt "$RUNTIME_MAX" ]]; then RUNTIME_MAX=$num; fi
-  done < <(grep -v '^[[:space:]]*#' "$MANIFEST" | grep -v '^[[:space:]]*$' || true)
-fi
-NEXT=$((RUNTIME_MAX + 1))
-for prod in "$PRODUCT"/migrations/*.product; do
-  [[ -f "$prod" ]] || continue
-  base=$(basename "$prod")
-  if [[ -f "$MANIFEST" ]] && grep -qF "$base" "$MANIFEST"; then
-    continue
-  fi
-  cp -a "$prod" "$MIG_DIR/${NEXT}.lua"
-  echo "[product] migration → ${NEXT}.lua from $base"
-  NEXT=$((NEXT + 1))
-done
-
-echo "[product] done"
+echo "[idleot] materialize done"

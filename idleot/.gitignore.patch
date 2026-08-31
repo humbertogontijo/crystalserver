@@ -1,0 +1,27 @@
+diff --git a/.gitignore b/.gitignore
+index 70d20c4c..fc96491c 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -386,6 +386,10 @@ sftp-config.json
+ # Binaries
+ crystalserver
+ crystalserver.old
++cip-occupancy
++map-query
++libmap_query_ffi.dylib
++libmap_query_ffi.so
+ 
+ # VCPKG
+ vcpkg_installed
+@@ -397,5 +401,9 @@ database_backup
+ cmake-build-*
+ /data/logs
+ 
+-# macOS
+-.DS_Store
++# Product overlay islands (monorepo `data/product` → linked under */custom/).
++# Prefer the monorepo runtime cwd `data/crystalserver/data-global/`.
++/data-global/lib/custom
++/data-global/scripts/custom/
++/data-global/npc/custom/
++out/

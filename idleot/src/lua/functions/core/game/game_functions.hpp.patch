@@ -1,0 +1,39 @@
+diff --git a/src/lua/functions/core/game/game_functions.hpp b/src/lua/functions/core/game/game_functions.hpp
+index 77c86c26..04274903 100644
+--- a/src/lua/functions/core/game/game_functions.hpp
++++ b/src/lua/functions/core/game/game_functions.hpp
+@@ -33,6 +33,15 @@ private:
+ 	static int luaGameGetPlayers(lua_State* L);
+ 	static int luaGameLoadMap(lua_State* L);
+ 	static int luaGameloadMapChunk(lua_State* L);
++	static int luaGameCopyMapRegion(lua_State* L);
++#ifdef IDLEOT_HAS_OCCUPANCY
++	static int luaGameLoadOccupancyMask(lua_State* L);
++#endif
++	static int luaGameAllocateInstance(lua_State* L);
++	static int luaGameReleaseInstance(lua_State* L);
++	static int luaGameDisableWorldSpawns(lua_State* L);
++	static int luaGameGetNpcs(lua_State* L);
++	static int luaGameGetMonsters(lua_State* L);
+ 
+ 	static int luaGameGetExperienceForLevel(lua_State* L);
+ 	static int luaGameGetMonsterCount(lua_State* L);
+@@ -42,6 +51,7 @@ private:
+ 
+ 	static int luaGameGetTowns(lua_State* L);
+ 	static int luaGameGetHouses(lua_State* L);
++	static int luaGameCreateHouse(lua_State* L);
+ 
+ 	static int luaGameGetGameState(lua_State* L);
+ 	static int luaGameSetGameState(lua_State* L);
+@@ -70,6 +80,10 @@ private:
+ 	static int luaGameReload(lua_State* L);
+ 
+ 	static int luaGameGetOfflinePlayer(lua_State* L);
++	// Headless account companions (no ProtocolGame): login near controller for squad expeditions.
++	static int luaGameLoginCompanion(lua_State* L);
++	static int luaGameLogoutCompanion(lua_State* L);
++	static int luaGameDeliverCompanionFeatureUI(lua_State* L);
+ 	static int luaGameGetNormalizedPlayerName(lua_State* L);
+ 	static int luaGameGetNormalizedGuildName(lua_State* L);
+ 	static int luaGameHasEffect(lua_State* L);

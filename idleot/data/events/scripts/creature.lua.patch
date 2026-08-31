@@ -1,0 +1,53 @@
+diff --git a/data/events/scripts/creature.lua b/data/events/scripts/creature.lua
+--- a/data/events/scripts/creature.lua
++++ b/data/events/scripts/creature.lua
+@@ -24,6 +24,20 @@
+ 	end, time * 1000, playerUid)
+ end
+ 
++
++--- Product: companions / headless party members have IP 0. Stock "combat-protection"
++--- makes monsters retarget them and deal no damage. Idle hunters in expeditions must
++--- take full risk; keep the open-world disconnect shield outside expeditions.
++local function skipDisconnectCombatProtection(player)
++	if not player then
++		return false
++	end
++	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
++		return true
++	end
++	return false
++end
++
+ function Creature:onTargetCombat(target)
+ 	if not self then
+ 		return true
+@@ -33,7 +47,8 @@
+ 		if self:isMonster() then
+ 			local isProtected = target:kv():get("combat-protection") or 0
+ 
+-			if target:getIp() == 0 then -- If player is disconnected, monster shall ignore to attack the player
++			if target:getIp() == 0 and not skipDisconnectCombatProtection(target) then
++				-- Disconnected (open world): monster shall ignore attacking the player.
+ 				if target:isPzLocked() then
+ 					return true
+ 				end
+@@ -58,7 +73,7 @@
+ 		return RETURNVALUE_YOUMAYNOTATTACKTHISCREATURE
+ 	end
+ 
+-	if not isRetroPVP() then
++	if not isRetroPVP() or configManager.getBoolean(configKeys.ADVANCED_PARTY_PROTECTION) then
+ 		if self:isPlayer() and target:isPlayer() then
+ 			local party = self:getParty()
+ 			if party then
+@@ -68,7 +83,9 @@
+ 				end
+ 			end
+ 		end
++	end
+ 
++	if not isRetroPVP() then
+ 		if self:isPlayer() and target:isPlayer() then
+ 			if self:hasSecureMode() then
+ 				return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER

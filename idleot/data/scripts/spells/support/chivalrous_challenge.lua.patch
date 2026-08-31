@@ -1,0 +1,72 @@
+diff --git a/data/scripts/spells/support/chivalrous_challenge.lua b/data/scripts/spells/support/chivalrous_challenge.lua
+--- a/data/scripts/spells/support/chivalrous_challenge.lua
++++ b/data/scripts/spells/support/chivalrous_challenge.lua
+@@ -1,26 +1,41 @@
+ local combat = Combat()
+ combat:setParameter(COMBAT_PARAM_CHAIN_EFFECT, CONST_ME_CHIVALRIOUS_CHALLENGE)
+ 
++-- Product: chain onto ranged types (vanilla) or any non-adjacent monster so
++-- knights can pull distant melee packs; always challenge (aggro) like exeta res.
+ function canChain(creature, target)
+-	if target:isMonster() then
+-		if target:getType():isRewardBoss() then
+-			return false
+-		elseif target:getMaster() == nil and target:getType():getTargetDistance() > 1 then
+-			return true
+-		end
++	if not target:isMonster() then
++		return false
+ 	end
++	if target:getType():isRewardBoss() then
++		return false
++	end
++	if target:getMaster() ~= nil then
++		return false
++	end
++
++	local origin = creature:getPosition()
++	local tp = target:getPosition()
++	if not origin or not tp or origin.z ~= tp.z then
++		return false
++	end
++
++	local cheb = math.max(math.abs(tp.x - origin.x), math.abs(tp.y - origin.y))
++	if target:getType():getTargetDistance() > 1 or cheb > 1 then
++		return true
++	end
+ 	return false
+ end
+ 
+ combat:setCallback(CALLBACK_PARAM_CHAINPICKER, "canChain")
+ 
+ function getChainValue(creature)
+-	local targets = 6 -- Vocation Adjustment: +1 additional target (5 -> 6)
++	local targets = 4 -- Vocation Adjustment: +1 additional target (3 -> 4)
+ 	local player = creature:getPlayer()
+ 	if creature and player then
+ 		targets = targets + player:getWheelSpellAdditionalTarget("Chivalrous Challenge")
+ 	end
+-	return targets, 7, false -- jump range 6 -> 7
++	return targets, 7, false
+ end
+ 
+ combat:setCallback(CALLBACK_PARAM_CHAINVALUE, "getChainValue")
+@@ -32,7 +47,8 @@
+ 		duration = duration + (player:getWheelSpellAdditionalDuration("Chivalrous Challenge") * 1000)
+ 	end
+ 	if target and target:isMonster() then
+-		doChallengeCreature(player, target:getMonster(), 12000)
++		-- Same aggro behavior as Challenge (exeta res).
++		doChallengeCreature(creature, target, duration)
+ 		target:changeTargetDistance(1, duration)
+ 	end
+ 	return true
+@@ -55,7 +71,7 @@
+ 	end
+ 
+ 	if not combat:execute(creature, variant) then
+-		creature:sendCancelMessage("There are no ranged monsters.")
++		creature:sendCancelMessage("There are no creatures in range.")
+ 		creature:getPosition():sendMagicEffect(CONST_ME_POFF)
+ 		return false
+ 	end

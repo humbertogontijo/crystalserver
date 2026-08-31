@@ -1,0 +1,111 @@
+diff --git a/src/lua/functions/creatures/creature_functions.cpp b/src/lua/functions/creatures/creature_functions.cpp
+index 03242ac8..c941a1ee 100644
+--- a/src/lua/functions/creatures/creature_functions.cpp
++++ b/src/lua/functions/creatures/creature_functions.cpp
+@@ -17,6 +17,8 @@
+ 
+ #include "lua/functions/creatures/creature_functions.hpp"
+ 
++#include <algorithm>
++
+ #include "config/configmanager.hpp"
+ #include "creatures/combat/condition.hpp"
+ #include "creatures/creature.hpp"
+@@ -41,6 +43,8 @@ void CreatureFunctions::init(lua_State* L) {
+ 	Lua::registerMethod(L, "Creature", "canSeeCreature", CreatureFunctions::luaCreatureCanSeeCreature);
+ 	Lua::registerMethod(L, "Creature", "getParent", CreatureFunctions::luaCreatureGetParent);
+ 	Lua::registerMethod(L, "Creature", "getId", CreatureFunctions::luaCreatureGetId);
++	Lua::registerMethod(L, "Creature", "getInstanceId", CreatureFunctions::luaCreatureGetInstanceId);
++	Lua::registerMethod(L, "Creature", "setInstanceId", CreatureFunctions::luaCreatureSetInstanceId);
+ 	Lua::registerMethod(L, "Creature", "getName", CreatureFunctions::luaCreatureGetName);
+ 	Lua::registerMethod(L, "Creature", "getTypeName", CreatureFunctions::luaCreatureGetTypeName);
+ 	Lua::registerMethod(L, "Creature", "getTarget", CreatureFunctions::luaCreatureGetTarget);
+@@ -89,6 +93,7 @@ void CreatureFunctions::init(lua_State* L) {
+ 	Lua::registerMethod(L, "Creature", "getDescription", CreatureFunctions::luaCreatureGetDescription);
+ 	Lua::registerMethod(L, "Creature", "getPathTo", CreatureFunctions::luaCreatureGetPathTo);
+ 	Lua::registerMethod(L, "Creature", "move", CreatureFunctions::luaCreatureMove);
++	Lua::registerMethod(L, "Creature", "autoWalk", CreatureFunctions::luaCreatureAutoWalk);
+ 	Lua::registerMethod(L, "Creature", "getZoneType", CreatureFunctions::luaCreatureGetZoneType);
+ 	Lua::registerMethod(L, "Creature", "getZones", CreatureFunctions::luaCreatureGetZones);
+ 	Lua::registerMethod(L, "Creature", "setIcon", CreatureFunctions::luaCreatureSetIcon);
+@@ -272,6 +277,29 @@ int CreatureFunctions::luaCreatureGetId(lua_State* L) {
+ 	return 1;
+ }
+ 
++int CreatureFunctions::luaCreatureGetInstanceId(lua_State* L) {
++	// creature:getInstanceId()
++	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
++	if (creature) {
++		lua_pushnumber(L, creature->getInstanceId());
++	} else {
++		lua_pushnil(L);
++	}
++	return 1;
++}
++
++int CreatureFunctions::luaCreatureSetInstanceId(lua_State* L) {
++	// creature:setInstanceId(id)
++	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
++	if (!creature) {
++		Lua::pushBoolean(L, false);
++		return 1;
++	}
++	creature->setInstanceId(Lua::getNumber<uint32_t>(L, 2));
++	Lua::pushBoolean(L, true);
++	return 1;
++}
++
+ int CreatureFunctions::luaCreatureGetName(lua_State* L) {
+ 	// creature:getName()
+ 	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
+@@ -1075,6 +1103,50 @@ int CreatureFunctions::luaCreatureMove(lua_State* L) {
+ 	return 1;
+ }
+ 
++int CreatureFunctions::luaCreatureAutoWalk(lua_State* L) {
++	// creature:autoWalk({dir1, dir2, ...}[, flags = 0[, ignoreConditions = false]])
++	// dirs[1] is the first step. Engine pops from the back, so we reverse.
++	// ignoreConditions=false (default): rooted / feared abort the walk — same as
++	// normal locomotion. Pass true only for scripts that must force a path.
++	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
++	if (!creature) {
++		Lua::pushBoolean(L, false);
++		return 1;
++	}
++	if (!Lua::isTable(L, 2)) {
++		Lua::pushBoolean(L, false);
++		return 1;
++	}
++
++	std::vector<Direction> dirList;
++	const int len = static_cast<int>(lua_objlen(L, 2));
++	dirList.reserve(static_cast<size_t>(std::max(0, len)));
++	for (int i = 1; i <= len; ++i) {
++		lua_rawgeti(L, 2, i);
++		if (Lua::isNumber(L, -1)) {
++			const auto dir = Lua::getNumber<Direction>(L, -1);
++			if (dir <= DIRECTION_LAST) {
++				dirList.emplace_back(dir);
++			}
++		}
++		lua_pop(L, 1);
++	}
++	if (dirList.empty()) {
++		Lua::pushBoolean(L, false);
++		return 1;
++	}
++
++	std::reverse(dirList.begin(), dirList.end());
++	const auto flags = Lua::getNumber<uint32_t>(L, 3, 0);
++	const bool ignoreConditions = Lua::getBoolean(L, 4, false);
++	// immediate=false: wait a normal stepDuration before the first tile so OTC
++	// can play walk frames. (immediate=true used ticks==1 and looked like a slide.)
++	// Single-step paths still get firstStep via startAutoWalk (size == 1).
++	creature->startAutoWalk(dirList, ignoreConditions, false, flags);
++	Lua::pushBoolean(L, true);
++	return 1;
++}
++
+ int CreatureFunctions::luaCreatureGetZoneType(lua_State* L) {
+ 	// creature:getZoneType()
+ 	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);

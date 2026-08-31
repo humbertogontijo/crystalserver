@@ -33,26 +33,6 @@ RUN --mount=type=cache,id=idleot-vcpkg-src,target=/var/cache/vcpkg-src,sharing=s
 	bash deploy/compile.sh \
 	&& test -x /src/out/crystalserver
 
-# Product pin isolated from the binary build.
-FROM ubuntu:24.04 AS product
-
-ARG DEBIAN_FRONTEND=noninteractive
-ARG IDLEOT_PRODUCT_SHA=
-ARG IDLEOT_UMBRELLA_REPO=https://github.com/idleot/idleot.git
-ARG GITHUB_TOKEN=
-
-RUN rm -f /etc/apt/apt.conf.d/docker-clean \
-	&& apt-get update && apt-get install -y --no-install-recommends \
-	git ca-certificates \
-	&& rm -rf /var/lib/apt/lists/*
-
-SHELL ["/bin/bash", "-lc"]
-COPY deploy/sparse-clone-umbrella.sh /tmp/sparse-clone-umbrella.sh
-WORKDIR /opt/idleot
-RUN --mount=type=secret,id=github_token,required=false \
-	/tmp/sparse-clone-umbrella.sh /opt/idleot/umbrella data/product \
-	&& test -d /opt/idleot/umbrella/data/product
-
 FROM ubuntu:24.04 AS runtime
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -67,14 +47,16 @@ COPY --from=builder /src/out/crystalserver /crystalserver/crystalserver
 COPY schema.sql /crystalserver/schema.sql
 COPY key.pem /crystalserver/key.pem
 COPY config.lua.dist /crystalserver/config.lua
+COPY idleot /crystalserver/idleot
 
-COPY --from=product /opt/idleot/umbrella/data/product /opt/idleot/product
 COPY deploy/materialize-product.sh /opt/idleot/materialize-product.sh
+COPY deploy/apply-overlay.sh /opt/idleot/apply-overlay.sh
+COPY deploy/idleot-lib.py /opt/idleot/idleot-lib.py
 COPY deploy/server-entrypoint.sh /crystalserver/server-entrypoint.sh
 
 RUN mkdir -p /crystalserver/data /crystalserver/data-global \
 	&& chmod +x /crystalserver/crystalserver /crystalserver/server-entrypoint.sh \
-		/opt/idleot/materialize-product.sh
+		/opt/idleot/materialize-product.sh /opt/idleot/apply-overlay.sh
 
 EXPOSE 7171 7172 7173 7174
 
@@ -87,7 +69,7 @@ ENV MYSQL_HOST=127.0.0.1 \
 	STATUS_PORT=7171 \
 	GAME_PORT=7172 \
 	WEBSOCKET_GAME_PORT=7174 \
-	IDLEOT_PRODUCT_DIR=/opt/idleot/product \
+	IDLEOT_DIR=/crystalserver/idleot \
 	IDLEOT_MATERIALIZE=/opt/idleot/materialize-product.sh
 
 ENTRYPOINT ["/crystalserver/server-entrypoint.sh"]

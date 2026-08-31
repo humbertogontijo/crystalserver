@@ -1,0 +1,115 @@
+diff --git a/src/creatures/monsters/monster.cpp b/src/creatures/monsters/monster.cpp
+index a9428486..b2c14a04 100644
+--- a/src/creatures/monsters/monster.cpp
++++ b/src/creatures/monsters/monster.cpp
+@@ -660,8 +660,8 @@ void Monster::updateTargetList() {
+ 		return !target || target->getHealth() <= 0 || !canSee(target->getPosition());
+ 	});
+ 
+-	for (const auto &spectator : Spectators().find<Creature>(position, true, 0, 0, 0, 0, false)) {
+-		if (spectator.get() != this && canSee(spectator->getPosition())) {
++	for (const auto &spectator : Spectators().find<Creature>(position, true, 0, 0, 0, 0, false, getInstanceId())) {
++		if (spectator.get() != this && canSee(spectator->getPosition()) && canSeeCreature(spectator)) {
+ 			onCreatureFound(spectator);
+ 		}
+ 	}
+@@ -977,7 +977,9 @@ bool Monster::isTarget(const std::shared_ptr<Creature> &creature) {
+ 	}
+ 
+ 	if (!isSummon()) {
+-		if (creature->getPlayer() && creature->getPlayer()->isDisconnected()) {
++		// Disconnected players are invalid targets unless idle combat / exercise keeps them in fight.
++		const auto &targetPlayer = creature->getPlayer();
++		if (targetPlayer && targetPlayer->isDisconnected() && !targetPlayer->keepsDisconnectedCombat()) {
+ 			return false;
+ 		}
+ 
+@@ -993,6 +995,14 @@ void Monster::setFatalHoldDuration(int32_t value) {
+ 	fatalHoldDuration = value;
+ }
+ 
++int32_t Monster::getRunAwayHealth() const {
++	return runAwayHealth;
++}
++
++void Monster::setRunAwayHealth(int32_t value) {
++	runAwayHealth = value;
++}
++
+ bool Monster::isFleeing() const {
+ 	return !isSummon() && getHealth() <= runAwayHealth && challengeFocusDuration <= 0 && challengeMeleeDuration <= 0 && fatalHoldDuration <= 0;
+ }
+@@ -1089,6 +1099,8 @@ void Monster::onEndCondition(ConditionType_t type) {
+ }
+ 
+ void Monster::onThink(uint32_t interval) {
++	// Covers mType.onThink as well as CreatureEvent think (nested scope is fine).
++	InstanceActorScope instanceActorScope(getMonster());
+ 	Creature::onThink(interval);
+ 
+ 	if (mType->info.thinkEvent != -1) {
+@@ -1162,7 +1174,8 @@ void Monster::onThink(uint32_t interval) {
+ 			setFollowCreature(master);
+ 		}
+ 	} else if (!targetList.empty()) {
+-		const bool attackedCreatureIsDisconnected = attackedCreature && attackedCreature->getPlayer() && attackedCreature->getPlayer()->isDisconnected();
++		const auto &attackedPlayer = attackedCreature ? attackedCreature->getPlayer() : nullptr;
++		const bool attackedCreatureIsDisconnected = attackedPlayer && attackedPlayer->isDisconnected() && !attackedPlayer->keepsDisconnectedCombat();
+ 		const bool attackedCreatureIsUnattackable = attackedCreature && !canUseAttack(getPosition(), attackedCreature);
+ 		const bool attackedCreatureIsUnreachable = targetDistance <= 1 && attackedCreature && followCreature && !hasFollowPath;
+ 		if (!attackedCreature || attackedCreatureIsDisconnected || attackedCreatureIsUnattackable || attackedCreatureIsUnreachable) {
+@@ -1397,16 +1410,17 @@ void Monster::onThinkDefense(uint32_t interval) {
+ 				continue;
+ 			}
+ 
+-			const auto &summon = Monster::createMonster(summonName);
+-			if (summon && g_game().placeCreature(summon, getPosition(), false, summonForce)) {
+-				if (getSoulPit()) {
+-					const auto stack = getForgeStack();
+-					summon->setSoulPitStack(stack, true);
++			if (const auto &summon = Monster::createMonster(summonName)) {
++				if (g_game().placeCreature(summon, getPosition(), false, summonForce)) {
++					if (getSoulPit()) {
++						const auto stack = getForgeStack();
++						summon->setSoulPitStack(stack, true);
++					}
++					summon->setMaster(static_self_cast<Monster>(), true);
++					g_game().addMagicEffect(getPosition(), CONST_ME_MAGIC_BLUE);
++					g_game().addMagicEffect(summon->getPosition(), CONST_ME_TELEPORT);
++					g_game().sendSingleSoundEffect(summon->getPosition(), SoundEffect_t::MONSTER_SPELL_SUMMON, getMonster());
+ 				}
+-				summon->setMaster(static_self_cast<Monster>(), true);
+-				g_game().addMagicEffect(getPosition(), CONST_ME_MAGIC_BLUE);
+-				g_game().addMagicEffect(summon->getPosition(), CONST_ME_TELEPORT);
+-				g_game().sendSingleSoundEffect(summon->getPosition(), SoundEffect_t::MONSTER_SPELL_SUMMON, getMonster());
+ 			}
+ 		}
+ 	}
+@@ -2367,7 +2381,8 @@ bool Monster::canWalkTo(Position pos, Direction moveDirection) {
+ }
+ 
+ void Monster::death(const std::shared_ptr<Creature> &) {
+-	if (monsterForgeClassification > ForgeClassifications_t::FORGE_NORMAL_MONSTER) {
++	if (monsterForgeClassification > ForgeClassifications_t::FORGE_NORMAL_MONSTER
++	    && getInstanceId() < Game::INSTANCE_PRIVATE_BASE) {
+ 		g_game().removeForgeMonster(getID(), monsterForgeClassification, true);
+ 	}
+ 	const auto &attackedCreature = getAttackedCreature();
+@@ -2530,6 +2545,9 @@ void Monster::dropLoot(const std::shared_ptr<Container> &corpse, const std::shar
+ 			auto sliverCount = static_cast<uint16_t>(uniform_random(minSlivers, maxSlivers));
+ 
+ 			const auto &sliver = Item::CreateItem(ITEM_FORGE_SLIVER, sliverCount);
++			if (sliver) {
++				sliver->setInstanceId(getInstanceId());
++			}
+ 			if (g_game().internalAddItem(corpse, sliver) != RETURNVALUE_NOERROR) {
+ 				corpse->internalAddThing(sliver);
+ 			}
+@@ -2552,6 +2570,7 @@ void Monster::dropLoot(const std::shared_ptr<Container> &corpse, const std::shar
+ 				if (!newItem) {
+ 					continue;
+ 				}
++				newItem->setInstanceId(getInstanceId());
+ 
+ 				if (g_game().internalAddItem(corpse, newItem) != RETURNVALUE_NOERROR) {
+ 					corpse->internalAddThing(newItem);

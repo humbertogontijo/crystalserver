@@ -1,0 +1,2076 @@
+CombatAutomation = CombatAutomation or {}
+
+local statesByPlayerId = {}
+
+local function nowMs()
+	-- Wall-clock ms (OTSYS_TIME). os.clock() is CPU-time and stalls exhaust under load.
+	if type(systemTime) == "function" then
+		return math.floor(systemTime())
+	end
+	return math.floor(os.time() * 1000)
+end
+
+local function percentOf(current, maximum)
+	maximum = math.max(1, maximum or 1)
+	current = math.max(0, current or 0)
+	return math.floor((current / maximum) * 100)
+end
+
+local function spellGroup(slot)
+	if not slot or slot.kind ~= "spell" then
+		return nil
+	end
+	return CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
+end
+
+local function isHasteSpell(slot)
+	local words = tostring(slot and slot.words or ""):lower()
+	-- Haste / Strong Haste / Charge (utani*), plus Swift Foot.
+	return words:find("utani", 1, true) ~= nil or words == "utamo tempo san"
+end
+
+local function playerIsHasted(player)
+	return player and type(CONDITION_HASTE) == "number" and player:hasCondition(CONDITION_HASTE)
+end
+
+local function playerHasManaShield(player)
+	return player and type(CONDITION_MANASHIELD) == "number" and player:hasCondition(CONDITION_MANASHIELD)
+end
+
+local function playerInProtectionZone(player)
+	if not player or not player.getZoneType then
+		return false
+	end
+	local zoneProtection = ZONE_PROTECTION or 0
+	return player:getZoneType() == zoneProtection
+end
+
+-- Party buff spells: cast only while the caster is not already under that buff.
+local PARTY_BUFF_BY_WORDS = {
+	["utito mas sio"] = { condition = "attributes", subId = 1 }, -- Train Party
+	["utamo mas sio"] = { condition = "attributes", subId = 2 }, -- Protect Party
+	["utori mas sio"] = { condition = "attributes", subId = 3 }, -- Enchant Party
+	["utura mas sio"] = { condition = "regeneration", subId = 1 }, -- Heal Party
+	["utevo mas sio"] = { condition = "regeneration", subId = 3 }, -- Enlighten Party
+}
+
+local FAMILIAR_WORDS = {
+	["utevo gran res eq"] = true, -- Knight
+	["utevo gran res sac"] = true, -- Paladin
+	["utevo gran res dru"] = true, -- Druid
+	["utevo gran res ven"] = true, -- Sorcerer
+	["utevo gran res tio"] = true, -- Monk
+}
+
+local CHALLENGE_WORDS = {
+	["exeta res"] = "challenge", -- Challenge (adjacent)
+	["exeta amp res"] = "amp_challenge", -- Chivalrous: ranged or not adjacent
+	["exana amp res"] = "ranged_chain", -- Divine Dazzle
+	["exori mas res"] = "brawl", -- Balanced Brawl
+}
+
+-- Assigned after visibleMonsters / iterPartyPlayers (forward decl for slotShouldFire).
+local supportSlotShouldFire
+
+--- Attack/runes gate on monster count; stance/cripple/ammo/support ignore HP/mana triggers.
+local function slotIgnoresTriggerStat(slot)
+	if not slot then
+		return false
+	end
+	if slot.kind == "rune" or slot.kind == "ammo" then
+		return true
+	end
+	local group = spellGroup(slot)
+	if group == "attack" or group == "stance" or group == "support" then
+		return true
+	end
+	-- Crippling auras are catalogued as support but behave like stances.
+	local words = tostring(slot.words or ""):lower()
+	return words == "exori kor tempo" or words == "exori moe tempo"
+end
+
+--- HP % threshold for friend/area/self heals. Legacy "always"/mana → not full.
+local function healHpThreshold(slot)
+	local stat = slot and slot.triggerStat or "hp"
+	if stat == "always" or stat == "mana" then
+		return 99
+	end
+	return math.max(0, math.min(100, math.floor(tonumber(slot and slot.triggerPercent) or 0)))
+end
+
+--- Magic Shield (utamo vita): keep up when absent; respect Always / Mana % triggers.
+local function shieldSlotShouldFire(player, slot, hpPercent, manaPercent)
+	if not slot or slot.enabled == false then
+		return false
+	end
+	local words = tostring(slot.words or ""):lower()
+	if words ~= "utamo vita" then
+		return false
+	end
+	if playerHasManaShield(player) then
+		return false
+	end
+	local stat = slot.triggerStat or "always"
+	local threshold = slot.triggerPercent or 0
+	if stat == "always" then
+		return true
+	elseif stat == "mana" then
+		return manaPercent <= threshold
+	end
+	return true
+end
+
+local function slotShouldFire(slot, hpPercent, manaPercent, player)
+	if not slot or slot.enabled == false then
+		return false
+	end
+	local group = spellGroup(slot)
+	if group == "support" then
+		return supportSlotShouldFire(player, slot)
+	end
+	if group == "shield" then
+		return shieldSlotShouldFire(player, slot, hpPercent, manaPercent)
+	end
+	if slotIgnoresTriggerStat(slot) then
+		return true
+	end
+	-- Healing spells are always HP-threshold gated.
+	if group == "healing" then
+		return hpPercent <= healHpThreshold(slot)
+	end
+	local stat = slot.triggerStat or "hp"
+	local threshold = slot.triggerPercent or 0
+	if stat == "always" then
+		-- Legacy potion Always ≈ not full HP.
+		if slot.kind == "potion" then
+			return hpPercent <= 99
+		end
+		return true
+	elseif stat == "mana" then
+		return manaPercent <= threshold
+	end
+	return hpPercent <= threshold
+end
+
+local function isPartyHealSlot(slot)
+	if not slot or slot.kind ~= "spell" then
+		return false
+	end
+	local area = CombatAutomationConfig.SpellAreaById and CombatAutomationConfig.SpellAreaById[slot.spellId]
+	if area and area.kind == "friend" then
+		return true
+	end
+	local words = tostring(slot.words or ""):lower()
+	return words == "exura sio" or words == "exura gran sio" or words == "exura tio sio"
+end
+
+--- Mass heals (self-centered AoE) - Mass Healing / Mass Spirit Mend today.
+local function isAreaHealSlot(slot)
+	if not slot or slot.kind ~= "spell" then
+		return false
+	end
+	local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
+	if group ~= "healing" then
+		return false
+	end
+	local area = CombatAutomationConfig.SpellAreaById and CombatAutomationConfig.SpellAreaById[slot.spellId]
+	if not area or area.kind ~= "self" then
+		return false
+	end
+	local radius = math.max(0, tonumber(area.radius) or 0)
+	return radius > 0 and (area.shape == "circle" or area.shape == "square")
+end
+
+local function iterPartyPlayers(player)
+	local out = {}
+	if not player then
+		return out
+	end
+	local party = player:getParty()
+	if not party then
+		return out
+	end
+	local seen = {}
+	local function push(member)
+		if not member or not member:isPlayer() then
+			return
+		end
+		local mid = member:getId()
+		if not mid or seen[mid] then
+			return
+		end
+		seen[mid] = true
+		out[#out + 1] = member
+	end
+	for _, member in ipairs(party:getMembers() or {}) do
+		push(member)
+	end
+	push(party:getLeader())
+	return out
+end
+
+--- Player who owns this creature for combat alliance (self, or summon master).
+function CombatAutomation.controllingPlayer(creature)
+	if not creature then
+		return nil
+	end
+	if creature.isPlayer and creature:isPlayer() then
+		return creature
+	end
+	local master = creature.getMaster and creature:getMaster() or nil
+	if master and master.isPlayer and master:isPlayer() then
+		return master
+	end
+	return nil
+end
+
+local function partyProtectionEnabled()
+	if isRetroPVP() then
+		return configManager.getBoolean(configKeys.ADVANCED_PARTY_PROTECTION)
+	end
+	return true
+end
+
+local function sameParty(a, b)
+	if not a or not b or not partyProtectionEnabled() then
+		return false
+	end
+	local pa = a.getParty and a:getParty() or nil
+	local pb = b.getParty and b:getParty() or nil
+	return pa ~= nil and pa == pb
+end
+
+local function sameExpedition(a, b)
+	if not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
+		return false
+	end
+	local sa = ExpeditionManager.getSessionByPlayer(a)
+	local sb = ExpeditionManager.getSessionByPlayer(b)
+	return sa ~= nil and sa == sb
+end
+
+local function sameTeamDeployment(a, b)
+	if not TeamManager then
+		return false
+	end
+	local aid, bid = a:getId(), b:getId()
+	if TeamManager.getDeployment then
+		local da = TeamManager.getDeployment(a)
+		if da then
+			for _, id in ipairs(da.companionIds or {}) do
+				if id == bid then
+					return true
+				end
+			end
+		end
+		local db = TeamManager.getDeployment(b)
+		if db then
+			for _, id in ipairs(db.companionIds or {}) do
+				if id == aid then
+					return true
+				end
+			end
+		end
+	end
+	if not TeamConfig or not a.getStorageValue then
+		return false
+	end
+	local key = TeamConfig.STORAGE_COMPANION_CONTROLLER
+	local ga = a:getStorageValue(key)
+	local gb = b:getStorageValue(key)
+	if ga and ga > 0 and gb and gb > 0 and ga == gb then
+		return true
+	end
+	if ga and ga > 0 and b.getGuid and ga == b:getGuid() then
+		return true
+	end
+	if gb and gb > 0 and a.getGuid and gb == a:getGuid() then
+		return true
+	end
+	return false
+end
+
+--- True when two players share a party, expedition, or account-team deployment.
+function CombatAutomation.isAlliedPlayer(a, b)
+	if not a or not b then
+		return false
+	end
+	if a:getId() == b:getId() then
+		return true
+	end
+	if not a.isPlayer or not a:isPlayer() or not b.isPlayer or not b:isPlayer() then
+		return false
+	end
+	return sameParty(a, b) or sameExpedition(a, b) or sameTeamDeployment(a, b)
+end
+
+--- Lowest-HP party member (not self) at/under the slot HP threshold, same floor.
+--- Returns the Player userdata or nil.
+local function pickPartyHealTarget(player, slot)
+	if not player or not slot then
+		return nil
+	end
+	local threshold = healHpThreshold(slot)
+	local casterId = player:getId()
+	local origin = player:getPosition()
+	local best, bestPct
+	for _, member in ipairs(iterPartyPlayers(player)) do
+		if member:getId() ~= casterId and member:getHealth() > 0 then
+			local pos = member:getPosition()
+			if pos and origin and pos.z == origin.z then
+				local pct = percentOf(member:getHealth(), member:getMaxHealth())
+				if pct <= threshold and (not bestPct or pct < bestPct) then
+					best, bestPct = member, pct
+				end
+			end
+		end
+	end
+	return best
+end
+
+--- Charge NPC buy price from inventory gold, then bank (same economics as NPC buy).
+--- Uses Player:removeMoney (useBank=true) so Canary syncs resource-balance packets to the client.
+--- Config price 0 = free (still succeeds). Missing price = refuse.
+local function chargeNpcBuyPrice(player, typeId)
+	local price = CombatAutomationConfig.NpcBuyPriceByTypeId and CombatAutomationConfig.NpcBuyPriceByTypeId[typeId]
+	-- Prefer live NPC shop registry when available (clientId == typeId for these supplies),
+	-- unless config explicitly marks the supply free (price 0).
+	if price ~= 0 and NpcPriceChecker and NpcPriceChecker[typeId] and NpcPriceChecker[typeId].buy then
+		price = NpcPriceChecker[typeId].buy
+	end
+	if price == nil then
+		return false
+	end
+	price = math.floor(tonumber(price) or 0)
+	if price <= 0 then
+		return true
+	end
+	local inventoryMoney = player:getMoney() or 0
+	local bankBalance = player:getBankBalance() or 0
+	if price > (inventoryMoney + bankBalance) then
+		return false
+	end
+	return player:removeMoney(price)
+end
+
+local function expeditionSession(player)
+	if not player or not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
+		return nil
+	end
+	return ExpeditionManager.getSessionByPlayer(player)
+end
+
+local function abortExpedition(player, reason)
+	local session = expeditionSession(player)
+	if session and ExpeditionManager.abort then
+		ExpeditionManager.abort(session, reason)
+	end
+end
+
+--- Prefer consuming an inventory stack; otherwise charge NPC buy price from this character.
+local function consumeSupply(player, typeId)
+	local item = player:getItemById(typeId, true)
+	if item then
+		-- OTC supply analyser is driven by 0xCE; notify before remove.
+		player:updateSupplyTracker(item)
+		if not item:remove(1) then
+			return false
+		end
+		return true
+	end
+	if not chargeNpcBuyPrice(player, typeId) then
+		local session = expeditionSession(player)
+		if session and session.stopOnInsufficientGold then
+			abortExpedition(
+				player,
+				string.format("%s ran out of gold for supplies. Expedition stopped.", player:getName())
+			)
+		end
+		return false
+	end
+	local tmp = Game.createItem(typeId, 1)
+	if tmp then
+		player:updateSupplyTracker(tmp)
+	end
+	return true
+end
+
+local function getEquippedQuiver(player)
+	local right = player:getSlotItem(CONST_SLOT_RIGHT)
+	if not right then
+		return nil
+	end
+	local it = ItemType(right:getId())
+	if it and it.isQuiver and it:isQuiver() then
+		return right
+	end
+	return nil
+end
+
+--- True when configured ammo is already usable by getQuiverAmmoOfType (ammo slot or quiver).
+local function ammoIsReady(player, typeId)
+	local slotAmmo = player:getSlotItem(CONST_SLOT_AMMO)
+	if slotAmmo and slotAmmo:getId() == typeId and (slotAmmo:getCount() or 0) > 0 then
+		return true
+	end
+	local quiver = getEquippedQuiver(player)
+	if quiver and quiver.getItemCountById and (quiver:getItemCountById(typeId) or 0) > 0 then
+		return true
+	end
+	return false
+end
+
+local function clearAmmoSlotIfWrong(player, typeId)
+	local current = player:getSlotItem(CONST_SLOT_AMMO)
+	if not current or current:getId() == typeId then
+		return true
+	end
+	local bp = player:getSlotItem(CONST_SLOT_BACKPACK)
+	if bp and current.moveTo then
+		return current:moveTo(bp) == true
+	end
+	return false
+end
+
+local function addItemReturnOk(ret)
+	return ret == RETURNVALUE_NOERROR or ret == 0
+end
+
+local function canCarryAmmo(player, typeId, count)
+	if not player or not player.getFreeCapacity then
+		return true
+	end
+	local it = ItemType(typeId)
+	local weight = 0
+	if it and it.getWeight then
+		weight = tonumber(it:getWeight(count)) or 0
+	end
+	return weight <= (player:getFreeCapacity() or 0)
+end
+
+--- Spawn ammo into quiver/backpack. When ignoreCap, use FLAG_NOLIMIT (gold-gated restock).
+--- Direct player-slot adds do not honor FLAG_NOLIMIT for cap, so park via a container first.
+local function spawnAmmo(player, typeId, count, ignoreCap)
+	local item = Game.createItem(typeId, count)
+	if not item then
+		return false
+	end
+	local flags = ignoreCap and FLAG_NOLIMIT or 0
+
+	local quiver = getEquippedQuiver(player)
+	if quiver and quiver.addItemEx and addItemReturnOk(quiver:addItemEx(item, -1, flags)) then
+		return true
+	end
+
+	-- Classic ammo slot: FLAG_NOLIMIT only skips cap on container→player (FLAG_CHILDISOWNER).
+	local bp = player:getSlotItem(CONST_SLOT_BACKPACK)
+	if bp and bp.addItemEx and addItemReturnOk(bp:addItemEx(item, -1, flags)) then
+		if clearAmmoSlotIfWrong(player, typeId) and item.moveToSlot and item:moveToSlot(player, CONST_SLOT_AMMO) then
+			return true
+		end
+		-- Left in backpack; next tick can move it into the ammo slot.
+		return player:getItemById(typeId, true) ~= nil
+	end
+
+	return false
+end
+
+--- Move existing configured ammo into quiver (preferred) or classic ammo slot.
+--- When createMissing, spawn `count` units (caller already charged gold if needed).
+local function placeConfiguredAmmo(player, typeId, createMissing, count, ignoreCap)
+	count = math.max(1, math.floor(tonumber(count) or 1))
+	if ammoIsReady(player, typeId) then
+		return true
+	end
+
+	local quiver = getEquippedQuiver(player)
+	local fromInv = player:getItemById(typeId, true)
+	if fromInv then
+		if quiver and fromInv.moveTo and fromInv:moveTo(quiver) then
+			return ammoIsReady(player, typeId)
+		end
+		if clearAmmoSlotIfWrong(player, typeId) and fromInv.moveToSlot and fromInv:moveToSlot(player, CONST_SLOT_AMMO) then
+			return ammoIsReady(player, typeId)
+		end
+	end
+
+	if not createMissing then
+		return false
+	end
+
+	if ignoreCap == false and not canCarryAmmo(player, typeId, count) then
+		return false
+	end
+	return spawnAmmo(player, typeId, count, ignoreCap ~= false)
+end
+
+--- Configured ammo typeId from automation slots / legacy field.
+local function preferredAmmoTypeId(config)
+	if type(config) ~= "table" then
+		return 0
+	end
+	for _, slot in ipairs(config.slots or {}) do
+		if slot.kind == "ammo" and slot.enabled ~= false then
+			local id = math.floor(tonumber(slot.ammoTypeId) or 0)
+			if id > 0 then
+				return id
+			end
+		end
+	end
+	return math.floor(tonumber(config.ammoTypeId) or 0)
+end
+
+--- Keep configured ammo ready for distance attacks.
+--- Inventory first for that typeId only; if missing, charge NPC buy price then spawn one.
+local function ensureAmmo(player, config)
+	if not player or not CombatAutomationCatalog or not CombatAutomationCatalog.isPaladin(player) then
+		return
+	end
+	local configured = preferredAmmoTypeId(config)
+	local typeId = select(1, CombatAutomationCatalog.resolveAmmoTypeId(player, configured))
+	typeId = math.floor(tonumber(typeId) or 0)
+	if typeId <= 0 then
+		return
+	end
+
+	if ammoIsReady(player, typeId) then
+		return
+	end
+
+	local session = expeditionSession(player)
+	local respectCap = session and session.stopOnInsufficientCap == true
+
+	-- Only the configured type counts as "have ammo"; never substitute another arrow/bolt.
+	if player:getItemById(typeId, true) then
+		if placeConfiguredAmmo(player, typeId, false) then
+			return
+		end
+	end
+
+	-- No physical ammo of this type: charge this character's gold, then equip one.
+	-- Do not use consumeSupply - that would double-count supply tracker when the weapon consumes it.
+	if respectCap and not canCarryAmmo(player, typeId, 1) then
+		abortExpedition(
+			player,
+			string.format("%s has insufficient capacity for ammo. Expedition stopped.", player:getName())
+		)
+		return
+	end
+	if not chargeNpcBuyPrice(player, typeId) then
+		if session and session.stopOnInsufficientGold then
+			abortExpedition(
+				player,
+				string.format("%s ran out of gold for ammo. Expedition stopped.", player:getName())
+			)
+		end
+		return
+	end
+	-- Default: ignore cap (gold-gated). stopOnInsufficientCap → already verified weight above.
+	if not placeConfiguredAmmo(player, typeId, true, 1, not respectCap) then
+		if respectCap then
+			abortExpedition(
+				player,
+				string.format("%s has insufficient capacity for ammo. Expedition stopped.", player:getName())
+			)
+		end
+	end
+end
+
+local function usePotion(player, typeId)
+	local effect = CombatAutomationConfig.PotionEffects and CombatAutomationConfig.PotionEffects[typeId]
+	if not effect then
+		return false
+	end
+	if not consumeSupply(player, typeId) then
+		return false
+	end
+	if effect.health then
+		doTargetCombatHealth(player, player, COMBAT_HEALING, effect.health[1], effect.health[2], CONST_ME_MAGIC_BLUE)
+	end
+	if effect.mana then
+		doTargetCombatMana(0, player, effect.mana[1], effect.mana[2], CONST_ME_MAGIC_BLUE)
+	end
+	local pos = player:getPosition()
+	local instanceId = player.getInstanceId and player:getInstanceId() or nil
+	if instanceId ~= nil and Game.getSpectators then
+		local specs = Game.getSpectators(pos, true, true, 0, 0, 0, 0, instanceId)
+		if type(specs) == "table" then
+			for _, spec in ipairs(specs) do
+				if spec then
+					pos:sendMagicEffect(CONST_ME_MAGIC_BLUE, spec)
+				end
+			end
+		end
+	else
+		pos:sendMagicEffect(CONST_ME_MAGIC_BLUE)
+	end
+	return true
+end
+
+-- Approximate AoE radius for monsterCount gating only.
+-- Real damage/area/FX come from apps/crystalserver/data/scripts/runes/*.lua via player:castRune.
+local RuneAreaRangeByTypeId = {
+	[21351] = 1, -- light stone shower (CIRCLE1X1)
+	[3161] = 3, -- avalanche (CIRCLE3X3)
+	[3175] = 3, -- stone shower
+	[3191] = 3, -- great fireball
+	[3200] = 1, -- explosion (SQUARE1X1)
+	[3202] = 3, -- thunderstorm
+}
+
+local function runeWords(typeId)
+	local map = CombatAutomationConfig.RuneWordsByTypeId
+	if map and map[typeId] then
+		return map[typeId]
+	end
+	return ""
+end
+
+-- Soft backoff after a cast that still failed (mana/weapon/range/etc.) so we do not
+-- spam CONST_ME_POFF every TICK_MS. Spell/group CDs are checked before cast instead.
+-- Keep this short (one tick) so transient range/LOS misses recover quickly.
+local CAST_FAIL_BACKOFF_MS = CombatAutomationConfig.TICK_MS or 100
+
+local function getInstantSpell(words)
+	if type(words) ~= "string" or words == "" then
+		return nil
+	end
+	local ok, spell = pcall(Spell, words)
+	if ok and spell then
+		return spell
+	end
+	return nil
+end
+
+local function spellExhaustMs(words)
+	local spell = getInstantSpell(words)
+	if spell then
+		local cd = spell:cooldown()
+		if type(cd) == "number" and cd > 0 then
+			return cd
+		end
+	end
+	local mapped = CombatAutomationConfig.SpellCooldownMsByWords and CombatAutomationConfig.SpellCooldownMsByWords[words]
+	if type(mapped) == "number" and mapped > 0 then
+		return mapped
+	end
+	return CombatAutomationConfig.SPELL_EXHAUST_MS or 2000
+end
+
+local function getRuneSpell(typeId)
+	local ok, spell = pcall(Spell, typeId)
+	if ok and spell then
+		return spell
+	end
+	return nil
+end
+
+local function runeExhaustMs(typeId)
+	local spell = getRuneSpell(typeId)
+	if spell then
+		local cd = spell:cooldown()
+		if type(cd) == "number" and cd > 0 then
+			return cd
+		end
+	end
+	return CombatAutomationConfig.RUNE_EXHAUST_MS or 2000
+end
+
+--- Mirror Spell::playerSpellCheck cooldown gates (spells.cpp) without casting.
+--- Casting while exhausted triggers CONST_ME_POFF; skip silently instead.
+local function playerSpellOnCooldown(player, spell)
+	if not player or not spell then
+		return true
+	end
+	if type(CONDITION_SPELLCOOLDOWN) ~= "number" or type(CONDITION_SPELLGROUPCOOLDOWN) ~= "number" then
+		return false
+	end
+	local spellId = spell:id()
+	if type(spellId) == "number" and spellId > 0 and player:hasCondition(CONDITION_SPELLCOOLDOWN, spellId) then
+		return true
+	end
+	local group, secondaryGroup = spell:group()
+	if type(group) == "number" and group > 0 and player:hasCondition(CONDITION_SPELLGROUPCOOLDOWN, group) then
+		return true
+	end
+	if type(secondaryGroup) == "number" and secondaryGroup > 0 and player:hasCondition(CONDITION_SPELLGROUPCOOLDOWN, secondaryGroup) then
+		return true
+	end
+	return false
+end
+
+local function spellMethod(spell, method)
+	if not spell or type(spell[method]) ~= "function" then
+		return nil
+	end
+	local ok, value = pcall(spell[method], spell)
+	if not ok then
+		return nil
+	end
+	return value
+end
+
+--- Silent mirror of InstantSpell::playerSpellCheck / playerCastInstant gates.
+--- The engine versions send cancel + POFF; skip those casts instead.
+local function playerCanAttemptSpell(player, spell)
+	if not player or not spell then
+		return false
+	end
+	if playerSpellOnCooldown(player, spell) then
+		return false
+	end
+	if type(CONDITION_FEARED) == "number" and player:hasCondition(CONDITION_FEARED) then
+		return false
+	end
+	local level = spellMethod(spell, "level")
+	if type(level) == "number" and level > 0 and player:getLevel() < level then
+		return false
+	end
+	local magLevel = spellMethod(spell, "magicLevel")
+	if type(magLevel) == "number" and magLevel > 0 and player.getMagicLevel and player:getMagicLevel() < magLevel then
+		return false
+	end
+	local mana = spellMethod(spell, "mana")
+	if type(mana) == "number" and mana > 0 and player:getMana() < mana then
+		return false
+	end
+	local soul = spellMethod(spell, "soul")
+	if type(soul) == "number" and soul > 0 and player.getSoul and player:getSoul() < soul then
+		return false
+	end
+	if spellMethod(spell, "harmony") == true and player.getHarmony and (player:getHarmony() or 0) <= 0 then
+		return false
+	end
+	if spellMethod(spell, "isAggressive") == true then
+		local zoneProtection = ZONE_PROTECTION or 0
+		if player.getZoneType and player:getZoneType() == zoneProtection then
+			return false
+		end
+		if type(CONDITION_PACIFIED) == "number" and player:hasCondition(CONDITION_PACIFIED) then
+			return false
+		end
+	end
+	-- needTarget without casterTargetOrDirection: engine cancel "you can only use it on creatures".
+	local needTarget = spellMethod(spell, "needTarget") == true
+	local casterOrDir = spellMethod(spell, "needCasterTargetOrDirection") == true
+	if needTarget and not casterOrDir then
+		local target = player.getTarget and player:getTarget()
+		if not target or (target.getHealth and target:getHealth() <= 0) then
+			return false
+		end
+		local range = spellMethod(spell, "range")
+		if type(range) == "number" and range >= 0 then
+			local fromPos = player:getPosition()
+			local toPos = target.getPosition and target:getPosition()
+			if not fromPos or not toPos or fromPos.z ~= toPos.z then
+				return false
+			end
+			local dx = math.abs((fromPos.x or 0) - (toPos.x or 0))
+			local dy = math.abs((fromPos.y or 0) - (toPos.y or 0))
+			if math.max(dx, dy) > range then
+				return false
+			end
+			if spellMethod(spell, "isBlockingWalls") == true and fromPos.isSightClear then
+				local instanceId = player.getInstanceId and player:getInstanceId() or 0
+				if not fromPos:isSightClear(toPos, true, instanceId) then
+					return false
+				end
+			end
+		end
+	end
+	return true
+end
+
+-- Canary `lua_enums.cpp` does not register TALKTYPE_SPELL_USE, so the global is nil and
+-- `creature:say` falls back to TALKTYPE_MONSTER_SAY (looks like a regular/monster line).
+-- Wire value matches SpeakClasses::TALKTYPE_SPELL_USE / OTC MessageSpell = 9.
+local TALKTYPE_SPELL_USE_WIRE = 9
+
+local function notifyAutomationCast(player, slot, words, label, exhaustMs)
+	if words and words ~= "" then
+		pcall(function()
+			player:say(words, TALKTYPE_SPELL_USE_WIRE)
+		end)
+	end
+	local payload = {
+		slotId = slot and slot.id or "",
+		kind = slot and slot.kind or "",
+		words = words or "",
+		label = label or words or "",
+		exhaustMs = exhaustMs or 0,
+		caster = player and player:getName() or "",
+	}
+	local function sendCast(target)
+		if not target then
+			return
+		end
+		if CombatAutomationProtocol and CombatAutomationProtocol.sendCast then
+			CombatAutomationProtocol.sendCast(target, payload)
+		elseif ExpeditionProtocol and ExpeditionProtocol.sendAutomationCast then
+			ExpeditionProtocol.sendAutomationCast(target, payload)
+		end
+	end
+	sendCast(player)
+	-- Headless companions have no client; relay to expedition host so the cast flash is visible.
+	if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player) then
+		local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+		if session and session.playerId and session.playerId ~= player:getId() then
+			sendCast(Player(session.playerId))
+		end
+	end
+end
+
+local function useRune(player, typeId)
+	if not CombatAutomationConfig.AllowedRunes or not CombatAutomationConfig.AllowedRunes[typeId] then
+		return false
+	end
+	if CombatAutomationCatalog and CombatAutomationCatalog.runeAllowedForPlayer then
+		if not CombatAutomationCatalog.runeAllowedForPlayer(typeId, player) then
+			return false
+		end
+	end
+	local target = player:getTarget()
+	if not target then
+		return false
+	end
+	if not player.castRune then
+		return false
+	end
+	if not consumeSupply(player, typeId) then
+		return false
+	end
+	-- Real rune script on the current target (correct area / distance / impact FX).
+	local ok, result = pcall(function()
+		return player:castRune(typeId, target)
+	end)
+	return ok and result == true
+end
+
+--- Returns: "cast" | "skip" | "fail"
+--- skip = not ready / gated (group CD after an attack spell, etc.).
+local function tryUseRune(player, typeId)
+	if not CombatAutomationConfig.AllowedRunes or not CombatAutomationConfig.AllowedRunes[typeId] then
+		return "skip"
+	end
+	if CombatAutomationCatalog and CombatAutomationCatalog.runeAllowedForPlayer then
+		if not CombatAutomationCatalog.runeAllowedForPlayer(typeId, player) then
+			return "skip"
+		end
+	end
+	if not player:getTarget() then
+		return "skip"
+	end
+	if not player.castRune then
+		return "skip"
+	end
+	local spell = getRuneSpell(typeId)
+	if spell and playerSpellOnCooldown(player, spell) then
+		return "skip"
+	end
+	if useRune(player, typeId) then
+		return "cast"
+	end
+	return "fail"
+end
+
+-- Script onCastSpell checks (no ranged monsters, no party, need shield, ...) are not
+-- on InstantSpell. Swallow cancel + POFF for an automation attempt.
+-- Hooks must be installed lazily: this file loads from datapack lib.lua, which
+-- core.lua dofiles BEFORE libs/functions/player.lua defines sendCancelMessage.
+local silentCastDepth = 0
+local silentCastPlayerIds = {}
+
+local function silentCastPlayerId(self)
+	return self and self.getId and self:getId() or nil
+end
+
+local function installSilentCastHooks()
+	if type(Player) == "table" then
+		if type(Player.sendCancelMessage) == "function" and not Player._automationSilentCancelWrapped then
+			local raw = Player.sendCancelMessage
+			Player.sendCancelMessage = function(self, message)
+				local id = silentCastPlayerId(self)
+				if id and silentCastPlayerIds[id] then
+					return true
+				end
+				return raw(self, message)
+			end
+			Player._automationSilentCancelWrapped = true
+		end
+		-- Player.sendCancelMessage is a Lua helper that calls sendTextMessage.
+		if type(Player.sendTextMessage) == "function" and not Player._automationSilentTextWrapped then
+			local raw = Player.sendTextMessage
+			Player.sendTextMessage = function(self, msgType, message, ...)
+				local id = silentCastPlayerId(self)
+				if id and silentCastPlayerIds[id] and msgType == MESSAGE_FAILURE then
+					return true
+				end
+				return raw(self, msgType, message, ...)
+			end
+			Player._automationSilentTextWrapped = true
+		end
+	end
+	if type(Position) == "table" and type(Position.sendMagicEffect) == "function" and not Position._automationSilentPoffWrapped then
+		local raw = Position.sendMagicEffect
+		Position.sendMagicEffect = function(self, effect, ...)
+			if silentCastDepth > 0 and effect == CONST_ME_POFF then
+				return true
+			end
+			return raw(self, effect, ...)
+		end
+		Position._automationSilentPoffWrapped = true
+	end
+end
+
+local function withSilentCast(player, fn)
+	installSilentCastHooks()
+	local id = silentCastPlayerId(player)
+	if id then
+		silentCastPlayerIds[id] = true
+	end
+	silentCastDepth = silentCastDepth + 1
+	local ok, result = pcall(fn)
+	silentCastDepth = silentCastDepth - 1
+	if id then
+		silentCastPlayerIds[id] = nil
+	end
+	if not ok then
+		return false
+	end
+	return result
+end
+
+--- Returns: "cast" | "skip" | "fail"
+--- skip = not ready / gated (no attempt). fail = script/engine rejected; cancel+POFF swallowed.
+--- param: optional player-name for friend/party heals (exura sio).
+local function tryCastSpellWords(player, words, param)
+	if type(words) ~= "string" or words == "" then
+		return "skip"
+	end
+	if not CombatAutomationConfig.AllowedSpellWords[words] then
+		return "skip"
+	end
+	-- Fail closed on vocation/level even if a stale slot slipped into KV.
+	local catalogId = nil
+	for id, mapped in pairs(CombatAutomationConfig.SpellWordsById or {}) do
+		if mapped == words then
+			catalogId = id
+			break
+		end
+	end
+	if catalogId and CombatAutomationCatalog and CombatAutomationCatalog.spellAllowedForPlayer then
+		if not CombatAutomationCatalog.spellAllowedForPlayer(catalogId, player) then
+			return "skip"
+		end
+	end
+
+	local spell = getInstantSpell(words)
+	if spell and not playerCanAttemptSpell(player, spell) then
+		return "skip"
+	end
+
+	if SampleSpells and SampleSpells.ensureWords then
+		SampleSpells.ensureWords(player, words)
+	end
+	-- Re-check after ensureWords in case learning/equipment changed nothing about CD.
+	if spell and playerSpellOnCooldown(player, spell) then
+		return "skip"
+	end
+
+	local result = withSilentCast(player, function()
+		if type(param) == "string" and param ~= "" then
+			return player:castSpell(words, param)
+		end
+		return player:castSpell(words)
+	end)
+	if result == true then
+		return "cast"
+	end
+	return "fail"
+end
+
+local function spellRank(slot)
+	local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
+	if group == "healing" then
+		return 0
+	end
+	if group == "support" or group == "shield" or group == "stance" then
+		return 1
+	end
+	if group == "attack" then
+		return 2
+	end
+	-- Legacy fallback for configs generated before SpellGroupById.
+	local words = slot.words or ""
+	if words:find("exura", 1, true) then
+		return 0
+	end
+	if words == "utamo vita" then
+		return 1
+	end
+	if words:find("utani", 1, true) then
+		return 1
+	end
+	return 2
+end
+
+-- Crystal stance spells toggle off when re-cast. Map words → channel + Stance_t value
+-- (see creatures_definitions.hpp Stance_t). Primary: getStance(); elemental: getElementalStance().
+-- Monk virtues use VirtueMonk_t via getVirtue() (not Stance_t); they do not toggle off on re-cast.
+local STANCE_BY_WORDS = {
+	["utamo tempo"] = { id = 1, elemental = false }, -- STANCE_PROTECTOR
+	["utito tempo"] = { id = 2, elemental = false }, -- STANCE_BLOOD_RAGE
+	["utori hur"] = { id = 3, elemental = false }, -- STANCE_DIVINE_DEFIANCE
+	["utori con"] = { id = 4, elemental = false }, -- STANCE_SHARPSHOOTER
+	["exori kor tempo"] = { id = 5, elemental = false }, -- STANCE_EXPOSE_WEAKNESS
+	["exori moe tempo"] = { id = 6, elemental = false }, -- STANCE_SAP_STRENGTH
+	["uteta flam"] = { id = 7, elemental = true }, -- STANCE_MASTER_OF_FLAMES
+	["uteta vis"] = { id = 8, elemental = true }, -- STANCE_MASTER_OF_THUNDER
+	["uteta mort"] = { id = 9, elemental = true }, -- STANCE_MASTER_OF_DECAY
+	["utura sio"] = { id = 10, elemental = false }, -- STANCE_SHARED_CONSERVATION
+	["utito dru"] = { id = 11, elemental = false }, -- STANCE_ELEMENTAL_SYNTHESIS
+	["utori virtu"] = { id = 1, elemental = false, virtue = true }, -- VIRTUE_HARMONY
+	["utito virtu"] = { id = 2, elemental = false, virtue = true }, -- VIRTUE_JUSTICE
+	["utura tio"] = { id = 3, elemental = false, virtue = true }, -- VIRTUE_SUSTAIN
+}
+
+local function stanceInfoForWords(words)
+	return STANCE_BY_WORDS[tostring(words or ""):lower()]
+end
+
+local function currentStanceValue(player, info)
+	if not player or not info then
+		return nil
+	end
+	if info.virtue then
+		if player.getVirtue then
+			return player:getVirtue()
+		end
+		return nil
+	end
+	if info.elemental then
+		if player.getElementalStance then
+			return player:getElementalStance()
+		end
+		return nil
+	end
+	if player.getStance then
+		return player:getStance()
+	end
+	return nil
+end
+
+--- Skip stance casts that would toggle off or thrash exclusive channels.
+--- Only the highest-priority configured stance per channel may cast; once active, leave it.
+local function shouldSkipStanceCast(player, words, preferredByChannel)
+	local info = stanceInfoForWords(words)
+	if not info then
+		return false
+	end
+	local channel = info.elemental and "elemental" or "primary"
+	local preferred = preferredByChannel and preferredByChannel[channel]
+	if preferred and preferred ~= words then
+		return true
+	end
+	local current = currentStanceValue(player, info)
+	if current == nil then
+		return false
+	end
+	local none = 0
+	if info.virtue then
+		none = (VIRTUE_NONE ~= nil and VIRTUE_NONE) or 0
+	else
+		none = (STANCE_NONE ~= nil and STANCE_NONE) or 0
+	end
+	if current == none then
+		return false
+	end
+	-- Already this stance/virtue - do not re-cast (stances toggle off; virtues waste mana).
+	return current == info.id
+end
+
+local function preferredStanceWordsByChannel(slots)
+	local preferred = {}
+	for _, slot in ipairs(slots) do
+		if slot and slot.enabled ~= false and slot.kind == "spell" then
+			local words = slot.words or ""
+			local info = stanceInfoForWords(words)
+			if info then
+				local channel = info.elemental and "elemental" or "primary"
+				if not preferred[channel] then
+					preferred[channel] = words
+				end
+			end
+		end
+	end
+	return preferred
+end
+
+local function tileDistance(a, b)
+	if not a or not b or a.z ~= b.z then
+		return math.huge
+	end
+	return math.max(math.abs(a.x - b.x), math.abs(a.y - b.y))
+end
+
+-- Squared Euclidean tile distance for auto-target sorting.
+-- Ordering: 1 orthogonal (1) < 1 diagonal (2) < 2 orthogonal (4).
+local function sortDistanceSquared(a, b)
+	if not a or not b or a.z ~= b.z then
+		return math.huge
+	end
+	local dx = math.abs(a.x - b.x)
+	local dy = math.abs(a.y - b.y)
+	return dx * dx + dy * dy
+end
+
+--- True when the player can open combat on this creature (PZ, attackable, clear LOS).
+--- Mirrors the constraints Combat::canTargetCreature enforces for monsters, plus
+--- isSightClear so we skip targets behind walls (engine still allows setTarget without LOS).
+--- Player summons (familiars) are never auto-targets - party protection is player-vs-player only.
+function CombatAutomation.isValidAttackTarget(player, creature)
+	if not player or not creature then
+		return false
+	end
+	if creature:isRemoved() or not creature:isMonster() or creature:getHealth() <= 0 then
+		return false
+	end
+
+	local master = creature.getMaster and creature:getMaster() or nil
+	if master and master.isPlayer and master:isPlayer() then
+		return false
+	end
+
+	local zoneProtection = ZONE_PROTECTION or 0
+	if player:getZoneType() == zoneProtection then
+		return false
+	end
+	if creature:getZoneType() == zoneProtection then
+		return false
+	end
+
+	local mType = creature.getType and creature:getType()
+	if mType and mType.isAttackable and not mType:isAttackable() then
+		return false
+	end
+
+	if player.getInstanceId and creature.getInstanceId and player:getInstanceId() ~= creature:getInstanceId() then
+		return false
+	end
+
+	local fromPos = player:getPosition()
+	local toPos = creature:getPosition()
+	if not fromPos or not toPos or fromPos.z ~= toPos.z then
+		return false
+	end
+	local instanceId = player.getInstanceId and player:getInstanceId() or 0
+	-- Wall / blockage between tiles (same check player melee/ranged uses on each attack tick).
+	if fromPos.isSightClear and not fromPos:isSightClear(toPos, true, instanceId) then
+		return false
+	end
+
+	local tile = creature:getTile()
+	if tile and tile.hasProperty and CONST_PROP_BLOCKPROJECTILE and tile:hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId) then
+		return false
+	end
+
+	return true
+end
+
+-- Per-tick cache: monster-count + challenge checks used to rescan spectators per slot.
+local tickVisibleMonsters = nil
+
+local function computeVisibleMonsters(player)
+	local result = {}
+	local playerPos = player:getPosition()
+	local spectators = Game.getSpectators(playerPos, false, false, 8, 8, 6, 6, player.getInstanceId and player:getInstanceId() or nil)
+	for _, creature in ipairs(spectators) do
+		if CombatAutomation.isValidAttackTarget(player, creature) then
+			result[#result + 1] = creature
+		end
+	end
+	return result
+end
+
+local function visibleMonsters(player)
+	if tickVisibleMonsters ~= nil then
+		return tickVisibleMonsters
+	end
+	return computeVisibleMonsters(player)
+end
+
+local function partyBuffConditionType(kind)
+	if kind == "attributes" and type(CONDITION_ATTRIBUTES) == "number" then
+		return CONDITION_ATTRIBUTES
+	end
+	if kind == "regeneration" and type(CONDITION_REGENERATION) == "number" then
+		return CONDITION_REGENERATION
+	end
+	return nil
+end
+
+local function playerHasPartyBuff(player, words)
+	local info = PARTY_BUFF_BY_WORDS[words]
+	if not info or not player then
+		return false
+	end
+	local conditionType = partyBuffConditionType(info.condition)
+	if not conditionType then
+		return false
+	end
+	return player:hasCondition(conditionType, info.subId)
+end
+
+local function partyMembersInRange(player, maxDistance)
+	local out = {}
+	local origin = player and player:getPosition()
+	if not origin then
+		return out
+	end
+	maxDistance = math.max(1, math.floor(tonumber(maxDistance) or 36))
+	for _, member in ipairs(iterPartyPlayers(player)) do
+		local pos = member:getPosition()
+		if pos and pos:getDistance(origin) <= maxDistance then
+			out[#out + 1] = member
+		end
+	end
+	return out
+end
+
+local function playerHasFamiliarSummon(player)
+	if not player or not player.getSummons then
+		return false
+	end
+	local summons = player:getSummons()
+	if type(summons) ~= "table" then
+		return false
+	end
+	for i = 1, #summons do
+		local summon = summons[i]
+		local summonType = summon and summon.getType and summon:getType() or nil
+		if summonType and summonType.familiar and summonType:familiar() then
+			return true
+		end
+		-- Fallback: any summon blocks CreateFamiliarSpell.
+		if summon then
+			return true
+		end
+	end
+	return false
+end
+
+local function monsterIsRanged(monster)
+	local mType = monster and monster.getType and monster:getType() or nil
+	if not mType or not mType.getTargetDistance then
+		return false
+	end
+	return (mType:getTargetDistance() or 1) > 1
+end
+
+local function monsterHasMaster(monster)
+	if not monster or not monster.getMaster then
+		return false
+	end
+	return monster:getMaster() ~= nil
+end
+
+local function monsterIsRewardBoss(monster)
+	local mType = monster and monster.getType and monster:getType() or nil
+	return mType and mType.isRewardBoss and mType:isRewardBoss()
+end
+
+local function hasRewardBossNearby(player)
+	if not player then
+		return false
+	end
+	local playerPos = player:getPosition()
+	local spectators = Game.getSpectators(playerPos, false, false, 8, 8, 6, 6, player.getInstanceId and player:getInstanceId() or nil)
+	for _, creature in ipairs(spectators) do
+		if creature and creature:isMonster() and monsterIsRewardBoss(creature) then
+			return true
+		end
+	end
+	return false
+end
+
+--- Balanced Brawl directional footprint (matches support/balanced_brawl.lua matrix).
+local function isInBalancedBrawlArea(player, monster)
+	local origin = player:getPosition()
+	local monsterPos = monster:getPosition()
+	if not origin or not monsterPos or origin.z ~= monsterPos.z then
+		return false
+	end
+	local dx = monsterPos.x - origin.x
+	local dy = monsterPos.y - origin.y
+	local forward, lateral
+	local direction = player:getDirection()
+	if direction == DIRECTION_NORTH then
+		forward, lateral = -dy, math.abs(dx)
+	elseif direction == DIRECTION_EAST then
+		forward, lateral = dx, math.abs(dy)
+	elseif direction == DIRECTION_SOUTH then
+		forward, lateral = dy, math.abs(dx)
+	elseif direction == DIRECTION_WEST then
+		forward, lateral = -dx, math.abs(dy)
+	else
+		return false
+	end
+	local maxLateralByForward = {
+		[0] = 6,
+		[1] = 5,
+		[2] = 5,
+		[3] = 4,
+		[4] = 3,
+		[5] = 2,
+		[6] = 0,
+	}
+	local maxLat = maxLateralByForward[forward]
+	if maxLat == nil then
+		return false
+	end
+	if forward == 0 and lateral == 0 then
+		return false
+	end
+	if forward == 1 and lateral == 0 then
+		return false
+	end
+	return lateral <= maxLat
+end
+
+local function challengeCanAffectCreature(player, words)
+	local mode = CHALLENGE_WORDS[words]
+	if not mode or not player then
+		return false
+	end
+	if mode ~= "challenge" and hasRewardBossNearby(player) then
+		return false
+	end
+	local origin = player:getPosition()
+	if not origin then
+		return false
+	end
+	for _, monster in ipairs(visibleMonsters(player)) do
+		if mode == "challenge" then
+			local mp = monster:getPosition()
+			if mp and mp.z == origin.z and math.max(math.abs(mp.x - origin.x), math.abs(mp.y - origin.y)) <= 1 then
+				return true
+			end
+		elseif mode == "amp_challenge" then
+			-- Mirrors product chivalrous_challenge.lua: ranged types or not adjacent.
+			if not monsterHasMaster(monster) then
+				local mp = monster:getPosition()
+				if mp and mp.z == origin.z then
+					local cheb = tileDistance(origin, mp)
+					if cheb <= 7 and (monsterIsRanged(monster) or cheb > 1) then
+						return true
+					end
+				end
+			end
+		elseif mode == "ranged_chain" then
+			if monsterIsRanged(monster) and not monsterHasMaster(monster) then
+				local mp = monster:getPosition()
+				if mp and tileDistance(origin, mp) <= 7 then
+					return true
+				end
+			end
+		elseif mode == "brawl" then
+			if monsterIsRanged(monster) and isInBalancedBrawlArea(player, monster) then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+--- Support spells ignore HP/mana "when" and use spell-specific keep-up rules.
+supportSlotShouldFire = function(player, slot)
+	if not slot or slot.enabled == false then
+		return false
+	end
+	local words = tostring(slot.words or ""):lower()
+	if isHasteSpell(slot) then
+		if slot.pzCast ~= true and playerInProtectionZone(player) then
+			return false
+		end
+		return not playerIsHasted(player)
+	end
+	if CHALLENGE_WORDS[words] then
+		return challengeCanAffectCreature(player, words)
+	end
+	if PARTY_BUFF_BY_WORDS[words] then
+		if playerHasPartyBuff(player, words) then
+			return false
+		end
+		-- Party spells require at least one other member in range.
+		return #partyMembersInRange(player, 36) > 1
+	end
+	if FAMILIAR_WORDS[words] then
+		-- Engine spell:cooldown is 0; CreateFamiliarSpell owns CONDITION_SPELLCOOLDOWN.
+		if playerHasFamiliarSummon(player) then
+			return false
+		end
+		local spell = getInstantSpell(words)
+		if spell and playerSpellOnCooldown(player, spell) then
+			return false
+		end
+		return true
+	end
+	return true
+end
+
+--- Equipped weapon shootRange (Monster::canUseAttack analog for players). Fist / none → 1.
+function CombatAutomation.weaponShootRange(player)
+	if not player then
+		return 1
+	end
+	local weapon = nil
+	if player.getSlotItem and CONST_SLOT_LEFT then
+		weapon = player:getSlotItem(CONST_SLOT_LEFT)
+		if not weapon and CONST_SLOT_RIGHT then
+			weapon = player:getSlotItem(CONST_SLOT_RIGHT)
+		end
+	end
+	if not weapon then
+		return 1
+	end
+	local it = ItemType(weapon:getId())
+	if not it then
+		return 1
+	end
+	local weaponType = it.getWeaponType and it:getWeaponType() or nil
+	if weaponType == WEAPON_NONE or weaponType == WEAPON_SHIELD or weaponType == WEAPON_AMMO then
+		return 1
+	end
+	local range = it.getShootRange and it:getShootRange() or nil
+	if type(range) == "number" and range > 0 then
+		return math.floor(range)
+	end
+	return 1
+end
+
+--- True when creature is within Chebyshev weapon range (and existing LOS/validity).
+function CombatAutomation.isInWeaponRange(player, creature)
+	if not player or not creature then
+		return false
+	end
+	if CombatAutomation.isValidAttackTarget and not CombatAutomation.isValidAttackTarget(player, creature) then
+		return false
+	end
+	local fromPos = player:getPosition()
+	local toPos = creature:getPosition()
+	if not fromPos or not toPos or fromPos.z ~= toPos.z then
+		return false
+	end
+	local dist = math.max(math.abs(fromPos.x - toPos.x), math.abs(fromPos.y - toPos.y))
+	return dist <= CombatAutomation.weaponShootRange(player)
+end
+
+--- Pick nearest valid monster. Prefer those already in weapon shootRange (Monster searchTarget filter).
+--- `monsters` is an array of living Monster userdata; un-attackable entries are skipped.
+--- Optional sortMode is ignored (kept for call-site compat); always nearest-first.
+function CombatAutomation.pickMonsterBySort(player, monsters, _sortMode)
+	if type(monsters) ~= "table" or #monsters == 0 then
+		return nil
+	end
+	local playerPos = player and player:getPosition() or nil
+	local inRange = {}
+	local any = {}
+	for i = 1, #monsters do
+		local monster = monsters[i]
+		if CombatAutomation.isValidAttackTarget(player, monster) then
+			any[#any + 1] = monster
+			if CombatAutomation.isInWeaponRange(player, monster) then
+				inRange[#inRange + 1] = monster
+			end
+		end
+	end
+	local pool = #inRange > 0 and inRange or any
+	if #pool == 0 then
+		return nil
+	end
+	table.sort(pool, function(a, b)
+		local av, bv = 0, 0
+		if playerPos then
+			av = sortDistanceSquared(playerPos, a:getPosition())
+			bv = sortDistanceSquared(playerPos, b:getPosition())
+		end
+		if av == bv then
+			return a:getId() < b:getId()
+		end
+		return av < bv
+	end)
+	return pool[1]
+end
+
+local function isOnScreen(player, creature)
+	local playerPos = player:getPosition()
+	local creaturePos = creature:getPosition()
+	return playerPos.z == creaturePos.z
+		and math.abs(playerPos.x - creaturePos.x) <= 8
+		and math.abs(playerPos.y - creaturePos.y) <= 6
+end
+
+local function syncAutoAttackTarget(player, state, target, force)
+	if not player or not state then
+		return
+	end
+	local creatureId = 0
+	if target then
+		creatureId = target:getId() or 0
+	end
+	if not force and state.lastSyncedAttackCreatureId == creatureId then
+		return
+	end
+	state.lastSyncedAttackCreatureId = creatureId
+	if CombatAutomationProtocol and CombatAutomationProtocol.sendAttackTarget then
+		CombatAutomationProtocol.sendAttackTarget(player, creatureId)
+	end
+end
+
+--- Re-send the current attack target to the client (login / getAutomation).
+--- Vanilla has no S→C set-attack opcode; without this, a reconnect keeps the
+--- server target but the client never paints the red square after a dropped sync.
+function CombatAutomation.resyncAttackTarget(player)
+	if not player then
+		return
+	end
+	local state = CombatAutomation.getState(player)
+	local target = player:getTarget()
+	if target and target:getHealth() > 0 then
+		syncAutoAttackTarget(player, state, target, true)
+		return
+	end
+	syncAutoAttackTarget(player, state, nil, true)
+end
+
+local function autoTarget(player, config, state)
+	local options = config and config.autoTarget
+	if type(options) ~= "table" or options.enabled ~= true then
+		return player:getTarget()
+	end
+	-- Respect an existing target (player pick or prior auto pick) until it is gone.
+	-- Only acquire a new target when the player has none.
+	local current = player:getTarget()
+	if current and CombatAutomation.isValidAttackTarget(player, current) and isOnScreen(player, current) then
+		syncAutoAttackTarget(player, state, current)
+		return current
+	end
+	if current then
+		player:setTarget(nil)
+	end
+	-- Prefer monsters already in weapon range; otherwise nearest valid (melee walk-in).
+	local monsters = visibleMonsters(player)
+	local target = CombatAutomation.pickMonsterBySort(player, monsters)
+	if target then
+		player:setTarget(target)
+	end
+	local resolved = player:getTarget() or target
+	if resolved and CombatAutomation.isValidAttackTarget(player, resolved) and isOnScreen(player, resolved) then
+		syncAutoAttackTarget(player, state, resolved)
+		return resolved
+	end
+	if resolved then
+		player:setTarget(nil)
+	end
+	syncAutoAttackTarget(player, state, nil)
+	return nil
+end
+
+local function isInsideSpellArea(player, target, monster, area)
+	if type(area) ~= "table" then
+		return monster == target
+	end
+	local origin = player:getPosition()
+	local monsterPos = monster:getPosition()
+	if area.kind == "target" then
+		if not target then
+			return false
+		end
+		local center = target:getPosition()
+		local radius = math.max(0, tonumber(area.radius) or 0)
+		if area.shape == "circle" then
+			local dx = monsterPos.x - center.x
+			local dy = monsterPos.y - center.y
+			return center.z == monsterPos.z and ((dx * dx) + (dy * dy)) <= (radius * radius)
+		end
+		return tileDistance(center, monsterPos) <= radius
+	end
+	if origin.z ~= monsterPos.z then
+		return false
+	end
+	if area.kind == "direction" then
+		local dx = monsterPos.x - origin.x
+		local dy = monsterPos.y - origin.y
+		local forward
+		local lateral
+		local direction = player:getDirection()
+		if direction == DIRECTION_NORTH then
+			forward, lateral = -dy, math.abs(dx)
+		elseif direction == DIRECTION_EAST then
+			forward, lateral = dx, math.abs(dy)
+		elseif direction == DIRECTION_SOUTH then
+			forward, lateral = dy, math.abs(dx)
+		elseif direction == DIRECTION_WEST then
+			forward, lateral = -dx, math.abs(dy)
+		elseif direction == DIRECTION_NORTHEAST then
+			forward, lateral = math.max(dx, -dy), math.abs(dx + dy)
+			if dx < 0 or dy > 0 then
+				forward = -1
+			end
+		elseif direction == DIRECTION_SOUTHEAST then
+			forward, lateral = math.max(dx, dy), math.abs(dx - dy)
+			if dx < 0 or dy < 0 then
+				forward = -1
+			end
+		elseif direction == DIRECTION_SOUTHWEST then
+			forward, lateral = math.max(-dx, dy), math.abs(dx + dy)
+			if dx > 0 or dy < 0 then
+				forward = -1
+			end
+		else
+			forward, lateral = math.max(-dx, -dy), math.abs(dx - dy)
+			if dx > 0 or dy > 0 then
+				forward = -1
+			end
+		end
+		local length = math.max(1, tonumber(area.length) or 1)
+		local spread = math.max(0, tonumber(area.spread) or 0)
+		local allowedLateral = spread == 0 and 0 or math.min(spread, math.max(1, math.floor((forward + 1) / 2)))
+		return forward >= 1 and forward <= length and lateral <= allowedLateral
+	end
+	local radius = math.max(0, tonumber(area.radius) or 0)
+	if area.shape == "circle" then
+		local dx = monsterPos.x - origin.x
+		local dy = monsterPos.y - origin.y
+		return ((dx * dx) + (dy * dy)) <= (radius * radius)
+	end
+	return tileDistance(origin, monsterPos) <= radius
+end
+
+--- True if caster or any party member inside the AoE is at/under the HP threshold.
+local function areaHealShouldFire(player, slot, casterHpPercent, casterManaPercent)
+	if not slot or slot.enabled == false then
+		return false
+	end
+	-- Healing spells are HP-gated only (mana trigger is potions/support).
+	local threshold = healHpThreshold(slot)
+	if casterHpPercent <= threshold then
+		return true
+	end
+	local area = CombatAutomationConfig.SpellAreaById and CombatAutomationConfig.SpellAreaById[slot.spellId]
+	if type(area) ~= "table" then
+		return false
+	end
+	local casterId = player:getId()
+	for _, member in ipairs(iterPartyPlayers(player)) do
+		if member:getId() ~= casterId and member:getHealth() > 0 then
+			if isInsideSpellArea(player, nil, member, area) then
+				local pct = percentOf(member:getHealth(), member:getMaxHealth())
+				if pct <= threshold then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+local function countMonstersForSlot(player, slot)
+	local target = player:getTarget()
+	local area
+	if slot.kind == "rune" then
+		local range = RuneAreaRangeByTypeId[slot.runeTypeId]
+		area = {
+			kind = "target",
+			shape = range and "circle" or "single",
+			radius = range or 0,
+		}
+	else
+		area = CombatAutomationConfig.SpellAreaById and CombatAutomationConfig.SpellAreaById[slot.spellId]
+	end
+	local count = 0
+	for _, monster in ipairs(visibleMonsters(player)) do
+		if isInsideSpellArea(player, target, monster, area) then
+			count = count + 1
+		end
+	end
+	return count
+end
+
+local function slotHasEnoughMonsters(player, slot)
+	if slot.kind ~= "spell" and slot.kind ~= "rune" then
+		return true
+	end
+	local required = math.max(1, math.min(9, math.floor(tonumber(slot.monsterCount) or 1)))
+	local count = countMonstersForSlot(player, slot)
+	if slot.monsterCountMode == "exact" then
+		return count == required
+	end
+	return count >= required
+end
+
+local function slotExhaustUntil(state, slotId, t, exhaustMs)
+	local untilMs = state.exhaustUntil and state.exhaustUntil[slotId]
+	if type(untilMs) == "number" then
+		return untilMs
+	end
+	local last = state.exhaust[slotId] or 0
+	return last + math.max(0, math.floor(exhaustMs or 0))
+end
+
+local function slotReady(state, slotId, t, exhaustMs)
+	return t >= slotExhaustUntil(state, slotId, t, exhaustMs)
+end
+
+local function markExhaust(state, slotId, t, durationMs)
+	state.exhaust = state.exhaust or {}
+	state.exhaustUntil = state.exhaustUntil or {}
+	local untilMs = t + math.max(0, math.floor(durationMs or 0))
+	if (state.exhaustUntil[slotId] or 0) < untilMs then
+		state.exhaustUntil[slotId] = untilMs
+	end
+	state.exhaust[slotId] = t
+end
+
+local function markFired(state, player, slot, words, label, exhaustMs, t, gateWithLuaExhaust)
+	-- Spells/runes rely on engine CDs; only potions (and fail backoff) need Lua exhaust.
+	if gateWithLuaExhaust then
+		markExhaust(state, slot.id, t, exhaustMs)
+	end
+	notifyAutomationCast(player, slot, words, label, exhaustMs)
+end
+
+local function markCastFailed(state, slotId, t)
+	markExhaust(state, slotId, t, CAST_FAIL_BACKOFF_MS)
+end
+
+function CombatAutomation.getState(player)
+	if not player then
+		return nil
+	end
+	local id = player:getId()
+	local state = statesByPlayerId[id]
+	if not state then
+		state = {
+			playerId = id,
+			config = { slots = {}, autoTarget = { enabled = false, stance = "melee", rangedDistance = 4 } },
+			exhaust = {},
+			exhaustUntil = {},
+			event = nil,
+			suspended = false,
+			lastSyncedAttackCreatureId = nil,
+			externalTargeting = false,
+		}
+		statesByPlayerId[id] = state
+	end
+	return state
+end
+
+function CombatAutomation.clearState(player)
+	if not player then
+		return
+	end
+	local id = player:getId()
+	local state = statesByPlayerId[id]
+	if state and state.event then
+		stopEvent(state.event)
+	end
+	statesByPlayerId[id] = nil
+end
+
+function CombatAutomation.setExternalTargeting(player, enabled)
+	local state = CombatAutomation.getState(player)
+	if not state then
+		return
+	end
+	state.externalTargeting = enabled == true
+end
+
+
+--- Run one automation tick for the player.
+--- Targeting: CombatAutomation auto-target unless externalTargeting is set (expedition AI).
+--- AUTO off (autoTarget.enabled ~= true): clear target and skip attack/rune slots; heals/support/potions still run.
+function CombatAutomation.tick(player, opts)
+	if not player then
+		return
+	end
+	opts = opts or {}
+	local state = CombatAutomation.getState(player)
+	local config = state.config or { slots = {}, autoTarget = { enabled = false, stance = "melee", rangedDistance = 4 } }
+	if not opts.force and state.suspended == true then
+		return
+	end
+
+	tickVisibleMonsters = computeVisibleMonsters(player)
+
+	local autoEnabled = type(config.autoTarget) == "table" and config.autoTarget.enabled == true
+	if not autoEnabled then
+		local current = player:getTarget()
+		if current then
+			player:setTarget(nil)
+		end
+		syncAutoAttackTarget(player, state, nil)
+	elseif not opts.skipAutoTarget and not state.externalTargeting then
+		autoTarget(player, config, state)
+	end
+
+	-- Paladin distance ammo: equip preferred type; charge gold when inventory is empty.
+	local ammoSlots = config.slots
+	ensureAmmo(player, {
+		slots = ammoSlots,
+		ammoTypeId = config.ammoTypeId or 0,
+	})
+
+	local slots = config.slots
+	if type(slots) ~= "table" or #slots == 0 then
+		tickVisibleMonsters = nil
+		return
+	end
+
+	local hpPercent = percentOf(player:getHealth(), player:getMaxHealth())
+	local manaPercent = percentOf(player:getMana(), player:getMaxMana())
+	local t = nowMs()
+	state.exhaust = state.exhaust or {}
+	state.exhaustUntil = state.exhaustUntil or {}
+
+	for _, slot in ipairs(slots) do
+		if slot.kind == "potion" and slotShouldFire(slot, hpPercent, manaPercent, player) then
+			local exhaust = CombatAutomationConfig.POTION_EXHAUST_MS or 1000
+			if slotReady(state, slot.id, t, exhaust) then
+				if usePotion(player, slot.potionTypeId) then
+					markFired(state, player, slot, "", "potion", exhaust, t, true)
+					hpPercent = percentOf(player:getHealth(), player:getMaxHealth())
+					manaPercent = percentOf(player:getMana(), player:getMaxMana())
+					break
+				end
+			end
+		end
+	end
+
+	local supportSlots, combatSlots = {}, {}
+	for _, slot in ipairs(slots) do
+		if slot.kind == "rune" then
+			combatSlots[#combatSlots + 1] = slot
+		elseif slot.kind == "spell" then
+			if spellRank(slot) < 2 then
+				supportSlots[#supportSlots + 1] = slot
+			else
+				combatSlots[#combatSlots + 1] = slot
+			end
+		end
+	end
+	local function byPriority(a, b)
+		if a.priority ~= b.priority then
+			return a.priority < b.priority
+		end
+		return tostring(a.id) < tostring(b.id)
+	end
+	table.sort(supportSlots, byPriority)
+	-- Attack spells and runes share one rotation: walk the bar in order and cast the
+	-- first slot that is actually possible (individual + group CD).
+	table.sort(combatSlots, byPriority)
+
+	-- Direction/wave spells use facing; keep the caster aimed at their attack target
+	-- (expedition formation otherwise faces the party anchor).
+	local attackTarget = player:getTarget()
+	if attackTarget and attackTarget.getPosition then
+		local fromPos = player:getPosition()
+		local toPos = attackTarget:getPosition()
+		if fromPos and toPos and fromPos.z == toPos.z then
+			local dx = toPos.x - fromPos.x
+			local dy = toPos.y - fromPos.y
+			if dx ~= 0 or dy ~= 0 then
+				local dir
+				if math.abs(dx) > math.abs(dy) then
+					dir = dx > 0 and DIRECTION_EAST or DIRECTION_WEST
+				else
+					dir = dy > 0 and DIRECTION_SOUTH or DIRECTION_NORTH
+				end
+				if dir and player:getDirection() ~= dir then
+					player:setDirection(dir)
+				end
+			end
+		end
+	end
+
+	local preferredStances = preferredStanceWordsByChannel(supportSlots)
+
+	for _, slot in ipairs(supportSlots) do
+		local partyTarget = nil
+		local shouldFire = false
+		if isPartyHealSlot(slot) then
+			-- Gate on party member HP % (configured trigger), not caster HP.
+			if slot.enabled ~= false then
+				partyTarget = pickPartyHealTarget(player, slot)
+				shouldFire = partyTarget ~= nil
+			end
+		elseif isAreaHealSlot(slot) then
+			-- Mass heal: caster or any party member inside the AoE at/under HP %.
+			shouldFire = areaHealShouldFire(player, slot, hpPercent, manaPercent)
+		else
+			shouldFire = slotShouldFire(slot, hpPercent, manaPercent, player)
+		end
+		if shouldFire then
+			local words = slot.words or ""
+			if not shouldSkipStanceCast(player, words, preferredStances) then
+				local exhaust = spellExhaustMs(words)
+				-- Engine CD only; Lua exhaustUntil is fail-backoff.
+				if slotReady(state, slot.id, t, 0) then
+					local param = partyTarget and partyTarget:getName() or nil
+					local result = tryCastSpellWords(player, words, param)
+					if result == "cast" then
+						markFired(state, player, slot, words, words, exhaust, t, false)
+						hpPercent = percentOf(player:getHealth(), player:getMaxHealth())
+						manaPercent = percentOf(player:getMana(), player:getMaxMana())
+						break
+					elseif result == "fail" then
+						markCastFailed(state, slot.id, t)
+					end
+				end
+			end
+		end
+	end
+
+	if autoEnabled then
+		for _, slot in ipairs(combatSlots) do
+			if slotShouldFire(slot, hpPercent, manaPercent, player) and slotHasEnoughMonsters(player, slot) then
+				if slot.kind == "spell" then
+					local words = slot.words or ""
+					local exhaust = spellExhaustMs(words)
+					if slotReady(state, slot.id, t, 0) then
+						local result = tryCastSpellWords(player, words)
+						if result == "cast" then
+							markFired(state, player, slot, words, words, exhaust, t, false)
+							break
+						elseif result == "fail" then
+							markCastFailed(state, slot.id, t)
+						end
+					end
+				elseif slot.kind == "rune" then
+					local exhaust = runeExhaustMs(slot.runeTypeId)
+					if slotReady(state, slot.id, t, 0) then
+						local result = tryUseRune(player, slot.runeTypeId)
+						if result == "cast" then
+							local words = runeWords(slot.runeTypeId)
+							markFired(state, player, slot, words, words, exhaust, t, false)
+							break
+						elseif result == "fail" then
+							markCastFailed(state, slot.id, t)
+						end
+					end
+				end
+			end
+		end
+	end
+
+	tickVisibleMonsters = nil
+end
+
+local function isHuntFrozen(session)
+	return session and session.state == "ended"
+end
+
+local function expeditionSession(player)
+	if not player or not ExpeditionManager then
+		return nil, false
+	end
+	local session = ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+	if session and isHuntFrozen(session) then
+		return session, true
+	end
+	if ExpeditionManager.reconcilePresence and not ExpeditionManager.reconcilePresence(player) then
+		return nil, false
+	end
+	if ExpeditionManager.isInExpedition and not ExpeditionManager.isInExpedition(player) then
+		return nil, false
+	end
+	return session, false
+end
+
+local function shouldRunLoop(player, state, session, frozen)
+	if frozen then
+		return false
+	end
+	if not player or not state then
+		return false
+	end
+	if session then
+		return true
+	end
+	if not state.config then
+		return false
+	end
+	local hasSlots = type(state.config.slots) == "table" and #state.config.slots > 0
+	local hasAutoTarget = type(state.config.autoTarget) == "table" and state.config.autoTarget.enabled == true
+	return hasSlots or hasAutoTarget
+end
+
+local function loopBody(playerId)
+	local player = Player(playerId)
+	local state = statesByPlayerId[playerId]
+	if not player or not state then
+		if state then
+			state.event = nil
+		end
+		return
+	end
+
+	local session, frozen = expeditionSession(player)
+	if frozen then
+		state.event = nil
+		return
+	end
+
+	-- Player-owned loadout only. Expedition AI sets externalTargeting; AUTO gates attacks.
+	if state.config and state.suspended ~= true then
+		CombatAutomation.tick(player, {
+			force = false,
+			skipAutoTarget = state.externalTargeting == true,
+		})
+	end
+
+	if shouldRunLoop(player, state, session, frozen) then
+		state.event = addEvent(function()
+			loopBody(playerId)
+		end, CombatAutomationConfig.TICK_MS or 100)
+	else
+		state.event = nil
+	end
+end
+
+function CombatAutomation.ensureLoop(player)
+	if not player then
+		return
+	end
+	local state = CombatAutomation.getState(player)
+	local session, frozen = expeditionSession(player)
+	if not shouldRunLoop(player, state, session, frozen) then
+		if state.event then
+			stopEvent(state.event)
+			state.event = nil
+		end
+		return
+	end
+	if state.event then
+		return
+	end
+	local playerId = player:getId()
+	state.event = addEvent(function()
+		loopBody(playerId)
+	end, CombatAutomationConfig.TICK_MS or 100)
+end
+
+function CombatAutomation.refreshLoop(player)
+	CombatAutomation.ensureLoop(player)
+end
+
+function CombatAutomation.stopLoop(player)
+	if not player then
+		return
+	end
+	local state = statesByPlayerId[player:getId()]
+	if state and state.event then
+		stopEvent(state.event)
+		state.event = nil
+	end
+end

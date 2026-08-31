@@ -1,0 +1,98 @@
+diff --git a/src/map/spectators.cpp b/src/map/spectators.cpp
+index 3d155a34..6e4dc8ea 100644
+--- a/src/map/spectators.cpp
++++ b/src/map/spectators.cpp
+@@ -17,10 +17,19 @@
+ 
+ #include "map/spectators.hpp"
+ 
++#include <limits>
++
+ #include "creatures/creature.hpp"
+ #include "game/game.hpp"
+ 
+-phmap::flat_hash_map<Position, SpectatorsCache> Spectators::spectatorsCache;
++namespace {
++uint64_t spectatorCacheKey(const Position &pos, uint32_t instanceId) {
++	uint64_t loc = (static_cast<uint64_t>(pos.x) << 40) | (static_cast<uint64_t>(pos.y) << 16) | static_cast<uint64_t>(pos.z);
++	return loc ^ (static_cast<uint64_t>(instanceId) * 0x9E3779B97F4A7C15ULL);
++}
++}
++
++phmap::flat_hash_map<uint64_t, SpectatorsCache> Spectators::spectatorsCache;
+ 
+ void Spectators::clearCache() {
+ 	spectatorsCache.clear();
+@@ -96,7 +105,7 @@ bool Spectators::checkCache(const SpectatorsCache::FloorData &specData, bool onl
+ 	return true;
+ }
+ 
+-CreatureVector Spectators::getSpectators(const Position &centerPos, bool multifloor, bool onlyPlayers, bool onlyMonsters, bool onlyNpcs, int32_t minRangeX, int32_t maxRangeX, int32_t minRangeY, int32_t maxRangeY) {
++CreatureVector Spectators::getSpectators(const Position &centerPos, bool multifloor, bool onlyPlayers, bool onlyMonsters, bool onlyNpcs, int32_t minRangeX, int32_t maxRangeX, int32_t minRangeY, int32_t maxRangeY, uint32_t instanceId) {
+ 	uint8_t minRangeZ = centerPos.z;
+ 	uint8_t maxRangeZ = centerPos.z;
+ 
+@@ -153,6 +162,9 @@ CreatureVector Spectators::getSpectators(const Position &centerPos, bool multifl
+ 												   : sectorE->creature_list;
+ 
+ 				for (const auto &creature : nodeList) {
++					if (instanceId != std::numeric_limits<uint32_t>::max() && creature->getInstanceId() != instanceId) {
++						continue;
++					}
+ 					const auto &cpos = creature->getPosition();
+ 					if (static_cast<uint32_t>(static_cast<int32_t>(cpos.z) - minRangeZ) <= depth) {
+ 						const int_fast16_t offsetZ = Position::getOffsetZ(centerPos, cpos);
+@@ -177,18 +189,19 @@ CreatureVector Spectators::getSpectators(const Position &centerPos, bool multifl
+ 	return spectators;
+ }
+ 
+-Spectators Spectators::find(const Position &centerPos, bool multifloor, bool onlyPlayers, bool onlyMonsters, bool onlyNpcs, int32_t minRangeX, int32_t maxRangeX, int32_t minRangeY, int32_t maxRangeY, bool useCache) {
++Spectators Spectators::find(const Position &centerPos, bool multifloor, bool onlyPlayers, bool onlyMonsters, bool onlyNpcs, int32_t minRangeX, int32_t maxRangeX, int32_t minRangeY, int32_t maxRangeY, bool useCache, uint32_t instanceId) {
+ 	minRangeX = (minRangeX == 0 ? -MAP_MAX_VIEW_PORT_X : -minRangeX);
+ 	maxRangeX = (maxRangeX == 0 ? MAP_MAX_VIEW_PORT_X : maxRangeX);
+ 	minRangeY = (minRangeY == 0 ? -MAP_MAX_VIEW_PORT_Y : -minRangeY);
+ 	maxRangeY = (maxRangeY == 0 ? MAP_MAX_VIEW_PORT_Y : maxRangeY);
+ 
+ 	if (!useCache) {
+-		insertAll(getSpectators(centerPos, multifloor, onlyPlayers, onlyMonsters, onlyNpcs, minRangeX, maxRangeX, minRangeY, maxRangeY));
++		insertAll(getSpectators(centerPos, multifloor, onlyPlayers, onlyMonsters, onlyNpcs, minRangeX, maxRangeX, minRangeY, maxRangeY, instanceId));
+ 		return *this;
+ 	}
+ 
+-	const auto &it = spectatorsCache.find(centerPos);
++	const uint64_t cacheKey = spectatorCacheKey(centerPos, instanceId);
++	const auto &it = spectatorsCache.find(cacheKey);
+ 	const bool cacheFound = it != spectatorsCache.end();
+ 	if (cacheFound) {
+ 		auto &cache = it->second;
+@@ -225,10 +238,10 @@ Spectators Spectators::find(const Position &centerPos, bool multifloor, bool onl
+ 		}
+ 	}
+ 
+-	const auto &spectators = getSpectators(centerPos, multifloor, onlyPlayers, onlyMonsters, onlyNpcs, minRangeX, maxRangeX, minRangeY, maxRangeY);
++	const auto &spectators = getSpectators(centerPos, multifloor, onlyPlayers, onlyMonsters, onlyNpcs, minRangeX, maxRangeX, minRangeY, maxRangeY, instanceId);
+ 
+ 	// It is necessary to create the cache even if no spectators is found, so that there is no future query.
+-	auto &cache = cacheFound ? it->second : spectatorsCache.emplace(centerPos, SpectatorsCache { .minRangeX = minRangeX, .maxRangeX = maxRangeX, .minRangeY = minRangeY, .maxRangeY = maxRangeY, .creatures = {}, .monsters = {}, .npcs = {}, .players = {} }).first->second;
++	auto &cache = cacheFound ? it->second : spectatorsCache.emplace(cacheKey, SpectatorsCache { .minRangeX = minRangeX, .maxRangeX = maxRangeX, .minRangeY = minRangeY, .maxRangeY = maxRangeY, .creatures = {}, .monsters = {}, .npcs = {}, .players = {} }).first->second;
+ 	auto &creaturesCache = onlyPlayers ? cache.players
+ 		: onlyMonsters                 ? cache.monsters
+ 		: onlyNpcs                     ? cache.npcs
+@@ -283,6 +296,17 @@ Spectators Spectators::excludePlayerMaster() const {
+ 	return specs;
+ }
+ 
++Spectators Spectators::matchingInstance(uint32_t instanceId) const {
++	auto specs = Spectators();
++	specs.creatures.reserve(creatures.size());
++	for (const auto &c : creatures) {
++		if (c && c->getInstanceId() == instanceId) {
++			specs.creatures.emplace_back(c);
++		}
++	}
++	return specs;
++}
++
+ Spectators Spectators::filter(bool onlyPlayers, bool onlyMonsters, bool onlyNpcs) const {
+ 	auto specs = Spectators();
+ 	specs.creatures.reserve(creatures.size());

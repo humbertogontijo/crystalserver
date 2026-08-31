@@ -1,0 +1,598 @@
+ExpeditionInstance = {}
+
+-- Lua-side live set: engine free-list bugs must not hand out an id still bound to a hunt.
+local liveInstanceIds = {}
+
+function ExpeditionInstance.resetSlots()
+	-- Slot grid removed; private hunts use engine instance ids.
+	liveInstanceIds = {}
+end
+
+function ExpeditionInstance.allocate()
+	if not Game.allocateInstance then
+		return nil
+	end
+	for _ = 1, 32 do
+		local raw = Game.allocateInstance()
+		local id = math.floor(tonumber(raw) or 0)
+		if id < 3000000 then
+			logger.error("[ExpeditionInstance] allocate returned invalid id {}", tostring(raw))
+			return nil
+		end
+		if not liveInstanceIds[id] then
+			liveInstanceIds[id] = true
+			return id
+		end
+		-- Engine recycled an id that a live session still holds - discard and retry.
+		logger.error(
+			"[ExpeditionInstance] engine reused live instance id {} (requesting another)",
+			id
+		)
+	end
+	logger.error("[ExpeditionInstance] allocate exhausted retries without a free id")
+	return nil
+end
+
+function ExpeditionInstance.free(instanceId)
+	if instanceId == nil then
+		return
+	end
+	local id = math.floor(tonumber(instanceId) or 0)
+	if id < 3000000 then
+		return
+	end
+	if not liveInstanceIds[id] then
+		logger.warn("[ExpeditionInstance] free of unknown/already-freed id {}", id)
+		return
+	end
+	liveInstanceIds[id] = nil
+	if Game.releaseInstance then
+		Game.releaseInstance(id)
+	end
+end
+
+function ExpeditionInstance.origin(_instanceId)
+	return nil
+end
+
+function ExpeditionInstance.isInReservedArea(_pos)
+	return false
+end
+
+local function occupancyContains(occ, x, y)
+	if not occ then
+		return true
+	end
+	if occ.contains then
+		return occ:contains(x, y) and true or false
+	end
+	return true
+end
+
+--- Declared floors only (spawn/center/boundary z). Missing z is outside the instance.
+function ExpeditionInstance.floorsFromSpec(spec, fallbackZ)
+	spec = spec or {}
+	local set = {}
+	local list = {}
+	local function add(z)
+		z = math.floor(tonumber(z) or -1)
+		if z < 0 or z > 15 or set[z] then
+			return
+		end
+		set[z] = true
+		list[#list + 1] = z
+	end
+	if type(spec.floors) == "table" then
+		for _, z in ipairs(spec.floors) do
+			add(z)
+		end
+	end
+	if #list == 0 then
+		if type(spec.spawns) == "table" then
+			for _, spawn in ipairs(spec.spawns) do
+				if type(spawn) == "table" then
+					add(spawn.z)
+				end
+			end
+		end
+		if type(spec.center) == "table" then
+			add(spec.center.z)
+		end
+		if type(spec.boundary) == "table" then
+			add(spec.boundary.z)
+		end
+	end
+	add(fallbackZ)
+	table.sort(list)
+	return list, set
+end
+
+function ExpeditionInstance.hasFloor(instance, z)
+	if not instance then
+		return false
+	end
+	if not instance.floorSet then
+		return true
+	end
+	return instance.floorSet[math.floor(tonumber(z) or -1)] == true
+end
+
+function ExpeditionInstance.contains(instance, pos)
+	if not instance or not pos then
+		return false
+	end
+	if not ExpeditionInstance.hasFloor(instance, pos.z) then
+		return false
+	end
+	if instance.occupancy then
+		return occupancyContains(instance.occupancy, pos.x, pos.y)
+	end
+	local origin = instance.origin
+	if not origin then
+		return false
+	end
+	local width = instance.width or 0
+	local height = instance.height or 0
+	return pos.x >= origin.x
+		and pos.x < origin.x + width
+		and pos.y >= origin.y
+		and pos.y < origin.y + height
+end
+
+--- Living players currently sharing this instance id.
+--- opts.excludeIds: optional set of player ids to ignore (e.g. mid-death).
+--- opts.excludeCompanions: ignore headless companions (wipe when no humans remain).
+function ExpeditionInstance.hasLivingPlayers(instance, opts)
+	opts = opts or {}
+	if not instance or not instance.instanceId or not Game.getPlayers then
+		return false
+	end
+	for _, player in ipairs(Game.getPlayers()) do
+		if player and player:getHealth() > 0 and player.getInstanceId and player:getInstanceId() == instance.instanceId then
+			local id = player:getId()
+			if opts.excludeIds and opts.excludeIds[id] then
+				-- skip
+			elseif opts.excludeCompanions and TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player) then
+				-- skip
+			else
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function loadOccupancy(opts)
+	if type(opts) ~= "table" or not Game.loadOccupancyMask then
+		return nil
+	end
+	local file = opts.overviewFile
+	local b = opts.boundary
+	if type(file) ~= "string" or file == "" or type(b) ~= "table" then
+		return nil
+	end
+	local ox, oy = tonumber(b.x), tonumber(b.y)
+	if not ox or not oy then
+		return nil
+	end
+	local path = ExpeditionConfig.subareaMaskPath and ExpeditionConfig.subareaMaskPath(file)
+	if not path then
+		return nil
+	end
+	return Game.loadOccupancyMask(path, ox, oy)
+end
+
+--- Resolve world center: catalog.center, raid arena table, or opts.center.
+local function resolveCenter(opts)
+	if type(opts) == "table" and opts.x and opts.y and opts.z then
+		return opts
+	end
+	if type(opts) ~= "table" then
+		return nil
+	end
+	if opts.center and opts.center.x then
+		return opts.center
+	end
+	local region = opts.region or opts.id
+	if region and ExpeditionConfig.RaidArenaCenters and ExpeditionConfig.RaidArenaCenters[region] then
+		return ExpeditionConfig.RaidArenaCenters[region]
+	end
+	if opts.id then
+		local entry = ExpeditionConfig.getById(opts.id)
+		if entry and entry.center then
+			return entry.center
+		end
+	end
+	if region then
+		local entry = ExpeditionConfig.getById(region)
+		if entry and entry.center then
+			return entry.center
+		end
+	end
+	return nil
+end
+
+--- Bind a private instance id to the live hunt/raid tiles (no clone).
+function ExpeditionInstance.build(instanceId, opts, _seed, _kind)
+	local center = resolveCenter(opts)
+	if not center then
+		return nil, "missing expedition center"
+	end
+
+	local occupancy = loadOccupancy(opts)
+	local boundary = type(opts) == "table" and opts.boundary or nil
+	local mapW = (type(boundary) == "table" and tonumber(boundary.w)) or 17
+	local mapH = (type(boundary) == "table" and tonumber(boundary.h)) or 17
+	local originX = (type(boundary) == "table" and tonumber(boundary.x)) or (center.x - math.floor(mapW / 2))
+	local originY = (type(boundary) == "table" and tonumber(boundary.y)) or (center.y - math.floor(mapH / 2))
+	local origin = Position(originX, originY, center.z)
+	local entry = Position(center.x, center.y, center.z)
+	local region = type(opts) == "table" and (opts.region or opts.id) or nil
+	local floors, floorSet = ExpeditionInstance.floorsFromSpec(opts, center.z)
+	if InstanceWorld and InstanceWorld.rememberFloors then
+		InstanceWorld.rememberFloors(instanceId, floorSet)
+	end
+
+	return {
+		instanceId = instanceId,
+		slot = instanceId,
+		origin = origin,
+		width = mapW,
+		height = mapH,
+		mapWidth = mapW,
+		mapHeight = mapH,
+		entry = entry,
+		region = region,
+		sourceCenter = Position(center.x, center.y, center.z),
+		occupancy = occupancy,
+		boundary = boundary,
+		floors = floors,
+		floorSet = floorSet,
+	}
+end
+
+function ExpeditionInstance.worldToSlot(_instance, x, y, z)
+	return Position(x, y, z)
+end
+
+local function spawnBounds(instance)
+	local origin = instance.origin
+	if origin and instance.mapWidth and instance.mapHeight then
+		return origin.x, origin.x + instance.mapWidth - 1, origin.y, origin.y + instance.mapHeight - 1
+	end
+	local entry = instance.entry
+	if entry then
+		return entry.x - 8, entry.x + 8, entry.y - 8, entry.y + 8
+	end
+	return 0, 0, 0, 0
+end
+
+function ExpeditionInstance.hasGround(pos)
+	local tile = Tile(pos)
+	return tile and tile:getGround() ~= nil
+end
+
+local function sweepTile(tile, instanceId)
+	if not tile or not instanceId then
+		return
+	end
+	local creatures = tile.getCreatures and tile:getCreatures() or nil
+	if type(creatures) == "table" then
+		for _, creature in ipairs(creatures) do
+			if creature and creature.getInstanceId and creature:getInstanceId() == instanceId then
+				if not (creature.isPlayer and creature:isPlayer()) then
+					if creature.setDropLoot then
+						creature:setDropLoot(false)
+					end
+					creature:remove()
+				end
+			end
+		end
+	end
+	local items = tile.getItems and tile:getItems() or nil
+	if type(items) == "table" then
+		for i = #items, 1, -1 do
+			local item = items[i]
+			if item and item.getInstanceId and item:getInstanceId() == instanceId then
+				item:remove()
+			end
+		end
+	end
+end
+
+--- Remove instance-tagged items/creatures so a recycled private id starts clean.
+--- Occupancy ON-bits × declared instance floors.
+function ExpeditionInstance.sweep(instance)
+	if not instance or not instance.instanceId then
+		return
+	end
+	local instanceId = instance.instanceId
+	if Game.getMonsters then
+		for _, monster in ipairs(Game.getMonsters()) do
+			if monster and monster.getInstanceId and monster:getInstanceId() == instanceId then
+				if monster.setDropLoot then
+					monster:setDropLoot(false)
+				end
+				monster:remove()
+			end
+		end
+	end
+	if Game.getNpcs then
+		for _, npc in ipairs(Game.getNpcs()) do
+			if npc and npc.getInstanceId and npc:getInstanceId() == instanceId then
+				npc:remove()
+			end
+		end
+	end
+
+	local occ = instance.occupancy
+	local ox = occ and tonumber(occ.originX) or (instance.origin and instance.origin.x)
+	local oy = occ and tonumber(occ.originY) or (instance.origin and instance.origin.y)
+	local w = occ and tonumber(occ.width) or tonumber(instance.width) or 0
+	local h = occ and tonumber(occ.height) or tonumber(instance.height) or 0
+	if not ox or not oy or w <= 0 or h <= 0 then
+		return
+	end
+	local floors = instance.floors
+	if type(floors) ~= "table" or #floors == 0 then
+		local z0 = (instance.origin and tonumber(instance.origin.z)) or (instance.entry and tonumber(instance.entry.z)) or 7
+		floors = { z0 }
+	end
+	local bits = occ and occ.bits
+	local hasBits = type(bits) == "string" and bits ~= ""
+	local function bitOn(i)
+		if not hasBits then
+			return true
+		end
+		local b = bits:byte(math.floor(i / 8) + 1)
+		if not b then
+			return false
+		end
+		return math.floor(b / (2 ^ (i % 8))) % 2 == 1
+	end
+	for ly = 0, h - 1 do
+		for lx = 0, w - 1 do
+			if bitOn(ly * w + lx) then
+				local x, y = ox + lx, oy + ly
+				for _, z in ipairs(floors) do
+					sweepTile(Tile(Position(x, y, z)), instanceId)
+				end
+			end
+		end
+	end
+end
+
+function ExpeditionInstance.teardown(instance)
+	if not instance or instance._tornDown then
+		return
+	end
+	instance._tornDown = true
+	local id = instance.instanceId or instance.slot
+	ExpeditionInstance.sweep(instance)
+	if InstanceWorld and InstanceWorld.forgetFloors then
+		InstanceWorld.forgetFloors(id)
+	end
+	ExpeditionInstance.free(id)
+	instance.instanceId = nil
+	instance.slot = nil
+end
+
+local function sameInstance(creature, instanceId)
+	if not creature then
+		return false
+	end
+	if instanceId == nil then
+		return true
+	end
+	return not creature.getInstanceId or creature:getInstanceId() == instanceId
+end
+
+local function tileBlocksForInstance(tile, instanceId)
+	if not tile or not tile.getGround or not tile:getGround() then
+		return true
+	end
+	if instanceId and tile.hasProperty and CONST_PROP_BLOCKSOLID then
+		return tile:hasProperty(CONST_PROP_BLOCKSOLID, instanceId)
+	end
+	return tile.hasFlag and tile:hasFlag(TILESTATE_BLOCKSOLID)
+end
+
+local function isWalkable(pos, instanceId)
+	local tile = Tile(pos)
+	if not tile or tileBlocksForInstance(tile, instanceId) then
+		return false
+	end
+	local creatures = tile.getCreatures and tile:getCreatures() or nil
+	if type(creatures) == "table" then
+		for _, creature in ipairs(creatures) do
+			if sameInstance(creature, instanceId) then
+				return false
+			end
+		end
+		return true
+	end
+	local top = tile.getTopCreature and tile:getTopCreature() or nil
+	return not sameInstance(top, instanceId)
+end
+
+local function sameTilePos(a, b)
+	return a and b and a.x == b.x and a.y == b.y and a.z == b.z
+end
+
+function ExpeditionInstance.posKey(pos)
+	if not pos then
+		return nil
+	end
+	return string.format("%d,%d,%d", pos.x, pos.y, pos.z)
+end
+
+function ExpeditionInstance.reservePos(reserved, pos)
+	if not reserved or not pos then
+		return
+	end
+	reserved[ExpeditionInstance.posKey(pos)] = true
+end
+
+local function isReserved(reserved, pos)
+	return reserved and reserved[ExpeditionInstance.posKey(pos)] == true
+end
+
+local function canUseSpawnTile(pos, avoid, reserved, instanceId)
+	return isWalkable(pos, instanceId) and not sameTilePos(pos, avoid) and not isReserved(reserved, pos)
+end
+
+--- Random walkable SQM inside the instance occupancy / AABB.
+function ExpeditionInstance.randomWalkable(instance, avoid, reserved)
+	if not instance then
+		return nil
+	end
+	local minX, maxX, minY, maxY = spawnBounds(instance)
+	local z = instance.entry and instance.entry.z or (instance.origin and instance.origin.z) or 7
+	for _ = 1, 40 do
+		local x = math.random(minX, maxX)
+		local y = math.random(minY, maxY)
+		local pos = Position(x, y, z)
+		if (not instance.occupancy or occupancyContains(instance.occupancy, x, y)) and canUseSpawnTile(pos, avoid, reserved, instance.instanceId) then
+			return pos
+		end
+	end
+	local pivot = avoid or instance.entry
+	if pivot then
+		local neighbours = {}
+		for dx = -1, 1 do
+			for dy = -1, 1 do
+				if not (dx == 0 and dy == 0) then
+					local x, y = pivot.x + dx, pivot.y + dy
+					if x >= minX and x <= maxX and y >= minY and y <= maxY then
+						local pos = Position(x, y, pivot.z)
+						if (not instance.occupancy or occupancyContains(instance.occupancy, x, y)) and canUseSpawnTile(pos, avoid, reserved, instance.instanceId) then
+							neighbours[#neighbours + 1] = pos
+						end
+					end
+				end
+			end
+		end
+		if #neighbours > 0 then
+			return neighbours[math.random(1, #neighbours)]
+		end
+	end
+	if instance.entry and canUseSpawnTile(instance.entry, avoid, reserved, instance.instanceId) then
+		return instance.entry
+	end
+	return nil
+end
+
+local function collectRingWalkable(center, radius, instance, reserved)
+	local minX, maxX, minY, maxY = spawnBounds(instance)
+	local candidates = {}
+	for dx = -radius, radius do
+		for dy = -radius, radius do
+			if math.max(math.abs(dx), math.abs(dy)) == radius then
+				local x, y = center.x + dx, center.y + dy
+				if x >= minX and x <= maxX and y >= minY and y <= maxY then
+					local pos = Position(x, y, center.z)
+					if (not instance.occupancy or occupancyContains(instance.occupancy, x, y)) and canUseSpawnTile(pos, nil, reserved, instance.instanceId) then
+						candidates[#candidates + 1] = pos
+					end
+				end
+			end
+		end
+	end
+	return candidates
+end
+
+local function bindMonsterInstance(monster, instance)
+	if monster and instance and instance.instanceId and monster.setInstanceId then
+		monster:setInstanceId(instance.instanceId)
+	end
+	if monster and InstanceWorld and InstanceWorld.applyOpenWorldForge then
+		InstanceWorld.applyOpenWorldForge(monster)
+	end
+	return monster
+end
+
+function ExpeditionInstance.createMonsterExclusive(name, preferredPos, instance)
+	if not name or not preferredPos then
+		return nil
+	end
+	local instanceId = instance and instance.instanceId or nil
+	local monster = Game.createMonster(name, preferredPos, false, false, nil, instanceId)
+	if monster then
+		return bindMonsterInstance(monster, instance)
+	end
+	if instance then
+		local reserved = {}
+		ExpeditionInstance.reservePos(reserved, preferredPos)
+		for radius = 1, 3 do
+			local pos = ExpeditionInstance.randomAttackRangeWalkable(instance, preferredPos, radius, reserved)
+			if pos then
+				monster = Game.createMonster(name, pos, false, false, nil, instanceId)
+				if monster then
+					return bindMonsterInstance(monster, instance)
+				end
+				ExpeditionInstance.reservePos(reserved, pos)
+			end
+		end
+		local any = ExpeditionInstance.randomWalkable(instance, preferredPos, reserved)
+		if any then
+			return bindMonsterInstance(Game.createMonster(name, any, false, false, nil, instanceId), instance)
+		end
+	end
+	return bindMonsterInstance(Game.createMonster(name, preferredPos, true, false, nil, instanceId), instance)
+end
+
+function ExpeditionInstance.randomAttackRangeWalkable(instance, center, radius, reserved)
+	if not instance or not center then
+		return nil
+	end
+	radius = math.max(1, tonumber(radius) or 1)
+
+	local candidates = collectRingWalkable(center, radius, instance, reserved)
+	if #candidates > 0 then
+		return candidates[math.random(1, #candidates)]
+	end
+
+	for delta = 1, 3 do
+		for _, r in ipairs({ radius - delta, radius + delta }) do
+			if r >= 1 then
+				candidates = collectRingWalkable(center, r, instance, reserved)
+				if #candidates > 0 then
+					return candidates[math.random(1, #candidates)]
+				end
+			end
+		end
+	end
+
+	return ExpeditionInstance.randomWalkable(instance, center, reserved)
+end
+
+--- True when at least one Chebyshev-1 tile around `center` can spawn a monster
+--- (walkable, in occupancy, not blocked). Used to reject bad catalog holds at runtime.
+function ExpeditionInstance.hasLureSpawnRing(instance, center)
+	if not instance or not center then
+		return false
+	end
+	local candidates = collectRingWalkable(center, 1, instance, nil)
+	return #candidates > 0
+end
+
+--- Broadcast a magic effect only to players in this instance (shared hunt tiles).
+function ExpeditionInstance.sendMagicEffect(instance, pos, effect)
+	if not pos or not pos.sendMagicEffect or not effect then
+		return
+	end
+	local instanceId = instance and instance.instanceId
+	if instanceId == nil or not Game.getSpectators then
+		pos:sendMagicEffect(effect)
+		return
+	end
+	local spectators = Game.getSpectators(pos, true, true, 0, 0, 0, 0, instanceId)
+	if type(spectators) ~= "table" then
+		return
+	end
+	for _, player in ipairs(spectators) do
+		if player then
+			pos:sendMagicEffect(effect, player)
+		end
+	end
+end

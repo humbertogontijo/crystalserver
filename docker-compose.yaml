@@ -12,10 +12,6 @@ services:
       context: .
       dockerfile: Dockerfile
       network: host
-      args:
-        IDLEOT_PRODUCT_SHA: ${IDLEOT_PRODUCT_SHA:-}
-        IDLEOT_UMBRELLA_REPO: ${IDLEOT_UMBRELLA_REPO:-https://github.com/idleot/idleot.git}
-        GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     restart: unless-stopped
     ports:
       - "7171:7171"

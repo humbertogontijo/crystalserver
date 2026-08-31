@@ -1,0 +1,180 @@
+diff --git a/src/game/game.hpp b/src/game/game.hpp
+index 4c50982f..275b6b20 100644
+--- a/src/game/game.hpp
++++ b/src/game/game.hpp
+@@ -17,6 +17,8 @@
+ 
+ #pragma once
+ 
++#include <vector>
++
+ #include "creatures/appearance/outfit/outfit.hpp"
+ #include "creatures/players/cyclopedia/player_badge.hpp"
+ #include "creatures/players/cyclopedia/player_title.hpp"
+@@ -101,6 +103,23 @@ struct PositionHasher {
+ 	}
+ };
+ 
++class Player;
++class Map;
++class Tile;
++
++/** While active, map item creates/transforms inherit this creature's instanceId. */
++class InstanceActorScope {
++public:
++	explicit InstanceActorScope(const std::shared_ptr<Creature> &creature);
++	~InstanceActorScope();
++
++	InstanceActorScope(const InstanceActorScope &) = delete;
++	InstanceActorScope &operator=(const InstanceActorScope &) = delete;
++
++private:
++	std::shared_ptr<Creature> previous;
++};
++
+ class Game {
+ public:
+ 	Game();
+@@ -141,6 +160,29 @@ public:
+ 	void loadCustomMaps(const std::filesystem::path &customMapPath);
+ 	void loadMap(const std::string &path, const Position &pos = Position());
+ 
++	/**
++	 * Clone tiles from the live map into `dest` (top-left of the destination AABB).
++	 * Inclusive source range [sourceFrom, sourceTo]; same-floor expeditions use equal z.
++	 * Places fresh items via Tile::internalAddThing (no moveevents). Skips creatures,
++	 * pickupables, uniques, doors/beds/teleports/depots/mailboxes/fields/containers,
++	 * and non-blocking house furniture. Strips nothing because attributes are not cloned.
++	 * \returns number of source tiles that had ground or items copied
++	 */
++	uint32_t copyMapRegion(const Position &sourceFrom, const Position &sourceTo, const Position &dest);
++
++	static constexpr uint32_t INSTANCE_PRIVATE_BASE = 3000000;
++	uint32_t allocateInstanceId();
++	void releaseInstanceId(uint32_t id);
++	bool routeInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destPos);
++	bool canWalkInstance(const std::shared_ptr<Creature> &creature, const Position &toPos);
++	void disableWorldSpawns();
++	void bindPlayerInstance(const std::shared_ptr<Player> &player);
++	/** Re-bind creature instanceId from active InstanceWorld session (expedition hunt). */
++	void syncCreatureInstance(const std::shared_ptr<Creature> &creature);
++	bool consumeInstanceFenceMessage();
++	/** Instance id of the creature currently in InstanceActorScope (0 if none). */
++	static uint32_t getInstanceActorId();
++
+ 	uint64_t getLastMapLoadTime() const {
+ 		return lastMapLoadTime;
+ 	}
+@@ -255,6 +297,7 @@ public:
+ 	void addMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money, uint32_t flags = 0);
+ 
+ 	std::shared_ptr<Item> transformItem(std::shared_ptr<Item> item, uint16_t newId, int32_t newCount = -1);
++	std::shared_ptr<Item> resolveInstancedMapItem(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item);
+ 
+ 	ReturnValue internalTeleport(const std::shared_ptr<Thing> &thing, const Position &newPos, bool pushMove = true, uint32_t flags = 0);
+ 
+@@ -343,6 +386,11 @@ public:
+ 
+ 	void playerRewardChestCollect(uint32_t playerId, const Position &pos, uint16_t itemId, uint8_t stackPos, uint32_t maxMoveItems = 0);
+ 
++	/**
++	 * @brief Collects items from the player's virtual reward chest into loot containers.
++	 */
++	ReturnValue collectRewardChestItems(const std::shared_ptr<Player> &player, uint32_t maxMoveItems = 0);
++
+ 	void playerReportRuleViolationReport(uint32_t playerId, const std::string &targetName, uint8_t reportType, uint8_t reportReason, const std::string &comment, const std::string &translation);
+ 
+ 	void playerFriendSystemAction(const std::shared_ptr<Player> &player, uint8_t type, uint8_t titleId);
+@@ -416,6 +464,8 @@ public:
+ 	void playerLookInTrade(uint32_t playerId, bool lookAtCounterOffer, uint8_t index);
+ 	void playerBuyItem(uint32_t playerId, uint16_t itemId, uint8_t count, uint16_t amount, bool ignoreCap = false, bool inBackpacks = false);
+ 	void playerSellItem(uint32_t playerId, uint16_t itemId, uint8_t count, uint16_t amount, bool ignoreEquipped = false);
++	/** One-shot NPC shop sell-all using a client-supplied skip/accept filter list. */
++	void playerSellAllItems(uint32_t playerId, bool ignoreEquipped, uint8_t filterMode, const std::vector<uint16_t> &itemIds);
+ 	void playerCloseShop(uint32_t playerId);
+ 	void playerLookInShop(uint32_t playerId, uint16_t itemId, uint8_t count);
+ 	void playerCloseTrade(uint32_t playerId);
+@@ -433,6 +483,14 @@ public:
+ 	void playerOpenManagedContainer(uint32_t playerId, ObjectCategory_t category, bool isLootContainer);
+ 	void playerSetQuickLootFallback(uint32_t playerId, bool fallback);
+ 	void playerQuickLootBlackWhitelist(uint32_t playerId, QuickLootFilter_t filter, const std::vector<uint16_t> &itemIds);
++	/** Copy account-shared quick loot filter onto `player` from an online real client on the same account. */
++	void inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player);
++
++	/**
++	 * Collect one item into the player's managed loot/obtain container (capacity-aware).
++	 * Public for Lua `Player:collectQuickLootItem` (LootSplit).
++	 */
++	ReturnValue internalCollectManagedItems(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, ObjectCategory_t category, bool isLootContainer = true);
+ 
+ 	// Auto loot
+ 	void schedulePlayerQuickLoot(const std::shared_ptr<Player> &player, const Position &pos, uint16_t itemId, uint8_t stackPos, const std::shared_ptr<Item> &defaultItem, bool lootAllCorpses, bool autoLoot);
+@@ -486,6 +544,10 @@ public:
+ 	void playerSaveWheel(uint32_t playerId, NetworkMessage &msg);
+ 	void playerWheelGemAction(uint32_t playerId, NetworkMessage &msg);
+ 
++	bool deliverCompanionFeatureUI(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &owner, std::string_view feature);
++	/// Resolve companion wheel/feature owner key (runtime id or offline DB guid).
++	std::shared_ptr<Player> resolveSameAccountCompanionOwner(const std::shared_ptr<Player> &viewer, uint32_t ownerKey);
++
+ 	void updatePlayerHelpers(const std::shared_ptr<Player> &player);
+ 
+ 	void shutdown();
+@@ -504,8 +566,8 @@ public:
+ 		return boostedCreature;
+ 	}
+ 
+-	bool canThrowObjectTo(const Position &fromPos, const Position &toPos, SightLines_t lineOfSight = SightLine_CheckSightLine, int32_t rangex = MAP_MAX_CLIENT_VIEW_PORT_X, int32_t rangey = MAP_MAX_CLIENT_VIEW_PORT_Y);
+-	bool isSightClear(const Position &fromPos, const Position &toPos, bool sameFloor);
++	bool canThrowObjectTo(const Position &fromPos, const Position &toPos, SightLines_t lineOfSight = SightLine_CheckSightLine, int32_t rangex = MAP_CLASSIC_CLIENT_VIEW_PORT_X, int32_t rangey = MAP_CLASSIC_CLIENT_VIEW_PORT_Y, uint32_t instanceId = 0);
++	bool isSightClear(const Position &fromPos, const Position &toPos, bool sameFloor, uint32_t instanceId = 0);
+ 
+ 	void changeSpeed(const std::shared_ptr<Creature> &creature, int32_t varSpeedDelta);
+ 	void setCreatureSpeed(const std::shared_ptr<Creature> &creature, int32_t speed); // setCreatureSpeed
+@@ -811,6 +873,7 @@ public:
+ 	void refreshItem(const std::shared_ptr<Item> &item);
+ 
+ private:
++	bool callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult);
+ 	std::unordered_map<uint8_t, std::string> m_worldTypesNames;
+ 
+ 	std::map<uint16_t, Achievement> m_achievements;
+@@ -882,25 +945,6 @@ private:
+ 	 */
+ 	ReturnValue processLootItems(const std::shared_ptr<Player> &player, std::shared_ptr<Container> lootContainer, const std::shared_ptr<Item> &item, bool &fallbackConsumed);
+ 
+-	/**
+-	 * @brief Internally collects loot or obtain items from a given item and places them into the managed container.
+-	 *
+-	 * @param player Pointer to the player object.
+-	 * @param item Pointer to the item being collected.
+-	 * @param category Category of the item (default is OBJECTCATEGORY_DEFAULT).
+-	 * @return Return value indicating success or error.
+-	 */
+-	ReturnValue internalCollectManagedItems(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, ObjectCategory_t category, bool isLootContainer = true);
+-
+-	/**
+-	 * @brief Collects items from the reward chest.
+-	 *
+-	 * @param player Pointer to the player object.
+-	 * @param maxMoveItems Maximum number of items to move (default is 0, which means no limit).
+-	 * @return Return value indicating success or error.
+-	 */
+-	ReturnValue collectRewardChestItems(const std::shared_ptr<Player> &player, uint32_t maxMoveItems = 0);
+-
+ 	phmap::flat_hash_map<std::string, QueryHighscoreCacheEntry> queryCache;
+ 	phmap::flat_hash_map<std::string, HighscoreCacheEntry> highscoreCache;
+ 
+@@ -970,6 +1014,12 @@ private:
+ 
+ 	uint64_t lastMapLoadTime = 0;
+ 
++	uint32_t nextPrivateInstanceId = INSTANCE_PRIVATE_BASE;
++	std::vector<uint32_t> freePrivateInstanceIds;
++	// Prevents double-free recycling the same private id while a hunt still holds it.
++	phmap::flat_hash_set<uint32_t> usedPrivateInstanceIds;
++	bool pendingInstanceFenceMessage = false;
++
+ 	ServiceManager* serviceManager = nullptr;
+ 
+ 	void updatePlayersRecord() const;

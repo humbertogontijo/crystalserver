@@ -1,0 +1,63 @@
+diff --git a/src/creatures/creature.hpp b/src/creatures/creature.hpp
+index d813373b..e22c841b 100644
+--- a/src/creatures/creature.hpp
++++ b/src/creatures/creature.hpp
+@@ -57,8 +57,9 @@ static constexpr int32_t EVENT_CHECK_CREATURE_INTERVAL = (EVENT_CREATURE_THINK_I
+ 
+ class FrozenPathingConditionCall {
+ public:
+-	explicit FrozenPathingConditionCall(Position newTargetPos) :
+-		targetPos(newTargetPos) { }
++	explicit FrozenPathingConditionCall(Position newTargetPos, uint32_t newInstanceId = 0) :
++		targetPos(newTargetPos),
++		instanceId(newInstanceId) { }
+ 
+ 	bool operator()(const Position &startPos, const Position &testPos, const FindPathParams &fpp, int32_t &bestMatchDist) const;
+ 
+@@ -70,6 +71,7 @@ public:
+ 
+ private:
+ 	Position targetPos;
++	uint32_t instanceId = 0;
+ };
+ 
+ //////////////////////////////////////////////////////////////////////
+@@ -145,6 +147,11 @@ public:
+ 	virtual bool canSee(const Position &pos);
+ 	virtual bool canSeeCreature(const std::shared_ptr<Creature> &creature) const;
+ 
++	uint32_t getInstanceId() const {
++		return instanceId;
++	}
++	void setInstanceId(uint32_t id);
++
+ 	virtual RaceType_t getRace() const {
+ 		return RACE_NONE;
+ 	}
+@@ -331,7 +338,9 @@ public:
+ 	std::unordered_set<std::shared_ptr<Zone>> getZones();
+ 
+ 	// walk functions
+-	void startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions = false);
++	// walkFlags: OR'd into onCreatureWalk (e.g. FLAG_IGNOREBLOCKCREATURE). Always
++	// replaced for this path — never left over from a previous autoWalk.
++	void startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions = false, bool immediate = false, uint32_t walkFlags = 0);
+ 	void addEventWalk(bool firstStep = false);
+ 	void stopEventWalk();
+ 	void resetMovementState();
+@@ -754,6 +763,7 @@ protected:
+ 	ConditionList conditions;
+ 
+ 	std::vector<Direction> listWalkDir;
++	uint32_t autoWalkFlags = 0;
+ 
+ 	std::weak_ptr<Tile> m_tile;
+ 	std::weak_ptr<Creature> m_attackedCreature;
+@@ -772,6 +782,7 @@ protected:
+ 
+ 	uint64_t lastStep = 0;
+ 	uint32_t id = 0;
++	uint32_t instanceId = 0;
+ 	uint32_t scriptEventsBitField = 0;
+ 	uint32_t eventWalk = 0;
+ 	uint32_t walkUpdateTicks = 0;

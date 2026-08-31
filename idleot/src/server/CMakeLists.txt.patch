@@ -1,0 +1,19 @@
+diff --git a/src/server/CMakeLists.txt b/src/server/CMakeLists.txt
+index 8743067d..6f239692 100644
+--- a/src/server/CMakeLists.txt
++++ b/src/server/CMakeLists.txt
+@@ -1,5 +1,6 @@
+ target_sources(${PROJECT_NAME}_lib PRIVATE
+     network/connection/connection.cpp
++    network/connection/connection_websocket.cpp
+     network/message/networkmessage.cpp
+     network/message/outputmessage.cpp
+     network/protocol/protocol.cpp
+@@ -7,6 +8,7 @@ target_sources(${PROJECT_NAME}_lib PRIVATE
+     network/protocol/protocollogin.cpp
+     network/protocol/protocolstatus.cpp
+     network/webhook/webhook.cpp
++    network/websocket/websocket_port.cpp
+     server.cpp
+     signals.cpp
+ )

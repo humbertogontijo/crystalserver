@@ -1,0 +1,85 @@
+diff --git a/src/creatures/interactions/chat.cpp b/src/creatures/interactions/chat.cpp
+index d7d5b1ba..4ba303bc 100644
+--- a/src/creatures/interactions/chat.cpp
++++ b/src/creatures/interactions/chat.cpp
+@@ -48,18 +48,24 @@ bool PrivateChatChannel::removeInvite(uint32_t guid) {
+ }
+ 
+ void PrivateChatChannel::invitePlayer(const std::shared_ptr<Player> &player, const std::shared_ptr<Player> &invitePlayer) {
++	PrivateChatChannel::invitePlayer(player, invitePlayer, true);
++}
++
++void PrivateChatChannel::invitePlayer(const std::shared_ptr<Player> &player, const std::shared_ptr<Player> &invitePlayer, bool notify) {
+ 	auto [iter, inserted] = invites.try_emplace(invitePlayer->getGUID(), invitePlayer);
+ 	if (!inserted) {
+ 		return;
+ 	}
+ 
+-	std::ostringstream ss;
+-	ss << player->getName() << " invites you to " << player->getPossessivePronoun() << " private chat channel.";
+-	invitePlayer->sendTextMessage(MESSAGE_PARTY_MANAGEMENT, ss.str());
++	if (notify) {
++		std::ostringstream ss;
++		ss << player->getName() << " invites you to " << player->getPossessivePronoun() << " private chat channel.";
++		invitePlayer->sendTextMessage(MESSAGE_PARTY_MANAGEMENT, ss.str());
+ 
+-	ss.str(std::string());
+-	ss << invitePlayer->getName() << " has been invited.";
+-	player->sendTextMessage(MESSAGE_PARTY_MANAGEMENT, ss.str());
++		ss.str(std::string());
++		ss << invitePlayer->getName() << " has been invited.";
++		player->sendTextMessage(MESSAGE_PARTY_MANAGEMENT, ss.str());
++	}
+ 
+ 	for (const auto &[playerUserId, playerUser] : users) {
+ 		if (playerUserId == 0 || !playerUser) {
+@@ -526,6 +532,49 @@ bool Chat::deleteChannel(const std::shared_ptr<Player> &player, uint16_t channel
+ 	return true;
+ }
+ 
++std::shared_ptr<PrivateChatChannel> Chat::createTeamChannel(const std::shared_ptr<Player> &player) {
++	if (!player) {
++		return nullptr;
++	}
++
++	if (const auto &existing = getPrivateChannel(player)) {
++		existing->closeChannel();
++		privateChannels.erase(existing->getId());
++	}
++
++	for (uint16_t i = 100; i < 10000; ++i) {
++		auto [iter, inserted] = privateChannels.try_emplace(
++			i, std::make_shared<PrivateChatChannel>(i, player->getName() + "'s Team Channel")
++		);
++		if (inserted) {
++			const auto &channel = iter->second;
++			channel->setOwner(player->getGUID());
++			return channel;
++		}
++	}
++	return nullptr;
++}
++
++bool Chat::closeTeamChannel(const std::shared_ptr<Player> &player, const std::string &closeMessage) {
++	if (!player) {
++		return false;
++	}
++
++	const auto &channel = getPrivateChannel(player);
++	if (!channel) {
++		return false;
++	}
++
++	if (!closeMessage.empty()) {
++		channel->sendToAll(closeMessage, TALKTYPE_CHANNEL_R1);
++	}
++
++	const uint16_t channelId = channel->getId();
++	channel->closeChannel();
++	privateChannels.erase(channelId);
++	return true;
++}
++
+ std::shared_ptr<ChatChannel> Chat::addUserToChannel(const std::shared_ptr<Player> &player, uint16_t channelId) {
+ 	const auto &channel = getChannel(player, channelId);
+ 	if ((channel != nullptr) && channel->addUser(player)) {

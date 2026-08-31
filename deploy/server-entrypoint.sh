@@ -25,7 +25,7 @@ SERVER_URL="${SERVER_URL:-https://www.idleot.com}"
 # Host/IP advertised in ProtocolStatus XML (worlds.ip). Defaults to bind IP.
 STATUS_ADVERTISE_IP="${STATUS_ADVERTISE_IP:-}"
 COIN_IMAGES_URL="${COIN_IMAGES_URL:-}"
-PRODUCT_DIR="${IDLEOT_PRODUCT_DIR:-/opt/idleot/product}"
+PRODUCT_DIR="${IDLEOT_DIR:-/crystalserver/idleot}"
 MATERIALIZE="${IDLEOT_MATERIALIZE:-/opt/idleot/materialize-product.sh}"
 SKIP_PRODUCT_APPLY="${IDLEOT_SKIP_PRODUCT_APPLY:-0}"
 
@@ -47,6 +47,7 @@ if [[ "$SKIP_PRODUCT_APPLY" != "1" && -x "$MATERIALIZE" && -d "$PRODUCT_DIR" ]];
   PRODUCT_HASH="$(find "$PRODUCT_DIR" -type f -print0 2>/dev/null | sort -z | xargs -0 cat 2>/dev/null | sha256sum | awk '{print $1}')"
   if [[ ! -f "$STAMP" || "$(cat "$STAMP" 2>/dev/null)" != "$PRODUCT_HASH" ]]; then
     echo "[server] materializing product overlay into mounted datapack..."
+    export IDLEOT_APP_ROOT="$(cd "$(dirname "$PRODUCT_DIR")" && pwd)"
     bash "$MATERIALIZE" /crystalserver/data-global "$PRODUCT_DIR" /crystalserver/data
     printf '%s\n' "$PRODUCT_HASH" > "$STAMP"
   else

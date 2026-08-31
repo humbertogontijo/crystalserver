@@ -1,0 +1,114 @@
+CombatAutomationProtocol = CombatAutomationProtocol or {}
+
+local function send(player, payload)
+	if not player then
+		return false
+	end
+	local opcode = CombatAutomationConfig.OPCODE
+	if ExpeditionConfig and ExpeditionConfig.OPCODE then
+		opcode = ExpeditionConfig.OPCODE
+	end
+	return player:sendExtendedOpcode(opcode, CombatAutomationJson.encode(payload))
+end
+
+function CombatAutomationProtocol.sendConfig(player, config)
+	config = config or CombatAutomationStore.getConfig(player)
+	local at = config.autoTarget or { enabled = false, stance = "melee", rangedDistance = 4 }
+	return send(player, {
+		type = "automationConfig",
+		autoTarget = {
+			enabled = at.enabled == true,
+			stance = at.stance or "melee",
+			rangedDistance = math.floor(tonumber(at.rangedDistance) or 4),
+		},
+		ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
+		loadout = {
+			slots = config.slots or {},
+			ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
+		},
+	})
+end
+
+function CombatAutomationProtocol.sendCast(player, payload)
+	if not player or type(payload) ~= "table" then
+		return false
+	end
+	return send(player, {
+		type = "automationCast",
+		slotId = tostring(payload.slotId or ""),
+		kind = tostring(payload.kind or ""),
+		words = tostring(payload.words or ""),
+		label = tostring(payload.label or payload.words or ""),
+		exhaustMs = math.max(0, math.floor(tonumber(payload.exhaustMs) or 0)),
+	})
+end
+
+--- Sync auto-target to the client (vanilla has no S→C set-attack opcode).
+--- Same wire as expedition AI so the red attack square / battle highlight update.
+function CombatAutomationProtocol.sendAttackTarget(player, creatureId)
+	local id = 0
+	if creatureId and creatureId > 0 then
+		id = creatureId
+	end
+	return send(player, {
+		type = "attackTarget",
+		creatureId = id,
+	})
+end
+
+local function wireLoadoutFromMsg(msg)
+	if type(msg) ~= "table" then
+		return { slots = {}, autoTarget = { enabled = false, stance = "melee", rangedDistance = 4 }, ammoTypeId = 0 }
+	end
+	local ammoTypeId = msg.ammoTypeId
+	local loadout = msg.loadout
+	if type(loadout) == "table" then
+		if ammoTypeId == nil then
+			ammoTypeId = loadout.ammoTypeId
+		end
+		return {
+			slots = loadout.slots or loadout,
+			autoTarget = msg.autoTarget,
+			ammoTypeId = ammoTypeId,
+		}
+	end
+	if type(msg.slots) == "table" then
+		return { slots = msg.slots, autoTarget = msg.autoTarget, ammoTypeId = ammoTypeId }
+	end
+	return { slots = {}, autoTarget = msg.autoTarget, ammoTypeId = ammoTypeId }
+end
+
+--- Handle automation-related actions on opcode 113. Returns true if consumed.
+function CombatAutomationProtocol.handleAction(player, msg)
+	if not player or type(msg) ~= "table" then
+		return false
+	end
+	local action = msg.action
+	if action == "getAutomation" then
+		local config = CombatAutomationStore.getConfig(player)
+		CombatAutomationProtocol.sendConfig(player, config)
+		-- Client is ready (map/self loaded); force-paint the current server target.
+		local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+		if session and ExpeditionAI and ExpeditionAI.resyncAttackTarget then
+			ExpeditionAI.resyncAttackTarget(session, player)
+		elseif CombatAutomation and CombatAutomation.resyncAttackTarget then
+			CombatAutomation.resyncAttackTarget(player)
+		end
+		return true
+	end
+	if action == "setAutomation" or action == "setBotConfig" then
+		local config = CombatAutomationStore.setConfig(player, wireLoadoutFromMsg(msg))
+		CombatAutomationProtocol.sendConfig(player, config)
+		if CombatAutomation and CombatAutomation.resyncAttackTarget then
+			CombatAutomation.resyncAttackTarget(player)
+		end
+		return true
+	end
+	if action == "setAutomationSuspended" then
+		local state = CombatAutomation.getState(player)
+		state.suspended = msg.suspended == true
+		CombatAutomation.refreshLoop(player)
+		return true
+	end
+	return false
+end

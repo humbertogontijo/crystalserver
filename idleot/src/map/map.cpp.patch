@@ -1,0 +1,215 @@
+diff --git a/src/map/map.cpp b/src/map/map.cpp
+index e728634b..d5110272 100644
+--- a/src/map/map.cpp
++++ b/src/map/map.cpp
+@@ -20,6 +20,7 @@
+ #include "creatures/monsters/monster.hpp"
+ #include "creatures/players/player.hpp"
+ #include "game/game.hpp"
++#include "map/house/housetile.hpp"
+ #include "game/scheduling/dispatcher.hpp"
+ #include "game/zones/zone.hpp"
+ #include "io/iomap.hpp"
+@@ -29,6 +30,36 @@
+ #include "map/spectators.hpp"
+ #include "utils/astarnodes.hpp"
+ 
++void Map::forEachCachedBasicTile(
++	const std::function<void(uint16_t x, uint16_t y, uint8_t z, const std::shared_ptr<BasicTile> &tile)> &fn
++) const {
++	for (const auto &[index, sector] : mapSectors) {
++		auto &mutableSector = const_cast<MapSector &>(sector);
++		const uint32_t sectorX = (index & 0xFFFF) * SECTOR_SIZE;
++		const uint32_t sectorY = (index >> 16) * SECTOR_SIZE;
++		for (uint8_t z = 0; z < MAP_MAX_LAYERS; ++z) {
++			const auto floor = mutableSector.getFloor(z);
++			if (!floor) {
++				continue;
++			}
++			const auto &tiles = floor->getTiles();
++			for (uint32_t dx = 0; dx < SECTOR_SIZE; ++dx) {
++				for (uint32_t dy = 0; dy < SECTOR_SIZE; ++dy) {
++					const auto &cache = tiles[dx][dy].second;
++					if (cache) {
++						fn(
++							static_cast<uint16_t>(sectorX + dx),
++							static_cast<uint16_t>(sectorY + dy),
++							z,
++							cache
++						);
++					}
++				}
++			}
++		}
++	}
++}
++
+ void Map::load(const std::string &identifier, const Position &pos) {
+ 	try {
+ 		path = identifier;
+@@ -156,6 +187,62 @@ std::shared_ptr<Tile> Map::getOrCreateTile(uint16_t x, uint16_t y, uint8_t z, bo
+ 	return tile;
+ }
+ 
++std::shared_ptr<HouseTile> Map::getOrCreateHouseTile(const Position &pos, const std::shared_ptr<House> &house) {
++	if (!house) {
++		return nullptr;
++	}
++
++	const auto &existingTile = getTile(pos);
++	if (existingTile) {
++		if (const auto &houseTile = std::dynamic_pointer_cast<HouseTile>(existingTile)) {
++			if (houseTile->getHouse() == house) {
++				return houseTile;
++			}
++			g_logger().error(
++				"[Map::getOrCreateHouseTile] position {} already belongs to house {}",
++				pos.toString(),
++				houseTile->getHouse()->getId()
++			);
++			return nullptr;
++		}
++	}
++
++	std::vector<std::shared_ptr<Item>> itemsToMove;
++	std::vector<std::shared_ptr<Creature>> creaturesToMove;
++	if (existingTile) {
++		if (const auto &ground = existingTile->getGround()) {
++			itemsToMove.push_back(ground);
++		}
++		if (const TileItemVector *items = existingTile->getItemList()) {
++			for (const auto &item : *items) {
++				if (item && item != existingTile->getGround()) {
++					itemsToMove.push_back(item);
++				}
++			}
++		}
++		if (const CreatureVector *creatures = existingTile->getCreatures()) {
++			for (const auto &creature : *creatures) {
++				if (creature) {
++					creaturesToMove.push_back(creature);
++				}
++			}
++		}
++	}
++
++	const auto houseTile = std::make_shared<HouseTile>(pos, house);
++	setTile(pos.x, pos.y, pos.z, houseTile);
++	house->addTile(houseTile);
++
++	for (const auto &item : itemsToMove) {
++		houseTile->internalAddThing(0, item);
++	}
++	for (const auto &creature : creaturesToMove) {
++		houseTile->internalAddThing(0, creature);
++	}
++
++	return houseTile;
++}
++
+ std::shared_ptr<Tile> Map::getLoadedTile(uint16_t x, uint16_t y, uint8_t z) {
+ 	if (z >= MAP_MAX_LAYERS) {
+ 		return nullptr;
+@@ -293,7 +380,7 @@ bool Map::placeCreature(const Position &centerPos, const std::shared_ptr<Creatur
+ 			}
+ 
+ 			if (tile->queryAdd(0, creature, 1, FLAG_IGNOREBLOCKITEM | FLAG_IGNOREFIELDDAMAGE) == RETURNVALUE_NOERROR) {
+-				if (!extendedPos || isSightClear(centerPos, tryPos, false)) {
++				if (!extendedPos || isSightClear(centerPos, tryPos, false, creature->getInstanceId())) {
+ 					foundTile = true;
+ 					break;
+ 				}
+@@ -369,10 +456,10 @@ void Map::moveCreature(const std::shared_ptr<Creature> &creature, const std::sha
+ 			++minRangeX;
+ 		}
+ 
+-		spectators.find<Creature>(oldPos, true, minRangeX, maxRangeX, minRangeY, maxRangeY, false);
++		spectators.find<Creature>(oldPos, true, minRangeX, maxRangeX, minRangeY, maxRangeY, false, creature->getInstanceId());
+ 	} else {
+-		spectators.find<Creature>(oldPos, true, 0, 0, 0, 0, false);
+-		spectators.find<Creature>(newPos, true, 0, 0, 0, 0, false);
++		spectators.find<Creature>(oldPos, true, 0, 0, 0, 0, false, creature->getInstanceId());
++		spectators.find<Creature>(newPos, true, 0, 0, 0, 0, false, creature->getInstanceId());
+ 	}
+ 
+ 	const auto playersSpectators = spectators.filter<Player>();
+@@ -453,7 +540,7 @@ void Map::moveCreature(const std::shared_ptr<Creature> &creature, const std::sha
+ 	}
+ }
+ 
+-bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= Map::maxClientViewportX*/, const int32_t rangey /*= Map::maxClientViewportY*/) {
++bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/, const uint32_t instanceId /*= 0*/) {
+ 	// z checks
+ 	// underground 8->15
+ 	// ground level and above 7->0
+@@ -479,10 +566,10 @@ bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const
+ 		return true;
+ 	}
+ 
+-	return isSightClear(fromPos, toPos, lineOfSight & SightLine_FloorCheck);
++	return isSightClear(fromPos, toPos, lineOfSight & SightLine_FloorCheck, instanceId);
+ }
+ 
+-bool Map::checkSightLine(Position start, Position destination) {
++bool Map::checkSightLine(Position start, Position destination, uint32_t instanceId) {
+ 	if (start.x == destination.x && start.y == destination.y) {
+ 		return true;
+ 	}
+@@ -512,14 +599,14 @@ bool Map::checkSightLine(Position start, Position destination) {
+ 		}
+ 
+ 		const auto &tile = getTile(start.x, start.y, start.z);
+-		if (tile && tile->hasProperty(CONST_PROP_BLOCKPROJECTILE)) {
++		if (tile && tile->hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId)) {
+ 			return false;
+ 		}
+ 	}
+ 	return true;
+ }
+ 
+-bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck) {
++bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck, uint32_t instanceId) {
+ 	// Check if this sight line should be even possible
+ 	if (floorCheck && fromPos.z != toPos.z) {
+ 		return false;
+@@ -536,10 +623,10 @@ bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floo
+ 	}
+ 
+ 	// Perform check for current floor
+-	bool sightClear = checkSightLine(fromPos, toPos);
++	bool sightClear = checkSightLine(fromPos, toPos, instanceId);
+ 	if (fromPos.z == toPos.z && !sightClear) {
+ 		// Corner cases around solid tiles can be asymmetric, so test the reverse ray too.
+-		sightClear = checkSightLine(toPos, fromPos);
++		sightClear = checkSightLine(toPos, fromPos, instanceId);
+ 	}
+ 	if (floorCheck || (fromPos.z == toPos.z && sightClear)) {
+ 		return sightClear;
+@@ -551,7 +638,7 @@ bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floo
+ 	} else {
+ 		// Check if we can throw above obstacle
+ 		const auto &tile = getTile(fromPos.x, fromPos.y, fromPos.z - 1);
+-		if ((tile && (tile->getGround() || tile->hasProperty(CONST_PROP_BLOCKPROJECTILE))) || !checkSightLine(Position(fromPos.x, fromPos.y, fromPos.z - 1), Position(toPos.x, toPos.y, toPos.z - 1))) {
++		if ((tile && (tile->getGround() || tile->hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId))) || !checkSightLine(Position(fromPos.x, fromPos.y, fromPos.z - 1), Position(toPos.x, toPos.y, toPos.z - 1), instanceId)) {
+ 			return false;
+ 		}
+ 
+@@ -566,7 +653,7 @@ bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floo
+ 	// now we need to perform a jump between floors to see if everything is clear (literally)
+ 	for (; startZ != toPos.z; ++startZ) {
+ 		const auto &tile = getTile(toPos.x, toPos.y, startZ);
+-		if (tile && (tile->getGround() || tile->hasProperty(CONST_PROP_BLOCKPROJECTILE))) {
++		if (tile && (tile->getGround() || tile->hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId))) {
+ 			return false;
+ 		}
+ 	}
+@@ -583,6 +670,9 @@ std::shared_ptr<Tile> Map::canWalkTo(const std::shared_ptr<Creature> &creature,
+ 		if (!tile || tile->queryAdd(0, creature, 1, FLAG_PATHFINDING | FLAG_IGNOREFIELDDAMAGE) != RETURNVALUE_NOERROR) {
+ 			return nullptr;
+ 		}
++		if (!g_game().canWalkInstance(creature, pos)) {
++			return nullptr;
++		}
+ 	}
+ 
+ 	return tile;

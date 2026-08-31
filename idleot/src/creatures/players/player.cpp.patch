@@ -1,0 +1,537 @@
+diff --git a/src/creatures/players/player.cpp b/src/creatures/players/player.cpp
+index e43d3d67..5d18cda6 100644
+--- a/src/creatures/players/player.cpp
++++ b/src/creatures/players/player.cpp
+@@ -168,6 +168,11 @@ void Player::setID() {
+ 	}
+ }
+ 
++void Player::stampLoginTimestamps() {
++	lastLoad = OTSYS_TIME();
++	lastLoginSaved = std::max<time_t>(time(nullptr), lastLoginSaved + 1);
++}
++
+ std::string Player::getDescription(int32_t lookDistance) {
+ 	std::ostringstream s;
+ 	std::string subjectPronoun = getSubjectPronoun();
+@@ -344,16 +349,23 @@ bool Player::hasWeaponDistanceEquipped() const {
+ }
+ 
+ std::shared_ptr<Item> Player::getQuiverAmmoOfType(const ItemType &it) const {
+-	if (!hasQuiverEquipped()) {
+-		return nullptr;
+-	}
+-
+-	const auto &quiver = inventory[CONST_SLOT_RIGHT];
+-	for (const auto &container = quiver->getContainer();
+-	     const auto &ammoItem : container->getItemList()) {
+-		if (ammoItem->getAmmoType() == it.ammoType) {
+-			if (level >= Item::items[ammoItem->getID()].minReqLevel) {
+-				return ammoItem;
++	// Prefer the classic ammo slot so combat-automation can pin a specific ammo typeId
++	// (quiver iteration would otherwise return the first matching arrow/bolt kind).
++	const auto &ammoSlot = inventory[CONST_SLOT_AMMO];
++	if (ammoSlot && ammoSlot->getAmmoType() == it.ammoType) {
++		if (level >= Item::items[ammoSlot->getID()].minReqLevel) {
++			return ammoSlot;
++		}
++	}
++
++	if (hasQuiverEquipped()) {
++		const auto &quiver = inventory[CONST_SLOT_RIGHT];
++		for (const auto &container = quiver->getContainer();
++		     const auto &ammoItem : container->getItemList()) {
++			if (ammoItem->getAmmoType() == it.ammoType) {
++				if (level >= Item::items[ammoItem->getID()].minReqLevel) {
++					return ammoItem;
++				}
+ 			}
+ 		}
+ 	}
+@@ -1262,6 +1274,40 @@ void Player::removeEmptyRewards() {
+ 	});
+ }
+ 
++void Player::refreshRewardChestAfterCollect() {
++	// Close nested reward-bag windows that are now empty (before removing them from the chest).
++	std::vector<uint8_t> closeIds;
++	for (const auto &[containerId, containerInfo] : openContainers) {
++		const auto &container = containerInfo.container;
++		if (!container) {
++			continue;
++		}
++		if (container->getID() == ITEM_REWARD_CONTAINER && container->empty()) {
++			closeIds.emplace_back(containerId);
++		}
++	}
++	for (const uint8_t cid : closeIds) {
++		onCloseContainer(getContainerByID(cid));
++		closeContainer(cid);
++	}
++
++	removeEmptyRewards();
++
++	const auto &chest = getRewardChest();
++	const int8_t chestCid = getContainerID(chest);
++	if (chestCid == -1) {
++		return;
++	}
++
++	if (chest->empty()) {
++		onCloseContainer(chest);
++		closeContainer(static_cast<uint8_t>(chestCid));
++	} else {
++		// Resync so emptied bags disappear from the open chest window.
++		onSendContainer(chest);
++	}
++}
++
+ bool Player::hasOtherRewardContainerOpen(const std::shared_ptr<Container> &container) const {
+ 	return std::ranges::any_of(openContainers.begin(), openContainers.end(), [container](const auto &containerPair) {
+ 		return containerPair.second.container != container && containerPair.second.container->isAnyKindOfRewardContainer();
+@@ -1383,6 +1429,12 @@ std::shared_ptr<KV> Player::kv() const {
+ }
+ 
+ bool Player::canSee(const Position &pos) {
++	// Idle combat / exercise training must keep fighting without a client. Use Creature
++	// viewport geometry so monster moves and setAttackedCreature behave like creature
++	// battle (ProtocolGame::canSee is false when client is gone).
++	if (keepsDisconnectedCombat()) {
++		return Creature::canSee(pos);
++	}
+ 	if (!client) {
+ 		return false;
+ 	}
+@@ -1394,6 +1446,10 @@ bool Player::canSeeCreature(const std::shared_ptr<Creature> &creature) const {
+ 		return true;
+ 	}
+ 
++	if (!creature || getInstanceId() != creature->getInstanceId()) {
++		return false;
++	}
++
+ 	if (creature->isInGhostMode() && !group->access) {
+ 		return false;
+ 	}
+@@ -1607,6 +1663,13 @@ std::shared_ptr<Container> Player::getManagedContainer(ObjectCategory_t category
+ 		category = OBJECTCATEGORY_DEFAULT;
+ 	}
+ 
++	// Unassigned loot is hard-locked to the gold/loot pouch when the player has one.
++	if (isLootContainer && category == OBJECTCATEGORY_DEFAULT) {
++		if (const auto &pouch = getInventoryGoldPouch()) {
++			return pouch;
++		}
++	}
++
+ 	const auto it = m_managedContainers.find(category);
+ 	std::shared_ptr<Container> container = nullptr;
+ 	if (it != m_managedContainers.end()) {
+@@ -1723,7 +1786,11 @@ void Player::sendLootStats(const std::shared_ptr<Item> &item, uint8_t count) {
+ 	}
+ 
+ 	if (m_party) {
+-		m_party->addPlayerLoot(getPlayer(), item);
++		// Party hunt analyser reads item->getItemCount(); use a detached stack so
++		// auto-banked coins (already removed from the corpse) still count.
++		if (const auto &partyItem = Item::CreateItem(item->getID(), count)) {
++			m_party->addPlayerLoot(getPlayer(), partyItem);
++		}
+ 	}
+ }
+ 
+@@ -2019,6 +2086,72 @@ std::shared_ptr<RewardChest> Player::getRewardChest() {
+ 	return rewardChest;
+ }
+ 
++void Player::linkRewardChestParents() {
++	const auto &playerRewardChest = getRewardChest();
++	// Parent on the player so remote moves / open chest stay in range while walking.
++	playerRewardChest->setParent(static_self_cast<Player>());
++	for (const auto &[mapRewardId, reward] : rewardMap) {
++		reward->setParent(playerRewardChest);
++	}
++}
++
++ReturnValue Player::openRewardChest() {
++	const auto &playerRewardChest = getRewardChest();
++	if (!hasOtherRewardContainerOpen(playerRewardChest)) {
++		removeEmptyRewards();
++	}
++
++	if (playerRewardChest->empty()) {
++		return RETURNVALUE_REWARDCHESTISEMPTY;
++	}
++
++	linkRewardChestParents();
++
++	const int32_t oldContainerId = getContainerID(playerRewardChest);
++	if (oldContainerId != -1) {
++		onSendContainer(playerRewardChest);
++		return RETURNVALUE_NOERROR;
++	}
++
++	const uint8_t limit = getOpenedContainersLimit();
++	uint8_t cid = 0;
++	for (; cid < limit; ++cid) {
++		if (!getContainerByID(cid)) {
++			break;
++		}
++	}
++	if (cid >= limit) {
++		return RETURNVALUE_NOTPOSSIBLE;
++	}
++
++	addContainer(cid, playerRewardChest);
++	onSendContainer(playerRewardChest);
++	return RETURNVALUE_NOERROR;
++}
++
++ReturnValue Player::collectRewardChest(uint32_t maxMoveItems /* = 0 */) {
++	if (!g_configManager().getBoolean(REWARD_CHEST_COLLECT_ENABLED)) {
++		return RETURNVALUE_NOTPOSSIBLE;
++	}
++
++	const auto &playerRewardChest = getRewardChest();
++	if (!hasOtherRewardContainerOpen(playerRewardChest)) {
++		removeEmptyRewards();
++	}
++	if (playerRewardChest->empty()) {
++		return RETURNVALUE_REWARDCHESTISEMPTY;
++	}
++
++	linkRewardChestParents();
++
++	if (maxMoveItems == 0) {
++		maxMoveItems = static_cast<uint32_t>(g_configManager().getNumber(REWARD_CHEST_MAX_COLLECT_ITEMS));
++	}
++
++	std::scoped_lock<std::mutex> lock(quickLootMutex);
++	return g_game().collectRewardChestItems(static_self_cast<Player>(), maxMoveItems);
++}
++
+ std::shared_ptr<Reward> Player::getReward(const uint64_t rewardId, const bool autoCreate) {
+ 	const auto it = rewardMap.find(rewardId);
+ 	if (it != rewardMap.end()) {
+@@ -2070,6 +2203,10 @@ void Player::sendCancelMessage(const std::string &msg) const {
+ }
+ 
+ void Player::sendCancelMessage(ReturnValue message) const {
++	if (message == RETURNVALUE_NOTPOSSIBLE && g_game().consumeInstanceFenceMessage()) {
++		sendCancelMessage("You cannot leave an instance area.");
++		return;
++	}
+ 	sendCancelMessage(getReturnMessage(message));
+ }
+ 
+@@ -2268,10 +2405,18 @@ void Player::sendPing() {
+ 
+ 	const int64_t noPongTime = timeNow - lastPong;
+ 	const auto &attackedCreature = getAttackedCreature();
+-	if ((hasLostConnection || noPongTime >= 7000) && attackedCreature && attackedCreature->getPlayer()) {
++	// Idle combat / exercise training keep the attack target while disconnected.
++	if ((hasLostConnection || noPongTime >= 7000) && attackedCreature && attackedCreature->getPlayer() && !keepsDisconnectedCombat()) {
+ 		setAttackedCreature(nullptr);
+ 	}
+ 
++	// Headless companions (loginCompanion: no ProtocolGame, protocolVersion 0) never
++	// pong — do not kick them for "ping timeout" after 60s.
++	if (noPongTime >= 60000 && !client && getProtocolVersion() == 0) {
++		lastPong = timeNow;
++		return;
++	}
++
+ 	if (noPongTime >= 60000 && canLogout() && g_creatureEvents().playerLogout(static_self_cast<Player>())) {
+ 		g_logger().info("Player {} has been kicked due to ping timeout. (has client: {})", getName(), client != nullptr);
+ 		// Try to pass party leadership before logging out
+@@ -2401,7 +2546,9 @@ void Player::sendNpcDialogOptions(const NpcDialogOptions &dialogOptions) const {
+ }
+ 
+ void Player::sendMarketEnter(uint32_t depotId) const {
+-	if (!client || this->getLastDepotId() == -1 || !depotId) {
++	// lastDepotId stays -1 until a depot locker is opened. Depot id 0 is valid
++	// (OTBM lockers often omit the depot attribute and keep the default 0).
++	if (!client || this->getLastDepotId() == -1) {
+ 		return;
+ 	}
+ 
+@@ -2982,7 +3129,7 @@ void Player::onWalk(Direction &dir) {
+ 
+ 		const auto &tile = g_game().map.getTile(pos);
+ 		if (tile) {
+-			const auto &field = tile->getFieldItem();
++			const auto &field = tile->getFieldItem(getInstanceId());
+ 			if (field && !field->isBlocking() && field->getDamage() != 0) {
+ 				setNextActionTask(nullptr);
+ 				setNextAction(OTSYS_TIME() + getStepDuration(dir));
+@@ -3647,7 +3794,7 @@ void Player::addExperience(const std::shared_ptr<Creature> &target, uint64_t exp
+ 		message.primary.color = TEXTCOLOR_WHITE_EXP;
+ 		sendTextMessage(message);
+ 
+-		auto spectators = Spectators().find<Player>(position);
++		auto spectators = Spectators::around<Player>(position, getInstanceId());
+ 		spectators.erase(static_self_cast<Player>());
+ 		if (!spectators.empty()) {
+ 			message.type = MESSAGE_EXPERIENCE_OTHERS;
+@@ -3735,7 +3882,7 @@ void Player::removeExperience(uint64_t exp, bool sendText /* = false*/) {
+ 		message.primary.color = TEXTCOLOR_RED;
+ 		sendTextMessage(message);
+ 
+-		auto spectators = Spectators().find<Player>(position);
++		auto spectators = Spectators::around<Player>(position, getInstanceId());
+ 		spectators.erase(static_self_cast<Player>());
+ 		if (!spectators.empty()) {
+ 			message.type = MESSAGE_EXPERIENCE_OTHERS;
+@@ -5599,6 +5746,23 @@ bool Player::checkAutoLoot(bool isBoss) const {
+ 	return false;
+ }
+ 
++namespace {
++// Product: data/product/lib/custom/team/02_config.lua TeamConfig.STORAGE_COMPANION_CONTROLLER
++constexpr int32_t STORAGE_COMPANION_CONTROLLER = 910201;
++} // namespace
++
++std::shared_ptr<Player> Player::getAutoLootPlayer() {
++	if (getProtocolVersion() == 0) {
++		const int32_t controllerGuid = getStorageValue(STORAGE_COMPANION_CONTROLLER);
++		if (controllerGuid > 0) {
++			if (const auto &controller = g_game().getPlayerByGUID(static_cast<uint32_t>(controllerGuid), true)) {
++				return controller;
++			}
++		}
++	}
++	return static_self_cast<Player>();
++}
++
+ bool Player::checkChainSystem() const {
+ 	if (!g_configManager().getBoolean(TOGGLE_CHAIN_SYSTEM)) {
+ 		kv()->scoped("features")->set("chainSystem", false);
+@@ -6032,11 +6196,14 @@ std::shared_ptr<Npc> Player::getShopOwner() const {
+ bool Player::setFollowCreature(const std::shared_ptr<Creature> &creature) {
+ 	if (!Creature::setFollowCreature(creature)) {
+ 		setFollowCreature(nullptr);
+-		setAttackedCreature(nullptr);
+-
+-		sendCancelMessage(RETURNVALUE_THEREISNOWAY);
+-		sendCancelTarget();
+-		stopWalk();
++		// Idle combat / exercise stay put; a failed follow must not cancel their attack
++		// the way open-world chase mode does (creatures keep swinging when pathing fails).
++		if (!keepsDisconnectedCombat()) {
++			setAttackedCreature(nullptr);
++			sendCancelMessage(RETURNVALUE_THEREISNOWAY);
++			sendCancelTarget();
++			stopWalk();
++		}
+ 		return false;
+ 	}
+ 	return true;
+@@ -6049,7 +6216,9 @@ bool Player::setAttackedCreature(const std::shared_ptr<Creature> &creature) {
+ 	}
+ 
+ 	const auto &followCreature = getFollowCreature();
+-	if (chaseMode && creature) {
++	// Idle combat keeps the player stationary; never enter chase-follow (which can clear
++	// the attack target if follow pathing fails after disconnect).
++	if (chaseMode && creature && !keepsDisconnectedCombat()) {
+ 		if (followCreature != creature) {
+ 			setFollowCreature(creature);
+ 		}
+@@ -8193,7 +8362,28 @@ uint64_t Player::getBankBalance() const {
+ }
+ 
+ void Player::setBankBalance(uint64_t balance) {
++	if (bankBalance == balance) {
++		return;
++	}
++
+ 	bankBalance = balance;
++
++	// Account-shared bank (per world/DB): keep online alts in sync.
++	const auto accountId = getAccountId();
++	if (accountId == 0) {
++		return;
++	}
++
++	for (const auto &[_, other] : g_game().getPlayers()) {
++		if (!other || other.get() == this || other->getAccountId() != accountId) {
++			continue;
++		}
++		if (other->bankBalance == balance) {
++			continue;
++		}
++		other->bankBalance = balance;
++		other->sendResourceBalance(RESOURCE_BANK, balance);
++	}
+ }
+ 
+ std::shared_ptr<Town> Player::getTown() const {
+@@ -8445,6 +8635,12 @@ void Player::sendOpenStash(bool isNpc) const {
+ 	}
+ }
+ 
++void Player::sendOpenWheelWindow(uint32_t ownerId) const {
++	if (client) {
++		client->sendOpenWheelWindow(ownerId);
++	}
++}
++
+ void Player::sendBannerType(Banner_t bannerType) const {
+ 	if (client) {
+ 		client->sendBannerType(bannerType);
+@@ -8556,7 +8752,7 @@ void Player::onThink(uint32_t interval) {
+ 	const auto &playerTile = getTile();
+ 	const bool vipStaysOnline = isVip() && g_configManager().getBoolean(VIP_STAY_ONLINE);
+ 	idleTime += interval;
+-	if (playerTile && !playerTile->hasFlag(TILESTATE_NOLOGOUT) && !isAccessPlayer() && !isExerciseTraining() && !vipStaysOnline) {
++	if (playerTile && !playerTile->hasFlag(TILESTATE_NOLOGOUT) && !isAccessPlayer() && !keepsDisconnectedCombat() && !vipStaysOnline) {
+ 		const int32_t kickAfterMinutes = g_configManager().getNumber(KICK_AFTER_MINUTES);
+ 		if (idleTime > (kickAfterMinutes * 60000) + 60000) {
+ 			removePlayer(true);
+@@ -9601,6 +9797,81 @@ void Player::sendPreyData() const {
+ 	}
+ }
+ 
++void Player::deliverPreyUiTo(const std::shared_ptr<Player> &viewer) const {
++	if (!viewer || !viewer->client) {
++		return;
++	}
++	const uint32_t editKey = getID() != 0 ? getID() : getGUID();
++	viewer->setFeatureEditOwnerId(editKey);
++	for (const std::unique_ptr<PreySlot> &slot : preys) {
++		viewer->client->sendPreyData(slot, this);
++	}
++	auto [sliverCount, coreCount] = getForgeSliversAndCores();
++	viewer->client->sendResourcesBalance(
++		getMoney(),
++		getBankBalance(),
++		getPreyCards(),
++		getTaskHuntingPoints(),
++		getSoulsealsPoints(),
++		getForgeDusts(),
++		sliverCount,
++		coreCount
++	);
++}
++
++void Player::deliverForgeUiTo(const std::shared_ptr<Player> &viewer) const {
++	if (!viewer || !viewer->client) {
++		return;
++	}
++	const uint32_t editKey = getID() != 0 ? getID() : getGUID();
++	viewer->setFeatureEditOwnerId(editKey);
++	viewer->client->sendForgingData(this);
++	viewer->client->sendOpenForge(this);
++}
++
++void Player::deliverProficiencyUiTo(const std::shared_ptr<Player> &viewer) const {
++	if (!viewer || !viewer->client) {
++		return;
++	}
++	const uint32_t editKey = getID() != 0 ? getID() : getGUID();
++	viewer->setFeatureEditOwnerId(editKey);
++	for (const auto &[itemId, _] : weaponProficiencies) {
++		viewer->client->sendWeaponProficiencyInfo(itemId, this);
++	}
++}
++
++void Player::deliverTaskBoardUiTo(const std::shared_ptr<Player> &viewer) {
++	if (!viewer || !viewer->client) {
++		return;
++	}
++
++	viewer->setFeatureEditOwnerId(getID() != 0 ? getID() : getGUID());
++
++	if (getPlayerVocationEnum() != Vocation_t::VOCATION_NONE) {
++		auto &bountyData = getBountyTaskData();
++		if (bountyData.state == BOUNTY_STATE_NONE) {
++			g_iobountytasks().generateCreatureList(getPlayer(), bountyData.selectedDifficulty);
++		} else if (bountyData.state == BOUNTY_STATE_SELECTION && bountyData.currentCreaturesList.size() < BOUNTY_MAX_CREATURES) {
++			g_iobountytasks().fillMissingCreatures(getPlayer());
++		}
++		viewer->client->sendBountyTaskData(bountyTaskData, this);
++	}
++
++	g_ioweeklytasks().initializeWeeklyTasks(getPlayer());
++	g_ioweeklytasks().ensureWeeklyTaskCount(getPlayer());
++	viewer->client->sendWeeklyTaskData(weeklyTaskData, this);
++	viewer->client->parseSendResourceBalance(this);
++}
++
++void Player::deliverHuntingTaskShopUiTo(const std::shared_ptr<Player> &viewer) const {
++	if (!viewer || !viewer->client) {
++		return;
++	}
++
++	viewer->setFeatureEditOwnerId(getID() != 0 ? getID() : getGUID());
++	viewer->client->sendHuntingTaskShopData(this);
++}
++
+ void Player::sendPreyTimeLeft(const std::unique_ptr<PreySlot> &slot) const {
+ 	if (g_configManager().getBoolean(PREY_ENABLED) && client) {
+ 		client->sendPreyTimeLeft(slot);
+@@ -10415,7 +10686,7 @@ void Player::triggerMomentum() {
+ 			++it;
+ 		}
+ 		if (triggered) {
+-			g_game().addMagicEffect(getPosition(), CONST_ME_HOURGLASS);
++			g_game().addMagicEffect(getPosition(), CONST_ME_HOURGLASS, static_self_cast<Player>());
+ 			sendTextMessage(MESSAGE_ATTENTION, "Momentum was triggered.");
+ 		}
+ 	}
+@@ -10470,7 +10741,7 @@ void Player::triggerTranscendence() {
+ 		outfit.lookType = getVocation()->getAvatarLookType();
+ 		g_game().createIllusion(static_self_cast<Player>(), outfit, duration);
+ 		wheel()->setOnThinkTimer(WheelOnThink_t::AVATAR_FORGE, OTSYS_TIME() + duration);
+-		g_game().addMagicEffect(getPosition(), CONST_ME_AVATAR_APPEAR);
++		g_game().addMagicEffect(getPosition(), CONST_ME_AVATAR_APPEAR, static_self_cast<Player>());
+ 
+ 		sendSkills();
+ 		sendStats();
+@@ -12079,27 +12350,33 @@ void Player::sendLootMessage(const std::string &message) const {
+ 	}
+ }
+ 
+-std::shared_ptr<Container> Player::getLootPouch() {
+-	// Allow players with CM access or higher have the loot pouch anywhere
+-	const auto &parentItem = getParent() ? getParent()->getItem() : nullptr;
+-	if (isPlayerGroup() && parentItem && parentItem->getID() != ITEM_STORE_INBOX) {
+-		return nullptr;
++std::shared_ptr<Container> Player::getInventoryGoldPouch() const {
++	const auto &inventoryItems = getInventoryItemsFromId(ITEM_GOLD_POUCH);
++	if (!inventoryItems.empty() && inventoryItems.front()) {
++		return inventoryItems.front()->getContainer();
+ 	}
+ 
+-	const auto &inventoryItems = getInventoryItemsFromId(ITEM_GOLD_POUCH);
+-	if (inventoryItems.empty()) {
++	// Starter kit grants the loot pouch in the store inbox (SendFirstItems product overlay).
++	const auto &storeInbox = getStoreInbox();
++	if (!storeInbox) {
+ 		return nullptr;
+ 	}
+-	const auto &containerItem = inventoryItems.front();
+-	if (!containerItem) {
+-		return nullptr;
++	for (const auto &item : storeInbox->getItemList()) {
++		if (item && item->getID() == ITEM_GOLD_POUCH) {
++			return item->getContainer();
++		}
+ 	}
+-	const auto &container = containerItem->getContainer();
+-	if (!container) {
++	return nullptr;
++}
++
++std::shared_ptr<Container> Player::getLootPouch() {
++	// Allow players with CM access or higher have the loot pouch anywhere
++	const auto &parentItem = getParent() ? getParent()->getItem() : nullptr;
++	if (isPlayerGroup() && parentItem && parentItem->getID() != ITEM_STORE_INBOX) {
+ 		return nullptr;
+ 	}
+ 
+-	return container;
++	return getInventoryGoldPouch();
+ }
+ 
+ std::shared_ptr<Container> Player::getStoreInbox() const {

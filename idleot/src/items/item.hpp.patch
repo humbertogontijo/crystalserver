@@ -1,0 +1,41 @@
+diff --git a/src/items/item.hpp b/src/items/item.hpp
+index afb45025..3a7d2b20 100644
+--- a/src/items/item.hpp
++++ b/src/items/item.hpp
+@@ -660,6 +660,18 @@ public:
+ 		loadedFromMap = value;
+ 	}
+ 
++	uint32_t getInstanceId() const {
++		return instanceId;
++	}
++	void setInstanceId(uint32_t id) {
++		instanceId = id;
++	}
++	bool isVisibleInInstance(uint32_t viewerInstanceId) const;
++	/** Shared map layer (instanceId 0): OTBM tiles, doors, transform-on-use fixtures (levers/lamps), etc. */
++	bool isMapTemplateItem() const;
++	/** Interactive map fixtures (levers, lamps, doors) that can be forked per instance. */
++	bool isStatefulMapTemplate() const;
++
+ 	bool isDecayDisabled() const {
+ 		return decayDisabled;
+ 	}
+@@ -674,6 +686,9 @@ public:
+ 
+ 	bool hasMarketAttributes() const;
+ 
++	std::shared_ptr<Cylinder> getParent() const {
++		return m_parent.lock();
++	}
+ 	std::shared_ptr<Cylinder> getParent() override {
+ 		return m_parent.lock();
+ 	}
+@@ -768,6 +783,7 @@ protected:
+ 	uint8_t count = 1; // number of stacked items
+ 
+ 	bool loadedFromMap = false;
++	uint32_t instanceId = 0;
+ 	bool isLootTrackeable = false;
+ 	bool decayDisabled = false;
+ 	bool m_hasActor = false;

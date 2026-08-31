@@ -1,0 +1,12 @@
+diff --git a/data/scripts/spells/support/virtue_of_justice.lua b/data/scripts/spells/support/virtue_of_justice.lua
+--- a/data/scripts/spells/support/virtue_of_justice.lua
++++ b/data/scripts/spells/support/virtue_of_justice.lua
+@@ -6,7 +6,7 @@
+ 	return true
+ end
+ 
+-spell:group("support")
++spell:group("support", "stance")
+ spell:id(275)
+ spell:name("Virtue of Justice")
+ spell:words("utito virtu")

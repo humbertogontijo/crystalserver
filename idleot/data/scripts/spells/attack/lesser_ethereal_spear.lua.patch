@@ -1,0 +1,12 @@
+diff --git a/data/scripts/spells/attack/lesser_ethereal_spear.lua b/data/scripts/spells/attack/lesser_ethereal_spear.lua
+--- a/data/scripts/spells/attack/lesser_ethereal_spear.lua
++++ b/data/scripts/spells/attack/lesser_ethereal_spear.lua
+@@ -22,7 +22,7 @@
+ end
+ 
+ spell:group("attack")
+-spell:id(169)
++spell:id(270)
+ spell:name("Lesser Ethereal Spear")
+ spell:words("exori infir con")
+ spell:castSound(SOUND_EFFECT_TYPE_SPELL_OR_RUNE)

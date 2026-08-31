@@ -1,0 +1,60 @@
+diff --git a/src/lua/functions/creatures/player/player_functions.hpp b/src/lua/functions/creatures/player/player_functions.hpp
+index f02d1704..ee93b2d4 100644
+--- a/src/lua/functions/creatures/player/player_functions.hpp
++++ b/src/lua/functions/creatures/player/player_functions.hpp
+@@ -119,6 +119,8 @@ class PlayerFunctions {
+ 
+ 	static int luaPlayerGetIsTraining(lua_State* L);
+ 	static int luaPlayerSetTraining(lua_State* L);
++	static int luaPlayerGetIsIdleCombat(lua_State* L);
++	static int luaPlayerSetIdleCombat(lua_State* L);
+ 
+ 	static int luaPlayerGetKills(lua_State* L);
+ 	static int luaPlayerSetKills(lua_State* L);
+@@ -128,6 +130,9 @@ class PlayerFunctions {
+ 	static int luaPlayerGetReward(lua_State* L);
+ 	static int luaPlayerRemoveReward(lua_State* L);
+ 	static int luaPlayerGetRewardList(lua_State* L);
++	static int luaPlayerLinkRewardChestParents(lua_State* L);
++	static int luaPlayerOpenRewardChest(lua_State* L);
++	static int luaPlayerCollectRewardChest(lua_State* L);
+ 
+ 	static int luaPlayerSetDailyReward(lua_State* L);
+ 
+@@ -253,12 +258,17 @@ class PlayerFunctions {
+ 	static int luaPlayerShowTextDialog(lua_State* L);
+ 
+ 	static int luaPlayerSendTextMessage(lua_State* L);
++	static int luaPlayerSendMapDescription(lua_State* L);
+ 	static int luaPlayerSendChannelMessage(lua_State* L);
+ 	static int luaPlayerSendPrivateMessage(lua_State* L);
+ 
+ 	static int luaPlayerChannelSay(lua_State* L);
+ 	static int luaPlayerOpenChannel(lua_State* L);
+ 	static int luaPlayerCloseChannel(lua_State* L);
++	static int luaPlayerCreateTeamChannel(lua_State* L);
++	static int luaPlayerInviteToTeamChannel(lua_State* L);
++	static int luaPlayerExcludeFromTeamChannel(lua_State* L);
++	static int luaPlayerCloseTeamChannel(lua_State* L);
+ 
+ 	static int luaPlayerGetSlotItem(lua_State* L);
+ 
+@@ -340,6 +350,8 @@ class PlayerFunctions {
+ 
+ 	static int luaPlayerGetInstantSpells(lua_State* L);
+ 	static int luaPlayerCanCast(lua_State* L);
++	static int luaPlayerCastSpell(lua_State* L);
++	static int luaPlayerCastRune(lua_State* L);
+ 
+ 	static int luaPlayerHasChaseMode(lua_State* L);
+ 	static int luaPlayerHasSecureMode(lua_State* L);
+@@ -493,6 +505,9 @@ class PlayerFunctions {
+ 	static int luaPlayerRemoveCustomOutfit(lua_State* L);
+ 
+ 	static int luaPlayerDropConnection(lua_State* L);
++	static int luaPlayerSellAllShopItems(lua_State* L);
++	static int luaPlayerAcceptsQuickLootItem(lua_State* L);
++	static int luaPlayerCollectQuickLootItem(lua_State* L);
+ 
+ 	friend class CreatureFunctions;
+ };

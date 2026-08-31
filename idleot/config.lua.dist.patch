@@ -1,0 +1,22 @@
+diff --git a/config.lua.dist b/config.lua.dist
+index 6b5094cd..1101a517 100644
+--- a/config.lua.dist
++++ b/config.lua.dist
+@@ -86,6 +86,8 @@ allowOldProtocol = false
+ bindOnlyGlobalAddress = false
+ loginProtocolPort = 7171
+ gameProtocolPort = 7172
++-- Browser OTC: optional native WebSocket game port (0 = disabled; use SlenderAAC proxy instead).
++websocketGamePort = 0
+ statusProtocolPort = 97172
+ maxPlayers = 0
+ serverName = "Crystal"
+@@ -731,7 +733,7 @@ metricsOstreamInterval = 1000
+ -- NOTE: Features added in this list will be forced to be used on OTCR
+ -- These features can be found in "modules/gamelib/const.lua"
+ OTCRFeatures = {
+-    enableFeature = { 
++    enableFeature = {
+         101, -- g_game.enableFeature(GameItemShader)
+         102, -- g_game.enableFeature(GameCreatureAttachedEffect)
+         103, -- g_game.enableFeature(GameCreatureShader)
