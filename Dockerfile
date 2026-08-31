@@ -39,6 +39,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN rm -f /etc/apt/apt.conf.d/docker-clean \
 	&& apt-get update && apt-get install -y --no-install-recommends \
 	mariadb-client curl ca-certificates \
+	python3 git patch \
 	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /crystalserver
