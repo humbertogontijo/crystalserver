@@ -30,8 +30,7 @@ RUN --mount=type=cache,id=idleot-vcpkg-src,target=/var/cache/vcpkg-src,sharing=s
 	--mount=type=cache,id=idleot-vcpkg-binaries,target=/var/cache/vcpkg-binaries,sharing=shared \
 	--mount=type=cache,id=idleot-vcpkg-downloads,target=/var/cache/vcpkg-downloads,sharing=shared \
 	--mount=type=cache,id=idleot-ccache,target=/var/cache/ccache,sharing=locked \
-	--mount=type=bind,source=/data/idleot/cache/vcpkg-src,target=/host-vcpkg,readonly \
-	IDLEOT_VCPKG_HOST_SEED=/host-vcpkg bash deploy/compile.sh \
+	bash deploy/compile.sh \
 	&& test -x /src/out/crystalserver
 
 FROM ubuntu:24.04 AS runtime
