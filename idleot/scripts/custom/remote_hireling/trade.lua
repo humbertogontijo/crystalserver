@@ -47,10 +47,22 @@ local function encodeJson(payload)
 	end
 	if payload.type == "sold" then
 		return string.format(
-			'{"type":"sold","gold":%d,"items":%d,"message":%s}',
+			'{"type":"sold","gold":%d,"items":%d,"taxPercent":%d,"message":%s}',
 			tonumber(payload.gold) or 0,
 			tonumber(payload.items) or 0,
+			tonumber(payload.taxPercent) or 0,
 			escapeStr(payload.message or "")
+		)
+	end
+	if payload.type == "status" then
+		return string.format(
+			'{"type":"status","cooldownUntil":%d,"taxPercent":%d,"autoSell":%s,"sellOnNoGold":%s,"sellOnNoCap":%s,"cooldownSeconds":%d}',
+			tonumber(payload.cooldownUntil) or 0,
+			tonumber(payload.taxPercent) or 0,
+			payload.autoSell and "true" or "false",
+			payload.sellOnNoGold and "true" or "false",
+			payload.sellOnNoCap and "true" or "false",
+			tonumber(payload.cooldownSeconds) or 3600
 		)
 	end
 	if payload.type == "ok" then
@@ -61,6 +73,134 @@ end
 
 local function reply(player, payload)
 	player:sendExtendedOpcode(REMOTE_HIRELING_OPCODE, encodeJson(payload))
+end
+
+local function pushStatus(player)
+	if not player or not RemoteHirelingEconomy then
+		return
+	end
+	local fields = RemoteHirelingEconomy.statusFields(player)
+	fields.type = "status"
+	reply(player, fields)
+end
+
+function RemoteHirelingPushStatus(player)
+	pushStatus(player)
+end
+
+local function decodePayload(buffer)
+	if ExpeditionJson and ExpeditionJson.decode then
+		local ok, decoded = pcall(ExpeditionJson.decode, buffer)
+		if ok and type(decoded) == "table" then
+			return decoded
+		end
+	end
+	return nil
+end
+
+local function toItemIds(raw)
+	local out = {}
+	if type(raw) ~= "table" then
+		return out
+	end
+	for _, value in ipairs(raw) do
+		local id = tonumber(value)
+		if id and id > 0 then
+			out[#out + 1] = math.floor(id)
+			if #out >= 512 then
+				break
+			end
+		end
+	end
+	return out
+end
+
+local function handleSellAll(player, payload, buffer)
+	if not RemoteHirelingEconomy or not RemoteHirelingEconomy.sellAll then
+		reply(player, { type = "error", message = "Auto-sell is unavailable." })
+		return
+	end
+
+	local ignoreEquipped = true
+	local filterMode = 0
+	local itemIds = {}
+
+	if type(payload) == "table" then
+		if payload.ignoreEquipped == false then
+			ignoreEquipped = false
+		end
+		filterMode = tonumber(payload.filterMode) or 0
+		if filterMode ~= 1 then
+			filterMode = 0
+		end
+		itemIds = toItemIds(payload.itemIds)
+	else
+		if buffer and buffer:find('"ignoreEquipped"%s*:%s*false', 1, false) then
+			ignoreEquipped = false
+		end
+		filterMode = tonumber(buffer and buffer:match('"filterMode"%s*:%s*(%d+)')) or 0
+		if filterMode ~= 1 then
+			filterMode = 0
+		end
+	end
+
+	local gold, items, taxPercent = RemoteHirelingEconomy.sellAll(player, ignoreEquipped, filterMode, itemIds)
+	if RemoteHirelingEconomy.setSellFilter then
+		RemoteHirelingEconomy.setSellFilter(player, filterMode, itemIds)
+	end
+	if items <= 0 or gold <= 0 then
+		-- Silent when empty (auto-sell polls often).
+		pushStatus(player)
+		return
+	end
+
+	local msg
+	if taxPercent > 0 then
+		msg = string.format("Sold %d items for %d gold (%d%% remote tax).", items, gold, taxPercent)
+	else
+		msg = string.format("Sold %d items for %d gold.", items, gold)
+	end
+	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, msg)
+	reply(player, { type = "sold", gold = gold, items = items, taxPercent = taxPercent, message = msg })
+	pushStatus(player)
+end
+
+local function handleSetAutoSell(player, payload, buffer)
+	if not RemoteHirelingEconomy then
+		return
+	end
+	local enabled = false
+	if type(payload) == "table" then
+		enabled = payload.enabled == true or payload.enabled == 1 or payload.enabled == "true"
+	elseif buffer and buffer:find('"enabled"%s*:%s*true', 1, false) then
+		enabled = true
+	end
+	RemoteHirelingEconomy.setAutoSell(player, enabled)
+	pushStatus(player)
+	local msg = enabled and "Auto-sell enabled." or "Auto-sell disabled."
+	player:sendTextMessage(MESSAGE_STATUS, msg)
+	reply(player, { type = "ok", message = msg })
+end
+
+local function handleSetAutoSellConfig(player, payload)
+	if not RemoteHirelingEconomy or type(payload) ~= "table" then
+		return
+	end
+	if payload.sellOnNoGold ~= nil then
+		RemoteHirelingEconomy.setSellOnNoGold(player, payload.sellOnNoGold == true or payload.sellOnNoGold == 1)
+	end
+	if payload.sellOnNoCap ~= nil then
+		RemoteHirelingEconomy.setSellOnNoCap(player, payload.sellOnNoCap == true or payload.sellOnNoCap == 1)
+	end
+	local filterMode = tonumber(payload.filterMode)
+	if filterMode ~= nil then
+		if filterMode ~= 1 then
+			filterMode = 0
+		end
+		RemoteHirelingEconomy.setSellFilter(player, filterMode, toItemIds(payload.itemIds))
+	end
+	pushStatus(player)
+	reply(player, { type = "ok", message = "Auto-sell options updated." })
 end
 
 local function ensureRemoteNpc()
@@ -281,16 +421,43 @@ local function sellLootPouch(player)
 		return
 	end
 
-	player:addMoney(totalGold)
-	local msg = string.format("Sold %d items for %d gold.", soldItems, totalGold)
+	local taxPercent = 0
+	local netGold = totalGold
+	if RemoteHirelingEconomy then
+		taxPercent = RemoteHirelingEconomy.getTaxPercent(player)
+		if taxPercent > 0 then
+			netGold = math.floor(totalGold * (100 - taxPercent) / 100)
+		end
+	end
+
+	player:addMoney(netGold)
+	if taxPercent == 0 and netGold > 0 and RemoteHirelingEconomy then
+		RemoteHirelingEconomy.startCooldownIfFree(player)
+	end
+
+	local msg
+	if taxPercent > 0 then
+		msg = string.format("Sold %d items for %d gold (%d%% remote tax).", soldItems, netGold, taxPercent)
+	else
+		msg = string.format("Sold %d items for %d gold.", soldItems, netGold)
+	end
 	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, msg)
-	reply(player, { type = "sold", gold = totalGold, items = soldItems, message = msg })
+	reply(player, { type = "sold", gold = netGold, items = soldItems, taxPercent = taxPercent, message = msg })
+	pushStatus(player)
 end
 
 local loginEvent = CreatureEvent("RemoteHirelingLogin")
 
 function loginEvent.onLogin(player)
 	player:registerEvent("RemoteHirelingOpcode")
+	local pid = player:getId()
+	-- Defer status so client opcode handlers are registered.
+	addEvent(function()
+		local p = Player(pid)
+		if p then
+			pushStatus(p)
+		end
+	end, 500)
 	return true
 end
 
@@ -305,9 +472,27 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 	if type(buffer) ~= "string" or buffer == "" then
 		return
 	end
-	local action = buffer:match('"action"%s*:%s*"([^"]+)"')
+	local payload = decodePayload(buffer)
+	local action = (payload and payload.action) or buffer:match('"action"%s*:%s*"([^"]+)"')
 	if action == "openRemoteHirelingTrade" or buffer:find('"openRemoteHirelingTrade"', 1, true) then
 		openRemoteHirelingTrade(player)
+		pushStatus(player)
+		return
+	end
+	if action == "sellAll" or buffer:find('"sellAll"', 1, true) then
+		handleSellAll(player, payload, buffer)
+		return
+	end
+	if action == "setAutoSell" or buffer:find('"setAutoSell"', 1, true) then
+		handleSetAutoSell(player, payload, buffer)
+		return
+	end
+	if action == "setAutoSellConfig" or buffer:find('"setAutoSellConfig"', 1, true) then
+		handleSetAutoSellConfig(player, payload)
+		return
+	end
+	if action == "status" or buffer:find('"status"', 1, true) then
+		pushStatus(player)
 		return
 	end
 	if action == "depositAll" or buffer:find('"depositAll"', 1, true) then
@@ -315,7 +500,7 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 		return
 	end
 	if action == "withdraw" or buffer:find('"withdraw"', 1, true) then
-		local amount = tonumber(buffer:match('"amount"%s*:%s*(%d+)')) or 0
+		local amount = tonumber((payload and payload.amount) or buffer:match('"amount"%s*:%s*(%d+)')) or 0
 		withdrawAmount(player, amount)
 		return
 	end

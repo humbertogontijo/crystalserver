@@ -379,6 +379,16 @@ local function consumeSupply(player, typeId)
 		return true
 	end
 	if not chargeNpcBuyPrice(player, typeId) then
+		-- Sell loot first so gold may recover before stop-on-insufficient-gold.
+		if RemoteHirelingEconomy and RemoteHirelingEconomy.maybeSellForShortage then
+			if RemoteHirelingEconomy.maybeSellForShortage(player, "gold") and chargeNpcBuyPrice(player, typeId) then
+				local tmp = Game.createItem(typeId, 1)
+				if tmp then
+					player:updateSupplyTracker(tmp)
+				end
+				return true
+			end
+		end
 		local session = expeditionSession(player)
 		if session and session.stopOnInsufficientGold then
 			abortExpedition(
@@ -550,28 +560,52 @@ local function ensureAmmo(player, config)
 	-- No physical ammo of this type: charge this character's gold, then equip one.
 	-- Do not use consumeSupply - that would double-count supply tracker when the weapon consumes it.
 	if respectCap and not canCarryAmmo(player, typeId, 1) then
-		abortExpedition(
-			player,
-			string.format("%s has insufficient capacity for ammo. Expedition stopped.", player:getName())
-		)
-		return
-	end
-	if not chargeNpcBuyPrice(player, typeId) then
-		if session and session.stopOnInsufficientGold then
-			abortExpedition(
-				player,
-				string.format("%s ran out of gold for ammo. Expedition stopped.", player:getName())
-			)
+		if RemoteHirelingEconomy and RemoteHirelingEconomy.maybeSellForShortage then
+			RemoteHirelingEconomy.maybeSellForShortage(player, "cap")
 		end
-		return
-	end
-	-- Default: ignore cap (gold-gated). stopOnInsufficientCap → already verified weight above.
-	if not placeConfiguredAmmo(player, typeId, true, 1, not respectCap) then
-		if respectCap then
+		if not canCarryAmmo(player, typeId, 1) then
 			abortExpedition(
 				player,
 				string.format("%s has insufficient capacity for ammo. Expedition stopped.", player:getName())
 			)
+			return
+		end
+	end
+	if not chargeNpcBuyPrice(player, typeId) then
+		if RemoteHirelingEconomy and RemoteHirelingEconomy.maybeSellForShortage then
+			if RemoteHirelingEconomy.maybeSellForShortage(player, "gold") and chargeNpcBuyPrice(player, typeId) then
+				-- recovered after sell
+			else
+				if session and session.stopOnInsufficientGold then
+					abortExpedition(
+						player,
+						string.format("%s ran out of gold for ammo. Expedition stopped.", player:getName())
+					)
+				end
+				return
+			end
+		else
+			if session and session.stopOnInsufficientGold then
+				abortExpedition(
+					player,
+					string.format("%s ran out of gold for ammo. Expedition stopped.", player:getName())
+				)
+			end
+			return
+		end
+	end
+	-- Default: ignore cap (gold-gated). stopOnInsufficientCap → already verified weight above.
+	if not placeConfiguredAmmo(player, typeId, true, 1, not respectCap) then
+		if respectCap then
+			if RemoteHirelingEconomy and RemoteHirelingEconomy.maybeSellForShortage then
+				RemoteHirelingEconomy.maybeSellForShortage(player, "cap")
+			end
+			if not placeConfiguredAmmo(player, typeId, true, 1, false) then
+				abortExpedition(
+					player,
+					string.format("%s has insufficient capacity for ammo. Expedition stopped.", player:getName())
+				)
+			end
 		end
 	end
 end
