@@ -274,7 +274,13 @@ end
 
 function CombatAutomationStore.applyToRuntime(player, config)
 	local state = CombatAutomation.getState(player)
-	state.config = config or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0 }
+	local prevCfg = state.config
+	local prevAuto = prevCfg and prevCfg.autoTarget and prevCfg.autoTarget.enabled == true
+	local nextCfg = config or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0 }
+	local nextAuto = nextCfg.autoTarget and nextCfg.autoTarget.enabled == true
+	-- Only treat as a real AUTO toggle when a prior config existed (skip cold load / first apply).
+	local autoResumed = nextAuto and not prevAuto and prevCfg ~= nil
+	state.config = nextCfg
 	if ExpeditionManager and ExpeditionManager.getSessionByPlayer then
 		local session = ExpeditionManager.getSessionByPlayer(player)
 		if session then
@@ -307,6 +313,13 @@ function CombatAutomationStore.applyToRuntime(player, config)
 				or 4
 			if pid == session.playerId then
 				session.stance = session.memberStance[pid]
+			end
+			-- AUTO off→on: clear use-with walkTask so positioning resumes (attack already does).
+			if autoResumed and ExpeditionAI and ExpeditionAI.onAutoResumed then
+				ExpeditionAI.onAutoResumed(player)
+			elseif ExpeditionAI and ExpeditionAI.enablePersistence then
+				-- Snap idle-combat on so client walk stays locked without waiting for the AI tick.
+				ExpeditionAI.enablePersistence(player)
 			end
 		end
 	end

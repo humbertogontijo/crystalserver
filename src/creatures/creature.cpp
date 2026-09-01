@@ -370,7 +370,18 @@ bool Creature::getNextStep(Direction &dir, uint32_t &) {
 	return true;
 }
 
-void Creature::startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions /* = false*/, bool immediate /* = false*/, uint32_t walkFlags /* = 0*/) {
+bool Creature::startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions /* = false*/, bool immediate /* = false*/, uint32_t walkFlags /* = 0*/) {
+	// Preserve a pending walk-then-act path (use-with). Those approaches are started via
+	// forcePlayerAutoWalk (ignoreConditions=true). Non-forced walks (expedition AI, client)
+	// must not replace that specific path — this is not a general client-control unlock.
+	if (!ignoreConditions) {
+		if (const auto &player = getPlayer()) {
+			if (player->hasWalkTask()) {
+				return false;
+			}
+		}
+	}
+
 	listWalkDir.clear();
 	// Always assign (including 0) so C++ follow/client walks never inherit Lua
 	// FLAG_IGNOREBLOCKCREATURE from a prior aborted expedition path.
@@ -378,18 +389,19 @@ void Creature::startAutoWalk(const std::vector<Direction> &listDir, bool ignoreC
 
 	if (!ignoreConditions && (hasCondition(CONDITION_ROOTED) || hasCondition(CONDITION_FEARED))) {
 		autoWalkFlags = 0;
-		return;
+		return false;
 	}
 
 	listWalkDir = { listDir.begin(), listDir.end() };
 
 	if (listWalkDir.empty()) {
 		autoWalkFlags = 0;
-		return;
+		return false;
 	}
 
 	// `immediate` → first step on next dispatcher tick (no full stepDuration wait).
 	addEventWalk(immediate || listWalkDir.size() == 1);
+	return true;
 }
 
 void Creature::addEventWalk(bool firstStep) {

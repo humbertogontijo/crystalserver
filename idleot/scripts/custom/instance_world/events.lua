@@ -63,7 +63,9 @@ function moveItemCallback.playerOnMoveItem(player, _item, _count, fromPosition, 
 	if not InstanceWorld or not InstanceWorld.canWalk then
 		return true
 	end
-	if toPosition and not InstanceWorld.canWalk(player, toPosition) then
+	-- Inventory / open containers use 0xFFFF — not map tiles; occupancy does not apply.
+	-- (Without this skip, ground→backpack always fails with "Sorry, not possible.")
+	if toPosition and toPosition.x ~= 0xFFFF and not InstanceWorld.canWalk(player, toPosition) then
 		if player.sendCancelMessage then
 			player:sendCancelMessage(RETURNVALUE_NOTPOSSIBLE)
 		end

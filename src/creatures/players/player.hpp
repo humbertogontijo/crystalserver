@@ -581,6 +581,10 @@ public:
 		return idleCombat;
 	}
 	void setIdleCombat(bool enabled) {
+		// Only clear deferred walk-then-act when *entering* idle combat, not every tick.
+		if (enabled && !idleCombat) {
+			setNextWalkActionTask(nullptr);
+		}
 		idleCombat = enabled;
 	}
 	/** Exercise dummy or idle combat — keep attacking without a live client. */
@@ -815,6 +819,18 @@ public:
 	void onWalk(Direction &dir) override;
 	void onWalkAborted() override;
 	void onWalkComplete() override;
+
+	/** True while a deferred walk-then-act approach is in progress (path not finished yet). */
+	bool hasWalkTask() const {
+		// Only walkTask: walkTaskEvent means the action is already scheduled after arrival.
+		// Counting walkTaskEvent left hasWalkTask true forever (event id never cleared),
+		// which permanently blocked expedition AI after a successful use-with.
+		return walkTask != nullptr;
+	}
+
+	void clearWalkTaskEvent() {
+		walkTaskEvent = 0;
+	}
 
 	void stopWalk();
 	bool openShopWindow(const std::shared_ptr<Npc> &npc, const std::vector<ShopBlock> &shopItems = {});

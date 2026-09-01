@@ -340,7 +340,8 @@ public:
 	// walk functions
 	// walkFlags: OR'd into onCreatureWalk (e.g. FLAG_IGNOREBLOCKCREATURE). Always
 	// replaced for this path — never left over from a previous autoWalk.
-	void startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions = false, bool immediate = false, uint32_t walkFlags = 0);
+	// Returns false if the path was rejected (e.g. preserved walk-then-act).
+	bool startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions = false, bool immediate = false, uint32_t walkFlags = 0);
 	void addEventWalk(bool firstStep = false);
 	void stopEventWalk();
 	void resetMovementState();

@@ -5001,7 +5001,7 @@ void Game::playerUseWithCreature(uint32_t playerId, const Position &fromPos, uin
 
 			std::vector<Direction> listDir;
 			if (player->getPathTo(walkToPos, listDir, 0, 1, true, true)) {
-				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 				const auto &task = createPlayerTask(
 					400,
 					[this, playerId, itemPos, itemStackPos, creatureId, itemId] {

@@ -1142,8 +1142,8 @@ int CreatureFunctions::luaCreatureAutoWalk(lua_State* L) {
 	// immediate=false: wait a normal stepDuration before the first tile so OTC
 	// can play walk frames. (immediate=true used ticks==1 and looked like a slide.)
 	// Single-step paths still get firstStep via startAutoWalk (size == 1).
-	creature->startAutoWalk(dirList, ignoreConditions, false, flags);
-	Lua::pushBoolean(L, true);
+	const bool started = creature->startAutoWalk(dirList, ignoreConditions, false, flags);
+	Lua::pushBoolean(L, started);
 	return 1;
 }
 

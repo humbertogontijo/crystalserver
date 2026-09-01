@@ -6323,8 +6323,20 @@ void Player::onWalkComplete() {
 	}
 
 	if (walkTask) {
-		walkTaskEvent = g_dispatcher().scheduleEvent(walkTask);
+		auto pending = walkTask;
 		walkTask = nullptr;
+		const uint32_t playerId = getID();
+		const uint32_t delay = pending->getDelay();
+		walkTaskEvent = g_dispatcher().scheduleEvent(
+			delay,
+			[playerId, pending] {
+				if (const auto &player = g_game().getPlayerByID(playerId)) {
+					player->clearWalkTaskEvent();
+				}
+				pending->execute();
+			},
+			pending->getContext()
+		);
 	}
 }
 

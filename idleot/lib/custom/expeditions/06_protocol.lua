@@ -151,6 +151,8 @@ function ExpeditionProtocol.sendStatus(player, session)
 		end
 		status.players = memberCount
 		if session.anchorPlayerId then
+			status.anchorId = session.anchorPlayerId
+			status.isAnchor = (player and player:getId() == session.anchorPlayerId) and true or false
 			local anchor = Player(session.anchorPlayerId)
 			if anchor then
 				status.anchorName = anchor:getName()

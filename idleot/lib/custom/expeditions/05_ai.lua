@@ -1,5 +1,14 @@
 ExpeditionAI = ExpeditionAI or {}
 
+-- Walk-queue dedupe (shared by enablePersistence + pathing helpers).
+local lastQueuedWalkById = {}
+
+local function clearQueuedWalk(creature)
+	if creature then
+		lastQueuedWalkById[creature:getId()] = nil
+	end
+end
+
 local function memberIds(session)
 	if ExpeditionManager and ExpeditionManager.sessionMemberIds then
 		return ExpeditionManager.sessionMemberIds(session)
@@ -142,6 +151,9 @@ function ExpeditionAI.syncAttackTargetIfChanged(session, player)
 end
 
 -- Idle combat keeps disconnect combat alive; INFIGHT blocks ping-timeout logout.
+-- Mid-hunt the client never owns WASD/map: idle combat stays on. Use-with / use from
+-- afar approaches via forcePlayerAutoWalk (server path only). AUTO only gates AI
+-- attack + creature-chase — it does not unlock free client locomotion.
 function ExpeditionAI.enablePersistence(player)
 	if not player then
 		return
@@ -169,6 +181,29 @@ function ExpeditionAI.enablePersistence(player)
 	local condition = Condition(CONDITION_INFIGHT)
 	condition:setParameter(CONDITION_PARAM_TICKS, 60000)
 	player:addCondition(condition)
+end
+
+--- AUTO off→on: drop deferred use-with walkTask + walk dedupe so stance/follow can resume.
+--- (Attack resumes via setTarget; positioning stays stuck while hasWalkTask / stale dedupe.)
+function ExpeditionAI.onAutoResumed(player)
+	if not player then
+		return
+	end
+	clearQueuedWalk(player)
+	-- Inline clear-follow (clearFollowIfAny is defined later in this chunk).
+	if player.getFollowCreature and player:getFollowCreature() then
+		player:setFollowCreature(nil)
+	end
+	-- setIdleCombat(true) only clears walkTask on false→true; bounce if already idle.
+	if player.setIdleCombat then
+		if player:isIdleCombat() then
+			player:setIdleCombat(false)
+		end
+		player:setIdleCombat(true)
+	elseif player.stopWalk then
+		player:stopWalk()
+	end
+	ExpeditionAI.enablePersistence(player)
 end
 
 --- Living monsters tagged with this expedition's private instance id.
@@ -477,19 +512,11 @@ local function dirsForAutoWalkFromGetPathTo(path)
 	return out
 end
 
-local lastQueuedWalkById = {}
-
 local function walkDestKey(pos)
 	if not pos then
 		return nil
 	end
 	return string.format("%d,%d,%d", pos.x, pos.y, pos.z)
-end
-
-local function clearQueuedWalk(creature)
-	if creature then
-		lastQueuedWalkById[creature:getId()] = nil
-	end
 end
 
 --- Queue a full path via Creature:autoWalk. `force` skips the in-flight dedupe (stall repath).
@@ -1104,8 +1131,15 @@ function ExpeditionAI.onPlayerWalk(player)
 end
 
 --- Creature-distance stance (Chebyshev ring / follow) vs a focus creature.
+--- AUTO off: clear follow / attack so the player is not yanked mid use-with approach;
+--- idle combat still blocks free WASD — approach is forcePlayerAutoWalk + walkTask only.
 local function applyCreatureStance(session, player, target)
 	if not session or not player or not target then
+		return
+	end
+	if not playerAutoAttackEnabled(player) then
+		clearFollowIfAny(player)
+		setAttackTarget(session, player, nil)
 		return
 	end
 	local stance = stanceFor(session, player)
@@ -1147,39 +1181,46 @@ end
 
 --- Hunt/boss positioning:
 --- - Healthy non-anchors: exclusive cardinal formation around the anchor (no monsters needed).
---- - Critical HP (below POSITION_CRITICAL_HP_PERCENT): creature-distance stance vs focus.
---- - Anchor with a combat focus: creature stance (melee follow / ranged hold) vs that target.
+--- - Critical HP (below POSITION_CRITICAL_HP_PERCENT): creature-distance stance vs focus (AUTO on only).
+--- - Anchor with a combat focus: creature stance (melee follow / ranged hold) vs that target (AUTO on only).
 --- - Anchor with no focus (or relocating): walk to holdPos / stand. Monsters spawn near anchor.
---- Raids never call this - they always use creature stance.
+--- Raids never call this - they always use creature stance (still gated on AUTO inside applyCreatureStance).
 local function positionForHuntOrBoss(session, player, anchor, reserved, focusCreature)
 	if not player then
 		return
 	end
 
+	local autoOn = playerAutoAttackEnabled(player)
 	local critical = ExpeditionConfig.isPositionCritical and ExpeditionConfig.isPositionCritical(player)
 	local playerIsAnchor = isAnchor(session, player)
 
-	if critical then
-		-- Low HP: fall back to creature-distance positioning when a focus exists.
+	if critical and autoOn then
+		-- Low HP + AUTO on: fall back to creature-distance positioning when a focus exists.
 		if focusCreature then
 			applyCreatureStance(session, player, focusCreature)
 			return
 		end
 		-- No combat focus yet - still form on anchor so we are not stacked.
+	elseif critical and not autoOn then
+		-- Low HP + AUTO off: do not chase/hold vs monsters (taming / manual control).
+		clearFollowIfAny(player)
 	end
 
 	if playerIsAnchor then
 		-- Follow/hold the attack target server-side (hunt and boss). Relocate keeps autoWalk to hold.
-		if focusCreature and session.state ~= "relocating" then
+		if focusCreature and session.state ~= "relocating" and autoOn then
 			applyCreatureStance(session, player, focusCreature)
 		else
 			-- Relocate walk is driven by ExpeditionAI.startRelocateWalk (engine autoWalk).
 			-- Do NOT call setFollowCreature(nil) every tick - that clears listWalkDir and aborts autoWalk.
 			if session.state ~= "relocating" then
 				clearFollowIfAny(player)
-				local hold = session.holdPos
-				if hold and not sameTile(player:getPosition(), hold) then
-					queueWalkToward(player, hold, true, true)
+				-- AUTO off: do not holdPos-yank (preserves force use-with approach via hasWalkTask).
+				if autoOn then
+					local hold = session.holdPos
+					if hold and not sameTile(player:getPosition(), hold) then
+						queueWalkToward(player, hold, true, true)
+					end
 				end
 			else
 				clearFollowIfAny(player)
@@ -1201,6 +1242,7 @@ local function positionForHuntOrBoss(session, player, anchor, reserved, focusCre
 	end
 
 	-- Non-anchor healthy (or critical with no focus): form on the anchor.
+	-- hasWalkTask approach walks are preserved by Creature::startAutoWalk (non-forced).
 	clearFollowIfAny(player)
 	if anchor then
 		local d = stanceDistance(session, player)
