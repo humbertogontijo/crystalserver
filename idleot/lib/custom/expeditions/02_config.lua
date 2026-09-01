@@ -136,6 +136,14 @@ end
 
 --- Safety options for ending an expedition when supplies cannot be paid / carried.
 --- Both default to false (explicit opt-in; new players often have 0 gold).
+---
+--- Shortage meanings (see ExpeditionSafety.handleShortage):
+---   insufficient gold — cannot restock a needed supply (potion/rune/ammo) at NPC buy
+---     price from inventory+bank; not merely gold == 0 while stacks remain.
+---   insufficient capacity — cannot collect an accepted loot item by weight (free cap <
+---     item weight); not merely freeCap == 0 and not "cannot carry one ammo unit".
+--- Auto-sell (when enabled + sell-on-insufficient-*) runs before stop; stop does not
+--- require auto-sell.
 function ExpeditionConfig.normalizeStopOptions(opts)
 	if type(opts) ~= "table" then
 		opts = {}

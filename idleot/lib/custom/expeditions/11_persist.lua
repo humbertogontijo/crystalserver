@@ -2,20 +2,12 @@ ExpeditionPersist = ExpeditionPersist or {}
 
 local pendingByKey = {}
 local pendingByGuid = {}
-local restoringByKey = {}
 
 local function huntsKv()
 	if not kv or not kv.scoped then
 		return nil
 	end
 	return kv.scoped("expeditions"):scoped("hunts")
-end
-
-local function playerKv(player)
-	if not player or not player.kv then
-		return nil
-	end
-	return player:kv()
 end
 
 function ExpeditionPersist.sessionKeyFromHostGuid(hostGuid)
@@ -83,24 +75,15 @@ function ExpeditionPersist.snapshotFromSession(session)
 	end
 
 	local humanGuids = {}
-	local companionGuids = {}
 	local seenHuman = {}
-	local seenCompanion = {}
 
 	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
 		local member = Player(id)
-		if member then
+		if member and not isCompanion(session, member) then
 			local guid = member:getGuid()
-			if isCompanion(session, member) then
-				if not seenCompanion[guid] then
-					seenCompanion[guid] = true
-					companionGuids[#companionGuids + 1] = guid
-				end
-			else
-				if not seenHuman[guid] then
-					seenHuman[guid] = true
-					humanGuids[#humanGuids + 1] = guid
-				end
+			if not seenHuman[guid] then
+				seenHuman[guid] = true
+				humanGuids[#humanGuids + 1] = guid
 			end
 		end
 	end
@@ -119,7 +102,6 @@ function ExpeditionPersist.snapshotFromSession(session)
 		stopOnInsufficientCap = session.stopOnInsufficientCap == true,
 		hostGuid = hostGuid,
 		humanGuids = humanGuids,
-		companionGuids = companionGuids,
 		savedAt = os.time(),
 	}
 end
@@ -227,7 +209,6 @@ function ExpeditionPersist.clearSession(session)
 	else
 		unindexSnapshot({ sessionKey = sessionKey, humanGuids = {} })
 	end
-	restoringByKey[sessionKey] = nil
 end
 
 function ExpeditionPersist.saveAllLive(sessionsByKey)
@@ -244,7 +225,6 @@ end
 function ExpeditionPersist.loadAll()
 	pendingByKey = {}
 	pendingByGuid = {}
-	restoringByKey = {}
 
 	local store = huntsKv()
 	if not store or not store.keys or not ExpeditionJson then
@@ -301,129 +281,6 @@ function ExpeditionPersist.getPendingSnapshot(player)
 	return pendingByKey[key]
 end
 
-local function collectOnlineHumans(snapshot, excludeGuid)
-	local out = {}
-	local seen = {}
-	excludeGuid = math.floor(tonumber(excludeGuid) or 0)
-	for _, rawGuid in ipairs(snapshot.humanGuids or {}) do
-		local guid = math.floor(tonumber(rawGuid) or 0)
-		if guid > 0 and guid ~= excludeGuid and not seen[guid] then
-			seen[guid] = true
-			local online = TeamStore and TeamStore.findOnlinePlayerByGuid and TeamStore.findOnlinePlayerByGuid(guid)
-			if online and not (TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(online)) then
-				out[#out + 1] = online
-			end
-		end
-	end
-	return out
-end
-
-function ExpeditionPersist.tryRestoreOnLogin(player)
-	if not player or not ExpeditionManager or not ExpeditionManager.join then
-		return false
-	end
-
-	ExpeditionConfig.refundBossAttemptIfMarked(player)
-
-	local snapshot = ExpeditionPersist.getPendingSnapshot(player)
-	if not snapshot then
-		return false
-	end
-
-	local sessionKey = snapshot.sessionKey
-	if not sessionKey then
-		return false
-	end
-
-	local live = ExpeditionManager.getSessionByKey and ExpeditionManager.getSessionByKey(sessionKey)
-	if live and live.state ~= "ended" then
-		if ExpeditionManager.getSessionByPlayer(player) then
-			return true
-		end
-		local host = Player(live.playerId)
-		if host and ExpeditionManager.attachFriendToSession then
-			ExpeditionManager.attachFriendToSession(player, live, host, { skipMaybeStart = true })
-			return true
-		end
-		return false
-	end
-
-	if restoringByKey[sessionKey] then
-		local playerId = player:getId()
-		addEvent(function()
-			local p = Player(playerId)
-			if p and ExpeditionPersist.tryRestoreOnLogin then
-				pcall(ExpeditionPersist.tryRestoreOnLogin, p)
-			end
-		end, 1500)
-		return true
-	end
-
-	local playerGuid = player:getGuid()
-	local hostGuid = math.floor(tonumber(snapshot.hostGuid) or 0)
-	local joiner = player
-	if hostGuid > 0 and hostGuid ~= playerGuid then
-		local hostOnline = TeamStore and TeamStore.findOnlinePlayerByGuid and TeamStore.findOnlinePlayerByGuid(hostGuid)
-		if hostOnline and not ExpeditionManager.getSessionByPlayer(hostOnline) then
-			joiner = hostOnline
-		end
-	end
-
-	if not joiner then
-		return false
-	end
-
-	local preAccepted = collectOnlineHumans(snapshot, joiner:getGuid())
-	restoringByKey[sessionKey] = true
-
-	local ok, err = pcall(function()
-		ExpeditionManager.join(
-			joiner,
-			snapshot.catalogId,
-			snapshot.catalogRole or "monster",
-			nil,
-			snapshot.lure,
-			{
-				skipPzCheck = true,
-				restoreSkipTeamAccept = true,
-				restoreHostGuid = hostGuid,
-				preAcceptedPlayers = preAccepted,
-				stopOnInsufficientGold = snapshot.stopOnInsufficientGold,
-				stopOnInsufficientCap = snapshot.stopOnInsufficientCap,
-			}
-		)
-	end)
-
-	restoringByKey[sessionKey] = nil
-
-	if not ok then
-		logger.error("[ExpeditionPersist] restore join failed for {}: {}", player:getName(), tostring(err))
-		ExpeditionPersist.clearSnapshot(snapshot)
-		return false
-	end
-
-	local restored = ExpeditionManager.getSessionByKey and ExpeditionManager.getSessionByKey(sessionKey)
-	if not restored then
-		ExpeditionPersist.clearSnapshot(snapshot)
-		return false
-	end
-
-	if joiner:getGuid() ~= playerGuid and playerGuid ~= hostGuid then
-		local host = Player(restored.playerId)
-		if host and ExpeditionManager.attachFriendToSession then
-			if not ExpeditionManager.getSessionByPlayer(player) then
-				ExpeditionManager.attachFriendToSession(player, restored, host, { skipMaybeStart = true })
-			end
-		end
-	end
-
-	player:sendTextMessage(
-		MESSAGE_EVENT_ADVANCE,
-		"Your expedition was interrupted. Starting the hunt again..."
-	)
-	return true
-end
-
 function ExpeditionPersist.clearSnapshot(snapshot)
 	if not snapshot then
 		return
@@ -436,5 +293,18 @@ function ExpeditionPersist.clearSnapshot(snapshot)
 		setMemberPointer(guid, nil)
 	end
 	unindexSnapshot(snapshot)
-	restoringByKey[snapshot.sessionKey] = nil
+end
+
+--- Rebuild hunt instances/sessions on process start and begin hunting immediately.
+function ExpeditionPersist.restoreAllOnStartup()
+	local restored = 0
+	for _, snapshot in pairs(pendingByKey) do
+		if ExpeditionManager.restoreHuntOnStartup and ExpeditionManager.restoreHuntOnStartup(snapshot) then
+			restored = restored + 1
+		end
+	end
+	if restored > 0 then
+		logger.info("[ExpeditionPersist] restored {} hunt(s) on startup", restored)
+	end
+	return restored
 end

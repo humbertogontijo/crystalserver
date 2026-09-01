@@ -6349,7 +6349,7 @@ void Game::playerSellItem(uint32_t playerId, uint16_t itemId, uint8_t count, uin
 	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
 }
 
-void Game::playerSellAllItems(uint32_t playerId, bool ignoreEquipped, uint8_t filterMode, const std::vector<uint16_t> &itemIds) {
+void Game::playerSellAllItems(uint32_t playerId, bool ignoreEquipped, uint8_t filterMode, const std::vector<uint16_t> &itemIds, bool lootPouchOnly) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
 	const auto &player = getPlayerByID(playerId);
 	if (!player) {
@@ -6369,6 +6369,11 @@ void Game::playerSellAllItems(uint32_t playerId, bool ignoreEquipped, uint8_t fi
 	// One exhaust for the whole dump (avoids the client 550ms sell loop).
 	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
 
+	const std::shared_ptr<Container> lootPouch = lootPouchOnly ? player->getLootPouch() : nullptr;
+	if (lootPouchOnly && !lootPouch) {
+		return;
+	}
+
 	phmap::flat_hash_set<uint16_t> listed;
 	listed.reserve(std::min<size_t>(itemIds.size(), 512));
 	for (size_t i = 0; i < itemIds.size() && i < 512; ++i) {
@@ -6380,6 +6385,18 @@ void Game::playerSellAllItems(uint32_t playerId, bool ignoreEquipped, uint8_t fi
 
 	auto countEligible = [&](uint16_t itemId) -> uint32_t {
 		uint32_t eligible = 0;
+		if (lootPouchOnly) {
+			for (const auto &item : lootPouch->getItemList()) {
+				if (!item || item->getID() != itemId || item->getTier() > 0 || item->hasImbuements()) {
+					continue;
+				}
+				if (!item->hasMarketAttributes()) {
+					continue;
+				}
+				eligible += item->getItemCount();
+			}
+			return eligible;
+		}
 		for (const auto &item : player->getInventoryItemsFromId(itemId, ignoreEquipped)) {
 			if (!item || item->getTier() > 0 || item->hasImbuements()) {
 				continue;
@@ -6434,7 +6451,7 @@ void Game::playerSellAllItems(uint32_t playerId, bool ignoreEquipped, uint8_t fi
 
 			const uint16_t chunk = static_cast<uint16_t>(std::min<uint32_t>(eligible, maxCap));
 			const uint64_t before = totalPrice;
-			merchant->onPlayerSellItem(player, itemId, 0, chunk, ignoreEquipped, totalPrice);
+			merchant->onPlayerSellItem(player, itemId, 0, chunk, ignoreEquipped, totalPrice, lootPouch);
 			if (totalPrice == before) {
 				// Capacity / bag space or nothing removable — stop the dump.
 				stopAll = true;

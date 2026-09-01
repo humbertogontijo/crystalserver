@@ -6161,7 +6161,7 @@ int PlayerFunctions::luaPlayerDropConnection(lua_State* L) {
 }
 
 int PlayerFunctions::luaPlayerSellAllShopItems(lua_State* L) {
-	// player:sellAllShopItems(ignoreEquipped, filterMode, itemIds)
+	// player:sellAllShopItems(ignoreEquipped, filterMode, itemIds, lootPouchOnly)
 	// filterMode: 0 = skipped (sell all except list), 1 = accepted (sell only list)
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (!player) {
@@ -6172,6 +6172,7 @@ int PlayerFunctions::luaPlayerSellAllShopItems(lua_State* L) {
 
 	const bool ignoreEquipped = Lua::getBoolean(L, 2, true);
 	const auto filterMode = Lua::getNumber<uint8_t>(L, 3, 0);
+	const bool lootPouchOnly = Lua::getBoolean(L, 5, false);
 
 	std::vector<uint16_t> itemIds;
 	if (lua_istable(L, 4) != 0) {
@@ -6186,7 +6187,7 @@ int PlayerFunctions::luaPlayerSellAllShopItems(lua_State* L) {
 		}
 	}
 
-	g_game().playerSellAllItems(player->getID(), ignoreEquipped, filterMode, itemIds);
+	g_game().playerSellAllItems(player->getID(), ignoreEquipped, filterMode, itemIds, lootPouchOnly);
 	Lua::pushBoolean(L, true);
 	return 1;
 }

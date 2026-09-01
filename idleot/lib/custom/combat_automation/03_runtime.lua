@@ -360,13 +360,6 @@ local function expeditionSession(player)
 	return ExpeditionManager.getSessionByPlayer(player)
 end
 
-local function abortExpedition(player, reason)
-	local session = expeditionSession(player)
-	if session and ExpeditionManager.abort then
-		ExpeditionManager.abort(session, reason)
-	end
-end
-
 --- Prefer consuming an inventory stack; otherwise charge NPC buy price from this character.
 local function consumeSupply(player, typeId)
 	local item = player:getItemById(typeId, true)
@@ -379,24 +372,24 @@ local function consumeSupply(player, typeId)
 		return true
 	end
 	if not chargeNpcBuyPrice(player, typeId) then
-		-- Sell loot first so gold may recover before stop-on-insufficient-gold.
-		if RemoteHirelingEconomy and RemoteHirelingEconomy.maybeSellForShortage then
-			if RemoteHirelingEconomy.maybeSellForShortage(player, "gold") and chargeNpcBuyPrice(player, typeId) then
-				local tmp = Game.createItem(typeId, 1)
-				if tmp then
-					player:updateSupplyTracker(tmp)
-				end
-				return true
-			end
-		end
-		local session = expeditionSession(player)
-		if session and session.stopOnInsufficientGold then
-			abortExpedition(
+		local recovered = ExpeditionSafety
+			and ExpeditionSafety.handleShortage
+			and ExpeditionSafety.handleShortage(
 				player,
+				"gold",
+				function()
+					if not chargeNpcBuyPrice(player, typeId) then
+						return false
+					end
+					local tmp = Game.createItem(typeId, 1)
+					if tmp then
+						player:updateSupplyTracker(tmp)
+					end
+					return true
+				end,
 				string.format("%s ran out of gold for supplies. Expedition stopped.", player:getName())
 			)
-		end
-		return false
+		return recovered == true
 	end
 	local tmp = Game.createItem(typeId, 1)
 	if tmp then
@@ -560,52 +553,46 @@ local function ensureAmmo(player, config)
 	-- No physical ammo of this type: charge this character's gold, then equip one.
 	-- Do not use consumeSupply - that would double-count supply tracker when the weapon consumes it.
 	if respectCap and not canCarryAmmo(player, typeId, 1) then
-		if RemoteHirelingEconomy and RemoteHirelingEconomy.maybeSellForShortage then
-			RemoteHirelingEconomy.maybeSellForShortage(player, "cap")
-		end
-		if not canCarryAmmo(player, typeId, 1) then
-			abortExpedition(
+		if ExpeditionSafety and ExpeditionSafety.handleShortage then
+			ExpeditionSafety.handleShortage(
 				player,
+				"cap",
+				function()
+					return canCarryAmmo(player, typeId, 1)
+				end,
 				string.format("%s has insufficient capacity for ammo. Expedition stopped.", player:getName())
 			)
+		end
+		if not canCarryAmmo(player, typeId, 1) then
 			return
 		end
 	end
 	if not chargeNpcBuyPrice(player, typeId) then
-		if RemoteHirelingEconomy and RemoteHirelingEconomy.maybeSellForShortage then
-			if RemoteHirelingEconomy.maybeSellForShortage(player, "gold") and chargeNpcBuyPrice(player, typeId) then
-				-- recovered after sell
-			else
-				if session and session.stopOnInsufficientGold then
-					abortExpedition(
-						player,
-						string.format("%s ran out of gold for ammo. Expedition stopped.", player:getName())
-					)
-				end
-				return
-			end
-		else
-			if session and session.stopOnInsufficientGold then
-				abortExpedition(
-					player,
-					string.format("%s ran out of gold for ammo. Expedition stopped.", player:getName())
-				)
-			end
+		local charged = ExpeditionSafety
+			and ExpeditionSafety.handleShortage
+			and ExpeditionSafety.handleShortage(
+				player,
+				"gold",
+				function()
+					return chargeNpcBuyPrice(player, typeId)
+				end,
+				string.format("%s ran out of gold for ammo. Expedition stopped.", player:getName())
+			)
+		if charged ~= true then
 			return
 		end
 	end
 	-- Default: ignore cap (gold-gated). stopOnInsufficientCap → already verified weight above.
 	if not placeConfiguredAmmo(player, typeId, true, 1, not respectCap) then
-		if respectCap then
-			if RemoteHirelingEconomy and RemoteHirelingEconomy.maybeSellForShortage then
-				RemoteHirelingEconomy.maybeSellForShortage(player, "cap")
-			end
-			if not placeConfiguredAmmo(player, typeId, true, 1, false) then
-				abortExpedition(
-					player,
-					string.format("%s has insufficient capacity for ammo. Expedition stopped.", player:getName())
-				)
-			end
+		if respectCap and ExpeditionSafety and ExpeditionSafety.handleShortage then
+			ExpeditionSafety.handleShortage(
+				player,
+				"cap",
+				function()
+					return placeConfiguredAmmo(player, typeId, true, 1, false)
+				end,
+				string.format("%s has insufficient capacity for ammo. Expedition stopped.", player:getName())
+			)
 		end
 	end
 end

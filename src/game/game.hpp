@@ -465,7 +465,7 @@ public:
 	void playerBuyItem(uint32_t playerId, uint16_t itemId, uint8_t count, uint16_t amount, bool ignoreCap = false, bool inBackpacks = false);
 	void playerSellItem(uint32_t playerId, uint16_t itemId, uint8_t count, uint16_t amount, bool ignoreEquipped = false);
 	/** One-shot NPC shop sell-all using a client-supplied skip/accept filter list. */
-	void playerSellAllItems(uint32_t playerId, bool ignoreEquipped, uint8_t filterMode, const std::vector<uint16_t> &itemIds);
+	void playerSellAllItems(uint32_t playerId, bool ignoreEquipped, uint8_t filterMode, const std::vector<uint16_t> &itemIds, bool lootPouchOnly = false);
 	void playerCloseShop(uint32_t playerId);
 	void playerLookInShop(uint32_t playerId, uint16_t itemId, uint8_t count);
 	void playerCloseTrade(uint32_t playerId);

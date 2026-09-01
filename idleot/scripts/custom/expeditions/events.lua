@@ -113,11 +113,14 @@ function thinkCallback.playerOnThink(player, interval)
 	end
 	-- Player attack packets can change the server target between AI ticks; keep the
 	-- client red square in sync (vanilla has no S→C attack opcode).
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionAI and ExpeditionAI.syncAttackTargetIfChanged then
+	if ExpeditionManager.getSessionByPlayer and ExpeditionAI and ExpeditionAI.syncAttackTargetIfChanged then
 		local session = ExpeditionManager.getSessionByPlayer(player)
 		if session and session.entered and session.state ~= "ended" then
 			pcall(ExpeditionAI.syncAttackTargetIfChanged, session, player)
 		end
+	end
+	if ExpeditionManager and ExpeditionManager.syncSessionClientIfNeeded then
+		pcall(ExpeditionManager.syncSessionClientIfNeeded, player)
 	end
 end
 

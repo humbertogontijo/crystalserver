@@ -178,6 +178,19 @@ local function partyMembers(party)
 	return members
 end
 
+local function partyOnExpedition(party)
+	if not party or not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
+		return false
+	end
+	for _, member in ipairs(partyMembers(party)) do
+		local session = ExpeditionManager.getSessionByPlayer(member)
+		if session and session.entered then
+			return true
+		end
+	end
+	return false
+end
+
 --- True when at least one party body is near the corpse (hunt present on this kill).
 local function partyClaimingCorpse(party, corpsePos)
 	if not party or not corpsePos then
@@ -403,8 +416,15 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 
 	local corpsePos = corpse.getPosition and corpse:getPosition() or monster:getPosition()
 	local seats, uniqueControllers, uniqueCount = LootSplit.seats(party, corpsePos, monster)
-	if uniqueCount < 2 or #seats < 2 then
-		return false
+	local onExpedition = partyOnExpedition(party)
+	if onExpedition then
+		if #seats < 1 then
+			return false
+		end
+	else
+		if uniqueCount < 2 or #seats < 2 then
+			return false
+		end
 	end
 
 	local leader = party.getLeader and party:getLeader() or controller
@@ -511,9 +531,25 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 			local seatMember = seats[idx]
 			if seatAcceptsItem(seatMember, it) then
 				local dest = resolveController(seatMember) or seatMember
-				if controllerCanCarry(dest, it) then
-					local ok = select(1, deliverItem(dest, it, seatMember))
-					if ok then
+				local function tryDeliver()
+					if not controllerCanCarry(dest, it) then
+						return false
+					end
+					return select(1, deliverItem(dest, it, seatMember))
+				end
+				if tryDeliver() then
+					rrCursorByLeader[leaderGuid] = (start + offset + 1) % seatCount
+					delivered = true
+					break
+				end
+				if onExpedition and not controllerCanCarry(dest, it) and ExpeditionSafety and ExpeditionSafety.handleShortage then
+					local recovered = ExpeditionSafety.handleShortage(
+						dest,
+						"cap",
+						tryDeliver,
+						string.format("%s has insufficient capacity for loot. Expedition stopped.", dest:getName())
+					)
+					if recovered then
 						rrCursorByLeader[leaderGuid] = (start + offset + 1) % seatCount
 						delivered = true
 						break

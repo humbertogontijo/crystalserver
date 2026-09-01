@@ -472,13 +472,13 @@ function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 	if now - last < cooldown then
 		return false
 	end
-	lastEmergencySellAt[pid] = now
 
 	local filterMode, itemIds = RemoteHirelingEconomy.getSellFilter(player)
 	local gold, items, taxPercent = RemoteHirelingEconomy.sellAll(player, true, filterMode, itemIds)
 	if items <= 0 then
 		return false
 	end
+	lastEmergencySellAt[pid] = now
 
 	local msg
 	if taxPercent > 0 then

@@ -10,6 +10,8 @@ local leavePendingBySessionKey = {}
 local teamInvitesByFriendGuid = {}
 -- Hunt place → channel → sessionKey. Channel is the team's shard on that subarea.
 local huntChannelsByPlace = {}
+-- Real-client UI sync after headless→client takeover (player id → true).
+local expeditionClientSynced = {}
 
 local function allocateHuntChannel(placeId, sessionKey)
 	local place = tostring(placeId or "")
@@ -938,19 +940,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		return
 	end
 
-	local expectedTeammates = {}
-	if options.restoreSkipTeamAccept then
-		expectedTeammates = {}
-	elseif soloBoss then
-		expectedTeammates = {}
-	else
-		expectedTeammates = collectExpectedHumanTeammates(player)
-	end
-	-- Direct hunt→hunt switch (skipPzCheck): do not pull in listing members who
-	-- were not part of the mid-hunt accept; only preAcceptedPlayers transfer.
-	if options.skipPzCheck and not options.restoreSkipTeamAccept then
-		expectedTeammates = {}
-	end
+	local expectedTeammates = (soloBoss or options.skipPzCheck) and {} or collectExpectedHumanTeammates(player)
 	local bossName = nil
 	if contentRole == "boss" then
 		bossName = ExpeditionConfig.bossTypeName(catalog)
@@ -980,12 +970,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	local memberGuids = {}
 	local hostId = player:getId()
 	local hostAutomation = nil
-	local sessionHostGuid = options.restoreHostGuid and math.floor(tonumber(options.restoreHostGuid) or 0) or player:getGuid()
-	local key = (sessionHostGuid > 0 and ExpeditionPersist and ExpeditionPersist.sessionKeyFromHostGuid(sessionHostGuid))
-		or playerKey(player)
-	if not key or key == "" then
-		key = playerKey(player)
-	end
+	local key = playerKey(player)
 	local channel = allocateHuntChannel(catalog.id, key)
 
 	for _, member in ipairs(members) do
@@ -1160,6 +1145,434 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	ExpeditionManager.startExpeditionEntry(session)
 end
 
+--- Rebuild a monster-hunt instance/session from a persist snapshot (no players yet).
+local function bootstrapRestoredHunt(snapshot)
+	if not snapshot or not snapshot.catalogId or not snapshot.sessionKey then
+		return false
+	end
+	if ExpeditionManager.getSessionByKey(snapshot.sessionKey) then
+		return false
+	end
+	local catalog = ExpeditionConfig.getById(snapshot.catalogId, snapshot.catalogRole or "monster")
+	if not catalog then
+		if ExpeditionPersist and ExpeditionPersist.clearSnapshot then
+			ExpeditionPersist.clearSnapshot(snapshot)
+		end
+		return false
+	end
+	local contentRole = catalog.role
+	if contentRole ~= "boss" and contentRole ~= "monster" and contentRole ~= "arena" then
+		contentRole = catalog.kind == "boss" and "boss" or "monster"
+	end
+	if contentRole ~= "monster" then
+		return false
+	end
+
+	local hostGuid = math.floor(tonumber(snapshot.hostGuid) or 0)
+	local instanceId = ExpeditionInstance.allocate()
+	if instanceId == nil then
+		return false
+	end
+	local instance, err = ExpeditionInstance.build(instanceId, catalog, hostGuid + os.time())
+	if not instance then
+		ExpeditionInstance.free(instanceId)
+		logger.warn(
+			"[ExpeditionPersist] bootstrap failed for {}: {}",
+			tostring(snapshot.sessionKey),
+			tostring(err)
+		)
+		return false
+	end
+
+	local sessionKey = snapshot.sessionKey
+	local channel = allocateHuntChannel(catalog.id, sessionKey)
+	local sessionLure = ExpeditionConfig.normalizeLure(snapshot.lure, snapshot.lureMax)
+	local session = {
+		key = sessionKey,
+		playerId = nil,
+		playerIds = {},
+		companionIds = {},
+		guid = hostGuid,
+		memberGuids = {},
+		catalog = catalog,
+		kind = "hunt",
+		role = contentRole,
+		channel = channel,
+		instance = instance,
+		wave = 0,
+		alive = 0,
+		kills = 0,
+		lure = sessionLure,
+		lureMax = snapshot.lureMax,
+		waveLure = nil,
+		state = "idle",
+		startedAt = os.time(),
+		positionIndex = 0,
+		holdPos = nil,
+		automation = { slots = {} },
+		memberAutomation = {},
+		memberStance = {},
+		memberRangedDistance = {},
+		lastSyncedAttackByPlayer = {},
+		prevAutoTargetByPlayer = {},
+		stopOnInsufficientGold = snapshot.stopOnInsufficientGold == true,
+		stopOnInsufficientCap = snapshot.stopOnInsufficientCap == true,
+		awaitingHumanGuids = nil,
+	}
+	sessionsByKey[sessionKey] = session
+	if instance.entry then
+		session.holdPos = Position(instance.entry.x, instance.entry.y, instance.entry.z)
+	end
+	logger.info(
+		"[ExpeditionPersist] restored hunt {} catalog={} instance={} channel={}",
+		sessionKey,
+		tostring(catalog.id),
+		instance.instanceId,
+		tostring(channel)
+	)
+	return true
+end
+
+local function teleportPlayerIntoRunningHunt(player, session)
+	if not player or not session or not session.instance or not session.instance.entry then
+		return false
+	end
+	if ExpeditionInstance.contains(session.instance, player:getPosition()) then
+		return true
+	end
+	player:setFollowCreature(nil)
+	local entered = false
+	if InstanceWorld and InstanceWorld.enterInstance then
+		entered = InstanceWorld.enterInstance(
+			player,
+			session.instance.instanceId,
+			session.instance.entry,
+			"hunt:" .. tostring(session.key or "")
+		)
+	else
+		if player.setInstanceId then
+			player:setInstanceId(session.instance.instanceId)
+		end
+		entered = player:teleportTo(session.instance.entry)
+	end
+	if not entered then
+		return false
+	end
+	if ExpeditionInstance.sendMagicEffect then
+		ExpeditionInstance.sendMagicEffect(session.instance, player:getPosition(), CONST_ME_TELEPORT)
+	else
+		player:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
+	end
+	return true
+end
+
+--- Push expedition HUD/catalog once a real client attaches to a headless session member.
+function ExpeditionManager.syncSessionClientIfNeeded(player)
+	if not player or not player.getProtocolVersion or player:getProtocolVersion() == 0 then
+		return false
+	end
+	local pid = player:getId()
+	if expeditionClientSynced[pid] then
+		return false
+	end
+	local session = ExpeditionManager.getSessionByPlayer(player)
+	if not session or session.state == "ended" or not session.entered then
+		return false
+	end
+	expeditionClientSynced[pid] = true
+	player:registerEvent("ExpeditionPlayerDeath")
+	ExpeditionAI.enablePersistence(player)
+	if ExpeditionAI and ExpeditionAI.start then
+		pcall(ExpeditionAI.start, session)
+	end
+	ExpeditionProtocol.sendCatalog(player)
+	if RaidInstance and RaidInstance.sendActiveRaids then
+		RaidInstance.sendActiveRaids(player)
+	end
+	ExpeditionProtocol.sendStatus(player, session)
+	local sessionKey = session.key
+	addEvent(function()
+		local p = Player(pid)
+		local s = ExpeditionManager.getSessionByKey(sessionKey)
+		if p and s and ExpeditionAI.resyncAttackTarget then
+			pcall(ExpeditionAI.resyncAttackTarget, s, p)
+		elseif p and CombatAutomation and CombatAutomation.resyncAttackTarget then
+			pcall(CombatAutomation.resyncAttackTarget, p)
+		end
+	end, ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500)
+	return true
+end
+
+local function syncRunningHuntClients(session)
+	if not session or not session.entered then
+		return
+	end
+	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
+		local member = Player(mid)
+		if member then
+			if member.getProtocolVersion and member:getProtocolVersion() > 0 then
+				ExpeditionManager.syncSessionClientIfNeeded(member)
+			else
+				ExpeditionProtocol.sendStatus(member, session)
+			end
+		end
+	end
+end
+
+--- Deploy headless host + companions and start waves immediately after restart.
+local function startRestoredHuntOnStartup(session, snapshot)
+	if not session or not snapshot or session.entered or session.starting or session.state == "ended" then
+		return false
+	end
+	local hostGuid = math.floor(tonumber(snapshot.hostGuid) or session.guid or 0)
+	if hostGuid <= 0 then
+		return false
+	end
+	local offlineHost = TeamStore and TeamStore.resolvePlayerByGuid and TeamStore.resolvePlayerByGuid(hostGuid)
+	if not offlineHost then
+		logger.warn(
+			"[ExpeditionPersist] startup start failed for {}: host guid {} unavailable",
+			tostring(session.key),
+			tostring(hostGuid)
+		)
+		return false
+	end
+
+	session.guid = hostGuid
+	session.starting = true
+
+	for _, rawGuid in ipairs(snapshot.humanGuids or {}) do
+		local guid = math.floor(tonumber(rawGuid) or 0)
+		if guid > 0 then
+			session.memberGuids = session.memberGuids or {}
+			if not session.memberGuids[guid] or session.memberGuids[guid] == 0 then
+				session.memberGuids[guid] = 0
+			end
+		end
+	end
+
+	local instance = session.instance
+	local catalog = session.catalog
+	local spawnPos = instance and instance.entry
+	if not spawnPos then
+		session.starting = nil
+		return false
+	end
+
+	local headlessHost = nil
+	if Game.loginCompanion then
+		headlessHost = Game.loginCompanion(offlineHost:getName(), spawnPos)
+			or Game.loginCompanion(hostGuid, spawnPos)
+	end
+	if not headlessHost then
+		logger.warn(
+			"[ExpeditionPersist] startup start failed for {}: could not login headless host",
+			tostring(session.key)
+		)
+		session.starting = nil
+		return false
+	end
+
+	registerSessionMember(session, headlessHost, headlessHost, {})
+	session.playerId = headlessHost:getId()
+	session.memberGuids = session.memberGuids or {}
+	session.memberGuids[hostGuid] = headlessHost:getId()
+	teleportPlayerIntoRunningHunt(headlessHost, session)
+
+	local companions = {}
+	if TeamManager and TeamManager.deploy then
+		local depCompanions, depErr = TeamManager.deploy(headlessHost, {
+			position = spawnPos,
+			companionsOnly = true,
+			inviteFriends = false,
+		})
+		if depCompanions then
+			companions = depCompanions
+		else
+			logger.warn(
+				"[ExpeditionPersist] companion deploy failed for {}: {}",
+				tostring(session.key),
+				tostring(depErr or "unknown")
+			)
+		end
+	end
+
+	local companionById = {}
+	for _, companion in ipairs(companions) do
+		if companion and companion.getId then
+			companionById[companion:getId()] = true
+		end
+	end
+	for _, companion in ipairs(companions) do
+		local already = false
+		for _, mid in ipairs(session.playerIds or {}) do
+			if companion and companion.getId and mid == companion:getId() then
+				already = true
+				break
+			end
+		end
+		if not already then
+			registerSessionMember(session, companion, offlineHost, {
+				hostWorldPos = spawnPos,
+				companionById = companionById,
+			})
+		end
+		teleportPlayerIntoRunningHunt(companion, session)
+	end
+
+	session.entered = true
+	session.starting = nil
+	session.state = "idle"
+	session.awaitingHumanGuids = nil
+	ExpeditionConfig.pickAnchor(session)
+	if ExpeditionPersist and ExpeditionPersist.writeSession and ExpeditionPersist.isPersistableHunt(session) then
+		pcall(ExpeditionPersist.writeSession, session)
+	end
+
+	local sessionKey = session.key
+	local contentRole = session.role
+	local syncMs = ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500
+	addEvent(function()
+		local live = ExpeditionManager.getSessionByKey(sessionKey)
+		if not live or live.state == "ended" then
+			return
+		end
+		if not ExpeditionInstance.hasGround(instance.entry) then
+			addEvent(function()
+				local retry = ExpeditionManager.getSessionByKey(sessionKey)
+				if retry and retry.state ~= "ended" then
+					beginExpeditionHunt(retry, contentRole)
+					syncRunningHuntClients(retry)
+					logger.info(
+						"[ExpeditionPersist] started restored hunt {} catalog={} instance={} members={} lure={} anchor={}",
+						tostring(sessionKey),
+						tostring(catalog and catalog.id),
+						tostring(instance.instanceId),
+						#ExpeditionManager.sessionMemberIds(retry),
+						tostring(retry.lure or "-"),
+						tostring(retry.anchorPlayerId or "-")
+					)
+				end
+			end, 100)
+			return
+		end
+		beginExpeditionHunt(live, contentRole)
+		syncRunningHuntClients(live)
+		logger.info(
+			"[ExpeditionPersist] started restored hunt {} catalog={} instance={} members={} lure={} anchor={}",
+			tostring(sessionKey),
+			tostring(catalog and catalog.id),
+			tostring(instance.instanceId),
+			#ExpeditionManager.sessionMemberIds(live),
+			tostring(live.lure or "-"),
+			tostring(live.anchorPlayerId or "-")
+		)
+	end, syncMs)
+	return true
+end
+
+--- Bootstrap + start a persisted hunt on server boot.
+function ExpeditionManager.restoreHuntOnStartup(snapshot)
+	if not snapshot or not snapshot.sessionKey then
+		return false
+	end
+	local session = ExpeditionManager.getSessionByKey(snapshot.sessionKey)
+	if not session then
+		if not bootstrapRestoredHunt(snapshot) then
+			return false
+		end
+		session = ExpeditionManager.getSessionByKey(snapshot.sessionKey)
+	end
+	if not session or session.entered or session.state == "ended" then
+		return session ~= nil and session.entered == true
+	end
+	return startRestoredHuntOnStartup(session, snapshot)
+end
+
+local function findRunningHuntForPlayer(player)
+	if not player then
+		return nil
+	end
+	local snapshot = ExpeditionPersist and ExpeditionPersist.getPendingSnapshot(player)
+	local session = snapshot and snapshot.sessionKey and ExpeditionManager.getSessionByKey(snapshot.sessionKey)
+	if session and session.state ~= "ended" and session.entered then
+		return session
+	end
+	local guid = player:getGuid()
+	for _, s in pairs(sessionsByKey) do
+		if s.state ~= "ended" and s.entered and (s.guid == guid or (s.memberGuids and s.memberGuids[guid])) then
+			return s
+		end
+	end
+	return nil
+end
+
+--- Teleport a late-login human into a hunt already running since server boot.
+function ExpeditionManager.attachPlayerToRunningHunt(player)
+	if not player then
+		return false
+	end
+	local session = findRunningHuntForPlayer(player)
+	if not session or session.state == "ended" or not session.entered then
+		return false
+	end
+
+	local hostGuid = math.floor(tonumber(session.guid) or 0)
+	local playerGuid = player:getGuid()
+	local existing = ExpeditionManager.getSessionByPlayer(player)
+	if existing and existing.key ~= session.key then
+		return false
+	end
+
+	-- Host already online headless in the instance — real client takes over that player.
+	if playerGuid == hostGuid and session.playerId and session.playerId == player:getId() then
+		if ExpeditionInstance.contains(session.instance, player:getPosition()) then
+			ExpeditionManager.syncSessionClientIfNeeded(player)
+			return true
+		end
+	end
+
+	if playerGuid == hostGuid then
+		if not session.playerId or session.playerId ~= player:getId() then
+			registerSessionMember(session, player, player, {})
+			session.playerId = player:getId()
+			session.automation = session.memberAutomation[player:getId()] or session.automation
+		end
+		session.memberGuids = session.memberGuids or {}
+		session.memberGuids[playerGuid] = player:getId()
+	else
+		local host = session.playerId and Player(session.playerId) or nil
+		if not host and hostGuid > 0 and TeamStore and TeamStore.findOnlinePlayerByGuid then
+			host = TeamStore.findOnlinePlayerByGuid(hostGuid)
+		end
+		if ExpeditionManager.getSessionByPlayer(player) then
+			-- already registered
+		else
+			ExpeditionManager.attachFriendToSession(player, session, host, { skipMaybeStart = true })
+		end
+	end
+
+	if not teleportPlayerIntoRunningHunt(player, session) then
+		ExpeditionProtocol.sendError(player, "Failed to rejoin expedition (teleport blocked).")
+		return false
+	end
+
+	player:sendTextMessage(
+		MESSAGE_EVENT_ADVANCE,
+		"Rejoined your running expedition: " .. (session.catalog and session.catalog.name or "hunt")
+	)
+	ExpeditionProtocol.sendStatus(player, session)
+	ExpeditionManager.broadcastStatus(session)
+	syncHuntPersist(session)
+	logger.info(
+		"[ExpeditionPersist] {} rejoined running hunt {} (members={})",
+		player:getName(),
+		tostring(session.key),
+		#ExpeditionManager.sessionMemberIds(session)
+	)
+	return true
+end
+
 function ExpeditionManager.startExpeditionEntry(session)
 	if not session or session.entered or session.starting then
 		return
@@ -1194,6 +1607,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 		end
 		s.entered = true
 		s.starting = nil
+		s.persistedForRestart = nil
 		ExpeditionConfig.pickAnchor(s)
 		if ExpeditionPersist and ExpeditionPersist.writeSession and ExpeditionPersist.isPersistableHunt(s) then
 			pcall(ExpeditionPersist.writeSession, s)
@@ -1961,7 +2375,7 @@ local function cleanupSession(session, player, opts)
 		player:unregisterEvent("ExpeditionPlayerDeath")
 	end
 	disbandExpeditionParty(session)
-	if ExpeditionPersist and ExpeditionPersist.clearSession and not ExpeditionPersist.isServerShuttingDown() then
+	if ExpeditionPersist and ExpeditionPersist.clearSession and not ExpeditionPersist.isServerShuttingDown() and not session.persistedForRestart then
 		pcall(ExpeditionPersist.clearSession, session)
 	end
 end
@@ -2208,6 +2622,9 @@ local function endHuntByDeath(session, deadMember, reason)
 	if not session or session.kind == "raid" then
 		return
 	end
+	if session.persistedForRestart or (ExpeditionPersist and ExpeditionPersist.isServerShuttingDown()) then
+		return
+	end
 	if session._cleaned then
 		return
 	end
@@ -2271,6 +2688,9 @@ end
 
 --- Public entry for player death, companion logout, and AI watchdog.
 function ExpeditionManager.notifyHuntMemberDeath(deadRef, reason)
+	if ExpeditionPersist and ExpeditionPersist.isServerShuttingDown() then
+		return
+	end
 	local player = deadRef
 	if type(deadRef) == "number" then
 		player = Player(deadRef)
@@ -2281,6 +2701,9 @@ function ExpeditionManager.notifyHuntMemberDeath(deadRef, reason)
 
 	local session = resolveSessionForHuntDeath(deadRef, player)
 	if not session or session.kind == "raid" then
+		return
+	end
+	if session.persistedForRestart then
 		return
 	end
 	if session._cleaned then
@@ -3469,6 +3892,7 @@ function ExpeditionManager.onLogout(player)
 	if not player then
 		return true
 	end
+	expeditionClientSynced[player:getId()] = nil
 	ExpeditionManager.cancelLeave(player)
 	local session = ExpeditionManager.getSessionByPlayer(player)
 	if not session then
@@ -3494,6 +3918,7 @@ function ExpeditionManager.onLogout(player)
 	if ExpeditionPersist and ExpeditionPersist.isServerShuttingDown() then
 		if ExpeditionPersist.isPersistableHunt(session) then
 			pcall(ExpeditionPersist.writeSession, session)
+			session.persistedForRestart = true
 		end
 		if TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
 			for _, id in ipairs(sessionMemberIds(session)) do
@@ -3657,14 +4082,9 @@ function ExpeditionManager.onLogin(player)
 		SampleSpells.ensure(player)
 	end
 
-	if ExpeditionPersist and ExpeditionPersist.tryRestoreOnLogin then
-		local restored = false
-		pcall(function()
-			restored = ExpeditionPersist.tryRestoreOnLogin(player) == true
-		end)
-		if restored then
-			return
-		end
+	ExpeditionConfig.refundBossAttemptIfMarked(player)
+	if ExpeditionManager.attachPlayerToRunningHunt(player) then
+		return
 	end
 
 	local session = nil
@@ -3798,6 +4218,9 @@ function ExpeditionManager.onStartup()
 	end
 	if ExpeditionPersist and ExpeditionPersist.loadAll then
 		pcall(ExpeditionPersist.loadAll)
+	end
+	if ExpeditionPersist and ExpeditionPersist.restoreAllOnStartup then
+		pcall(ExpeditionPersist.restoreAllOnStartup)
 	end
 	logger.info("[Expedition] manager ready ({} catalog entries)", #ExpeditionConfig.Catalog)
 end

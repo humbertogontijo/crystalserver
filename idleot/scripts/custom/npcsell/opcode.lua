@@ -1,5 +1,5 @@
 -- Bulk NPC sell-all (opcode 123).
--- Client JSON: { "action": "sellAll", "ignoreEquipped": true, "filterMode": 0|1, "itemIds": [...] }
+-- Client JSON: { "action": "sellAll", "ignoreEquipped": true, "filterMode": 0|1, "itemIds": [...], "lootPouchOnly": true }
 -- filterMode 0 = skipped (sell all except list), 1 = accepted (sell only list).
 
 local NPCSELL_OPCODE = 123
@@ -64,10 +64,14 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 	local ignoreEquipped = true
 	local filterMode = 0
 	local itemIds = {}
+	local lootPouchOnly = true
 
 	if type(payload) == "table" then
 		if payload.ignoreEquipped == false then
 			ignoreEquipped = false
+		end
+		if payload.lootPouchOnly == false then
+			lootPouchOnly = false
 		end
 		filterMode = tonumber(payload.filterMode) or 0
 		if filterMode ~= 1 then
@@ -78,13 +82,16 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 		if buffer:find('"ignoreEquipped"%s*:%s*false', 1, false) then
 			ignoreEquipped = false
 		end
+		if buffer:find('"lootPouchOnly"%s*:%s*false', 1, false) then
+			lootPouchOnly = false
+		end
 		filterMode = tonumber(buffer:match('"filterMode"%s*:%s*(%d+)')) or 0
 		if filterMode ~= 1 then
 			filterMode = 0
 		end
 	end
 
-	player:sellAllShopItems(ignoreEquipped, filterMode, itemIds)
+	player:sellAllShopItems(ignoreEquipped, filterMode, itemIds, lootPouchOnly)
 end
 
 opcodeEvent:register()
