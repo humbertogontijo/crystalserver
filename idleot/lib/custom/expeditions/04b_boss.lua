@@ -227,6 +227,9 @@ local function finishBoss(session, opts)
 			member:setFollowCreature(nil)
 			member:setTarget(nil)
 			member:sendTextMessage(MESSAGE_EVENT_ADVANCE, midMsg)
+			if ExpeditionConfig and ExpeditionConfig.clearBossAttempt then
+				ExpeditionConfig.clearBossAttempt(member)
+			end
 			if victory and ActivityBoostActivities and ActivityBoostActivities.onBossExpeditionVictory then
 				pcall(ActivityBoostActivities.onBossExpeditionVictory, member)
 			end

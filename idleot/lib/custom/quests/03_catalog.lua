@@ -278,6 +278,47 @@ local function buildStaticEntries()
 			storageCounter = Storage and Storage.Quest and Storage.Quest.U10_80 and Storage.Quest.U10_80.TheGreatDragonHunt and Storage.Quest.U10_80.TheGreatDragonHunt.DragonCounter or 45181,
 			storageAchievement = Storage and Storage.Quest and Storage.Quest.U10_80 and Storage.Quest.U10_80.TheGreatDragonHunt and Storage.Quest.U10_80.TheGreatDragonHunt.Achievement or 45182,
 		},
+
+		-- Barbarian Arena (instanced pits; rewards share ChestUnique 6220–6234).
+		{
+			id = "arena_greenhorn",
+			kind = QuestsConfig.KIND_QUEST,
+			pack = "Barbarian Arena",
+			name = "Greenhorn Arena",
+			description = "Pay 1000 gold and defeat 10 arena monsters. Claim the reward-room chests from Quests.",
+			handler = "arena",
+			arenaId = 1,
+			fee = 1000,
+			killsRequired = 10,
+			huntHint = "frostfur",
+			rewardUids = { 6220, 6221, 6222, 6223, 6224 },
+		},
+		{
+			id = "arena_scrapper",
+			kind = QuestsConfig.KIND_QUEST,
+			pack = "Barbarian Arena",
+			name = "Scrapper Arena",
+			description = "Pay 5000 gold and defeat 10 arena monsters. Claim the reward-room chests from Quests.",
+			handler = "arena",
+			arenaId = 2,
+			fee = 5000,
+			killsRequired = 10,
+			huntHint = "avalanche",
+			rewardUids = { 6225, 6226, 6227, 6228, 6229 },
+		},
+		{
+			id = "arena_warlord",
+			kind = QuestsConfig.KIND_QUEST,
+			pack = "Barbarian Arena",
+			name = "Warlord Arena",
+			description = "Pay 10000 gold and defeat 10 arena monsters. Claim the reward-room chests from Quests.",
+			handler = "arena",
+			arenaId = 3,
+			fee = 10000,
+			killsRequired = 10,
+			huntHint = "webster",
+			rewardUids = { 6230, 6231, 6232, 6233, 6234 },
+		},
 	}
 end
 

@@ -1732,20 +1732,21 @@ void Player::setMainBackpackUnassigned(const std::shared_ptr<Container> &contain
 		return;
 	}
 
-	// Update containers
-	bool toSendInventoryUpdate = false;
-	for (const bool isLootContainer : { true, false }) {
-		const auto &managedContainer = getManagedContainer(OBJECTCATEGORY_DEFAULT, isLootContainer);
-		if (!managedContainer) {
-			refreshManagedContainer(OBJECTCATEGORY_DEFAULT, container, isLootContainer);
-			toSendInventoryUpdate = true;
-		}
+	// Default unassigned loot only; obtain stays unset (fallback routing handles it).
+	const auto it = m_managedContainers.find(OBJECTCATEGORY_DEFAULT);
+	const bool hasLootAssignment = it != m_managedContainers.end() && it->second.first;
+	if (hasLootAssignment) {
+		return;
 	}
 
-	if (toSendInventoryUpdate) {
-		sendInventoryItem(CONST_SLOT_BACKPACK, container);
-		sendLootContainers();
+	std::shared_ptr<Container> lootTarget = getInventoryGoldPouch();
+	if (!lootTarget) {
+		lootTarget = container;
 	}
+
+	refreshManagedContainer(OBJECTCATEGORY_DEFAULT, lootTarget, true);
+	sendInventoryItem(CONST_SLOT_BACKPACK, container);
+	sendLootContainers();
 }
 
 bool Player::updateKillTracker(const std::shared_ptr<Container> &corpse, const std::string &playerName, const Outfit_t &creatureOutfit) const {

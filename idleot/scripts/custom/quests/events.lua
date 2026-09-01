@@ -34,6 +34,12 @@ function startup.onStartup()
 	if QuestsKitnoBoss and QuestsKitnoBoss.registerExpeditions then
 		QuestsKitnoBoss.registerExpeditions()
 	end
+	if QuestArena and QuestArena.patchStockHelpers then
+		QuestArena.patchStockHelpers()
+	end
+	if QuestArena and QuestArena.registerExpeditions then
+		QuestArena.registerExpeditions()
+	end
 	logger.info("[Quests] idle Quests & Tasks ready (opcode {})", QuestsConfig and QuestsConfig.OPCODE or 118)
 	return true
 end

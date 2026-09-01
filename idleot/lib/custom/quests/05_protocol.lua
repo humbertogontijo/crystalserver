@@ -80,7 +80,9 @@ function QuestsProtocol.handle(player, buffer)
 		return
 	end
 	if action == "report" then
-		local ok, msg, bossHuntId = QuestsManager.report(target, data.id)
+		local ok, msg, bossHuntId = QuestsManager.report(target, data.id, {
+			rewardUid = data.rewardUid,
+		})
 		if ok then
 			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, msg or "Reported.")
 			QuestsProtocol.send(player, {
@@ -125,12 +127,20 @@ function QuestsProtocol.handle(player, buffer)
 				huntHint = QuestsKitnoBoss.resolveMonsterName(entry.bossName) or entry.bossName
 			end
 		end
+		if entry.handler == "arena" and QuestArena and QuestArena.expeditionIdForArena then
+			huntId = QuestArena.expeditionIdForArena(entry.arenaId)
+			huntHint = entry.huntHint
+			-- Fee-paid exclusive rows only appear after accept; refresh client catalog.
+			if ExpeditionProtocol and ExpeditionProtocol.sendCatalog then
+				ExpeditionProtocol.sendCatalog(player)
+			end
+		end
 		if not huntId and ExpeditionConfig and ExpeditionConfig.Catalog then
 			local hint = entry.huntHint
 			if hint then
 				local needle = tostring(hint):lower()
 				for _, cat in ipairs(ExpeditionConfig.Catalog) do
-					if not cat.exclusiveKitno then
+					if not cat.exclusiveKitno and not cat.exclusiveArena then
 						local name = tostring(cat.name or ""):lower()
 						if name == needle or name:find(needle, 1, true) then
 							huntId = cat.id

@@ -10,6 +10,13 @@ ExpeditionConfig.STORAGE_RETURN_Y = 910004
 ExpeditionConfig.STORAGE_RETURN_Z = 910005
 ExpeditionConfig.STORAGE_SLOT = 910006
 
+-- Player KV: pending hunt restore pointer (session key in global expeditions/hunts KV).
+ExpeditionConfig.KV_HUNT_KEY = "expedition_hunt_key"
+-- Player KV: expedition boss attempt in progress (refund cooldown on death/restart if unsettled).
+ExpeditionConfig.KV_BOSS_ATTEMPT = "expedition_boss_attempt"
+-- Drop stale hunt restore blobs after this many seconds (0 = no expiry).
+ExpeditionConfig.HUNT_RESTORE_TTL_SEC = 7 * 24 * 3600
+
 -- Hunt / expedition clustering FOV (kept at classic widescreen pack size).
 -- Live stream radii come from Crystal MAP_VISIBLE_SQM → MAP_MAX_CLIENT_VIEW_PORT_*.
 ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_X = 21
@@ -607,14 +614,14 @@ function ExpeditionConfig.getById(id, role)
 	-- The same number can appear once per role (e.g. hunt 46 vs Black Knight 46).
 	local key = tostring(id)
 	local wantRole = nil
-	if role == "boss" or role == "monster" then
+	if role == "boss" or role == "monster" or role == "arena" then
 		wantRole = role
 	end
 	local fallback = nil
 	for _, entry in ipairs(ExpeditionConfig.Catalog) do
 		if entry.id == id or tostring(entry.id) == key then
 			local entryRole = entry.role
-			if entryRole ~= "boss" and entryRole ~= "monster" then
+			if entryRole ~= "boss" and entryRole ~= "monster" and entryRole ~= "arena" then
 				entryRole = entry.kind == "boss" and "boss" or "monster"
 			end
 			if wantRole then
@@ -840,6 +847,64 @@ function ExpeditionConfig.partyCanFightBoss(members, bossName)
 	return true, nil, 0, nil
 end
 
+function ExpeditionConfig.markBossAttempt(player, bossName)
+	if not player or type(bossName) ~= "string" or bossName == "" then
+		return false
+	end
+	local store = player.kv and player:kv()
+	if not store then
+		return false
+	end
+	store:set(ExpeditionConfig.KV_BOSS_ATTEMPT, bossName)
+	return true
+end
+
+function ExpeditionConfig.clearBossAttempt(player)
+	if not player or not player.kv then
+		return false
+	end
+	local store = player:kv()
+	if store then
+		store:remove(ExpeditionConfig.KV_BOSS_ATTEMPT)
+	end
+	return true
+end
+
+function ExpeditionConfig.clearBossCooldown(players, bossName)
+	if type(bossName) ~= "string" or bossName == "" or type(players) ~= "table" then
+		return false
+	end
+	for _, player in ipairs(players) do
+		if player and PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) then
+			-- GOD ignores cooldown.
+		elseif player and player.setBossCooldown then
+			player:setBossCooldown(bossName, 0)
+			if player.sendBosstiaryCooldownTimer then
+				player:sendBosstiaryCooldownTimer()
+			end
+		end
+		ExpeditionConfig.clearBossAttempt(player)
+	end
+	return true
+end
+
+--- Refund expedition boss cooldown when an attempt was interrupted (restart / death).
+function ExpeditionConfig.refundBossAttemptIfMarked(player)
+	if not player or not player.kv then
+		return false
+	end
+	local store = player:kv()
+	if not store or not store.get then
+		return false
+	end
+	local bossName = store:get(ExpeditionConfig.KV_BOSS_ATTEMPT)
+	if type(bossName) ~= "string" or bossName == "" then
+		return false
+	end
+	ExpeditionConfig.clearBossCooldown({ player }, bossName)
+	return true
+end
+
 function ExpeditionConfig.applyBossCooldown(players, bossName)
 	if type(bossName) ~= "string" or bossName == "" or type(players) ~= "table" then
 		return false
@@ -851,6 +916,7 @@ function ExpeditionConfig.applyBossCooldown(players, bossName)
 			-- Skip cooldown so GOD can re-enter immediately.
 		elseif player and player.setBossCooldown then
 			player:setBossCooldown(bossName, untilTs)
+			ExpeditionConfig.markBossAttempt(player, bossName)
 			applied = applied + 1
 		end
 	end
@@ -882,11 +948,17 @@ function ExpeditionConfig.catalogForClient(player)
 				and QuestsKitnoBoss
 				and QuestsKitnoBoss.isUnlocked
 				and QuestsKitnoBoss.isUnlocked(player, entry.id)
+		elseif entry.exclusiveArena then
+			include = player and QuestArena and QuestArena.canJoin and select(1, QuestArena.canJoin(player, entry))
 		end
 		if include then
 			local role = entry.role
-			if role ~= "boss" and role ~= "monster" then
+			if role ~= "boss" and role ~= "monster" and role ~= "arena" then
 				role = entry.kind == "boss" and "boss" or "monster"
+			end
+			-- Client hunt UI only knows boss/monster; arena uses monster chrome + wave.
+			if role == "arena" then
+				role = "monster"
 			end
 			local row = {
 				id = entry.id,
@@ -900,6 +972,12 @@ function ExpeditionConfig.catalogForClient(player)
 			}
 			if entry.exclusiveKitno then
 				row.exclusiveKitno = true
+			end
+			if entry.exclusiveArena then
+				row.exclusiveArena = true
+				row.encounter = "solo"
+				row.maxPlayers = tonumber(entry.maxPlayers) or 1
+				row.minPlayers = tonumber(entry.minPlayers) or 1
 			end
 			local fid = entry.floorFamilyId
 			if type(fid) == "string" and fid ~= "" then
@@ -950,27 +1028,27 @@ function ExpeditionConfig.catalogForClient(player)
 					local c = creatures[i]
 					local cid = c and tonumber(c.creatureId)
 					if cid and cid > 0 then
-						local row = {
+						local crow = {
 							creatureId = cid,
 							percent = tonumber(c.percent) or 0,
 						}
 						local amt = tonumber(c.count)
 						if amt and amt > 0 then
-							row.count = amt
+							crow.count = amt
 						end
 						if c.name then
-							row.name = c.name
+							crow.name = c.name
 						end
 						if c.combatPower then
-							row.combatPower = tonumber(c.combatPower)
+							crow.combatPower = tonumber(c.combatPower)
 						end
 						if c.huntRecommendedLevel then
-							row.huntRecommendedLevel = tonumber(c.huntRecommendedLevel)
+							crow.huntRecommendedLevel = tonumber(c.huntRecommendedLevel)
 						end
 						if c.huntLevelMin then
-							row.huntLevelMin = tonumber(c.huntLevelMin)
+							crow.huntLevelMin = tonumber(c.huntLevelMin)
 						end
-						slimCreatures[#slimCreatures + 1] = row
+						slimCreatures[#slimCreatures + 1] = crow
 					end
 				end
 				if #slimCreatures > 0 then

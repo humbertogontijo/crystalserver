@@ -22,6 +22,8 @@ local files = {
 	"04_manager.lua",
 	"05_protocol.lua",
 	"06_kitno_boss.lua",
+	"08_chest_grant.lua",
+	"07_arena.lua",
 }
 
 for _, file in ipairs(files) do

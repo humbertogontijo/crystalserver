@@ -60,23 +60,33 @@ logoutEvent:register()
 local monsterDeath = CreatureEvent("ExpeditionMonsterDeath")
 
 function monsterDeath.onDeath(creature, corpse, killer, mostDamageKiller, lastHitUnjustified, mostDamageUnjustified)
-	pcall(function()
-		ExpeditionWaves.onMonsterDeath(creature, corpse)
-	end)
+	local arenaHandled = false
+	if QuestArena and QuestArena.handleMonsterDeath then
+		pcall(function()
+			arenaHandled = QuestArena.handleMonsterDeath(creature, corpse) == true
+		end)
+	end
+	if not arenaHandled then
+		pcall(function()
+			ExpeditionWaves.onMonsterDeath(creature, corpse)
+		end)
+	end
 	-- Soul Pit expedition waves (not tracked in ExpeditionWaves.monsterOwners).
 	if SoulPitExpedition and SoulPitExpedition.onMonsterDeath and ExpeditionManager then
 		pcall(function()
 			local handled = false
-			onDeathForParty(creature, mostDamageKiller, function(_, player)
-				if handled then
-					return
-				end
-				local session = ExpeditionManager.getSessionByPlayer(player)
-				if session and session.kind == "soulpit" then
-					handled = true
-					SoulPitExpedition.onMonsterDeath(session)
-				end
-			end)
+			if type(onDeathForParty) == "function" then
+				onDeathForParty(creature, mostDamageKiller, function(_, player)
+					if handled then
+						return
+					end
+					local session = ExpeditionManager.getSessionByPlayer(player)
+					if session and session.kind == "soulpit" then
+						handled = true
+						SoulPitExpedition.onMonsterDeath(session)
+					end
+				end)
+			end
 		end)
 	end
 	-- Idle Quests & Tasks: credit Spike / Dragon Hunt (stock scripts are map-gated).
@@ -160,3 +170,14 @@ function startup.onStartup()
 end
 
 startup:register()
+
+local saveEvent = GlobalEvent("ExpeditionSave")
+
+function saveEvent.onSave()
+	if ExpeditionManager and ExpeditionManager.onServerSave then
+		pcall(ExpeditionManager.onServerSave)
+	end
+	return true
+end
+
+saveEvent:register()

@@ -280,6 +280,59 @@ local function dragonProgress(player, entry)
 	return 0, required, QuestsConfig.STATUS_AVAILABLE
 end
 
+local function arenaSpecForEntry(entry)
+	if not entry or not QuestArena or not QuestArena.buildSvargrondSpec then
+		return nil
+	end
+	return QuestArena.buildSvargrondSpec(entry.arenaId)
+end
+
+local function arenaProgress(player, entry)
+	local spec = arenaSpecForEntry(entry)
+	local required = entry.killsRequired or 10
+	if not spec or not spec.storages then
+		return 0, required, QuestsConfig.STATUS_LOCKED
+	end
+	local stor = spec.storages
+	local arenaId = stor.arenaId or entry.arenaId or 1
+	local curArena = player:getStorageValue(stor.arena)
+	if curArena < 1 then
+		curArena = 1
+	end
+
+	local rewardsDone = ChestGrant
+		and ChestGrant.allClaimed
+		and ChestGrant.allClaimed(player, entry.rewardUids or spec.rewardUids)
+	local completed = (stor.questLog and player:getStorageValue(stor.questLog) >= 2)
+		or (stor.doorAccess and player:getStorageValue(stor.doorAccess) >= 1)
+		or (curArena > arenaId)
+
+	if completed then
+		if rewardsDone then
+			return required, required, QuestsConfig.STATUS_DONE
+		end
+		return required, required, QuestsConfig.STATUS_READY
+	end
+
+	if curArena < arenaId then
+		return 0, required, QuestsConfig.STATUS_LOCKED
+	end
+	if curArena > arenaId then
+		return required, required, rewardsDone and QuestsConfig.STATUS_DONE or QuestsConfig.STATUS_READY
+	end
+
+	local pit = player:getStorageValue(stor.pitDoor)
+	if pit >= 1 and pit <= 10 then
+		-- PitDoor N means N-1 victories so far (stock: starts at 1).
+		local kills = math.max(0, pit - 1)
+		return kills, required, QuestsConfig.STATUS_ACTIVE
+	end
+	if pit > 10 then
+		return required, required, QuestsConfig.STATUS_READY
+	end
+	return 0, required, QuestsConfig.STATUS_AVAILABLE
+end
+
 function QuestsManager.getProgress(player, entry)
 	if not player or not entry then
 		return 0, 0, QuestsConfig.STATUS_LOCKED
@@ -294,6 +347,8 @@ function QuestsManager.getProgress(player, entry)
 		return outfitProgress(player, entry)
 	elseif entry.handler == "dragon_hunt" then
 		return dragonProgress(player, entry)
+	elseif entry.handler == "arena" then
+		return arenaProgress(player, entry)
 	end
 	return 0, 0, QuestsConfig.STATUS_LOCKED
 end
@@ -304,7 +359,7 @@ local function findHuntIdForHint(hint)
 	end
 	local needle = tostring(hint):lower()
 	for _, entry in ipairs(ExpeditionConfig.Catalog) do
-		if not entry.exclusiveKitno then
+		if not entry.exclusiveKitno and not entry.exclusiveArena then
 			local name = tostring(entry.name or ""):lower()
 			if name == needle or name:find(needle, 1, true) then
 				return entry.id
@@ -462,6 +517,20 @@ local function normalizeRewards(entry)
 		return out
 	end
 
+	if entry.handler == "arena" then
+		local uids = entry.rewardUids
+		if ChestGrant and ChestGrant.listRewards and uids then
+			for _, r in ipairs(ChestGrant.listRewards(uids)) do
+				out[#out + 1] = r
+			end
+		end
+		local spec = arenaSpecForEntry(entry)
+		if spec and spec.trophy and spec.trophy.itemId then
+			pushReward(out, "item", nil, tonumber(spec.trophy.itemId) or 0, 1)
+		end
+		return out
+	end
+
 	if entry.reportExp then
 		pushReward(out, "exp", tonumber(entry.reportExp) or 0)
 	end
@@ -471,6 +540,9 @@ end
 function QuestsManager.listForPlayer(player, filterKind)
 	if QuestsKitnoBoss and QuestsKitnoBoss.registerExpeditions then
 		QuestsKitnoBoss.registerExpeditions()
+	end
+	if QuestArena and QuestArena.registerExpeditions then
+		QuestArena.registerExpeditions()
 	end
 	local out = {}
 	for _, entry in ipairs(QuestsCatalog.all()) do
@@ -483,6 +555,10 @@ function QuestsManager.listForPlayer(player, filterKind)
 					bossHuntId = id
 				end
 			end
+			local huntId = findHuntIdForHint(entry.huntHint)
+			if entry.handler == "arena" and QuestArena and QuestArena.expeditionIdForArena then
+				huntId = QuestArena.expeditionIdForArena(entry.arenaId) or huntId
+			end
 			local row = {
 				id = entry.id,
 				kind = entry.kind,
@@ -492,7 +568,7 @@ function QuestsManager.listForPlayer(player, filterKind)
 				progress = progress,
 				required = required,
 				status = status,
-				huntId = findHuntIdForHint(entry.huntHint),
+				huntId = huntId,
 				huntHint = entry.huntHint,
 				bossName = entry.bossName,
 				bossHuntId = bossHuntId,
@@ -500,6 +576,15 @@ function QuestsManager.listForPlayer(player, filterKind)
 				items = normalizeRequirementItems(entry),
 				rewards = normalizeRewards(entry),
 			}
+			if entry.handler == "arena" and ChestGrant and ChestGrant.pendingChoices then
+				local uids = entry.rewardUids
+				local spec = arenaSpecForEntry(entry)
+				uids = uids or (spec and spec.rewardUids)
+				local pending = ChestGrant.pendingChoices(player, uids)
+				if #pending > 0 then
+					row.rewardChoices = pending
+				end
+			end
 			if entry.lookTypeMale or entry.lookTypeFemale then
 				row.lookType = entry.lookTypeMale or entry.lookTypeFemale
 				row.lookTypeFemale = entry.lookTypeFemale
@@ -600,10 +685,43 @@ function QuestsManager.accept(player, entryId)
 		return true, "Hunt dragons and dragon lords."
 	end
 
+	if entry.handler == "arena" then
+		local spec = arenaSpecForEntry(entry)
+		if not spec or not spec.storages then
+			return false, "Arena data missing."
+		end
+		local stor = spec.storages
+		local arenaId = stor.arenaId or entry.arenaId
+		local fee = tonumber(entry.fee or spec.fee) or 0
+		local curArena = player:getStorageValue(stor.arena)
+		if curArena < 1 then
+			player:setStorageValue(stor.arena, arenaId)
+			curArena = arenaId
+		end
+		if curArena ~= arenaId then
+			return false, "This arena difficulty is not available."
+		end
+		if player:getStorageValue(stor.pitDoor) >= 1 then
+			return false, "You already paid the fee — use Hunt to enter the arena."
+		end
+		if fee > 0 and not player:removeMoneyBank(fee) then
+			return false, "You do not have enough money."
+		end
+		player:setStorageValue(stor.pitDoor, 1)
+		if stor.questLog and player:getStorageValue(stor.questLog) ~= 1 then
+			player:setStorageValue(stor.questLog, 1)
+		end
+		-- Unlock exclusive expedition row for Hunt.
+		if ExpeditionProtocol and ExpeditionProtocol.sendCatalog then
+			ExpeditionProtocol.sendCatalog(player)
+		end
+		return true, string.format("Fee paid. Use Hunt to start the %s arena.", spec.name or "arena")
+	end
+
 	return false, "Cannot accept."
 end
 
-function QuestsManager.report(player, entryId)
+function QuestsManager.report(player, entryId, opts)
 	local entry = QuestsCatalog.get(entryId)
 	if not entry then
 		return false, "Unknown quest."
@@ -718,6 +836,46 @@ function QuestsManager.report(player, entryId)
 		end
 		player:addExperience(5000, true)
 		return true, "Dragon hoard claimed."
+	end
+
+	if entry.handler == "arena" then
+		local spec = arenaSpecForEntry(entry)
+		if not spec then
+			return false, "Arena data missing."
+		end
+		local uids = entry.rewardUids or spec.rewardUids
+		if not ChestGrant or not ChestGrant.grantUids then
+			return false, "Reward system unavailable."
+		end
+		local pending = ChestGrant.pendingChoices and ChestGrant.pendingChoices(player, uids) or {}
+		local rewardUid = opts and tonumber(opts.rewardUid) or nil
+		if #pending > 0 and not rewardUid then
+			return false, "Choose a reward."
+		end
+		local granted, errors = ChestGrant.grantUids(player, uids, { rewardUid = rewardUid })
+		if #errors > 0 then
+			local msg = errors[1] or "Could not grant rewards."
+			if granted > 0 then
+				msg = string.format("%s (%d reward(s) were granted.)", msg, granted)
+			end
+			return false, msg
+		end
+		-- Trophy (stock tile reward).
+		local trophy = spec.trophy
+		if trophy and trophy.itemId and trophy.storage and player:getStorageValue(trophy.storage) < 1 then
+			local item = player:addItem(trophy.itemId, 1)
+			if item and trophy.desc and item.setAttribute then
+				item:setAttribute(ITEM_ATTRIBUTE_DESCRIPTION, string.format(trophy.desc, player:getName()))
+			elseif item and trophy.desc and item.setDescription then
+				item:setDescription(string.format(trophy.desc, player:getName()))
+			end
+			player:setStorageValue(trophy.storage, 1)
+			granted = granted + 1
+		end
+		if granted == 0 and ChestGrant.allClaimed(player, uids) then
+			return true, "Rewards already claimed."
+		end
+		return true, string.format("Arena rewards claimed (%d).", granted)
 	end
 
 	return false, "Cannot report."

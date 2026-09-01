@@ -63,7 +63,11 @@ local function beginExpeditionHunt(session, contentRole)
 		return
 	end
 	syncClientMaps(session)
-	if contentRole == "boss" then
+	if contentRole == "arena" then
+		if QuestArena and QuestArena.begin then
+			QuestArena.begin(session)
+		end
+	elseif contentRole == "boss" then
 		ExpeditionBoss.spawn(session)
 	else
 		ExpeditionWaves.spawn(session)
@@ -426,6 +430,51 @@ local function countHumanMembers(session)
 	return n
 end
 
+local function clearBossAttemptsForSession(session)
+	if not session or session.role ~= "boss" then
+		return
+	end
+	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
+		local p = Player(id)
+		if p and not isSessionCompanion(session, p) and ExpeditionConfig.clearBossAttempt then
+			ExpeditionConfig.clearBossAttempt(p)
+		end
+	end
+end
+
+local function refundBossCooldownForSession(session)
+	if not session or session.role ~= "boss" or not ExpeditionConfig.bossTypeName or not ExpeditionConfig.clearBossCooldown then
+		return
+	end
+	local bossName = ExpeditionConfig.bossTypeName(session.catalog)
+	if not bossName then
+		return
+	end
+	local humans = {}
+	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
+		local p = Player(id)
+		if p and not isSessionCompanion(session, p) then
+			humans[#humans + 1] = p
+		end
+	end
+	ExpeditionConfig.clearBossCooldown(humans, bossName)
+end
+
+local function syncHuntPersist(session)
+	if not session or not ExpeditionPersist then
+		return
+	end
+	if ExpeditionPersist.isPersistableHunt(session) then
+		pcall(ExpeditionPersist.writeSession, session)
+	elseif ExpeditionPersist.clearSession and not ExpeditionPersist.isServerShuttingDown() then
+		pcall(ExpeditionPersist.clearSession, session)
+	end
+end
+
+function ExpeditionManager.hasPendingRestore(player)
+	return ExpeditionPersist and ExpeditionPersist.hasPendingRestore and ExpeditionPersist.hasPendingRestore(player)
+end
+
 --- Online human teammates expected to accept before a team expedition starts.
 local function collectExpectedHumanTeammates(host)
 	if not host then
@@ -721,6 +770,9 @@ local function registerSessionMember(session, member, host, opts)
 	member:registerEvent("ExpeditionPlayerDeath")
 	ExpeditionAI.enablePersistence(member)
 	sessionsByPlayerId[memberId] = session
+	if session.entered then
+		syncHuntPersist(session)
+	end
 end
 
 function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, options)
@@ -799,10 +851,20 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 			return
 		end
 	end
+	if catalog.exclusiveArena and QuestArena and QuestArena.canJoin then
+		local can, arenaErr = QuestArena.canJoin(player, catalog)
+		if not can then
+			ExpeditionProtocol.sendError(player, arenaErr or "This arena challenge is locked.")
+			return
+		end
+	end
 	local kind = "hunt"
 	local contentRole = catalog.role
-	if contentRole ~= "boss" and contentRole ~= "monster" then
+	if contentRole ~= "boss" and contentRole ~= "monster" and contentRole ~= "arena" then
 		contentRole = catalog.kind == "boss" and "boss" or "monster"
+	end
+	if contentRole == "arena" then
+		kind = "arena"
 	end
 
 	if contentRole == "boss" and ActivityBoostSoloBoss and ActivityBoostSoloBoss.canJoin then
@@ -828,11 +890,17 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 
 	local sessionLure = nil
 	local sessionLureMax = nil
-	if contentRole ~= "boss" then
+	if contentRole ~= "boss" and contentRole ~= "arena" then
 		sessionLureMax = tonumber(catalog.lureMax) or ExpeditionConfig.LURE_MAX
 		sessionLure = ExpeditionConfig.normalizeLure(lure, sessionLureMax)
 	end
 	local stopOpts = ExpeditionConfig.normalizeStopOptions(options)
+	if options.stopOnInsufficientGold ~= nil or options.stopOnInsufficientCap ~= nil then
+		stopOpts = ExpeditionConfig.normalizeStopOptions({
+			stopOnInsufficientGold = options.stopOnInsufficientGold,
+			stopOnInsufficientCap = options.stopOnInsufficientCap,
+		})
+	end
 
 	if ListingsStore and ListingsStore.hasPendingMembers and ListingsStore.hasPendingMembers(player) then
 		-- Instant join removed pending accepts; ignore leftover pending for Start.
@@ -856,7 +924,8 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	end
 
 	-- Account companions deploy when the expedition actually starts (after teammates accept).
-	local soloBoss = contentRole == "boss" and ExpeditionConfig.isSoloBoss and ExpeditionConfig.isSoloBoss(catalog)
+	local soloBoss = (contentRole == "boss" and ExpeditionConfig.isSoloBoss and ExpeditionConfig.isSoloBoss(catalog))
+		or contentRole == "arena"
 
 	-- Host only until teammates accept; companions join at synchronized entry.
 	local members, partyErr = collectHuntJoinParty(player, levelMin, nil, {
@@ -869,10 +938,17 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		return
 	end
 
-	local expectedTeammates = soloBoss and {} or collectExpectedHumanTeammates(player)
+	local expectedTeammates = {}
+	if options.restoreSkipTeamAccept then
+		expectedTeammates = {}
+	elseif soloBoss then
+		expectedTeammates = {}
+	else
+		expectedTeammates = collectExpectedHumanTeammates(player)
+	end
 	-- Direct hunt→hunt switch (skipPzCheck): do not pull in listing members who
 	-- were not part of the mid-hunt accept; only preAcceptedPlayers transfer.
-	if options.skipPzCheck then
+	if options.skipPzCheck and not options.restoreSkipTeamAccept then
 		expectedTeammates = {}
 	end
 	local bossName = nil
@@ -904,7 +980,12 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	local memberGuids = {}
 	local hostId = player:getId()
 	local hostAutomation = nil
-	local key = playerKey(player)
+	local sessionHostGuid = options.restoreHostGuid and math.floor(tonumber(options.restoreHostGuid) or 0) or player:getGuid()
+	local key = (sessionHostGuid > 0 and ExpeditionPersist and ExpeditionPersist.sessionKeyFromHostGuid(sessionHostGuid))
+		or playerKey(player)
+	if not key or key == "" then
+		key = playerKey(player)
+	end
 	local channel = allocateHuntChannel(catalog.id, key)
 
 	for _, member in ipairs(members) do
@@ -983,7 +1064,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		playerId = hostId,
 		playerIds = playerIds,
 		companionIds = companionIds,
-		guid = player:getGuid(),
+		guid = sessionHostGuid > 0 and sessionHostGuid or player:getGuid(),
 		memberGuids = memberGuids,
 		catalog = catalog,
 		kind = kind,
@@ -1114,6 +1195,9 @@ function ExpeditionManager.startExpeditionEntry(session)
 		s.entered = true
 		s.starting = nil
 		ExpeditionConfig.pickAnchor(s)
+		if ExpeditionPersist and ExpeditionPersist.writeSession and ExpeditionPersist.isPersistableHunt(s) then
+			pcall(ExpeditionPersist.writeSession, s)
+		end
 		local sessionKey = s.key
 		local role = contentRole
 		local syncMs = ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500
@@ -1717,6 +1801,7 @@ function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 		friend:getName(),
 		tostring(session.key)
 	)
+	syncHuntPersist(session)
 end
 
 local function sessionMemberIds(session)
@@ -1805,6 +1890,7 @@ local function removeHuntMember(session, player, opts)
 	if not opts.skipEnded then
 		ExpeditionProtocol.sendEnded(player)
 	end
+	syncHuntPersist(session)
 end
 
 local function cancelTeardownEvent(session)
@@ -1835,14 +1921,20 @@ local function disbandExpeditionParty(session)
 	end)
 end
 
-local function cleanupSession(session, player)
+local function cleanupSession(session, player, opts)
 	if not session or session._cleaned then
 		return
 	end
 	session._cleaned = true
 	cancelTeardownEvent(session)
 	ExpeditionAI.stop(session)
-	if session.role == "boss" and session.kind ~= "raid" then
+	if session.kind == "arena" or session.role == "arena" then
+		if QuestArena and QuestArena.onSessionCleanup then
+			pcall(QuestArena.onSessionCleanup, session, opts)
+		elseif QuestArena and QuestArena.clear then
+			pcall(QuestArena.clear, session)
+		end
+	elseif session.role == "boss" and session.kind ~= "raid" then
 		ExpeditionBoss.clear(session)
 	elseif session.kind ~= "raid" then
 		ExpeditionWaves.clear(session)
@@ -1869,6 +1961,9 @@ local function cleanupSession(session, player)
 		player:unregisterEvent("ExpeditionPlayerDeath")
 	end
 	disbandExpeditionParty(session)
+	if ExpeditionPersist and ExpeditionPersist.clearSession and not ExpeditionPersist.isServerShuttingDown() then
+		pcall(ExpeditionPersist.clearSession, session)
+	end
 end
 
 --- Leave all living members (boss victory / party teardown).
@@ -1888,7 +1983,7 @@ function ExpeditionManager.leaveAll(session, opts)
 		end
 	end
 	if sessionsByKey[session.key] == session then
-		cleanupSession(session, nil)
+		cleanupSession(session, nil, opts)
 	end
 end
 
@@ -2141,6 +2236,10 @@ local function endHuntByDeath(session, deadMember, reason)
 		end
 
 		logger.info("[Expedition] {} died in session {} - sweeping instance", subjectName, tostring(session.key))
+
+		if session.role == "boss" then
+			refundBossCooldownForSession(session)
+		end
 
 		if ExpeditionAI and ExpeditionAI.stop then
 			ExpeditionAI.stop(session)
@@ -3168,6 +3267,10 @@ function ExpeditionManager.leave(player, opts)
 		return
 	end
 
+	if session.role == "boss" and ExpeditionConfig.clearBossAttempt then
+		ExpeditionConfig.clearBossAttempt(player)
+	end
+
 	-- Leaving mid switch-confirm cancels the change for everyone still hunting.
 	if session.pendingSwitch and not opts.keepTeamDeployed then
 		clearPendingSwitch(session, { reason = "left" })
@@ -3332,7 +3435,7 @@ function ExpeditionManager.leave(player, opts)
 
 	-- Sweep after the last member leaves.
 	if shouldCleanup then
-		cleanupSession(session, player)
+		cleanupSession(session, player, opts)
 	end
 
 	ExpeditionProtocol.sendEnded(player)
@@ -3385,6 +3488,33 @@ function ExpeditionManager.onLogout(player)
 		if player:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
 			clearActive(player)
 		end
+		return true
+	end
+
+	if ExpeditionPersist and ExpeditionPersist.isServerShuttingDown() then
+		if ExpeditionPersist.isPersistableHunt(session) then
+			pcall(ExpeditionPersist.writeSession, session)
+		end
+		if TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
+			for _, id in ipairs(sessionMemberIds(session)) do
+				local member = Player(id)
+				if member and member:getId() ~= player:getId() and isSessionCompanion(session, member) then
+					removeHuntMember(session, member, { skipEnded = true })
+					clearActive(member)
+					pcall(function()
+						if TeamManager.safeLogoutCompanion then
+							TeamManager.safeLogoutCompanion(member)
+						elseif Game.logoutCompanion then
+							Game.logoutCompanion(member)
+						end
+					end)
+				end
+			end
+			pcall(function()
+				TeamManager.undeploy(player)
+			end)
+		end
+		clearActive(player)
 		return true
 	end
 
@@ -3527,6 +3657,16 @@ function ExpeditionManager.onLogin(player)
 		SampleSpells.ensure(player)
 	end
 
+	if ExpeditionPersist and ExpeditionPersist.tryRestoreOnLogin then
+		local restored = false
+		pcall(function()
+			restored = ExpeditionPersist.tryRestoreOnLogin(player) == true
+		end)
+		if restored then
+			return
+		end
+	end
+
 	local session = nil
 	local oldMemberId = nil
 	local guid = player:getGuid()
@@ -3624,6 +3764,7 @@ function ExpeditionManager.onLogin(player)
 	end
 
 	-- Rescue after restart / deferred teardown: stranded on a dead instance.
+	ExpeditionConfig.refundBossAttemptIfMarked(player)
 	if InstanceWorld and InstanceWorld.rescueIfStranded then
 		InstanceWorld.rescueIfStranded(player)
 	elseif player:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
@@ -3655,5 +3796,14 @@ function ExpeditionManager.onStartup()
 	if ExpeditionInstance and ExpeditionInstance.resetSlots then
 		ExpeditionInstance.resetSlots()
 	end
+	if ExpeditionPersist and ExpeditionPersist.loadAll then
+		pcall(ExpeditionPersist.loadAll)
+	end
 	logger.info("[Expedition] manager ready ({} catalog entries)", #ExpeditionConfig.Catalog)
+end
+
+function ExpeditionManager.onServerSave()
+	if ExpeditionPersist and ExpeditionPersist.saveAllLive then
+		pcall(ExpeditionPersist.saveAllLive, sessionsByKey)
+	end
 end

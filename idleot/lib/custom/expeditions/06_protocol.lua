@@ -127,12 +127,17 @@ function ExpeditionProtocol.sendStatus(player, session)
 		kind = kind,
 		role = role,
 		stance = session.stance,
-		wave = session.wave or 0,
+		wave = session.wave or session.pitIndex or 0,
 		alive = session.alive or 0,
 		kills = session.kills or 0,
 		state = session.state or "idle",
 		elapsedSec = elapsed,
 	}
+	if session.kind == "arena" or (session.catalog and session.catalog.role == "arena") then
+		local total = session.arenaSpec and session.arenaSpec.creatures and #session.arenaSpec.creatures or 10
+		status.arenaPit = session.pitIndex or session.wave or 0
+		status.arenaPits = total
+	end
 	if player and session.memberStance and session.memberStance[player:getId()] then
 		status.stance = session.memberStance[player:getId()]
 	end

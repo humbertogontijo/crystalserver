@@ -1911,7 +1911,7 @@ function ExpeditionAI.tick(session)
 				if anchor and kind ~= "raid" then
 					updateCatchUpSpeed(session, player, anchor)
 				end
-				if role == "boss" then
+				if role == "boss" or role == "arena" then
 					if kind == "raid" then
 						tickRaid(session, player)
 					else

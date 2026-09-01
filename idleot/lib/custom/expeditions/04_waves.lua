@@ -599,6 +599,10 @@ function ExpeditionWaves.onMonsterDeath(creature, corpse)
 	if not creature then
 		return
 	end
+	-- Sequential arena pits track kills in QuestArena.monsterOwners.
+	if QuestArena and QuestArena.isOwnedMonster and QuestArena.isOwnedMonster(creature) then
+		return
+	end
 	-- Boss fights own their monsters separately.
 	if ExpeditionBoss and ExpeditionBoss.onMonsterDeath and ExpeditionBoss.onMonsterDeath(creature, corpse) then
 		return

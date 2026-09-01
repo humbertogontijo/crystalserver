@@ -910,6 +910,9 @@ function InstanceWorld.shouldRescue(player)
 	if not player then
 		return false
 	end
+	if ExpeditionManager and ExpeditionManager.hasPendingRestore and ExpeditionManager.hasPendingRestore(player) then
+		return false
+	end
 	-- Waiting / starting sessions keep members in the city until synchronized entry.
 	-- Do not treat private-instance binding (or hunt tiles) as stranded yet.
 	local session = liveHuntSession(player)

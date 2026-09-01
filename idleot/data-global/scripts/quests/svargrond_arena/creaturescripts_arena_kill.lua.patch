@@ -1,0 +1,18 @@
+diff --git a/data-global/scripts/quests/svargrond_arena/creaturescripts_arena_kill.lua b/data-global/scripts/quests/svargrond_arena/creaturescripts_arena_kill.lua
+--- a/data-global/scripts/quests/svargrond_arena/creaturescripts_arena_kill.lua
++++ b/data-global/scripts/quests/svargrond_arena/creaturescripts_arena_kill.lua
+@@ -1,5 +1,13 @@
+ local deathEvent = CreatureEvent("SvargrondArenaBossDeath")
+-function deathEvent.onDeath(creature, _corpse, _lastHitKiller, mostDamageKiller)
++function deathEvent.onDeath(creature, corpse, _lastHitKiller, mostDamageKiller)
++	-- Private QuestArena instances own progression; do not spawn public pit teleports.
++	local PRIVATE_BASE = (InstanceWorld and InstanceWorld.PRIVATE_BASE) or 3000000
++	if creature and creature.getInstanceId and (creature:getInstanceId() or 0) >= PRIVATE_BASE then
++		if QuestArena and QuestArena.handleMonsterDeath then
++			QuestArena.handleMonsterDeath(creature, corpse)
++		end
++		return true
++	end
+ 	local player = Player(mostDamageKiller)
+ 	if not player then
+ 		return true

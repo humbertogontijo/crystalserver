@@ -3912,10 +3912,6 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 }
 
 namespace {
-/**
- * Rebind Unassigned (DEFAULT) loot to the inventory gold/loot pouch and refresh clients.
- * @return true when a pouch was found and bound.
- */
 bool bindUnassignedLootToPouch(const std::shared_ptr<Player> &player) {
 	const auto &pouch = player->getInventoryGoldPouch();
 	if (!pouch) {

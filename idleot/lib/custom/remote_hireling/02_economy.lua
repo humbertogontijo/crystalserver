@@ -269,6 +269,25 @@ local function isEquippedNonContainer(player, item)
 	return false
 end
 
+--- Find the account loot / gold pouch container.
+local function findLootPouch(player)
+	if not player then
+		return nil
+	end
+	local pouchId = ITEM_GOLD_POUCH or 23721
+	local pouch = nil
+	if player.findItemInInbox and pouchId then
+		pouch = player:findItemInInbox(pouchId)
+	end
+	if not pouch then
+		pouch = player:getItemById(pouchId, true)
+	end
+	if pouch and pouch.isContainer and pouch:isContainer() then
+		return pouch
+	end
+	return nil
+end
+
 local function collectStacks(player, ignoreEquipped)
 	local stacks = {}
 	local function scan(item)
@@ -358,6 +377,70 @@ function RemoteHirelingEconomy.sellAll(player, ignoreEquipped, filterMode, itemI
 	return net, soldItems, RemoteHirelingEconomy.getTaxPercent(player)
 end
 
+--- Sell loot-pouch contents against the hireling loot catalog (respects sell list filter).
+function RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
+	if not player or not player:isPlayer() then
+		return 0, 0, 0
+	end
+
+	local pouch = findLootPouch(player)
+	if not pouch then
+		return 0, 0, RemoteHirelingEconomy.getTaxPercent(player)
+	end
+
+	filterMode = tonumber(filterMode) or 0
+	if filterMode ~= 1 then
+		filterMode = 0
+	end
+
+	local listed, listCount = buildListedSet(itemIds)
+	local prices = buildSellPriceMap()
+	if next(prices) == nil then
+		return 0, 0, RemoteHirelingEconomy.getTaxPercent(player)
+	end
+
+	local taxPercent = RemoteHirelingEconomy.getTaxPercent(player)
+	local keep = math.max(0, 100 - taxPercent)
+	local gross = 0
+	local soldItems = 0
+	local toRemove = {}
+
+	for i = pouch:getSize() - 1, 0, -1 do
+		local it = pouch:getItem(i)
+		if it then
+			local typeId = it:getId()
+			local count = it:getCount() or 1
+			if not (it.getTier and it:getTier() > 0) and count > 0 and passesFilter(typeId, filterMode, listed, listCount) then
+				local unit = resolvePrice(prices, typeId)
+				if unit > 0 then
+					gross = gross + unit * count
+					soldItems = soldItems + count
+					toRemove[#toRemove + 1] = it
+				end
+			end
+		end
+	end
+
+	for _, it in ipairs(toRemove) do
+		it:remove()
+	end
+
+	if soldItems <= 0 or gross <= 0 then
+		return 0, 0, taxPercent
+	end
+
+	local net = math.floor(gross * keep / 100)
+	if net > 0 and player.addMoney then
+		player:addMoney(net)
+	end
+
+	if taxPercent == 0 and net > 0 then
+		RemoteHirelingEconomy.startCooldownIfFree(player)
+	end
+
+	return net, soldItems, RemoteHirelingEconomy.getTaxPercent(player)
+end
+
 -- Per-player debounce for gold/cap emergency sells (combat tick can fire often).
 local lastEmergencySellAt = {}
 
@@ -365,6 +448,9 @@ local lastEmergencySellAt = {}
 --- kind: "gold" | "cap". Returns true when at least one item was sold.
 function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 	if not player or not player:isPlayer() then
+		return false
+	end
+	if not RemoteHirelingEconomy.getAutoSell(player) then
 		return false
 	end
 	if kind == "gold" then

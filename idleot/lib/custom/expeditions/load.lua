@@ -14,6 +14,7 @@ local files = {
 	"08_sample_spells.lua",
 	"09_raid_instance.lua",
 	"10_xml_raids.lua",
+	"11_persist.lua",
 }
 
 for _, file in ipairs(files) do
