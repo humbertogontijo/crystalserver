@@ -84,13 +84,14 @@ def apply_patch_file(patch_path: Path, worktree: str) -> None:
         tmp = fh.name
     try:
         r = subprocess.run(
-            ["git", "apply", "--whitespace=nowarn", tmp],
+            ["git", "apply", "--verbose", "--whitespace=nowarn", tmp],
             cwd=worktree,
             capture_output=True,
             text=True,
         )
         # git apply may exit 0 with "Skipped patch" when cwd is inside a nested
         # path of a parent git repo (e.g. run/crystalserver under the monorepo).
+        # --verbose is required: without it, skips are silent (empty stderr, rc 0).
         skipped = "Skipped patch" in (r.stdout or "") or "Skipped patch" in (r.stderr or "")
         if r.returncode != 0 or skipped:
             # fallback: patch -p1 (applies against cwd, not the git toplevel)

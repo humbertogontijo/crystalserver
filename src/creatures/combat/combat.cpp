@@ -913,10 +913,22 @@ void Combat::CombatHealthFunc(const std::shared_ptr<Creature> &caster, const std
 
 	// Player attacking monster
 	if (attackerPlayer && targetMonster) {
-		const auto &slot = attackerPlayer->getPreyWithMonster(targetMonster->getRaceId());
-		if (slot && slot->isOccupied() && slot->bonus == PreyBonus_Damage && slot->bonusTimeLeft > 0) {
-			damage.primary.value += static_cast<int32_t>(std::ceil((damage.primary.value * slot->bonusPercentage) / 100));
-			damage.secondary.value += static_cast<int32_t>(std::ceil((damage.secondary.value * slot->bonusPercentage) / 100));
+		const uint16_t raceId = targetMonster->getRaceId();
+		uint8_t teamBonusType = 0;
+		uint16_t teamBonusPercent = 0;
+		const bool hasTeamPrey = attackerPlayer->getTeamPreyBonus(raceId, teamBonusType, teamBonusPercent);
+		if (hasTeamPrey) {
+			// Team prey replaces personal for this race.
+			if (teamBonusType == static_cast<uint8_t>(PreyBonus_Damage) && teamBonusPercent > 0) {
+				damage.primary.value += static_cast<int32_t>(std::ceil((damage.primary.value * teamBonusPercent) / 100));
+				damage.secondary.value += static_cast<int32_t>(std::ceil((damage.secondary.value * teamBonusPercent) / 100));
+			}
+		} else {
+			const auto &slot = attackerPlayer->getPreyWithMonster(raceId);
+			if (slot && slot->isOccupied() && slot->bonus == PreyBonus_Damage && slot->bonusTimeLeft > 0) {
+				damage.primary.value += static_cast<int32_t>(std::ceil((damage.primary.value * slot->bonusPercentage) / 100));
+				damage.secondary.value += static_cast<int32_t>(std::ceil((damage.secondary.value * slot->bonusPercentage) / 100));
+			}
 		}
 
 		// Bounty Talisman damage bonus (value in hundredths of percent)
@@ -935,10 +947,21 @@ void Combat::CombatHealthFunc(const std::shared_ptr<Creature> &caster, const std
 
 	// Monster attacking player
 	if (attackerMonster && targetPlayer) {
-		const auto &slot = targetPlayer->getPreyWithMonster(attackerMonster->getRaceId());
-		if (slot && slot->isOccupied() && slot->bonus == PreyBonus_Defense && slot->bonusTimeLeft > 0) {
-			damage.primary.value -= static_cast<int32_t>(std::ceil((damage.primary.value * slot->bonusPercentage) / 100));
-			damage.secondary.value -= static_cast<int32_t>(std::ceil((damage.secondary.value * slot->bonusPercentage) / 100));
+		const uint16_t raceId = attackerMonster->getRaceId();
+		uint8_t teamBonusType = 0;
+		uint16_t teamBonusPercent = 0;
+		const bool hasTeamPrey = targetPlayer->getTeamPreyBonus(raceId, teamBonusType, teamBonusPercent);
+		if (hasTeamPrey) {
+			if (teamBonusType == static_cast<uint8_t>(PreyBonus_Defense) && teamBonusPercent > 0) {
+				damage.primary.value -= static_cast<int32_t>(std::ceil((damage.primary.value * teamBonusPercent) / 100));
+				damage.secondary.value -= static_cast<int32_t>(std::ceil((damage.secondary.value * teamBonusPercent) / 100));
+			}
+		} else {
+			const auto &slot = targetPlayer->getPreyWithMonster(raceId);
+			if (slot && slot->isOccupied() && slot->bonus == PreyBonus_Defense && slot->bonusTimeLeft > 0) {
+				damage.primary.value -= static_cast<int32_t>(std::ceil((damage.primary.value * slot->bonusPercentage) / 100));
+				damage.secondary.value -= static_cast<int32_t>(std::ceil((damage.secondary.value * slot->bonusPercentage) / 100));
+			}
 		}
 	}
 

@@ -11,26 +11,7 @@ local function dayKey()
 	return os.date("%Y-%m-%d")
 end
 
-local function ensureDay(player)
-	local store = kv(player)
-	if not store then
-		return nil
-	end
-	local today = dayKey()
-	local saved = store:get("activityDay")
-	if saved ~= today then
-		store:set("activityDay", today)
-		store:set("completed", "{}")
-		ActivityBoostLedger.resetDailyEarned(player)
-		if ActivityBoostSoloBoss and ActivityBoostSoloBoss.resetForNewDay then
-			ActivityBoostSoloBoss.resetForNewDay(player)
-		end
-		store:remove("worldBossFragged")
-	end
-	return store
-end
-
-local function decodeCompleted(raw)
+local function decodeMap(raw)
 	if type(raw) ~= "string" or raw == "" or raw == "{}" then
 		return {}
 	end
@@ -43,66 +24,98 @@ local function decodeCompleted(raw)
 	return {}
 end
 
-local function encodeCompleted(map)
+local function encodeMap(map)
 	if ExpeditionJson and ExpeditionJson.encode then
 		return ExpeditionJson.encode(map or {})
 	end
 	return "{}"
 end
 
-function ActivityBoostActivities.isComplete(player, activityId)
-	local store = ensureDay(player)
+--- Boost bookkeeping day rollover (XP bank). Counts live in C++ DailyActivityData.
+local function ensureBoostDay(player)
+	local store = kv(player)
+	if not store then
+		return nil
+	end
+	local today = dayKey()
+	local saved = store:get("activityDay")
+	if saved ~= today then
+		store:set("activityDay", today)
+		store:set("credited", "{}")
+		-- Drop legacy keys from the previous boolean-completion design.
+		store:remove("completed")
+		store:remove("worldBossFragged")
+		ActivityBoostLedger.resetDailyEarned(player)
+		if ActivityBoostSoloBoss and ActivityBoostSoloBoss.resetForNewDay then
+			ActivityBoostSoloBoss.resetForNewDay(player)
+		end
+	end
+	return store
+end
+
+local function findDef(activityId)
+	for _, entry in ipairs(ActivityBoostConfig.ACTIVITIES or {}) do
+		if entry.id == activityId then
+			return entry
+		end
+	end
+	return nil
+end
+
+local function getCurrent(player, activityId)
+	if not player or not player.getDailyActivityStat then
+		return 0
+	end
+	return tonumber(player:getDailyActivityStat(tostring(activityId))) or 0
+end
+
+local function isCredited(player, activityId)
+	local store = ensureBoostDay(player)
 	if not store then
 		return false
 	end
-	local completed = decodeCompleted(store:get("completed") or "{}")
-	return completed[tostring(activityId)] == true
+	local credited = decodeMap(store:get("credited") or "{}")
+	return credited[tostring(activityId)] == true
 end
 
-function ActivityBoostActivities.list(player)
-	ensureDay(player)
-	local out = {}
-	for _, def in ipairs(ActivityBoostConfig.ACTIVITIES or {}) do
-		out[#out + 1] = {
-			id = def.id,
-			name = def.name,
-			description = def.description,
-			rewardSec = def.rewardSec,
-			destination = def.destination,
-			destinationLabel = def.destinationLabel,
-			complete = ActivityBoostActivities.isComplete(player, def.id),
-		}
+local function markCredited(player, activityId)
+	local store = ensureBoostDay(player)
+	if not store then
+		return
 	end
-	return out
+	local credited = decodeMap(store:get("credited") or "{}")
+	credited[tostring(activityId)] = true
+	store:set("credited", encodeMap(credited))
 end
 
---- Mark complete and credit boost (once per day). Returns credited seconds or 0.
-function ActivityBoostActivities.complete(player, activityId, opts)
-	opts = opts or {}
+function ActivityBoostActivities.isComplete(player, activityId)
+	local def = findDef(activityId)
+	if not def then
+		return false
+	end
+	local goal = tonumber(def.goal) or 1
+	return getCurrent(player, activityId) >= goal
+end
+
+--- Credit XP boost once when today's count reaches the goal.
+function ActivityBoostActivities.evaluateCredit(player, activityId)
 	if not player or not activityId then
 		return 0
 	end
-	local store = ensureDay(player)
-	if not store then
-		return 0
-	end
-	local def = nil
-	for _, entry in ipairs(ActivityBoostConfig.ACTIVITIES or {}) do
-		if entry.id == activityId then
-			def = entry
-			break
-		end
-	end
+	local def = findDef(activityId)
 	if not def then
 		return 0
 	end
-	if ActivityBoostActivities.isComplete(player, activityId) then
+	ensureBoostDay(player)
+	local goal = tonumber(def.goal) or 1
+	local current = getCurrent(player, activityId)
+	if current < goal then
 		return 0
 	end
-	local completed = decodeCompleted(store:get("completed") or "{}")
-	completed[tostring(activityId)] = true
-	store:set("completed", encodeCompleted(completed))
-
+	if isCredited(player, activityId) then
+		return 0
+	end
+	markCredited(player, activityId)
 	local credited = ActivityBoostLedger.credit(player, def.rewardSec or 0)
 	if credited > 0 then
 		player:sendTextMessage(
@@ -114,52 +127,108 @@ function ActivityBoostActivities.complete(player, activityId, opts)
 			)
 		)
 	end
-	if ActivityBoostProtocol and ActivityBoostProtocol.sendState then
-		ActivityBoostProtocol.sendState(player)
-	end
 	return credited
 end
 
+function ActivityBoostActivities.list(player)
+	ensureBoostDay(player)
+	local out = {}
+	for _, def in ipairs(ActivityBoostConfig.ACTIVITIES or {}) do
+		local goal = tonumber(def.goal) or 1
+		local current = math.min(getCurrent(player, def.id), goal)
+		local percent = 0
+		if goal > 0 then
+			percent = math.min(100, math.floor((current / goal) * 100 + 0.5))
+		end
+		out[#out + 1] = {
+			id = def.id,
+			name = def.name,
+			description = def.description,
+			rewardSec = def.rewardSec,
+			destination = def.destination,
+			destinationLabel = def.destinationLabel,
+			goal = goal,
+			current = current,
+			percent = percent,
+			complete = current >= goal,
+		}
+	end
+	return out
+end
+
+--- Increment a daily activity counter and evaluate XP credit.
+function ActivityBoostActivities.addProgress(player, activityId, delta)
+	delta = tonumber(delta) or 1
+	if not player or not activityId or delta <= 0 then
+		return 0
+	end
+	if not player.addDailyActivityStat then
+		return 0
+	end
+	ensureBoostDay(player)
+	local current = player:addDailyActivityStat(tostring(activityId), delta)
+	ActivityBoostActivities.evaluateCredit(player, activityId)
+	if ActivityBoostProtocol and ActivityBoostProtocol.sendState then
+		ActivityBoostProtocol.sendState(player)
+	end
+	return current
+end
+
+--- Called from C++ after daily_hunt kill increments (throttled).
+function ActivityBoostActivities.onStatChanged(player, activityId)
+	if not player then
+		return
+	end
+	ensureBoostDay(player)
+	ActivityBoostActivities.evaluateCredit(player, activityId)
+	if ActivityBoostProtocol and ActivityBoostProtocol.sendState then
+		ActivityBoostProtocol.sendState(player)
+	end
+end
+
 function ActivityBoostActivities.onServerSave()
+	-- GlobalServerSave already bumped DailyReward lastServerSave; drop banked boost.
 	for _, player in ipairs(Game.getPlayers()) do
-		ensureDay(player)
-		ActivityBoostLedger.purgeExpired(player)
+		ensureBoostDay(player)
+		ActivityBoostLedger.clear(player)
+		if ActivityBoostProtocol and ActivityBoostProtocol.sendState then
+			pcall(ActivityBoostProtocol.sendState, player)
+		end
 	end
 end
 
 function ActivityBoostActivities.onLogin(player)
-	ensureDay(player)
+	ensureBoostDay(player)
+	-- Offline players: clear lots stamped before the latest server save.
 	ActivityBoostLedger.purgeExpired(player)
 end
 
---- Track hunt session time for Morning Hunt.
-function ActivityBoostActivities.noteHuntProgress(player, session)
-	if not player or not session then
+function ActivityBoostActivities.onBossExpeditionVictory(player, session)
+	if not player then
 		return
 	end
-	if session.kind == "raid" or session.kind == "soulpit" or session.kind == "worldboss" then
+	local catalog = session and session.catalog
+	if not catalog then
 		return
 	end
-	local contentRole = session.role or (session.catalog and session.catalog.role)
-	if contentRole == "boss" then
-		return
+	if ExpeditionConfig and ExpeditionConfig.isSoloBoss then
+		if not ExpeditionConfig.isSoloBoss(catalog) then
+			return
+		end
 	end
-	local started = tonumber(session.startedAt) or 0
-	if started <= 0 then
-		return
-	end
-	local elapsed = os.time() - started
-	local need = ActivityBoostConfig.MORNING_HUNT_SEC or (10 * 60)
-	if elapsed >= need then
-		ActivityBoostActivities.complete(player, "morning_hunt")
-	end
-end
-
-function ActivityBoostActivities.onBossExpeditionVictory(player)
-	ActivityBoostActivities.complete(player, "boss_slayer")
+	ActivityBoostActivities.addProgress(player, "solo_boss", 1)
 end
 
 --- Task Board daily bounty claim (hooked from CrystalServer game.cpp).
 function ActivityBoostActivities.onBountyTaskClaimed(player)
-	ActivityBoostActivities.complete(player, "bounty_hunter")
+	ActivityBoostActivities.addProgress(player, "bounty_hunter", 1)
+end
+
+function ActivityBoostActivities.getWorldBossFragsToday(player)
+	return getCurrent(player, "world_boss")
+end
+
+function ActivityBoostActivities.worldBossCapReached(player)
+	local cap = tonumber(ActivityBoostConfig.WORLD_BOSS_DAILY_CAP) or 3
+	return getCurrent(player, "world_boss") >= cap
 end

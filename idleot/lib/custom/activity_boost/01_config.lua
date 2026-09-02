@@ -4,24 +4,26 @@ ActivityBoostConfig = ActivityBoostConfig or {}
 ActivityBoostConfig.OPCODE = 125
 
 ActivityBoostConfig.KV_SCOPE = "activity-boost"
-ActivityBoostConfig.LOT_TTL_SEC = 24 * 60 * 60
-ActivityBoostConfig.DAILY_EARN_CAP_SEC = 45 * 60
+-- Banked XP boost lasts until the next GlobalServerSave (no wall-clock TTL).
+ActivityBoostConfig.DAILY_EARN_CAP_SEC = 40 * 60
 ActivityBoostConfig.XP_BOOST_PERCENT = 50
 ActivityBoostConfig.PURGE_TICK_MS = 60 * 1000
 
 ActivityBoostConfig.ACTIVITIES = {
 	{
-		id = "morning_hunt",
-		name = "Morning Hunt",
-		description = "Hunt in an expedition for at least 10 minutes.",
+		id = "daily_hunt",
+		name = "Daily Hunt",
+		description = "Kill 250 creatures.",
+		goal = 250,
 		rewardSec = 10 * 60,
 		destination = "expeditions_hunts",
 		destinationLabel = "Expeditions · Hunts",
 	},
 	{
-		id = "boss_slayer",
-		name = "Boss Slayer",
-		description = "Clear any boss expedition (solo or lever).",
+		id = "solo_boss",
+		name = "Solo Boss",
+		description = "Kill 3 solo bosses.",
+		goal = 3,
 		rewardSec = 10 * 60,
 		destination = "expeditions_solo",
 		destinationLabel = "Expeditions · Solo Bosses",
@@ -29,7 +31,8 @@ ActivityBoostConfig.ACTIVITIES = {
 	{
 		id = "world_boss",
 		name = "World Boss",
-		description = "Be on the damage meter when a world boss dies.",
+		description = "Slay up to 3 world bosses.",
+		goal = 3,
 		rewardSec = 10 * 60,
 		destination = "expeditions_world",
 		destinationLabel = "Expeditions · World Bosses",
@@ -37,22 +40,15 @@ ActivityBoostConfig.ACTIVITIES = {
 	{
 		id = "bounty_hunter",
 		name = "Bounty Hunter",
-		description = "Complete a Task Board daily task.",
+		description = "Complete 3 daily tasks.",
+		goal = 3,
 		rewardSec = 10 * 60,
 		destination = "task_board_daily",
 		destinationLabel = "Task Board · Daily",
 	},
-	{
-		id = "boss_rush",
-		name = "Boss Rush",
-		description = "Complete today's solo boss challenge.",
-		rewardSec = 5 * 60,
-		destination = "expeditions_boss_rush",
-		destinationLabel = "Expeditions · Boss Rush",
-	},
 }
 
-ActivityBoostConfig.MORNING_HUNT_SEC = 10 * 60
+ActivityBoostConfig.WORLD_BOSS_DAILY_CAP = 3
 
 ActivityBoostConfig.BOSS_RUSH_RANKS = {
 	{ id = "S", maxSec = 180 },

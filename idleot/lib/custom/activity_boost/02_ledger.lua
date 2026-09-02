@@ -7,6 +7,34 @@ local function kv(player)
 	return player:kv():scoped(ActivityBoostConfig.KV_SCOPE)
 end
 
+local function dayKey()
+	return os.date("%Y-%m-%d")
+end
+
+--- Same epoch Daily Reward uses (updated in GlobalServerSave).
+local function lastServerSave()
+	if GetDailyRewardLastServerSave then
+		local ok, value = pcall(GetDailyRewardLastServerSave)
+		if ok and type(value) == "number" and value > 0 then
+			return value
+		end
+	end
+	return 0
+end
+
+--- Today's earn counter resets on calendar day (cap room). Banked lots clear on server save.
+function ActivityBoostLedger.ensureDailyEarnDay(player)
+	local store = kv(player)
+	if not store then
+		return
+	end
+	local today = dayKey()
+	if store:get("dailyEarnedDay") ~= today then
+		store:set("dailyEarnedDay", today)
+		store:set("dailyEarnedSec", 0)
+	end
+end
+
 local function encodeLots(lots)
 	if ExpeditionJson and ExpeditionJson.encode then
 		return ExpeditionJson.encode(lots or {})
@@ -51,17 +79,6 @@ local function sumLots(lots)
 	return total
 end
 
-local function soonestExpiry(lots)
-	local best = nil
-	for _, lot in ipairs(lots) do
-		local exp = tonumber(lot.expiresAt)
-		if exp and (not best or exp < best) then
-			best = exp
-		end
-	end
-	return best
-end
-
 function ActivityBoostLedger.syncEngine(player, lots)
 	if not player then
 		return 0
@@ -83,40 +100,69 @@ function ActivityBoostLedger.syncEngine(player, lots)
 	return total
 end
 
---- Drop expired lots; sync engine. Returns remaining seconds.
+--- Wipe banked boost (server save / epoch mismatch).
+function ActivityBoostLedger.clear(player)
+	if not player then
+		return 0
+	end
+	local store = kv(player)
+	saveLots(player, {})
+	if store then
+		store:set("lotsServerSave", lastServerSave())
+	end
+	return ActivityBoostLedger.syncEngine(player, {})
+end
+
+--- Drop lots from a previous server-save epoch (and strip legacy wall-clock TTLs).
 function ActivityBoostLedger.purgeExpired(player)
 	if not player then
 		return 0
 	end
+	local store = kv(player)
+	if not store then
+		return 0
+	end
+	local saveAt = lastServerSave()
+	local stamped = tonumber(store:get("lotsServerSave")) or 0
+	if saveAt > 0 and stamped > 0 and stamped ~= saveAt then
+		return ActivityBoostLedger.clear(player)
+	end
+
 	local now = os.time()
 	local lots = loadLots(player)
 	local kept = {}
 	for _, lot in ipairs(lots) do
-		local exp = tonumber(lot.expiresAt) or 0
 		local sec = math.floor(tonumber(lot.seconds) or 0)
-		if sec > 0 and exp > now then
-			kept[#kept + 1] = { seconds = sec, expiresAt = exp }
+		local exp = tonumber(lot.expiresAt)
+		-- Legacy 24h lots: honor remaining wall-clock once, then store without TTL.
+		if sec > 0 and (not exp or exp <= 0 or exp > now) then
+			kept[#kept + 1] = { seconds = sec }
 		end
 	end
 	saveLots(player, kept)
+	if stamped == 0 and saveAt > 0 then
+		store:set("lotsServerSave", saveAt)
+	end
 	return ActivityBoostLedger.syncEngine(player, kept)
 end
 
 function ActivityBoostLedger.getStatus(player)
+	ActivityBoostLedger.ensureDailyEarnDay(player)
 	local remaining = ActivityBoostLedger.purgeExpired(player)
-	local lots = loadLots(player)
 	local store = kv(player)
 	local earned = store and tonumber(store:get("dailyEarnedSec")) or 0
 	return {
 		remainingSec = remaining,
-		expiresAt = soonestExpiry(lots),
-		dailyEarnedSec = earned,
+		-- Client shows "until server save"; no wall-clock expiry.
+		expiresAt = 0,
+		dailyEarnedSec = math.max(0, math.floor(earned)),
 		dailyCapSec = ActivityBoostConfig.DAILY_EARN_CAP_SEC or 0,
 		boostPercent = remaining > 0 and (ActivityBoostConfig.XP_BOOST_PERCENT or 50) or 0,
 	}
 end
 
 function ActivityBoostLedger.getDailyEarned(player)
+	ActivityBoostLedger.ensureDailyEarnDay(player)
 	local store = kv(player)
 	if not store then
 		return 0
@@ -127,6 +173,7 @@ end
 function ActivityBoostLedger.resetDailyEarned(player)
 	local store = kv(player)
 	if store then
+		store:set("dailyEarnedDay", dayKey())
 		store:set("dailyEarnedSec", 0)
 	end
 end
@@ -155,14 +202,13 @@ function ActivityBoostLedger.credit(player, seconds, opts)
 	end
 
 	local lots = loadLots(player)
-	local ttl = ActivityBoostConfig.LOT_TTL_SEC or (24 * 60 * 60)
-	lots[#lots + 1] = {
-		seconds = seconds,
-		expiresAt = os.time() + ttl,
-	}
+	lots[#lots + 1] = { seconds = seconds }
 	saveLots(player, lots)
-	if store and not opts.ignoreDailyCap then
-		store:set("dailyEarnedSec", earned + seconds)
+	if store then
+		store:set("lotsServerSave", lastServerSave())
+		if not opts.ignoreDailyCap then
+			store:set("dailyEarnedSec", earned + seconds)
+		end
 	end
 	ActivityBoostLedger.syncEngine(player, lots)
 	return seconds
@@ -191,10 +237,7 @@ function ActivityBoostLedger.reconcileWithEngine(player)
 			if sec <= need then
 				need = need - sec
 			else
-				kept[#kept + 1] = {
-					seconds = sec - need,
-					expiresAt = lot.expiresAt,
-				}
+				kept[#kept + 1] = { seconds = sec - need }
 				need = 0
 			end
 		end

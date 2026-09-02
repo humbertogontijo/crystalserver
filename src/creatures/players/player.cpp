@@ -20,6 +20,7 @@
 #include "account/account.hpp"
 #include "config/configmanager.hpp"
 #include "io/iobountytasks.hpp"
+#include "io/iodailyactivities.hpp"
 #include "io/ioweeklytasks.hpp"
 #include "core.hpp"
 #include "creatures/appearance/mounts/mounts.hpp"
@@ -6750,6 +6751,7 @@ bool Player::onKilledMonster(const std::shared_ptr<Monster> &monster) {
 
 		g_iobountytasks().onCreatureKill(getPlayer(), mType->info.raceid);
 		g_ioweeklytasks().onCreatureKill(getPlayer(), mType->info.raceid);
+		g_iodailyactivities().onCreatureKill(getPlayer(), mType->info.raceid);
 	} else if (monster->getForgeStack() == 40) {
 		addWeaponProficiencyExperience(mType, monster->getMonsterForgeClassification(), true);
 	}
@@ -9976,6 +9978,31 @@ const std::unique_ptr<PreySlot> &Player::getPreyWithMonster(uint16_t raceId) con
 	return PreySlotNull;
 }
 
+void Player::clearTeamPreyBonuses() {
+	teamPreyBonuses.clear();
+}
+
+void Player::setTeamPreyBonus(uint16_t raceId, uint8_t bonusType, uint16_t percentage) {
+	if (raceId == 0) {
+		return;
+	}
+	teamPreyBonuses[raceId] = TeamPreyBonusEntry { bonusType, percentage };
+}
+
+bool Player::hasTeamPreyBonus(uint16_t raceId) const {
+	return teamPreyBonuses.contains(raceId);
+}
+
+bool Player::getTeamPreyBonus(uint16_t raceId, uint8_t &bonusType, uint16_t &percentage) const {
+	const auto it = teamPreyBonuses.find(raceId);
+	if (it == teamPreyBonuses.end()) {
+		return false;
+	}
+	bonusType = it->second.bonusType;
+	percentage = it->second.percentage;
+	return true;
+}
+
 // Task hunting system
 
 void Player::initializeTaskHunting() {
@@ -10236,6 +10263,22 @@ WeeklyTaskData &Player::getWeeklyTaskData() {
 
 const WeeklyTaskData &Player::getWeeklyTaskData() const {
 	return weeklyTaskData;
+}
+
+DailyActivityData &Player::getDailyActivityData() {
+	return dailyActivityData;
+}
+
+const DailyActivityData &Player::getDailyActivityData() const {
+	return dailyActivityData;
+}
+
+uint32_t Player::getDailyActivityStat(const std::string &activityId) {
+	return g_iodailyactivities().getStat(getPlayer(), activityId);
+}
+
+uint32_t Player::addDailyActivityStat(const std::string &activityId, uint32_t delta) {
+	return g_iodailyactivities().addStat(getPlayer(), activityId, delta);
 }
 
 bool Player::hasWeeklyTaskExpansion() const {

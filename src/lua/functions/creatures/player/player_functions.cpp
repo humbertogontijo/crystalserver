@@ -92,6 +92,9 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "taskHuntingThirdSlot", PlayerFunctions::luaPlayerTaskThirdSlot);
 	Lua::registerMethod(L, "Player", "removePreyStamina", PlayerFunctions::luaPlayerRemovePreyStamina);
 	Lua::registerMethod(L, "Player", "addPreyCards", PlayerFunctions::luaPlayerAddPreyCards);
+	Lua::registerMethod(L, "Player", "usePreyCards", PlayerFunctions::luaPlayerUsePreyCards);
+	Lua::registerMethod(L, "Player", "clearTeamPreyBonuses", PlayerFunctions::luaPlayerClearTeamPreyBonuses);
+	Lua::registerMethod(L, "Player", "setTeamPreyBonus", PlayerFunctions::luaPlayerSetTeamPreyBonus);
 	Lua::registerMethod(L, "Player", "removeTaskHuntingPoints", PlayerFunctions::luaPlayerRemoveTaskHuntingPoints);
 	Lua::registerMethod(L, "Player", "getTaskHuntingPoints", PlayerFunctions::luaPlayerGetTaskHuntingPoints);
 	Lua::registerMethod(L, "Player", "addTaskHuntingPoints", PlayerFunctions::luaPlayerAddTaskHuntingPoints);
@@ -105,6 +108,8 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "getSoulsealsPoints", PlayerFunctions::luaPlayerGetSoulsealsPoints);
 	Lua::registerMethod(L, "Player", "addSoulsealsPoints", PlayerFunctions::luaPlayerAddSoulsealsPoints);
 	Lua::registerMethod(L, "Player", "removeSoulsealsPoints", PlayerFunctions::luaPlayerRemoveSoulsealsPoints);
+	Lua::registerMethod(L, "Player", "getDailyActivityStat", PlayerFunctions::luaPlayerGetDailyActivityStat);
+	Lua::registerMethod(L, "Player", "addDailyActivityStat", PlayerFunctions::luaPlayerAddDailyActivityStat);
 
 	// Task Board send functions
 	Lua::registerMethod(L, "Player", "sendBountyTaskData", PlayerFunctions::luaPlayersendBountyTaskData);
@@ -1049,6 +1054,42 @@ int PlayerFunctions::luaPlayerAddPreyCards(lua_State* L) {
 	return 1;
 }
 
+int PlayerFunctions::luaPlayerUsePreyCards(lua_State* L) {
+	// player:usePreyCards(amount)
+	if (const auto &player = Lua::getUserdataShared<Player>(L, 1)) {
+		Lua::pushBoolean(L, player->usePreyCards(Lua::getNumber<uint16_t>(L, 2, 0)));
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerClearTeamPreyBonuses(lua_State* L) {
+	// player:clearTeamPreyBonuses()
+	if (const auto &player = Lua::getUserdataShared<Player>(L, 1)) {
+		player->clearTeamPreyBonuses();
+		Lua::pushBoolean(L, true);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetTeamPreyBonus(lua_State* L) {
+	// player:setTeamPreyBonus(raceId, bonusType, percentage)
+	if (const auto &player = Lua::getUserdataShared<Player>(L, 1)) {
+		player->setTeamPreyBonus(
+			Lua::getNumber<uint16_t>(L, 2, 0),
+			Lua::getNumber<uint8_t>(L, 3, 0),
+			Lua::getNumber<uint16_t>(L, 4, 0)
+		);
+		Lua::pushBoolean(L, true);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
 int PlayerFunctions::luaPlayerGetPreyCards(lua_State* L) {
 	// player:getPreyCards()
 	if (const auto &player = Lua::getUserdataShared<Player>(L, 1)) {
@@ -1219,6 +1260,33 @@ int PlayerFunctions::luaPlayerRemoveSoulsealsPoints(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGetDailyActivityStat(lua_State* L) {
+	// player:getDailyActivityStat(activityId)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player == nullptr) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto activityId = Lua::getString(L, 2);
+	lua_pushnumber(L, static_cast<lua_Number>(player->getDailyActivityStat(activityId)));
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerAddDailyActivityStat(lua_State* L) {
+	// player:addDailyActivityStat(activityId[, delta = 1])
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player == nullptr) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto activityId = Lua::getString(L, 2);
+	const auto delta = Lua::getNumber<uint32_t>(L, 3, 1);
+	lua_pushnumber(L, static_cast<lua_Number>(player->addDailyActivityStat(activityId, delta)));
 	return 1;
 }
 
