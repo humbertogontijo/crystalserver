@@ -6,6 +6,7 @@ local files = {
 	"03_store.lua",
 	"04_protocol.lua",
 	"05_manager.lua",
+	"06_bonus.lua",
 }
 
 for _, file in ipairs(files) do

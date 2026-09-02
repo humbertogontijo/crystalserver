@@ -8,6 +8,9 @@ function loginEvent.onLogin(player)
 	if TeamStore and TeamStore.reconcileControllerPointer then
 		pcall(TeamStore.reconcileControllerPointer, player)
 	end
+	if TeamBonus and TeamBonus.onMemberLogin then
+		pcall(TeamBonus.onMemberLogin, player)
+	end
 	addEvent(function(pid)
 		local p = Player(pid)
 		if p and TeamProtocol and TeamProtocol.sendTeam then

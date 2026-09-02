@@ -17,20 +17,23 @@ function ActivityBoostProtocol.sendState(player)
 	end
 	local ok, err = pcall(function()
 		ActivityBoostLedger.reconcileWithEngine(player)
-		local fragged = false
-		if player.kv and ActivityBoostConfig.KV_SCOPE then
-			fragged = player:kv():scoped(ActivityBoostConfig.KV_SCOPE):get("worldBossFragged") == 1
+		local activities = ActivityBoostActivities.list(player)
+		local fragsToday = 0
+		if ActivityBoostActivities and ActivityBoostActivities.getWorldBossFragsToday then
+			fragsToday = ActivityBoostActivities.getWorldBossFragsToday(player)
 		end
+		local cap = tonumber(ActivityBoostConfig.WORLD_BOSS_DAILY_CAP) or 3
 		ActivityBoostProtocol.send(player, {
 			type = "state",
 			boost = ActivityBoostLedger.getStatus(player),
-			activities = ActivityBoostActivities.list(player),
+			activities = activities,
 			soloBoss = ActivityBoostSoloBoss.get(player),
 			worldBoss = {
 				active = ActivityBoostWorldBoss.listActive(),
 				schedule = ActivityBoostWorldBoss.listSchedule(),
 				bosses = ActivityBoostWorldBoss.listBossTimetable(),
-				fraggedToday = fragged,
+				worldBossFragsToday = fragsToday,
+				fraggedToday = fragsToday >= cap,
 				sessionTimes = ActivityBoostConfig.WORLD_BOSS_SESSION_TIMES or {},
 				bands = ActivityBoostConfig.LEVEL_BANDS or {},
 			},

@@ -21,10 +21,35 @@ function TeamManager.retargetRosterInvites(oldHostGuid, newHostGuid, newHostName
 	end
 end
 
---- Level + vocation name for client automation catalogs (slot picker).
+--- Outfit table for manage-team portraits (online or offline Player).
+local function outfitFromSource(src)
+	if not src or not src.getOutfit then
+		return nil
+	end
+	local ok, look = pcall(function()
+		return src:getOutfit()
+	end)
+	if not ok or type(look) ~= "table" then
+		return nil
+	end
+	local lookType = tonumber(look.lookType or look.type) or 0
+	if lookType <= 0 then
+		return nil
+	end
+	return {
+		type = lookType,
+		head = tonumber(look.lookHead or look.head) or 0,
+		body = tonumber(look.lookBody or look.body) or 0,
+		legs = tonumber(look.lookLegs or look.legs) or 0,
+		feet = tonumber(look.lookFeet or look.feet) or 0,
+		addons = tonumber(look.lookAddons or look.addons) or 0,
+	}
+end
+
+--- Level + vocation + outfit for manage-team slots / automation catalogs.
 local function memberProfileWire(src)
 	if not src then
-		return { level = 0, vocation = "" }
+		return { level = 0, vocation = "", outfit = nil }
 	end
 	local vocationName = ""
 	local vocation = src.getVocation and src:getVocation() or nil
@@ -39,6 +64,7 @@ local function memberProfileWire(src)
 	return {
 		level = src.getLevel and src:getLevel() or 0,
 		vocation = vocationName,
+		outfit = outfitFromSource(src),
 	}
 end
 
@@ -447,6 +473,7 @@ function TeamManager.getTeamInfo(player)
 			guid = src and src:getGuid() or 0,
 			level = profile.level,
 			vocation = profile.vocation,
+			outfit = profile.outfit,
 			online = p ~= nil,
 			kind = kind,
 			companion = p and isHeadlessCompanion(p) or false,

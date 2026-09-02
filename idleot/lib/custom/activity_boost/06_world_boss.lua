@@ -8,13 +8,6 @@ ActivityBoostWorldBoss.bossCooldownUntil = ActivityBoostWorldBoss.bossCooldownUn
 -- Legacy alias (cleared on load so old band-wide locks do not linger).
 ActivityBoostWorldBoss.bandCooldownUntil = ActivityBoostWorldBoss.bandCooldownUntil or {}
 
-local function kv(player)
-	if not player or not player.kv then
-		return nil
-	end
-	return player:kv():scoped(ActivityBoostConfig.KV_SCOPE)
-end
-
 local function bandForLevel(level)
 	level = tonumber(level) or 0
 	for _, band in ipairs(ActivityBoostConfig.LEVEL_BANDS or {}) do
@@ -113,17 +106,15 @@ local function creatureIdForBossName(bossName)
 end
 
 local function isFraggedToday(player)
-	local store = kv(player)
-	if not store then
-		return false
+	if ActivityBoostActivities and ActivityBoostActivities.worldBossCapReached then
+		return ActivityBoostActivities.worldBossCapReached(player)
 	end
-	return store:get("worldBossFragged") == 1 or store:get("worldBossFragged") == true
+	return false
 end
 
-local function setFraggedToday(player)
-	local store = kv(player)
-	if store then
-		store:set("worldBossFragged", 1)
+local function noteWorldBossFrag(player)
+	if ActivityBoostActivities and ActivityBoostActivities.addProgress then
+		ActivityBoostActivities.addProgress(player, "world_boss", 1)
 	end
 end
 
@@ -546,7 +537,8 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 		return false, "Invalid player."
 	end
 	if isFraggedToday(player) then
-		return false, "You already claimed a world boss today. Come back after server save."
+		local cap = tonumber(ActivityBoostConfig.WORLD_BOSS_DAILY_CAP) or 3
+		return false, string.format("You already claimed %d world bosses today. Come back after server save.", cap)
 	end
 	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
 		return false, "Leave your current expedition first."
@@ -992,14 +984,20 @@ function ActivityBoostWorldBoss.onBossDeath(creature)
 		end
 		for _, p in ipairs(recipients) do
 			rollLootForPlayer(p, session.bossName, row.lootMult)
-			setFraggedToday(p)
-			ActivityBoostActivities.complete(p, "world_boss")
+			noteWorldBossFrag(p)
+			local frags = 0
+			if ActivityBoostActivities and ActivityBoostActivities.getWorldBossFragsToday then
+				frags = ActivityBoostActivities.getWorldBossFragsToday(p)
+			end
+			local cap = tonumber(ActivityBoostConfig.WORLD_BOSS_DAILY_CAP) or 3
 			p:sendTextMessage(
 				MESSAGE_EVENT_ADVANCE,
 				string.format(
-					"World Boss fragged! Rank #%d (%s). Locked out until next server save.",
+					"World Boss fragged! Rank #%d (%s). Progress %d/%d today.",
 					row.rank,
-					row.name
+					row.name,
+					math.min(frags, cap),
+					cap
 				)
 			)
 		end
@@ -1025,12 +1023,6 @@ function ActivityBoostWorldBoss.onBossDeath(creature)
 end
 
 function ActivityBoostWorldBoss.onServerSave()
-	for _, player in ipairs(Game.getPlayers()) do
-		local store = kv(player)
-		if store then
-			store:remove("worldBossFragged")
-		end
-	end
 	for _, session in pairs(ActivityBoostWorldBoss.active) do
 		teardownSession(session, "serversave")
 	end

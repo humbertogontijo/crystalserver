@@ -42,6 +42,7 @@
 #include "items/containers/rewards/rewardchest.hpp"
 #include "creatures/players/player.hpp"
 #include "io/iobountytasks.hpp"
+#include "io/iodailyactivities.hpp"
 #include "io/ioweeklytasks.hpp"
 #include "utils/tools.hpp"
 
@@ -1065,6 +1066,7 @@ void IOLoginDataLoad::loadPlayerInitializeSystem(const std::shared_ptr<Player> &
 
 	loadPlayerBountyTasks(player, nullptr);
 	loadPlayerWeeklyTasks(player, nullptr);
+	loadPlayerDailyActivities(player, nullptr);
 }
 
 void IOLoginDataLoad::loadPlayerBountyTasks(const std::shared_ptr<Player> &player, DBResult_ptr result) {
@@ -1244,6 +1246,10 @@ void IOLoginDataLoad::loadPlayerWeeklyTasks(const std::shared_ptr<Player> &playe
 			weeklyData.deliveryTasks.push_back(task);
 		}
 	}
+}
+
+void IOLoginDataLoad::loadPlayerDailyActivities(const std::shared_ptr<Player> &player, DBResult_ptr /*result*/) {
+	g_iodailyactivities().load(player);
 }
 
 void IOLoginDataLoad::loadPlayerUpdateSystem(const std::shared_ptr<Player> &player) {

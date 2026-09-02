@@ -171,7 +171,6 @@ function ActivityBoostSoloBoss.onBossClear(player, expeditionId, clearSec)
 	data.clearSec = math.floor(tonumber(clearSec) or 0)
 	data.rank = ActivityBoostSoloBoss.rankForClearSec(data.clearSec)
 	save(player, data)
-	ActivityBoostActivities.complete(player, "boss_rush")
 	player:sendTextMessage(
 		MESSAGE_EVENT_ADVANCE,
 		string.format("Boss Rush complete! Rank %s (%ds).", data.rank or "C", data.clearSec or 0)

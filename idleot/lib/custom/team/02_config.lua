@@ -18,6 +18,23 @@ TeamConfig.KV_MEMBERS_LEGACY = "account_squad_members"
 TeamConfig.KIND_COMPANION = "companion"
 TeamConfig.KIND_FRIEND = "friend"
 
+-- Team-exclusive XP boost + prey (2× personal prices, full effect for roster).
+TeamConfig.KV_BONUSES = "account_team_bonuses"
+TeamConfig.XP_BOOST_PERCENT = 50
+TeamConfig.XP_BOOST_DURATION_SEC = 3600
+TeamConfig.XP_BOOST_PRICES = { 60, 90, 180, 360, 720 } -- 2× personal store ladder
+TeamConfig.XP_BOOST_MAX_BUYS = 5
+TeamConfig.PREY_SLOT_COUNT = 3
+TeamConfig.PREY_BONUS_TIME_SEC = 7200 -- matches config preyBonusTime
+TeamConfig.PREY_PRICE_MULT = 2
+TeamConfig.PARTY_VOCATION_BONUS = {
+	[1] = 1.20,
+	[2] = 1.35,
+	[3] = 1.70,
+	[4] = 2.00,
+}
+TeamConfig.COMPANION_PARTY_WEIGHT = 0.5
+
 -- Equip / bag slots mirrored for wire UI.
 TeamConfig.EQUIP_SLOTS = {
 	{ id = CONST_SLOT_HEAD, name = "head" },

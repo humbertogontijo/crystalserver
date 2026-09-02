@@ -19,6 +19,12 @@ function TeamProtocol.sendTeam(player)
 		return false
 	end
 	local info = TeamManager.getTeamInfo(player)
+	local bonuses = nil
+	local partyXp = nil
+	if TeamBonus then
+		bonuses = TeamBonus.getWire(player)
+		partyXp = TeamBonus.computePartyXpPreview(player)
+	end
 	return TeamProtocol.send(player, {
 		type = "team",
 		members = info.members or {},
@@ -27,6 +33,8 @@ function TeamProtocol.sendTeam(player)
 		canEdit = info.canEdit == true,
 		teamHostName = info.teamHostName,
 		pendingRosterInvites = info.pendingRosterInvites or {},
+		bonuses = bonuses,
+		partyXp = partyXp,
 	})
 end
 
@@ -390,6 +398,39 @@ function TeamProtocol.handle(player, buffer)
 			name = data.name,
 			guid = data.guid,
 		})
+	elseif action == "buyTeamXpBoost" then
+		if not TeamBonus then
+			TeamProtocol.sendError(player, "Team bonuses unavailable.")
+			return
+		end
+		local ok, err = TeamBonus.buyXpBoost(player)
+		if not ok then
+			TeamProtocol.sendError(player, err or "Failed to buy team XP boost.")
+			return
+		end
+		TeamProtocol.sendTeam(player)
+	elseif action == "preyAction" then
+		if not TeamBonus then
+			TeamProtocol.sendError(player, "Team bonuses unavailable.")
+			return
+		end
+		local slotIndex = tonumber(msg.slot) or tonumber(msg.slotIndex) or 0
+		local preyAction = tostring(msg.preyAction or msg.subaction or "")
+		local ok, err = false, "Unknown prey action."
+		if preyAction == "open" or preyAction == "list" then
+			ok, err = TeamBonus.preyOpenSlot(player, slotIndex)
+		elseif preyAction == "reroll" or preyAction == "rerollList" then
+			ok, err = TeamBonus.preyRerollList(player, slotIndex)
+		elseif preyAction == "select" then
+			ok, err = TeamBonus.preySelect(player, slotIndex, msg.raceId)
+		elseif preyAction == "bonusReroll" or preyAction == "rerollBonus" then
+			ok, err = TeamBonus.preyBonusReroll(player, slotIndex)
+		end
+		if not ok then
+			TeamProtocol.sendError(player, err or "Prey action failed.")
+			return
+		end
+		TeamProtocol.sendTeam(player)
 	else
 		TeamProtocol.sendError(player, "Unknown team action.")
 	end

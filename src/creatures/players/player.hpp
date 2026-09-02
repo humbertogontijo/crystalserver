@@ -31,6 +31,7 @@
 #include "creatures/players/attached_effects/player_attached_effects.hpp"
 
 #include "io/iobountytasks.hpp"
+#include "io/iodailyactivities.hpp"
 #include "io/ioweeklytasks.hpp"
 
 class AnimusMastery;
@@ -1424,6 +1425,17 @@ public:
 
 	const std::unique_ptr<PreySlot> &getPreyWithMonster(uint16_t raceId) const;
 
+	// Team-exclusive prey cache (product TeamBonus; replaces personal prey for that race in combat).
+	struct TeamPreyBonusEntry {
+		uint8_t bonusType = 0;
+		uint16_t percentage = 0;
+	};
+
+	void clearTeamPreyBonuses();
+	void setTeamPreyBonus(uint16_t raceId, uint8_t bonusType, uint16_t percentage);
+	bool hasTeamPreyBonus(uint16_t raceId) const;
+	bool getTeamPreyBonus(uint16_t raceId, uint8_t &bonusType, uint16_t &percentage) const;
+
 	// Task hunting system
 	void initializeTaskHunting();
 	bool isCreatureUnlockedOnTaskHunting(const std::shared_ptr<MonsterType> &mtype) const;
@@ -1473,6 +1485,12 @@ public:
 
 	WeeklyTaskData &getWeeklyTaskData();
 	const WeeklyTaskData &getWeeklyTaskData() const;
+
+	DailyActivityData &getDailyActivityData();
+	const DailyActivityData &getDailyActivityData() const;
+
+	uint32_t getDailyActivityStat(const std::string &activityId);
+	uint32_t addDailyActivityStat(const std::string &activityId, uint32_t delta);
 
 	bool hasWeeklyTaskExpansion() const;
 	void setWeeklyTaskExpansion(bool onOff);
@@ -1850,10 +1868,12 @@ private:
 	std::vector<FamiliarEntry> familiars;
 
 	std::vector<std::unique_ptr<PreySlot>> preys;
+	std::unordered_map<uint16_t, TeamPreyBonusEntry> teamPreyBonuses;
 	std::vector<std::unique_ptr<TaskHuntingSlot>> taskHunting;
 
 	BountyTaskData bountyTaskData;
 	WeeklyTaskData weeklyTaskData;
+	DailyActivityData dailyActivityData;
 	bool weeklyTaskExpansion = false;
 
 	GuildWarVector guildWarVector;

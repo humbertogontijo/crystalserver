@@ -231,7 +231,7 @@ local function finishBoss(session, opts)
 				ExpeditionConfig.clearBossAttempt(member)
 			end
 			if victory and ActivityBoostActivities and ActivityBoostActivities.onBossExpeditionVictory then
-				pcall(ActivityBoostActivities.onBossExpeditionVictory, member)
+				pcall(ActivityBoostActivities.onBossExpeditionVictory, member, session)
 			end
 			if victory and ActivityBoostSoloBoss and ActivityBoostSoloBoss.onBossClear then
 				local clearSec = 0

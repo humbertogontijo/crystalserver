@@ -214,9 +214,6 @@ function ExpeditionManager.broadcastStatus(session)
 		local player = Player(id)
 		if player then
 			ExpeditionProtocol.sendStatus(player, session)
-			if ActivityBoostActivities and ActivityBoostActivities.noteHuntProgress then
-				pcall(ActivityBoostActivities.noteHuntProgress, player, session)
-			end
 		end
 	end
 end
@@ -3697,10 +3694,6 @@ function ExpeditionManager.leave(player, opts)
 	-- Leaving mid switch-confirm cancels the change for everyone still hunting.
 	if session.pendingSwitch and not opts.keepTeamDeployed then
 		clearPendingSwitch(session, { reason = "left" })
-	end
-
-	if ActivityBoostActivities and ActivityBoostActivities.noteHuntProgress then
-		pcall(ActivityBoostActivities.noteHuntProgress, player, session)
 	end
 
 	-- Switch hunts: keep account-team companions online and redeploy into the next
