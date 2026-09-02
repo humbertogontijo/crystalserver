@@ -409,3 +409,6 @@ cmake-build-*
 /data-global/scripts/custom_migrations/
 /data-global/npc/custom/
 out/
+
+# macOS
+.DS_Store
