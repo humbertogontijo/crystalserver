@@ -3,6 +3,9 @@
 # Expects WORKDIR /src and BuildKit/host caches at:
 #   /var/cache/vcpkg-{src,binaries,downloads}  /var/cache/ccache
 # Writes binary to /src/out/crystalserver.
+#
+# Set IDLEOT_SKIP_VCPKG_INSTALL=1 when a prior Docker layer already ran
+# deploy/vcpkg-install.sh (binary cache + /opt/vcpkg).
 set -euo pipefail
 
 cd /src
@@ -11,36 +14,24 @@ if [[ -f /src/deploy/apply-engine-idleot.sh ]]; then
 	bash /src/deploy/apply-engine-idleot.sh
 fi
 
-mkdir -p /var/cache/vcpkg-binaries /var/cache/vcpkg-downloads /var/cache/vcpkg-src /var/cache/ccache /src/out
-
-commit="$(grep 'builtin-baseline' /src/vcpkg.json | awk -F: '{print $2}' | tr -d '," \r\n')"
-bash /src/deploy/ensure-vcpkg-src.sh "$commit" /var/cache/vcpkg-src
-
-rm -rf /opt/vcpkg
-cp -a /var/cache/vcpkg-src/vcpkg /opt/vcpkg
-if [[ ! -x /opt/vcpkg/vcpkg ]]; then
-	/opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
-fi
-
-export VCPKG_ROOT=/opt/vcpkg \
+mkdir -p /var/cache/ccache /src/out
+export CCACHE_DIR=/var/cache/ccache \
+	CCACHE_MAXSIZE=20G \
+	VCPKG_ROOT="${VCPKG_ROOT:-/opt/vcpkg}" \
 	VCPKG_DEFAULT_BINARY_CACHE=/var/cache/vcpkg-binaries \
 	VCPKG_DOWNLOADS=/var/cache/vcpkg-downloads \
-	VCPKG_BINARY_SOURCES="clear;files,/var/cache/vcpkg-binaries,readwrite" \
-	CCACHE_DIR=/var/cache/ccache \
-	CCACHE_MAXSIZE=20G
+	VCPKG_BINARY_SOURCES="clear;files,/var/cache/vcpkg-binaries,readwrite"
 
-cp -f /src/vcpkg.json /opt/vcpkg/vcpkg.json
-(
-	cd /opt/vcpkg
-	./vcpkg --feature-flags=manifests,versions install
-)
+if [[ "${IDLEOT_SKIP_VCPKG_INSTALL:-}" != 1 ]]; then
+	bash /src/deploy/vcpkg-install.sh
+fi
 
 JOBS="${IDLEOT_COMPILE_JOBS:-}"
 if [[ -z "$JOBS" ]]; then
 	JOBS="$(nproc)"
-	# Coolify often builds client + server concurrently on one host — cap to reduce OOM kills.
-	if (( JOBS > 4 )); then
-		JOBS=4
+	# 4 vCPU Coolify host also runs live crystalserver + Coolify — cap to avoid swap thrash.
+	if (( JOBS > 2 )); then
+		JOBS=2
 	fi
 fi
 

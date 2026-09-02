@@ -4,6 +4,9 @@
 # Compile in the builder stage with BuildKit cache mounts (vcpkg + ccache).
 # Coolify custom build command must NOT pass --no-cache (resets those mounts
 # on this host): DOCKER_BUILDKIT=1 docker compose build
+#
+# Overlay Lua (idleot/data, lib, scripts) is copied only into the runtime
+# stage so datapack-only pushes do not rebuild C++.
 
 FROM ubuntu:24.04 AS toolchain
 
@@ -19,13 +22,31 @@ SHELL ["/bin/bash", "-lc"]
 
 FROM toolchain AS builder
 
+ARG IDLEOT_COMPILE_JOBS=2
+ENV IDLEOT_COMPILE_JOBS=${IDLEOT_COMPILE_JOBS}
+
 WORKDIR /src
-COPY . .
+
+COPY vcpkg.json ./
+COPY deploy/ensure-vcpkg-src.sh deploy/vcpkg-install.sh ./deploy/
 
 # Compile holds these mounts for the whole RUN. Client + server used to share
 # idleot-vcpkg-* with sharing=locked, so a long WASM build blocked Crystal.
 # sharing=shared: concurrent builds OK (ensure-vcpkg-src.sh flocks the git tree;
 # vcpkg binary/download caches are content-addressed).
+RUN --mount=type=cache,id=idleot-vcpkg-src,target=/var/cache/vcpkg-src,sharing=shared \
+	--mount=type=cache,id=idleot-vcpkg-binaries,target=/var/cache/vcpkg-binaries,sharing=shared \
+	--mount=type=cache,id=idleot-vcpkg-downloads,target=/var/cache/vcpkg-downloads,sharing=shared \
+	bash deploy/vcpkg-install.sh
+
+ENV IDLEOT_SKIP_VCPKG_INSTALL=1
+
+COPY CMakeLists.txt CMakePresets.json ./
+COPY cmake ./cmake
+COPY src ./src
+COPY deploy ./deploy
+COPY idleot/engine-custom ./idleot/engine-custom
+
 RUN --mount=type=cache,id=idleot-vcpkg-src,target=/var/cache/vcpkg-src,sharing=shared \
 	--mount=type=cache,id=idleot-vcpkg-binaries,target=/var/cache/vcpkg-binaries,sharing=shared \
 	--mount=type=cache,id=idleot-vcpkg-downloads,target=/var/cache/vcpkg-downloads,sharing=shared \
