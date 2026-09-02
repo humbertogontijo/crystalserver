@@ -495,11 +495,23 @@ function Player:onGainExperience(target, exp, rawExp)
 	end
 
 	-- Apply XP Boost (Store or Daily Reward)
-	useStaminaXpBoost(self)
-
-	local xpBoostTimeLeft = self:getXpBoostTime()
-	local hasXpBoost = xpBoostTimeLeft > 0
-	local xpBoostPercent = hasXpBoost and self:getXpBoostPercent() or 0
+	local xpBoostPercent = 0
+	local teamXpPercent, hasTeamXpBoost = 0, false
+	if TeamBonus and TeamBonus.effectiveXpBoost then
+		teamXpPercent, hasTeamXpBoost = TeamBonus.effectiveXpBoost(self)
+	end
+	if hasTeamXpBoost then
+		-- Team XP boost replaces personal; pause personal timer (do not drain).
+		if TeamBonus.touchDrain then
+			TeamBonus.touchDrain(self)
+		end
+		xpBoostPercent = teamXpPercent
+	else
+		useStaminaXpBoost(self)
+		local xpBoostTimeLeft = self:getXpBoostTime()
+		local hasXpBoost = xpBoostTimeLeft > 0
+		xpBoostPercent = hasXpBoost and self:getXpBoostPercent() or 0
+	end
 
 	-- Stamina Bonus
 	local staminaBonusXp = 1
@@ -521,7 +533,19 @@ function Player:onGainExperience(target, exp, rawExp)
 	if configManager.getBoolean(configKeys.PREY_ENABLED) then
 		local monsterType = target:getType()
 		if monsterType and monsterType:raceId() > 0 then
-			exp = math.ceil((exp * self:getPreyExperiencePercentage(monsterType:raceId())) / 100)
+			local raceId = monsterType:raceId()
+			local teamPrey = TeamBonus and TeamBonus.effectivePrey and TeamBonus.effectivePrey(self, raceId) or nil
+			if teamPrey then
+				if TeamBonus.touchDrain then
+					TeamBonus.touchDrain(self)
+				end
+				-- Team prey on this race replaces personal (including non-XP personal).
+				if teamPrey.bonusType == 2 then -- Experience
+					exp = math.ceil((exp * (100 + (teamPrey.bonusPercent or 0))) / 100)
+				end
+			else
+				exp = math.ceil((exp * self:getPreyExperiencePercentage(raceId)) / 100)
+			end
 		end
 	end
 

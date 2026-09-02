@@ -9,7 +9,7 @@ function spell.onCastSpell(creature, var)
 	return true
 end
 
-spell:group("support")
+spell:group("support", "stance")
 spell:id(274)
 spell:name("Virtue of Harmony")
 spell:words("utori virtu")

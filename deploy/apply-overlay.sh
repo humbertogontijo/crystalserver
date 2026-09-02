@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Apply idleot/ overlay MOVEs + APPENDs + datapack/core .patch into a datapack.
-# Engine src/ .patch files are NOT applied here (see scripts/forks/apply.sh).
+# Apply idleot/ overlay MOVEs + APPENDs into a datapack.
+# Stock data/ edits are committed in the Crystal fork, not idleot/*.patch.
+# Engine src/ is also fork git history — not overlay patches.
 #
 # Usage: bash scripts/idleot/apply-overlay.sh <datapack-dir> [core-data-dir]
 #        (also copied to apps/crystalserver/deploy/ for Coolify)
@@ -133,11 +134,11 @@ for e in moves:
     d = e.dest.replace("\\", "/")
     if d.startswith("data-global/"):
         d = d[len("data-global/") :]
-    if d.startswith("lib/custom/"):
+    if d.startswith("lib/idleot/"):
         lib_custom_files.append((e, d))
-    elif d.startswith("scripts/custom/"):
+    elif d.startswith("scripts/idleot/"):
         script_files.append((e, d))
-    elif d.startswith("npc/custom/"):
+    elif d.startswith("npc/idleot/"):
         npc_files.append((e, d))
     elif d.startswith("data/") and core:
         rel = d[len("data/") :]
@@ -151,22 +152,22 @@ for e in moves:
         link_rel(dest_file, str(e.source))
         print(f"[idleot] MOVE {d}")
 
-lib_dest = os.path.join(target, "lib", "custom")
+lib_dest = os.path.join(target, "lib", "idleot")
 if os.path.lexists(lib_dest) and (os.path.islink(lib_dest) or os.path.isfile(lib_dest)):
     os.unlink(lib_dest)
 os.makedirs(lib_dest, exist_ok=True)
 for e, d in lib_custom_files:
-    rel = d[len("lib/custom/") :]
+    rel = d[len("lib/idleot/") :]
     dest_file = os.path.join(lib_dest, rel)
     os.makedirs(os.path.dirname(dest_file), exist_ok=True)
     link_rel(dest_file, str(e.source))
-print(f"[idleot] linked lib/custom ({len(lib_custom_files)} files)")
+print(f"[idleot] linked lib/idleot ({len(lib_custom_files)} files)")
 
-scripts_root = os.path.join(target, "scripts", "custom")
+scripts_root = os.path.join(target, "scripts", "idleot")
 os.makedirs(scripts_root, exist_ok=True)
 by_feat = {}
 for e, d in script_files:
-    rel = d[len("scripts/custom/") :]
+    rel = d[len("scripts/idleot/") :]
     feat = rel.split("/", 1)[0]
     by_feat.setdefault(feat, []).append((e, rel))
 for feat, items in by_feat.items():
@@ -174,7 +175,7 @@ for feat, items in by_feat.items():
         dest_file = os.path.join(scripts_root, rel)
         os.makedirs(os.path.dirname(dest_file), exist_ok=True)
         link_rel(dest_file, str(e.source))
-    print(f"[idleot] linked scripts/custom/{feat} ({len(items)} files)")
+    print(f"[idleot] linked scripts/idleot/{feat} ({len(items)} files)")
 
 for e, d in npc_files:
     dest_file = os.path.join(target, d)
@@ -196,7 +197,7 @@ for e in appends:
         print(f"[idleot] WARN: APPEND missing dest {d}", file=sys.stderr)
         continue
     text = open(dest_file, encoding="utf-8").read()
-    if "lib/custom/load.lua" in text:
+    if "lib/idleot/load.lua" in text or "lib/custom/load.lua" in text:
         print(f"[idleot] {d} already has product hooks")
     else:
         with open(dest_file, "a", encoding="utf-8") as fh:
@@ -253,27 +254,36 @@ if os.path.lexists(stale_migrations):
         os.unlink(stale_migrations)
     print("[idleot] removed stale scripts/game_migrations")
 
+# Retired overlay islands lived under */custom/; upstream now uses scripts/custom/.
+# Only remove our old product trees (symlink into idleot/ or whole lib/npc islands).
+def _rm_lexists(path, label):
+    if not os.path.lexists(path):
+        return
+    if os.path.isdir(path) and not os.path.islink(path):
+        shutil.rmtree(path)
+    else:
+        os.unlink(path)
+    print(f"[idleot] removed stale {label}")
+
+_rm_lexists(os.path.join(target, "lib", "custom"), "lib/custom")
+_rm_lexists(os.path.join(target, "npc", "custom"), "npc/custom")
+old_scripts_custom = os.path.join(target, "scripts", "custom")
+idleot_scripts = os.path.join(target, "scripts", "idleot")
+if os.path.isdir(old_scripts_custom):
+    ours = set()
+    if os.path.isdir(idleot_scripts):
+        ours = set(os.listdir(idleot_scripts))
+    for name in os.listdir(old_scripts_custom):
+        if name not in ours:
+            continue
+        p = os.path.join(old_scripts_custom, name)
+        if os.path.isdir(p) and not os.path.islink(p):
+            shutil.rmtree(p)
+        elif os.path.lexists(p):
+            os.unlink(p)
+        print(f"[idleot] removed stale scripts/custom/{name} (now scripts/idleot/{name})")
+
 print("[idleot] overlay apply done")
 PY
-
-for kits in scripts/actions/other/kits.lua scripts/actions/other/construction_kits.lua; do
-  f="$TARGET/$kits"
-  if [ -f "$f" ] && ! grep -q 'PlayerHome.isHouseCapableTile' "$f"; then
-    if grep -q 'getHouse()' "$f"; then
-      perl -i -pe 's/if not fromPosition:getTile\(\):getHouse\(\) then/if not fromPosition:getTile():getHouse()\n\t\tand not (PlayerHome and PlayerHome.isHouseCapableTile and PlayerHome.isHouseCapableTile(fromPosition:getTile()))\n\tthen/g' "$f"
-      echo "[idleot] patched house-capable check in $kits"
-    fi
-  fi
-done
-
-if [ -n "${CORE_DATA:-}" ]; then
-  LOGIN_LUA="$CORE_DATA/scripts/creaturescripts/player/login.lua"
-  if [ -f "$LOGIN_LUA" ] && grep -q 'sendOutfitWindow' "$LOGIN_LUA"; then
-    perl -i -0pe 's/\t\tloginStr = "Please choose your outfit\."\n\t\tplayer:sendOutfitWindow\(\)/\t\tloginStr = string.format("Welcome to %s!", SERVER_NAME)/s' "$LOGIN_LUA"
-    if ! grep -q 'sendOutfitWindow' "$LOGIN_LUA"; then
-      echo "[idleot] patched first-login welcome in login.lua"
-    fi
-  fi
-fi
 
 echo "[idleot] done"

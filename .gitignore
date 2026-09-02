@@ -401,13 +401,14 @@ database_backup
 cmake-build-*
 /data/logs
 
-# Product overlay islands (`idleot/` → linked under */custom/).
+# Product overlay islands (`idleot/` → linked under */idleot/).
 # Prefer the monorepo runtime cwd `run/crystalserver/data-global/`.
 # Do not gitignore idleot/ — it is source of truth in this fork.
-/data-global/lib/custom
-/data-global/scripts/custom/
+# Do not gitignore data-global/scripts/custom/ — upstream owns that path.
+/data-global/lib/idleot
+/data-global/scripts/idleot/
 /data-global/scripts/custom_migrations/
-/data-global/npc/custom/
+/data-global/npc/idleot/
 out/
 
 # macOS

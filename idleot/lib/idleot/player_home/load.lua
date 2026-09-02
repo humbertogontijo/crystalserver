@@ -1,0 +1,5 @@
+dofile(DATA_DIRECTORY .. "/lib/idleot/player_home/01_config.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/player_home/02_instance.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/player_home/03_persist.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/player_home/04_manager.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/player_home/05_services.lua")

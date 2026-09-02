@@ -1628,6 +1628,20 @@ void ProtocolGame::parseHotkeyEquip(NetworkMessage &msg) {
 	g_game().playerEquipItem(player->getID(), itemId, hasTier, tier);
 }
 
+namespace {
+	// Product instance visibility + 15.25 zero client-id skip. Keep this helper so
+	// protocol bumps to GetTileDescription do not re-merge the two checks by hand.
+	bool skipMapTileItem(const std::shared_ptr<Item> &item, const std::shared_ptr<Player> &viewer) {
+		if (!item) {
+			return true;
+		}
+		if (viewer && !item->isVisibleInInstance(viewer->getInstanceId())) {
+			return true;
+		}
+		return Item::items[item->getID()].id == 0;
+	}
+}
+
 void ProtocolGame::GetTileDescription(const std::shared_ptr<Tile> &tile, NetworkMessage &msg) {
 	if (oldProtocol) {
 		msg.add<uint16_t>(0x00); // Env effects
@@ -1647,11 +1661,8 @@ void ProtocolGame::GetTileDescription(const std::shared_ptr<Tile> &tile, Network
 	const TileItemVector* items = tile->getItemList();
 	if (items) {
 		for (auto it = items->getBeginTopItem(), end = items->getEndTopItem(); it != end; ++it) {
-			if (!(*it)->isVisibleInInstance(player->getInstanceId())) {
+			if (skipMapTileItem(*it, player)) {
 				continue;
-			}
-			if (Item::items[(*it)->getID()].id == 0) {
-				continue; // skip zero client-id appearance (15.25+ map parser rejects it)
 			}
 			AddItem(msg, *it);
 
@@ -1697,11 +1708,8 @@ void ProtocolGame::GetTileDescription(const std::shared_ptr<Tile> &tile, Network
 
 	if (items) {
 		for (auto it = items->getBeginDownItem(), end = items->getEndDownItem(); it != end; ++it) {
-			if (!(*it)->isVisibleInInstance(player->getInstanceId())) {
+			if (skipMapTileItem(*it, player)) {
 				continue;
-			}
-			if (Item::items[(*it)->getID()].id == 0) {
-				continue; // skip zero client-id appearance (15.25+ map parser rejects it)
 			}
 			AddItem(msg, *it);
 

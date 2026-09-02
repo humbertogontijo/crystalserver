@@ -5749,7 +5749,7 @@ bool Player::checkAutoLoot(bool isBoss) const {
 }
 
 namespace {
-// Product: data/product/lib/custom/team/02_config.lua TeamConfig.STORAGE_COMPANION_CONTROLLER
+// Product: data/product/lib/idleot/team/02_config.lua TeamConfig.STORAGE_COMPANION_CONTROLLER
 constexpr int32_t STORAGE_COMPANION_CONTROLLER = 910201;
 } // namespace
 
@@ -12886,7 +12886,7 @@ uint16_t Player::getStanceSpellId(Stance_t stance) {
 		case STANCE_BLOOD_RAGE:
 			return 133;
 		case STANCE_SHARPSHOOTER:
-			return 313;
+			return 135;
 		case STANCE_DIVINE_DEFIANCE:
 			return 314;
 		case STANCE_MASTER_OF_FLAMES:

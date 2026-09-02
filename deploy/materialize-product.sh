@@ -60,7 +60,7 @@ def deref_tree(path: str):
                 if os.path.isfile(real):
                     shutil.copy2(real, p)
 
-for sub in ("lib/custom", "scripts/custom", "scripts/custom_migrations", "npc/custom", "tibia"):
+for sub in ("lib/idleot", "scripts/idleot", "scripts/custom_migrations", "npc/idleot", "tibia"):
     deref_tree(os.path.join(target, sub))
 print("[idleot] dereferenced symlinks for Docker")
 PY

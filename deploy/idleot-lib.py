@@ -10,8 +10,9 @@ Behaviors (by suffix):
   .append  → APPEND (dest must exist)
   other    → MOVE   (dest must NOT exist on upstream)
 
-Overlay dests (contain /custom/ or match overlay roots) land in runtime
+Overlay dests (contain /idleot/ or match overlay roots) land in runtime
 datapack / prepare links — never committed into stock submodule paths.
+OTClient still uses mods/custom, modules/custom, data/custom (REPLACE_MODULES).
 """
 from __future__ import annotations
 
@@ -44,13 +45,13 @@ SKIP_TOP_DIRS = frozenset({"engine-custom"})
 
 # Destinations that are runtime overlays (never fork-committed as stock paths).
 OVERLAY_PREFIXES = (
-    "lib/custom/",
-    "scripts/custom/",
+    "lib/idleot/",
+    "scripts/idleot/",
     "scripts/custom_migrations/",
-    "npc/custom/",
-    "data-global/lib/custom/",
-    "data-global/scripts/custom/",
-    "data-global/npc/custom/",
+    "npc/idleot/",
+    "data-global/lib/idleot/",
+    "data-global/scripts/idleot/",
+    "data-global/npc/idleot/",
     "mods/custom/",
     "modules/custom/",
     "data/custom/",
@@ -59,10 +60,10 @@ OVERLAY_PREFIXES = (
 
 # Crystal datapack overlay may omit data-global/ in authoring paths.
 CRYSTAL_DATAPACK_PREFIXES = (
-    "lib/custom/",
-    "scripts/custom/",
+    "lib/idleot/",
+    "scripts/idleot/",
     "scripts/custom_migrations/",
-    "npc/custom/",
+    "npc/idleot/",
     "tibia/",
 )
 
@@ -375,6 +376,90 @@ def series_allowlist(root: str | Path, engine: str, base_ref: str = "upstream/ma
             continue
         files.add(entry.dest)
     return sorted(files)
+
+
+_DIFF_GIT_RE = re.compile(rb"^diff --git a/(.+?) b/(.+)$", re.M)
+
+
+def git_has_blob(repo: str | Path, ref: str, dest: str) -> bool:
+    import subprocess
+
+    return (
+        subprocess.call(
+            ["git", "-C", str(repo), "cat-file", "-e", f"{ref}:{dest}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        == 0
+    )
+
+
+def patch_git_paths(patch_bytes: bytes) -> list[str]:
+    """Return dest paths named in `diff --git a/X b/Y` headers."""
+    return [m.group(2).decode("utf-8", "replace") for m in _DIFF_GIT_RE.finditer(patch_bytes)]
+
+
+def check_patches_apply(repo: str | Path, entries: list[FeatureEntry], ref: str) -> list[str]:
+    """`git apply --check` each overlay .patch against dest blobs at `ref`.
+
+    Uses `git show` into a temp tree so sparse-checkout / missing worktree
+    files (data-global) still validate. Corrupt or stale hunks fail.
+    """
+    import subprocess
+    import tempfile
+
+    repo_s = str(repo)
+    errors: list[str] = []
+    for e in entries:
+        if e.behavior != "patch":
+            continue
+        raw = Path(e.source).read_bytes()
+        idx = raw.find(b"diff --git")
+        if idx < 0:
+            if raw.lstrip().startswith(b"# empty"):
+                continue
+            errors.append(f"no diff --git in {e.source}")
+            continue
+        body = raw[idx:]
+        dests = patch_git_paths(body) or [e.dest]
+        with tempfile.TemporaryDirectory(prefix="idleot-patch-") as td:
+            td_path = Path(td)
+            missing = False
+            for dest in dests:
+                show = subprocess.run(
+                    ["git", "-C", repo_s, "show", f"{ref}:{dest}"],
+                    capture_output=True,
+                )
+                if show.returncode != 0:
+                    errors.append(
+                        f"PATCH dest missing on {ref}: {dest} (from {e.source})"
+                    )
+                    missing = True
+                    continue
+                out = td_path / dest
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_bytes(show.stdout)
+            if missing:
+                continue
+            with tempfile.NamedTemporaryFile("wb", suffix=".patch", delete=False) as fh:
+                fh.write(body)
+                tmp = fh.name
+            try:
+                r = subprocess.run(
+                    ["git", "apply", "--check", "--whitespace=nowarn", tmp],
+                    cwd=td,
+                    capture_output=True,
+                    text=True,
+                )
+                skipped = "Skipped patch" in (r.stdout or "") or "Skipped patch" in (
+                    r.stderr or ""
+                )
+                if r.returncode != 0 or skipped:
+                    err = (r.stderr or r.stdout or "apply --check failed").strip()
+                    errors.append(f"PATCH does not apply on {ref}: {e.source}\n{err}")
+            finally:
+                os.unlink(tmp)
+    return errors
 
 
 if __name__ == "__main__":
