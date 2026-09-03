@@ -25,8 +25,8 @@ SERVER_URL="${SERVER_URL:-https://www.idleot.com}"
 # Host/IP advertised in ProtocolStatus XML (worlds.ip). Defaults to bind IP.
 STATUS_ADVERTISE_IP="${STATUS_ADVERTISE_IP:-}"
 COIN_IMAGES_URL="${COIN_IMAGES_URL:-}"
-PRODUCT_DIR="${IDLEOT_DIR:-/crystalserver/idleot}"
-MATERIALIZE="${IDLEOT_MATERIALIZE:-/opt/idleot/materialize-product.sh}"
+PRODUCT_DIR="${IDLEOT_PRODUCT_DIR:-${IDLEOT_DIR:-/opt/product}}"
+MATERIALIZE="${IDLEOT_MATERIALIZE:-/opt/idleot/sync-product.sh}"
 SKIP_PRODUCT_APPLY="${IDLEOT_SKIP_PRODUCT_APPLY:-0}"
 
 if [[ ! -f data-global/world/world.otbm ]]; then
@@ -41,17 +41,16 @@ if [[ ! -d data/migrations ]]; then
   exit 1
 fi
 
-# Apply product overlay into mounted datapack once (or when stamp mismatches image product).
+# Copy product islands into the host-mounted datapack when the image stamp changes.
 if [[ "$SKIP_PRODUCT_APPLY" != "1" && -x "$MATERIALIZE" && -d "$PRODUCT_DIR" ]]; then
   STAMP="data-global/.idleot-product-stamp"
   PRODUCT_HASH="$(find "$PRODUCT_DIR" -type f -print0 2>/dev/null | sort -z | xargs -0 cat 2>/dev/null | sha256sum | awk '{print $1}')"
   if [[ ! -f "$STAMP" || "$(cat "$STAMP" 2>/dev/null)" != "$PRODUCT_HASH" ]]; then
-    echo "[server] materializing product overlay into mounted datapack..."
-    export IDLEOT_APP_ROOT="$(cd "$(dirname "$PRODUCT_DIR")" && pwd)"
-    bash "$MATERIALIZE" /crystalserver/data-global "$PRODUCT_DIR" /crystalserver/data
+    echo "[server] syncing product islands into mounted datapack..."
+    bash "$MATERIALIZE" /crystalserver/data-global "$PRODUCT_DIR"
     printf '%s\n' "$PRODUCT_HASH" > "$STAMP"
   else
-    echo "[server] product overlay already applied ($STAMP)"
+    echo "[server] product islands already applied ($STAMP)"
   fi
 fi
 

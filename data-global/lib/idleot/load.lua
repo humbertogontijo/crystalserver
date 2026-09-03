@@ -17,3 +17,5 @@ dofile(DATA_DIRECTORY .. "/lib/idleot/reward_chest/load.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/soulpit_expedition/load.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/activity_boost/load.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/loot_split/load.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/huntfinder/load.lua")
+

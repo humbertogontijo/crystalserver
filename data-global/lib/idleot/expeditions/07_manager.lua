@@ -1046,7 +1046,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		playerId = hostId,
 		playerIds = playerIds,
 		companionIds = companionIds,
-		guid = sessionHostGuid > 0 and sessionHostGuid or player:getGuid(),
+		guid = hostGuid,
 		memberGuids = memberGuids,
 		catalog = catalog,
 		kind = kind,

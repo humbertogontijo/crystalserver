@@ -544,25 +544,27 @@ function Player.selectDailyReward(self, msg)
 			return false
 		end
 
-		local description = ""
+		local descriptionParts = {}
 		local deliveredItems = {}
-		for k, v in ipairs(items) do
-			local ok, batch = addDailyRewardItemToInbox(inbox, v.itemId, v.count, dailyTable.itemCharges)
-			if not ok then
-				removeDailyRewardItems(deliveredItems)
-				if usedCollectionToken then
-					self:setCollectionTokens(self:getCollectionTokens() + 1)
+		for _, v in ipairs(items) do
+			if v.count > 0 then
+				local ok, batch = addDailyRewardItemToInbox(inbox, v.itemId, v.count, dailyTable.itemCharges)
+				if not ok then
+					removeDailyRewardItems(deliveredItems)
+					if usedCollectionToken then
+						self:setCollectionTokens(self:getCollectionTokens() + 1)
+					end
+					self:sendError("You do not have enough space in your store inbox.")
+					return false
 				end
-				self:sendError("You do not have enough space in your store inbox.")
-				return false
+				for _, item in ipairs(batch) do
+					deliveredItems[#deliveredItems + 1] = item
+				end
+				local itemType = ItemType(v.itemId)
+				descriptionParts[#descriptionParts + 1] = v.count .. "x " .. itemType:getName()
 			end
-			for _, item in ipairs(batch) do
-				deliveredItems[#deliveredItems + 1] = item
-			end
-			local itemType = ItemType(v.itemId)
-			description = description .. "" .. v.count .. "x " .. itemType:getName() .. (k ~= #items and ", " or ".")
 		end
-		dailyRewardMessage = "Picked items: " .. description
+		dailyRewardMessage = "Picked items: " .. table.concat(descriptionParts, ", ") .. "."
 	elseif dailyTable.type == DAILY_REWARD_TYPE_XP_BOOST then
 		local rewardCountReviewed = rewardCount
 		local xpBoostLeftMinutes = self:kv():get("daily-reward-xp-boost") or 0
