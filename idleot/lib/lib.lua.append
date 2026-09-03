@@ -1,3 +1,0 @@
-
--- Custom product libs (combat automation, expeditions, hireling, player home, quests, ...)
-dofile(DATA_DIRECTORY .. "/lib/custom/load.lua")

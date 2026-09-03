@@ -76,6 +76,8 @@ local DailyRewardItems = {
 
 DailyReward = {
 	testMode = false,
+	-- Panel collection (Instant Reward Access) is free: no store tokens required.
+	unlimitedInstantRewardAccess = true,
 	serverTimeThreshold = (24 * 60 * 60), -- Counting down 24hours from last server save
 
 	storages = {
@@ -195,6 +197,24 @@ DailyReward = {
 	},
 }
 
+local function getCollectionTokensForClient(player)
+	if DailyReward.unlimitedInstantRewardAccess then
+		return math.max(player:getCollectionTokens(), 999)
+	end
+	return player:getCollectionTokens()
+end
+
+local function tryConsumePanelCollectionToken(player)
+	if DailyReward.unlimitedInstantRewardAccess then
+		return true
+	end
+	if player:getCollectionTokens() < 1 then
+		return false
+	end
+	player:setCollectionTokens(player:getCollectionTokens() - 1)
+	return true
+end
+
 function onRecvbyte(player, msg, byte)
 	if byte == ClientPackets.OpenRewardWall then
 		DailyReward.loadDailyReward(player:getId(), REWARD_FROM_PANEL)
@@ -245,7 +265,7 @@ DailyReward.loadDailyReward = function(playerId, target)
 	end
 
 	player:sendCollectionResource(ClientPackets.JokerResource, player:getJokerTokens())
-	player:sendCollectionResource(ClientPackets.CollectionResource, player:getCollectionTokens())
+	player:sendCollectionResource(ClientPackets.CollectionResource, getCollectionTokensForClient(player))
 	player:sendDailyReward()
 	player:sendOpenRewardWall(target)
 	player:sendDailyRewardCollectionState(DailyReward.isRewardTaken(player:getId()) and DAILY_REWARD_COLLECTED or DAILY_REWARD_NOTCOLLECTED)
@@ -404,6 +424,54 @@ function Player.sendCollectionResource(self, byte, value)
 	msg:sendToPlayer(self)
 end
 
+local function removeDailyRewardItems(items)
+	for _, item in ipairs(items) do
+		if item and item.remove then
+			item:remove()
+		end
+	end
+end
+
+local function addDailyRewardItemToInbox(inbox, itemId, count, itemCharges)
+	local itemType = ItemType(itemId)
+	local added = {}
+
+	local function fail()
+		removeDailyRewardItems(added)
+		return false
+	end
+
+	if itemCharges and not itemType:isStackable() then
+		for _ = 1, count do
+			local inboxItem = inbox:addItem(itemId, 1, INDEX_WHEREEVER, FLAG_NOLIMIT)
+			if not inboxItem then
+				return fail()
+			end
+			inboxItem:setAttribute(ITEM_ATTRIBUTE_STORE, systemTime())
+			inboxItem:setAttribute(ITEM_ATTRIBUTE_CHARGES, itemCharges)
+			added[#added + 1] = inboxItem
+		end
+	elseif itemType:isStackable() then
+		local inboxItem = inbox:addItem(itemId, count, INDEX_WHEREEVER, FLAG_NOLIMIT)
+		if not inboxItem then
+			return fail()
+		end
+		inboxItem:setAttribute(ITEM_ATTRIBUTE_STORE, systemTime())
+		added[#added + 1] = inboxItem
+	else
+		for _ = 1, count do
+			local inboxItem = inbox:addItem(itemId, 1, INDEX_WHEREEVER, FLAG_NOLIMIT)
+			if not inboxItem then
+				return fail()
+			end
+			inboxItem:setAttribute(ITEM_ATTRIBUTE_STORE, systemTime())
+			added[#added + 1] = inboxItem
+		end
+	end
+
+	return true, added
+end
+
 function Player.selectDailyReward(self, msg)
 	local playerId = self:getId()
 
@@ -413,12 +481,13 @@ function Player.selectDailyReward(self, msg)
 	end
 
 	local target = msg:getByte() -- 0 -> shrine / 1 -> tibia panel
+	local usedCollectionToken = false
 	if not DailyReward.isShrine(target) then
-		if self:getCollectionTokens() < 1 then
+		if not tryConsumePanelCollectionToken(self) then
 			self:sendError("You do not have enough collection tokens to proceed.")
 			return false
 		end
-		self:setCollectionTokens(self:getCollectionTokens() - 1)
+		usedCollectionToken = not DailyReward.unlimitedInstantRewardAccess
 	end
 
 	local dailyTable = DailyReward.rewards[self:getDayStreak() + 1]
@@ -475,46 +544,27 @@ function Player.selectDailyReward(self, msg)
 			return false
 		end
 
-		local description = ""
-		for k, v in ipairs(items) do
-			local itemType = ItemType(v.itemId)
-			if dailyTable.itemCharges then
-				-- apply charges to non stackable items
-				if not itemType:isStackable() then
-					for i = 1, v.count do
-						local inboxItem = inbox:addItem(v.itemId, 1)
-						if inboxItem then
-							inboxItem:setAttribute(ITEM_ATTRIBUTE_STORE, systemTime())
-							inboxItem:setAttribute(ITEM_ATTRIBUTE_CHARGES, dailyTable.itemCharges) -- Cargas SOLO aquí
-						end
+		local descriptionParts = {}
+		local deliveredItems = {}
+		for _, v in ipairs(items) do
+			if v.count > 0 then
+				local ok, batch = addDailyRewardItemToInbox(inbox, v.itemId, v.count, dailyTable.itemCharges)
+				if not ok then
+					removeDailyRewardItems(deliveredItems)
+					if usedCollectionToken then
+						self:setCollectionTokens(self:getCollectionTokens() + 1)
 					end
-				else
-					-- add stackable items
-					local inboxItem = inbox:addItem(v.itemId, v.count)
-					if inboxItem then
-						inboxItem:setAttribute(ITEM_ATTRIBUTE_STORE, systemTime())
-					end
+					self:sendError("You do not have enough space in your store inbox.")
+					return false
 				end
-				description = description .. "" .. v.count .. "x " .. itemType:getName() .. (k ~= #items and ", " or ".")
-			else
-				-- items without charges defined with normal behaivor
-				if itemType:isStackable() then
-					local inboxItem = inbox:addItem(v.itemId, v.count)
-					if inboxItem then
-						inboxItem:setAttribute(ITEM_ATTRIBUTE_STORE, systemTime())
-					end
-				else
-					for i = 1, v.count do
-						local inboxItem = inbox:addItem(v.itemId, 1)
-						if inboxItem then
-							inboxItem:setAttribute(ITEM_ATTRIBUTE_STORE, systemTime())
-						end
-					end
+				for _, item in ipairs(batch) do
+					deliveredItems[#deliveredItems + 1] = item
 				end
-				description = description .. "" .. v.count .. "x " .. itemType:getName() .. (k ~= #items and ", " or ".")
+				local itemType = ItemType(v.itemId)
+				descriptionParts[#descriptionParts + 1] = v.count .. "x " .. itemType:getName()
 			end
 		end
-		dailyRewardMessage = "Picked items: " .. description
+		dailyRewardMessage = "Picked items: " .. table.concat(descriptionParts, ", ") .. "."
 	elseif dailyTable.type == DAILY_REWARD_TYPE_XP_BOOST then
 		local rewardCountReviewed = rewardCount
 		local xpBoostLeftMinutes = self:kv():get("daily-reward-xp-boost") or 0
@@ -522,9 +572,13 @@ function Player.selectDailyReward(self, msg)
 			rewardCountReviewed = rewardCountReviewed - xpBoostLeftMinutes
 		end
 
-		self:setXpBoostTime(self:getXpBoostTime() + (rewardCountReviewed * 60))
+		if ActivityBoostLedger and ActivityBoostLedger.credit and rewardCountReviewed > 0 then
+			ActivityBoostLedger.credit(self, rewardCountReviewed * 60, { ignoreDailyCap = true })
+		else
+			self:setXpBoostTime(self:getXpBoostTime() + (rewardCountReviewed * 60))
+			self:setXpBoostPercent(50)
+		end
 		self:kv():set("daily-reward-xp-boost", rewardCount)
-		self:setXpBoostPercent(50)
 		dailyRewardMessage = "Picked reward: XP Bonus for " .. rewardCount .. " minutes."
 	elseif dailyTable.type == DAILY_REWARD_TYPE_PREY_REROLL then
 		self:addPreyCards(rewardCount)

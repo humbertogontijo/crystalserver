@@ -22,7 +22,9 @@ function decorationKits.onUse(player, item, fromPosition, itemEx, toPosition)
 	if not kit or not player then
 		return false
 	end
-	if not fromPosition:getTile():getHouse() then
+	if not fromPosition:getTile():getHouse()
+		and not (PlayerHome and PlayerHome.isHouseCapableTile and PlayerHome.isHouseCapableTile(fromPosition:getTile()))
+	then
 		player:sendTextMessage(MESSAGE_FAILURE, "You may construct this only inside a house.")
 	else
 		item:remove(1)

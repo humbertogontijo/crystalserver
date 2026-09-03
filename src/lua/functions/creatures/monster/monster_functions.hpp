@@ -97,5 +97,7 @@ private:
 
 	static int luaMonsterWalkTo(lua_State* L);
 
+	static int luaMonsterApplyEchoWarden(lua_State* L);
+
 	friend class CreatureFunctions;
 };

@@ -9,3 +9,20 @@ docs
 src/tests
 **/__pycache__
 *.log
+
+# Datapack maps are huge; only product islands are needed in the image.
+data-global/**
+!data-global/lib/
+!data-global/lib/lib.lua
+!data-global/lib/idleot/
+!data-global/lib/idleot/**
+!data-global/scripts/
+!data-global/scripts/idleot/
+!data-global/scripts/idleot/**
+!data-global/scripts/custom_migrations/
+!data-global/scripts/custom_migrations/**
+!data-global/npc/
+!data-global/npc/idleot/
+!data-global/npc/idleot/**
+data-crystal
+data-crystal/**

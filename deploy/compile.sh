@@ -10,10 +10,6 @@ set -euo pipefail
 
 cd /src
 
-if [[ -f /src/deploy/apply-engine-idleot.sh ]]; then
-	bash /src/deploy/apply-engine-idleot.sh
-fi
-
 mkdir -p /var/cache/ccache /src/out
 export CCACHE_DIR=/var/cache/ccache \
 	CCACHE_MAXSIZE=20G \
@@ -38,8 +34,7 @@ fi
 cmake --preset linux-release \
 	-DOPTIONS_ENABLE_CCACHE=ON \
 	-DOPTIONS_ENABLE_SCCACHE=OFF \
-	-DBUILD_TESTS=OFF \
-	-DIDLEOT_CUSTOM_DIR=/src/idleot/engine-custom
+	-DBUILD_TESTS=OFF
 cmake --build --preset linux-release -j"$JOBS"
 ccache -s || true
 

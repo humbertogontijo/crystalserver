@@ -18,7 +18,7 @@ function spell.onCastSpell(creature, var)
 end
 
 spell:group("attack")
-spell:id(174)
+spell:id(172)
 spell:name("Mud Attack")
 spell:words("exori infir tera")
 spell:castSound(SOUND_EFFECT_TYPE_SPELL_OR_RUNE)

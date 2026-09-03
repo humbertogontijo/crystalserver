@@ -366,6 +366,15 @@ private:
 	void sendTutorial(uint8_t tutorialId);
 	void sendAddMarker(const Position &pos, uint8_t markType, const std::string &desc);
 
+	// Cyclopedia Map "Measuring Tibia" discovery — S2C 0xDD sub-types (RE'd from summer client).
+	void sendCyclopediaMapSetCurrentArea(uint16_t areaId);
+	void sendCyclopediaMapSetExploringArea(uint16_t subAreaId);
+	void sendCyclopediaMapDonations(uint64_t donationGoal, const std::vector<std::tuple<uint16_t, bool, uint64_t>> &areas);
+	void sendCyclopediaMapDiscoveryData(const std::vector<std::tuple<uint16_t, uint8_t, uint8_t>> &mainAreas, const std::vector<uint16_t> &discoveredSubAreas, const std::vector<uint16_t> &discoverableSubAreas);
+	void sendCyclopediaMapSetDiscoveryArea(uint16_t areaId, bool active, uint8_t poiTarget, const std::vector<std::pair<Position, uint8_t>> &points);
+	void parseCyclopediaMapAction(NetworkMessage &msg, uint8_t recvbyte); // C2S 0x92 + 0xDB (Map tab: requests / donations)
+	void handleDiscoveryDonation(uint16_t areaId, uint64_t amount);
+
 	void sendCyclopediaCharacterNoData(CyclopediaCharacterInfoType_t characterInfoType, uint8_t errorCode);
 	void sendCyclopediaCharacterBaseInformation();
 	void sendCyclopediaCharacterGeneralStats();
@@ -510,7 +519,9 @@ private:
 
 	void AddCreature(NetworkMessage &msg, const std::shared_ptr<Creature> &creature, bool known, uint32_t remove);
 	void AddPlayerStats(NetworkMessage &msg);
-	void AddOutfit(NetworkMessage &msg, const Outfit_t &outfit, bool addMount = true);
+	// addAttachedEffects (wings/auras/effects/shader) is independent of mount bytes.
+	// OTC historically reused getOutfit(parseMount) for both; keep them separable on the wire.
+	void AddOutfit(NetworkMessage &msg, const Outfit_t &outfit, bool addMount = true, bool addAttachedEffects = true);
 	void AddPlayerSkills(NetworkMessage &msg);
 	// Blessing
 	void sendBlessingWindow();
@@ -571,6 +582,9 @@ private:
 	void parseWeaponProficiency(NetworkMessage &msg);
 	void sendWeaponProficiencyExperience(const uint16_t itemId, const uint32_t experience);
 	void sendWeaponProficiencyInfo(const uint16_t itemId, const Player *dataPlayer = nullptr);
+	void sendWeaponProficiencyReshapeOffers(const uint16_t itemId);
+	void sendBossDifficultySelection(uint8_t selectedDifficulty, const std::vector<uint32_t> &numbers, const std::vector<std::string> &banners, const std::vector<std::string> &redMods, const std::vector<std::string> &greenMods);
+	void parseBossDifficultySelection(NetworkMessage &msg);
 
 	friend class Player;
 	friend class PlayerWheel;
@@ -625,6 +639,7 @@ private:
 	void sendScreenshotAndBannerUnlockedSpell(uint16_t spellId);
 	void sendScreenshotAndBannerBountyTaskFinished(uint16_t raceId);
 	void sendScreenshotAndBannerWeeklyTaskSpecificFinished(uint16_t raceId);
+	void sendScreenshotAndBannerLeaderMonsterKilled(uint16_t raceId, uint32_t charmPoints);
 
 	void sendDisableLoginMusic();
 
