@@ -519,7 +519,9 @@ private:
 
 	void AddCreature(NetworkMessage &msg, const std::shared_ptr<Creature> &creature, bool known, uint32_t remove);
 	void AddPlayerStats(NetworkMessage &msg);
-	void AddOutfit(NetworkMessage &msg, const Outfit_t &outfit, bool addMount = true);
+	// addAttachedEffects (wings/auras/effects/shader) is independent of mount bytes.
+	// OTC historically reused getOutfit(parseMount) for both; keep them separable on the wire.
+	void AddOutfit(NetworkMessage &msg, const Outfit_t &outfit, bool addMount = true, bool addAttachedEffects = true);
 	void AddPlayerSkills(NetworkMessage &msg);
 	// Blessing
 	void sendBlessingWindow();

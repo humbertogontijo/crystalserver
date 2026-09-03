@@ -348,7 +348,7 @@ CREATE TABLE IF NOT EXISTS `daily_reward_history` (
     `daystreak` smallint(2) NOT NULL DEFAULT 0,
     `player_id` int(11) NOT NULL,
     `timestamp` int(11) NOT NULL,
-    `description` varchar(255) DEFAULT NULL,
+    `description` text DEFAULT NULL,
     INDEX `player_id` (`player_id`),
     CONSTRAINT `daily_reward_history_pk` PRIMARY KEY (`id`),
     CONSTRAINT `daily_reward_history_player_fk`

@@ -825,6 +825,14 @@ void ProtocolGame::connect(const std::string &playerName, OperatingSystem_t oper
 	player->client = getThis();
 	player->openPlayerContainers();
 
+	// OTC reconnect: send OTCR feature flags before map/items (same as login).
+	if (operatingSystem >= CLIENTOS_OTCLIENT_LINUX) {
+		isOTC = true;
+		if (otclientV8 == 0) {
+			sendOTCRFeatures();
+		}
+	}
+
 	player->sendHarmonyProtocol();
 	player->sendSereneProtocol();
 	player->sendStanceProtocol();
@@ -2467,7 +2475,8 @@ void ProtocolGame::sendPlayerInspection(const std::shared_ptr<Player> &target) {
 	}
 
 	msg.addString(target->getName());
-	AddOutfit(msg, target->getDefaultOutfit(), false);
+	// No mount bytes; still send OTCR attached effects (client reads them after getOutfit(parseMount=false)).
+	AddOutfit(msg, target->getDefaultOutfit(), false, true);
 
 	uint8_t playerDescriptionSize = 0;
 	const auto playerDescriptionPosition = msg.getBufferPosition();
@@ -4495,7 +4504,8 @@ void ProtocolGame::sendCyclopediaCharacterBaseInformation() {
 	msg.addString(player->getName());
 	msg.addString(player->getVocation()->getVocName());
 	msg.add<uint16_t>(player->getLevel());
-	AddOutfit(msg, player->getDefaultOutfit(), false);
+	// Cyclopedia base: look only (no mount, no OTCR extras).
+	AddOutfit(msg, player->getDefaultOutfit(), false, false);
 
 	msg.addByte(0x01); // Store summary & Character titles
 	msg.addString(player->title()->getCurrentTitleName()); // character title
@@ -4996,7 +5006,8 @@ void ProtocolGame::sendCyclopediaCharacterInspection() {
 		}
 	}
 	msg.addString(player->getName());
-	AddOutfit(msg, player->getDefaultOutfit(), false);
+	// No mount bytes; still send OTCR attached effects (client reads them after getOutfit(parseMount=false)).
+	AddOutfit(msg, player->getDefaultOutfit(), false, true);
 
 	// Player overall summary
 	uint8_t playerDescriptionSize = 0;
@@ -8842,37 +8853,47 @@ void ProtocolGame::sendOutfitWindow() {
 
 	const auto outfits = Outfits::getInstance().getOutfits(player->getSex());
 
+	// Owned outfits first (official-style), then store/locked try-on entries.
+	auto appendOutfit = [&](const auto &outfit, uint8_t addons, uint8_t mode, bool withStoreOffer) {
+		msg.add<uint16_t>(outfit->lookType);
+		msg.addString(outfit->name);
+		msg.addByte(addons);
+		msg.addByte(mode);
+		if (withStoreOffer) {
+			msg.add<uint32_t>(0x00);
+		}
+		++outfitSize;
+	};
+
 	for (const auto &outfit : outfits) {
 		uint8_t addons;
-		if (player->getOutfitAddons(outfit, addons)) {
-			msg.add<uint16_t>(outfit->lookType);
-			msg.addString(outfit->name);
-			msg.addByte(addons);
-			msg.addByte(0x00);
-			++outfitSize;
-		} else if (outfit->lookType == 1210 || outfit->lookType == 1211) { // golden outfit
-			msg.add<uint16_t>(outfit->lookType);
-			msg.addString(outfit->name);
-			msg.addByte(3);
-			msg.addByte(0x02);
-			++outfitSize;
-		} else if (outfit->lookType == 1456 || outfit->lookType == 1457) { // royal costume
-			msg.add<uint16_t>(outfit->lookType);
-			msg.addString(outfit->name);
-			msg.addByte(3);
-			msg.addByte(0x03);
-			++outfitSize;
-		} else if (outfit->from == "store") {
-			msg.add<uint16_t>(outfit->lookType);
-			msg.addString(outfit->name);
-			msg.addByte(outfit->lookType >= 962 && outfit->lookType <= 975 ? 0 : 3);
-			msg.addByte(0x01);
-			msg.add<uint32_t>(0x00);
-			++outfitSize;
+		if (!player->getOutfitAddons(outfit, addons)) {
+			continue;
 		}
-
+		appendOutfit(outfit, addons, 0x00, false);
 		if (outfitSize == limitOutfits) {
 			break;
+		}
+	}
+
+	if (outfitSize < limitOutfits) {
+		for (const auto &outfit : outfits) {
+			uint8_t addons;
+			if (player->getOutfitAddons(outfit, addons)) {
+				continue; // already sent as owned
+			}
+			if (outfit->lookType == 1210 || outfit->lookType == 1211) { // golden outfit
+				appendOutfit(outfit, 3, 0x02, false);
+			} else if (outfit->lookType == 1456 || outfit->lookType == 1457) { // royal costume
+				appendOutfit(outfit, 3, 0x03, false);
+			} else if (outfit->from == "store") {
+				appendOutfit(outfit, outfit->lookType >= 962 && outfit->lookType <= 975 ? 0 : 3, 0x01, true);
+			} else {
+				continue;
+			}
+			if (outfitSize == limitOutfits) {
+				break;
+			}
 		}
 	}
 
@@ -8887,22 +8908,32 @@ void ProtocolGame::sendOutfitWindow() {
 	msg.skipBytes(2);
 
 	const auto mounts = g_game().mounts->getMounts();
+	// Owned mounts first (official-style), then store try-on entries.
 	for (const auto &mount : mounts) {
-		if (player->hasMount(mount)) {
-			msg.add<uint16_t>(mount->clientId);
-			msg.addString(mount->name);
-			msg.addByte(0x00);
-			++mountSize;
-		} else if (mount->type == "store") {
+		if (!player->hasMount(mount)) {
+			continue;
+		}
+		msg.add<uint16_t>(mount->clientId);
+		msg.addString(mount->name);
+		msg.addByte(0x00);
+		++mountSize;
+		if (mountSize == limitMounts) {
+			break;
+		}
+	}
+	if (mountSize < limitMounts) {
+		for (const auto &mount : mounts) {
+			if (player->hasMount(mount) || mount->type != "store") {
+				continue;
+			}
 			msg.add<uint16_t>(mount->clientId);
 			msg.addString(mount->name);
 			msg.addByte(0x01);
 			msg.add<uint32_t>(0x00);
 			++mountSize;
-		}
-
-		if (mountSize == limitMounts) {
-			break;
+			if (mountSize == limitMounts) {
+				break;
+			}
 		}
 	}
 
@@ -9706,7 +9737,7 @@ void ProtocolGame::AddPlayerSkills(NetworkMessage &msg) {
 	msg.addDouble(getForgeSkillStat(CONST_SLOT_FEET, false)); // Amplification
 }
 
-void ProtocolGame::AddOutfit(NetworkMessage &msg, const Outfit_t &outfit, bool addMount /* = true*/) {
+void ProtocolGame::AddOutfit(NetworkMessage &msg, const Outfit_t &outfit, bool addMount /* = true*/, bool addAttachedEffects /* = true*/) {
 	msg.add<uint16_t>(outfit.lookType);
 	if (outfit.lookType != 0) {
 		msg.addByte(outfit.lookHead);
@@ -9728,7 +9759,8 @@ void ProtocolGame::AddOutfit(NetworkMessage &msg, const Outfit_t &outfit, bool a
 		}
 	}
 
-	if (isOTCR) {
+	// Wings/auras/effects/shader are independent of mount bytes (OTC historically reused parseMount).
+	if (isOTCR && addAttachedEffects) {
 		AddOutfitCustomOTCR(msg, outfit); // g_game.enableFeature(GameWingsAurasEffectsShader)
 	}
 }
