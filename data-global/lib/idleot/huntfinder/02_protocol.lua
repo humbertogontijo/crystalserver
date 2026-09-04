@@ -1,9 +1,12 @@
 -- Hunt Finder opcode 252: monster stats + item id lookup for the OTC detail panel.
 -- Client request:  { action = "allMonsterInfo", monsters = { "Rat", ... } }
 --                   { action = "itemIds", items = { "great health potion", ... } }
--- Client response: { action = "allMonsterInfo", data = { [name] = { raceId, health, experience, speed, armor, mitigation, elements } } }
+-- Client response: { action = "allMonsterInfo", data = { [name] = {
+--                     raceId, health, experience, speed, armor, mitigation, defense,
+--                     elements, resistances  -- same map; keys 0=phys … 7=heal; values = 100 - absorb%
+--                   } } }
 --                   { action = "itemIds", data = { [name] = itemId } }
--- Element keys match bestiary / OTC huntfinder (0=physical … 7=healing); values are 100 - absorb%.
+-- Element / resistance keys match bestiary / OTC huntfinder.
 
 HuntFinderProtocol = HuntFinderProtocol or {}
 
@@ -95,14 +98,22 @@ local function monsterInfo(name)
 	if raceId == 0 then
 		return nil
 	end
+	local elements = bestiaryElements(mType)
+	local defense = 0
+	if mType.defense then
+		defense = mType:defense() or 0
+	end
 	return {
 		raceId = raceId,
 		health = mType:maxHealth() or mType:health() or 0,
 		experience = mType:experience() or 0,
 		speed = mType:baseSpeed() or 0,
 		armor = mType:armor() or 0,
+		defense = defense,
 		mitigation = mType:mitigation() or 0,
-		elements = bestiaryElements(mType),
+		-- elements: legacy huntfinder field; resistances: explicit alias for OTC.
+		elements = elements,
+		resistances = elements,
 	}
 end
 

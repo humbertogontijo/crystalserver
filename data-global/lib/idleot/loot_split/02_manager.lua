@@ -293,18 +293,20 @@ local function trySellForInsufficientCap(player, corpse, isBoss)
 	if not dest.getFreeCapacity then
 		return false
 	end
-	local items = collectCorpseItems(corpse)
-	local needsSell = false
-	for _, it in ipairs(items) do
+
+	-- UI "0 oz" is freeCap < 100 (centioz). Do not depend on accepts/getWeight
+	-- bindings here — C++ will leave loot on the corpse either way.
+	local free = tonumber(dest:getFreeCapacity()) or 0
+	if free < 100 then
+		return RemoteHirelingEconomy.maybeSellForShortage(dest, "cap") == true
+	end
+
+	for _, it in ipairs(collectCorpseItems(corpse)) do
 		if playerAcceptsItem(dest, it) and not controllerCanCarry(dest, it) then
-			needsSell = true
-			break
+			return RemoteHirelingEconomy.maybeSellForShortage(dest, "cap") == true
 		end
 	end
-	if not needsSell then
-		return false
-	end
-	return RemoteHirelingEconomy.maybeSellForShortage(dest, "cap") == true
+	return false
 end
 
 local function creditLootStats(player, itemId, count)

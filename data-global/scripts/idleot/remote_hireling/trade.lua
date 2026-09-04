@@ -56,12 +56,13 @@ local function encodeJson(payload)
 	end
 	if payload.type == "status" then
 		return string.format(
-			'{"type":"status","cooldownUntil":%d,"taxPercent":%d,"autoSell":%s,"sellOnNoGold":%s,"sellOnNoCap":%s,"cooldownSeconds":%d}',
+			'{"type":"status","cooldownUntil":%d,"taxPercent":%d,"autoSell":%s,"sellOnNoGold":%s,"sellOnNoCap":%s,"acceptTaxOnCooldown":%s,"cooldownSeconds":%d}',
 			tonumber(payload.cooldownUntil) or 0,
 			tonumber(payload.taxPercent) or 0,
 			payload.autoSell and "true" or "false",
 			payload.sellOnNoGold and "true" or "false",
 			payload.sellOnNoCap and "true" or "false",
+			payload.acceptTaxOnCooldown and "true" or "false",
 			tonumber(payload.cooldownSeconds) or 3600
 		)
 	end
@@ -191,6 +192,12 @@ local function handleSetAutoSellConfig(player, payload)
 	end
 	if payload.sellOnNoCap ~= nil then
 		RemoteHirelingEconomy.setSellOnNoCap(player, payload.sellOnNoCap == true or payload.sellOnNoCap == 1)
+	end
+	if payload.acceptTaxOnCooldown ~= nil then
+		RemoteHirelingEconomy.setAcceptTaxOnCooldown(
+			player,
+			payload.acceptTaxOnCooldown == true or payload.acceptTaxOnCooldown == 1
+		)
 	end
 	local filterMode = tonumber(payload.filterMode)
 	if filterMode ~= nil then

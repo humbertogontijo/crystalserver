@@ -274,6 +274,8 @@ function RaidInstance.provision(raid)
 		startedAt = os.time(),
 		lastStageStarted = false,
 		spawnedOnce = false,
+		-- True once createMonster succeeds at least once; loot grace must not start before this.
+		monstersSpawned = false,
 		clearEligibleAt = nil,
 		graceStarted = false,
 		graceEvent = nil,
@@ -416,7 +418,10 @@ function RaidInstance.onEnterStage(raid, stageNumber)
 	end
 	if stageNumber == #raid.stages then
 		session.lastStageStarted = true
-		local delayMs = ExpeditionConfig.RAID_CLEAR_ELIGIBLE_DELAY_MS or 5000
+		-- Wait for spawn flash + a buffer before allowing "all clear".
+		local spawnMs = tonumber(raid and raid.timeToSpawnMonsters) or 0
+		local baseMs = ExpeditionConfig.RAID_CLEAR_ELIGIBLE_DELAY_MS or 5000
+		local delayMs = math.max(baseMs, spawnMs + 2000)
 		session.clearEligibleAt = os.time() + math.ceil(delayMs / 1000)
 		logger.info("[RaidInstance] last stage started for {}", raid.name)
 	end
@@ -564,8 +569,15 @@ function RaidInstance.watchTick(session)
 		return
 	end
 	local monsters = RaidInstance.countAlive(session)
+	if monsters > 0 then
+		session.monstersSpawned = true
+	end
 	RaidInstance.refreshMemberStatus(session)
 	if monsters > 0 then
+		return
+	end
+	-- Do not treat "never spawned" as cleared — despawn timeout owns that case.
+	if not session.monstersSpawned then
 		return
 	end
 	beginGrace(session)
@@ -952,26 +964,46 @@ function RaidInstance.installHooks()
 					name = name[math.random(#name)]
 				end
 				self:addEvent(function(monsterName, spawnPos, event, spawn, timeLimit, asBoss)
-					if not spawnPos then
+					if not spawnPos or not spawnPos.x then
 						return false
 					end
+					-- Re-materialize Position (addEvent registry can leave a plain table).
+					spawnPos = Position(spawnPos.x, spawnPos.y, spawnPos.z)
 					-- Re-check entry avoidance at spawn time (map may have loaded since schedule).
 					local raid = Raid.registry[raidName]
 					local inst = raid and raid._raidInstance
 					if inst and sameTilePos(spawnPos, inst.entry) then
 						spawnPos = resolveRaidSpawnPosition(raid, nil) or spawnPos
 					end
-					local instanceId = inst and inst.instanceId or nil
-					local monster = Game.createMonster(monsterName, spawnPos, true, true, nil, instanceId)
+					local monster = nil
+					if ExpeditionInstance and ExpeditionInstance.createMonsterExclusive then
+						monster = ExpeditionInstance.createMonsterExclusive(monsterName, spawnPos, inst)
+					end
 					if not monster then
+						local instanceId = inst and inst.instanceId or nil
+						monster = Game.createMonster(monsterName, spawnPos, true, true, nil, instanceId)
+						if monster and inst and inst.instanceId and monster.setInstanceId then
+							monster:setInstanceId(inst.instanceId)
+						end
+						if monster and InstanceWorld and InstanceWorld.applyOpenWorldForge then
+							InstanceWorld.applyOpenWorldForge(monster)
+						end
+					end
+					if not monster then
+						logger.warn(
+							"[RaidInstance] spawn failed for {} at {},{},{} (instance={})",
+							monsterName,
+							spawnPos.x,
+							spawnPos.y,
+							spawnPos.z,
+							inst and inst.instanceId or 0
+						)
 						return false
 					end
-					if inst and inst.instanceId and monster.setInstanceId then
-						monster:setInstanceId(inst.instanceId)
-					end
 					monster:setRewardBoss()
-					if InstanceWorld and InstanceWorld.applyOpenWorldForge then
-						InstanceWorld.applyOpenWorldForge(monster)
+					local session = RaidInstance.active[raidName]
+					if session then
+						session.monstersSpawned = true
 					end
 					if asBoss then
 						RaidInstance.markBoss(raid, monster, monsterName)
