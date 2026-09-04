@@ -142,8 +142,8 @@ end
 ---     price from inventory+bank; not merely gold == 0 while stacks remain.
 ---   insufficient capacity — cannot collect an accepted loot item by weight (free cap <
 ---     item weight); not merely freeCap == 0 and not "cannot carry one ammo unit".
---- Auto-sell (when enabled + sell-on-insufficient-*) runs before stop; stop does not
---- require auto-sell.
+--- Auto-sell (when enabled + sell-on-insufficient-*) runs on loot drop before C++
+--- auto-loot and again before expedition stop; stop does not require auto-sell.
 function ExpeditionConfig.normalizeStopOptions(opts)
 	if type(opts) ~= "table" then
 		opts = {}
