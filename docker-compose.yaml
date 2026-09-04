@@ -18,13 +18,12 @@ services:
       - "7172:7172"
       - "7173:7173"
       - "7174:7174"
+    # Datapack ships in the image. Mount only mutable runtime state if needed
+    # (logs/cache). Do not bind-mount host data-global over the image pack.
     volumes:
       - type: bind
-        source: /data/idleot/crystalserver/data
-        target: /crystalserver/data
-      - type: bind
-        source: /data/idleot/crystalserver/data-global
-        target: /crystalserver/data-global
+        source: /data/idleot/crystalserver/cache
+        target: /crystalserver/cache
     environment:
       MYSQL_HOST: ${MYSQL_HOST:-}
       MYSQL_PORT: ${MYSQL_PORT:-3306}

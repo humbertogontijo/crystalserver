@@ -42,7 +42,7 @@ removeChargesFromRunes = true
 removeChargesFromPotions = true
 removeWeaponAmmunition = true
 removeWeaponCharges = true
-removeBeginningWeaponAmmunition = true
+removeBeginningWeaponAmmunition = false
 refundBeginningWeaponMana = false
 timeToDecreaseFrags = 24 * 60 * 60 * 1000
 whiteSkullTime = 15 * 60 * 1000
@@ -87,16 +87,16 @@ bindOnlyGlobalAddress = false
 loginProtocolPort = 7171
 gameProtocolPort = 7172
 -- Browser OTC: optional native WebSocket game port (0 = disabled; use SlenderAAC proxy instead).
-websocketGamePort = 0
+websocketGamePort = 7174
 statusProtocolPort = 97172
 maxPlayers = 0
 serverName = "Crystal"
 serverMotd = "Welcome to the Crystal Server!"
 statusTimeout = 5 * 1000
 replaceKickOnLogin = true
-maxPacketsPerSecond = 25
-maxPlayersOnlinePerAccount = 1
-maxPlayersOutsidePZPerAccount = 1
+maxPacketsPerSecond = 50
+maxPlayersOnlinePerAccount = 4
+maxPlayersOutsidePZPerAccount = 4
 toggleMaxConnectionsByIP = false
 maxIPConnections = 3
 
@@ -232,7 +232,7 @@ amplificationChanceFormulaC = 0.4
 -- Bestiary & Bosstiary system
 -- NOTE: bestiaryKillMultiplier, multiplier value of monster killed, default 1
 -- NOTE: bosstiaryKillMultiplier, multiplier value of boss killed, default 1
-bestiaryKillMultiplier = 1
+bestiaryKillMultiplier = 2
 bosstiaryKillMultiplier = 1
 bestiaryRateCharmShopPrice  = 1.0
 boostedBossSlot = true
@@ -326,10 +326,10 @@ onlyPremiumAccount = false
 -- NOTE: allowLureCreatures if true monsters can be lured far from spawn, if false they will despawn
 -- NOTE: blockRespawn if true players block monster respawns on their spot
 -- NOTE: enableOfflineTraining if false will disable offline training from beds only, set false at skill_trainer.lua if you want to completly disable the system
-autoLoot = false
-autoBank = false
+autoLoot = true
+autoBank = true
 toggleGoldPouchAllowAnything = false
-toggleGoldPouchQuickLootOnly = false
+toggleGoldPouchQuickLootOnly = true
 toggleTravelsFree = false
 buyAolCommandFee = 0
 teleportPlayerToVocationRoom = true
@@ -339,7 +339,7 @@ lootPouchMaxLimit = 2000
 storeInboxMaxLimit = 2000
 enablePlayerPutItemInAmmoSlot = false
 startStreakLevel = 0
-showLootsInBestiary = false
+showLootsInBestiary = true
 minTownIdToBankTransferFromMain = 4
 allowLureCreatures = false
 blockRespawn = false
@@ -494,8 +494,8 @@ maxMarketOffersAtATimePerPlayer = 100
 -- 8–16 — high-traffic servers with heavy market usage
 -- 1 — equivalent to the old single-connection behavior
 mysqlHost = "127.0.0.1"
-mysqlUser = "root"
-mysqlPass = "root"
+mysqlUser = "crystal"
+mysqlPass = "crystal"
 mysqlDatabase = "crystalserver"
 mysqlPort = 3306
 mysqlSock = ""
@@ -515,7 +515,7 @@ temporaryConst= 2
 parallelism = 2
 
 -- Session Auth
-authType = "password" -- 'session' | 'password'
+authType = "session"
 resetSessionsOnStartup = false
 
 -- Misc.
@@ -523,7 +523,7 @@ resetSessionsOnStartup = false
 -- NOTE: disableLegacyRaids: set to true to disable legacy XML raids
 -- NOTE: logPlayersStatements will log all player statements.
 allowChangeOutfit = true
-freePremium = false
+freePremium = true
 kickIdlePlayerAfterMinutes = 15
 maxMessageBuffer = 4
 classicAttackSpeed = false
@@ -534,7 +534,7 @@ minDelayBetweenConditions = 0
 criticalChance = 10
 skulledDeathLoseStoreItem = false
 experienceDisplayRates = true
-disableLegacyRaids = false
+disableLegacyRaids = true
 disableMonsterArmor = false
 minElementalResistance = -200
 maxElementalResistance = 200
@@ -545,7 +545,7 @@ logPlayersStatements = false
 -- NOTE: storeCombinedCoins = true uses transferable coins first, then regular coins for store purchases.
 -- NOTE: When storeCombinedCoins = false, storeCoinType selects which coin type is used (0 = regular, 1 = transferable).
 coinPacketSize = 25
-coinImagesURL = "http://127.0.0.1/images/store/"
+coinImagesURL = "http://127.0.0.1:5173/images/store/"
 storeCombinedCoins = true
 storeCoinType = 0
 
@@ -595,7 +595,7 @@ sortLootByChance = false
 -- NOTE: rateWeaponProficiency multiplies Weapon Proficiency experience gained from kills
 -- To configure rates see file data/stages.lua
 -- lowLevelBonusExp works up to level 50
-rateUseStages = false
+rateUseStages = true
 lowLevelBonusExp = 50
 rateExp = 1
 rateSkill = 1
@@ -706,12 +706,12 @@ discordWebhookDelayMs = 1000
 -- 		If you use 'vipFamiliarTimeCooldownReduction' greater than half of 'familiarTime', it will get the highest possible value, in this case 15
 -- NOTE: GainCoin function, please configure script: data-global/scripts/globalevents/vip/online_coins.lua
 -- NOTE: GainToken function, please configure script: data-global/scripts/globalevents/vip/online_tokens.lua
-vipSystemEnabled = false
-vipBonusExp = 0
+vipSystemEnabled = true
+vipBonusExp = 10
 vipBonusLoot = 0
 vipBonusSkill = 0
 vipAutoLootVipOnly = false
-vipStayOnline = false
+vipStayOnline = true
 vipFamiliarTimeCooldownReduction = 0
 vipKeepHouse = false
 
@@ -742,3 +742,7 @@ OTCRFeatures = {
     disableFeature = {
     }
 }
+
+-- IdleOT defaults
+useAnyDatapackFolder = false
+generateLuaApiDocs = false

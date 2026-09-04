@@ -5,8 +5,8 @@
 # Coolify custom build command must NOT pass --no-cache (resets those mounts
 # on this host): DOCKER_BUILDKIT=1 docker compose build
 #
-# Product Lua (data-global lib/scripts/npc islands) is copied only into the
-# runtime stage so datapack-only pushes do not rebuild C++.
+# The image datapack (data + data-global) is the source of truth — no
+# /opt/product overlay. Datapack-only pushes still rebuild the runtime stage.
 
 FROM ubuntu:24.04 AS toolchain
 
@@ -58,7 +58,7 @@ FROM ubuntu:24.04 AS runtime
 ARG DEBIAN_FRONTEND=noninteractive
 RUN rm -f /etc/apt/apt.conf.d/docker-clean \
 	&& apt-get update && apt-get install -y --no-install-recommends \
-	mariadb-client curl ca-certificates rsync \
+	mariadb-client curl ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /crystalserver
@@ -67,18 +67,11 @@ COPY --from=builder /src/out/crystalserver /crystalserver/crystalserver
 COPY schema.sql /crystalserver/schema.sql
 COPY key.pem /crystalserver/key.pem
 COPY config.lua.dist /crystalserver/config.lua
-COPY data-global/lib/idleot /opt/product/lib/idleot
-COPY data-global/scripts/idleot /opt/product/scripts/idleot
-COPY data-global/npc/idleot /opt/product/npc/idleot
-COPY data-global/scripts/custom_migrations /opt/product/scripts/custom_migrations
-COPY data-global/lib/lib.lua /opt/product/lib/lib.lua
-COPY deploy/sync-product.sh /opt/idleot/sync-product.sh
-COPY deploy/materialize-product.sh /opt/idleot/materialize-product.sh
+COPY data /crystalserver/data
+COPY data-global /crystalserver/data-global
 COPY deploy/server-entrypoint.sh /crystalserver/server-entrypoint.sh
 
-RUN mkdir -p /crystalserver/data /crystalserver/data-global \
-	&& chmod +x /crystalserver/crystalserver /crystalserver/server-entrypoint.sh \
-		/opt/idleot/sync-product.sh /opt/idleot/materialize-product.sh
+RUN chmod +x /crystalserver/crystalserver /crystalserver/server-entrypoint.sh
 
 EXPOSE 7171 7172 7173 7174
 
@@ -90,8 +83,6 @@ ENV MYSQL_HOST=127.0.0.1 \
 	SERVER_IP=auto \
 	STATUS_PORT=7171 \
 	GAME_PORT=7172 \
-	WEBSOCKET_GAME_PORT=7174 \
-	IDLEOT_PRODUCT_DIR=/opt/product \
-	IDLEOT_MATERIALIZE=/opt/idleot/sync-product.sh
+	WEBSOCKET_GAME_PORT=7174
 
 ENTRYPOINT ["/crystalserver/server-entrypoint.sh"]

@@ -25,14 +25,10 @@ SERVER_URL="${SERVER_URL:-https://www.idleot.com}"
 # Host/IP advertised in ProtocolStatus XML (worlds.ip). Defaults to bind IP.
 STATUS_ADVERTISE_IP="${STATUS_ADVERTISE_IP:-}"
 COIN_IMAGES_URL="${COIN_IMAGES_URL:-}"
-PRODUCT_DIR="${IDLEOT_PRODUCT_DIR:-${IDLEOT_DIR:-/opt/product}}"
-MATERIALIZE="${IDLEOT_MATERIALIZE:-/opt/idleot/sync-product.sh}"
-SKIP_PRODUCT_APPLY="${IDLEOT_SKIP_PRODUCT_APPLY:-0}"
 
 if [[ ! -f data-global/world/world.otbm ]]; then
   echo "[server] missing data-global/world/world.otbm" >&2
-  echo "[server] sync host data first: ./scripts/deploy/sync-data.sh" >&2
-  echo "[server] expected bind mount: /data/idleot/crystalserver/data-global → /crystalserver/data-global" >&2
+  echo "[server] expected datapack baked into the image (data + data-global)" >&2
   exit 1
 fi
 
@@ -41,19 +37,7 @@ if [[ ! -d data/migrations ]]; then
   exit 1
 fi
 
-# Copy product islands into the host-mounted datapack when the image stamp changes.
-if [[ "$SKIP_PRODUCT_APPLY" != "1" && -x "$MATERIALIZE" && -d "$PRODUCT_DIR" ]]; then
-  STAMP="data-global/.idleot-product-stamp"
-  PRODUCT_HASH="$(find "$PRODUCT_DIR" -type f -print0 2>/dev/null | sort -z | xargs -0 cat 2>/dev/null | sha256sum | awk '{print $1}')"
-  if [[ ! -f "$STAMP" || "$(cat "$STAMP" 2>/dev/null)" != "$PRODUCT_HASH" ]]; then
-    echo "[server] syncing product islands into mounted datapack..."
-    bash "$MATERIALIZE" /crystalserver/data-global "$PRODUCT_DIR"
-    printf '%s\n' "$PRODUCT_HASH" > "$STAMP"
-  else
-    echo "[server] product islands already applied ($STAMP)"
-  fi
-fi
-
+# Product lives in the Crystal fork (data-global/lib/idleot, …). Image datapack is authoritative.
 echo "[server] waiting for MariaDB at ${MYSQL_HOST}:${MYSQL_PORT}..."
 for i in $(seq 1 60); do
   if mysqladmin ping -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent 2>/dev/null; then
@@ -98,6 +82,8 @@ patch_config() {
   fi
 }
 
+# Strip gameplay knobs that now live in config.lua.dist — entrypoint only
+# injects Coolify secrets (MYSQL_*, public IP, coin CDN URL).
 patch_config mysqlHost "$MYSQL_HOST"
 patch_config mysqlUser "$MYSQL_USER"
 patch_config mysqlPass "$MYSQL_PASSWORD"
@@ -108,10 +94,6 @@ patch_config statusProtocolPort "$STATUS_PORT" 0
 patch_config gameProtocolPort "$GAME_PORT" 0
 patch_config loginProtocolPort "$STATUS_PORT" 0
 patch_config websocketGamePort "$WEBSOCKET_GAME_PORT" 0
-patch_config dataPackDirectory "data-global"
-patch_config coreDirectory "data"
-patch_config authType "session"
-patch_config disableLegacyRaids true 0
 
 if [ -n "$COIN_IMAGES_URL" ]; then
   patch_config coinImagesURL "$COIN_IMAGES_URL"
@@ -124,18 +106,6 @@ patch_config serverMotd "$SERVER_MOTD"
 patch_config ownerName "$OWNER_NAME"
 patch_config ownerEmail "$OWNER_EMAIL"
 patch_config url "$SERVER_URL"
-patch_config useAnyDatapackFolder "false" 0
-patch_config maxPlayersOnlinePerAccount "4" 0
-patch_config maxPlayersOutsidePZPerAccount "4" 0
-patch_config maxPacketsPerSecond "50" 0
-patch_config autoBank "true" 0
-patch_config autoLoot "true" 0
-patch_config toggleGoldPouchQuickLootOnly "true" 0
-patch_config showLootsInBestiary "true" 0
-patch_config rateUseStages "true" 0
-patch_config freePremium "true" 0
-patch_config vipSystemEnabled "true" 0
-patch_config removeBeginningWeaponAmmunition "false" 0
 
 # ProtocolStatus reads worlds.{name,ip,port_status} from MariaDB (createFirstWorld only
 # inserts once). Sync every boot so otservlist sees the public host + Idlebra name.
