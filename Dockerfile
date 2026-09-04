@@ -22,7 +22,8 @@ SHELL ["/bin/bash", "-lc"]
 
 FROM toolchain AS builder
 
-ARG IDLEOT_COMPILE_JOBS=2
+# 0 = auto (nproc). Coolify should pass IDLEOT_COMPILE_JOBS as a build arg.
+ARG IDLEOT_COMPILE_JOBS=0
 ENV IDLEOT_COMPILE_JOBS=${IDLEOT_COMPILE_JOBS}
 
 WORKDIR /src

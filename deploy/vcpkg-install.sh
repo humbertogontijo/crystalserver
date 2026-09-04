@@ -16,10 +16,17 @@ if [[ ! -x /opt/vcpkg/vcpkg ]]; then
 	/opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 fi
 
+JOBS="${IDLEOT_COMPILE_JOBS:-}"
+if [[ -z "$JOBS" || "$JOBS" == "0" || "$JOBS" == "auto" ]]; then
+	JOBS="$(nproc)"
+fi
 export VCPKG_ROOT=/opt/vcpkg \
 	VCPKG_DEFAULT_BINARY_CACHE=/var/cache/vcpkg-binaries \
 	VCPKG_DOWNLOADS=/var/cache/vcpkg-downloads \
-	VCPKG_BINARY_SOURCES="clear;files,/var/cache/vcpkg-binaries,readwrite"
+	VCPKG_BINARY_SOURCES="clear;files,/var/cache/vcpkg-binaries,readwrite" \
+	VCPKG_MAX_CONCURRENCY="$JOBS" \
+	CMAKE_BUILD_PARALLEL_LEVEL="$JOBS"
+echo "[vcpkg-install] jobs=$JOBS"
 
 cp -f /src/vcpkg.json /opt/vcpkg/vcpkg.json
 (

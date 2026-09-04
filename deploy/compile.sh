@@ -22,14 +22,14 @@ if [[ "${IDLEOT_SKIP_VCPKG_INSTALL:-}" != 1 ]]; then
 	bash /src/deploy/vcpkg-install.sh
 fi
 
+# 0 / unset / auto → all CPUs. Builds are serialized on Coolify (concurrent_builds=1),
+# so use the host fully; leave live game + Coolify to contend only briefly.
 JOBS="${IDLEOT_COMPILE_JOBS:-}"
-if [[ -z "$JOBS" ]]; then
+if [[ -z "$JOBS" || "$JOBS" == "0" || "$JOBS" == "auto" ]]; then
 	JOBS="$(nproc)"
-	# 4 vCPU Coolify host also runs live crystalserver + Coolify — cap to avoid swap thrash.
-	if (( JOBS > 2 )); then
-		JOBS=2
-	fi
 fi
+export CMAKE_BUILD_PARALLEL_LEVEL="$JOBS" VCPKG_MAX_CONCURRENCY="$JOBS"
+echo "[compile] jobs=$JOBS (nproc=$(nproc))"
 
 cmake --preset linux-release \
 	-DOPTIONS_ENABLE_CCACHE=ON \
