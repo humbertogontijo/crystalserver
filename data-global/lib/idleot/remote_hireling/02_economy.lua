@@ -451,11 +451,23 @@ function RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
 	return net, soldItems, RemoteHirelingEconomy.getTaxPercent(player)
 end
 
--- Per-player debounce for gold/cap emergency sells (combat tick can fire often).
+-- Per-player debounce: gold/combat ticks spam often; cap only rate-limits empty/tax msgs.
 local lastEmergencySellAt = {}
+local lastEmptySellMsgAt = {}
+local lastTaxWaitMsgAt = {}
 
---- Sell using saved filter before expedition stop-on-gold / stop-on-cap.
---- kind: "gold" | "cap". Returns true when at least one item was sold.
+local function rateLimitedMsg(store, pid, now, cooldownSecs, player, message)
+	local last = store[pid] or 0
+	if now - last < cooldownSecs then
+		return
+	end
+	store[pid] = now
+	player:sendTextMessage(MESSAGE_STATUS, message)
+end
+
+--- Sell loot pouch using saved filter before expedition stop-on-gold / stop-on-cap.
+--- Auto-sell is pouch-only (never backpack / equipped). kind: "gold" | "cap".
+--- Returns true when at least one item was sold.
 function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 	if not player or not player:isPlayer() then
 		return false
@@ -475,43 +487,58 @@ function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 		return false
 	end
 
-	-- Opt-in: do not auto-sell while free-sell cooldown would apply 20% tax.
-	if RemoteHirelingEconomy.isOnCooldown(player)
-		and not RemoteHirelingEconomy.getAcceptTaxOnCooldown(player) then
-		return false
-	end
-
 	local pid = player:getId()
 	local now = nowUnix()
 	local cooldown = RemoteHirelingConfig.EMERGENCY_SELL_COOLDOWN_SECONDS or 5
-	local last = lastEmergencySellAt[pid] or 0
-	if now - last < cooldown then
+
+	-- Opt-in: do not auto-sell while free-sell cooldown would apply 20% tax.
+	if RemoteHirelingEconomy.isOnCooldown(player)
+		and not RemoteHirelingEconomy.getAcceptTaxOnCooldown(player) then
+		rateLimitedMsg(
+			lastTaxWaitMsgAt,
+			pid,
+			now,
+			cooldown,
+			player,
+			"Auto-sell waiting for free hour (tax)."
+		)
+		return false
+	end
+
+	-- Gold/combat: debounce all attempts so ensureAmmo/consumeSupply do not sell every tick.
+	-- Cap/loot: do not debounce successful sells (dense hunts need every corpse).
+	if kind == "gold" then
+		local last = lastEmergencySellAt[pid] or 0
+		if now - last < cooldown then
+			return false
+		end
+	end
+
+	if not RemoteHirelingEconomy.sellLootPouch then
 		return false
 	end
 
 	local filterMode, itemIds = RemoteHirelingEconomy.getSellFilter(player)
-	local gold, items, taxPercent = 0, 0, RemoteHirelingEconomy.getTaxPercent(player)
-	-- Cap shortage: sell pouch first (quick-loot parks weight there). Gold shortage
-	-- prefers full inventory sell-all so supplies/backpack junk can fund restock.
-	if kind == "cap" and RemoteHirelingEconomy.sellLootPouch then
-		gold, items, taxPercent = RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
-	end
+	local gold, items, taxPercent = RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
 	if items <= 0 then
-		gold, items, taxPercent = RemoteHirelingEconomy.sellAll(player, true, filterMode, itemIds)
-	end
-	if items <= 0 and kind ~= "cap" and RemoteHirelingEconomy.sellLootPouch then
-		gold, items, taxPercent = RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
-	end
-	if items <= 0 then
-		-- Same debounce key so we do not spam every kill while pouch has no catalog junk.
-		lastEmergencySellAt[pid] = now
-		player:sendTextMessage(
-			MESSAGE_STATUS,
-			"Auto-sell: nothing sellable in loot pouch/inventory (check Skipped vs Accepted sell list)."
+		-- Rate-limit empty diagnostic; do not block a later successful sell on the next corpse.
+		rateLimitedMsg(
+			lastEmptySellMsgAt,
+			pid,
+			now,
+			cooldown,
+			player,
+			"Auto-sell: nothing sellable in loot pouch (check Skipped vs Accepted sell list)."
 		)
+		if kind == "gold" then
+			lastEmergencySellAt[pid] = now
+		end
 		return false
 	end
-	lastEmergencySellAt[pid] = now
+
+	if kind == "gold" then
+		lastEmergencySellAt[pid] = now
+	end
 
 	local msg
 	if taxPercent > 0 then

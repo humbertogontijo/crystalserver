@@ -575,9 +575,9 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 					delivered = true
 					break
 				end
-				-- Sell-on-insufficient-cap (auto-sell) is not expedition-only; abort still
-				-- only runs when ExpeditionSafety finds an entered session + stop flag.
-				if not controllerCanCarry(dest, it) and ExpeditionSafety and ExpeditionSafety.handleShortage then
+				-- Any collect miss (weight, pouch full, category room): sell pouch then retry.
+				-- Abort still only when ExpeditionSafety finds an entered session + stop flag.
+				if ExpeditionSafety and ExpeditionSafety.handleShortage then
 					local recovered = ExpeditionSafety.handleShortage(
 						dest,
 						"cap",
