@@ -142,8 +142,8 @@ end
 ---     price from inventory+bank; not merely gold == 0 while stacks remain.
 ---   insufficient capacity — cannot collect an accepted loot item by weight (free cap <
 ---     item weight); not merely freeCap == 0 and not "cannot carry one ammo unit".
---- Auto-sell (when enabled + sell-on-insufficient-*) runs before stop; stop does not
---- require auto-sell.
+--- Auto-sell (when enabled + sell-on-insufficient-*) runs on loot drop before C++
+--- auto-loot and again before expedition stop; stop does not require auto-sell.
 function ExpeditionConfig.normalizeStopOptions(opts)
 	if type(opts) ~= "table" then
 		opts = {}
@@ -409,6 +409,7 @@ end
 -- Shared Lua raids redirected into expedition slots (see 09_raid_instance.lua).
 ExpeditionConfig.RAID_LOOT_GRACE_MS = 45000
 -- Wait after the last stage starts before allowing "all clear" (covers spawn flash delay).
+-- Actual eligibility is max(this, raid.timeToSpawnMonsters + 2000); grace also requires a successful spawn.
 ExpeditionConfig.RAID_CLEAR_ELIGIBLE_DELAY_MS = 5000
 ExpeditionConfig.RAID_WATCH_INTERVAL_MS = 2000
 ExpeditionConfig.RAID_ARENA_KIND = "raid"

@@ -87,6 +87,15 @@ function RemoteHirelingEconomy.setSellOnNoCap(player, enabled)
 	setBoolFlag(player, RemoteHirelingConfig.KV_SELL_ON_NO_CAP, enabled)
 end
 
+--- When false, emergency auto-sell skips while the free-sell cooldown (tax) is active.
+function RemoteHirelingEconomy.getAcceptTaxOnCooldown(player)
+	return getBoolFlag(player, RemoteHirelingConfig.KV_ACCEPT_TAX_ON_COOLDOWN, false)
+end
+
+function RemoteHirelingEconomy.setAcceptTaxOnCooldown(player, enabled)
+	setBoolFlag(player, RemoteHirelingConfig.KV_ACCEPT_TAX_ON_COOLDOWN, enabled)
+end
+
 --- Tax percent while remote cooldown is active (0 when ready).
 function RemoteHirelingEconomy.getTaxPercent(player)
 	local untilTs = RemoteHirelingEconomy.getCooldownUntil(player)
@@ -119,6 +128,7 @@ function RemoteHirelingEconomy.statusFields(player)
 		autoSell = RemoteHirelingEconomy.getAutoSell(player),
 		sellOnNoGold = RemoteHirelingEconomy.getSellOnNoGold(player),
 		sellOnNoCap = RemoteHirelingEconomy.getSellOnNoCap(player),
+		acceptTaxOnCooldown = RemoteHirelingEconomy.getAcceptTaxOnCooldown(player),
 		cooldownSeconds = RemoteHirelingConfig.COOLDOWN_SECONDS or 3600,
 	}
 end
@@ -465,6 +475,12 @@ function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 		return false
 	end
 
+	-- Opt-in: do not auto-sell while free-sell cooldown would apply 20% tax.
+	if RemoteHirelingEconomy.isOnCooldown(player)
+		and not RemoteHirelingEconomy.getAcceptTaxOnCooldown(player) then
+		return false
+	end
+
 	local pid = player:getId()
 	local now = nowUnix()
 	local cooldown = RemoteHirelingConfig.EMERGENCY_SELL_COOLDOWN_SECONDS or 5
@@ -474,8 +490,25 @@ function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 	end
 
 	local filterMode, itemIds = RemoteHirelingEconomy.getSellFilter(player)
-	local gold, items, taxPercent = RemoteHirelingEconomy.sellAll(player, true, filterMode, itemIds)
+	local gold, items, taxPercent = 0, 0, RemoteHirelingEconomy.getTaxPercent(player)
+	-- Cap shortage: sell pouch first (quick-loot parks weight there). Gold shortage
+	-- prefers full inventory sell-all so supplies/backpack junk can fund restock.
+	if kind == "cap" and RemoteHirelingEconomy.sellLootPouch then
+		gold, items, taxPercent = RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
+	end
 	if items <= 0 then
+		gold, items, taxPercent = RemoteHirelingEconomy.sellAll(player, true, filterMode, itemIds)
+	end
+	if items <= 0 and kind ~= "cap" and RemoteHirelingEconomy.sellLootPouch then
+		gold, items, taxPercent = RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
+	end
+	if items <= 0 then
+		-- Same debounce key so we do not spam every kill while pouch has no catalog junk.
+		lastEmergencySellAt[pid] = now
+		player:sendTextMessage(
+			MESSAGE_STATUS,
+			"Auto-sell: nothing sellable in loot pouch/inventory (check Skipped vs Accepted sell list)."
+		)
 		return false
 	end
 	lastEmergencySellAt[pid] = now

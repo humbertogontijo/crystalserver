@@ -276,6 +276,39 @@ local function collectCorpseItems(corpse)
 	return items
 end
 
+--- Auto-sell + sell-on-no-cap: free pouch weight before stock/C++ auto-loot.
+--- Solo hunts early-return from splitCorpse; without this, playerQuickLootCorpse
+--- just leaves heavy loot on the corpse and never sells.
+local function trySellForInsufficientCap(player, corpse, isBoss)
+	if not player or not corpse then
+		return false
+	end
+	if not RemoteHirelingEconomy or not RemoteHirelingEconomy.maybeSellForShortage then
+		return false
+	end
+	local dest = resolveController(player) or player
+	if not autoLootEnabled(dest, isBoss == true) then
+		return false
+	end
+	if not dest.getFreeCapacity then
+		return false
+	end
+
+	-- UI "0 oz" is freeCap < 100 (centioz). Do not depend on accepts/getWeight
+	-- bindings here — C++ will leave loot on the corpse either way.
+	local free = tonumber(dest:getFreeCapacity()) or 0
+	if free < 100 then
+		return RemoteHirelingEconomy.maybeSellForShortage(dest, "cap") == true
+	end
+
+	for _, it in ipairs(collectCorpseItems(corpse)) do
+		if playerAcceptsItem(dest, it) and not controllerCanCarry(dest, it) then
+			return RemoteHirelingEconomy.maybeSellForShortage(dest, "cap") == true
+		end
+	end
+	return false
+end
+
 local function creditLootStats(player, itemId, count)
 	if not player or not player.sendLootStats or not itemId or count <= 0 then
 		return
@@ -542,7 +575,9 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 					delivered = true
 					break
 				end
-				if onExpedition and not controllerCanCarry(dest, it) and ExpeditionSafety and ExpeditionSafety.handleShortage then
+				-- Sell-on-insufficient-cap (auto-sell) is not expedition-only; abort still
+				-- only runs when ExpeditionSafety finds an entered session + stop flag.
+				if not controllerCanCarry(dest, it) and ExpeditionSafety and ExpeditionSafety.handleShortage then
 					local recovered = ExpeditionSafety.handleShortage(
 						dest,
 						"cap",
@@ -579,6 +614,10 @@ function LootSplit.onDropLoot(monster, corpse)
 		return
 	end
 	pcall(function()
+		-- Runs before async C++ playerQuickLootCorpse (same death tick, sync PostDropLoot).
+		local mType = monster.getType and monster:getType() or nil
+		local isBoss = mType and mType.isRewardBoss and mType:isRewardBoss()
+		trySellForInsufficientCap(owner, corpse, isBoss)
 		LootSplit.splitCorpse(monster, corpse, owner)
 	end)
 end

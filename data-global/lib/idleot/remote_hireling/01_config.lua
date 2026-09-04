@@ -8,6 +8,7 @@ RemoteHirelingConfig.KV_COOLDOWN_UNTIL = "cooldownUntil"
 RemoteHirelingConfig.KV_AUTO_SELL = "autoSell"
 RemoteHirelingConfig.KV_SELL_ON_NO_GOLD = "sellOnNoGold"
 RemoteHirelingConfig.KV_SELL_ON_NO_CAP = "sellOnNoCap"
+RemoteHirelingConfig.KV_ACCEPT_TAX_ON_COOLDOWN = "acceptTaxOnCooldown"
 RemoteHirelingConfig.KV_SELL_FILTER_MODE = "sellFilterMode"
 RemoteHirelingConfig.KV_SELL_FILTER_IDS = "sellFilterIds"
 

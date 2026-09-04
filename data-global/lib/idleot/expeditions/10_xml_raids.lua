@@ -244,9 +244,13 @@ local function addRaidStages(raid, groups)
 		})
 		if stage and stage.autoAdvance then
 			if isLast then
+				-- Keep last stage open; RaidInstance watcher owns teardown after clear/despawn.
 				stage:autoAdvance("24h")
 			else
-				stage:autoAdvance(50)
+				-- Encounter:enterStage cancelEvents() drops pending spawnMonsters timers.
+				-- Advance only after the default spawn flash so wave monsters actually appear.
+				local spawnMs = tonumber(raid.timeToSpawnMonsters) or ParseDuration("3s") or 3000
+				stage:autoAdvance(math.max(100, spawnMs + 200))
 			end
 		end
 		prevDelay = group.delay or prevDelay

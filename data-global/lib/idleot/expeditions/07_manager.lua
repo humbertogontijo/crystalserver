@@ -3475,12 +3475,17 @@ function ExpeditionManager.requestSwitch(player, expeditionId, role, loadout, lu
 	end
 
 	if #others == 0 then
+		-- Same LEAVE_COUNTDOWN_SEC as Stop (companions do not count as teammates).
 		logger.info(
-			"[Expedition] {} solo switch → {} (direct)",
+			"[Expedition] {} solo switch → {} (countdown)",
 			player:getName(),
 			tostring(catalog.id)
 		)
-		performDirectSwitch(player, session, switchTo, nil)
+		ExpeditionManager.requestLeave(player, {
+			switchTo = switchTo,
+			reason = "switch",
+			expeditionName = catalog.name,
+		})
 		return
 	end
 
@@ -3642,6 +3647,15 @@ end
 
 function ExpeditionManager.cancelSwitch(player)
 	if not player then
+		return
+	end
+	-- Solo change uses leave countdown (no session.pendingSwitch).
+	if ExpeditionManager.cancelLeave(player) then
+		ExpeditionProtocol.send(player, { type = "leaveCancelled" })
+		player:sendTextMessage(
+			MESSAGE_EVENT_ADVANCE,
+			"Expedition change cancelled. Continuing the current expedition."
+		)
 		return
 	end
 	local session = ExpeditionManager.getSessionByPlayer(player)
