@@ -421,6 +421,13 @@ function TeamStore.adoptAccountTeamLeadership(player, opts)
 		return false
 	end
 
+	-- Team prey / XP boost are team-scoped: move with the roster controller.
+	local bonuses = kvGet(oldHost, TeamConfig.KV_BONUSES)
+	if bonuses ~= nil then
+		kvSet(player, TeamConfig.KV_BONUSES, bonuses)
+		kvRemove(oldHost, TeamConfig.KV_BONUSES)
+	end
+
 	kvRemove(oldHost, TeamConfig.KV_MEMBERS)
 	kvRemove(oldHost, TeamConfig.KV_MEMBERS_LEGACY)
 	TeamStore.setControllerPointer(oldHost, player:getGuid())
@@ -431,6 +438,9 @@ function TeamStore.adoptAccountTeamLeadership(player, opts)
 	end
 	if ListingsStore and ListingsStore.adoptListing then
 		ListingsStore.adoptListing(player, oldHost)
+	end
+	if TeamBonus and TeamBonus.syncCombatCache then
+		pcall(TeamBonus.syncCombatCache, player)
 	end
 
 	return true

@@ -225,8 +225,44 @@ function ExpeditionManager.reselectAnchor(session)
 	return ExpeditionConfig.pickAnchor(session)
 end
 
+local function isOpenWorldReturnPos(pos)
+	if not pos then
+		return false
+	end
+	if not InstanceWorld or not InstanceWorld.classify then
+		return true
+	end
+	local kind = InstanceWorld.classify(pos).kind
+	if kind ~= "city" and kind ~= "settlement" and kind ~= "hub" then
+		return false
+	end
+	-- City occupancy can win over hunt masks on shared XY (graves, etc.). Reject
+	-- any tile that is also a hunt footprint so leave never parks on the hold.
+	if kind ~= "hub" and InstanceWorld.occupancyByHuntId then
+		for _, occ in pairs(InstanceWorld.occupancyByHuntId) do
+			if occ and occ.contains and occ:contains(pos.x, pos.y) then
+				return false
+			end
+		end
+	end
+	return true
+end
+
 local function saveReturn(player, pos)
-	pos = pos or player:getPosition()
+	pos = pos or (player and player:getPosition()) or nil
+	if not player or not pos then
+		return
+	end
+	-- Never persist a private-instance or hunt-footprint tile as the post-leave
+	-- return point (switch leave→join with skipTeleport used to overwrite temple
+	-- with the hunt XY; leave then teleportTo'd the same tile and no-oped).
+	local privateBase = (InstanceWorld and InstanceWorld.PRIVATE_BASE) or 3000000
+	if player.getInstanceId and (player:getInstanceId() or 0) >= privateBase then
+		return
+	end
+	if not isOpenWorldReturnPos(pos) then
+		return
+	end
 	player:setStorageValue(ExpeditionConfig.STORAGE_RETURN_X, pos.x)
 	player:setStorageValue(ExpeditionConfig.STORAGE_RETURN_Y, pos.y)
 	player:setStorageValue(ExpeditionConfig.STORAGE_RETURN_Z, pos.z)
@@ -236,14 +272,35 @@ local function loadReturn(player)
 	local x = player:getStorageValue(ExpeditionConfig.STORAGE_RETURN_X)
 	local y = player:getStorageValue(ExpeditionConfig.STORAGE_RETURN_Y)
 	local z = player:getStorageValue(ExpeditionConfig.STORAGE_RETURN_Z)
-	if x < 0 or y < 0 or z < 0 then
+	local function templeFallback()
 		local town = player:getTown()
 		if town then
 			return town:getTemplePosition()
 		end
 		return Position(32369, 32241, 7)
 	end
-	return Position(x, y, z)
+	if x < 0 or y < 0 or z < 0 then
+		return templeFallback()
+	end
+	local pos = Position(x, y, z)
+	if not isOpenWorldReturnPos(pos) then
+		return templeFallback()
+	end
+	return pos
+end
+
+local function teleportPlayerHome(player, returnPos)
+	if not player then
+		return false
+	end
+	returnPos = returnPos or loadReturn(player)
+	if InstanceWorld and InstanceWorld.exitToOpenWorld then
+		return InstanceWorld.exitToOpenWorld(player, returnPos)
+	end
+	if InstanceWorld and InstanceWorld.travel then
+		return InstanceWorld.travel(player, returnPos)
+	end
+	return player:teleportTo(returnPos) and true or false
 end
 
 local function markActive(player, expeditionId, slot)
@@ -2542,15 +2599,14 @@ local function teleportHumanToReturn(player)
 	if not returnPos then
 		return false
 	end
-	if InstanceWorld and InstanceWorld.travel then
-		InstanceWorld.travel(player, returnPos)
-	else
-		player:teleportTo(returnPos)
+	local ok = teleportPlayerHome(player, returnPos)
+	if ok and player.getHealth and player:getHealth() > 0 then
+		local now = player:getPosition()
+		if now then
+			now:sendMagicEffect(CONST_ME_TELEPORT)
+		end
 	end
-	if player.getHealth and player:getHealth() > 0 then
-		player:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
-	end
-	return true
+	return ok
 end
 
 local function ejectPlayerFromExpedition(player, opts)
@@ -3686,6 +3742,11 @@ function ExpeditionManager.leave(player, opts)
 		-- client still shows STOP EXPEDITION from a sticky status opcode.
 		clearActive(player)
 		ExpeditionManager.clearAreaEffects(player)
+		if not opts.skipTeleport then
+			teleportPlayerHome(player)
+		elseif InstanceWorld and InstanceWorld.rescueIfStranded then
+			pcall(InstanceWorld.rescueIfStranded, player)
+		end
 		ExpeditionProtocol.sendEnded(player)
 		if not opts.skipTeamUndeploy and TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
 			TeamManager.undeploy(player)
@@ -3732,11 +3793,7 @@ function ExpeditionManager.leave(player, opts)
 		if InstanceWorld and InstanceWorld.suppressHuntLeave then
 			InstanceWorld.suppressHuntLeave(member, true)
 		end
-		if InstanceWorld and InstanceWorld.travel then
-			InstanceWorld.travel(member, returnPos)
-		else
-			member:teleportTo(returnPos)
-		end
+		teleportPlayerHome(member, returnPos)
 		if InstanceWorld and InstanceWorld.suppressHuntLeave then
 			InstanceWorld.suppressHuntLeave(member, false)
 		end
@@ -3766,11 +3823,7 @@ function ExpeditionManager.leave(player, opts)
 						if InstanceWorld and InstanceWorld.suppressHuntLeave then
 							InstanceWorld.suppressHuntLeave(player, true)
 						end
-						if InstanceWorld and InstanceWorld.travel then
-							InstanceWorld.travel(player, returnPos)
-						else
-							player:teleportTo(returnPos)
-						end
+						teleportPlayerHome(player, returnPos)
 						if InstanceWorld and InstanceWorld.suppressHuntLeave then
 							InstanceWorld.suppressHuntLeave(player, false)
 						end
@@ -3797,11 +3850,7 @@ function ExpeditionManager.leave(player, opts)
 						if InstanceWorld and InstanceWorld.suppressHuntLeave then
 							InstanceWorld.suppressHuntLeave(player, true)
 						end
-						if InstanceWorld and InstanceWorld.travel then
-							InstanceWorld.travel(player, returnPos)
-						else
-							player:teleportTo(returnPos)
-						end
+						teleportPlayerHome(player, returnPos)
 						if InstanceWorld and InstanceWorld.suppressHuntLeave then
 							InstanceWorld.suppressHuntLeave(player, false)
 						end
@@ -3850,16 +3899,15 @@ function ExpeditionManager.leave(player, opts)
 		if InstanceWorld and InstanceWorld.suppressHuntLeave then
 			InstanceWorld.suppressHuntLeave(player, true)
 		end
-		if InstanceWorld and InstanceWorld.travel then
-			InstanceWorld.travel(player, returnPos)
-		else
-			player:teleportTo(returnPos)
-		end
+		teleportPlayerHome(player, returnPos)
 		if InstanceWorld and InstanceWorld.suppressHuntLeave then
 			InstanceWorld.suppressHuntLeave(player, false)
 		end
 		if player.getHealth and player:getHealth() > 0 then
-			player:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
+			local now = player:getPosition()
+			if now then
+				now:sendMagicEffect(CONST_ME_TELEPORT)
+			end
 		end
 	end
 
@@ -4199,7 +4247,7 @@ function ExpeditionManager.onLogin(player)
 		clearActive(player)
 		ExpeditionManager.clearAreaEffects(player)
 		player:setIdleCombat(false)
-		player:teleportTo(returnPos)
+		teleportPlayerHome(player, returnPos)
 		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Your expedition was interrupted. You were returned to safety.")
 	end
 

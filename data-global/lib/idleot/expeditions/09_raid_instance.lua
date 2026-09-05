@@ -383,12 +383,17 @@ function RaidInstance.teardown(raidName, opts)
 			ExpeditionManager.clearActiveFlag(player)
 			local returnPos = ExpeditionManager.loadReturnPos(player)
 			if player:getHealth() > 0 then
-				if InstanceWorld and InstanceWorld.travel then
+				if InstanceWorld and InstanceWorld.exitToOpenWorld then
+					InstanceWorld.exitToOpenWorld(player, returnPos)
+				elseif InstanceWorld and InstanceWorld.travel then
 					InstanceWorld.travel(player, returnPos)
 				else
 					player:teleportTo(returnPos)
 				end
-				player:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
+				local now = player:getPosition()
+				if now then
+					now:sendMagicEffect(CONST_ME_TELEPORT)
+				end
 			end
 			ExpeditionProtocol.sendEnded(player)
 			if not opts.silent then
@@ -799,12 +804,17 @@ function RaidInstance.leave(player, opts)
 		ExpeditionManager.clearAreaEffects(player)
 	end
 	if player:getHealth() > 0 then
-		if InstanceWorld and InstanceWorld.travel then
+		if InstanceWorld and InstanceWorld.exitToOpenWorld then
+			InstanceWorld.exitToOpenWorld(player, returnPos)
+		elseif InstanceWorld and InstanceWorld.travel then
 			InstanceWorld.travel(player, returnPos)
 		else
 			player:teleportTo(returnPos)
 		end
-		player:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
+		local now = player:getPosition()
+		if now then
+			now:sendMagicEffect(CONST_ME_TELEPORT)
+		end
 	end
 	ExpeditionProtocol.sendEnded(player)
 	if not opts.silent then

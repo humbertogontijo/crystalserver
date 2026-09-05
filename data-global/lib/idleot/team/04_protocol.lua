@@ -38,6 +38,58 @@ function TeamProtocol.sendTeam(player)
 	})
 end
 
+--- Push team wire (incl. shared prey/XP bonuses) to every real online roster client.
+function TeamProtocol.sendTeamToRoster(player)
+	if not player then
+		return false
+	end
+	local controller = player
+	if TeamStore and TeamStore.resolveTeamController then
+		controller = TeamStore.resolveTeamController(player) or player
+	end
+	local controllerGuid = controller.getGuid and controller:getGuid() or 0
+	local seen = {}
+
+	local function isUiClient(member)
+		if not member then
+			return false
+		end
+		local client = member.getClient and member:getClient() or nil
+		local version = type(client) == "table" and tonumber(client.version) or nil
+		if version and version > 0 then
+			return true
+		end
+		-- No client protocol ⇒ headless companion (or offline stub).
+		return false
+	end
+
+	local function sendTo(member)
+		if not member or not member.getGuid then
+			return
+		end
+		local guid = member:getGuid()
+		if not guid or seen[guid] or not isUiClient(member) then
+			return
+		end
+		seen[guid] = true
+		TeamProtocol.sendTeam(member)
+	end
+
+	sendTo(player)
+	if not (Game and Game.getPlayers) or controllerGuid <= 0 or not TeamStore or not TeamStore.resolveTeamController then
+		return true
+	end
+	for _, online in ipairs(Game.getPlayers()) do
+		if online and online:getGuid() ~= player:getGuid() then
+			local theirController = TeamStore.resolveTeamController(online)
+			if theirController and theirController:getGuid() == controllerGuid then
+				sendTo(online)
+			end
+		end
+	end
+	return true
+end
+
 function TeamProtocol.sendInventory(player, targetName, inventory)
 	return TeamProtocol.send(player, {
 		type = "inventory",
@@ -408,7 +460,7 @@ function TeamProtocol.handle(player, buffer)
 			TeamProtocol.sendError(player, err or "Failed to buy team XP boost.")
 			return
 		end
-		TeamProtocol.sendTeam(player)
+		TeamProtocol.sendTeamToRoster(player)
 	elseif action == "preyAction" then
 		if not TeamBonus then
 			TeamProtocol.sendError(player, "Team bonuses unavailable.")
@@ -430,7 +482,7 @@ function TeamProtocol.handle(player, buffer)
 			TeamProtocol.sendError(player, err or "Prey action failed.")
 			return
 		end
-		TeamProtocol.sendTeam(player)
+		TeamProtocol.sendTeamToRoster(player)
 	else
 		TeamProtocol.sendError(player, "Unknown team action.")
 	end

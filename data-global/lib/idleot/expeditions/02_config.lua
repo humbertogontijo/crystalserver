@@ -1092,8 +1092,6 @@ function ExpeditionConfig.catalogForClient(player)
 				end
 			else
 				row.city = entry.city
-				row.expstar = entry.expstar
-				row.lootstar = entry.lootstar
 				local density = tonumber(entry.creatureDensity)
 				if density and density > 0 then
 					row.creatureDensity = density

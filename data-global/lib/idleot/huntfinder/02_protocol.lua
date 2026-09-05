@@ -95,6 +95,16 @@ local function monsterInfo(name)
 		return nil
 	end
 	local raceId = mType:raceId() or 0
+	-- Some monsters lack a bestiary raceId; fall back to lookType so the client
+	-- can still key HP/XP/resist rows (OTC outfit race often matches lookType).
+	if raceId == 0 then
+		local ok, outfit = pcall(function()
+			return mType:outfit()
+		end)
+		if ok and outfit and outfit.lookType then
+			raceId = tonumber(outfit.lookType) or 0
+		end
+	end
 	if raceId == 0 then
 		return nil
 	end

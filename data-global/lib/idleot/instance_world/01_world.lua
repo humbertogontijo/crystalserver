@@ -798,7 +798,18 @@ local function validRescueDest(pos)
 		return false
 	end
 	local target = InstanceWorld.classify(pos)
-	return target.kind == "city" or target.kind == "settlement" or target.kind == "hub" or target.kind == "stay"
+	if target.kind ~= "city" and target.kind ~= "settlement" and target.kind ~= "hub" then
+		return false
+	end
+	-- Shared city/hunt XY must not be treated as a safe return.
+	if target.kind ~= "hub" and InstanceWorld.occupancyByHuntId then
+		for _, occ in pairs(InstanceWorld.occupancyByHuntId) do
+			if occ and occ.contains and occ:contains(pos.x, pos.y) then
+				return false
+			end
+		end
+	end
+	return true
 end
 
 local function asWorldPos(pos)
@@ -857,6 +868,89 @@ local function bindSafeCity(player)
 	bindCreature(player, InstanceWorld.cityInstanceId(cityId))
 	InstanceWorld.persist(player, "city:" .. tostring(cityId))
 	return dest
+end
+
+local function sameTile(a, b)
+	return a and b and a.x == b.x and a.y == b.y and a.z == b.z
+end
+
+--- Leave a private hunt/raid instance for city/settlement/hub.
+--- Unlike travel(), this always rebinds off PRIVATE_BASE and never relies on
+--- classify(returnPos) succeeding while still on a hunt footprint.
+--- Handles same-tile returns (engine teleportTo refuses identical XY/Z).
+function InstanceWorld.exitToOpenWorld(player, destPos)
+	if not player then
+		return false
+	end
+	local wasPrivate = (player.getInstanceId and player:getInstanceId() or 0) >= InstanceWorld.PRIVATE_BASE
+	destPos = asWorldPos(destPos) or InstanceWorld.rescuePos(player)
+	local target = InstanceWorld.classify(destPos)
+	if target.kind == "hub" then
+		bindCreature(player, InstanceWorld.HUB_ADVENTURERS)
+		InstanceWorld.persist(player, "hub:adventurers")
+	elseif target.kind == "settlement" and target.settlementId then
+		bindCreature(player, InstanceWorld.cityInstanceId(target.settlementId))
+		InstanceWorld.persist(player, "settlement:" .. tostring(target.settlementId))
+	elseif target.kind == "city" and target.cityId then
+		bindCreature(player, InstanceWorld.cityInstanceId(target.cityId))
+		InstanceWorld.persist(player, "city:" .. tostring(target.cityId))
+	else
+		-- Hunt / blocked / stay return would leave the player on PRIVATE_BASE.
+		destPos = bindSafeCity(player)
+	end
+
+	local cur = player.getPosition and player:getPosition() or nil
+	-- Leaving a private hold must change tiles when return XY matches the hunt
+	-- footprint (shared city/hunt occupancy). Same-tile setInstanceId alone looks
+	-- like "stuck on the expedition".
+	if wasPrivate and sameTile(cur, destPos) then
+		local town = player.getTown and player:getTown() or nil
+		if town and town.getTemplePosition then
+			destPos = town:getTemplePosition()
+		else
+			destPos = Position(32369, 32241, 7)
+		end
+		local safe = InstanceWorld.classify(destPos)
+		if safe.kind == "hub" then
+			bindCreature(player, InstanceWorld.HUB_ADVENTURERS)
+			InstanceWorld.persist(player, "hub:adventurers")
+		elseif safe.kind == "settlement" and safe.settlementId then
+			bindCreature(player, InstanceWorld.cityInstanceId(safe.settlementId))
+			InstanceWorld.persist(player, "settlement:" .. tostring(safe.settlementId))
+		elseif safe.kind == "city" and safe.cityId then
+			bindCreature(player, InstanceWorld.cityInstanceId(safe.cityId))
+			InstanceWorld.persist(player, "city:" .. tostring(safe.cityId))
+		else
+			bindCreature(player, InstanceWorld.cityInstanceId(24))
+			InstanceWorld.persist(player, "city:24")
+		end
+		cur = player.getPosition and player:getPosition() or nil
+	elseif sameTile(cur, destPos) then
+		InstanceWorld.scheduleSendBounds(player)
+		return true
+	end
+
+	if not (player.getTile and player:getTile()) then
+		return false
+	end
+	InstanceWorld._skipEngineTravel = true
+	local ok = player:teleportTo(destPos) and true or false
+	InstanceWorld._skipEngineTravel = false
+	if not ok then
+		destPos = bindSafeCity(player)
+		cur = player.getPosition and player:getPosition() or nil
+		if not sameTile(cur, destPos) and player.getTile and player:getTile() then
+			InstanceWorld._skipEngineTravel = true
+			ok = player:teleportTo(destPos) and true or false
+			InstanceWorld._skipEngineTravel = false
+		else
+			ok = (player.getInstanceId and player:getInstanceId() or 0) < InstanceWorld.PRIVATE_BASE
+		end
+	end
+	if ok then
+		InstanceWorld.scheduleSendBounds(player)
+	end
+	return ok
 end
 
 --- Hunt/raid tiles or a leftover hunt instance after the in-memory session is gone.

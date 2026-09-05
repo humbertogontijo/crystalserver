@@ -70,6 +70,32 @@ local function defaultBonuses()
 	}
 end
 
+local function indexedValues(raw)
+	if type(raw) ~= "table" then
+		return {}
+	end
+	if #raw > 0 then
+		local out = {}
+		for i = 1, #raw do
+			out[i] = raw[i]
+		end
+		return out
+	end
+	local keys = {}
+	for k in pairs(raw) do
+		local idx = tonumber(k)
+		if idx then
+			keys[#keys + 1] = idx
+		end
+	end
+	table.sort(keys)
+	local out = {}
+	for _, idx in ipairs(keys) do
+		out[#out + 1] = raw[idx] or raw[tostring(idx)]
+	end
+	return out
+end
+
 local function normalizePreySlot(raw, index)
 	local slot = emptyPreySlot(index, STATE_LOCKED)
 	if type(raw) ~= "table" then
@@ -84,26 +110,98 @@ local function normalizePreySlot(raw, index)
 	slot.bonusTimeLeft = math.max(0, tonumber(raw.bonusTimeLeft) or 0)
 	slot.raceIdList = {}
 	slot.raceNames = {}
-	if type(raw.raceIdList) == "table" then
-		for _, id in ipairs(raw.raceIdList) do
-			local raceId = tonumber(id) or 0
-			if raceId > 0 then
-				slot.raceIdList[#slot.raceIdList + 1] = raceId
-			end
+	for _, id in ipairs(indexedValues(raw.raceIdList)) do
+		local raceId = tonumber(id) or 0
+		if raceId > 0 then
+			slot.raceIdList[#slot.raceIdList + 1] = raceId
 		end
 	end
-	if type(raw.raceNames) == "table" then
-		for _, name in ipairs(raw.raceNames) do
-			slot.raceNames[#slot.raceNames + 1] = tostring(name)
-		end
+	for _, name in ipairs(indexedValues(raw.raceNames)) do
+		slot.raceNames[#slot.raceNames + 1] = tostring(name)
 	end
 	if slot.state == STATE_ACTIVE and (slot.raceId <= 0 or slot.bonusTimeLeft <= 0) then
-		slot.state = STATE_SELECTION
+		slot.state = STATE_INACTIVE
 		slot.raceId = 0
 		slot.raceName = ""
 		slot.bonusTimeLeft = 0
+		slot.raceIdList = {}
+		slot.raceNames = {}
 	end
 	return slot
+end
+
+local function bonusesPayloadIsEmpty(stored)
+	if type(stored) ~= "table" then
+		return true
+	end
+	local xp = stored.xpBoost
+	if type(xp) == "table" and (tonumber(xp.timeLeft) or 0) > 0 then
+		return false
+	end
+	local prey = stored.prey
+	if type(prey) ~= "table" then
+		return true
+	end
+	for i = 1, TeamConfig.PREY_SLOT_COUNT or 3 do
+		local slot = prey[i]
+		if type(slot) == "table" then
+			if tostring(slot.state) == STATE_ACTIVE and (tonumber(slot.raceId) or 0) > 0 then
+				return false
+			end
+			if type(slot.raceIdList) == "table" then
+				local n = 0
+				for _ in pairs(slot.raceIdList) do
+					n = n + 1
+					if n > 0 then
+						return false
+					end
+				end
+			end
+		end
+	end
+	return true
+end
+
+local function reclaimOrphanedBonuses(controller, kv, stored)
+	if not controller or not kv or not TeamStore or not TeamStore.resolvePlayerByGuid then
+		return stored
+	end
+	if not bonusesPayloadIsEmpty(stored) then
+		return stored
+	end
+	local accountId = controller.getAccountId and controller:getAccountId() or 0
+	local myGuid = controller:getGuid()
+	if not accountId or accountId <= 0 then
+		return stored
+	end
+	local resultId = db.storeQuery(
+		"SELECT `id` FROM `players` WHERE `account_id` = "
+			.. tonumber(accountId)
+			.. " AND `deletion` = 0"
+	)
+	if not resultId then
+		return stored
+	end
+	repeat
+		local guid = Result.getNumber(resultId, "id")
+		if guid and guid ~= myGuid then
+			local other = TeamStore.resolvePlayerByGuid(guid)
+			if other and other.kv then
+				local otherKv = other:kv()
+				local otherRaw = otherKv and otherKv:get(TeamConfig.KV_BONUSES)
+				local otherBonuses = decode(otherRaw)
+				local pointsHere = tonumber(TeamStore.getControllerPointer(other) or 0) == myGuid
+				if type(otherBonuses) == "table" and pointsHere and not bonusesPayloadIsEmpty(otherBonuses) then
+					kv:set(TeamConfig.KV_BONUSES, otherRaw)
+					otherKv:remove(TeamConfig.KV_BONUSES)
+					Result.free(resultId)
+					return otherBonuses
+				end
+			end
+		end
+	until not Result.next(resultId)
+	Result.free(resultId)
+	return stored
 end
 
 local function loadBonuses(controller)
@@ -116,6 +214,7 @@ local function loadBonuses(controller)
 		return data
 	end
 	local stored = decode(kv:get(TeamConfig.KV_BONUSES))
+	stored = reclaimOrphanedBonuses(controller, kv, stored)
 	if type(stored) ~= "table" then
 		return data
 	end
@@ -203,13 +302,47 @@ local function raceName(raceId)
 	if Game and Game.getBestiaryList then
 		local ids = Game.getBestiaryList(false) or {}
 		local names = Game.getBestiaryList(true) or {}
-		for i, id in ipairs(ids) do
+		for i, id in pairs(ids) do
 			if tonumber(id) == raceId then
 				return tostring(names[i] or "")
 			end
 		end
 	end
 	return ""
+end
+
+local function collectBestiaryRaceIds()
+	local ids = {}
+	local seen = {}
+	local function push(raceId)
+		raceId = tonumber(raceId) or 0
+		if raceId > 0 and not seen[raceId] then
+			seen[raceId] = true
+			ids[#ids + 1] = raceId
+		end
+	end
+	if Game and Game.getBestiaryList then
+		local listed = Game.getBestiaryList(false)
+		if type(listed) == "table" then
+			for _, raceId in pairs(listed) do
+				push(raceId)
+			end
+		end
+		-- Some builds return ids keyed by raceId when called without bool.
+		if #ids == 0 then
+			listed = Game.getBestiaryList()
+			if type(listed) == "table" then
+				for k, v in pairs(listed) do
+					if type(v) == "number" then
+						push(v)
+					elseif type(k) == "number" and type(v) == "string" then
+						push(k)
+					end
+				end
+			end
+		end
+	end
+	return ids
 end
 
 local function rollBonusType(previous)
@@ -243,10 +376,10 @@ local function buildMonsterGrid(level, blacklist)
 	local names = {}
 	blacklist = blacklist or {}
 	local blocked = {}
-	for _, id in ipairs(blacklist) do
+	for _, id in pairs(blacklist) do
 		blocked[tonumber(id) or 0] = true
 	end
-	local ids = (Game and Game.getBestiaryList and Game.getBestiaryList(false)) or {}
+	local ids = collectBestiaryRaceIds()
 	if #ids == 0 then
 		return out, names
 	end
@@ -263,7 +396,7 @@ local function buildMonsterGrid(level, blacklist)
 		stageOne, stageTwo, stageThree, stageFour = 1, 1, 3, 4
 	end
 	local tries = 0
-	while #out < 9 and tries < 200 do
+	while #out < 9 and tries < 400 do
 		tries = tries + 1
 		local raceId = tonumber(ids[math.random(1, #ids)]) or 0
 		if raceId > 0 and not blocked[raceId] then
@@ -301,7 +434,8 @@ local function buildMonsterGrid(level, blacklist)
 				elseif stageFour > 0 and stars >= 4 then
 					ok = true
 					stageFour = stageFour - 1
-				elseif tries >= 40 then
+				elseif tries >= 40 or (#out + (400 - tries) < 9) then
+					-- Prefer stage match, but always fill the 9-slot grid eventually.
 					ok = true
 				end
 			end
@@ -510,8 +644,25 @@ function TeamBonus.getWire(player)
 	local preyWire = {}
 	for i, slot in ipairs(data.prey) do
 		local locked = slot.state == STATE_LOCKED
+		-- Slot 3: always show an active team prey to everyone. Without personal
+		-- third-slot unlock, non-active states stay locked (store unlock CTA).
 		if i == 3 and not slot3Manage and slot.state ~= STATE_ACTIVE then
 			locked = true
+		end
+		-- Never ship an empty selection grid; regenerate once onto the team controller.
+		if not locked and slot.state == STATE_SELECTION and #(slot.raceIdList or {}) == 0 then
+			local blacklist = {}
+			for _, other in ipairs(data.prey) do
+				if other.raceId and other.raceId > 0 then
+					blacklist[#blacklist + 1] = other.raceId
+				end
+			end
+			local level = (controller and controller.getLevel and controller:getLevel()) or (player:getLevel() or 1)
+			slot.raceIdList, slot.raceNames = buildMonsterGrid(level, blacklist)
+			if #(slot.raceIdList or {}) == 0 then
+				slot.state = STATE_INACTIVE
+			end
+			saveBonuses(controller, data)
 		end
 		preyWire[#preyWire + 1] = {
 			index = i,
@@ -523,9 +674,10 @@ function TeamBonus.getWire(player)
 			bonusPercent = slot.bonusPercent,
 			bonusRarity = slot.bonusRarity,
 			bonusTimeLeft = slot.bonusTimeLeft,
-			raceIdList = slot.raceIdList,
-			raceNames = slot.raceNames,
+			raceIdList = (locked and {}) or slot.raceIdList,
+			raceNames = (locked and {}) or slot.raceNames,
 			canManage = (i ~= 3 and not locked) or (i == 3 and slot3Manage),
+			-- Keep unlock CTA visible even while an active team prey is shown.
 			needsPersonalThirdSlot = i == 3 and not slot3Manage,
 		}
 	end
@@ -826,15 +978,8 @@ function TeamBonus.preySelect(player, slotIndex, raceId)
 		end
 		return false, "That monster is not on the current list."
 	end
-	local mult = TeamConfig.PREY_PRICE_MULT or 2
-	local listPrice = configManager and configManager.getNumber and configManager.getNumber(configKeys.PREY_SELECTION_LIST_PRICE) or 5
-	-- First free select when coming from inactive with a freshly generated free list:
-	-- charge only if slot was already in selection with a prior list (rerolled).
-	-- Always charge select-list price ×2 for explicit select (matches store economics).
-	local paid, err = payPreyCards(player, mult * listPrice)
-	if not paid then
-		return false, err
-	end
+	-- Confirming a creature from the current list is free (same as personal prey
+	-- MONSTERSELECTION). Wildcard costs apply only to pick-specific / bonus reroll.
 	local bonusType = rollBonusType(nil)
 	local rarity, percent = rollBonusValue(bonusType, 1)
 	slot.raceId = raceId
@@ -908,14 +1053,26 @@ function TeamBonus.preyOpenSlot(player, slotIndex)
 		end
 		slot.raceIdList, slot.raceNames = buildMonsterGrid(player:getLevel(), blacklist)
 	end
+	if #(slot.raceIdList or {}) == 0 then
+		return false, "No preyable creatures available for team prey."
+	end
 	slot.state = STATE_SELECTION
 	saveBonuses(controller, data)
 	return true
 end
 
 function TeamBonus.onMemberLogin(player)
-	if not player or not TeamBonus.isRosterMember(player) then
-		if player and player.clearTeamPreyBonuses then
+	if not player then
+		return
+	end
+	-- Real clients must never keep a headless-companion mark (blocks UI opcodes).
+	local client = player.getClient and player:getClient() or nil
+	local version = type(client) == "table" and tonumber(client.version) or nil
+	if version and version > 0 and TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player) then
+		player:setStorageValue(TeamConfig.STORAGE_COMPANION_CONTROLLER, -1)
+	end
+	if not TeamBonus.isRosterMember(player) then
+		if player.clearTeamPreyBonuses then
 			player:clearTeamPreyBonuses()
 		end
 		return
