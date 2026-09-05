@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Sineater Inferniarch")
 local monster = {}
 
 monster.description = "a sineater inferniarch"
-monster.experience = 7250
+monster.experience = 6750
 monster.outfit = {
 	lookType = 1795,
 	lookHead = 0,
@@ -95,7 +95,7 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 200, maxDamage = -255 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -350, maxDamage = -415, range = 7, radius = 4, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -20, maxDamage = -20, range = 7, radius = 4, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -350, maxDamage = -450, length = 4, spread = 5, effect = CONST_ME_WHITE_ENERGY_SPARK, target = false },
 	{ name = "combat", interval = 2700, chance = 37, type = COMBAT_DEATHDAMAGE, minDamage = -350, maxDamage = -405, radius = 1, effect = CONST_ME_BIG_SCRATCH, range = 1, target = true },
 	{ name = "firefield", interval = 2000, chance = 15, range = 7, radius = 1, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
@@ -117,7 +117,7 @@ monster.elements = {
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = -5 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -10 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -5 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 10 },
 }
 

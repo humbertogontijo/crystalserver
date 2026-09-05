@@ -78,7 +78,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -25 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -25, maxDamage = -25 },
 	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_FIREDAMAGE, minDamage = 0, maxDamage = -25, range = 1, effect = CONST_ME_HITBYFIRE, target = true },
 }
 

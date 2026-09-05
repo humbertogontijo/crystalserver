@@ -64,7 +64,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 50,
-	armor = 50,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "glooth-generator summon", interval = 1000, chance = 100, target = false },
 }

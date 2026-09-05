@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Malicious Soul")
 local monster = {}
 
 monster.description = "a malicious soul"
-monster.experience = 25000
+monster.experience = 0
 monster.outfit = {
 	lookType = 1268,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 25000
-monster.maxHealth = 25000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "undead"
 monster.corpse = 0
 monster.speed = 120
@@ -60,7 +60,7 @@ monster.voices = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -500 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -1000 },
 	{ name = "combat", interval = 1700, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -150, maxDamage = -550, radius = 3, shootEffect = CONST_ANI_ENVENOMEDARROW, effect = CONST_ME_HITBYPOISON, target = true },
 	{ name = "combat", interval = 1700, chance = 25, type = COMBAT_ENERGYDAMAGE, minDamage = -150, maxDamage = -550, length = 4, spread = 0, effect = CONST_ME_ENERGYHIT, target = false },
 	{ name = "combat", interval = 1700, chance = 35, type = COMBAT_DEATHDAMAGE, minDamage = -150, maxDamage = -550, radius = 3, effect = CONST_ME_MORTAREA, target = false },
@@ -68,7 +68,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 40,
-	armor = 79,
+	armor = 0,
 	--	mitigation = ???,
 }
 

@@ -72,12 +72,12 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 40, maxDamage = -289, condition = { type = CONDITION_FIRE, totalDamage = 6, interval = 9000 } },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -250, condition = { type = CONDITION_FIRE, totalDamage = 6, interval = 9000 } },
 }
 
 monster.defenses = {
 	defense = 20,
-	armor = 20,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_HEALING, minDamage = 80, maxDamage = 95, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

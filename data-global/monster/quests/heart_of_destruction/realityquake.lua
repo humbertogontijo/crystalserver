@@ -102,7 +102,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 100,
-	armor = 100,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_HEALING, radius = 8, effect = CONST_ME_POFF, target = false },
 }

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Naga Archer")
 local monster = {}
 
 monster.description = "a naga archer"
-monster.experience = 5150
+monster.experience = 4640
 monster.outfit = {
 	lookType = 1537,
 	lookHead = 55,
@@ -92,11 +92,11 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "combat", interval = 2000, chance = 50, type = COMBAT_PHYSICALDAMAGE, minDamage = -120, maxDamage = -300, shootEffect = CONST_ANI_EXPLOSION, effect = CONST_ME_PURPLEENERGY, range = 6, target = true }, -- basic_attack
+	{ name = "combat", interval = 2000, chance = 50, type = COMBAT_PHYSICALDAMAGE, minDamage = -85, maxDamage = -300, shootEffect = CONST_ANI_EXPLOSION, effect = CONST_ME_PURPLEENERGY, range = 6, target = true }, -- basic_attack
 	{ name = "nagadeathattack", interval = 2500, chance = 20, minDamage = -45, maxDamage = -70, range = 6, target = true }, -- death_strike
 	{ name = "nagadeath", interval = 3000, chance = 20, minDamage = -125, maxDamage = -250, target = false }, -- short_death_wave
 	{ name = "death chain", interval = 3500, chance = 20, minDamage = -225, maxDamage = -447, range = 6, target = true }, -- death_chain
-	{ name = "combat", interval = 4000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -90, maxDamage = -171, shootEffect = CONST_ANI_EXPLOSION, effect = CONST_ME_PURPLEENERGY, range = 6, target = true }, -- explosion_strike
+	{ name = "combat", interval = 4000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -85, maxDamage = -171, shootEffect = CONST_ANI_EXPLOSION, effect = CONST_ME_PURPLEENERGY, range = 6, target = true }, -- explosion_strike
 }
 
 monster.defenses = {

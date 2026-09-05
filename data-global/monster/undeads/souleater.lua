@@ -93,11 +93,11 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -210 },
-	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_ICEDAMAGE, minDamage = -50, maxDamage = -100, range = 7, shootEffect = CONST_ANI_SMALLICE, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -209 },
+	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_ICEDAMAGE, minDamage = -50, maxDamage = -130, range = 7, shootEffect = CONST_ANI_SMALLICE, target = true },
 	{ name = "souleater drown", interval = 2000, chance = 10, target = false },
 	{ name = "souleater wave", interval = 2000, chance = 10, minDamage = -100, maxDamage = -200, target = false },
-	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_LIFEDRAIN, minDamage = -30, maxDamage = -60, radius = 4, effect = CONST_ME_MAGIC_RED, target = false },
+	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_LIFEDRAIN, minDamage = 0, maxDamage = -60, radius = 4, effect = CONST_ME_MAGIC_RED, target = false },
 }
 
 monster.defenses = {

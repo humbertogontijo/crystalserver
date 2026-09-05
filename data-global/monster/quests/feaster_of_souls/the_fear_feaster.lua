@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("The Fear Feaster")
 local monster = {}
 
 monster.description = "The Fear Feaster"
-monster.experience = 30000
+monster.experience = 0
 monster.outfit = {
 	lookType = 1276,
 	lookHead = 0,
@@ -17,8 +17,8 @@ monster.events = {
 	"FeasterOfSoulsBossDeath",
 }
 
-monster.health = 300000
-monster.maxHealth = 300000
+monster.health = 290
+monster.maxHealth = 290
 monster.race = "undead"
 monster.corpse = 32737
 monster.speed = 125
@@ -110,7 +110,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 170,
-	armor = 160,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "speed", interval = 10000, chance = 40, speedChange = 510, effect = CONST_ME_MAGIC_GREEN, target = false, duration = 20000 },
 	{ name = "combat", interval = 5000, chance = 60, type = COMBAT_HEALING, minDamage = 1000, maxDamage = 2500, effect = CONST_ME_MAGIC_BLUE, target = false },
@@ -126,7 +126,7 @@ monster.elements = {
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 100 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 200 },
 }
 
 monster.immunities = {

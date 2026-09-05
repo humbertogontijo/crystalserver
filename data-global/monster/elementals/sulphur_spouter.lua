@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Sulphur Spouter")
 local monster = {}
 
 monster.description = "a sulphur spouter"
-monster.experience = 11517
+monster.experience = 12381
 monster.outfit = {
 	lookType = 1547,
 	lookHead = 85,
@@ -89,7 +89,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -801 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -750 },
 	{ name = "combat", interval = 3500, chance = 35, type = COMBAT_PHYSICALDAMAGE, minDamage = -800, maxDamage = -1200, range = 4, shootEffect = CONST_ANI_HOLY, effect = CONST_ME_YELLOW_RINGS, target = true },
 	{ name = "combat", interval = 4000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -800, maxDamage = -1200, radius = 4, effect = CONST_ME_YELLOWSMOKE, target = true },
 	{ name = "sulphur spouter wave", interval = 4500, chance = 30, minDamage = -650, maxDamage = -900 },

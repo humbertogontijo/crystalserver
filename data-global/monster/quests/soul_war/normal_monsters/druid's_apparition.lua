@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Druid's Apparition")
 local monster = {}
 
 monster.description = "a druid's apparition"
-monster.experience = 28600
+monster.experience = 21130
 monster.outfit = {
 	lookType = 148,
 	lookHead = 114,

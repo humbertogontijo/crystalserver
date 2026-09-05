@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Norcferatu Heartless")
 local monster = {}
 
 monster.description = "a norcferatu heartless"
-monster.experience = 4450
+monster.experience = 5900
 monster.outfit = {
 	lookType = 1852,
 	lookHead = 0,
@@ -96,7 +96,7 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = -150, maxDamage = -480, effect = CONST_ME_DRAWBLOOD, target = true },
 	{ name = "clouds chain", interval = 2000, chance = 8, minDamage = -100, maxDamage = -380, target = true },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -270, maxDamage = -550, range = 5, shootEffect = CONST_ANI_WHIRLWINDAXE, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -230, maxDamage = -550, range = 5, shootEffect = CONST_ANI_WHIRLWINDAXE, target = true },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -700, radius = 4, effect = CONST_ME_BLOOD_RAIN, target = false },
 }
 
@@ -107,16 +107,16 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = -10 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = -5 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 10 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 10 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 5 },
+	{ type = COMBAT_EARTHDAMAGE, percent = -10 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 5 },
-	{ type = COMBAT_DEATHDAMAGE, percent = -30 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -5 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 30 },
 }
 
 monster.immunities = {

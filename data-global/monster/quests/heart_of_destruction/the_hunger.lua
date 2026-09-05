@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 250000
-monster.maxHealth = 250000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "venom"
 monster.corpse = 0
 monster.speed = 200
@@ -80,7 +80,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 100,
-	armor = 100,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_HEALING, minDamage = 0, maxDamage = 191, effect = CONST_ME_MAGIC_GREEN, target = false },
 }

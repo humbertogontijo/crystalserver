@@ -18,8 +18,8 @@ monster.bosstiary = {
 	bossRace = RARITY_ARCHFOE,
 }
 
-monster.health = 10000
-monster.maxHealth = 10000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "undead"
 monster.corpse = 28794
 monster.speed = 175
@@ -78,7 +78,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 33,
-	armor = 28,
+	armor = 0,
 	--	mitigation = ???,
 }
 

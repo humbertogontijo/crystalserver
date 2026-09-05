@@ -7,8 +7,8 @@ monster.outfit = {
 	lookTypeEx = 7059,
 }
 
-monster.health = 12000
-monster.maxHealth = 12000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "undead"
 monster.corpse = 33984
 monster.speed = 0
@@ -55,7 +55,7 @@ monster.light = {
 
 monster.defenses = {
 	defense = 55,
-	armor = 55,
+	armor = 0,
 }
 
 monster.elements = {

@@ -17,8 +17,8 @@ monster.events = {
 	"BoundAstralPowerDeath",
 }
 
-monster.health = 70000
-monster.maxHealth = 70000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "venom"
 monster.corpse = 0
 monster.speed = 175
@@ -76,7 +76,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 50,
-	armor = 50,
+	armor = 0,
 	--	mitigation = ???,
 }
 

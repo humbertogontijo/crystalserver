@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Tropical Desolator")
 local monster = {}
 
 monster.description = "tropical desolator"
-monster.experience = 0
+monster.experience = 23000
 monster.outfit = {
 	lookType = 1589,
 	lookHead = 0,
@@ -22,8 +22,8 @@ monster.events = {
 	--"TropicalDesolatorMonsterDeath", -- EVENT TO REGISTER THE BOSS DEATH FOR BETWEEN THE LINES QUEST
 }
 
-monster.health = 15500
-monster.maxHealth = 15500
+monster.health = 20500
+monster.maxHealth = 20500
 monster.race = "undead"
 monster.corpse = 28601
 monster.speed = 85
@@ -103,12 +103,12 @@ monster.defenses = {
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 0 },
+	{ type = COMBAT_ICEDAMAGE, percent = -3 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }

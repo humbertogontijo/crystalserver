@@ -51,7 +51,17 @@ server-build:
 			ABS_TOOL="$$(find "$(HERE)/build/$$PRESET/bin" -type f -name "$$tool" -perm -111 2>/dev/null | head -1)"; \
 			[ -n "$$ABS_TOOL" ] && ln -sfn "$$ABS_TOOL" "$$MAP_TOOLS_BIN/$$tool" && echo "[map-tools] $$tool → $$ABS_TOOL"; \
 		done; \
-		ABS_MQFFI="$$(find "$(HERE)/build/$$PRESET" -type f \( -name 'libmap_query_ffi.dylib' -o -name 'libmap_query_ffi.so' \) 2>/dev/null | head -1)"; \
+		# Prefer build/<preset>/bin (current CMake output). A stale copy can linger
+		# under tools/map_query/ and break nested flood-fill seed JSON (key 'x').
+		ABS_MQFFI=""; \
+		for cand in \
+			"$(HERE)/build/$$PRESET/bin/libmap_query_ffi.dylib" \
+			"$(HERE)/build/$$PRESET/bin/libmap_query_ffi.so"; do \
+			if [ -f "$$cand" ]; then ABS_MQFFI="$$cand"; break; fi; \
+		done; \
+		if [ -z "$$ABS_MQFFI" ]; then \
+			ABS_MQFFI="$$(find "$(HERE)/build/$$PRESET/bin" -type f \( -name 'libmap_query_ffi.dylib' -o -name 'libmap_query_ffi.so' \) 2>/dev/null | head -1)"; \
+		fi; \
 		if [ -n "$$ABS_MQFFI" ]; then \
 			case "$$ABS_MQFFI" in *.dylib) ln -sfn "$$ABS_MQFFI" "$$MAP_TOOLS_BIN/libmap_query_ffi.dylib" ;; \
 				*.so) ln -sfn "$$ABS_MQFFI" "$$MAP_TOOLS_BIN/libmap_query_ffi.so" ;; esac; \

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Orclops Bloodbreaker")
 local monster = {}
 
 monster.description = "an orclops bloodbreaker"
-monster.experience = 7800
+monster.experience = 10250
 monster.outfit = {
 	lookType = 1854,
 	lookHead = 0,
@@ -97,7 +97,7 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = -260, maxDamage = -785 },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -430, maxDamage = -1170, range = 5, effect = CONST_ME_SPIKES, target = true },
-	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_PHYSICALDAMAGE, minDamage = -400, maxDamage = -450, range = 5, radius = 5, effect = CONST_ME_GROUNDSHAKER, target = false },
+	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_PHYSICALDAMAGE, minDamage = -370, maxDamage = -425, range = 5, radius = 5, effect = CONST_ME_GROUNDSHAKER, target = false },
 }
 
 monster.defenses = {
@@ -108,16 +108,16 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = -5 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 5 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 10 },
+	{ type = COMBAT_FIREDAMAGE, percent = -10 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 5 },
+	{ type = COMBAT_ICEDAMAGE, percent = -5 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = -30 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 30 },
 }
 
 monster.immunities = {

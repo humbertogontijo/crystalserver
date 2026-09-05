@@ -22,8 +22,8 @@ monster.events = {
 	--"BlightMarinerMonsterDeath", -- EVENT TO REGISTER THE BOSS DEATH FOR BETWEEN THE LINES QUEST
 }
 
-monster.health = 16500
-monster.maxHealth = 16500
+monster.health = 20500
+monster.maxHealth = 20500
 monster.race = "undead"
 monster.corpse = 28601
 monster.speed = 85

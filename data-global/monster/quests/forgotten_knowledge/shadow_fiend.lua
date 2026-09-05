@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Shadow Fiend")
 local monster = {}
 
 monster.description = "a shadow fiend"
-monster.experience = 500
+monster.experience = 0
 monster.outfit = {
 	lookType = 320,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 3200
-monster.maxHealth = 3200
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "undead"
 monster.corpse = 24256
 monster.speed = 180
@@ -72,7 +72,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 35,
-	armor = 30,
+	armor = 0,
 	mitigation = 1.18,
 	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_HEALING, minDamage = 150, maxDamage = 185, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

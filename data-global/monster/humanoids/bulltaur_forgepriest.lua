@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Bulltaur Forgepriest")
 local monster = {}
 
 monster.description = "a bulltaur forgepriest"
-monster.experience = 5180
+monster.experience = 6400
 monster.outfit = {
 	lookType = 1718,
 	lookHead = 0,
@@ -104,10 +104,10 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 90, maxDamage = -390 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -150, maxDamage = -450, range = 3, radius = 4, effect = CONST_ME_ICEAREA, target = true },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -150, maxDamage = -450, range = 3, radius = 4, effect = 170, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -150, maxDamage = -400, range = 3, radius = 4, effect = 170, target = true },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = -650, range = 7, radius = 4, effect = 168, target = false, duration = 1500 },
 	{ name = "energy wave", interval = 2000, chance = 15, minDamage = -350, maxDamage = -500, length = 1, spread = 0, effect = CONST_ME_ENERGYAREA, target = true },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -150, maxDamage = -450, range = 3, radius = 4, effect = 170, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -150, maxDamage = -400, range = 3, radius = 4, effect = 170, target = true },
 }
 
 monster.defenses = {

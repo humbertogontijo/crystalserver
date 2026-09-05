@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Megasylvan Yselda")
 local monster = {}
 
 monster.description = "Megasylvan Yselda"
-monster.experience = 19900
+monster.experience = 19
 monster.outfit = {
 	lookTypeEx = 36928,
 }
@@ -12,8 +12,8 @@ monster.bosstiary = {
 	bossRace = RARITY_ARCHFOE,
 }
 
-monster.health = 32000
-monster.maxHealth = 32000
+monster.health = 32
+monster.maxHealth = 32
 monster.race = "blood"
 monster.corpse = 36929
 monster.speed = 0
@@ -104,7 +104,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 60,
-	armor = 82,
+	armor = 0,
 	--	mitigation = ???,
 }
 

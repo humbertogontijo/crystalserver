@@ -70,12 +70,12 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -225 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -279 },
 }
 
 monster.defenses = {
 	defense = 27,
-	armor = 25,
+	armor = 0,
 	--	mitigation = ???,
 }
 

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Bright Crystal")
 local monster = {}
 
 monster.description = "a bright crystal"
-monster.experience = 0
+monster.experience = 7805
 monster.outfit = {
 	lookTypeEx = 7806,
 }

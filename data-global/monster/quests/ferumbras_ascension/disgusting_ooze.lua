@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Disgusting Ooze")
 local monster = {}
 
 monster.description = "a disgusting ooze"
-monster.experience = 3700
+monster.experience = 0
 monster.outfit = {
 	lookType = 238,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 3650
-monster.maxHealth = 3650
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "venom"
 monster.corpse = 6532
 monster.speed = 130
@@ -99,7 +99,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 15,
-	armor = 15,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_HEALING, minDamage = 250, maxDamage = 450, effect = CONST_ME_MAGIC_GREEN, target = false },
 }

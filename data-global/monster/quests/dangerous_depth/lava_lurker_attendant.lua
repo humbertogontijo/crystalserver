@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 3000
-monster.maxHealth = 3000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "fire"
 monster.corpse = 27586
 monster.speed = 175
@@ -68,7 +68,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 33,
-	armor = 28,
+	armor = 0,
 }
 
 monster.elements = {
@@ -79,7 +79,7 @@ monster.elements = {
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = -1 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }

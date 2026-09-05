@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Vampire Bat")
 local monster = {}
 
 monster.description = "a vampire bat"
-monster.experience = 1200
+monster.experience = 0
 monster.outfit = {
 	lookType = 1868,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 1500
-monster.maxHealth = 1500
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "venom"
 monster.corpse = 35690 -- IM NOT SURE.
 monster.speed = 100
@@ -78,7 +78,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 40,
-	armor = 40,
+	armor = 0,
 }
 
 monster.elements = {

@@ -23,8 +23,8 @@ monster.outfit = {
 -- escolhida (a partir da dificuldade 10 os Sentinels ganham a mecanica de "criar campos que
 -- fortalecem tempestades ao morrer"). O valor abaixo e um placeholder alinhado com o Moonsilver
 -- Protector (22700) so para a criatura ser jogavel; nao e oficial.
-monster.health = 22700
-monster.maxHealth = 22700
+monster.health = 0
+monster.maxHealth = 0
 -- TODO(items): "undead" seguindo os outros construtos do update. Confirmar junto com o corpse id.
 monster.race = "undead"
 -- Corpse levantado no cliente (compartilhado com o Protector e o Devoted Radiant Templar).

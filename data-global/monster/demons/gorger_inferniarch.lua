@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Gorger Inferniarch")
 local monster = {}
 
 monster.description = "a gorger inferniarch"
-monster.experience = 7680
+monster.experience = 7180
 monster.outfit = {
 	lookType = 1797,
 	lookHead = 0,
@@ -95,10 +95,10 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 150, maxDamage = -300 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -150, maxDamage = -250 },
 	{ name = "extended electrify chain", interval = 2000, chance = 15, minDamage = -130, maxDamage = -438, range = 7 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -1, maxDamage = -450, range = 1, effect = CONST_ME_REAPER, target = true },
-	{ name = "combat", interval = 1000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -1, maxDamage = -450, radius = 4, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -1, maxDamage = -440, range = 1, effect = CONST_ME_REAPER, target = true },
+	{ name = "combat", interval = 1000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -1, maxDamage = -430, radius = 4, effect = CONST_ME_MORTAREA, target = false },
 }
 
 monster.defenses = {
@@ -111,7 +111,7 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = -10 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = -5 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
 	{ type = COMBAT_FIREDAMAGE, percent = 20 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },

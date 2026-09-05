@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Cursed Ape")
 local monster = {}
 
 monster.description = "a cursed ape"
-monster.experience = 1860
+monster.experience = 2000
 monster.outfit = {
 	lookType = 1592,
 	lookHead = 0,
@@ -86,8 +86,8 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -498 },
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_DEATHDAMAGE, minDamage = -210, maxDamage = -225, radius = 2, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -217, maxDamage = -217 },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_DEATHDAMAGE, minDamage = -211, maxDamage = -227, radius = 2, effect = CONST_ME_MORTAREA, target = false },
 }
 
 monster.defenses = {

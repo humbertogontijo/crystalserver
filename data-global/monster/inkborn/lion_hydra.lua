@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Lion Hydra")
 local monster = {}
 
 monster.description = "a lion hydra"
-monster.experience = 2450
+monster.experience = 2600
 monster.outfit = {
 	lookType = 1859,
 	lookHead = 0,
@@ -101,7 +101,7 @@ monster.attacks = {
 	-- Fire: Claw Attack (220-280)
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -220, maxDamage = -280, range = 1, effect = CONST_ME_FIREAREA, target = true },
 	-- Holy: Explosion (230-290)
-	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_HOLYDAMAGE, minDamage = -230, maxDamage = -290, radius = 4, effect = CONST_ME_HOLYAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_HOLYDAMAGE, minDamage = -210, maxDamage = -250, radius = 4, effect = CONST_ME_HOLYAREA, target = false },
 }
 
 monster.defenses = {
@@ -113,14 +113,14 @@ monster.defenses = {
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
+	{ type = COMBAT_EARTHDAMAGE, percent = -5 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 5 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 10 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -5 },
+	{ type = COMBAT_DEATHDAMAGE, percent = -10 },
 }
 
 monster.immunities = {

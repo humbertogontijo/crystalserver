@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Devoted Radiant Templar")
 local monster = {}
 
 monster.description = "a devoted radiant templar"
-monster.experience = 42300
+monster.experience = 49900
 monster.outfit = {
 	lookType = 1965,
 	lookHead = 0,

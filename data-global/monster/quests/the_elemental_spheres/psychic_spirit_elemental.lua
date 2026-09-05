@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Psychic Spirit Elemental")
 local monster = {}
 
 monster.description = "a psychic spirit elemental"
-monster.experience = 1300
+monster.experience = 1
 monster.outfit = {
 	lookType = 1840,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 1400
-monster.maxHealth = 1400
+monster.health = 1
+monster.maxHealth = 1
 monster.race = "undead"
 monster.corpse = 6003
 monster.speed = 125
@@ -86,7 +86,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = -100 },
+	{ type = COMBAT_FIREDAMAGE, percent = 100 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

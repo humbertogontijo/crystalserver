@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Roaming Dread")
 local monster = {}
 
 monster.description = "a roaming dread"
-monster.experience = 12040
+monster.experience = 10350
 monster.outfit = {
 	lookType = 1904,
 	lookHead = 0,

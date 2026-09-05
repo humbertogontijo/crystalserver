@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 2000
-monster.maxHealth = 2000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "venom"
 monster.corpse = 0
 monster.speed = 25
@@ -68,13 +68,13 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 33,
-	armor = 28,
+	armor = 0,
 	--	mitigation = ???,
 }
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 50 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 150 },
 	{ type = COMBAT_EARTHDAMAGE, percent = -40 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },

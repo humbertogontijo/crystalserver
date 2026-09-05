@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Brother Worm")
 local monster = {}
 
 monster.description = "Brother Worm"
-monster.experience = 30000
+monster.experience = 0
 monster.outfit = {
 	lookType = 295,
 	lookHead = 0,
@@ -17,8 +17,8 @@ monster.events = {
 	"BrotherWormDeath",
 }
 
-monster.health = 300000
-monster.maxHealth = 300000
+monster.health = 290
+monster.maxHealth = 290
 monster.race = "undead"
 monster.corpse = 8119
 monster.speed = 250
@@ -80,23 +80,23 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 15,
-	armor = 10,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "speed", interval = 10000, chance = 40, speedChange = 510, effect = CONST_ME_MAGIC_GREEN, target = false, duration = 20000 },
 	{ name = "combat", interval = 2000, chance = 60, type = COMBAT_HEALING, minDamage = 350, maxDamage = 600, effect = CONST_ME_MAGIC_BLUE, target = false },
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 90 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 90 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 90 },
-	{ type = COMBAT_FIREDAMAGE, percent = 90 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = -10 },
 	{ type = COMBAT_LIFEDRAIN, percent = 90 },
 	{ type = COMBAT_MANADRAIN, percent = 90 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 90 },
-	{ type = COMBAT_ICEDAMAGE, percent = 90 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 90 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 90 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 200 },
 }
 
 monster.immunities = {

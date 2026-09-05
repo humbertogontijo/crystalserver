@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Diamond Servant Replica")
 local monster = {}
 
 monster.description = "a diamond servant replica"
-monster.experience = 700
+monster.experience = 1400
 monster.outfit = {
 	lookType = 397,
 	lookHead = 0,

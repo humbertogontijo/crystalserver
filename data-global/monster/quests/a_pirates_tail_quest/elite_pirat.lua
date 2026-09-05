@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Elite Pirat")
 local monster = {}
 
 monster.description = "an elite pirat"
-monster.experience = 18000
+monster.experience = 0
 monster.outfit = {
 	lookType = 534,
 	lookHead = 79,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 20000
-monster.maxHealth = 20000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "blood"
 monster.corpse = 17446
 monster.speed = 100
@@ -71,7 +71,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 15,
-	armor = 15,
+	armor = 0,
 	--	mitigation = ???,
 }
 

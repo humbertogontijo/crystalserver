@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Winged Jaracal")
 local monster = {}
 
 monster.description = "a winged jaracal"
-monster.experience = 7830
+monster.experience = 7200
 monster.outfit = {
 	lookType = 1961,
 	lookHead = 113,

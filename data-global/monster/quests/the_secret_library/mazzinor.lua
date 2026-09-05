@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Mazzinor")
 local monster = {}
 
 monster.description = "Mazzinor"
-monster.experience = 100000
+monster.experience = 55000
 monster.outfit = {
 	lookType = 1062,
 	lookHead = 85,
@@ -23,8 +23,8 @@ monster.bosstiary = {
 	bossRace = RARITY_ARCHFOE,
 }
 
-monster.health = 300000
-monster.maxHealth = 300000
+monster.health = 350000
+monster.maxHealth = 350000
 monster.race = "blood"
 monster.corpse = 22495
 monster.speed = 115
@@ -106,7 +106,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 40,
-	armor = 40,
+	armor = 0,
 	--	mitigation = ???,
 }
 
@@ -114,7 +114,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 5 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = 200 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

@@ -2,13 +2,13 @@ local mType = Game.createMonsterType("Overcharged Disruption")
 local monster = {}
 
 monster.description = "an overcharged disruption"
-monster.experience = 400
+monster.experience = 0
 monster.outfit = {
 	lookTypeEx = 1959,
 }
 
-monster.health = 128000
-monster.maxHealth = 128000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "venom"
 monster.corpse = 0
 monster.speed = 190
@@ -70,7 +70,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 100,
-	armor = 100,
+	armor = 0,
 	--	mitigation = ???,
 }
 

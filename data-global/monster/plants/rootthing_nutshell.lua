@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Rootthing Nutshell")
 local monster = {}
 
 monster.description = "a rootthing nutshell"
-monster.experience = 9200
+monster.experience = 9940
 monster.outfit = {
 	lookType = 1760,
 	lookHead = 0,
@@ -94,10 +94,10 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -150, maxDamage = -670 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -600 },
 	{ name = "rotthligulus", interval = 2000, chance = 20, minDamage = -750, maxDamage = -1100 },
 	{ name = "rotthingwave", interval = 2000, chance = 20 },
-	{ name = "combat", interval = 2000, chance = 17, type = COMBAT_PHYSICALDAMAGE, minDamage = -400, maxDamage = -700, range = 6, effect = CONST_ME_BITE, target = true },
+	{ name = "combat", interval = 2000, chance = 17, type = COMBAT_PHYSICALDAMAGE, minDamage = -350, maxDamage = -600, range = 6, effect = CONST_ME_BITE, target = true },
 }
 
 monster.defenses = {

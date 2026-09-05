@@ -19,8 +19,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 22700
-monster.maxHealth = 22700
+monster.health = 0
+monster.maxHealth = 0
 -- TODO(items): "undead" seguindo os outros construtos do update. Confirmar junto com o corpse id.
 monster.race = "undead"
 -- Corpse levantado no cliente (compartilhado com o Sentinel e o Devoted Radiant Templar).
@@ -88,9 +88,9 @@ monster.defenses = {
 -- Freezing 100%, Heal 100%. Aqui o campo e a RESISTENCIA, ou seja percent = 100 - valor da wiki.
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = -7 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 20 },
-	{ type = COMBAT_FIREDAMAGE, percent = 10 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

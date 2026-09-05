@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Turbulent Elemental")
 local monster = {}
 
 monster.description = "a turbulent elemental"
-monster.experience = 19360
+monster.experience = 17230
 monster.outfit = {
 	lookType = 1314,
 	lookHead = 0,

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Wilting Leaf Golem")
 local monster = {}
 
 monster.description = "a wilting leaf golem"
-monster.experience = 145
+monster.experience = 225
 monster.outfit = {
 	lookType = 573,
 	lookHead = 0,
@@ -88,7 +88,7 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 1500, chance = 100, minDamage = 0, maxDamage = -120, condition = { type = CONDITION_POISON, totalDamage = 300, interval = 4000 } },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -50, range = 7, radius = 1, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_EXPLOSIONHIT, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -120, range = 7, radius = 1, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_EXPLOSIONHIT, target = true },
 	-- poison
 	{ name = "condition", type = CONDITION_POISON, interval = 2000, chance = 15, minDamage = -150, maxDamage = -200, radius = 4, effect = CONST_ME_GREEN_RINGS, target = false },
 	{ name = "speed", interval = 2000, chance = 20, speedChange = -600, radius = 3, effect = CONST_ME_MAGIC_RED, target = false, duration = 15000 },
@@ -96,7 +96,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 0,
-	armor = 20,
+	armor = 21,
 }
 
 monster.elements = {

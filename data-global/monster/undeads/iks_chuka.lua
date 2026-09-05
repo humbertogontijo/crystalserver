@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Iks Chuka")
 local monster = {}
 
 monster.description = "an iks chuka"
-monster.experience = 1050
+monster.experience = 1310
 monster.outfit = {
 	lookType = 1588,
 	lookHead = 0,
@@ -90,9 +90,9 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -175 },
-	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -130, range = 4, shootEffect = CONST_ANI_ENCHANTEDSPEAR, target = true },
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_PHYSICALDAMAGE, minDamage = -110, maxDamage = -175, radius = 2, effect = CONST_ME_EXPLOSIONHIT, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -160 },
+	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -101, maxDamage = -117, range = 4, shootEffect = CONST_ANI_ENCHANTEDSPEAR, target = true },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_PHYSICALDAMAGE, minDamage = -95, maxDamage = -175, radius = 2, effect = CONST_ME_EXPLOSIONHIT, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -98, maxDamage = -114, range = 5, radius = 1, shootEffect = CONST_ANI_DEATH, effect = CONST_ME_MORTAREA, target = true },
 }
 

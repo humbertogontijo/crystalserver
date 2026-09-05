@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Bug")
 local monster = {}
 
 monster.description = "a bug"
-monster.experience = 18
+monster.experience = 15
 monster.outfit = {
 	lookType = 45,
 	lookHead = 0,
@@ -83,7 +83,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 5,
-	armor = 2,
+	armor = 0,
 	mitigation = 0.07,
 }
 

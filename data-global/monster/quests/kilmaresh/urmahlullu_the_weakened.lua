@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Urmahlullu the Weakened")
 local monster = {}
 
 monster.description = "Urmahlullu the Weakened"
-monster.experience = 55000
+monster.experience = 50
 monster.outfit = {
 	lookType = 1197,
 	lookHead = 0,
@@ -18,8 +18,8 @@ monster.bosstiary = {
 	bossRace = RARITY_ARCHFOE,
 }
 
-monster.health = 100000
-monster.maxHealth = 512000
+monster.health = 150
+monster.maxHealth = 150
 monster.race = "blood"
 monster.corpse = 31413
 monster.speed = 95
@@ -124,7 +124,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 84,
-	armor = 84,
+	armor = 0,
 	--	mitigation = ???,
 }
 

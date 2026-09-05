@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 350000
-monster.maxHealth = 350000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "undead"
 monster.corpse = 0
 monster.speed = 100
@@ -77,7 +77,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 105,
-	armor = 105,
+	armor = 0,
 	mitigation = 4.16,
 	{ name = "combat", interval = 3000, chance = 15, type = COMBAT_HEALING, minDamage = 4700, maxDamage = 6500, effect = 249, target = false },
 }
@@ -85,7 +85,7 @@ monster.defenses = {
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 30 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Norcferatu Nightweaver")
 local monster = {}
 
 monster.description = "a norcferatu nightweaver"
-monster.experience = 4900
+monster.experience = 6370
 monster.outfit = {
 	lookType = 1851,
 	lookHead = 0,
@@ -95,7 +95,7 @@ monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -400 },
 	{ name = "combat", interval = 2000, chance = 17, type = COMBAT_DEATHDAMAGE, minDamage = -370, maxDamage = -410, range = 7, radius = 3, shootEffect = CONST_ANI_DEATH, effect = CONST_ME_MORTAREA, target = true },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -320, maxDamage = -350, range = 1, effect = CONST_ME_REAPER, target = true },
-	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_DEATHDAMAGE, minDamage = -150, maxDamage = -450, range = 5, radius = 5, effect = CONST_ME_MELTING_CREAM, target = false },
+	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_DEATHDAMAGE, minDamage = -150, maxDamage = -410, range = 5, radius = 5, effect = CONST_ME_MELTING_CREAM, target = false },
 }
 
 monster.defenses = {
@@ -114,7 +114,7 @@ monster.elements = {
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = -10 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 5 },
-	{ type = COMBAT_DEATHDAMAGE, percent = -25 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 25 },
 }
 
 monster.immunities = {

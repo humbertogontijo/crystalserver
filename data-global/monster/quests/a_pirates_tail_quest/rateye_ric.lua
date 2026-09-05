@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 50000
-monster.maxHealth = 50000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "blood"
 monster.corpse = 0
 monster.speed = 100
@@ -70,7 +70,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 15,
-	armor = 15,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_HEALING, minDamage = 157, maxDamage = 393, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "invisible", interval = 2000, chance = 40, effect = CONST_ME_MAGIC_BLUE },

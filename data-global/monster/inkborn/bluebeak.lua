@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Bluebeak")
 local monster = {}
 
 monster.description = "a bluebeak"
-monster.experience = 2070
+monster.experience = 2330
 monster.outfit = {
 	lookType = 1849,
 	lookHead = 0,
@@ -63,7 +63,7 @@ monster.attacks = {
 	-- Ice: Melee (80-240)
 	{ name = "melee", interval = 2000, chance = 100, minDamage = -80, maxDamage = -240 },
 	-- Ice: Cross (240-260)
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -240, maxDamage = -260, radius = 3, effect = CONST_ME_ICEAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -230, maxDamage = -260, radius = 3, effect = CONST_ME_ICEAREA, target = false },
 }
 
 monster.defenses = {
@@ -74,14 +74,14 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 5 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = -5 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 5 },
+	{ type = COMBAT_FIREDAMAGE, percent = -5 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -10 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 10 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }
 

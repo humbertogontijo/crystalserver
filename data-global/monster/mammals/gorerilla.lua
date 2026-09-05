@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Gorerilla")
 local monster = {}
 
 monster.description = "a gorerilla"
-monster.experience = 13172
+monster.experience = 14160
 monster.outfit = {
 	lookType = 1559,
 	lookHead = 85,
@@ -88,7 +88,7 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -950 },
-	{ name = "combat", interval = 2200, chance = 60, type = COMBAT_PHYSICALDAMAGE, minDamage = -300, maxDamage = -750, range = 7, shootEffect = CONST_ANI_LARGEROCK, target = true },
+	{ name = "combat", interval = 2200, chance = 60, type = COMBAT_PHYSICALDAMAGE, minDamage = -209, maxDamage = -343, range = 7, shootEffect = CONST_ANI_LARGEROCK, target = true },
 	{ name = "combat", interval = 3100, chance = 35, type = COMBAT_FIREDAMAGE, minDamage = -650, maxDamage = -850, range = 7, radius = 3, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREATTACK, target = true },
 	{ name = "gorerilla large ring", interval = 3500, chance = 35, minDamage = -600, maxDamage = -1000 },
 	{ name = "gorerilla small ring", interval = 3800, chance = 20, minDamage = -600, maxDamage = -1000 },

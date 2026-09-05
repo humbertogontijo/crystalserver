@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Iceplume Strider")
 local monster = {}
 
 monster.description = "an iceplume strider"
-monster.experience = 8150
+monster.experience = 7500
 monster.outfit = {
 	lookType = 1950,
 	lookHead = 0,
@@ -93,7 +93,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 75,
-	armor = 75,
+	armor = 85,
 	mitigation = 3.68,
 }
 

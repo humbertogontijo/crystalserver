@@ -2,13 +2,13 @@ local mType = Game.createMonsterType("Soulcatcher")
 local monster = {}
 
 monster.description = "a soulcatcher"
-monster.experience = 320
+monster.experience = 0
 monster.outfit = {
 	lookTypeEx = 11053,
 }
 
-monster.health = 50000
-monster.maxHealth = 50000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "undead"
 monster.corpse = 0
 monster.speed = 0
@@ -65,7 +65,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 50,
-	armor = 50,
+	armor = 0,
 	mitigation = 0.51,
 	{ name = "soulcatcher summon", interval = 2000, chance = 10, target = false },
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_HEALING, minDamage = 100, maxDamage = 145, effect = CONST_ME_HITBYFIRE, target = false },

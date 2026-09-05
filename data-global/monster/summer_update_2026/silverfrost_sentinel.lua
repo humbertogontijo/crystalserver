@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Silverfrost Sentinel")
 local monster = {}
 
 monster.description = "a silverfrost sentinel"
-monster.experience = 8450
+monster.experience = 7700
 monster.outfit = {
 	lookType = 1951,
 	lookHead = 81,

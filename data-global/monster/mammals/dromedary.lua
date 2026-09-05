@@ -80,7 +80,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -8 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -10 },
 	{ name = "drunk", interval = 4000, chance = 5, range = 1, shootEffect = CONST_ANI_EXPLOSION, effect = CONST_ME_STUN, target = true, duration = 6000 },
 }
 

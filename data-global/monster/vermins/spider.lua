@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Spider")
 local monster = {}
 
 monster.description = "a spider"
-monster.experience = 12
+monster.experience = 10
 monster.outfit = {
 	lookType = 30,
 	lookHead = 0,
@@ -79,12 +79,12 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -9 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -25 },
 }
 
 monster.defenses = {
 	defense = 2,
-	armor = 2,
+	armor = 0,
 	mitigation = 0.05,
 }
 
@@ -92,7 +92,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = -20 },
+	{ type = COMBAT_FIREDAMAGE, percent = -1 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

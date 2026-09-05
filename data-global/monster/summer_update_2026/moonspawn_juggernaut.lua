@@ -30,8 +30,8 @@ monster.Bestiary = {
 	Locations = "Thalassara Surroundings",
 }
 
-monster.health = 6000
-monster.maxHealth = 6000
+monster.health = 60000
+monster.maxHealth = 60000
 monster.race = "venom"
 -- TODO(items): a wiki marca "Loot: Nenhum" e nao existe "dead moonspawn juggernaut" no
 -- items.xml (a leva de corpses do commit ca43ed0d nao cobriu esta criatura, que ainda nao
@@ -106,15 +106,15 @@ monster.defenses = {
 -- A wiki marca 100% em todos os elementos: sem resistencia nem fraqueza.
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 0 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 15 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 100 },
+	{ type = COMBAT_FIREDAMAGE, percent = -5 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 0 },
+	{ type = COMBAT_ICEDAMAGE, percent = 15 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 35 },
 }
 
 monster.immunities = {

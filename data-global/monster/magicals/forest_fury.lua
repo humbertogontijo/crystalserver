@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Forest Fury")
 local monster = {}
 
 monster.description = "a forest fury"
-monster.experience = 235
+monster.experience = 330
 monster.outfit = {
 	lookType = 569,
 	lookHead = 0,
@@ -91,8 +91,8 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -125 },
-	{ name = "combat", interval = 1500, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -100, range = 7, radius = 4, shootEffect = CONST_ANI_HUNTINGSPEAR, effect = CONST_ME_MAGIC_GREEN, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -50 },
+	{ name = "combat", interval = 1500, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -90, range = 7, radius = 4, shootEffect = CONST_ANI_HUNTINGSPEAR, effect = CONST_ME_MAGIC_GREEN, target = true },
 	{ name = "forest fury skill reducer", interval = 2000, chance = 20, range = 5, target = false },
 }
 

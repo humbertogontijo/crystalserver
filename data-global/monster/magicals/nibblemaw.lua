@@ -99,12 +99,12 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -252 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -275 },
 	{ name = "nibblemaw wave", interval = 2000, chance = 20, minDamage = -152, maxDamage = -352 },
-	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -150, radius = 4, effect = CONST_ME_STONES, target = false },
-	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -150, radius = 4, effect = CONST_ME_SOUND_RED, target = false },
-	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -150, range = 7, shootEffect = CONST_ANI_POISON, target = true },
-	{ name = "combat", interval = 2000, chance = 19, type = COMBAT_DEATHDAMAGE, minDamage = -152, maxDamage = -300, range = 7, effect = CONST_ME_MORTAREA, shootEffect = CONST_ANI_SUDDENDEATH, target = true },
+	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_EARTHDAMAGE, minDamage = -200, maxDamage = -300, radius = 4, effect = CONST_ME_STONES, target = false },
+	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -275, radius = 4, effect = CONST_ME_SOUND_RED, target = false },
+	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_EARTHDAMAGE, minDamage = -200, maxDamage = -300, range = 7, shootEffect = CONST_ANI_POISON, target = true },
+	{ name = "combat", interval = 2000, chance = 19, type = COMBAT_DEATHDAMAGE, minDamage = -250, maxDamage = -300, range = 7, effect = CONST_ME_MORTAREA, shootEffect = CONST_ANI_SUDDENDEATH, target = true },
 }
 
 monster.defenses = {

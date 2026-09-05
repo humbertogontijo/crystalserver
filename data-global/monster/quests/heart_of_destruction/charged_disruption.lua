@@ -2,13 +2,13 @@ local mType = Game.createMonsterType("Charged Disruption")
 local monster = {}
 
 monster.description = "a charged disruption"
-monster.experience = 400
+monster.experience = 0
 monster.outfit = {
 	lookTypeEx = 1949,
 }
 
-monster.health = 128000
-monster.maxHealth = 128000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "venom"
 monster.corpse = 0
 monster.speed = 180
@@ -70,7 +70,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 100,
-	armor = 100,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_HEALING, minDamage = 0, maxDamage = 311, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

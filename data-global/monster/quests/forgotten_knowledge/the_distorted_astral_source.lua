@@ -2,13 +2,13 @@ local mType = Game.createMonsterType("The Distorted Astral Source")
 local monster = {}
 
 monster.description = "The Distorted Astral Source"
-monster.experience = 3000
+monster.experience = 0
 monster.outfit = {
 	lookTypeEx = 24229,
 }
 
-monster.health = 10000000
-monster.maxHealth = 10000000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "venom"
 monster.corpse = 0
 monster.speed = 0
@@ -72,7 +72,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 55,
-	armor = 55,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 17, type = COMBAT_HEALING, minDamage = 1000, maxDamage = 1300, target = false },
 }

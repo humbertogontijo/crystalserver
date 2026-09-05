@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Fatal Bug")
 local monster = {}
 
 monster.description = "a fatal bug"
-monster.experience = 668000
+monster.experience = 750000
 monster.outfit = {
 	lookType = 79,
 	lookHead = 0,

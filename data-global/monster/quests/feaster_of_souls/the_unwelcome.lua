@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("The Unwelcome")
 local monster = {}
 
 monster.description = "The Unwelcome"
-monster.experience = 30000
+monster.experience = 0
 monster.outfit = {
 	lookType = 1277,
 	lookHead = 0,
@@ -23,8 +23,8 @@ monster.bosstiary = {
 	bossRace = RARITY_ARCHFOE,
 }
 
-monster.health = 300000
-monster.maxHealth = 300000
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "undead"
 monster.corpse = 32741
 monster.speed = 125
@@ -120,7 +120,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 15,
-	armor = 10,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "speed", interval = 10000, chance = 40, speedChange = 510, effect = CONST_ME_MAGIC_GREEN, target = false, duration = 20000 },
 	{ name = "combat", interval = 5000, chance = 60, type = COMBAT_HEALING, minDamage = 1000, maxDamage = 2500, effect = CONST_ME_MAGIC_BLUE, target = false },

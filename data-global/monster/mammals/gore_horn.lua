@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Gore Horn")
 local monster = {}
 
 monster.description = "a gore horn"
-monster.experience = 12595
+monster.experience = 13540
 monster.outfit = {
 	lookType = 1548,
 	lookHead = 85,
@@ -88,7 +88,7 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -1000 },
 	{ name = "combat", interval = 3500, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -450, maxDamage = -750, length = 7, spread = 0, effect = CONST_ME_ENERGYAREA, target = false },
-	{ name = "combat", interval = 4100, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -500, maxDamage = -900, radius = 7, effect = CONST_ME_EXPLOSIONAREA, target = false },
+	{ name = "combat", interval = 4100, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -1000, radius = 7, effect = CONST_ME_EXPLOSIONAREA, target = false },
 	{ name = "combat", interval = 2700, chance = 35, type = COMBAT_ENERGYDAMAGE, minDamage = -500, maxDamage = -850, range = 1, shootEffect = CONST_ANI_ENERGY, target = true },
 	{ name = "root", interval = 2000, chance = 1, target = true },
 }
@@ -100,14 +100,14 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = -10 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 30 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 50 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 50 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
 	{ type = COMBAT_FIREDAMAGE, percent = -10 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = -10 },
+	{ type = COMBAT_ICEDAMAGE, percent = 10 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }

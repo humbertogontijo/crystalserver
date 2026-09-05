@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Wasp")
 local monster = {}
 
 monster.description = "a wasp"
-monster.experience = 24
+monster.experience = 21
 monster.outfit = {
 	lookType = 44,
 	lookHead = 0,
@@ -86,7 +86,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 10,
-	armor = 4,
+	armor = 0,
 	mitigation = 0.20,
 }
 

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Undead Elite Gladiator")
 local monster = {}
 
 monster.description = "an undead elite gladiator"
-monster.experience = 5090
+monster.experience = 5700
 monster.outfit = {
 	lookType = 306,
 	lookHead = 0,
@@ -94,7 +94,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 100, maxDamage = 550 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
 	{ name = "combat", interval = 1500, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 300, maxDamage = 550, range = 7, shootEffect = CONST_ANI_WHIRLWINDSWORD, target = false },
 	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = 300, maxDamage = 500, range = 5, radius = 3, effect = CONST_ME_HITAREA, target = false },
 }

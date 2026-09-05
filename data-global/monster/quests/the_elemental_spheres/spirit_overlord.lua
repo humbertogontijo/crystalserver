@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Spirit Overlord")
 local monster = {}
 
 monster.description = "Spirit Overlord"
-monster.experience = 2800
+monster.experience = 2
 monster.outfit = {
 	lookType = 1840,
 	lookHead = 0,
@@ -17,8 +17,8 @@ monster.events = {
 	"ElementalOverlordDeath",
 }
 
-monster.health = 4000
-monster.maxHealth = 4000
+monster.health = 4
+monster.maxHealth = 4
 monster.race = "undead"
 monster.corpse = 8105
 monster.speed = 165

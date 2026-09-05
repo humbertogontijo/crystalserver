@@ -88,7 +88,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 40, maxDamage = -289, condition = { type = CONDITION_FIRE, totalDamage = 6, interval = 9000 } },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -260, condition = { type = CONDITION_FIRE, totalDamage = 6, interval = 9000 } },
 }
 
 monster.defenses = {

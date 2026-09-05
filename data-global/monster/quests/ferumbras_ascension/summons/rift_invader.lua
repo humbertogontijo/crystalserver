@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Rift Invader")
 local monster = {}
 
 monster.description = "a rift invader"
-monster.experience = 100
+monster.experience = 0
 monster.outfit = {
 	lookType = 290,
 	lookHead = 0,

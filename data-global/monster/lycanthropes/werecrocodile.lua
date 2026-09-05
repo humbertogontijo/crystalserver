@@ -90,10 +90,10 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -575 },
-	{ name = "combat", interval = 2700, chance = 37, type = COMBAT_PHYSICALDAMAGE, minDamage = -175, maxDamage = -325, radius = 1, effect = CONST_ME_BIG_SCRATCH, range = 1, target = true },
-	{ name = "combat", interval = 3300, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -200, maxDamage = -375, length = 6, spread = 3, effect = CONST_ME_BLACKSMOKE, target = false },
-	{ name = "combat", interval = 3700, chance = 25, type = COMBAT_DEATHDAMAGE, minDamage = -250, maxDamage = -400, radius = 2, range = 4, effect = CONST_ME_MORTAREA, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -550 },
+	{ name = "combat", interval = 2700, chance = 37, type = COMBAT_PHYSICALDAMAGE, minDamage = -200, maxDamage = -450, radius = 1, effect = CONST_ME_BIG_SCRATCH, range = 1, target = true },
+	{ name = "combat", interval = 3300, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -120, maxDamage = -300, length = 6, spread = 3, effect = CONST_ME_BLACKSMOKE, target = false },
+	{ name = "combat", interval = 3700, chance = 25, type = COMBAT_DEATHDAMAGE, minDamage = -120, maxDamage = -300, radius = 2, range = 4, effect = CONST_ME_MORTAREA, target = true },
 }
 
 monster.defenses = {

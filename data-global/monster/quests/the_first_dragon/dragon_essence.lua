@@ -77,7 +77,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 35,
-	armor = 22,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 16, type = COMBAT_HEALING, minDamage = 150, maxDamage = 200, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "speed", interval = 2000, chance = 8, speedChange = 262, effect = CONST_ME_MAGIC_RED, target = false, duration = 7000 },

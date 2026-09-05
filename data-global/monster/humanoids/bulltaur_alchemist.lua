@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Bulltaur Alchemist")
 local monster = {}
 
 monster.description = "a bulltaur alchemist"
-monster.experience = 4350
+monster.experience = 4500
 monster.outfit = {
 	lookType = 1718,
 	lookHead = 0,
@@ -99,12 +99,12 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 90, maxDamage = -390 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -150, maxDamage = -450, range = 3, radius = 4, effect = CONST_ME_ICEAREA, target = true },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -150, maxDamage = -450, range = 3, radius = 4, effect = 170, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -150, maxDamage = -440, range = 3, radius = 4, effect = 170, target = true },
 }
 
 monster.defenses = {
 	defense = 30,
-	armor = 78,
+	armor = 67,
 	mitigation = 1.22,
 }
 

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Hellhunter Inferniarch")
 local monster = {}
 
 monster.description = "a hellhunter inferniarch"
-monster.experience = 9400
+monster.experience = 8100
 monster.outfit = {
 	lookType = 1793,
 	lookHead = 0,
@@ -112,7 +112,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 10 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 15 },
 	{ type = COMBAT_EARTHDAMAGE, percent = -15 },
-	{ type = COMBAT_FIREDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = -5 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

@@ -9,8 +9,8 @@ monster.outfit = {
 }
 
 -- Health is the charge counter: starts nearly empty and is filled 10 at a time.
-monster.health = 1
-monster.maxHealth = 100
+monster.health = 0
+monster.maxHealth = 0
 monster.race = "undead"
 monster.corpse = 0
 -- Bolted to the floor.

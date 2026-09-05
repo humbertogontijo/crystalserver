@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Enthralled Demon")
 local monster = {}
 
 monster.description = "an enthralled demon"
-monster.experience = 100
+monster.experience = 0
 monster.outfit = {
 	lookType = 35,
 	lookHead = 0,
@@ -77,7 +77,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 65,
-	armor = 40,
+	armor = 0,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_HEALING, minDamage = 150, maxDamage = 250, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "speed", interval = 2000, chance = 10, speedChange = 388, effect = CONST_ME_MAGIC_RED, target = false, duration = 4000 },
@@ -93,7 +93,7 @@ monster.elements = {
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = -12 },
 	{ type = COMBAT_HOLYDAMAGE, percent = -12 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 100 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }
 
 monster.immunities = {

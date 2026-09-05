@@ -69,13 +69,13 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -210 },
-	{ name = "combat", interval = 1000, chance = 100, type = COMBAT_PHYSICALDAMAGE, minDamage = -72, maxDamage = -130, shootEffect = CONST_ANI_SPEAR, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -295 },
+	{ name = "combat", interval = 1000, chance = 100, type = COMBAT_PHYSICALDAMAGE, minDamage = -153, maxDamage = -193, shootEffect = CONST_ANI_SPEAR, target = false },
 }
 
 monster.defenses = {
 	defense = 31,
-	armor = 30,
+	armor = 0,
 	{ name = "combat", interval = 6000, chance = 65, type = COMBAT_HEALING, minDamage = 20, maxDamage = 50, effect = CONST_ME_MAGIC_BLUE, target = false },
 }
 
