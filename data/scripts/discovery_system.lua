@@ -646,6 +646,10 @@ local function checkViewpoints(player, session)
 			foundNow = true
 			Position(p.x, p.y, p.z):sendMagicEffect(CONST_ME_FIREWORK_YELLOW)
 			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("You have discovered a viewpoint! (%d/%d)", session.foundCount, POI_TARGET))
+			-- 15.30 Point of Interest banner (CLIENT_EVENT_TYPE_SUBAREA)
+			if player.sendSubareaBanner then
+				player:sendSubareaBanner(session.subId)
+			end
 			-- Echo Warden: each discovered viewpoint may ARM a world-wide pending echo
 			-- (released later at some eligible kill anywhere - see echo_warden.lua)
 			if EchoWarden and EchoWarden.onViewpointDiscovered then

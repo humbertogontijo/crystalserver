@@ -1289,6 +1289,7 @@ public:
 	void sendScreenshotAndBannerBountyTaskFinished(uint16_t raceId) const;
 	void sendScreenshotAndBannerWeeklyTaskSpecificFinished(uint16_t raceId) const;
 	void sendScreenshotAndBannerLeaderMonsterKilled(uint16_t raceId, uint32_t charmPoints) const;
+	void sendScreenshotAndBannerSubarea(uint16_t areaId) const;
 
 	void onThink(uint32_t interval) override;
 

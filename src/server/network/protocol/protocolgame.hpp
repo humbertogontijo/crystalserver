@@ -640,6 +640,7 @@ private:
 	void sendScreenshotAndBannerBountyTaskFinished(uint16_t raceId);
 	void sendScreenshotAndBannerWeeklyTaskSpecificFinished(uint16_t raceId);
 	void sendScreenshotAndBannerLeaderMonsterKilled(uint16_t raceId, uint32_t charmPoints);
+	void sendScreenshotAndBannerSubarea(uint16_t areaId);
 
 	void sendDisableLoginMusic();
 

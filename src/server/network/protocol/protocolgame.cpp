@@ -11409,6 +11409,20 @@ void ProtocolGame::sendScreenshotAndBannerLeaderMonsterKilled(uint16_t raceId, u
 	writeToOutputBuffer(msg);
 }
 
+void ProtocolGame::sendScreenshotAndBannerSubarea(uint16_t areaId) {
+	if (oldProtocol) {
+		return;
+	}
+
+	// Client GameEventTypeSubarea (banner subtype 0x0f): area/subarea id (uint16).
+	// Renders the "Point of Interest" discovery banner.
+	NetworkMessage msg;
+	msg.addByte(0x75);
+	msg.addByte(SCREENSHOT_AND_BANNER_TYPE_SUBAREA);
+	msg.add<uint16_t>(areaId);
+	writeToOutputBuffer(msg);
+}
+
 void ProtocolGame::sendOutfitWindowCustomOTCR(NetworkMessage &msg) {
 	if (!isOTCR) {
 		return;

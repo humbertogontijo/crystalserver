@@ -485,6 +485,7 @@ class PlayerFunctions {
 	static int luaPlayersendBannerType(lua_State* L);
 	static int luaPlayerSendQuestStatusUpdate(lua_State* L);
 	static int luaPlayerSendLeaderMonsterKilledBanner(lua_State* L);
+	static int luaPlayerSendSubareaBanner(lua_State* L);
 
 	static int luaPlayerSendIconBakragore(lua_State* L);
 	static int luaPlayerRemoveIconBakragore(lua_State* L);

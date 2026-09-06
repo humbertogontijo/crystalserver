@@ -505,6 +505,7 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "sendBannerType", PlayerFunctions::luaPlayersendBannerType);
 	Lua::registerMethod(L, "Player", "sendQuestProgress", PlayerFunctions::luaPlayerSendQuestStatusUpdate);
 	Lua::registerMethod(L, "Player", "sendLeaderMonsterKilledBanner", PlayerFunctions::luaPlayerSendLeaderMonsterKilledBanner);
+	Lua::registerMethod(L, "Player", "sendSubareaBanner", PlayerFunctions::luaPlayerSendSubareaBanner);
 
 	Lua::registerMethod(L, "Player", "sendIconBakragore", PlayerFunctions::luaPlayerSendIconBakragore);
 	Lua::registerMethod(L, "Player", "removeIconBakragore", PlayerFunctions::luaPlayerRemoveIconBakragore);
@@ -5992,6 +5993,19 @@ int PlayerFunctions::luaPlayerSendLeaderMonsterKilledBanner(lua_State* L) {
 	}
 
 	player->sendScreenshotAndBannerLeaderMonsterKilled(Lua::getNumber<uint16_t>(L, 2), Lua::getNumber<uint32_t>(L, 3));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSendSubareaBanner(lua_State* L) {
+	// player:sendSubareaBanner(areaId) -> "Point of Interest" discovery banner
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	player->sendScreenshotAndBannerSubarea(Lua::getNumber<uint16_t>(L, 2));
 	Lua::pushBoolean(L, true);
 	return 1;
 }
