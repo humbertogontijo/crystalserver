@@ -667,6 +667,8 @@ public:
 		instanceId = id;
 	}
 	bool isVisibleInInstance(uint32_t viewerInstanceId) const;
+	/** Same filter as ProtocolGame::GetTileDescription / skipMapTileItem (instance + non-zero client id). */
+	bool countsTowardClientMapStack(uint32_t viewerInstanceId) const;
 	/** Shared map layer (instanceId 0): OTBM tiles, doors, transform-on-use fixtures (levers/lamps), etc. */
 	bool isMapTemplateItem() const;
 	/** Interactive map fixtures (levers, lamps, doors) that can be forked per instance. */

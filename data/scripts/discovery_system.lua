@@ -1,8 +1,9 @@
 -- Discovery System ("Measuring Tibia") - AUTOMATIC exploration (no "Start Discovering" button).
--- Entering a registered subarea auto-activates discovery: the server rolls 7 viewpoints (PoI),
--- walking within view range of one marks it found; 7/7 unlocks the subarea permanently (KV).
--- Wire: S2C 0xDD sub 1 (DiscoveryData), sub 5 (SetDiscoveryArea), sub 10 (SetCurrentArea);
--- area/subarea ids must match the client's map-a743.dat (see DISCOVERY_AREA_MAP.txt dump).
+-- Entering a registered subarea auto-activates discovery: the server picks viewpoints from the
+-- tibiamaps flag catalog for that subarea (discovery_pois.generated.lua); walking within 4 sqm
+-- of one marks it found; finishing the set unlocks the subarea permanently (KV).
+-- Wire: S2C 0xDD sub 1 (DiscoveryData), sub 5 (SetDiscoveryArea — viewport-visible unfound only),
+-- sub 10/11 (current/exploring). Clients must not foreshadow distant POIs on the cyclopedia map.
 -- Rewards: achievements 470 "Widely Travelled" / 539 "Measuring the World", Discoverer outfit
 -- (1094/1095) + addons, cyclopedia MAP titles 74/75 via kv "discovery/map-percent" + checkMap().
 
@@ -10,16 +11,19 @@
 if not DiscoveryGeometry then
 	dofile(CORE_DIRECTORY .. "/scripts/discovery_geometry.lua")
 end
+if not DiscoveryPois then
+	dofile(CORE_DIRECTORY .. "/scripts/discovery_pois.generated.lua")
+end
 
 DiscoverySystem = DiscoverySystem or {}
 
-local VIEW_X = 7 -- client game window is 15x11 -> half extents
+local VIEW_X = 7 -- client game window is 15x11 -> half extents (marker visibility only)
 local VIEW_Y = 5
+local DISCOVER_RADIUS = 4 -- Chebyshev: viewpoint counts as found only within this range
 local POI_TARGET = 7
-local MIN_POI_SPACING = 4
--- bump when subarea geometry changes: stale rolled viewpoints (possibly outside the
--- new footprint) are wiped on login; completed subareas are kept
-local GEOMETRY_VERSION = 4
+-- bump when subarea geometry OR the tibiamaps POI catalog changes: stale rolled/selected
+-- viewpoints are wiped on login; completed subareas are kept
+local GEOMETRY_VERSION = 6
 
 local OUTFIT_DISCOVERER_FEMALE = 1095
 local OUTFIT_DISCOVERER_MALE = 1094
@@ -28,6 +32,178 @@ local ACHIEVEMENT_MEASURING_THE_WORLD = 539
 
 -- main areas: taken 1:1 from the client (DiscoveryGeometry.mains, real area_id -> name)
 local MAIN_AREAS = DiscoveryGeometry.mains
+
+-- Measuring Tibia discoverable subareas only (https://tibia.fandom.com/wiki/Measuring_Tibia_Quest).
+-- Geometry may include corridors / dungeons / stubs (e.g. Trail to Rascacoon) that are
+-- not part of the quest — those stay in SUBAREA_LIST for footprint / donate boosts but
+-- never start exploration or count toward progress.
+local DISCOVERABLE = {
+	[28] = true, -- Thais City
+	[29] = true, -- Thais Surroundings
+	[33] = true, -- Thais Trolls' Cave
+	[34] = true, -- Mount Sternum
+	[35] = true, -- Fibula
+	[38] = true, -- Ghostlands
+	[39] = true, -- Folda
+	[40] = true, -- Fields of Glory
+	[43] = true, -- Carlin Surroundings
+	[45] = true, -- Kazordoon Troll Den
+	[46] = true, -- Orc Lands
+	[47] = true, -- Femor Hills
+	[49] = true, -- Horned Fox Lair
+	[50] = true, -- Kazordoon Surroundings
+	[53] = true, -- Draconia
+	[54] = true, -- Elvenbane
+	[55] = true, -- Ab'Dendriel Surroundings
+	[57] = true, -- Edron Troll Den
+	[58] = true, -- Edron Goblin Den
+	[59] = true, -- Edron Orc Lands
+	[60] = true, -- Edron Dragon Lair
+	[61] = true, -- Cyclopolis
+	[63] = true, -- Edron Surroundings
+	[64] = true, -- Daramian Minotaur Pyramid
+	[66] = true, -- Drefia
+	[68] = true, -- Northern Darama Desert
+	[69] = true, -- Amazon Camp
+	[70] = true, -- Black Knight Villa
+	[71] = true, -- Venore Dragon Lair
+	[72] = true, -- Green Claw Swamp
+	[73] = true, -- Outlaw Camp
+	[74] = true, -- Dark Cathedral
+	[75] = true, -- Plains of Havoc
+	[76] = true, -- Shadowthorn
+	[77] = true, -- Venore Southern Swamp
+	[78] = true, -- Venore Surroundings
+	[81] = true, -- Ankrahmun Pharaoh Tombs
+	[84] = true, -- Kha'zeel Dragon Lairs
+	[85] = true, -- Southern Darama Desert
+	[86] = true, -- Banuta
+	[87] = true, -- Chor
+	[90] = true, -- Forbidden Lands of Tiquanda
+	[92] = true, -- Port Hope Surroundings
+	[94] = true, -- Vandura Cultist Hideout
+	[95] = true, -- Liberty Bay Surroundings
+	[96] = true, -- Meriana
+	[97] = true, -- Nargor
+	[98] = true, -- Talahu
+	[99] = true, -- Hellgorge
+	[100] = true, -- Laguna Islands
+	[101] = true, -- Treasure Island
+	[102] = true, -- Calassa
+	[104] = true, -- Jakundaf Desert
+	[106] = true, -- Ulderek's Rock
+	[107] = true, -- Kha'zeel Mountains
+	[109] = true, -- Nibelor
+	[110] = true, -- Okolnir
+	[111] = true, -- Helheim
+	[112] = true, -- Grimlund
+	[113] = true, -- Tyrsung
+	[114] = true, -- Formorgar Glacier
+	[116] = true, -- Krimhorn
+	[117] = true, -- Svargrond Surroundings
+	[125] = true, -- Vengoth
+	[127] = true, -- Yalahar Trade Quarter
+	[128] = true, -- Yalahar Sunken Quarter
+	[129] = true, -- Yalahar Factory Quarter
+	[130] = true, -- Yalahar Magician Quarter
+	[131] = true, -- Yalahar Cemetery Quarter
+	[132] = true, -- Yalahar Alchemist Quarter
+	[133] = true, -- Yalahar Arena Quarter
+	[134] = true, -- Yalahar Foreigner Quarter
+	[135] = true, -- Mistrock
+	[136] = true, -- Fenrock
+	[138] = true, -- Isle of Evil
+	[141] = true, -- Zao Orc Fortress
+	[142] = true, -- Zao Steppe
+	[143] = true, -- Zzaion
+	[144] = true, -- Dragonblaze Peaks
+	[145] = true, -- Muggy Plains
+	[148] = true, -- Razachai
+	[149] = true, -- Corrupted Gardens
+	[150] = true, -- Emperor's Castle
+	[151] = true, -- Chazorai
+	[152] = true, -- Spirittrails
+	[167] = true, -- Hive Pools
+	[168] = true, -- Hive Pyramids
+	[184] = true, -- Southern Terramite Tunnels
+	[192] = true, -- Rorc Plains
+	[195] = true, -- Upper Roshamuul
+	[198] = true, -- Lower Roshamuul
+	[200] = true, -- Roshamuul Mountains
+	[208] = true, -- Rathleton Slum
+	[209] = true, -- Oramond Mountain Hideout
+	[210] = true, -- Oramond Minotaur Camp
+	[213] = true, -- Oramond Marshes
+	[214] = true, -- Rathleton Workshops
+	[217] = true, -- Lion's Rock
+	[228] = true, -- Vandura Quara Caves
+	[235] = true, -- Asura Palace
+	[238] = true, -- Medusa Tower
+	[239] = true, -- Gloom Caverns
+	[242] = true, -- Edron Hero Fortress
+	[243] = true, -- Grimvale
+	[254] = true, -- Krailos Steppe
+	[256] = true, -- Krailos Ruins
+	[274] = true, -- Stonehome
+	[279] = true, -- Ice Islands
+	[280] = true, -- Vega
+	[281] = true, -- Senja
+	[282] = true, -- Goroma
+	[283] = true, -- Ramoa
+	[284] = true, -- Malada
+	[285] = true, -- Kharos
+	[286] = true, -- Cormaya
+	[287] = true, -- Inukaya
+	[288] = true, -- Isle of the Kings
+	[289] = true, -- Bittermor
+	[290] = true, -- Ragnir
+	[295] = true, -- Greenshore
+	[296] = true, -- Darashia City
+	[297] = true, -- Ankrahmun City
+	[298] = true, -- Svargrond City
+	[301] = true, -- Rathleton City
+	[302] = true, -- Gray Beach
+	[303] = true, -- Ogre Village
+	[308] = true, -- Fae Village
+	[309] = true, -- Port Hope City
+	[312] = true, -- Liberty Bay City
+	[313] = true, -- Krailos Mines
+	[314] = true, -- Feyrist Meadows
+	[319] = true, -- Falcon Bastion
+	[354] = true, -- Cobra Bastion
+	[356] = true, -- Nykri Delta
+	[357] = true, -- Issavi
+	[360] = true, -- Kilmaresh Central Steppe
+	[361] = true, -- Kilmaresh Southern Steppe
+	[362] = true, -- Green Belt
+	[365] = true, -- Kilmaresh Mountains
+	[391] = true, -- Bounac
+	[394] = true, -- Rascacoon
+	[397] = true, -- The Wreckoning
+	[437] = true, -- Murmuring Wilderness
+	[438] = true, -- Silent Waters
+	[439] = true, -- Fading Isles
+	[440] = true, -- Emerald Gardens
+	[441] = true, -- Sparkling Lagoon
+	[442] = true, -- Stardance Mountains
+	[443] = true, -- Moonfall
+	[444] = true, -- Silvertides
+	[445] = true, -- Ingol
+	[448] = true, -- Kazordoon City
+	[451] = true, -- Ab'Dendriel City
+	[455] = true, -- Edron Castle
+	[456] = true, -- Carlin City
+	[460] = true, -- Venore City
+	[461] = true, -- Yalahar Centre
+	[475] = true, -- Oskayaat
+	[498] = true, -- Candia
+	[504] = true, -- Azzilon Castle
+	[516] = true, -- Isle of Ada - Adaean Mines
+	[518] = true, -- Isle of Ada - Outskirts
+	[519] = true, -- Isle of Ada - Bastion
+	[526] = true, -- Targuna
+	[528] = true, -- Aragonia
+}
 
 -- SUBAREA_LIST is built automatically from DiscoveryGeometry.subs (207 pixel-exact,
 -- mutually disjoint surface footprints). Underground subareas have no client mask -
@@ -107,6 +283,7 @@ local function finalizeDef(def)
 	def.area = area
 	def.cum = cum
 	def.floorSet = floorSetOf(def.floors)
+	def.discoverable = DISCOVERABLE[def.id] == true
 	return def
 end
 
@@ -394,12 +571,74 @@ local function countFound(pois)
 	return n
 end
 
-local function poisToWire(pois)
+local function poisToWireVisible(pois, playerPos)
+	-- Only unfound viewpoints currently inside the game viewport. Discovered points are never
+	-- re-sent (no map foreshadowing / no post-discovery markers). Distant unfound points stay
+	-- server-side until the player walks near them.
 	local points = {}
+	if not pois or not playerPos then
+		return points
+	end
 	for _, p in ipairs(pois) do
-		points[#points + 1] = { p.x, p.y, p.z, p.found and 1 or 0 }
+		if not p.found and p.z == playerPos.z and math.abs(p.x - playerPos.x) <= VIEW_X and math.abs(p.y - playerPos.y) <= VIEW_Y then
+			points[#points + 1] = { p.x, p.y, p.z, 0 }
+		end
 	end
 	return points
+end
+
+local function poiKey(x, y, z)
+	return string.format("%d,%d,%d", x, y, z)
+end
+
+-- Idle POI markers must be player-scoped. Tile-wide addMagicEffect resolves empty POI
+-- tiles to instance 0, so city/settlement/hunt players never see them.
+local function clearIdlePoiEffects(player, session)
+	if not session or not session.idleEffects then
+		return
+	end
+	for key, pos in pairs(session.idleEffects) do
+		Position(pos.x, pos.y, pos.z):removeMagicEffect(CONST_ME_PINK_VORTEX, player)
+		session.idleEffects[key] = nil
+	end
+end
+
+local function syncIdlePoiEffects(player, session)
+	if not player or not session or not session.pois then
+		return
+	end
+	session.idleEffects = session.idleEffects or {}
+	local playerPos = player:getPosition()
+	local want = {}
+	for _, p in ipairs(session.pois) do
+		if not p.found and p.z == playerPos.z and math.abs(p.x - playerPos.x) <= VIEW_X and math.abs(p.y - playerPos.y) <= VIEW_Y then
+			local key = poiKey(p.x, p.y, p.z)
+			want[key] = { x = p.x, y = p.y, z = p.z }
+		end
+	end
+	for key, pos in pairs(session.idleEffects) do
+		if not want[key] then
+			Position(pos.x, pos.y, pos.z):removeMagicEffect(CONST_ME_PINK_VORTEX, player)
+			session.idleEffects[key] = nil
+		end
+	end
+	-- Send once per visible POI. Do not pulse/re-add — CIP effect 193 loops, and
+	-- remove+resend left stacked/orphan markers on the client.
+	for key, pos in pairs(want) do
+		if not session.idleEffects[key] then
+			Position(pos.x, pos.y, pos.z):sendMagicEffect(CONST_ME_PINK_VORTEX, player)
+			session.idleEffects[key] = pos
+		end
+	end
+end
+
+local function wireSignature(points)
+	local parts = {}
+	for _, p in ipairs(points) do
+		parts[#parts + 1] = string.format("%d,%d,%d", p[1], p[2], p[3])
+	end
+	table.sort(parts)
+	return table.concat(parts, "|")
 end
 
 local function positionInDef(position, def)
@@ -433,65 +672,55 @@ function DiscoverySystem.findSubarea(position)
 	return nil, nil
 end
 
--- area-weighted random rect via binary search; returns x1, y1, x2, y2, floorsOverride
-local function pickSpot(def)
-	local roll = math.random(def.area)
-	local cum = def.cum
-	local lo, hi = 1, #cum
-	while lo < hi do
-		local mid = math.floor((lo + hi) / 2)
-		if cum[mid] < roll then
-			lo = mid + 1
-		else
-			hi = mid
-		end
+-- Pick up to POI_TARGET viewpoints from the tibiamaps flag catalog for this subarea.
+-- Deterministic per (player, subarea) so re-entering after a wipe is stable; never invents
+-- random map coordinates.
+local function selectPois(player, def)
+	local catalog = DiscoveryPois and DiscoveryPois[def.id]
+	if not catalog or #catalog == 0 then
+		return nil
 	end
-	if lo <= def.nRects then
-		local i = (lo - 1) * 4
-		local r = def.rects
-		return r[i + 1], r[i + 2], r[i + 3], r[i + 4], nil
+	local pool = {}
+	for i, p in ipairs(catalog) do
+		pool[i] = { x = p.x, y = p.y, z = p.z, found = false }
 	end
-	local e = def.extra[lo - def.nRects]
-	return e.x1, e.y1, e.x2, e.y2, e.floors
-end
+	local seed = (player:getGuid() % 1000003) * 10007 + def.id
+	local function rand()
+		seed = (seed * 1103515245 + 12345) % 2147483648
+		return seed
+	end
+	for i = #pool, 2, -1 do
+		local j = (rand() % i) + 1
+		pool[i], pool[j] = pool[j], pool[i]
+	end
 
-local function generatePois(player, def)
 	local playerPos = player:getPosition()
-	local pois = {}
-	local tries = 0
-	while #pois < POI_TARGET and tries < 800 do
-		tries = tries + 1
-		local x1, y1, x2, y2, extraFloors = pickSpot(def)
-		local floors = extraFloors or def.poiFloors or def.floors
-		local x = math.random(x1, x2)
-		local y = math.random(y1, y2)
-		local z = floors[math.random(#floors)]
-		local tile = Tile(Position(x, y, z))
-		if tile and tile:isWalkable(true) then
-			-- never inside the player's current view (they must walk to find it)
-			local hiddenFromPlayer = z ~= playerPos.z or math.abs(x - playerPos.x) > VIEW_X + 1 or math.abs(y - playerPos.y) > VIEW_Y + 1
-			if hiddenFromPlayer then
-				local spaced = true
-				for _, p in ipairs(pois) do
-					if p.z == z and math.abs(p.x - x) < MIN_POI_SPACING and math.abs(p.y - y) < MIN_POI_SPACING then
-						spaced = false
-						break
-					end
-				end
-				-- relax the spacing rule if the box is hard to fill
-				if spaced or tries > 600 then
-					pois[#pois + 1] = { x = x, y = y, z = z, found = false }
-				end
-			end
+	local preferred, fallback = {}, {}
+	for _, p in ipairs(pool) do
+		local inView = p.z == playerPos.z and math.abs(p.x - playerPos.x) <= VIEW_X + 1 and math.abs(p.y - playerPos.y) <= VIEW_Y + 1
+		if inView then
+			fallback[#fallback + 1] = p
+		else
+			preferred[#preferred + 1] = p
 		end
 	end
-	return #pois == POI_TARGET and pois or nil
+	local ordered = preferred
+	for _, p in ipairs(fallback) do
+		ordered[#ordered + 1] = p
+	end
+
+	local n = math.min(POI_TARGET, #ordered)
+	local pois = {}
+	for i = 1, n do
+		pois[i] = ordered[i]
+	end
+	return pois
 end
 
 local function subareaCounts(player, mainId)
 	local total, done = 0, 0
 	for _, def in ipairs(SUBAREA_LIST) do
-		if def.mainArea == mainId then
+		if def.discoverable and def.mainArea == mainId then
 			total = total + 1
 			if isCompleted(player, def.id) then
 				done = done + 1
@@ -508,7 +737,7 @@ function DiscoverySystem.sendDiscoveryData(player)
 	for mainId, _ in pairs(MAIN_AREAS) do
 		local total, done = subareaCounts(player, mainId)
 		for _, def in ipairs(SUBAREA_LIST) do
-			if def.mainArea == mainId then
+			if def.discoverable and def.mainArea == mainId then
 				if isCompleted(player, def.id) then
 					discovered[#discovered + 1] = def.id
 				else
@@ -528,10 +757,12 @@ end
 function DiscoverySystem.grantMilestones(player)
 	local totalMains, doneMains = 0, 0
 	for mainId, _ in pairs(MAIN_AREAS) do
-		totalMains = totalMains + 1
 		local total, done = subareaCounts(player, mainId)
-		if total > 0 and done == total then
-			doneMains = doneMains + 1
+		if total > 0 then
+			totalMains = totalMains + 1
+			if done == total then
+				doneMains = doneMains + 1
+			end
 		end
 	end
 	local percent = totalMains > 0 and math.floor(doneMains / totalMains * 100) or 0
@@ -562,11 +793,32 @@ function DiscoverySystem.grantMilestones(player)
 	player:checkNewTitles()
 end
 
-local function sendAreaState(player, subId, session, active)
-	player:sendDiscoveryArea(subId, active, POI_TARGET, poisToWire(session.pois))
+local function sendAreaState(player, subId, session, active, force)
+	local wire = {}
+	if active and session and session.pois then
+		wire = poisToWireVisible(session.pois, player:getPosition())
+		syncIdlePoiEffects(player, session)
+	elseif session then
+		clearIdlePoiEffects(player, session)
+	end
+	local key = wireSignature(wire)
+	if not force and session and session.lastWireKey == key and session.lastWireActive == active then
+		return
+	end
+	if session then
+		session.lastWireKey = key
+		session.lastWireActive = active
+	end
+	local target = (session and session.poiTarget) or POI_TARGET
+	player:sendDiscoveryArea(subId, active, target, wire)
 end
 
+local missingPoiWarned = {}
+
 local function enterSubarea(player, subId, def)
+	if not def.discoverable then
+		return
+	end
 	if isCompleted(player, subId) then
 		player:sendDiscoveryCurrentArea(subId)
 		player:sendDiscoveryExploring(0)
@@ -577,23 +829,33 @@ local function enterSubarea(player, subId, def)
 
 	local pois = deserializePois(kv(player):get("pois-" .. subId))
 	if not pois then
-		pois = generatePois(player, def)
+		pois = selectPois(player, def)
 		if not pois then
-			logger.warn("[DiscoverySystem] could not roll {} viewpoints for subarea {} ({})", POI_TARGET, subId, def.name)
+			if not missingPoiWarned[subId] then
+				missingPoiWarned[subId] = true
+				logger.warn("[DiscoverySystem] no tibiamaps flag catalog for subarea {} ({})", subId, def.name)
+			end
 			return
 		end
 		kv(player):set("pois-" .. subId, serializePois(pois))
 	end
 
-	local session = { subId = subId, def = def, pois = pois, foundCount = countFound(pois) }
+	local session = {
+		subId = subId,
+		def = def,
+		pois = pois,
+		poiTarget = #pois,
+		foundCount = countFound(pois),
+	}
 	sessions[player:getGuid()] = session
 	player:sendDiscoveryCurrentArea(subId)
 	player:sendDiscoveryExploring(subId)
-	sendAreaState(player, subId, session, true)
-	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("You have entered %s. Exploration in progress: %d/%d viewpoints found.", def.name, session.foundCount, POI_TARGET))
+	sendAreaState(player, subId, session, true, true)
+	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("You have entered %s. Exploration in progress: %d/%d viewpoints found.", def.name, session.foundCount, session.poiTarget))
 end
 
 local function leaveSubarea(player, session)
+	clearIdlePoiEffects(player, session)
 	sessions[player:getGuid()] = nil
 	player:sendDiscoveryCurrentArea(0)
 	player:sendDiscoveryExploring(0)
@@ -609,7 +871,7 @@ local function completeSubarea(player, session)
 	player:sendDiscoveryExploring(0)
 	player:getPosition():sendMagicEffect(CONST_ME_FIREWORK_BLUE)
 	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Congratulations! You have fully explored %s.", session.def.name))
-	sendAreaState(player, session.subId, session, false)
+	sendAreaState(player, session.subId, session, false, true)
 	DiscoverySystem.sendDiscoveryData(player)
 	DiscoverySystem.grantMilestones(player)
 end
@@ -621,7 +883,9 @@ function DiscoverySystem.markComplete(player, subId)
 		ids = { subId }
 	else
 		for _, def in ipairs(SUBAREA_LIST) do
-			ids[#ids + 1] = def.id
+			if def.discoverable then
+				ids[#ids + 1] = def.id
+			end
 		end
 	end
 	for _, id in ipairs(ids) do
@@ -636,22 +900,108 @@ function DiscoverySystem.markComplete(player, subId)
 	return #ids
 end
 
+local function discoveryWalkDest(playerPos, poi)
+	if not playerPos or not poi then
+		return nil
+	end
+	local dist = math.max(math.abs(playerPos.x - poi.x), math.abs(playerPos.y - poi.y))
+	if dist <= DISCOVER_RADIUS then
+		return nil
+	end
+	local dx = playerPos.x - poi.x
+	local dy = playerPos.y - poi.y
+	local scale = DISCOVER_RADIUS / dist
+	local idealX = poi.x + math.floor(dx * scale + (dx >= 0 and 0.5 or -0.5))
+	local idealY = poi.y + math.floor(dy * scale + (dy >= 0 and 0.5 or -0.5))
+	if math.max(math.abs(idealX - poi.x), math.abs(idealY - poi.y)) > DISCOVER_RADIUS then
+		local sx = dx == 0 and 0 or (dx > 0 and 1 or -1)
+		local sy = dy == 0 and 0 or (dy > 0 and 1 or -1)
+		idealX = poi.x + sx * DISCOVER_RADIUS
+		idealY = poi.y + sy * DISCOVER_RADIUS
+	end
+	if idealX == poi.x and idealY == poi.y then
+		return nil
+	end
+	return Position(idealX, idealY, poi.z)
+end
+
+--- Client FAB: exclusive walk into discovery radius of a viewport-visible unfound POI.
+--- Validated against the live session — does not unlock general client autoWalk.
+function DiscoverySystem.walkTowardViewpoint(player, x, y, z)
+	if not player then
+		return false
+	end
+	x, y, z = tonumber(x), tonumber(y), tonumber(z)
+	if not x or not y or not z then
+		return false
+	end
+	local session = sessions[player:getGuid()]
+	if not session or session.completed or type(session.pois) ~= "table" then
+		return false
+	end
+	local poi = nil
+	for _, p in ipairs(session.pois) do
+		if not p.found and p.x == x and p.y == y and p.z == z then
+			poi = p
+			break
+		end
+	end
+	if not poi then
+		return false
+	end
+	local pos = player:getPosition()
+	if not pos or pos.z ~= z then
+		return false
+	end
+	-- Only allow points the client could already see (same viewport filter as the wire).
+	if math.abs(pos.x - x) > VIEW_X or math.abs(pos.y - y) > VIEW_Y then
+		return false
+	end
+	if math.max(math.abs(pos.x - x), math.abs(pos.y - y)) <= DISCOVER_RADIUS then
+		-- Already in range; discovery tick will mark found.
+		return true
+	end
+	local dest = discoveryWalkDest(pos, poi)
+	if not dest then
+		return false
+	end
+	if CombatAutomationMovement and CombatAutomationMovement.beginExclusiveWalk then
+		return CombatAutomationMovement.beginExclusiveWalk(player, dest) == true
+	end
+	-- Fallback when automation movement is unavailable: exclusive autoWalk only.
+	local path = player.getPathTo and player:getPathTo(dest, 0, 0, true, true, 128) or nil
+	if type(path) ~= "table" or #path == 0 then
+		return false
+	end
+	local dirs = {}
+	for i = #path, 1, -1 do
+		dirs[#dirs + 1] = path[i]
+	end
+	return player:autoWalk(dirs, 0, true) == true
+end
+
 local function checkViewpoints(player, session)
 	local pos = player:getPosition()
 	local foundNow = false
+	local target = session.poiTarget or #session.pois
 	for _, p in ipairs(session.pois) do
-		if not p.found and p.z == pos.z and math.abs(p.x - pos.x) <= VIEW_X and math.abs(p.y - pos.y) <= VIEW_Y then
+		if not p.found and p.z == pos.z and math.max(math.abs(p.x - pos.x), math.abs(p.y - pos.y)) <= DISCOVER_RADIUS then
 			p.found = true
 			session.foundCount = session.foundCount + 1
 			foundNow = true
-			Position(p.x, p.y, p.z):sendMagicEffect(CONST_ME_FIREWORK_YELLOW)
-			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("You have discovered a viewpoint! (%d/%d)", session.foundCount, POI_TARGET))
+			local key = poiKey(p.x, p.y, p.z)
+			if session.idleEffects and session.idleEffects[key] then
+				Position(p.x, p.y, p.z):removeMagicEffect(CONST_ME_PINK_VORTEX, player)
+				session.idleEffects[key] = nil
+			end
+			-- Player-scoped: empty POI tiles would otherwise resolve to instance 0.
+			Position(p.x, p.y, p.z):sendMagicEffect(CONST_ME_PINK_BEAM, player) -- CIP POI Found (195)
+			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("You have discovered a viewpoint! (%d/%d)", session.foundCount, target))
 			-- 15.30 Point of Interest banner (CLIENT_EVENT_TYPE_SUBAREA)
 			if player.sendSubareaBanner then
 				player:sendSubareaBanner(session.subId)
 			end
-			-- Echo Warden: each discovered viewpoint may ARM a world-wide pending echo
-			-- (released later at some eligible kill anywhere - see echo_warden.lua)
+			-- Echo Warden: discovered viewpoints may nudge a nearby subarea echo arm
 			if EchoWarden and EchoWarden.onViewpointDiscovered then
 				EchoWarden.onViewpointDiscovered(player)
 			end
@@ -659,10 +1009,10 @@ local function checkViewpoints(player, session)
 	end
 	if foundNow then
 		kv(player):set("pois-" .. session.subId, serializePois(session.pois))
-		if session.foundCount >= POI_TARGET then
+		if session.foundCount >= target then
 			completeSubarea(player, session)
 		else
-			sendAreaState(player, session.subId, session, true)
+			sendAreaState(player, session.subId, session, true, true)
 		end
 	end
 end
@@ -681,11 +1031,19 @@ function DiscoverySystem.tick(player)
 		session = sessions[guid]
 	end
 	if session and not session.completed then
-		checkViewpoints(player, session)
+		-- Show idle markers first, then discover — so the player can see the POI before it pops.
+		sendAreaState(player, session.subId, session, true, false)
+		if sessions[guid] and not sessions[guid].completed then
+			checkViewpoints(player, sessions[guid])
+		end
 	end
 end
 
 function DiscoverySystem.reset(player)
+	local session = sessions[player:getGuid()]
+	if session then
+		clearIdlePoiEffects(player, session)
+	end
 	for _, def in ipairs(SUBAREA_LIST) do
 		kv(player):set("done-" .. def.id, false)
 		kv(player):set("pois-" .. def.id, "")
@@ -702,18 +1060,20 @@ function DiscoverySystem.status(player)
 	local perMain = {}
 	local inProgress = {}
 	for _, def in ipairs(SUBAREA_LIST) do
-		local pm = perMain[def.mainArea]
-		if not pm then
-			pm = { total = 0, done = 0 }
-			perMain[def.mainArea] = pm
-		end
-		pm.total = pm.total + 1
-		if isCompleted(player, def.id) then
-			pm.done = pm.done + 1
-		else
-			local pois = deserializePois(kv(player):get("pois-" .. def.id))
-			if pois then
-				inProgress[#inProgress + 1] = string.format("  %s (%d): %d/%d", def.name, def.id, countFound(pois), POI_TARGET)
+		if def.discoverable then
+			local pm = perMain[def.mainArea]
+			if not pm then
+				pm = { total = 0, done = 0 }
+				perMain[def.mainArea] = pm
+			end
+			pm.total = pm.total + 1
+			if isCompleted(player, def.id) then
+				pm.done = pm.done + 1
+			else
+				local pois = deserializePois(kv(player):get("pois-" .. def.id))
+				if pois then
+					inProgress[#inProgress + 1] = string.format("  %s (%d): %d/%d", def.name, def.id, countFound(pois), #pois)
+				end
 			end
 		end
 	end
@@ -790,6 +1150,10 @@ local discoveryLogout = CreatureEvent("DiscoverySystemLogout")
 discoveryLogout:type("logout")
 
 function discoveryLogout.onLogout(player)
+	local session = sessions[player:getGuid()]
+	if session then
+		clearIdlePoiEffects(player, session)
+	end
 	sessions[player:getGuid()] = nil
 	return true
 end

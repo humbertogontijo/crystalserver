@@ -1,9 +1,8 @@
 local combat = Combat()
 combat:setParameter(COMBAT_PARAM_TYPE, COMBAT_ICEDAMAGE)
-combat:setParameter(COMBAT_PARAM_EFFECT, 324)
-combat:setParameter(COMBAT_PARAM_DISTANCEEFFECT, CONST_ANI_SMALLICE)
--- Vocation Adjustment: forked chain to up to 6 additional targets (7 total).
-combat:setParameter(COMBAT_PARAM_CHAIN_EFFECT, CONST_ME_ICEATTACK)
+combat:setParameter(COMBAT_PARAM_EFFECT, CONST_ME_FORKED_GLACIER)
+-- CIP Magical Archives preview: fieldEffect 324 along the whole chain path (no missile).
+combat:setParameter(COMBAT_PARAM_CHAIN_EFFECT, CONST_ME_FORKED_GLACIER)
 
 -- Base damage 97 (ML-scaled). Modeled on strong_ice_strike's formula curve.
 function onGetFormulaValues(player, level, maglevel, basePower)

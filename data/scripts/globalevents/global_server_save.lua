@@ -17,6 +17,11 @@ local function ServerSave()
 	if DiscoverySystem and DiscoverySystem.onServerSave then
 		DiscoverySystem.onServerSave()
 	end
+
+	-- Echo Raids: CIP-like post–server-save subarea refresh (batch of place arms)
+	if EchoWarden and EchoWarden.onServerSave then
+		EchoWarden.onServerSave()
+	end
 end
 
 local function ServerSaveWarning(time)

@@ -673,7 +673,7 @@ bool Combat::setParam(CombatParam_t param, uint32_t value) {
 		}
 
 		case COMBAT_PARAM_CHAIN_EFFECT: {
-			params.chainEffect = static_cast<uint8_t>(value);
+			params.chainEffect = static_cast<uint16_t>(value);
 			return true;
 		}
 	}
@@ -1359,7 +1359,7 @@ void Combat::addDistanceEffect(const std::shared_ptr<Creature> &caster, const Po
 	}
 }
 
-void Combat::doChainEffect(const Position &origin, const Position &dest, uint8_t effect, const std::shared_ptr<Creature> &caster) {
+void Combat::doChainEffect(const Position &origin, const Position &dest, uint16_t effect, const std::shared_ptr<Creature> &caster) {
 	if (effect > 0) {
 		std::vector<Direction> dirList;
 

@@ -53,6 +53,9 @@ local function isRealOnlineClient(guid)
 	if not online then
 		return false
 	end
+	if online.isHeadless and online:isHeadless() then
+		return false
+	end
 	if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(online) then
 		return false
 	end

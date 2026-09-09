@@ -65,6 +65,9 @@ local function beginExpeditionHunt(session, contentRole)
 		return
 	end
 	syncClientMaps(session)
+	if ExpeditionDifficulty and ExpeditionDifficulty.applySessionPoints then
+		ExpeditionDifficulty.applySessionPoints(session)
+	end
 	if contentRole == "arena" then
 		if QuestArena and QuestArena.begin then
 			QuestArena.begin(session)
@@ -344,7 +347,9 @@ function ExpeditionManager.clearAreaEffects(player)
 		pcall(function()
 			player:setHazardSystemPoints(0)
 		end)
-	elseif player.updateHazard then
+	end
+	-- Restore world hazard (e.g. Gnomprona) if still standing in a hazard zone.
+	if player.updateHazard then
 		pcall(function()
 			player:updateHazard()
 		end)
@@ -472,6 +477,20 @@ local function isSessionCompanion(session, player)
 	return TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player)
 end
 
+--- True when the player has a live ProtocolGame UI (not headless).
+local function hasUiClient(player)
+	if not player then
+		return false
+	end
+	if player.isHeadless and player:isHeadless() then
+		return false
+	end
+	if player.getProtocolVersion and player:getProtocolVersion() == 0 then
+		return false
+	end
+	return true
+end
+
 local function countHumanMembers(session)
 	if not session then
 		return 0
@@ -545,6 +564,9 @@ local function collectExpectedHumanTeammates(host)
 		if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(p) then
 			return
 		end
+		if not hasUiClient(p) then
+			return
+		end
 		local id = p:getId()
 		if seen[id] then
 			return
@@ -580,6 +602,47 @@ local function collectExpectedHumanTeammates(host)
 		end
 	end
 	return list
+end
+
+--- Names for the boss-difficulty player boxes: listing/team roster (incl. companions),
+--- not only online UI clients used for combat gating.
+local function collectBossDifficultyBannerNames(host)
+	local names = {}
+	local seen = {}
+	local function pushName(name)
+		if type(name) ~= "string" or name == "" then
+			return
+		end
+		local key = name:lower()
+		if seen[key] then
+			return
+		end
+		seen[key] = true
+		names[#names + 1] = name
+	end
+	if host and host.getName then
+		pushName(host:getName())
+	end
+	if ListingsStore and ListingsStore.getByHost and host then
+		local listing = ListingsStore.getByHost(host)
+		for _, m in ipairs((listing and listing.members) or {}) do
+			local status = m and m.status
+			if status == nil or status == (SocialConfig and SocialConfig.MEMBER_STATUS_ACCEPTED) or status == "accepted" then
+				pushName(m and m.name)
+			end
+		end
+	end
+	if ListingsStore and ListingsStore.getAcceptedMemberNames and host and host.getGuid then
+		for _, name in ipairs(ListingsStore.getAcceptedMemberNames(host:getGuid()) or {}) do
+			pushName(name)
+		end
+	end
+	if TeamStore and TeamStore.getMembers and host then
+		for _, m in ipairs(TeamStore.getMembers(host) or {}) do
+			pushName(m and m.name)
+		end
+	end
+	return names
 end
 
 local function awaitingHumanCount(session)
@@ -746,7 +809,7 @@ local function memberStanceFromConfig(member)
 	end
 	local stance = (ExpeditionConfig and ExpeditionConfig.stanceForPlayer and ExpeditionConfig.stanceForPlayer(member))
 		or "melee"
-	local rangedDist = (ExpeditionConfig and ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 4
+	local rangedDist = (ExpeditionConfig and ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 3
 	return stance, rangedDist
 end
 
@@ -864,12 +927,13 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		recoverStaleSession(staleSession)
 	end
 	if ExpeditionManager.isInExpedition(player) then
-		-- Switch leave→join can still see a sticky session for one tick; force clear.
+		-- Switch hop can still see a sticky session for one tick; clear in place (no city).
 		if options.skipPzCheck then
 			ExpeditionManager.leave(player, {
 				silent = true,
 				keepTeamDeployed = true,
 				skipTeamUndeploy = true,
+				skipTeleport = true,
 			})
 			clearActive(player)
 		end
@@ -946,9 +1010,44 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 
 	local sessionLure = nil
 	local sessionLureMax = nil
+	local sessionHazard = nil
+	local sessionHazardMax = nil
 	if contentRole ~= "boss" and contentRole ~= "arena" then
 		sessionLureMax = tonumber(catalog.lureMax) or ExpeditionConfig.LURE_MAX
 		sessionLure = ExpeditionConfig.normalizeLure(lure, sessionLureMax)
+		if ExpeditionDifficulty then
+			sessionHazardMax = tonumber(catalog.hazardMax) or ExpeditionDifficulty.HAZARD_MAX
+			local requestedHazard = options.hazard
+			if requestedHazard == nil then
+				requestedHazard = ExpeditionDifficulty.HAZARD_DEFAULT
+			end
+			sessionHazard = ExpeditionDifficulty.normalizeHazard(requestedHazard, catalog)
+			local gatePlayers = { player }
+			for _, teammate in ipairs(collectExpectedHumanTeammates(player) or {}) do
+				gatePlayers[#gatePlayers + 1] = teammate
+			end
+			local okHazard, hazardErr, maxAllowed =
+				ExpeditionDifficulty.canAttemptHazard(gatePlayers, catalog, sessionHazard, player)
+			if not okHazard then
+				ExpeditionProtocol.sendError(player, hazardErr or "Hazard level too high for party.")
+				return
+			end
+			sessionHazard = math.min(sessionHazard, maxAllowed or sessionHazard)
+		end
+	end
+	local sessionBossDifficulty = nil
+	if contentRole == "boss" and ExpeditionDifficulty then
+		sessionBossDifficulty = ExpeditionDifficulty.normalizeBossDifficulty(options.bossDifficulty, catalog)
+		local gatePlayers = { player }
+		for _, teammate in ipairs(collectExpectedHumanTeammates(player) or {}) do
+			gatePlayers[#gatePlayers + 1] = teammate
+		end
+		local okDiff, diffErr =
+			ExpeditionDifficulty.canAttemptBossDifficulty(gatePlayers, catalog, sessionBossDifficulty, player)
+		if not okDiff then
+			ExpeditionProtocol.sendError(player, diffErr or "Boss difficulty too high for party.")
+			return
+		end
 	end
 	local stopOpts = ExpeditionConfig.normalizeStopOptions(options)
 	if options.stopOnInsufficientGold ~= nil or options.stopOnInsufficientCap ~= nil then
@@ -1077,7 +1176,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		if teammate and teammate.getGuid and not ExpeditionManager.getSessionByPlayer(teammate) then
 			if preAcceptedById[teammate:getId()] then
 				-- Already queued via preAcceptedPlayers.
-			elseif meetsExpeditionLevel(teammate, levelMin) then
+			elseif hasUiClient(teammate) and meetsExpeditionLevel(teammate, levelMin) then
 				local allowed = true
 				-- Switch hops skip PZ: teammates are still on the prior hunt footprint.
 				if not options.skipPzCheck and PzTeleport and PzTeleport.isAllowed then
@@ -1119,6 +1218,9 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		kills = 0,
 		lure = sessionLure,
 		lureMax = sessionLureMax,
+		hazardLevel = sessionHazard,
+		hazardMax = sessionHazardMax,
+		bossDifficulty = sessionBossDifficulty,
 		waveLure = nil,
 		state = (awaitingHumanCount({ awaitingHumanGuids = awaitingHumanGuids }) > 0 or #readyTeammates > 0)
 				and "waiting"
@@ -1258,6 +1360,13 @@ local function bootstrapRestoredHunt(snapshot)
 		kills = 0,
 		lure = sessionLure,
 		lureMax = snapshot.lureMax,
+		hazardLevel = ExpeditionDifficulty
+				and ExpeditionDifficulty.normalizeHazard(snapshot.hazardLevel, catalog)
+			or tonumber(snapshot.hazardLevel)
+			or 0,
+		hazardMax = tonumber(snapshot.hazardMax)
+			or (ExpeditionDifficulty and ExpeditionDifficulty.HAZARD_MAX)
+			or 12,
 		waveLure = nil,
 		state = "idle",
 		startedAt = os.time(),
@@ -1413,116 +1522,168 @@ local function startRestoredHuntOnStartup(session, snapshot)
 		return false
 	end
 
-	local headlessHost = nil
-	if Game.loginCompanion then
-		headlessHost = Game.loginCompanion(offlineHost:getName(), spawnPos)
-			or Game.loginCompanion(hostGuid, spawnPos)
-	end
-	if not headlessHost then
-		logger.warn(
-			"[ExpeditionPersist] startup start failed for {}: could not login headless host",
-			tostring(session.key)
-		)
-		session.starting = nil
-		return false
+	local hostName = offlineHost:getName()
+	local sessionKey = session.key
+
+	local function finishRestoredHunt(headlessHost, companions)
+		local live = ExpeditionManager.getSessionByKey(sessionKey)
+		if not live or live.state == "ended" or not headlessHost then
+			if live then
+				live.starting = nil
+			end
+			return
+		end
+
+		registerSessionMember(live, headlessHost, headlessHost, {})
+		live.playerId = headlessHost:getId()
+		live.memberGuids = live.memberGuids or {}
+		live.memberGuids[hostGuid] = headlessHost:getId()
+		teleportPlayerIntoRunningHunt(headlessHost, live)
+
+		companions = companions or {}
+		local companionById = {}
+		for _, companion in ipairs(companions) do
+			if companion and companion.getId then
+				companionById[companion:getId()] = true
+			end
+		end
+		for _, companion in ipairs(companions) do
+			local already = false
+			for _, mid in ipairs(live.playerIds or {}) do
+				if companion and companion.getId and mid == companion:getId() then
+					already = true
+					break
+				end
+			end
+			if not already then
+				registerSessionMember(live, companion, offlineHost, {
+					hostWorldPos = spawnPos,
+					companionById = companionById,
+				})
+			end
+			teleportPlayerIntoRunningHunt(companion, live)
+		end
+
+		live.entered = true
+		live.starting = nil
+		live.state = "idle"
+		live.awaitingHumanGuids = nil
+		ExpeditionConfig.pickAnchor(live)
+		if ExpeditionPersist and ExpeditionPersist.writeSession and ExpeditionPersist.isPersistableHunt(live) then
+			pcall(ExpeditionPersist.writeSession, live)
+		end
+
+		local contentRole = live.role
+		local syncMs = ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500
+		addEvent(function()
+			local s = ExpeditionManager.getSessionByKey(sessionKey)
+			if not s or s.state == "ended" then
+				return
+			end
+			if not ExpeditionInstance.hasGround(instance.entry) then
+				addEvent(function()
+					local retry = ExpeditionManager.getSessionByKey(sessionKey)
+					if retry and retry.state ~= "ended" then
+						beginExpeditionHunt(retry, contentRole)
+						syncRunningHuntClients(retry)
+						logger.info(
+							"[ExpeditionPersist] started restored hunt {} catalog={} instance={} members={} lure={} anchor={}",
+							tostring(sessionKey),
+							tostring(catalog and catalog.id),
+							tostring(instance.instanceId),
+							#ExpeditionManager.sessionMemberIds(retry),
+							tostring(retry.lure or "-"),
+							tostring(retry.anchorPlayerId or "-")
+						)
+					end
+				end, 100)
+				return
+			end
+			beginExpeditionHunt(s, contentRole)
+			syncRunningHuntClients(s)
+			logger.info(
+				"[ExpeditionPersist] started restored hunt {} catalog={} instance={} members={} lure={} anchor={}",
+				tostring(sessionKey),
+				tostring(catalog and catalog.id),
+				tostring(instance.instanceId),
+				#ExpeditionManager.sessionMemberIds(s),
+				tostring(s.lure or "-"),
+				tostring(s.anchorPlayerId or "-")
+			)
+		end, syncMs)
 	end
 
-	registerSessionMember(session, headlessHost, headlessHost, {})
-	session.playerId = headlessHost:getId()
-	session.memberGuids = session.memberGuids or {}
-	session.memberGuids[hostGuid] = headlessHost:getId()
-	teleportPlayerIntoRunningHunt(headlessHost, session)
-
-	local companions = {}
-	if TeamManager and TeamManager.deploy then
-		local depCompanions, depErr = TeamManager.deploy(headlessHost, {
+	local function deployCompanionsThenFinish(headlessHost)
+		if not TeamManager or not TeamManager.deploy then
+			finishRestoredHunt(headlessHost, {})
+			return
+		end
+		TeamManager.deploy(headlessHost, {
 			position = spawnPos,
 			companionsOnly = true,
 			inviteFriends = false,
-		})
-		if depCompanions then
-			companions = depCompanions
-		else
-			logger.warn(
-				"[ExpeditionPersist] companion deploy failed for {}: {}",
-				tostring(session.key),
-				tostring(depErr or "unknown")
-			)
-		end
-	end
-
-	local companionById = {}
-	for _, companion in ipairs(companions) do
-		if companion and companion.getId then
-			companionById[companion:getId()] = true
-		end
-	end
-	for _, companion in ipairs(companions) do
-		local already = false
-		for _, mid in ipairs(session.playerIds or {}) do
-			if companion and companion.getId and mid == companion:getId() then
-				already = true
-				break
-			end
-		end
-		if not already then
-			registerSessionMember(session, companion, offlineHost, {
-				hostWorldPos = spawnPos,
-				companionById = companionById,
-			})
-		end
-		teleportPlayerIntoRunningHunt(companion, session)
-	end
-
-	session.entered = true
-	session.starting = nil
-	session.state = "idle"
-	session.awaitingHumanGuids = nil
-	ExpeditionConfig.pickAnchor(session)
-	if ExpeditionPersist and ExpeditionPersist.writeSession and ExpeditionPersist.isPersistableHunt(session) then
-		pcall(ExpeditionPersist.writeSession, session)
-	end
-
-	local sessionKey = session.key
-	local contentRole = session.role
-	local syncMs = ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500
-	addEvent(function()
-		local live = ExpeditionManager.getSessionByKey(sessionKey)
-		if not live or live.state == "ended" then
-			return
-		end
-		if not ExpeditionInstance.hasGround(instance.entry) then
-			addEvent(function()
-				local retry = ExpeditionManager.getSessionByKey(sessionKey)
-				if retry and retry.state ~= "ended" then
-					beginExpeditionHunt(retry, contentRole)
-					syncRunningHuntClients(retry)
-					logger.info(
-						"[ExpeditionPersist] started restored hunt {} catalog={} instance={} members={} lure={} anchor={}",
+			onComplete = function(depCompanions, depErr)
+				if not depCompanions then
+					logger.warn(
+						"[ExpeditionPersist] companion deploy failed for {}: {}",
 						tostring(sessionKey),
-						tostring(catalog and catalog.id),
-						tostring(instance.instanceId),
-						#ExpeditionManager.sessionMemberIds(retry),
-						tostring(retry.lure or "-"),
-						tostring(retry.anchorPlayerId or "-")
+						tostring(depErr or "unknown")
 					)
+					finishRestoredHunt(headlessHost, {})
+					return
 				end
-			end, 100)
+				finishRestoredHunt(headlessHost, depCompanions)
+			end,
+		})
+	end
+
+	local function onHostReady(headlessHost)
+		if not headlessHost then
+			logger.warn(
+				"[ExpeditionPersist] startup start failed for {}: could not login headless host",
+				tostring(sessionKey)
+			)
+			session.starting = nil
 			return
 		end
-		beginExpeditionHunt(live, contentRole)
-		syncRunningHuntClients(live)
-		logger.info(
-			"[ExpeditionPersist] started restored hunt {} catalog={} instance={} members={} lure={} anchor={}",
-			tostring(sessionKey),
-			tostring(catalog and catalog.id),
-			tostring(instance.instanceId),
-			#ExpeditionManager.sessionMemberIds(live),
-			tostring(live.lure or "-"),
-			tostring(live.anchorPlayerId or "-")
-		)
-	end, syncMs)
-	return true
+		deployCompanionsThenFinish(headlessHost)
+	end
+
+	-- Prefer async host login so server boot does not stall the dispatcher.
+	if Game.headlessLoginBatch then
+		Game.headlessLoginBatch({ hostName }, spawnPos, function(players, err)
+			local host = players and players[1] or nil
+			if not host and hostGuid > 0 then
+				Game.headlessLoginBatch({ hostGuid }, spawnPos, function(players2, err2)
+					onHostReady(players2 and players2[1] or nil)
+					if not (players2 and players2[1]) then
+						logger.warn(
+							"[ExpeditionPersist] async host login failed for {}: {}",
+							tostring(sessionKey),
+							tostring(err2 or err or "unknown")
+						)
+					end
+				end)
+				return
+			end
+			if not host then
+				logger.warn(
+					"[ExpeditionPersist] async host login failed for {}: {}",
+					tostring(sessionKey),
+					tostring(err or "unknown")
+				)
+			end
+			onHostReady(host)
+		end)
+		return true
+	end
+
+	local headlessHost = nil
+	if Game.headlessLogin then
+		headlessHost = Game.headlessLogin(hostName, spawnPos) or Game.headlessLogin(hostGuid, spawnPos)
+	end
+	onHostReady(headlessHost)
+	return headlessHost ~= nil
 end
 
 --- Bootstrap + start a persisted hunt on server boot.
@@ -1765,6 +1926,48 @@ function ExpeditionManager.startExpeditionEntry(session)
 		return true
 	end
 
+	local function registerDeployedCompanions(s, host, depCompanions, regOpts)
+		if not depCompanions then
+			return
+		end
+		local companionById = {}
+		for _, companion in ipairs(depCompanions) do
+			if companion and companion.getId then
+				companionById[companion:getId()] = true
+			end
+		end
+		regOpts = regOpts or {}
+		regOpts.companionById = companionById
+		for _, companion in ipairs(depCompanions) do
+			local already = false
+			for _, mid in ipairs(s.playerIds or {}) do
+				if companion and companion.getId and mid == companion:getId() then
+					already = true
+					break
+				end
+			end
+			if not already then
+				registerSessionMember(s, companion, host, regOpts)
+			end
+		end
+	end
+
+	local function enterAfterDeploy(s, liveHost)
+		if not teleportMembers(s) then
+			return
+		end
+		finishEntry(s)
+		logger.info(
+			"[Expedition] {} joined {} role={} instance={} members={} (entered)",
+			liveHost:getName(),
+			catalog.id,
+			contentRole,
+			instance.instanceId,
+			#ExpeditionManager.sessionMemberIds(s)
+		)
+		ExpeditionManager.broadcastStatus(s)
+	end
+
 	local function deployAndEnter()
 		local s = ExpeditionManager.getSessionByKey(key)
 		if not s then
@@ -1783,74 +1986,67 @@ function ExpeditionManager.startExpeditionEntry(session)
 		-- rescue (hunt tile / private id before session bind) and left everyone in town.
 		if not soloBoss and TeamManager and TeamManager.deploy then
 			local spawnPos = liveHost:getPosition() or hostWorldPos
-			local depCompanions, depErr = TeamManager.deploy(liveHost, {
+			TeamManager.deploy(liveHost, {
 				position = spawnPos,
 				companionsOnly = true,
 				inviteFriends = false,
-			})
-			if not depCompanions then
-				ExpeditionManager.cancelWaitingSession(s, depErr or "Failed to deploy account team.")
-				return
-			end
-			local companionById = {}
-			for _, companion in ipairs(depCompanions) do
-				if companion and companion.getId then
-					companionById[companion:getId()] = true
-				end
-			end
-			for _, companion in ipairs(depCompanions) do
-				local already = false
-				for _, mid in ipairs(s.playerIds or {}) do
-					if companion and companion.getId and mid == companion:getId() then
-						already = true
-						break
+				onComplete = function(depCompanions, depErr)
+					local live = ExpeditionManager.getSessionByKey(key)
+					if not live or live.state == "ended" then
+						return
 					end
-				end
-				if not already then
-					registerSessionMember(s, companion, liveHost, {
+					local host = Player(live.playerId)
+					if not host then
+						ExpeditionManager.teardownSession(live)
+						return
+					end
+					if not depCompanions then
+						ExpeditionManager.cancelWaitingSession(live, depErr or "Failed to deploy account team.")
+						return
+					end
+					registerDeployedCompanions(live, host, depCompanions, {
 						loadout = loadout,
 						hostWorldPos = hostWorldPos,
-						companionById = companionById,
 					})
-				end
-			end
-		end
-
-		if not teleportMembers(s) then
+					enterAfterDeploy(live, host)
+				end,
+			})
 			return
 		end
-		finishEntry(s)
-		logger.info(
-			"[Expedition] {} joined {} role={} instance={} members={} (entered)",
-			liveHost:getName(),
-			catalog.id,
-			contentRole,
-			instance.instanceId,
-			#ExpeditionManager.sessionMemberIds(s)
+
+		enterAfterDeploy(s, liveHost)
+	end
+
+	-- Live-world tiles (no clone): entry ground is either present now or the catalog
+	-- center is bad. Do not poll — there is no async tile-ready event to wait on.
+	local s = ExpeditionManager.getSessionByKey(key)
+	if not s then
+		logger.warn("[Expedition] enter aborted (session gone) key={}", key)
+		return
+	end
+	if not Player(s.playerId) then
+		logger.warn("[Expedition] enter aborted (host offline) key={}", key)
+		ExpeditionManager.teardownSession(s)
+		return
+	end
+	if not ExpeditionInstance.hasGround(instance.entry) then
+		local entry = instance.entry
+		logger.error(
+			"[Expedition] enter aborted (no ground at entry {},{},{}) key={} catalog={}",
+			entry and entry.x or "?",
+			entry and entry.y or "?",
+			entry and entry.z or "?",
+			key,
+			tostring(catalog and catalog.id)
 		)
-		ExpeditionManager.broadcastStatus(s)
+		local host = Player(s.playerId)
+		if host then
+			ExpeditionProtocol.sendError(host, "Failed to enter expedition (invalid hunt tile).")
+		end
+		ExpeditionManager.teardownSession(s)
+		return
 	end
-
-	local attempts = 0
-	local function waitGroundThenEnter()
-		attempts = attempts + 1
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s then
-			logger.warn("[Expedition] enter aborted (session gone) key={} attempts={}", key, attempts)
-			return
-		end
-		if not Player(s.playerId) then
-			logger.warn("[Expedition] enter aborted (host offline) key={} attempts={}", key, attempts)
-			ExpeditionManager.teardownSession(s)
-			return
-		end
-		if not ExpeditionInstance.hasGround(instance.entry) and attempts < 12 then
-			addEvent(waitGroundThenEnter, 100)
-			return
-		end
-		deployAndEnter()
-	end
-	waitGroundThenEnter()
+	deployAndEnter()
 end
 
 function ExpeditionManager.maybeStartExpeditionEntry(session)
@@ -2428,7 +2624,10 @@ local function cleanupSession(session, player, opts)
 		sessionsByPlayerId[player:getId()] = nil
 		player:unregisterEvent("ExpeditionPlayerDeath")
 	end
-	disbandExpeditionParty(session)
+	-- Switch hops keep the account team party intact for the next join/deploy.
+	if not (opts and (opts.keepTeamDeployed or opts.keepParty)) then
+		disbandExpeditionParty(session)
+	end
 	if ExpeditionPersist and ExpeditionPersist.clearSession and not ExpeditionPersist.isServerShuttingDown() and not session.persistedForRestart then
 		pcall(ExpeditionPersist.clearSession, session)
 	end
@@ -2576,8 +2775,8 @@ local function logoutExpeditionCompanions(session)
 		clearActive(companion)
 		if TeamManager and TeamManager.safeLogoutCompanion then
 			TeamManager.safeLogoutCompanion(companion, 0)
-		elseif Game.logoutCompanion then
-			pcall(Game.logoutCompanion, companion)
+		elseif Game.headlessLogout then
+			pcall(Game.headlessLogout, companion)
 		end
 	end
 	if session.companionIds then
@@ -2890,6 +3089,211 @@ function ExpeditionManager.setLure(player, lure)
 	end
 end
 
+function ExpeditionManager.setHazardLevel(player, hazard)
+	if not player then
+		return
+	end
+	if not ExpeditionDifficulty then
+		ExpeditionProtocol.sendError(player, "Hazard system unavailable.")
+		return
+	end
+	local session = ExpeditionManager.getSessionByPlayer(player)
+	if not session then
+		ExpeditionProtocol.sendError(player, "Not on an expedition.")
+		return
+	end
+	if session.kind == "raid" or session.role == "boss" or session.role == "arena" then
+		ExpeditionProtocol.sendError(player, "Hazard is only available on monster hunt expeditions.")
+		return
+	end
+	-- Host-only (match party control expectations for lure-like knobs).
+	if session.playerId and session.playerId ~= player:getId() and not isGodPlayer(player) then
+		ExpeditionProtocol.sendError(player, "Only the expedition host can change hazard level.")
+		return
+	end
+	local value = ExpeditionDifficulty.normalizeHazard(hazard, session.catalog)
+	local members = {}
+	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
+		local m = Player(mid)
+		if m then
+			members[#members + 1] = m
+		end
+	end
+	local raising = value > (tonumber(session.hazardLevel) or 0)
+	if raising then
+		local ok, err, maxAllowed = ExpeditionDifficulty.canAttemptHazard(members, session.catalog, value, player)
+		if not ok then
+			ExpeditionProtocol.sendError(player, err or "Hazard level too high for party.")
+			ExpeditionManager.broadcastStatus(session)
+			return
+		end
+		value = math.min(value, maxAllowed or value)
+	end
+	if session.hazardLevel == value then
+		ExpeditionManager.broadcastStatus(session)
+		return
+	end
+	session.hazardLevel = value
+	ExpeditionDifficulty.applySessionPoints(session)
+	ExpeditionManager.broadcastStatus(session)
+	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Hazard level set to %d.", value))
+end
+
+function ExpeditionManager.prepareBoss(player, expeditionId, loadout, options)
+	if not player or not ExpeditionDifficulty then
+		return
+	end
+	options = options or {}
+	local catalog = ExpeditionConfig.getById(expeditionId, "boss")
+	if not catalog then
+		ExpeditionProtocol.sendError(player, "Unknown boss expedition.")
+		return
+	end
+	local levelMin = catalog.levelMin or 1
+	if not meetsExpeditionLevel(player, levelMin) then
+		ExpeditionProtocol.sendError(
+			player,
+			string.format("Level too low for this expedition (need %d, you are %d).", levelMin, player:getLevel())
+		)
+		return
+	end
+	local bossName = ExpeditionConfig.bossTypeName(catalog)
+	if not bossName then
+		ExpeditionProtocol.sendError(player, "Unknown boss type for this expedition.")
+		return
+	end
+	local gatePlayers = { player }
+	for _, teammate in ipairs(collectExpectedHumanTeammates(player) or {}) do
+		gatePlayers[#gatePlayers + 1] = teammate
+	end
+	if not options.previewOnly then
+		local canFight, _, _, cdErr = ExpeditionConfig.partyCanFightBoss(gatePlayers, bossName)
+		if not canFight then
+			ExpeditionProtocol.sendError(player, cdErr or "A team member is on boss cooldown.")
+			return
+		end
+	end
+	local maxAllowed = ExpeditionDifficulty.maxAllowedBossDifficulty(gatePlayers, catalog)
+	local personal = ExpeditionDifficulty.getPersonalBossMax(player, catalog)
+	local selected = ExpeditionDifficulty.normalizeBossDifficulty(options.bossDifficulty or 0, catalog)
+	selected = math.min(selected, maxAllowed)
+	local raceId = tonumber(catalog.creatureId) or tonumber(catalog.id) or 0
+	local banners = collectBossDifficultyBannerNames(player)
+	while #banners < 5 do
+		banners[#banners + 1] = ""
+	end
+	if #banners > 5 then
+		local trimmed = {}
+		for i = 1, 5 do
+			trimmed[i] = banners[i]
+		end
+		banners = trimmed
+	end
+	local red, green = ExpeditionDifficulty.redGreenMods(catalog, selected)
+	-- numbers: lowest, spinnerGate(0=editable), raceId, selected, groupHighest, personalHighest, badLuck
+	local numbers = { 0, 0, raceId, selected, maxAllowed, personal, 0 }
+	ExpeditionDifficulty.setPendingBoss(player:getId(), {
+		catalogId = catalog.id,
+		loadout = loadout,
+		options = options,
+		raceId = raceId,
+		maxAllowed = maxAllowed,
+		previewOnly = options.previewOnly == true,
+	})
+	if player.sendBossDifficultySelection then
+		player:sendBossDifficultySelection(0, numbers, banners, red, green)
+	else
+		ExpeditionDifficulty.clearPendingBoss(player:getId())
+		-- Fallback when native UI is unavailable: join with the manage-panel selection.
+		if options.previewOnly then
+			ExpeditionProtocol.sendError(player, "Boss difficulty UI unavailable.")
+			return
+		end
+		local opts = options or {}
+		opts.bossDifficulty = selected
+		ExpeditionManager.join(player, catalog.id, "boss", loadout, nil, opts)
+	end
+end
+
+function ExpeditionManager.onBossDifficultyStart(player, difficulty, _selectionContext)
+	if not player or not ExpeditionDifficulty then
+		return
+	end
+	local pending = ExpeditionDifficulty.getPendingBoss(player:getId())
+	if not pending then
+		return
+	end
+	ExpeditionDifficulty.clearPendingBoss(player:getId())
+	local catalog = ExpeditionConfig.getById(pending.catalogId, "boss")
+	if not catalog then
+		ExpeditionProtocol.sendError(player, "Unknown boss expedition.")
+		return
+	end
+	local D = ExpeditionDifficulty.normalizeBossDifficulty(difficulty, catalog)
+	local maxAllowed = tonumber(pending.maxAllowed)
+	if maxAllowed ~= nil then
+		D = math.min(D, maxAllowed)
+	end
+	-- Manage-panel "change difficulty" open: confirm selection only, do not join.
+	if pending.previewOnly then
+		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Boss difficulty set to %d.", D))
+		return
+	end
+	local gatePlayers = { player }
+	for _, teammate in ipairs(collectExpectedHumanTeammates(player) or {}) do
+		gatePlayers[#gatePlayers + 1] = teammate
+	end
+	local okDiff, diffErr =
+		ExpeditionDifficulty.canAttemptBossDifficulty(gatePlayers, catalog, D, player)
+	if not okDiff then
+		ExpeditionProtocol.sendError(player, diffErr or "Boss difficulty too high for party.")
+		return
+	end
+	local opts = pending.options or {}
+	opts.bossDifficulty = D
+	ExpeditionManager.join(player, pending.catalogId, "boss", pending.loadout, nil, opts)
+end
+
+function ExpeditionManager.onBossDifficultyCancel(player)
+	if not player or not ExpeditionDifficulty then
+		return
+	end
+	ExpeditionDifficulty.clearPendingBoss(player:getId())
+end
+
+function ExpeditionManager.onBossDifficultyPreview(player, difficulty)
+	if not player or not ExpeditionDifficulty or not player.sendBossDifficultySelection then
+		return
+	end
+	local pending = ExpeditionDifficulty.getPendingBoss(player:getId())
+	if not pending then
+		return
+	end
+	local catalog = ExpeditionConfig.getById(pending.catalogId, "boss")
+	if not catalog then
+		return
+	end
+	local D = ExpeditionDifficulty.normalizeBossDifficulty(difficulty, catalog)
+	D = math.min(D, tonumber(pending.maxAllowed) or D)
+	local red, green = ExpeditionDifficulty.redGreenMods(catalog, D)
+	local raceId = pending.raceId or 0
+	local personal = ExpeditionDifficulty.getPersonalBossMax(player, catalog)
+	local banners = collectBossDifficultyBannerNames(player)
+	while #banners < 5 do
+		banners[#banners + 1] = ""
+	end
+	if #banners > 5 then
+		local trimmed = {}
+		for i = 1, 5 do
+			trimmed[i] = banners[i]
+		end
+		banners = trimmed
+	end
+	-- Re-open packet (disc 0); client updates the existing window in place to avoid flicker.
+	local numbers = { 0, 0, raceId, D, pending.maxAllowed or D, personal, 0 }
+	player:sendBossDifficultySelection(0, numbers, banners, red, green)
+end
+
 function ExpeditionManager.setStopOptions(player, options)
 	if not player then
 		return
@@ -2947,17 +3351,34 @@ function ExpeditionManager.cancelLeave(player)
 	return true
 end
 
+-- Forward-declared: defined below (used by switch countdown completion).
+local performDirectSwitch
+
 --- Finish a voluntary leave countdown. Uses sessionKey so team abort still runs
 --- when the initiator is briefly unresolvable via Player(id) in a delayed event.
+--- When switchTo is set: hop hunt→hunt in place (no city return) after the countdown.
 local function completeLeaveCountdown(sessionKey, initiatorId, initiatorName, switchTo)
-	local leaveOpts = { silent = not switchTo }
-	if switchTo then
-		leaveOpts.silent = true
-		leaveOpts.keepTeamDeployed = true
-		leaveOpts.skipTeamUndeploy = true
-		leaveOpts.skipTeleport = true
-	end
 	local s = sessionKey and ExpeditionManager.getSessionByKey(sessionKey) or nil
+	if switchTo then
+		local joiner = Player(initiatorId)
+		if not joiner then
+			logger.warn(
+				"[Expedition] switch countdown complete missing player key={} id={}",
+				tostring(sessionKey),
+				tostring(initiatorId)
+			)
+			return
+		end
+		logger.info(
+			"[Expedition] switch countdown complete → {} by={}",
+			tostring(switchTo.id),
+			tostring(initiatorName or joiner:getName())
+		)
+		performDirectSwitch(joiner, s, switchTo, {})
+		return
+	end
+
+	local leaveOpts = { silent = false }
 	if not s then
 		local p = Player(initiatorId)
 		if p then
@@ -2967,79 +3388,42 @@ local function completeLeaveCountdown(sessionKey, initiatorId, initiatorName, sw
 			)
 			ExpeditionManager.leave(p, leaveOpts)
 		end
-	else
-		-- Do not use state=="waiting": waves/boss AI reuse that for post-entry
-		-- intermission. Pre-entry lobby is handled immediately in requestLeave.
-		local humanCount = countHumanMembers(s)
-		local teamStop = s.kind ~= "raid" and humanCount >= 2
-		local name = initiatorName or "A teammate"
-		if teamStop then
-			if not s.entered then
-				ExpeditionManager.cancelWaitingSession(s, name .. " cancelled the expedition.")
-			else
-				local reason = switchTo and (name .. " changed the expedition.")
-					or (name .. " stopped the expedition.")
-				logger.info(
-					"[Expedition] leave countdown complete teamStop key={} by={}",
-					tostring(sessionKey),
-					name
-				)
-				ExpeditionManager.abort(
-					s,
-					reason,
-					switchTo and { keepTeamDeployed = true, skipTeleport = true, silent = true } or nil
-				)
-			end
-		else
-			local p = Player(initiatorId)
-			if p then
-				logger.info(
-					"[Expedition] leave countdown complete solo key={} by={}",
-					tostring(sessionKey),
-					name
-				)
-				ExpeditionManager.leave(p, leaveOpts)
-			else
-				logger.warn(
-					"[Expedition] leave countdown complete solo missing player key={} id={}",
-					tostring(sessionKey),
-					tostring(initiatorId)
-				)
-			end
-		end
+		return
 	end
-	if switchTo then
-		local joiner = Player(initiatorId)
-		if joiner then
-			-- Leave→join must not see a sticky session (InstanceWorld delayed leave /
-			-- companion teardown races). Force-clear once more before joining.
-			if ExpeditionManager.isInExpedition(joiner) or ExpeditionManager.resolveSession(joiner) then
-				ExpeditionManager.leave(joiner, {
-					silent = true,
-					keepTeamDeployed = true,
-					skipTeamUndeploy = true,
-					skipTeleport = true,
-				})
-			end
-			clearActive(joiner)
-			local joinOpts = {}
-			for k, v in pairs(switchTo.options or {}) do
-				joinOpts[k] = v
-			end
-			joinOpts.skipPzCheck = true
-			ExpeditionManager.join(
-				joiner,
-				switchTo.id,
-				switchTo.role,
-				switchTo.loadout,
-				switchTo.lure,
-				joinOpts
+
+	-- Do not use state=="waiting": waves/boss AI reuse that for post-entry
+	-- intermission. Pre-entry lobby is handled immediately in requestLeave.
+	local humanCount = countHumanMembers(s)
+	local teamStop = s.kind ~= "raid" and humanCount >= 2
+	local name = initiatorName or "A teammate"
+	if teamStop then
+		if not s.entered then
+			ExpeditionManager.cancelWaitingSession(s, name .. " cancelled the expedition.")
+		else
+			logger.info(
+				"[Expedition] leave countdown complete teamStop key={} by={}",
+				tostring(sessionKey),
+				name
 			)
-			-- If join bounced (still sticky / level / etc), rescue off a dead private instance.
-			if not ExpeditionManager.isInExpedition(joiner) and InstanceWorld and InstanceWorld.rescueIfStranded then
-				pcall(InstanceWorld.rescueIfStranded, joiner)
-			end
+			ExpeditionManager.abort(s, name .. " stopped the expedition.")
 		end
+		return
+	end
+
+	local p = Player(initiatorId)
+	if p then
+		logger.info(
+			"[Expedition] leave countdown complete solo key={} by={}",
+			tostring(sessionKey),
+			name
+		)
+		ExpeditionManager.leave(p, leaveOpts)
+	else
+		logger.warn(
+			"[Expedition] leave countdown complete solo missing player key={} id={}",
+			tostring(sessionKey),
+			tostring(initiatorId)
+		)
 	end
 end
 
@@ -3053,7 +3437,8 @@ end
 
 --- Voluntary leave: enforce LEAVE_COUNTDOWN_SEC server-side, then eject.
 --- Forced/silent paths should call leave() directly.
---- opts.switchTo = { id, role, loadout, lure, options } joins that expedition after leave.
+--- opts.switchTo = { id, role, loadout, lure, options }: after the same countdown,
+--- hop directly into that expedition (no city return).
 function ExpeditionManager.requestLeave(player, opts)
 	opts = opts or {}
 	if not player then
@@ -3070,26 +3455,11 @@ function ExpeditionManager.requestLeave(player, opts)
 	end
 	local session = ExpeditionManager.getSessionByPlayer(player)
 	if not session then
-		-- Sticky client HUD after restart - eject immediately.
-		ExpeditionManager.leave(player, opts.switchTo and {
-			silent = true,
-			keepTeamDeployed = true,
-			skipTeamUndeploy = true,
-		} or nil)
 		if opts.switchTo then
-			local joinOpts = {}
-			for k, v in pairs(opts.switchTo.options or {}) do
-				joinOpts[k] = v
-			end
-			joinOpts.skipPzCheck = true
-			ExpeditionManager.join(
-				player,
-				opts.switchTo.id,
-				opts.switchTo.role,
-				opts.switchTo.loadout,
-				opts.switchTo.lure,
-				joinOpts
-			)
+			-- Sticky HUD / no live session: hop straight into the destination.
+			performDirectSwitch(player, nil, opts.switchTo, {})
+		else
+			ExpeditionManager.leave(player)
 		end
 		return
 	end
@@ -3102,19 +3472,7 @@ function ExpeditionManager.requestLeave(player, opts)
 			player:getName() .. " cancelled the expedition."
 		)
 		if switchTo then
-			local joinOpts = {}
-			for k, v in pairs(switchTo.options or {}) do
-				joinOpts[k] = v
-			end
-			joinOpts.skipPzCheck = true
-			ExpeditionManager.join(
-				player,
-				switchTo.id,
-				switchTo.role,
-				switchTo.loadout,
-				switchTo.lure,
-				joinOpts
-			)
+			performDirectSwitch(player, nil, switchTo, {})
 		end
 		return
 	end
@@ -3257,7 +3615,8 @@ local function collectSessionHumans(session)
 	end
 	for _, id in ipairs(sessionMemberIds(session)) do
 		local p = Player(id)
-		if p and not isSessionCompanion(session, p) then
+		-- Headless (companions or disconnected alts) never need switch accept prompts.
+		if p and not isSessionCompanion(session, p) and hasUiClient(p) then
 			humans[#humans + 1] = p
 		end
 	end
@@ -3297,7 +3656,7 @@ end
 --- Tear down the current hunt in place and join the next (no city return).
 --- Validates host + pre-accepted teammates against the destination levelMin *before*
 --- aborting the prior session so a failed transfer cannot strand anyone mid-instance.
-local function performDirectSwitch(host, session, switchTo, preAcceptedPlayers)
+performDirectSwitch = function(host, session, switchTo, preAcceptedPlayers)
 	if not host or not switchTo then
 		return
 	end
@@ -3531,9 +3890,9 @@ function ExpeditionManager.requestSwitch(player, expeditionId, role, loadout, lu
 	end
 
 	if #others == 0 then
-		-- Same LEAVE_COUNTDOWN_SEC as Stop (companions do not count as teammates).
+		-- Same LEAVE_COUNTDOWN_SEC as Stop; after countdown hop in place (no city leave).
 		logger.info(
-			"[Expedition] {} solo switch → {} (countdown)",
+			"[Expedition] {} solo switch → {} (countdown then direct join)",
 			player:getName(),
 			tostring(catalog.id)
 		)
@@ -3984,8 +4343,8 @@ function ExpeditionManager.onLogout(player)
 					pcall(function()
 						if TeamManager.safeLogoutCompanion then
 							TeamManager.safeLogoutCompanion(member)
-						elseif Game.logoutCompanion then
-							Game.logoutCompanion(member)
+						elseif Game.headlessLogout then
+							Game.headlessLogout(member)
 						end
 					end)
 				end
@@ -4008,8 +4367,8 @@ function ExpeditionManager.onLogout(player)
 				pcall(function()
 					if TeamManager.safeLogoutCompanion then
 						TeamManager.safeLogoutCompanion(member)
-					elseif Game.logoutCompanion then
-						Game.logoutCompanion(member)
+					elseif Game.headlessLogout then
+						Game.headlessLogout(member)
 					end
 				end)
 			end

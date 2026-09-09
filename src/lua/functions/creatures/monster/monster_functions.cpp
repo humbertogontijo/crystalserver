@@ -34,6 +34,7 @@ void MonsterFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Monster", "getType", MonsterFunctions::luaMonsterGetType);
 	Lua::registerMethod(L, "Monster", "setType", MonsterFunctions::luaMonsterSetType);
 	Lua::registerMethod(L, "Monster", "getSpawnPosition", MonsterFunctions::luaMonsterGetSpawnPosition);
+	Lua::registerMethod(L, "Monster", "setMasterPos", MonsterFunctions::luaMonsterSetMasterPos);
 	Lua::registerMethod(L, "Monster", "isInSpawnRange", MonsterFunctions::luaMonsterIsInSpawnRange);
 	Lua::registerMethod(L, "Monster", "isIdle", MonsterFunctions::luaMonsterIsIdle);
 	Lua::registerMethod(L, "Monster", "setIdle", MonsterFunctions::luaMonsterSetIdle);
@@ -202,6 +203,19 @@ int MonsterFunctions::luaMonsterGetSpawnPosition(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
+	return 1;
+}
+
+int MonsterFunctions::luaMonsterSetMasterPos(lua_State* L) {
+	// monster:setMasterPos(pos) — home / walk-back tile (spawn or expedition anchor)
+	const auto &monster = Lua::getUserdataShared<Monster>(L, 1);
+	if (!monster) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const Position &pos = Lua::getPosition(L, 2);
+	monster->setMasterPos(pos);
+	Lua::pushBoolean(L, true);
 	return 1;
 }
 

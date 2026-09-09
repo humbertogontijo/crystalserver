@@ -146,6 +146,10 @@ const Position &Monster::getMasterPos() const {
 
 void Monster::setMasterPos(Position pos) {
 	masterPos = pos;
+	// Home moved (e.g. expedition anchor): leave idle so walk-back can run until we arrive.
+	if (isIdle && masterPos != Position() && position != masterPos) {
+		setIdle(false);
+	}
 }
 
 bool Monster::canWalkOnFieldType(CombatType_t combatType) const {
@@ -1085,10 +1089,12 @@ bool Monster::getIdleStatus() const {
 }
 
 bool Monster::isInSpawnLocation() const {
-	if (!spawnMonster) {
+	// Idle only once home is reached. Unset masterPos (script spawn with no home) keeps prior
+	// "always home" behavior so they can idle without a walk-back target.
+	if (masterPos == Position()) {
 		return true;
 	}
-	return position == masterPos || masterPos == Position();
+	return position == masterPos;
 }
 
 void Monster::onAddCondition(ConditionType_t type) {
@@ -1616,11 +1622,8 @@ void Monster::walkTo(const Position &walkToPosition) {
 }
 
 void Monster::doWalkBack(uint32_t &flags, Direction &nextDirection, bool &result) {
-	if (totalPlayersOnScreen > 0) {
-		isWalkingBack = false;
-		return;
-	}
-
+	// Walk home even with players nearby (e.g. expedition anchor / lure). Combat takes over
+	// once someone enters targetList; updateIdleStatus clears isWalkingBack then.
 	result = Creature::getNextStep(nextDirection, flags);
 	if (result) {
 		flags |= FLAG_PATHFINDING;

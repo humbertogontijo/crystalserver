@@ -1486,39 +1486,133 @@ function CombatAutomation.isInWeaponRange(player, creature)
 	return dist <= CombatAutomation.weaponShootRange(player)
 end
 
---- Pick nearest valid monster. Prefer those already in weapon shootRange (Monster searchTarget filter).
---- `monsters` is an array of living Monster userdata; un-attackable entries are skipped.
---- Optional sortMode is ignored (kept for call-site compat); always nearest-first.
-function CombatAutomation.pickMonsterBySort(player, monsters, _sortMode)
+--- Count living monsters within Chebyshev radius of `center` (Mode E scoring).
+local function countMonstersNear(monsters, center, radius)
+	if not center then
+		return 0
+	end
+	radius = math.max(0, math.floor(tonumber(radius) or 1))
+	local n = 0
+	for i = 1, #monsters do
+		local m = monsters[i]
+		local mp = m and m.getPosition and m:getPosition()
+		if mp and mp.z == center.z and tileDistance(center, mp) <= radius then
+			n = n + 1
+		end
+	end
+	return n
+end
+
+local function monsterHpPercent(monster)
+	if not monster then
+		return 100
+	end
+	local hp = monster.getHealth and monster:getHealth() or 0
+	local maxHp = monster.getMaxHealth and monster:getMaxHealth() or 1
+	if maxHp <= 0 then
+		return 100
+	end
+	return (hp / maxHp) * 100
+end
+
+--- Pick monster by auto-target mode A–I.
+function CombatAutomation.pickMonsterBySort(player, monsters, sortMode)
 	if type(monsters) ~= "table" or #monsters == 0 then
 		return nil
 	end
+	local mode = CombatAutomationConfig.normalizeAutoTargetMode(sortMode)
 	local playerPos = player and player:getPosition() or nil
-	local inRange = {}
-	local any = {}
+	local pool = {}
 	for i = 1, #monsters do
 		local monster = monsters[i]
 		if CombatAutomation.isValidAttackTarget(player, monster) then
-			any[#any + 1] = monster
-			if CombatAutomation.isInWeaponRange(player, monster) then
-				inRange[#inRange + 1] = monster
-			end
+			pool[#pool + 1] = monster
 		end
 	end
-	local pool = #inRange > 0 and inRange or any
 	if #pool == 0 then
 		return nil
 	end
+
+	local aoeRadius = CombatAutomationConfig.AOE_BEST_RADIUS or 1
+	local function distSq(m)
+		if not playerPos then
+			return 0
+		end
+		return sortDistanceSquared(playerPos, m:getPosition())
+	end
+
 	table.sort(pool, function(a, b)
-		local av, bv = 0, 0
-		if playerPos then
-			av = sortDistanceSquared(playerPos, a:getPosition())
-			bv = sortDistanceSquared(playerPos, b:getPosition())
+		local da, db = distSq(a), distSq(b)
+		local ha, hb = monsterHpPercent(a), monsterHpPercent(b)
+		local ida, idb = a:getId(), b:getId()
+
+		if mode == "B" then
+			if da ~= db then
+				return da > db
+			end
+		elseif mode == "C" then
+			if ha ~= hb then
+				return ha < hb
+			end
+			if da ~= db then
+				return da < db
+			end
+		elseif mode == "D" then
+			if ha ~= hb then
+				return ha > hb
+			end
+			if da ~= db then
+				return da < db
+			end
+		elseif mode == "E" then
+			local ca = countMonstersNear(pool, a:getPosition(), aoeRadius)
+			local cb = countMonstersNear(pool, b:getPosition(), aoeRadius)
+			if ca ~= cb then
+				return ca > cb
+			end
+			if da ~= db then
+				return da < db
+			end
+		elseif mode == "F" then
+			if da ~= db then
+				return da < db
+			end
+			if ha ~= hb then
+				return ha < hb
+			end
+		elseif mode == "G" then
+			if da ~= db then
+				return da < db
+			end
+			if ha ~= hb then
+				return ha > hb
+			end
+		elseif mode == "H" then
+			if da ~= db then
+				return da > db
+			end
+			if ha ~= hb then
+				return ha < hb
+			end
+		elseif mode == "I" then
+			if da ~= db then
+				return da > db
+			end
+			if ha ~= hb then
+				return ha > hb
+			end
+		else
+			-- A closest (prefer already in weapon range)
+			local ara = CombatAutomation.isInWeaponRange(player, a)
+			local arb = CombatAutomation.isInWeaponRange(player, b)
+			if ara ~= arb then
+				return ara
+			end
+			if da ~= db then
+				return da < db
+			end
 		end
-		if av == bv then
-			return a:getId() < b:getId()
-		end
-		return av < bv
+		return ida < idb
 	end)
 	return pool[1]
 end
@@ -1549,8 +1643,6 @@ local function syncAutoAttackTarget(player, state, target, force)
 end
 
 --- Re-send the current attack target to the client (login / getAutomation).
---- Vanilla has no S→C set-attack opcode; without this, a reconnect keeps the
---- server target but the client never paints the red square after a dropped sync.
 function CombatAutomation.resyncAttackTarget(player)
 	if not player then
 		return
@@ -1569,22 +1661,38 @@ local function autoTarget(player, config, state)
 	if type(options) ~= "table" or options.enabled ~= true then
 		return player:getTarget()
 	end
-	-- Respect an existing target (player pick or prior auto pick) until it is gone.
-	-- Only acquire a new target when the player has none.
+	local mode = CombatAutomationConfig.normalizeAutoTargetMode(options.mode or options.sortMode)
+	local aggressive = mode == "E" or mode == "C" or mode == "D"
+
 	local current = player:getTarget()
 	if current and CombatAutomation.isValidAttackTarget(player, current) and isOnScreen(player, current) then
+		if not aggressive then
+			syncAutoAttackTarget(player, state, current)
+			return current
+		end
+		-- Aggressive modes: keep sticky target unless a clearly better pick exists.
+	elseif current then
+		player:setTarget(nil)
+		current = nil
+	end
+
+	local monsters = visibleMonsters(player)
+	local target = CombatAutomation.pickMonsterBySort(player, monsters, mode)
+	if aggressive and current and target and current:getId() == target:getId() then
 		syncAutoAttackTarget(player, state, current)
 		return current
 	end
-	if current then
-		player:setTarget(nil)
-	end
-	-- Prefer monsters already in weapon range; otherwise nearest valid (melee walk-in).
-	local monsters = visibleMonsters(player)
-	local target = CombatAutomation.pickMonsterBySort(player, monsters)
-	if target then
+	if aggressive and current and target and current:getId() ~= target:getId() then
+		-- Mode E/C/D: retarget when a better focus is found.
+		player:setTarget(target)
+	elseif target and not current then
+		player:setTarget(target)
+	elseif target and current and not aggressive then
+		-- sticky already returned
+	elseif target then
 		player:setTarget(target)
 	end
+
 	local resolved = player:getTarget() or target
 	if resolved and CombatAutomation.isValidAttackTarget(player, resolved) and isOnScreen(player, resolved) then
 		syncAutoAttackTarget(player, state, resolved)
@@ -1730,6 +1838,48 @@ local function slotHasEnoughMonsters(player, slot)
 	return count >= required
 end
 
+local function playerIsTrapped(player)
+	if not player then
+		return false
+	end
+	local pos = player:getPosition()
+	if not pos then
+		return false
+	end
+	local dirs = {
+		{ 0, -1 },
+		{ 1, 0 },
+		{ 0, 1 },
+		{ -1, 0 },
+	}
+	for _, d in ipairs(dirs) do
+		local npos = Position(pos.x + d[1], pos.y + d[2], pos.z)
+		local tile = Tile(npos)
+		if tile and tile.queryAdd then
+			local q = tile:queryAdd(player, FLAG_PATHFINDING or 0)
+			if q == RETURNVALUE_NOERROR or q == 0 then
+				return false
+			end
+		elseif tile and tile:getGround() then
+			return false
+		end
+	end
+	return true
+end
+
+local function slotPassesSituationalGates(player, slot)
+	if slot.castIfTrapped == true and not playerIsTrapped(player) then
+		return false
+	end
+	local needHarmony = math.floor(tonumber(slot.harmonyThreshold) or 0)
+	if needHarmony > 0 and player.getHarmony then
+		if (player:getHarmony() or 0) < needHarmony then
+			return false
+		end
+	end
+	return true
+end
+
 local function slotExhaustUntil(state, slotId, t, exhaustMs)
 	local untilMs = state.exhaustUntil and state.exhaustUntil[slotId]
 	if type(untilMs) == "number" then
@@ -1774,13 +1924,17 @@ function CombatAutomation.getState(player)
 	if not state then
 		state = {
 			playerId = id,
-			config = { slots = {}, autoTarget = { enabled = false, stance = "melee", rangedDistance = 4 } },
+			config = {
+				slots = {},
+				autoTarget = { enabled = false, stance = "melee", rangedDistance = 3, mode = "A" },
+				forceSkillOrder = true,
+			},
 			exhaust = {},
 			exhaustUntil = {},
 			event = nil,
 			suspended = false,
 			lastSyncedAttackCreatureId = nil,
-			externalTargeting = false,
+			directive = nil,
 		}
 		statesByPlayerId[id] = state
 	end
@@ -1799,27 +1953,42 @@ function CombatAutomation.clearState(player)
 	statesByPlayerId[id] = nil
 end
 
-function CombatAutomation.setExternalTargeting(player, enabled)
+function CombatAutomation.setSuspended(player, suspended)
 	local state = CombatAutomation.getState(player)
 	if not state then
 		return
 	end
-	state.externalTargeting = enabled == true
+	state.suspended = suspended == true
+	if CombatAutomationProtocol and CombatAutomationProtocol.sendConfig and state.config then
+		-- Clients listen for setAutomationSuspended; keep existing protocol path.
+	end
+	if CombatAutomation.refreshLoop then
+		CombatAutomation.refreshLoop(player)
+	end
 end
 
-
 --- Run one automation tick for the player.
---- Targeting: CombatAutomation auto-target unless externalTargeting is set (expedition AI).
---- AUTO off (autoTarget.enabled ~= true): clear target and skip attack/rune slots; heals/support/potions still run.
+--- AUTO off: clear target and skip attack/rune slots; heals/support/potions still run.
+--- Shortage suspend: keep targeting + stance/hold/follow so melee still fights; still
+--- run healing/support spells and inventory potions; skip gold-gated ammo buys and
+--- attack/rune casts until the player clears suspended.
 function CombatAutomation.tick(player, opts)
 	if not player then
 		return
 	end
 	opts = opts or {}
 	local state = CombatAutomation.getState(player)
-	local config = state.config or { slots = {}, autoTarget = { enabled = false, stance = "melee", rangedDistance = 4 } }
-	if not opts.force and state.suspended == true then
-		return
+	local config = state.config
+		or {
+			slots = {},
+			autoTarget = { enabled = false, stance = "melee", rangedDistance = 3, mode = "A" },
+			forceSkillOrder = true,
+		}
+	local suspended = not opts.force and state.suspended == true
+	-- Headless cannot clear suspend via UI; drop stale shortage locks so targeting/casts resume.
+	if suspended and player.isHeadless and player:isHeadless() then
+		state.suspended = false
+		suspended = false
 	end
 
 	tickVisibleMonsters = computeVisibleMonsters(player)
@@ -1831,16 +2000,24 @@ function CombatAutomation.tick(player, opts)
 			player:setTarget(nil)
 		end
 		syncAutoAttackTarget(player, state, nil)
-	elseif not opts.skipAutoTarget and not state.externalTargeting then
+	else
 		autoTarget(player, config, state)
 	end
 
+	-- Positioning after target pick (hold / follow / stance).
+	if CombatAutomationMovement and CombatAutomationMovement.tick then
+		CombatAutomationMovement.tick(player, config)
+	end
+
 	-- Paladin distance ammo: equip preferred type; charge gold when inventory is empty.
-	local ammoSlots = config.slots
-	ensureAmmo(player, {
-		slots = ammoSlots,
-		ammoTypeId = config.ammoTypeId or 0,
-	})
+	-- Skip while suspended so shortage cannot re-buy every tick.
+	if not suspended then
+		local ammoSlots = config.slots
+		ensureAmmo(player, {
+			slots = ammoSlots,
+			ammoTypeId = config.ammoTypeId or 0,
+		})
+	end
 
 	local slots = config.slots
 	if type(slots) ~= "table" or #slots == 0 then
@@ -1854,15 +2031,31 @@ function CombatAutomation.tick(player, opts)
 	state.exhaust = state.exhaust or {}
 	state.exhaustUntil = state.exhaustUntil or {}
 
+	-- Potions: do not stop after the first success — HP and mana pots can both be
+	-- eligible in the same tick. Cap one success per restored resource so stacked
+	-- HP potions do not all fire together.
+	-- Inventory potions still run while suspended; empty stacks that need a gold buy
+	-- fail inside consumeSupply without blocking spell heals below.
+	local usedPotionHealth, usedPotionMana = false, false
 	for _, slot in ipairs(slots) do
 		if slot.kind == "potion" and slotShouldFire(slot, hpPercent, manaPercent, player) then
-			local exhaust = CombatAutomationConfig.POTION_EXHAUST_MS or 1000
-			if slotReady(state, slot.id, t, exhaust) then
-				if usePotion(player, slot.potionTypeId) then
-					markFired(state, player, slot, "", "potion", exhaust, t, true)
-					hpPercent = percentOf(player:getHealth(), player:getMaxHealth())
-					manaPercent = percentOf(player:getMana(), player:getMaxMana())
-					break
+			local effect = CombatAutomationConfig.PotionEffects and CombatAutomationConfig.PotionEffects[slot.potionTypeId]
+			local givesHealth = effect and effect.health ~= nil
+			local givesMana = effect and effect.mana ~= nil
+			if effect and not ((givesHealth and usedPotionHealth) or (givesMana and usedPotionMana)) then
+				local exhaust = CombatAutomationConfig.POTION_EXHAUST_MS or 1000
+				if slotReady(state, slot.id, t, exhaust) then
+					if usePotion(player, slot.potionTypeId) then
+						if givesHealth then
+							usedPotionHealth = true
+						end
+						if givesMana then
+							usedPotionMana = true
+						end
+						markFired(state, player, slot, "", "potion", exhaust, t, true)
+						hpPercent = percentOf(player:getHealth(), player:getMaxHealth())
+						manaPercent = percentOf(player:getMana(), player:getMaxMana())
+					end
 				end
 			end
 		end
@@ -1887,12 +2080,8 @@ function CombatAutomation.tick(player, opts)
 		return tostring(a.id) < tostring(b.id)
 	end
 	table.sort(supportSlots, byPriority)
-	-- Attack spells and runes share one rotation: walk the bar in order and cast the
-	-- first slot that is actually possible (individual + group CD).
 	table.sort(combatSlots, byPriority)
 
-	-- Direction/wave spells use facing; keep the caster aimed at their attack target
-	-- (expedition formation otherwise faces the party anchor).
 	local attackTarget = player:getTarget()
 	if attackTarget and attackTarget.getPosition then
 		local fromPos = player:getPosition()
@@ -1916,26 +2105,24 @@ function CombatAutomation.tick(player, opts)
 
 	local preferredStances = preferredStanceWordsByChannel(supportSlots)
 
+	-- Healing / support / shield always run (mana-only); shortage suspend must not soft-lock deaths.
 	for _, slot in ipairs(supportSlots) do
 		local partyTarget = nil
 		local shouldFire = false
 		if isPartyHealSlot(slot) then
-			-- Gate on party member HP % (configured trigger), not caster HP.
 			if slot.enabled ~= false then
 				partyTarget = pickPartyHealTarget(player, slot)
 				shouldFire = partyTarget ~= nil
 			end
 		elseif isAreaHealSlot(slot) then
-			-- Mass heal: caster or any party member inside the AoE at/under HP %.
 			shouldFire = areaHealShouldFire(player, slot, hpPercent, manaPercent)
 		else
 			shouldFire = slotShouldFire(slot, hpPercent, manaPercent, player)
 		end
-		if shouldFire then
+		if shouldFire and slotPassesSituationalGates(player, slot) then
 			local words = slot.words or ""
 			if not shouldSkipStanceCast(player, words, preferredStances) then
 				local exhaust = spellExhaustMs(words)
-				-- Engine CD only; Lua exhaustUntil is fail-backoff.
 				if slotReady(state, slot.id, t, 0) then
 					local param = partyTarget and partyTarget:getName() or nil
 					local result = tryCastSpellWords(player, words, param)
@@ -1943,7 +2130,7 @@ function CombatAutomation.tick(player, opts)
 						markFired(state, player, slot, words, words, exhaust, t, false)
 						hpPercent = percentOf(player:getHealth(), player:getMaxHealth())
 						manaPercent = percentOf(player:getMana(), player:getMaxMana())
-						break
+						-- Keep checking other support/heals; engine CD returns "skip".
 					elseif result == "fail" then
 						markCastFailed(state, slot.id, t)
 					end
@@ -1952,9 +2139,20 @@ function CombatAutomation.tick(player, opts)
 		end
 	end
 
+	if suspended then
+		tickVisibleMonsters = nil
+		return
+	end
+
+	local forceSkillOrder = config.forceSkillOrder ~= false
 	if autoEnabled then
 		for _, slot in ipairs(combatSlots) do
-			if slotShouldFire(slot, hpPercent, manaPercent, player) and slotHasEnoughMonsters(player, slot) then
+			if
+				slotShouldFire(slot, hpPercent, manaPercent, player)
+				and slotHasEnoughMonsters(player, slot)
+				and slotPassesSituationalGates(player, slot)
+			then
+				local castOk = false
 				if slot.kind == "spell" then
 					local words = slot.words or ""
 					local exhaust = spellExhaustMs(words)
@@ -1962,7 +2160,7 @@ function CombatAutomation.tick(player, opts)
 						local result = tryCastSpellWords(player, words)
 						if result == "cast" then
 							markFired(state, player, slot, words, words, exhaust, t, false)
-							break
+							castOk = true
 						elseif result == "fail" then
 							markCastFailed(state, slot.id, t)
 						end
@@ -1974,11 +2172,15 @@ function CombatAutomation.tick(player, opts)
 						if result == "cast" then
 							local words = runeWords(slot.runeTypeId)
 							markFired(state, player, slot, words, words, exhaust, t, false)
-							break
+							castOk = true
 						elseif result == "fail" then
 							markCastFailed(state, slot.id, t)
 						end
 					end
+				end
+				-- forceSkillOrder: only one successful combat cast per tick; otherwise keep trying.
+				if castOk and forceSkillOrder then
+					break
 				end
 			end
 		end
@@ -2042,11 +2244,10 @@ local function loopBody(playerId)
 		return
 	end
 
-	-- Player-owned loadout only. Expedition AI sets externalTargeting; AUTO gates attacks.
-	if state.config and state.suspended ~= true then
+	-- Player-owned loadout: targeting/movement always; casting gated inside tick when suspended.
+	if state.config then
 		CombatAutomation.tick(player, {
 			force = false,
-			skipAutoTarget = state.externalTargeting == true,
 		})
 	end
 

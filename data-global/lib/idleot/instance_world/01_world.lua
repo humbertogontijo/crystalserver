@@ -60,6 +60,21 @@ function InstanceWorld.cityInstanceId(cityId)
 	return InstanceWorld.CITY_BASE + (tonumber(cityId) or 0)
 end
 
+--- True for city / settlement / hub (and open-world id 0). False for private hunt/raid instances.
+--- Prefer this over expedition-specific checks for headless persistence / logout.
+function InstanceWorld.isSafeInstance(playerOrInstanceId)
+	local instanceId = playerOrInstanceId
+	if type(playerOrInstanceId) == "userdata" or (type(playerOrInstanceId) == "table" and playerOrInstanceId.getInstanceId) then
+		if playerOrInstanceId.isInSafeInstance then
+			return playerOrInstanceId:isInSafeInstance() == true
+		end
+		instanceId = playerOrInstanceId.getInstanceId and playerOrInstanceId:getInstanceId() or 0
+	end
+	instanceId = math.floor(tonumber(instanceId) or 0)
+	-- Mirror Game::INSTANCE_PRIVATE_BASE / InstanceWorld.PRIVATE_BASE.
+	return instanceId < (InstanceWorld.PRIVATE_BASE or 3000000)
+end
+
 function InstanceWorld.posKey(pos)
 	if not pos then
 		return nil

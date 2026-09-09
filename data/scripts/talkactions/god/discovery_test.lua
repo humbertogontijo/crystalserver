@@ -6,10 +6,13 @@
 --   /disco done [subId]       -> restore/mark subarea(s) complete
 --   /disco reset              -> wipe your discovery progress
 --   /disco tp                 -> teleport to Thais City (pilot subarea)
---   /disco poi                -> reveal your current rolled viewpoints in the server log
+--   /disco poi                -> reveal your current selected viewpoints in the server log
 --   /disco donate <areaId> <gold> -> donate to a MAIN area (goal = boost scheduled)
 --   /disco donations          -> pools + boost states (scheduled / active until)
 --   /disco ss                 -> simulate the server-save boundary (activate/expire boosts)
+--
+-- Viewpoints come from tibiamaps flag markers (discovery_pois.generated.lua), not random rolls.
+-- Regenerate catalog: python3 tools/gen_discovery_pois.py
 
 local talkaction = TalkAction("/disco")
 

@@ -33,10 +33,18 @@ function ExpeditionConfig.enrichCatalogEntry(entry)
 
 	if type(entry.creatures) == "table" and #entry.creatures > 0 then
 		entry.creatures = CreatureInfo.enrichCreatureMix(entry.creatures)
-		local pack = CreatureInfo.levelsForHuntPack(
-			entry.creatures,
-			entry.creatureDensity
-		)
+		local pack = nil
+		if CreatureInfo.levelsForHazardPack then
+			pack = CreatureInfo.levelsForHazardPack(
+				entry.creatures,
+				entry.creatureDensity,
+				0,
+				CreatureInfo.hazardConfigFromServer and CreatureInfo.hazardConfigFromServer() or nil
+			)
+		end
+		if not pack then
+			pack = CreatureInfo.levelsForHuntPack(entry.creatures, entry.creatureDensity)
+		end
 		if pack then
 			entry.combatPower = pack.combatPower
 			entry.levelMin = pack.levelMin

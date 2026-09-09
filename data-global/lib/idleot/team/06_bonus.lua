@@ -1065,10 +1065,19 @@ function TeamBonus.onMemberLogin(player)
 	if not player then
 		return
 	end
-	-- Real clients must never keep a headless-companion mark (blocks UI opcodes).
-	local client = player.getClient and player:getClient() or nil
-	local version = type(client) == "table" and tonumber(client.version) or nil
-	if version and version > 0 and TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player) then
+	-- Real UI clients must not keep the headless-companion mark (blocks UI opcodes).
+	-- Controller pointer stays in TeamStore KV; TeamManager.onBecameHeadless restores the mark.
+	local isUiClient = false
+	if player.isHeadless and player:isHeadless() then
+		isUiClient = false
+	elseif player.getProtocolVersion and player:getProtocolVersion() > 0 then
+		isUiClient = true
+	else
+		local client = player.getClient and player:getClient() or nil
+		local version = type(client) == "table" and tonumber(client.version) or nil
+		isUiClient = version and version > 0
+	end
+	if isUiClient and TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player) then
 		player:setStorageValue(TeamConfig.STORAGE_COMPANION_CONTROLLER, -1)
 	end
 	if not TeamBonus.isRosterMember(player) then

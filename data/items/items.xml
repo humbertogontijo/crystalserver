@@ -89666,8 +89666,14 @@
 		<attribute key="weight" value="18" />
 	</item>
 	<item id="54133" article="an" name="echo warden portal">
-		<attribute key="description" value="An unstable echo of a slain creature. Step onto it to release what it remembers." />
-		<attribute key="allowdistread" value="1" />
+		<attribute key="description" value="An unstable echo of a slain creature. Use it from an adjacent square (or step onto it) to release what it remembers." />
+		<attribute key="movable" value="0" />
+		<attribute key="pickupable" value="0" />
+	</item>
+	<item id="54134" article="an" name="echo warden portal">
+		<attribute key="description" value="A fading echo — already released in this realm." />
+		<attribute key="movable" value="0" />
+		<attribute key="pickupable" value="0" />
 	</item>
 	<item id="54235" article="a" name="moonsilver drift">
 		<attribute key="description" value="Raw moonsilver, still seeping out of the shard." />

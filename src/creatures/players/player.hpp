@@ -607,6 +607,15 @@ public:
 	bool keepsDisconnectedCombat() const {
 		return idleCombat || exerciseTraining;
 	}
+	/** Online without a ProtocolGame client (companions, battle detach, hunt persist). */
+	bool isHeadless() const {
+		return m_headless;
+	}
+	void setHeadless(bool enabled) {
+		m_headless = enabled;
+	}
+	/** City/settlement/hub (instance id < private base). Private hunt/raid = unsafe. */
+	bool isInSafeInstance() const;
 	void setLastDepotId(int16_t newId) {
 		lastDepotId = newId;
 	}
@@ -842,6 +851,11 @@ public:
 		// Counting walkTaskEvent left hasWalkTask true forever (event id never cleared),
 		// which permanently blocked expedition AI after a successful use-with.
 		return walkTask != nullptr;
+	}
+
+	/** Drop deferred walk-then-act so AI/autoWalk can resume (idle-combat deny, repath). */
+	void clearWalkTask() {
+		setNextWalkActionTask(nullptr);
 	}
 
 	void clearWalkTaskEvent() {
@@ -2117,6 +2131,7 @@ private:
 	bool marketMenu = false; // Menu option 'show in market'
 	bool exerciseTraining = false;
 	bool idleCombat = false;
+	bool m_headless = false;
 	bool moved = false;
 	bool m_isDead = false;
 	bool imbuementTrackerWindowOpen = false;

@@ -1,8 +1,21 @@
 -- ============================================================================
--- Echo Warden Portal - onStepIn for item 54133
--- Reads stored echoKind, removes the portal, runs the 3-outcome echo raid.
--- Only players trigger it.
+-- Echo Warden Portal - item 54133 (live) / 54134 (per-instance spent claim)
+-- Use from adjacent sqm or step-in. Shared instance-0 portals claim via door-style fork.
 -- ============================================================================
+
+local echoUse = Action()
+
+function echoUse.onUse(player, item, fromPosition, target, toPosition, isHotkey)
+	if not player or not item then
+		return false
+	end
+	-- Use the item's map position (adjacent use); ignore target/toPosition.
+	local pos = item.getPosition and item:getPosition() or fromPosition
+	return EchoWarden.activateFromItem(player, item, pos)
+end
+
+echoUse:id(EchoWarden.PORTAL_ITEM_ID)
+echoUse:register()
 
 local echoPortal = MoveEvent()
 
@@ -11,21 +24,10 @@ function echoPortal.onStepIn(creature, item, position, fromPosition)
 	if not player then
 		return true
 	end
-
-	local kind = item:getCustomAttribute(EchoWarden.PORTAL_ATTR_KIND)
-	if type(kind) ~= "string" or kind == "" then
-		item:remove()
-		return true
-	end
-
-	local center = Position(position.x, position.y, position.z)
-	item:remove()
-	center:sendMagicEffect(CONST_ME_AGONY)
-
-	EchoWarden.runRaid(kind, center)
+	EchoWarden.activateFromItem(player, item, position)
 	return true
 end
 
 echoPortal:type("stepin")
-echoPortal:id(54133)
+echoPortal:id(EchoWarden.PORTAL_ITEM_ID)
 echoPortal:register()

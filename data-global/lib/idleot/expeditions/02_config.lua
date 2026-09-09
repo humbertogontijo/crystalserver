@@ -23,6 +23,9 @@ ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_X = 21
 ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_Y = 9
 ExpeditionConfig.SUBAREA_DIR = "tibia/subareas"
 ExpeditionConfig.AI_TICK_MS = 250
+-- Chebyshev distance: hunt monsters farther than this from the party anchor walk toward it
+-- (keeps echo raids / stray spawns in the viewport).
+ExpeditionConfig.MONSTER_ANCHOR_LEASH_SQM = 6
 -- Repath formation slots when stuck on the same tile (ms); avoids multi-second walk dedupe pauses.
 ExpeditionConfig.FORMATION_REPATH_MS = 400
 -- Aliases to CombatAutomationConfig (owned by lib/idleot/combat_automation/).
@@ -44,8 +47,7 @@ ExpeditionConfig.HUNT_DESPAWN_MS = 5 * 60 * 1000
 ExpeditionConfig.RELOCATE_TIMEOUT_MS = 45 * 1000
 -- Familiar-style catch-up (Creature::checkSummonMove): match anchor speed + soft surplus when behind,
 -- teleport at 15 SQM. Surplus ramps with lag (not a flat haste); this is the max at near-teleport range.
--- Teleport yank is event-driven (EventCallback playerOnWalk); AI tick keeps speed-boost maintenance.
-ExpeditionConfig.CATCH_UP_SPEED_BONUS = 60
+-- Teleport yank when companions fall too far behind (no speed overrides).
 ExpeditionConfig.CATCH_UP_TELEPORT_SQM = 15
 -- Path search radius (Chebyshev) for hold walks. Non-zero uses Crystal's
 -- getPathMatchingCond (no 100-node hard stop). 0 = unrestricted but capped at 100 nodes.
@@ -155,12 +157,12 @@ function ExpeditionConfig.normalizeStopOptions(opts)
 end
 
 -- Expedition stance roles (auto from vocation for boss + raid; Chebyshev distance for close/ranged).
+-- Melee remains for knight (locked); choosable vocations pick close and/or ranged only.
 ExpeditionConfig.STANCE_ROLES = { melee = true, close = true, ranged = true }
-ExpeditionConfig.STANCE_DISTANCE = { melee = 1, close = 2, ranged = 4 }
--- Ranged hold options (formation / creature-stance Chebyshev).
-ExpeditionConfig.RANGED_DISTANCE_DEFAULT = 4
-ExpeditionConfig.RANGED_DISTANCE_CLOSER = 3
-ExpeditionConfig.RANGED_DISTANCE_OPTIONS = { 4, 3 }
+ExpeditionConfig.STANCE_DISTANCE = { melee = 1, close = 1, ranged = 3 }
+-- Single ranged hold distance (formation / creature-stance Chebyshev).
+ExpeditionConfig.RANGED_DISTANCE_DEFAULT = 3
+ExpeditionConfig.RANGED_DISTANCE_OPTIONS = { 3 }
 -- Back-compat aliases (older call sites).
 ExpeditionConfig.BOSS_ROLES = ExpeditionConfig.STANCE_ROLES
 ExpeditionConfig.BOSS_STANCE_DISTANCE = ExpeditionConfig.STANCE_DISTANCE
@@ -188,16 +190,17 @@ function ExpeditionConfig.isPositionCritical(player)
 end
 
 --- Stance roles a vocation may pick in the AUTO stance modal.
+--- Knights stay melee-locked (no chooser). Monks: close. Paladins: close or ranged. Mages: ranged.
 function ExpeditionConfig.allowedStancesForPlayer(player)
 	local key = ""
 	if CombatAutomationCatalog and CombatAutomationCatalog.baseVocationKey then
 		key = CombatAutomationCatalog.baseVocationKey(player) or ""
 	end
 	if key == "monk" then
-		return { "melee", "close" }
+		return { "close" }
 	end
 	if key == "paladin" then
-		return { "melee", "close", "ranged" }
+		return { "close", "ranged" }
 	end
 	return { ExpeditionConfig.stanceForPlayer(player) or "melee" }
 end
@@ -212,10 +215,21 @@ function ExpeditionConfig.stanceRoleConfigurable(player)
 end
 
 --- Validate stance + rangedDistance against vocation; returns role, rangedDistance.
+--- Legacy melee picks on monk/paladin migrate to close; legacy ranged 4 → 3.
 function ExpeditionConfig.normalizeStanceForPlayer(player, stance, rangedDistance)
 	local allowed = ExpeditionConfig.allowedStancesForPlayer(player)
 	local default = ExpeditionConfig.stanceForPlayer(player) or "melee"
 	local role = tostring(stance or default)
+	-- Choosable vocations no longer offer melee; treat legacy melee as close.
+	if role == "melee" then
+		local key = ""
+		if CombatAutomationCatalog and CombatAutomationCatalog.baseVocationKey then
+			key = CombatAutomationCatalog.baseVocationKey(player) or ""
+		end
+		if key == "monk" or key == "paladin" then
+			role = "close"
+		end
+	end
 	local ok = false
 	for _, entry in ipairs(allowed) do
 		if entry == role then
@@ -226,7 +240,7 @@ function ExpeditionConfig.normalizeStanceForPlayer(player, stance, rangedDistanc
 	if not ok then
 		role = default
 	end
-	local rd = tonumber(ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 4
+	local rd = tonumber(ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 3
 	if role == "ranged" then
 		rd = ExpeditionConfig.normalizeRangedDistance(rangedDistance)
 	end
@@ -245,14 +259,18 @@ function ExpeditionConfig.configuredStanceForPlayer(player)
 	return ExpeditionConfig.normalizeStanceForPlayer(player, nil, nil)
 end
 
---- Normalize mage rangedDistance to 4 (default) or 3 (one SQM closer).
+--- Normalize rangedDistance to the single supported value (legacy 4 collapses to 3).
 function ExpeditionConfig.normalizeRangedDistance(value)
+	local default = tonumber(ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 3
 	local n = math.floor(tonumber(value) or 0)
-	local closer = tonumber(ExpeditionConfig.RANGED_DISTANCE_CLOSER) or 3
-	if n == closer then
-		return closer
+	if n == default then
+		return default
 	end
-	return tonumber(ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 4
+	-- Accept any positive legacy value by collapsing to the sole option.
+	if n > 0 then
+		return default
+	end
+	return default
 end
 
 --- Chebyshev hold distance for a stance role (ranged vocations may override via automation config).
@@ -266,7 +284,7 @@ end
 
 --- Map player vocation → default expedition stance.
 --- Druid/Sorcerer (+promoted): ranged; Paladin (+promoted): close; others: melee.
---- Monks may pick melee or close; paladins may pick any positioning stance.
+--- Monks: close only; paladins: close or ranged; knights: melee locked.
 function ExpeditionConfig.stanceForPlayer(player)
 	if not player then
 		return "melee"
@@ -280,6 +298,9 @@ function ExpeditionConfig.stanceForPlayer(player)
 		return "ranged"
 	end
 	if baseId == VOCATION.BASE_ID.PALADIN then
+		return "close"
+	end
+	if baseId == VOCATION.BASE_ID.MONK then
 		return "close"
 	end
 	return "melee"

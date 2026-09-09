@@ -62,6 +62,8 @@
 #include "items/weapons/weapons.hpp"
 #include "lua/creature/creatureevent.hpp"
 #include "lua/modules/modules.hpp"
+#include "lua/scripts/lua_environment.hpp"
+#include "lua/scripts/scripts.hpp"
 #include "server/network/message/outputmessage.hpp"
 #include "utils/tools.hpp"
 #include "creatures/players/vocations/vocation.hpp"
@@ -1643,10 +1645,8 @@ namespace {
 		if (!item) {
 			return true;
 		}
-		if (viewer && !item->isVisibleInInstance(viewer->getInstanceId())) {
-			return true;
-		}
-		return Item::items[item->getID()].id == 0;
+		const uint32_t viewerInstanceId = viewer ? viewer->getInstanceId() : 0;
+		return !item->countsTowardClientMapStack(viewerInstanceId);
 	}
 }
 
@@ -1659,7 +1659,7 @@ void ProtocolGame::GetTileDescription(const std::shared_ptr<Tile> &tile, Network
 	std::shared_ptr<Item> ground = tile->getGround();
 	// 15.25+ clients reject a zero client-id appearance on a map tile ("field has more than
 	// one zero id appearance"); skip any tile thing whose ItemType resolves to id 0.
-	if (ground && Item::items[ground->getID()].id != 0) {
+	if (ground && !skipMapTileItem(ground, player)) {
 		AddItem(msg, ground);
 		count = 1;
 	} else {
@@ -2825,6 +2825,10 @@ void ProtocolGame::parseBestiarysendMonsterData(NetworkMessage &msg) {
 	if (player->animusMastery().has(mtype->name)) {
 		newmsg.add<uint16_t>(static_cast<uint16_t>(std::round((player->animusMastery().getExperienceMultiplier() - 1) * 1000))); // Animus Mastery Bonus
 		newmsg.add<uint16_t>(player->animusMastery().getPoints()); // Animus Mastery Points
+	} else if (player->kv()->scoped("echo_warden")->get(mtype->name)) {
+		// Echo Warden first-kill mastery (CIP: Bestiary indicator like Animus)
+		newmsg.add<uint16_t>(1);
+		newmsg.add<uint16_t>(1);
 	} else {
 		newmsg.add<uint16_t>(0);
 		newmsg.add<uint16_t>(0);
@@ -3510,6 +3514,8 @@ void ProtocolGame::parseBestiarySendCreatures(NetworkMessage &msg) {
 		const auto monsterType = g_monsters().getMonsterType(it_.second);
 		if (monsterType && player->animusMastery().has(it_.second)) {
 			newmsg.add<uint16_t>(static_cast<uint16_t>(std::round((player->animusMastery().getExperienceMultiplier() - 1) * 1000))); // Animus Mastery Bonus
+		} else if (player->kv()->scoped("echo_warden")->get(it_.second)) {
+			newmsg.add<uint16_t>(1); // Echo Warden mastery marker (CIP Animus-like)
 		} else {
 			newmsg.add<uint16_t>(0);
 		}
@@ -12081,8 +12087,7 @@ void ProtocolGame::parseBossDifficultySelection(NetworkMessage &msg) {
 		return;
 	}
 
-	const uint32_t selectionContext = msg.canRead(4) ? msg.get<uint32_t>() : 0; // always 1 so far
-	(void)selectionContext;
+	const uint32_t selectionContext = msg.canRead(4) ? msg.get<uint32_t>() : 0;
 	const uint8_t action = msg.canRead(1) ? msg.getByte() : 0xFF;
 	uint16_t difficulty = 0;
 	if ((action == 0x00 || action == 0x02) && msg.canRead(2)) {
@@ -12092,19 +12097,58 @@ void ProtocolGame::parseBossDifficultySelection(NetworkMessage &msg) {
 		msg.getByte();
 	}
 
+	// Route to IdleOT ExpeditionManager (unlock clamp + join / preview update).
+	auto callExpeditionBossDifficulty = [&](const char* method, bool withDifficulty) {
+		auto &scriptInterface = g_scripts().getScriptInterface();
+		lua_State* L = scriptInterface.getLuaState();
+		if (!L) {
+			return;
+		}
+		if (!Lua::reserveScriptEnv()) {
+			g_logger().error("[BossDiffSel] Lua call stack overflow ({})", method);
+			return;
+		}
+		ScriptEnvironment* env = Lua::getScriptEnv();
+		env->setScriptId(EVENT_ID_USER, &scriptInterface);
+		lua_getglobal(L, "ExpeditionManager");
+		if (lua_type(L, -1) != LUA_TTABLE) {
+			lua_pop(L, 1);
+			Lua::resetScriptEnv();
+			return;
+		}
+		lua_getfield(L, -1, method);
+		lua_remove(L, -2);
+		if (lua_type(L, -1) != LUA_TFUNCTION) {
+			lua_pop(L, 1);
+			Lua::resetScriptEnv();
+			return;
+		}
+		Lua::pushUserdata<Player>(L, player);
+		Lua::setMetatable(L, -1, "Player");
+		int params = 1;
+		if (withDifficulty) {
+			lua_pushnumber(L, difficulty);
+			lua_pushnumber(L, selectionContext);
+			params = 3;
+		}
+		scriptInterface.callFunction(params);
+	};
+
 	if (action == 0x02) {
-		// spinner preview — the window stays open, nothing to do server-side (selection is client-side)
+		// Spinner preview — refresh mods / keep selection clamped to unlock max.
 		g_logger().info("[BossDiffSel] select difficulty={}", difficulty);
+		callExpeditionBossDifficulty("onBossDifficultyPreview", true);
 		return;
 	}
 	if (action == 0x00) {
-		// Start Fight — difficulty range is 0..25. Clamp/validate, then fire the callback.
 		if (difficulty > 25) {
 			difficulty = 25;
 		}
 		g_logger().info("[BossDiffSel] START FIGHT difficulty={} (0..25)", difficulty);
+		callExpeditionBossDifficulty("onBossDifficultyStart", true);
 	} else {
 		g_logger().info("[BossDiffSel] cancel/other action={}", action);
+		callExpeditionBossDifficulty("onBossDifficultyCancel", false);
 	}
 	// Start (after handling) or Cancel -> close the dialog
 	NetworkMessage out;

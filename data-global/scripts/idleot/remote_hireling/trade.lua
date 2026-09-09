@@ -4,7 +4,6 @@
 
 local REMOTE_HIRELING_OPCODE = 115
 local NPC_TYPE_NAME = "Remote Hireling Trader"
-local LOOT_POUCH_ID = ITEM_GOLD_POUCH or 23721
 local REMOTE_NPC_POS = Position(63990, 63990, 7)
 
 local HIRELING_OUTFIT = {
@@ -364,92 +363,39 @@ local function withdrawAmount(player, amount)
 	bankStatus(player)
 end
 
-local function findLootPouch(player)
-	local pouch = nil
-	if player.findItemInInbox and ITEM_GOLD_POUCH then
-		pouch = player:findItemInInbox(ITEM_GOLD_POUCH)
-	end
-	if not pouch then
-		pouch = player:getItemById(LOOT_POUCH_ID, true)
-	end
-	return pouch
-end
-
-local function sellPriceForItem(item)
-	if not item then
-		return 0
-	end
-	local clientId = item:getId()
-	if item.getClientId then
-		clientId = item:getClientId() or clientId
-	end
-	if NpcPriceChecker and NpcPriceChecker[clientId] and NpcPriceChecker[clientId].sell then
-		return math.floor(tonumber(NpcPriceChecker[clientId].sell) or 0)
-	end
-	if NpcPriceChecker and NpcPriceChecker[item:getId()] and NpcPriceChecker[item:getId()].sell then
-		return math.floor(tonumber(NpcPriceChecker[item:getId()].sell) or 0)
-	end
-	return 0
-end
-
-local function sellLootPouch(player)
-	local pouch = findLootPouch(player)
-	if not pouch or not pouch.isContainer or not pouch:isContainer() then
-		local msg = "No loot pouch found."
-		player:sendTextMessage(MESSAGE_FAILURE, msg)
-		reply(player, { type = "error", message = msg })
+--- Manual SELL / Sell All: same filtered hireling-catalog path as emergency auto-sell.
+local function handleSellLootPouch(player)
+	if not RemoteHirelingEconomy or not RemoteHirelingEconomy.sellLootPouch then
+		reply(player, { type = "error", message = "Auto-sell is unavailable." })
 		return
 	end
 
-	local totalGold = 0
-	local soldItems = 0
-	local toRemove = {}
-	for i = pouch:getSize() - 1, 0, -1 do
-		local it = pouch:getItem(i)
-		if it then
-			local price = sellPriceForItem(it)
-			local count = it:getCount() or 1
-			if price > 0 then
-				totalGold = totalGold + price * count
-				soldItems = soldItems + count
-				toRemove[#toRemove + 1] = it
-			end
-		end
-	end
-
-	for _, it in ipairs(toRemove) do
-		it:remove()
-	end
-
-	if totalGold <= 0 then
-		local msg = "No sellable junk in the loot pouch (NPC sell prices)."
-		player:sendTextMessage(MESSAGE_FAILURE, msg)
+	local filterMode, itemIds = RemoteHirelingEconomy.getSellFilter(player)
+	if filterMode == 1 and (not itemIds or #itemIds == 0) then
+		local msg = "Accepted sell list is empty — add items or switch to Skipped."
+		player:sendTextMessage(MESSAGE_STATUS, msg)
 		reply(player, { type = "error", message = msg })
+		pushStatus(player)
 		return
 	end
 
-	local taxPercent = 0
-	local netGold = totalGold
-	if RemoteHirelingEconomy then
-		taxPercent = RemoteHirelingEconomy.getTaxPercent(player)
-		if taxPercent > 0 then
-			netGold = math.floor(totalGold * (100 - taxPercent) / 100)
-		end
-	end
-
-	player:addMoney(netGold)
-	if taxPercent == 0 and netGold > 0 and RemoteHirelingEconomy then
-		RemoteHirelingEconomy.startCooldownIfFree(player)
+	local gold, items, taxPercent = RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
+	if items <= 0 or gold <= 0 then
+		local msg = "No sellable junk in the loot pouch (check sell list / hireling catalog)."
+		player:sendTextMessage(MESSAGE_FAILURE, msg)
+		reply(player, { type = "error", message = msg })
+		pushStatus(player)
+		return
 	end
 
 	local msg
 	if taxPercent > 0 then
-		msg = string.format("Sold %d items for %d gold (%d%% remote tax).", soldItems, netGold, taxPercent)
+		msg = string.format("Sold %d items for %d gold (%d%% remote tax).", items, gold, taxPercent)
 	else
-		msg = string.format("Sold %d items for %d gold.", soldItems, netGold)
+		msg = string.format("Sold %d items for %d gold.", items, gold)
 	end
 	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, msg)
-	reply(player, { type = "sold", gold = netGold, items = soldItems, taxPercent = taxPercent, message = msg })
+	reply(player, { type = "sold", gold = gold, items = items, taxPercent = taxPercent, message = msg })
 	pushStatus(player)
 end
 
@@ -512,7 +458,7 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 		return
 	end
 	if action == "sellLootPouch" or buffer:find('"sellLootPouch"', 1, true) then
-		sellLootPouch(player)
+		handleSellLootPouch(player)
 		return
 	end
 	if action == "bankStatus" or buffer:find('"bankStatus"', 1, true) then

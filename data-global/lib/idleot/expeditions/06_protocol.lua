@@ -100,6 +100,84 @@ function ExpeditionProtocol.sendBossDetail(player, creatureId, nameHint, bosstia
 	})
 end
 
+--- Hazard unlock / bestiary fields for a catalog entry (live status + lobby preview).
+local function attachHazardInfo(out, player, catalog, members)
+	if not out or not ExpeditionDifficulty or not catalog then
+		return out
+	end
+	local hazardMax = tonumber(catalog.hazardMax) or ExpeditionDifficulty.HAZARD_MAX
+	out.hazardMin = ExpeditionDifficulty.HAZARD_MIN
+	out.hazardMax = hazardMax
+	local party = members
+	if type(party) ~= "table" or #party == 0 then
+		party = player and { player } or {}
+	end
+	local maxAllowed = ExpeditionDifficulty.maxAllowedHazard(party, catalog)
+	out.hazardMaxAllowed = maxAllowed
+	local personalUnlock, binding = ExpeditionDifficulty.getPersonalHazardMax(player, catalog)
+	out.hazardUnlocked = personalUnlock
+	if binding then
+		out.hazardBestiaryRaceId = binding.raceId
+		out.hazardBestiaryName = binding.name
+		out.hazardBestiaryKills = binding.kills
+		out.hazardBestiaryNeed = binding.need
+	end
+	if maxAllowed < hazardMax then
+		local ok, err, _, reason =
+			ExpeditionDifficulty.canAttemptHazard(party, catalog, maxAllowed + 1, player)
+		if not ok and err then
+			out.hazardLockHint = err
+			out.hazardLockReason = reason
+		end
+	end
+	return out
+end
+
+--- Lobby / manage preview for a hunt that is not (yet) the live session.
+function ExpeditionProtocol.sendHazardInfo(player, expeditionId)
+	if not player then
+		return false
+	end
+	expeditionId = tostring(expeditionId or "")
+	local catalog = ExpeditionConfig.getById and ExpeditionConfig.getById(expeditionId) or nil
+	if not catalog then
+		return ExpeditionProtocol.send(player, {
+			type = "hazardInfo",
+			expeditionId = expeditionId,
+			ok = false,
+		})
+	end
+	local members = { player }
+	if ListingsStore and ListingsStore.getByHost then
+		local listing = ListingsStore.getByHost(player)
+		if not listing and ListingsStore.findMembership then
+			local membership = ListingsStore.findMembership(player)
+			listing = membership and membership.listing or nil
+		end
+		if listing and type(listing.members) == "table" then
+			members = {}
+			for _, m in ipairs(listing.members) do
+				if m.status == (SocialConfig and SocialConfig.MEMBER_STATUS_ACCEPTED or "accepted") then
+					local p = Player(m.guid) or (m.name and Player(m.name)) or nil
+					if p then
+						members[#members + 1] = p
+					end
+				end
+			end
+			if #members == 0 then
+				members = { player }
+			end
+		end
+	end
+	local payload = {
+		type = "hazardInfo",
+		ok = true,
+		expeditionId = tostring(catalog.id or expeditionId),
+	}
+	attachHazardInfo(payload, player, catalog, members)
+	return ExpeditionProtocol.send(player, payload)
+end
+
 function ExpeditionProtocol.sendStatus(player, session)
 	if not session then
 		return false
@@ -169,6 +247,14 @@ function ExpeditionProtocol.sendStatus(player, session)
 	elseif session.catalog and session.catalog.creatureId then
 		status.bossCreatureId = session.catalog.creatureId
 	end
+	if role == "boss" and session.bossDifficulty ~= nil then
+		status.bossDifficulty = tonumber(session.bossDifficulty) or 0
+		if ExpeditionDifficulty then
+			local levels = ExpeditionDifficulty.levelsForBossDifficulty(session.catalog, status.bossDifficulty)
+			status.bossRequiredLevel = levels and levels.levelMin or nil
+			status.bossCombatPower = levels and levels.combatPower or nil
+		end
+	end
 	if role == "monster" and kind ~= "raid" then
 		local lureMax = tonumber(session.lureMax)
 			or (session.catalog and tonumber(session.catalog.lureMax))
@@ -179,6 +265,23 @@ function ExpeditionProtocol.sendStatus(player, session)
 		status.lureMin = ExpeditionConfig.LURE_MIN or 1
 		status.lureMax = lureMax
 		status.lureValues = ExpeditionConfig.lureValuesUpTo(lureMax)
+		if ExpeditionDifficulty then
+			status.hazard = tonumber(session.hazardLevel) or ExpeditionDifficulty.HAZARD_DEFAULT
+			local members = { player }
+			if ExpeditionManager and ExpeditionManager.sessionMemberIds then
+				members = {}
+				for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
+					local m = Player(mid)
+					if m then
+						members[#members + 1] = m
+					end
+				end
+			end
+			attachHazardInfo(status, player, session.catalog, members)
+			local levels = ExpeditionDifficulty.levelsForHazard(session.catalog, status.hazard)
+			status.hazardRequiredLevel = levels and levels.levelMin or nil
+			status.hazardCombatPower = levels and levels.combatPower or nil
+		end
 		-- Live walk target + catalog stands for HUD minimap flags.
 		local holds = ExpeditionConfig.catalogPositions and ExpeditionConfig.catalogPositions(session.catalog)
 			or {}
@@ -232,7 +335,9 @@ function ExpeditionProtocol.sendStatus(player, session)
 		local acceptedCount = 0
 		for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
 			local p = Player(id)
-			if p and not (TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(p)) then
+			local isCompanion = TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(p)
+			local headless = p and p.isHeadless and p:isHeadless()
+			if p and not isCompanion and not headless then
 				local name = p:getName()
 				local key = name:lower()
 				if not seen[key] then
@@ -243,12 +348,18 @@ function ExpeditionProtocol.sendStatus(player, session)
 			end
 		end
 		local awaiting = {}
-		for _, name in pairs(session.awaitingHumanGuids) do
+		for guid, name in pairs(session.awaitingHumanGuids) do
 			if type(name) == "string" and name ~= "" then
-				local key = name:lower()
-				if not seen[key] then
-					seen[key] = true
-					awaiting[#awaiting + 1] = name
+				local p = Player(guid)
+				-- Drop headless from pending accept display.
+				if p and p.isHeadless and p:isHeadless() then
+					-- skip
+				else
+					local key = name:lower()
+					if not seen[key] then
+						seen[key] = true
+						awaiting[#awaiting + 1] = name
+					end
 				end
 			end
 		end
@@ -391,6 +502,14 @@ function ExpeditionProtocol.handle(player, buffer)
 			return
 		end
 	end
+	-- Discovery POI FAB: exclusive walk into discovery radius (validated server-side).
+	-- Handled here so it works in and out of expeditions without unlocking client autoWalk.
+	if msg.action == "discoverWalk" then
+		if DiscoverySystem and DiscoverySystem.walkTowardViewpoint then
+			DiscoverySystem.walkTowardViewpoint(player, msg.x, msg.y, msg.z)
+		end
+		return
+	end
 	-- Keep staff flag in sync for raids/world bosses before catalog pages arrive.
 	ExpeditionProtocol.sendGodFlags(player)
 	local action = msg.action
@@ -414,14 +533,39 @@ function ExpeditionProtocol.handle(player, buffer)
 		end
 	elseif action == "join" then
 		logger.info(
-			"[Expedition] {} join id={} lure={}",
+			"[Expedition] {} join id={} role={} lure={} hazard={}",
 			player:getName(),
 			tostring(msg.id or ""),
-			tostring(msg.lure or "")
+			tostring(msg.role or ""),
+			tostring(msg.lure or ""),
+			tostring(msg.hazard or "")
 		)
-		ExpeditionManager.join(player, msg.id, msg.role, msg.loadout, msg.lure, {
+		local role = msg.role
+		if role == "boss" and ExpeditionManager.prepareBoss then
+			ExpeditionManager.prepareBoss(player, msg.id, msg.loadout, {
+				stopOnInsufficientGold = msg.stopOnInsufficientGold,
+				stopOnInsufficientCap = msg.stopOnInsufficientCap,
+				bossDifficulty = msg.bossDifficulty,
+			})
+		else
+			ExpeditionManager.join(player, msg.id, role, msg.loadout, msg.lure, {
+				stopOnInsufficientGold = msg.stopOnInsufficientGold,
+				stopOnInsufficientCap = msg.stopOnInsufficientCap,
+				hazard = msg.hazard,
+			})
+		end
+	elseif action == "prepareBoss" then
+		logger.info(
+			"[Expedition] {} prepareBoss id={} previewOnly={}",
+			player:getName(),
+			tostring(msg.id or ""),
+			tostring(msg.previewOnly or false)
+		)
+		ExpeditionManager.prepareBoss(player, msg.id, msg.loadout, {
 			stopOnInsufficientGold = msg.stopOnInsufficientGold,
 			stopOnInsufficientCap = msg.stopOnInsufficientCap,
+			bossDifficulty = msg.bossDifficulty,
+			previewOnly = msg.previewOnly == true,
 		})
 	elseif action == "joinRaid" then
 		logger.info(
@@ -464,6 +608,7 @@ function ExpeditionProtocol.handle(player, buffer)
 		ExpeditionManager.requestSwitch(player, msg.id, msg.role, msg.loadout, msg.lure, {
 			stopOnInsufficientGold = msg.stopOnInsufficientGold,
 			stopOnInsufficientCap = msg.stopOnInsufficientCap,
+			hazard = msg.hazard,
 		})
 	elseif action == "acceptSwitch" then
 		logger.info("[Expedition] {} acceptSwitch", player:getName())
@@ -490,6 +635,10 @@ function ExpeditionProtocol.handle(player, buffer)
 		ExpeditionManager.declineTeamInvite(player)
 	elseif action == "setLure" then
 		ExpeditionManager.setLure(player, msg.lure)
+	elseif action == "setHazard" then
+		ExpeditionManager.setHazardLevel(player, msg.hazard)
+	elseif action == "hazardInfo" then
+		ExpeditionProtocol.sendHazardInfo(player, msg.id or msg.expeditionId)
 	elseif action == "setStopOptions" then
 		ExpeditionManager.setStopOptions(player, {
 			stopOnInsufficientGold = msg.stopOnInsufficientGold,

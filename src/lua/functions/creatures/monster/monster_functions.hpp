@@ -34,6 +34,7 @@ private:
 	static int luaMonsterSetType(lua_State* L);
 
 	static int luaMonsterGetSpawnPosition(lua_State* L);
+	static int luaMonsterSetMasterPos(lua_State* L);
 	static int luaMonsterIsInSpawnRange(lua_State* L);
 
 	static int luaMonsterIsIdle(lua_State* L);

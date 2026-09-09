@@ -82,8 +82,10 @@ private:
 
 	static int luaGameGetOfflinePlayer(lua_State* L);
 	// Headless account companions (no ProtocolGame): login near controller for squad expeditions.
-	static int luaGameLoginCompanion(lua_State* L);
-	static int luaGameLogoutCompanion(lua_State* L);
+	static int luaGameHeadlessLogin(lua_State* L);
+	// Async batch: DB load off ThreadPool, place on dispatcher, then Lua callback(players|nil, err|nil).
+	static int luaGameHeadlessLoginBatch(lua_State* L);
+	static int luaGameHeadlessLogout(lua_State* L);
 	static int luaGameDeliverCompanionFeatureUI(lua_State* L);
 	static int luaGameGetNormalizedPlayerName(lua_State* L);
 	static int luaGameGetNormalizedGuildName(lua_State* L);

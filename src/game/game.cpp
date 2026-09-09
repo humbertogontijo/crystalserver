@@ -151,6 +151,14 @@ namespace {
 		}
 		return true;
 	}
+
+	/** Items that may walk-to-Use under idle combat (expedition AI). Everything else must
+	 *  not force-walk — smart map clicks call Use on tile tops and would unlock free locomotion. */
+	constexpr uint16_t ITEM_ECHO_WARDEN_PORTAL = 54133;
+
+	[[nodiscard]] bool allowsIdleCombatWalkToUse(const std::shared_ptr<Item> &item) {
+		return item && item->getID() == ITEM_ECHO_WARDEN_PORTAL;
+	}
 } // namespace
 
 thread_local std::shared_ptr<Creature> g_instanceActor;
@@ -4709,6 +4717,8 @@ void Game::playerUseItemEx(uint32_t playerId, const Position &fromPos, uint8_t f
 
 			std::vector<Direction> listDir;
 			if (player->getPathTo(walkToPos, listDir, 0, 1, true, true, MAP_MAX_CLIENT_VIEW_PORT_X)) {
+				// Keep playerAutoWalk: idle combat must deny map use-with locomotion.
+				// Tame FAB walks via playerUseWithCreature → forcePlayerAutoWalk.
 				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
 				const auto &task = createPlayerTask(
 					400,
@@ -4832,7 +4842,17 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 		if (ret == RETURNVALUE_TOOFARAWAY) {
 			std::vector<Direction> listDir;
 			if (player->getPathTo(pos, listDir, 0, 1, true, true, MAP_MAX_CLIENT_VIEW_PORT_X)) {
-				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+				// Smart map clicks often Use the tile top. Under idle combat only allowlisted
+				// items (echo portal) may force-walk; everything else stays AI-locked.
+				if (player->isIdleCombat() && !allowsIdleCombatWalkToUse(item)) {
+					denyIdleCombatClientControl(player, IdleCombatDeny::Walk);
+					return;
+				}
+				if (player->isIdleCombat()) {
+					g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
+				} else {
+					g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+				}
 				const auto &task = createPlayerTask(
 					400,
 					[this, playerId, pos, stackPos, index, itemId] {

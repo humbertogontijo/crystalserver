@@ -13,15 +13,18 @@ end
 
 function CombatAutomationProtocol.sendConfig(player, config)
 	config = config or CombatAutomationStore.getConfig(player)
-	local at = config.autoTarget or { enabled = false, stance = "melee", rangedDistance = 4 }
+	local at = config.autoTarget
+		or { enabled = false, stance = "melee", rangedDistance = 3, mode = "A" }
 	return send(player, {
 		type = "automationConfig",
 		autoTarget = {
 			enabled = at.enabled == true,
 			stance = at.stance or "melee",
 			rangedDistance = math.floor(tonumber(at.rangedDistance) or 4),
+			mode = CombatAutomationConfig.normalizeAutoTargetMode(at.mode or at.sortMode),
 		},
 		ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
+		forceSkillOrder = config.forceSkillOrder ~= false,
 		loadout = {
 			slots = config.slots or {},
 			ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
@@ -58,24 +61,44 @@ end
 
 local function wireLoadoutFromMsg(msg)
 	if type(msg) ~= "table" then
-		return { slots = {}, autoTarget = { enabled = false, stance = "melee", rangedDistance = 4 }, ammoTypeId = 0 }
+		return {
+			slots = {},
+			autoTarget = { enabled = false, stance = "melee", rangedDistance = 3, mode = "A" },
+			ammoTypeId = 0,
+			forceSkillOrder = true,
+		}
 	end
 	local ammoTypeId = msg.ammoTypeId
 	local loadout = msg.loadout
+	local forceSkillOrder = msg.forceSkillOrder
 	if type(loadout) == "table" then
 		if ammoTypeId == nil then
 			ammoTypeId = loadout.ammoTypeId
+		end
+		if forceSkillOrder == nil then
+			forceSkillOrder = loadout.forceSkillOrder
 		end
 		return {
 			slots = loadout.slots or loadout,
 			autoTarget = msg.autoTarget,
 			ammoTypeId = ammoTypeId,
+			forceSkillOrder = forceSkillOrder,
 		}
 	end
 	if type(msg.slots) == "table" then
-		return { slots = msg.slots, autoTarget = msg.autoTarget, ammoTypeId = ammoTypeId }
+		return {
+			slots = msg.slots,
+			autoTarget = msg.autoTarget,
+			ammoTypeId = ammoTypeId,
+			forceSkillOrder = forceSkillOrder,
+		}
 	end
-	return { slots = {}, autoTarget = msg.autoTarget, ammoTypeId = ammoTypeId }
+	return {
+		slots = {},
+		autoTarget = msg.autoTarget,
+		ammoTypeId = ammoTypeId,
+		forceSkillOrder = forceSkillOrder,
+	}
 end
 
 --- Handle automation-related actions on opcode 113. Returns true if consumed.
@@ -105,9 +128,13 @@ function CombatAutomationProtocol.handleAction(player, msg)
 		return true
 	end
 	if action == "setAutomationSuspended" then
-		local state = CombatAutomation.getState(player)
-		state.suspended = msg.suspended == true
-		CombatAutomation.refreshLoop(player)
+		if CombatAutomation.setSuspended then
+			CombatAutomation.setSuspended(player, msg.suspended == true)
+		else
+			local state = CombatAutomation.getState(player)
+			state.suspended = msg.suspended == true
+			CombatAutomation.refreshLoop(player)
+		end
 		return true
 	end
 	return false

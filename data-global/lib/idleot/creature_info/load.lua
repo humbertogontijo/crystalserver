@@ -3,6 +3,8 @@ local files = {
 	"01_load.lua",
 	"02_levels.lua",
 	"03_pack.lua",
+	"04_compute.lua",
+	"05_hazard.lua",
 }
 
 for _, file in ipairs(files) do

@@ -332,6 +332,23 @@ local function isHeadlessCompanion(player)
 	return ctrl and ctrl > 0
 end
 
+--- True only when a live ProtocolGame UI is attached (not headless / protocol 0).
+local function isRealUiClient(player)
+	if not player then
+		return false
+	end
+	if isHeadlessCompanion(player) then
+		return false
+	end
+	if player.isHeadless and player:isHeadless() then
+		return false
+	end
+	if player.getProtocolVersion and player:getProtocolVersion() == 0 then
+		return false
+	end
+	return true
+end
+
 local function markCompanion(companion, controller)
 	if not companion or not controller then
 		return
@@ -343,6 +360,124 @@ local function clearCompanionMark(companion)
 	if companion then
 		companion:setStorageValue(TeamConfig.STORAGE_COMPANION_CONTROLLER, -1)
 	end
+end
+
+--- Ensure controller leads a party that includes all companions (reforms after switch cleanup).
+--- Returns party, partyOwned, errMessage
+local function ensureControllerParty(controller, companions)
+	companions = companions or {}
+	local party = controller:getParty()
+	local partyOwned = false
+
+	if party then
+		local leader = party:getLeader()
+		if not leader or leader:getId() ~= controller:getId() then
+			local leaderIsAbandonedHeadless = leader
+				and sameAccount(leader, controller)
+				and not isRealUiClient(leader)
+			if not leaderIsAbandonedHeadless then
+				return nil, false, "Only the party leader can deploy an account team."
+			end
+			logger.info(
+				"[Team] {} taking party from headless host {}",
+				controller:getName(),
+				leader:getName()
+			)
+			-- Prefer leadership transfer so shared XP / party state survive expedition hops.
+			local transferred = false
+			local inParty = false
+			for _, m in ipairs(party:getMembers() or {}) do
+				if m and m:getId() == controller:getId() then
+					inParty = true
+					break
+				end
+			end
+			if not inParty and leader and leader:getId() == controller:getId() then
+				inParty = true
+			end
+			if not inParty then
+				pcall(function()
+					party:addInvite(controller)
+					party:addMember(controller)
+				end)
+				inParty = controller:getParty() == party
+			end
+			if inParty and party.setLeader then
+				local okSet = pcall(function()
+					party:setLeader(controller)
+				end)
+				local newLeader = party.getLeader and party:getLeader() or nil
+				transferred = okSet and newLeader and newLeader:getId() == controller:getId()
+			end
+			if not transferred then
+				pcall(function()
+					party:disband()
+				end)
+				party = Party(controller)
+				partyOwned = true
+				if not party then
+					return nil, false, "Failed to create party for team."
+				end
+			end
+		end
+	elseif #companions > 0 then
+		party = Party(controller)
+		if not party then
+			return nil, false, "Failed to create party for team."
+		end
+		partyOwned = true
+	end
+
+	if not party then
+		return nil, false, nil
+	end
+
+	for _, companion in ipairs(companions) do
+		if companion and companion.getId then
+			local already = false
+			local leader = party:getLeader()
+			if leader and leader:getId() == companion:getId() then
+				already = true
+			end
+			if not already then
+				for _, m in ipairs(party:getMembers() or {}) do
+					if m and m:getId() == companion:getId() then
+						already = true
+						break
+					end
+				end
+			end
+			if not already then
+				local old = companion:getParty()
+				if old and old ~= party then
+					pcall(function()
+						old:removeMember(companion)
+					end)
+				end
+				local invited = party:addInvite(companion)
+				local joined = party:addMember(companion)
+				if not joined then
+					pcall(function()
+						party:addInvite(companion)
+						joined = party:addMember(companion)
+					end)
+				end
+				if not joined then
+					logger.warn(
+						"[Team] {} failed to party-join companion {} (invite={} joined={}); expedition will still pull them via deploy list",
+						controller:getName(),
+						companion:getName(),
+						tostring(invited),
+						tostring(joined)
+					)
+				end
+			end
+		end
+	end
+	if party.setSharedExperience then
+		party:setSharedExperience(true)
+	end
+	return party, partyOwned, nil
 end
 
 -- Lua onDeath precedes C++ death penalties; wait for HP restore before save+logout.
@@ -367,8 +502,8 @@ local function safeLogoutCompanion(companion, deferMs)
 			return
 		end
 		clearCompanionMark(c)
-		if type(Game.logoutCompanion) == "function" then
-			Game.logoutCompanion(c)
+		if type(Game.headlessLogout) == "function" then
+			Game.headlessLogout(c)
 		end
 	end
 
@@ -437,6 +572,74 @@ end
 
 function TeamManager.markCompanion(companion, controller)
 	markCompanion(companion, controller)
+end
+
+--- Clear companion mark while a UI client is attached (opcodes); pointer stays in TeamStore.
+function TeamManager.onAttachedClient(player)
+	if not player then
+		return
+	end
+	if player.setHeadless then
+		player:setHeadless(false)
+	end
+	if isHeadlessCompanion(player) then
+		clearCompanionMark(player)
+	end
+	-- Headless ticks auto-clear shortage suspend; UI cannot until the player notices.
+	-- Drop any sticky suspend left over from the headless session / gold buy attempt.
+	if CombatAutomation and CombatAutomation.setSuspended then
+		local state = CombatAutomation.getState and CombatAutomation.getState(player)
+		if state and state.suspended == true then
+			CombatAutomation.setSuspended(player, false)
+		end
+	end
+end
+
+--- Called from C++ when a real client detaches and the creature stays online as headless.
+--- Restores same-account companion mark so expedition/team treat them as companions again.
+function TeamManager.onBecameHeadless(player)
+	if not player then
+		return
+	end
+	if player.setHeadless then
+		player:setHeadless(true)
+	end
+	if TeamStore and TeamStore.reconcileControllerPointer then
+		pcall(TeamStore.reconcileControllerPointer, player)
+	end
+	local hostGuid = TeamStore and TeamStore.getControllerPointer and TeamStore.getControllerPointer(player) or nil
+	hostGuid = tonumber(hostGuid) or 0
+	if hostGuid <= 0 or hostGuid == player:getGuid() then
+		return
+	end
+	local host = TeamStore.findOnlinePlayerByGuid and TeamStore.findOnlinePlayerByGuid(hostGuid) or Player(hostGuid)
+	if not host or host:getId() == player:getId() then
+		return
+	end
+	if not sameAccount(host, player) then
+		return
+	end
+	if TeamStore.isOnControllerRoster and not TeamStore.isOnControllerRoster(player, host) then
+		return
+	end
+	markCompanion(player, host)
+	-- Keep expedition session membership as companion (blocks accept prompts).
+	if ExpeditionManager and ExpeditionManager.getSessionByPlayer then
+		local session = ExpeditionManager.getSessionByPlayer(player)
+			or ExpeditionManager.getSessionByPlayer(host)
+		if session then
+			session.companionIds = session.companionIds or {}
+			session.companionIds[player:getId()] = true
+			if session.memberGuids then
+				session.memberGuids[player:getGuid()] = player:getId()
+			end
+		end
+	end
+	logger.info(
+		"[Team] {} became headless companion under {}",
+		player:getName(),
+		host:getName()
+	)
 end
 
 function TeamManager.safeLogoutCompanion(companion, deferMs)
@@ -904,21 +1107,149 @@ local function applyCompanionAutoRebuy(companion)
 	end, 0)
 end
 
+--- Finalize party / deployment bookkeeping after companions are online.
+--- @return companions, err
+local function finalizeDeploy(controller, opts, companions)
+	local party, partyOwned, partyErr = ensureControllerParty(controller, companions)
+	if partyErr then
+		for _, c in ipairs(companions) do
+			if isHeadlessCompanion(c) then
+				clearCompanionMark(c)
+				Game.headlessLogout(c)
+			end
+		end
+		return nil, partyErr
+	end
+	if not party and (opts.inviteFriends and not opts.companionsOnly) then
+		party = Party(controller)
+		if not party then
+			return nil, "Failed to create party for team."
+		end
+		partyOwned = true
+		if party.setSharedExperience then
+			party:setSharedExperience(true)
+		end
+	end
+
+	local ids = {}
+	for _, c in ipairs(companions) do
+		ids[#ids + 1] = c:getId()
+	end
+	if #ids > 0 then
+		deployments[controller:getGuid()] = {
+			companionIds = ids,
+			partyOwned = partyOwned,
+		}
+	elseif partyOwned and party then
+		deployments[controller:getGuid()] = {
+			companionIds = {},
+			partyOwned = true,
+		}
+	end
+
+	if opts.inviteFriends ~= false and not opts.companionsOnly then
+		TeamManager.inviteFriends(controller)
+	end
+
+	logger.info(
+		"[Team] {} deployed {} companion(s)",
+		controller:getName(),
+		#companions
+	)
+	for _, companion in ipairs(companions) do
+		applyCompanionAutoRebuy(companion)
+	end
+	return companions
+end
+
+local function deliverDeployResult(opts, companions, err)
+	if opts and opts.onComplete then
+		opts.onComplete(companions, err)
+		-- Async/callback API: truthy first return means the request was accepted.
+		return companions ~= nil, err
+	end
+	return companions, err
+end
+
+local function rollbackCompanions(companions)
+	for _, c in ipairs(companions or {}) do
+		clearCompanionMark(c)
+		if isHeadlessCompanion(c) then
+			safeLogoutCompanion(c)
+		end
+	end
+end
+
+local function claimOnlineCompanion(controller, online, spawnPos, opts)
+	if online.getHealth and online:getHealth() <= 0 then
+		safeLogoutCompanion(online)
+		return nil
+	end
+	TeamManager.cancelCompanionLogout(online)
+	local onlineGuid = online.getGuid and online:getGuid() or 0
+	if onlineGuid > 0 and deployments[onlineGuid] then
+		deployments[onlineGuid] = nil
+	end
+	local onlineParty = online.getParty and online:getParty() or nil
+	if onlineParty then
+		local leader = onlineParty.getLeader and onlineParty:getLeader() or nil
+		if not (leader and leader:getId() == online:getId()) then
+			pcall(function()
+				onlineParty:removeMember(online)
+			end)
+		end
+	end
+	if opts.position then
+		online:teleportTo(spawnPos)
+	end
+	markCompanion(online, controller)
+	if online.setHeadless then
+		online:setHeadless(true)
+	end
+	logger.info(
+		"[Team] {} claimed headless {} as companion",
+		controller:getName(),
+		online:getName()
+	)
+	return online
+end
+
+local function acceptLoadedCompanions(controller, companions, loaded, accountId)
+	for _, companion in ipairs(loaded or {}) do
+		if not companion then
+			rollbackCompanions(companions)
+			return nil, "Failed to login companion."
+		end
+		if companion:getAccountId() ~= accountId then
+			rollbackCompanions(companions)
+			if isHeadlessCompanion(companion) then
+				safeLogoutCompanion(companion)
+			end
+			return nil, string.format("%s is not on your account.", companion:getName())
+		end
+		markCompanion(companion, controller)
+		companions[#companions + 1] = companion
+	end
+	return companions
+end
+
+--- Deploy account companions near the controller.
+--- opts.onComplete = function(companions|nil, err|nil) — preferred; DB loads are async.
+--- Without onComplete, falls back to blocking Game.headlessLogin (legacy).
 function TeamManager.deploy(controller, opts)
 	opts = opts or {}
 	if not controller then
-		return nil, "No player."
+		return deliverDeployResult(opts, nil, "No player.")
 	end
-	if not Game.loginCompanion then
-		return nil, "Companion login is not available on this server build."
+	if not Game.headlessLogin and not Game.headlessLoginBatch then
+		return deliverDeployResult(opts, nil, "Headless login is not available on this server build.")
 	end
 
 	local spawnPos = opts.position or controller:getPosition()
+	local accountId = controller:getAccountId()
 
 	local existing = deployments[controller:getGuid()]
 	if existing then
-		-- Already deployed - return online companions (optionally move to spawnPos).
-		-- If roster gained companions since last deploy, materialize missing ones.
 		local live = {}
 		local liveByName = {}
 		for _, id in ipairs(existing.companionIds or {}) do
@@ -943,8 +1274,7 @@ function TeamManager.deploy(controller, opts)
 			local entry = members[i]
 			if entry.kind ~= TeamConfig.KIND_FRIEND and not liveByName[entry.name:lower()] then
 				local online = Player(entry.name)
-				-- Real-client alt (multi-box / accepted as human) is not a missing headless.
-				if not (online and not isHeadlessCompanion(online)) then
+				if not (online and isRealUiClient(online)) then
 					deployments[controller:getGuid()] = nil
 					return TeamManager.deploy(controller, opts)
 				end
@@ -953,14 +1283,23 @@ function TeamManager.deploy(controller, opts)
 		if opts.inviteFriends and not opts.companionsOnly then
 			TeamManager.inviteFriends(controller)
 		end
+		local party, _, partyErr = ensureControllerParty(controller, live)
+		if partyErr then
+			return deliverDeployResult(opts, nil, partyErr)
+		end
+		if party and existing then
+			existing.partyOwned = existing.partyOwned or false
+		end
 		for _, p in ipairs(live) do
 			applyCompanionAutoRebuy(p)
 		end
-		return live
+		return deliverDeployResult(opts, live, nil)
 	end
 
 	local members = TeamStore.getMembers(controller)
+	members = TeamStore.sanitizeMembers(controller, members)
 	local companions = {}
+	local namesToLoad = {}
 
 	for i = 2, #members do
 		local entry = members[i]
@@ -968,192 +1307,103 @@ function TeamManager.deploy(controller, opts)
 			-- Friends are never headless-logged in.
 		else
 			local name = entry.name
-			local online = Player(name)
-			if online and not isHeadlessCompanion(online) then
-				-- Same-account character on a real client (multi-box / expedition accept).
-				-- Skip headless login; they join as a human session member instead.
-				logger.info(
-					"[Team] {} skip companion deploy for {} (already on a real client)",
-					controller:getName(),
-					name
-				)
-			elseif online then
-				if online.getHealth and online:getHealth() <= 0 then
-					safeLogoutCompanion(online)
-					online = nil
-				end
-				if online then
-					-- Cancel any deferred undeploy logout aimed at this creature.
-					TeamManager.cancelCompanionLogout(online)
-					if opts.position then
-						online:teleportTo(spawnPos)
+			if name:lower() == controller:getName():lower() then
+				-- Never headless-login the deployer.
+			else
+				local online = Player(name)
+				if online and online.getId and online:getId() == controller:getId() then
+					-- Deployer listed as companion (stale roster) — ignore.
+				elseif online and isRealUiClient(online) then
+					logger.info(
+						"[Team] {} skip companion deploy for {} (already on a real client)",
+						controller:getName(),
+						name
+					)
+				elseif online then
+					local claimed = claimOnlineCompanion(controller, online, spawnPos, opts)
+					if claimed then
+						companions[#companions + 1] = claimed
+					else
+						-- Died/logged out during claim — treat as offline load.
+						local offline = Game.getOfflinePlayer(name)
+						if not offline then
+							rollbackCompanions(companions)
+							return deliverDeployResult(opts, nil, string.format("Character not found: %s", name))
+						end
+						if offline:getAccountId() ~= accountId then
+							rollbackCompanions(companions)
+							return deliverDeployResult(opts, nil, string.format("%s is not on your account.", name))
+						end
+						namesToLoad[#namesToLoad + 1] = name
 					end
-					-- Re-assert companion mark (can be missing after partial undeploy / death races).
-					markCompanion(online, controller)
-					companions[#companions + 1] = online
 				else
 					local offline = Game.getOfflinePlayer(name)
 					if not offline then
-						return nil, string.format("Character not found: %s", name)
+						rollbackCompanions(companions)
+						return deliverDeployResult(opts, nil, string.format("Character not found: %s", name))
 					end
-					if offline:getAccountId() ~= controller:getAccountId() then
-						return nil, string.format("%s is not on your account.", name)
+					if offline:getAccountId() ~= accountId then
+						rollbackCompanions(companions)
+						return deliverDeployResult(opts, nil, string.format("%s is not on your account.", name))
 					end
-					local companion = Game.loginCompanion(name, spawnPos)
-					if not companion then
-						for _, c in ipairs(companions) do
-							clearCompanionMark(c)
-							safeLogoutCompanion(c)
-						end
-						return nil, string.format("Failed to login companion %s.", name)
-					end
-					if companion:getAccountId() ~= controller:getAccountId() then
-						safeLogoutCompanion(companion)
-						for _, c in ipairs(companions) do
-							clearCompanionMark(c)
-							safeLogoutCompanion(c)
-						end
-						return nil, string.format("%s is not on your account.", name)
-					end
-					markCompanion(companion, controller)
-					companions[#companions + 1] = companion
+					namesToLoad[#namesToLoad + 1] = name
 				end
-			else
-				local offline = Game.getOfflinePlayer(name)
-				if not offline then
-					return nil, string.format("Character not found: %s", name)
-				end
-				if offline:getAccountId() ~= controller:getAccountId() then
-					return nil, string.format("%s is not on your account.", name)
-				end
-				local companion = Game.loginCompanion(name, spawnPos)
-				if not companion then
-					-- Rollback partial deploy.
-					for _, c in ipairs(companions) do
-						clearCompanionMark(c)
-						Game.logoutCompanion(c)
-					end
-					return nil, string.format("Failed to login companion %s.", name)
-				end
-				if companion:getAccountId() ~= controller:getAccountId() then
-					Game.logoutCompanion(companion)
-					for _, c in ipairs(companions) do
-						clearCompanionMark(c)
-						Game.logoutCompanion(c)
-					end
-					return nil, string.format("%s is not on your account.", name)
-				end
-				markCompanion(companion, controller)
-				companions[#companions + 1] = companion
 			end
 		end
 	end
 
-	-- Form / join party: primary must lead.
-	local party = controller:getParty()
-	local partyOwned = false
-	if party then
-		local leader = party:getLeader()
-		if not leader or leader:getId() ~= controller:getId() then
-			for _, c in ipairs(companions) do
-				if isHeadlessCompanion(c) then
-					clearCompanionMark(c)
-					Game.logoutCompanion(c)
-				end
-			end
-			return nil, "Only the party leader can deploy an account team."
-		end
-	elseif #companions > 0 or (opts.inviteFriends and not opts.companionsOnly) then
-		party = Party(controller)
-		if not party then
-			for _, c in ipairs(companions) do
-				if isHeadlessCompanion(c) then
-					clearCompanionMark(c)
-					Game.logoutCompanion(c)
-				end
-			end
-			return nil, "Failed to create party for team."
-		end
-		partyOwned = true
+	local function finishWithCompanions(list)
+		local finalized, ferr = finalizeDeploy(controller, opts, list)
+		return deliverDeployResult(opts, finalized, ferr)
 	end
 
-	if party then
-		for _, companion in ipairs(companions) do
-			local already = false
-			local leader = party:getLeader()
-			if leader and leader:getId() == companion:getId() then
-				already = true
-			end
-			if not already then
-				for _, m in ipairs(party:getMembers() or {}) do
-					if m and m:getId() == companion:getId() then
-						already = true
-						break
+	if #namesToLoad == 0 then
+		return finishWithCompanions(companions)
+	end
+
+	-- Preferred path: parallel DB load off the game thread.
+	if Game.headlessLoginBatch and opts.onComplete then
+		local claimed = companions
+		Game.headlessLoginBatch(namesToLoad, spawnPos, function(loaded, loadErr)
+			if not controller or not Player(controller:getId()) then
+				for _, c in ipairs(loaded or {}) do
+					if c and isHeadlessCompanion(c) then
+						safeLogoutCompanion(c)
 					end
 				end
+				opts.onComplete(nil, "Controller offline during deploy.")
+				return
 			end
-			if not already then
-				local old = companion:getParty()
-				if old then
-					pcall(function()
-						old:removeMember(companion)
-					end)
-				end
-				local invited = party:addInvite(companion)
-				local joined = party:addMember(companion)
-				if not joined then
-					-- Retry once (invite may have failed if already on the list).
-					pcall(function()
-						party:addInvite(companion)
-						joined = party:addMember(companion)
-					end)
-				end
-				if not joined then
-					logger.warn(
-						"[Team] {} failed to party-join companion {} (invite={} joined={}); expedition will still pull them via deploy list",
-						controller:getName(),
-						companion:getName(),
-						tostring(invited),
-						tostring(joined)
-					)
-				end
+			if not loaded then
+				rollbackCompanions(claimed)
+				opts.onComplete(nil, loadErr or "Failed to login companions.")
+				return
 			end
+			local merged, mergeErr = acceptLoadedCompanions(controller, claimed, loaded, accountId)
+			if not merged then
+				opts.onComplete(nil, mergeErr)
+				return
+			end
+			local finalized, ferr = finalizeDeploy(controller, opts, merged)
+			opts.onComplete(finalized, ferr)
+		end)
+		return true
+	end
+
+	-- Legacy / no-callback: blocking sequential headlessLogin (stalls the dispatcher).
+	for _, name in ipairs(namesToLoad) do
+		local companion = Game.headlessLogin(name, spawnPos)
+		if not companion then
+			rollbackCompanions(companions)
+			return deliverDeployResult(opts, nil, string.format("Failed to login companion %s.", name))
 		end
-		if party.setSharedExperience then
-			party:setSharedExperience(true)
+		local merged, mergeErr = acceptLoadedCompanions(controller, companions, { companion }, accountId)
+		if not merged then
+			return deliverDeployResult(opts, nil, mergeErr)
 		end
+		companions = merged
 	end
-
-	local ids = {}
-	for _, c in ipairs(companions) do
-		ids[#ids + 1] = c:getId()
-	end
-	if #ids > 0 then
-		deployments[controller:getGuid()] = {
-			companionIds = ids,
-			partyOwned = partyOwned,
-		}
-	elseif partyOwned and party then
-		-- Friends-only form: remember we created the party so undeploy can disband if empty.
-		deployments[controller:getGuid()] = {
-			companionIds = {},
-			partyOwned = true,
-		}
-	end
-
-	if opts.inviteFriends ~= false and not opts.companionsOnly then
-		TeamManager.inviteFriends(controller)
-	end
-
-	logger.info(
-		"[Team] {} deployed {} companion(s)",
-		controller:getName(),
-		#companions
-	)
-	for _, companion in ipairs(companions) do
-		applyCompanionAutoRebuy(companion)
-	end
-	return companions
+	return finishWithCompanions(companions)
 end
 
 function TeamManager.undeploy(controller, opts)
@@ -1171,7 +1421,7 @@ function TeamManager.undeploy(controller, opts)
 		local companion = Player(id)
 		if companion then
 			if isHeadlessCompanion(companion) then
-				-- logoutCompanion → removeCreature → onRemoveCreature leaveParty (force).
+				-- headlessLogout → removeCreature → onRemoveCreature leaveParty (force).
 				-- Avoid party:removeMember first; double leave/disband can desync map sectors.
 				if opts.returnPos then
 					pcall(function()
@@ -1305,7 +1555,7 @@ function TeamManager.ensureOnlineMember(controller, nameOrGuid)
 		end
 		return online
 	end
-	if not Game.loginCompanion then
+	if not Game.headlessLogin then
 		return nil, "Character must be online for remote feature access."
 	end
 	local offline = Game.getOfflinePlayer(name)
@@ -1315,12 +1565,12 @@ function TeamManager.ensureOnlineMember(controller, nameOrGuid)
 	if offline:getAccountId() ~= controller:getAccountId() then
 		return nil, "Characters must be on your account."
 	end
-	local companion = Game.loginCompanion(name, controller:getPosition())
+	local companion = Game.headlessLogin(name, controller:getPosition())
 	if not companion then
 		return nil, string.format("Failed to login companion %s for wheel edit.", name)
 	end
 	if companion:getAccountId() ~= controller:getAccountId() then
-		Game.logoutCompanion(companion)
+		Game.headlessLogout(companion)
 		return nil, "Characters must be on your account."
 	end
 	markCompanion(companion, controller)
@@ -2135,7 +2385,7 @@ function TeamManager.getAutomation(controller, nameOrGuid)
 		guid = target:getGuid(),
 		level = profile.level,
 		vocation = profile.vocation,
-		autoTarget = config.autoTarget or { enabled = false, stance = "melee", rangedDistance = 4 },
+		autoTarget = config.autoTarget or { enabled = false, stance = "melee", rangedDistance = 3 },
 		ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
 		loadout = {
 			slots = config.slots or {},
@@ -2196,7 +2446,7 @@ function TeamManager.setAutomation(controller, msg)
 		guid = target:getGuid(),
 		level = profile.level,
 		vocation = profile.vocation,
-		autoTarget = config.autoTarget or { enabled = false, stance = "melee", rangedDistance = 4 },
+		autoTarget = config.autoTarget or { enabled = false, stance = "melee", rangedDistance = 3 },
 		ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
 		loadout = {
 			slots = config.slots or {},
@@ -2205,7 +2455,7 @@ function TeamManager.setAutomation(controller, msg)
 	}
 end
 
---- Ensure loginCompanion API presence message once.
+--- Ensure headlessLogin API presence message once.
 function TeamManager.hasCompanionApi()
-	return type(Game.loginCompanion) == "function" and type(Game.logoutCompanion) == "function"
+	return type(Game.headlessLogin) == "function" and type(Game.headlessLogout) == "function"
 end

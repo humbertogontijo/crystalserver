@@ -63,10 +63,10 @@ function CreatureInfo.huntCombatPowerFromMix(creatures, creatureDensity)
 		local id = row and tonumber(row.creatureId)
 		local pct = row and tonumber(row.percent) or 0
 		local n = row and tonumber(row.count)
-		local power = 0
-		if id and (pct > 0 or (n and n > 0)) then
+		local power = tonumber(row and row.combatPower) or 0
+		if power <= 0 and id and (pct > 0 or (n and n > 0)) then
 			local info = CreatureInfo.getByCreatureId(id)
-			power = info and tonumber(info.combatPower) or tonumber(row.combatPower) or 0
+			power = info and tonumber(info.combatPower) or 0
 		end
 		if power > 0 then
 			if n and n > 0 then
@@ -139,6 +139,14 @@ function CreatureInfo.enrichCreatureMix(creatures)
 					or tonumber(info.recommendedLevel)
 				enriched.hp = tonumber(info.hp) or 0
 				enriched.exp = tonumber(info.exp) or 0
+				enriched.expectedDps = tonumber(info.expectedDps) or 0
+				enriched.expectedHealDps = tonumber(info.expectedHealDps) or 0
+				enriched.armor = tonumber(info.armor) or 0
+				enriched.defense = tonumber(info.defense) or 0
+				enriched.mitigation = tonumber(info.mitigation) or 0
+				enriched.meanElementPercent = tonumber(info.meanElementPercent) or 0
+				enriched.speed = tonumber(info.speed) or 0
+				enriched.softCapHp = info.softCapHp == true
 			end
 		end
 		out[i] = enriched

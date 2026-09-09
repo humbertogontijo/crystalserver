@@ -1,9 +1,8 @@
 local combat = Combat()
 combat:setParameter(COMBAT_PARAM_TYPE, COMBAT_EARTHDAMAGE)
-combat:setParameter(COMBAT_PARAM_EFFECT, 325)
-combat:setParameter(COMBAT_PARAM_DISTANCEEFFECT, CONST_ANI_SMALLEARTH)
--- Vocation Adjustment: forked chain to up to 5 additional targets (6 total).
-combat:setParameter(COMBAT_PARAM_CHAIN_EFFECT, CONST_ME_CARNIPHILA)
+combat:setParameter(COMBAT_PARAM_EFFECT, CONST_ME_FORKED_THORNS)
+-- CIP Magical Archives preview: fieldEffect 325 along the whole chain path (no missile).
+combat:setParameter(COMBAT_PARAM_CHAIN_EFFECT, CONST_ME_FORKED_THORNS)
 
 -- Base damage 105 (ML-scaled). Modeled on strong_terra_strike's formula curve.
 function onGetFormulaValues(player, level, maglevel, basePower)

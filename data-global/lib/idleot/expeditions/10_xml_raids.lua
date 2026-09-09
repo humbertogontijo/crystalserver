@@ -22,11 +22,14 @@ local function xmlAttr(attrs, name)
 	if type(attrs) ~= "string" then
 		return nil
 	end
-	local value = attrs:match(name .. '%s*=%s*"([^"]*)"') or attrs:match(name .. "%s*=%s*'([^']*)'")
+	-- Require a word frontier so short names (y, x, z) do not match suffixes
+	-- of longer attrs (delay="…" → spurious y="…").
+	local value = attrs:match("%f[%w_]" .. name .. '%s*=%s*"([^"]*)"')
+		or attrs:match("%f[%w_]" .. name .. "%s*=%s*'([^']*)'")
 	if value then
 		return value
 	end
-	return attrs:match(name .. "%s*=%s*([%w%.%-]+)")
+	return attrs:match("%f[%w_]" .. name .. "%s*=%s*([%w%.%-]+)")
 end
 
 local function xmlNumber(attrs, name)

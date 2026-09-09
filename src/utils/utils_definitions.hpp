@@ -158,9 +158,9 @@ enum MagicEffectClasses : uint16_t {
 	// 190 is empty
 	CONST_ME_BLUE_GHOST = 191,
 	// 192 is empty
-	CONST_ME_PINK_VORTEX = 193,
+	CONST_ME_PINK_VORTEX = 193, // CIP Point of Interest Effect (idle spinning marker)
 	CONST_ME_TREASURE_MAP = 194,
-	CONST_ME_PINK_BEAM = 195,
+	CONST_ME_PINK_BEAM = 195, // CIP Point of Interest Found Effect
 	CONST_ME_GREEN_FIREWORKS = 196,
 	CONST_ME_ORANGE_FIREWORKS = 197,
 	CONST_ME_PINK_FIREWORKS = 198,
@@ -270,6 +270,10 @@ enum MagicEffectClasses : uint16_t {
 	CONST_ME_MONK_STAFF_ATTACK = 307,
 	CONST_ME_MONK_DAGGERS_ATTACK = 308,
 	CONST_ME_FIST_ATTACK = 309,
+
+	// 15.25 - Forked Glacier / Forked Thorns (CIP field effects)
+	CONST_ME_FORKED_GLACIER = 324,
+	CONST_ME_FORKED_THORNS = 325,
 
 	CONST_ME_LAST
 };

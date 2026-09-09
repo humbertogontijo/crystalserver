@@ -230,6 +230,9 @@ local function finishBoss(session, opts)
 			if ExpeditionConfig and ExpeditionConfig.clearBossAttempt then
 				ExpeditionConfig.clearBossAttempt(member)
 			end
+			if victory and ExpeditionDifficulty and ExpeditionDifficulty.unlockBossDifficulty then
+				ExpeditionDifficulty.unlockBossDifficulty(member, session.catalog, session.bossDifficulty or 0)
+			end
 			if victory and ActivityBoostActivities and ActivityBoostActivities.onBossExpeditionVictory then
 				pcall(ActivityBoostActivities.onBossExpeditionVictory, member, session)
 			end
@@ -333,6 +336,9 @@ local function materialize(session, planned)
 		if monster then
 			monster:runHealth(0)
 			ExpeditionBoss.bindBoss(session, monster)
+			if ExpeditionDifficulty and ExpeditionDifficulty.applyBossScale then
+				ExpeditionDifficulty.applyBossScale(monster, session)
+			end
 		else
 			logger.warn("[Expedition] failed to create boss '{}' at {}", entry.name, entry.pos)
 		end

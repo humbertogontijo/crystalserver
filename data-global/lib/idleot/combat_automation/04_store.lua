@@ -35,6 +35,8 @@ local function sanitizeSlot(raw, index, player)
 		monsterCount = math.max(1, math.min(9, math.floor(tonumber(raw.monsterCount) or 1))),
 		monsterCountMode = raw.monsterCountMode == "exact" and "exact" or "minimum",
 		priority = math.floor(tonumber(raw.priority) or index),
+		castIfTrapped = raw.castIfTrapped == true,
+		harmonyThreshold = math.max(0, math.min(5, math.floor(tonumber(raw.harmonyThreshold) or 0))),
 	}
 
 	if kind == "potion" then
@@ -98,53 +100,29 @@ end
 function CombatAutomationStore.sanitize(raw, player)
 	local slots = {}
 	local source = {}
-	local stance = "melee"
-	if ExpeditionConfig and ExpeditionConfig.stanceForPlayer then
-		stance = ExpeditionConfig.stanceForPlayer(player) or "melee"
-	elseif CombatAutomationCatalog and CombatAutomationCatalog.baseVocationKey then
-		local key = CombatAutomationCatalog.baseVocationKey(player)
-		if key == "paladin" then
-			stance = "close"
-		elseif key == "sorcerer" or key == "druid" then
-			stance = "ranged"
-		else
-			stance = "melee"
-		end
-	end
+	local stance = CombatAutomationConfig.stanceForPlayer(player) or "melee"
 	local autoTarget = {
 		enabled = false,
 		stance = stance,
-		rangedDistance = (ExpeditionConfig and ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 4,
+		rangedDistance = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT or 3,
+		mode = CombatAutomationConfig.AUTO_TARGET_MODE_DEFAULT or "A",
 	}
 	local ammoTypeId = 0
+	local forceSkillOrder = true
 	if type(raw) == "table" then
+		forceSkillOrder = raw.forceSkillOrder ~= false
 		if type(raw.autoTarget) == "table" then
 			autoTarget.enabled = raw.autoTarget.enabled == true
 			local rawStance = raw.autoTarget.stance
 			local rawRd = raw.autoTarget.rangedDistance
-			if ExpeditionConfig and ExpeditionConfig.normalizeStanceForPlayer then
-				autoTarget.stance, autoTarget.rangedDistance = ExpeditionConfig.normalizeStanceForPlayer(
-					player,
-					rawStance or stance,
-					rawRd
-				)
-			else
-				local role = rawStance or stance
-				if role ~= "melee" and role ~= "close" and role ~= "ranged" then
-					role = stance
-				end
-				autoTarget.stance = role
-				if role == "ranged" then
-					local rd = tonumber(rawRd)
-					if ExpeditionConfig and ExpeditionConfig.normalizeRangedDistance then
-						autoTarget.rangedDistance = ExpeditionConfig.normalizeRangedDistance(rd)
-					elseif rd == 3 then
-						autoTarget.rangedDistance = 3
-					else
-						autoTarget.rangedDistance = 4
-					end
-				end
-			end
+			autoTarget.stance, autoTarget.rangedDistance = CombatAutomationConfig.normalizeStanceForPlayer(
+				player,
+				rawStance or stance,
+				rawRd
+			)
+			autoTarget.mode = CombatAutomationConfig.normalizeAutoTargetMode(
+				raw.autoTarget.mode or raw.autoTarget.sortMode
+			)
 		end
 		local rawAmmo = math.floor(tonumber(raw.ammoTypeId) or 0)
 		if rawAmmo > 0 and CombatAutomationCatalog.ammoAllowedForPlayer(rawAmmo, player) then
@@ -188,7 +166,6 @@ function CombatAutomationStore.sanitize(raw, player)
 		end
 		return a.priority < b.priority
 	end)
-	-- Prefer first enabled ammo slot over legacy top-level field.
 	for _, slot in ipairs(slots) do
 		if slot.kind == "ammo" and slot.enabled ~= false then
 			local id = math.floor(tonumber(slot.ammoTypeId) or 0)
@@ -198,14 +175,20 @@ function CombatAutomationStore.sanitize(raw, player)
 			end
 		end
 	end
-	return { slots = slots, autoTarget = autoTarget, ammoTypeId = ammoTypeId }
+	return {
+		slots = slots,
+		autoTarget = autoTarget,
+		ammoTypeId = ammoTypeId,
+		forceSkillOrder = forceSkillOrder,
+	}
 end
 
 local function defaultAutoTarget()
 	return {
 		enabled = false,
 		stance = "melee",
-		rangedDistance = (ExpeditionConfig and ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 4,
+		rangedDistance = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT or 3,
+		mode = CombatAutomationConfig.AUTO_TARGET_MODE_DEFAULT or "A",
 	}
 end
 
@@ -217,16 +200,17 @@ function CombatAutomationStore.persist(player, config)
 	if not kv then
 		return
 	end
-	local payload = config or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0 }
+	local payload = config
+		or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0, forceSkillOrder = true }
 	kv:set(
 		CombatAutomationConfig.KV_KEY,
 		CombatAutomationJson.encode({
 			slots = payload.slots or {},
 			autoTarget = payload.autoTarget or defaultAutoTarget(),
 			ammoTypeId = math.floor(tonumber(payload.ammoTypeId) or 0),
+			forceSkillOrder = payload.forceSkillOrder ~= false,
 		})
 	)
-	-- Drop legacy key after successful write so we don't keep two sources of truth.
 	if kv.remove then
 		pcall(function()
 			kv:remove(CombatAutomationConfig.KV_LEGACY_KEY)
@@ -235,7 +219,7 @@ function CombatAutomationStore.persist(player, config)
 end
 
 local function emptyConfig()
-	return { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0 }
+	return { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0, forceSkillOrder = true }
 end
 
 local function seedBaseLoadout(player)
@@ -276,52 +260,27 @@ function CombatAutomationStore.applyToRuntime(player, config)
 	local state = CombatAutomation.getState(player)
 	local prevCfg = state.config
 	local prevAuto = prevCfg and prevCfg.autoTarget and prevCfg.autoTarget.enabled == true
-	local nextCfg = config or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0 }
+	local nextCfg = config
+		or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0, forceSkillOrder = true }
 	local nextAuto = nextCfg.autoTarget and nextCfg.autoTarget.enabled == true
-	-- Only treat as a real AUTO toggle when a prior config existed (skip cold load / first apply).
 	local autoResumed = nextAuto and not prevAuto and prevCfg ~= nil
 	state.config = nextCfg
 	if ExpeditionManager and ExpeditionManager.getSessionByPlayer then
 		local session = ExpeditionManager.getSessionByPlayer(player)
 		if session then
-			local pid = player:getId()
-			local slots = state.config.slots or {}
-			local ammoTypeId = math.floor(tonumber(state.config.ammoTypeId) or 0)
-			local at = state.config.autoTarget or {}
-			-- Keep each member's loadout; do not clobber the shared host field with companions.
-			session.memberAutomation = session.memberAutomation or {}
-			session.memberAutomation[pid] = {
-				slots = slots,
-				ammoTypeId = ammoTypeId,
-				autoTarget = at,
-			}
-			if pid == session.playerId then
-				session.automation = {
-					slots = slots,
-					ammoTypeId = ammoTypeId,
-					autoTarget = at,
-				}
-			end
-			-- Live stance refresh for formation / creature-stance (mages may change rangedDistance).
-			session.memberStance = session.memberStance or {}
-			session.memberStance[pid] = at.stance
-				or (ExpeditionConfig and ExpeditionConfig.stanceForPlayer and ExpeditionConfig.stanceForPlayer(player))
-				or "melee"
-			session.memberRangedDistance = session.memberRangedDistance or {}
-			session.memberRangedDistance[pid] = tonumber(at.rangedDistance)
-				or (ExpeditionConfig and ExpeditionConfig.RANGED_DISTANCE_DEFAULT)
-				or 4
-			if pid == session.playerId then
-				session.stance = session.memberStance[pid]
-			end
-			-- AUTO off→on: clear use-with walkTask so positioning resumes (attack already does).
 			if autoResumed and ExpeditionAI and ExpeditionAI.onAutoResumed then
 				ExpeditionAI.onAutoResumed(player)
 			elseif ExpeditionAI and ExpeditionAI.enablePersistence then
-				-- Snap idle-combat on so client walk stays locked without waiting for the AI tick.
 				ExpeditionAI.enablePersistence(player)
 			end
+			if CombatAutomationMovement and CombatAutomationMovement.onAutoResumed and autoResumed then
+				CombatAutomationMovement.onAutoResumed(player)
+			end
+		elseif autoResumed and CombatAutomationMovement and CombatAutomationMovement.onAutoResumed then
+			CombatAutomationMovement.onAutoResumed(player)
 		end
+	elseif autoResumed and CombatAutomationMovement and CombatAutomationMovement.onAutoResumed then
+		CombatAutomationMovement.onAutoResumed(player)
 	end
 	CombatAutomation.refreshLoop(player)
 end
@@ -345,6 +304,12 @@ function CombatAutomationStore.setConfig(player, raw)
 		local loadoutHasAmmo = type(loadout) == "table" and loadout.ammoTypeId ~= nil
 		if not loadoutHasAmmo then
 			config.ammoTypeId = existing.ammoTypeId or config.ammoTypeId
+		end
+	end
+	if type(raw) == "table" and raw.forceSkillOrder == nil then
+		local loadout = raw.loadout
+		if not (type(loadout) == "table" and loadout.forceSkillOrder ~= nil) then
+			config.forceSkillOrder = existing.forceSkillOrder ~= false
 		end
 	end
 	-- AUTO may be toggled off during expeditions (e.g. to tame). Attack slots and

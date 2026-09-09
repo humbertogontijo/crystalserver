@@ -32,16 +32,16 @@ server-build:
 		cmake --build --preset "$$PRESET" -j"$$JOBS"; \
 	ABS_BIN=""; \
 	for cand in \
-		"$(HERE)/crystalserver" \
 		"$(HERE)/build/$$PRESET/bin/crystalserver" \
 		"$(HERE)/build/macos-release/bin/crystalserver" \
 		"$(HERE)/build/linux-release/bin/crystalserver"; do \
-		if [ -x "$$cand" ]; then ABS_BIN="$$cand"; break; fi; \
+		if [ -x "$$cand" ] && [ ! -L "$$cand" ]; then ABS_BIN="$$cand"; break; fi; \
 	done; \
 	if [ -z "$$ABS_BIN" ]; then \
-		ABS_BIN="$$(find "$(HERE)/build" -type f -name crystalserver -perm -111 2>/dev/null | head -1)"; \
+		ABS_BIN="$$(find "$(HERE)/build" -type f ! -type l -name crystalserver -perm -111 2>/dev/null | head -1)"; \
 	fi; \
 	test -n "$$ABS_BIN" && test -x "$$ABS_BIN" || (echo "[server] binary missing" && exit 1); \
+	ABS_BIN="$$(cd "$$(dirname "$$ABS_BIN")" && pwd)/$$(basename "$$ABS_BIN")"; \
 	ln -sfn "$$ABS_BIN" "$(HERE)/crystalserver"; \
 	echo "[server] binary → $(HERE)/crystalserver"; \
 	if [ -n "$$MAP_TOOLS" ]; then \
@@ -51,8 +51,6 @@ server-build:
 			ABS_TOOL="$$(find "$(HERE)/build/$$PRESET/bin" -type f -name "$$tool" -perm -111 2>/dev/null | head -1)"; \
 			[ -n "$$ABS_TOOL" ] && ln -sfn "$$ABS_TOOL" "$$MAP_TOOLS_BIN/$$tool" && echo "[map-tools] $$tool → $$ABS_TOOL"; \
 		done; \
-		# Prefer build/<preset>/bin (current CMake output). A stale copy can linger
-		# under tools/map_query/ and break nested flood-fill seed JSON (key 'x').
 		ABS_MQFFI=""; \
 		for cand in \
 			"$(HERE)/build/$$PRESET/bin/libmap_query_ffi.dylib" \

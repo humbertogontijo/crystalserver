@@ -159,6 +159,17 @@ function Hazard:register()
 		if not player then
 			return
 		end
+		-- Private expedition instances share XY with world zones; let expedition
+		-- difficulty own setHazardSystemPoints (max with world KV).
+		local instanceId = player.getInstanceId and player:getInstanceId() or 0
+		local privateBase = (InstanceWorld and InstanceWorld.PRIVATE_BASE) or 3000000
+		if instanceId >= privateBase then
+			local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+			if session and ExpeditionDifficulty and ExpeditionDifficulty.applyPlayerPoints then
+				ExpeditionDifficulty.applyPlayerPoints(player, session)
+				return
+			end
+		end
 		logger.debug("Player {} entered hazard zone {}", player:getName(), zone:getName())
 		player:setHazardSystemPoints(self:getPlayerCurrentLevel(player))
 	end

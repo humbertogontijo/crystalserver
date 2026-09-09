@@ -88,8 +88,9 @@ function RemoteHirelingEconomy.setSellOnNoCap(player, enabled)
 end
 
 --- When false, emergency auto-sell skips while the free-sell cooldown (tax) is active.
+--- Default true: shortage sells should not wait an hour for the free rate.
 function RemoteHirelingEconomy.getAcceptTaxOnCooldown(player)
-	return getBoolFlag(player, RemoteHirelingConfig.KV_ACCEPT_TAX_ON_COOLDOWN, false)
+	return getBoolFlag(player, RemoteHirelingConfig.KV_ACCEPT_TAX_ON_COOLDOWN, true)
 end
 
 function RemoteHirelingEconomy.setAcceptTaxOnCooldown(player, enabled)
@@ -491,7 +492,7 @@ function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 	local now = nowUnix()
 	local cooldown = RemoteHirelingConfig.EMERGENCY_SELL_COOLDOWN_SECONDS or 5
 
-	-- Opt-in: do not auto-sell while free-sell cooldown would apply 20% tax.
+	-- Opt-in wait: do not auto-sell while free-sell cooldown would apply 20% tax.
 	if RemoteHirelingEconomy.isOnCooldown(player)
 		and not RemoteHirelingEconomy.getAcceptTaxOnCooldown(player) then
 		rateLimitedMsg(
@@ -505,8 +506,8 @@ function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 		return false
 	end
 
-	-- Gold/combat: debounce all attempts so ensureAmmo/consumeSupply do not sell every tick.
-	-- Cap/loot: do not debounce successful sells (dense hunts need every corpse).
+	-- Gold/combat: debounce successful sells only so an empty pouch on tick N
+	-- does not block a real sell when loot arrives shortly after.
 	if kind == "gold" then
 		local last = lastEmergencySellAt[pid] or 0
 		if now - last < cooldown then
@@ -519,9 +520,21 @@ function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 	end
 
 	local filterMode, itemIds = RemoteHirelingEconomy.getSellFilter(player)
+	if filterMode == 1 and (not itemIds or #itemIds == 0) then
+		rateLimitedMsg(
+			lastEmptySellMsgAt,
+			pid,
+			now,
+			cooldown,
+			player,
+			"Auto-sell: Accepted sell list is empty — add items or switch to Skipped."
+		)
+		return false
+	end
+
 	local gold, items, taxPercent = RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
 	if items <= 0 then
-		-- Rate-limit empty diagnostic; do not block a later successful sell on the next corpse.
+		-- Rate-limit empty diagnostic; do not arm gold success debounce.
 		rateLimitedMsg(
 			lastEmptySellMsgAt,
 			pid,
@@ -530,9 +543,6 @@ function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 			player,
 			"Auto-sell: nothing sellable in loot pouch (check Skipped vs Accepted sell list)."
 		)
-		if kind == "gold" then
-			lastEmergencySellAt[pid] = now
-		end
 		return false
 	end
 

@@ -2412,15 +2412,24 @@ void Player::sendPing() {
 		setAttackedCreature(nullptr);
 	}
 
-	// Headless companions (loginCompanion: no ProtocolGame, protocolVersion 0) never
-	// pong — do not kick them for "ping timeout" after 60s.
-	if (noPongTime >= 60000 && !client && getProtocolVersion() == 0) {
+	// Headless in an unsafe (private hunt/raid) instance: stay online for AI / persist.
+	if (isHeadless() && !client && !isInSafeInstance()) {
 		lastPong = timeNow;
 		return;
 	}
 
+	// Headless in a safe instance: remove as soon as battle/NOLOGOUT clears (no forever ghosts).
+	if (isHeadless() && !client && isInSafeInstance() && canLogout() && g_creatureEvents().playerLogout(static_self_cast<Player>())) {
+		g_logger().info("Player {} headless logout after leaving battle (safe instance).", getName());
+		if (m_party) {
+			m_party->leaveParty(getPlayer(), true);
+		}
+		g_game().removeCreature(static_self_cast<Player>(), true);
+		return;
+	}
+
 	if (noPongTime >= 60000 && canLogout() && g_creatureEvents().playerLogout(static_self_cast<Player>())) {
-		g_logger().info("Player {} has been kicked due to ping timeout. (has client: {})", getName(), client != nullptr);
+		g_logger().info("Player {} has been kicked due to ping timeout. (has client: {}, headless: {})", getName(), client != nullptr, isHeadless());
 		// Try to pass party leadership before logging out
 		if (m_party) {
 			m_party->leaveParty(getPlayer(), true);
@@ -7127,6 +7136,12 @@ bool Player::getFamiliar(const std::shared_ptr<Familiar> &familiar) const {
 
 void Player::setFamiliarLooktype(uint16_t familiarLooktype) {
 	this->defaultOutfit.lookFamiliarsType = familiarLooktype;
+}
+
+bool Player::isInSafeInstance() const {
+	// Matches InstanceWorld: city/settlement/hub < PRIVATE_BASE; hunt/raid >= PRIVATE_BASE.
+	// Instance 0 (open world) is treated as safe for logout purposes.
+	return getInstanceId() < Game::INSTANCE_PRIVATE_BASE;
 }
 
 bool Player::canLogout() {

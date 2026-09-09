@@ -98,6 +98,8 @@ function ExpeditionPersist.snapshotFromSession(session)
 		catalogRole = catalog.role or "monster",
 		lure = session.lure,
 		lureMax = session.lureMax,
+		hazardLevel = session.hazardLevel,
+		hazardMax = session.hazardMax,
 		stopOnInsufficientGold = session.stopOnInsufficientGold == true,
 		stopOnInsufficientCap = session.stopOnInsufficientCap == true,
 		hostGuid = hostGuid,

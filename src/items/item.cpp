@@ -1221,11 +1221,24 @@ bool Item::isVisibleInInstance(uint32_t viewerInstanceId) const {
 	return true;
 }
 
+bool Item::countsTowardClientMapStack(uint32_t viewerInstanceId) const {
+	if (!isVisibleInInstance(viewerInstanceId)) {
+		return false;
+	}
+	// ItemType::id == 0 means unregistered in appearances — never sent on map tiles (15.25+).
+	return items[id].id != 0;
+}
+
 // Map-template items stay on instanceId 0 (shared hunt geometry). Includes items.xml
 // transform-on-use entries (transformToOnUse / transformOnUse) such as levers and lamps.
 bool Item::isMapTemplateItem() const {
 	if (instanceId != 0) {
 		return false;
+	}
+
+	// Echo Raid portals: dynamically placed on instance 0, forked per private shard like doors.
+	if (id == 54133 || id == 54134) {
+		return true;
 	}
 
 	if (isMagicField()) {
@@ -1260,6 +1273,11 @@ bool Item::isMapTemplateItem() const {
 bool Item::isStatefulMapTemplate() const {
 	if (!isMapTemplateItem() || isMagicField()) {
 		return false;
+	}
+
+	// Echo portals must fork/claim per instance even though they are not loadedFromMap.
+	if (id == 54133 || id == 54134) {
+		return true;
 	}
 
 	const ItemType &it = items[id];

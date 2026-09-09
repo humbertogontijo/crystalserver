@@ -1,4 +1,5 @@
--- Shared gold/cap shortage: auto-sell then expedition stop (opt-in stop flags on session).
+-- Shared gold/cap shortage: auto-sell then suspend that character's automation
+-- (optionally still abort the expedition when session stop flags are set).
 
 ExpeditionSafety = ExpeditionSafety or {}
 
@@ -20,6 +21,41 @@ local function shouldStop(session, kind)
 		return session.stopOnInsufficientCap == true
 	end
 	return false
+end
+
+local function suspendPlayerAutomation(player, kind)
+	if not player or not CombatAutomation then
+		return
+	end
+	local state = CombatAutomation.getState and CombatAutomation.getState(player)
+	-- Already suspended: do not re-notify (potion/ammo retries every tick would spam).
+	if state and state.suspended == true then
+		return
+	end
+	if CombatAutomation.setSuspended then
+		CombatAutomation.setSuspended(player, true)
+	elseif state then
+		state.suspended = true
+	end
+	if CombatAutomationProtocol and CombatAutomationProtocol.send then
+		pcall(function()
+			CombatAutomationProtocol.send(player, {
+				action = "setAutomationSuspended",
+				suspended = true,
+				reason = kind,
+			})
+		end)
+	end
+	if player.sendTextMessage then
+		-- MESSAGE_STATUS_WARNING is not a valid MessageClasses value (becomes MESSAGE_NONE).
+		if kind == "gold" then
+			player:sendTextMessage(MESSAGE_STATUS, "Automation suspended: not enough gold.")
+		elseif kind == "cap" then
+			player:sendTextMessage(MESSAGE_STATUS, "Automation suspended: not enough capacity.")
+		else
+			player:sendTextMessage(MESSAGE_STATUS, "Automation suspended due to a supply shortage.")
+		end
+	end
 end
 
 --- kind: "gold" | "cap"
@@ -54,6 +90,16 @@ function ExpeditionSafety.handleShortage(player, kind, retryFn, abortReason)
 			end
 		end
 		ExpeditionManager.abort(session, reason)
+		return false
 	end
+
+	-- Headless companions cannot clear UI suspend and often share host economy timing;
+	-- skip this buy only so targeting/casting keep running when supplies exist.
+	if player.isHeadless and player:isHeadless() then
+		return false
+	end
+
+	-- Default: suspend this character's automation only (do not end the hunt).
+	suspendPlayerAutomation(player, kind)
 	return false
 end

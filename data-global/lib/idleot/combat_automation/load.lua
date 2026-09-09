@@ -5,6 +5,7 @@ local files = {
 	"01_config.lua",
 	"01_base_loadouts.lua",
 	"02_catalog.lua",
+	"06_movement.lua",
 	"03_runtime.lua",
 	"04_store.lua",
 	"05_protocol.lua",

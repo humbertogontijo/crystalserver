@@ -78,6 +78,7 @@ void PlayerFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Player", "isMonsterBestiaryUnlocked", PlayerFunctions::luaPlayerIsMonsterBestiaryUnlocked);
 	Lua::registerMethod(L, "Player", "addBestiaryKill", PlayerFunctions::luaPlayerAddBestiaryKill);
+	Lua::registerMethod(L, "Player", "getBestiaryKillCount", PlayerFunctions::luaPlayerGetBestiaryKillCount);
 	Lua::registerMethod(L, "Player", "charmExpansion", PlayerFunctions::luaPlayercharmExpansion);
 	Lua::registerMethod(L, "Player", "getCharmMonsterType", PlayerFunctions::luaPlayergetCharmMonsterType);
 	Lua::registerMethod(L, "Player", "weeklyTaskExpansion", PlayerFunctions::luaPlayerWeeklyTaskExpansion);
@@ -152,6 +153,11 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "setTraining", PlayerFunctions::luaPlayerSetTraining);
 	Lua::registerMethod(L, "Player", "isIdleCombat", PlayerFunctions::luaPlayerGetIsIdleCombat);
 	Lua::registerMethod(L, "Player", "setIdleCombat", PlayerFunctions::luaPlayerSetIdleCombat);
+	Lua::registerMethod(L, "Player", "hasWalkTask", PlayerFunctions::luaPlayerHasWalkTask);
+	Lua::registerMethod(L, "Player", "clearWalkTask", PlayerFunctions::luaPlayerClearWalkTask);
+	Lua::registerMethod(L, "Player", "isHeadless", PlayerFunctions::luaPlayerIsHeadless);
+	Lua::registerMethod(L, "Player", "setHeadless", PlayerFunctions::luaPlayerSetHeadless);
+	Lua::registerMethod(L, "Player", "isInSafeInstance", PlayerFunctions::luaPlayerIsInSafeInstance);
 
 	Lua::registerMethod(L, "Player", "getFreeCapacity", PlayerFunctions::luaPlayerGetFreeCapacity);
 
@@ -990,6 +996,19 @@ int PlayerFunctions::luaPlayerAddBestiaryKill(lua_State* L) {
 	return 1;
 }
 
+int PlayerFunctions::luaPlayerGetBestiaryKillCount(lua_State* L) {
+	// player:getBestiaryKillCount(raceId) -> number
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player == nullptr) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		lua_pushnumber(L, 0);
+		return 1;
+	}
+	const auto raceId = Lua::getNumber<uint16_t>(L, 2, 0);
+	lua_pushnumber(L, player->getBestiaryKillCount(raceId));
+	return 1;
+}
+
 int PlayerFunctions::luaPlayerIsMonsterBestiaryUnlocked(lua_State* L) {
 	// player:isMonsterBestiaryUnlocked(raceId)
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
@@ -1516,6 +1535,66 @@ int PlayerFunctions::luaPlayerGetIsIdleCombat(lua_State* L) {
 	}
 
 	Lua::pushBoolean(L, player->isIdleCombat());
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerHasWalkTask(lua_State* L) {
+	// player:hasWalkTask()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::pushBoolean(L, false);
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		return 1;
+	}
+	Lua::pushBoolean(L, player->hasWalkTask());
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerClearWalkTask(lua_State* L) {
+	// player:clearWalkTask() — drop deferred walk-then-act so AI/autoWalk can resume.
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player) {
+		player->clearWalkTask();
+		Lua::pushBoolean(L, true);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerIsHeadless(lua_State* L) {
+	// player:isHeadless()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::pushBoolean(L, false);
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		return 1;
+	}
+	Lua::pushBoolean(L, player->isHeadless());
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetHeadless(lua_State* L) {
+	// player:setHeadless(value)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player) {
+		player->setHeadless(Lua::getBoolean(L, 2, false));
+		Lua::pushBoolean(L, true);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerIsInSafeInstance(lua_State* L) {
+	// player:isInSafeInstance()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::pushBoolean(L, false);
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		return 1;
+	}
+	Lua::pushBoolean(L, player->isInSafeInstance());
 	return 1;
 }
 
@@ -6546,8 +6625,8 @@ int PlayerFunctions::luaPlayerAcceptsQuickLootItem(lua_State* L) {
 		return 1;
 	}
 
-	// Headless companions may not have received the client filter push yet.
-	if (player->getProtocolVersion() == 0) {
+	// Headless players may not have received the client filter push yet.
+	if (player->isHeadless() || player->getProtocolVersion() == 0) {
 		g_game().inheritAccountQuickLootFilter(player);
 	}
 
@@ -6573,7 +6652,7 @@ int PlayerFunctions::luaPlayerCollectQuickLootItem(lua_State* L) {
 		return 1;
 	}
 
-	if (player->getProtocolVersion() == 0) {
+	if (player->isHeadless() || player->getProtocolVersion() == 0) {
 		g_game().inheritAccountQuickLootFilter(player);
 	}
 

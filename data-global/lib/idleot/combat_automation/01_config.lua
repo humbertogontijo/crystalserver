@@ -10,6 +10,94 @@ CombatAutomationConfig.POTION_EXHAUST_MS = 1000
 CombatAutomationConfig.RUNE_EXHAUST_MS = 2000
 CombatAutomationConfig.SPELL_EXHAUST_MS = 2000
 
+-- Helper-style auto-target modes A–I (no Mode J / name lists).
+CombatAutomationConfig.AUTO_TARGET_MODES = {
+	A = "closest",
+	B = "farthest",
+	C = "lowestHp",
+	D = "highestHp",
+	E = "bestAoe",
+	F = "closestLowestHp",
+	G = "closestHighestHp",
+	H = "farthestLowestHp",
+	I = "farthestHighestHp",
+}
+CombatAutomationConfig.AUTO_TARGET_MODE_DEFAULT = "A"
+-- Chebyshev radius used for Mode E cluster scoring when no slot area is available.
+CombatAutomationConfig.AOE_BEST_RADIUS = 1
+
+CombatAutomationConfig.STANCE_DISTANCE = { melee = 1, close = 1, ranged = 3 }
+CombatAutomationConfig.RANGED_DISTANCE_DEFAULT = 3
+
+function CombatAutomationConfig.normalizeRangedDistance(value)
+	local default = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT or 3
+	local n = math.floor(tonumber(value) or 0)
+	if n > 0 then
+		return n
+	end
+	return default
+end
+
+function CombatAutomationConfig.normalizeAutoTargetMode(raw)
+	local key = tostring(raw or CombatAutomationConfig.AUTO_TARGET_MODE_DEFAULT):upper()
+	if CombatAutomationConfig.AUTO_TARGET_MODES[key] then
+		return key
+	end
+	-- Accept numeric 1–9 (helper IDs) mapped to A–I.
+	local n = math.floor(tonumber(raw) or 0)
+	local byIndex = { "A", "B", "C", "D", "E", "F", "G", "H", "I" }
+	if n >= 1 and n <= 9 then
+		return byIndex[n]
+	end
+	return CombatAutomationConfig.AUTO_TARGET_MODE_DEFAULT
+end
+
+function CombatAutomationConfig.stanceForPlayer(player)
+	if ExpeditionConfig and ExpeditionConfig.stanceForPlayer then
+		return ExpeditionConfig.stanceForPlayer(player)
+	end
+	if not player then
+		return "melee"
+	end
+	if CombatAutomationCatalog and CombatAutomationCatalog.baseVocationKey then
+		local key = CombatAutomationCatalog.baseVocationKey(player)
+		if key == "paladin" or key == "monk" then
+			return "close"
+		end
+		if key == "sorcerer" or key == "druid" then
+			return "ranged"
+		end
+	end
+	return "melee"
+end
+
+function CombatAutomationConfig.normalizeStanceForPlayer(player, stance, rangedDistance)
+	if ExpeditionConfig and ExpeditionConfig.normalizeStanceForPlayer then
+		return ExpeditionConfig.normalizeStanceForPlayer(player, stance, rangedDistance)
+	end
+	local default = CombatAutomationConfig.stanceForPlayer(player)
+	local role = tostring(stance or default)
+	if role ~= "melee" and role ~= "close" and role ~= "ranged" then
+		role = default
+	end
+	local rd = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT
+	if role == "ranged" then
+		rd = CombatAutomationConfig.normalizeRangedDistance(rangedDistance)
+	end
+	return role, rd
+end
+
+function CombatAutomationConfig.stanceDistanceFor(role, rangedDistance)
+	if ExpeditionConfig and ExpeditionConfig.stanceDistanceFor then
+		return ExpeditionConfig.stanceDistanceFor(role, rangedDistance)
+	end
+	local map = CombatAutomationConfig.STANCE_DISTANCE
+	if role == "ranged" then
+		return CombatAutomationConfig.normalizeRangedDistance(rangedDistance or map.ranged)
+	end
+	return map[role] or 1
+end
+
 CombatAutomationConfig.RuneWordsByTypeId = {
 	[17512] = "adori dis min vis", -- lightest magic missile
 	[21351] = "adori infir mas tera", -- light stone shower

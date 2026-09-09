@@ -584,6 +584,10 @@ ACHIEVEMENTS = {
 	[581] = { name = "Workhorse", grade = 2, points = 4, description = "Whether it's clearing cellars from rats or delivering quara eyes, you do the job regardless of the task type. Your dedication to work is unmatched." },
 	[582] = { name = "Castle Crasher", grade = 1, points = 1, description = "While saving turtle eggs on Aragonia you couldn't resist trampling every sandcastle in your path. The beach will never be the same." },
 	[583] = { name = "A reliable Friend", grade = 1, points = 1, description = "With a bunch of turnips you won over the lonely ram of Targuna and earned yourself a most reliable companion." },
+	[584] = { name = "Echo Raid Initiate", grade = 1, points = 1, description = "You released your first Echo Raid and faced whatever the past remembered." },
+	[585] = { name = "Echo Raid Hunter", grade = 1, points = 2, description = "You have defeated Echo Wardens of ten different creature kinds." },
+	[586] = { name = "Echo Raid Walker", grade = 2, points = 4, description = "Twenty-five Echo Warden first-kills — the echoes know your name." },
+	[587] = { name = "Echo Raid Conqueror", grade = 3, points = 6, description = "Fifty Echo Warden first-kills. Few hunters leave so many echoes silent." },
 }
 
 --[[

@@ -709,6 +709,10 @@ void LuaEnums::initConstMeEnums(lua_State* L) {
 	registerEnum(L, CONST_ME_MONK_STAFF_ATTACK);
 	registerEnum(L, CONST_ME_MONK_DAGGERS_ATTACK);
 	registerEnum(L, CONST_ME_FIST_ATTACK);
+
+	// 15.25 - Forked Glacier / Forked Thorns
+	registerEnum(L, CONST_ME_FORKED_GLACIER);
+	registerEnum(L, CONST_ME_FORKED_THORNS);
 }
 
 void LuaEnums::initConstAniEnums(lua_State* L) {

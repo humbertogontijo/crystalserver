@@ -7,6 +7,60 @@ local function huntEnded(session)
 	return not session or session.state == "ended"
 end
 
+--- Any living monster on this session's instance (wave + echo raids + strays).
+--- `exceptCreatureId` skips the dying creature (still present during onDeath).
+function ExpeditionWaves.sessionHasLiveMonsters(session, exceptCreatureId)
+	if not session then
+		return false
+	end
+	local instanceId = session.instance and session.instance.instanceId
+	if not instanceId or not Game.getMonsters then
+		return false
+	end
+	local exceptId = exceptCreatureId and math.floor(tonumber(exceptCreatureId) or 0) or 0
+	for _, monster in ipairs(Game.getMonsters()) do
+		if monster and monster.getHealth and monster:getHealth() > 0
+			and monster.getInstanceId and monster:getInstanceId() == instanceId then
+			if exceptId == 0 or monster:getId() ~= exceptId then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+--- Keep instance monsters' home on the party anchor so C++ walk-back / idle-at-home works.
+function ExpeditionWaves.pullMonstersToAnchor(session)
+	if not session or session.state ~= "hunting" then
+		return
+	end
+	local role = session.role or (session.catalog and session.catalog.role) or "monster"
+	local kind = session.kind or (session.catalog and session.catalog.kind) or "hunt"
+	if role == "boss" or kind == "raid" or kind == "worldboss" or kind == "soulpit" then
+		return
+	end
+	local instanceId = session.instance and session.instance.instanceId
+	if not instanceId or not Game.getMonsters then
+		return
+	end
+	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
+	local anchorPos = anchor and anchor:getPosition() or nil
+	if not anchorPos then
+		anchorPos = session.holdPos
+	end
+	if not anchorPos then
+		return
+	end
+	local dest = Position(anchorPos.x, anchorPos.y, anchorPos.z)
+	for _, monster in ipairs(Game.getMonsters()) do
+		if monster and monster.getHealth and monster:getHealth() > 0
+			and monster.getInstanceId and monster:getInstanceId() == instanceId
+			and monster.setMasterPos then
+			monster:setMasterPos(dest)
+		end
+	end
+end
+
 local function catalogCreatureIds(catalog)
 	if not catalog then
 		return {}
@@ -179,34 +233,81 @@ local function advanceHold(session)
 	return true
 end
 
---- Teleport session members onto holdPos so a timed-out relocate can still spawn.
---- Must use enterInstance (skips open-world travel classify) - raw teleportTo would
---- treat Rookgaard-overlapping holds as settlement leave and strand the party outside PZ.
+--- Teleport session members for a timed-out relocate.
+--- Anchor lands on holdPos (wave gate). Companions land on free adjacent tiles —
+--- stacking everyone on hold blocked the anchor when only catch-up had fired.
 local function forceArriveAtHold(session)
 	local hold = session and session.holdPos
 	if not hold or not ExpeditionManager or not ExpeditionManager.sessionMemberIds then
 		return
 	end
 	local instanceId = session.instance and session.instance.instanceId
+	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
+	local anchorId = anchor and anchor:getId() or nil
+	local offsets = {
+		{ 0, 0 }, -- anchor only
+		{ 1, 0 },
+		{ -1, 0 },
+		{ 0, 1 },
+		{ 0, -1 },
+		{ 1, 1 },
+		{ 1, -1 },
+		{ -1, 1 },
+		{ -1, -1 },
+		{ 2, 0 },
+		{ -2, 0 },
+		{ 0, 2 },
+		{ 0, -2 },
+	}
+	local used = {}
+	local function key(pos)
+		return string.format("%d,%d,%d", pos.x, pos.y, pos.z)
+	end
+
+	local function teleportMember(p, dest)
+		p:setFollowCreature(nil)
+		local ok = false
+		if InstanceWorld and InstanceWorld.enterInstance and instanceId then
+			ok = InstanceWorld.enterInstance(p, instanceId, dest) and true or false
+		elseif p.setInstanceId and instanceId then
+			p:setInstanceId(instanceId)
+			ok = p:teleportTo(dest) and true or false
+		else
+			ok = p:teleportTo(dest) and true or false
+		end
+		if not ok then
+			logger.warn(
+				"[Expedition] forceArrive teleport failed for {} → {}",
+				p:getName(),
+				string.format("%d,%d,%d", dest.x, dest.y, dest.z)
+			)
+		end
+		return ok
+	end
+
+	-- Anchor first — must occupy hold exactly.
+	if anchor then
+		teleportMember(anchor, hold)
+		used[key(hold)] = true
+	end
+
 	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local p = Player(mid)
-		if p then
-			p:setFollowCreature(nil)
-			local ok = false
-			if InstanceWorld and InstanceWorld.enterInstance and instanceId then
-				ok = InstanceWorld.enterInstance(p, instanceId, hold) and true or false
-			elseif p.setInstanceId and instanceId then
-				p:setInstanceId(instanceId)
-				ok = p:teleportTo(hold) and true or false
-			else
-				ok = p:teleportTo(hold) and true or false
-			end
-			if not ok then
-				logger.warn(
-					"[Expedition] forceArrive teleport failed for {} → {}",
-					p:getName(),
-					string.format("%d,%d,%d", hold.x, hold.y, hold.z)
-				)
+		if mid ~= anchorId then
+			local p = Player(mid)
+			if p then
+				local dest = nil
+				for _, off in ipairs(offsets) do
+					if not (off[1] == 0 and off[2] == 0) then
+						local cand = Position(hold.x + off[1], hold.y + off[2], hold.z)
+						local k = key(cand)
+						if not used[k] then
+							dest = cand
+							used[k] = true
+							break
+						end
+					end
+				end
+				teleportMember(p, dest or Position(hold.x, hold.y - 1, hold.z))
 			end
 		end
 	end
@@ -257,9 +358,17 @@ local function materialize(session, planned)
 		if monster then
 			-- Never flee (runAwayHealth); ranged targetDistance / distance attacking is unchanged.
 			monster:runHealth(0)
+			-- Home = hold/anchor so idle/walk-back matches open-world spawn behavior.
+			local home = session.holdPos or (session.instance and session.instance.entry) or entry.pos
+			if monster.setMasterPos and home then
+				monster:setMasterPos(Position(home.x, home.y, home.z))
+			end
 			monster:registerEvent("ExpeditionMonsterDeath")
 			monsterOwners[monster:getId()] = session.key
 			session.alive = session.alive + 1
+			if ExpeditionDifficulty and ExpeditionDifficulty.flagMonster then
+				ExpeditionDifficulty.flagMonster(monster, session)
+			end
 		else
 			logger.warn(
 				"[Expedition] failed to create monster race {} ('{}') at {}",
@@ -547,6 +656,28 @@ local function scheduleNextWave(session)
 	ExpeditionManager.broadcastStatus(session)
 end
 
+--- Advance only when the instance has no living monsters (wave + echo raids).
+--- When extras remain, set awaitingInstanceClear; their onDeath calls this again.
+function ExpeditionWaves.tryScheduleNextWave(session, exceptCreatureId)
+	if huntEnded(session) then
+		return
+	end
+	if session.state ~= "hunting" then
+		session.awaitingInstanceClear = nil
+		return
+	end
+	if (session.alive or 0) > 0 then
+		session.awaitingInstanceClear = nil
+		return
+	end
+	if ExpeditionWaves.sessionHasLiveMonsters(session, exceptCreatureId) then
+		session.awaitingInstanceClear = true
+		return
+	end
+	session.awaitingInstanceClear = nil
+	scheduleNextWave(session)
+end
+
 --- Despawn remaining wave monsters and start a fresh wave (unreachable-spawn unstuck).
 function ExpeditionWaves.scheduleDespawn(session)
 	if not session then
@@ -572,7 +703,7 @@ function ExpeditionWaves.scheduleDespawn(session)
 			end
 		end
 		s.alive = 0
-		scheduleNextWave(s)
+		ExpeditionWaves.tryScheduleNextWave(s)
 	end, ms)
 end
 
@@ -610,31 +741,41 @@ function ExpeditionWaves.onMonsterDeath(creature, corpse)
 	local monsterId = creature:getId()
 	local key = monsterOwners[monsterId]
 	monsterOwners[monsterId] = nil
-	if not key then
+
+	if key then
+		local session = ExpeditionManager.getSessionByKey(key)
+		if not session or session.state == "ended" then
+			return
+		end
+		session.alive = math.max(0, (session.alive or 1) - 1)
+		session.kills = (session.kills or 0) + 1
+		ExpeditionManager.broadcastStatus(session)
+		if session.alive <= 0 and session.state == "hunting" then
+			clearDespawn(session)
+			ExpeditionWaves.tryScheduleNextWave(session, monsterId)
+		end
 		return
 	end
-	local session = ExpeditionManager.getSessionByKey(key)
-	if not session then
+
+	-- Unowned instance monster (echo raid, etc.): resume next-hold when awaiting clear.
+	if not creature.getInstanceId or not ExpeditionManager.getSessionByInstanceId then
+		return
+	end
+	local session = ExpeditionManager.getSessionByInstanceId(creature:getInstanceId())
+	if not session or not session.awaitingInstanceClear then
 		return
 	end
 	if session.state == "ended" then
 		return
 	end
-
-	session.alive = math.max(0, (session.alive or 1) - 1)
-	session.kills = (session.kills or 0) + 1
-	ExpeditionManager.broadcastStatus(session)
-
-	if session.alive <= 0 and session.state == "hunting" then
-		clearDespawn(session)
-		scheduleNextWave(session)
-	end
+	ExpeditionWaves.tryScheduleNextWave(session, monsterId)
 end
 
 function ExpeditionWaves.clear(session)
 	if not session then
 		return
 	end
+	session.awaitingInstanceClear = nil
 	clearWaiting(session)
 	clearRelocate(session)
 	clearDespawn(session)

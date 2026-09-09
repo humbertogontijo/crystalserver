@@ -44,6 +44,52 @@
 #include "lua/scripts/lua_environment.hpp"
 #include "map/spectators.hpp"
 #include "lua/functions/lua_functions_loader.hpp"
+#include "lib/thread/thread_pool.hpp"
+
+#include <atomic>
+#include <memory>
+#include <vector>
+
+namespace {
+
+bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position position, bool hasPosition) {
+	if (!player) {
+		return false;
+	}
+	player->setID();
+	if (!hasPosition) {
+		position = player->getLoginPosition();
+	}
+	// Forced place so headless players can stack near the controller / temple.
+	// onPlacedCreature → playerLogin must see the DB lastLoginSaved — same order as ProtocolGame.
+	if (!g_game().placeCreature(player, position, false, true)
+		&& !g_game().placeCreature(player, player->getTemplePosition(), false, true)) {
+		return false;
+	}
+	player->stampLoginTimestamps();
+	g_game().addCreatureCheck(player);
+	player->setOnline(true);
+	player->setHeadless(true);
+	g_game().inheritAccountQuickLootFilter(player);
+	return true;
+}
+
+struct HeadlessBatchSlot {
+	enum class Kind : uint8_t { Name, Guid };
+	Kind kind = Kind::Name;
+	std::string name;
+	uint32_t guid = 0;
+	std::shared_ptr<Player> existing;
+};
+
+struct HeadlessBatchLoadResult {
+	size_t index = 0;
+	std::shared_ptr<Player> player;
+	bool ok = false;
+	std::string error;
+};
+
+} // namespace
 
 void GameFunctions::init(lua_State* L) {
 	Lua::registerTable(L, "Game");
@@ -109,8 +155,9 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "hasDistanceEffect", GameFunctions::luaGameHasDistanceEffect);
 	Lua::registerMethod(L, "Game", "hasEffect", GameFunctions::luaGameHasEffect);
 	Lua::registerMethod(L, "Game", "getOfflinePlayer", GameFunctions::luaGameGetOfflinePlayer);
-	Lua::registerMethod(L, "Game", "loginCompanion", GameFunctions::luaGameLoginCompanion);
-	Lua::registerMethod(L, "Game", "logoutCompanion", GameFunctions::luaGameLogoutCompanion);
+	Lua::registerMethod(L, "Game", "headlessLogin", GameFunctions::luaGameHeadlessLogin);
+	Lua::registerMethod(L, "Game", "headlessLoginBatch", GameFunctions::luaGameHeadlessLoginBatch);
+	Lua::registerMethod(L, "Game", "headlessLogout", GameFunctions::luaGameHeadlessLogout);
 	Lua::registerMethod(L, "Game", "deliverCompanionFeatureUI", GameFunctions::luaGameDeliverCompanionFeatureUI);
 	Lua::registerMethod(L, "Game", "getNormalizedPlayerName", GameFunctions::luaGameGetNormalizedPlayerName);
 	Lua::registerMethod(L, "Game", "getNormalizedGuildName", GameFunctions::luaGameGetNormalizedGuildName);
@@ -812,6 +859,8 @@ int GameFunctions::luaGameCreateMonster(lua_State* L) {
 	const bool extended = Lua::getBoolean(L, 3, false);
 	const bool force = Lua::getBoolean(L, 4, false);
 	if (g_game().placeCreature(monster, position, extended, force)) {
+		// Home for idle/walk-back (spawn tile). Expeditions overwrite with the party anchor.
+		monster->setMasterPos(monster->getPosition());
 		monster->onSpawn(position);
 		const auto &mtype = monster->getMonsterType();
 		if (mtype && mtype->info.raceid > 0 && mtype->info.bosstiaryRace == BosstiaryRarity_t::RARITY_ARCHFOE) {
@@ -1037,9 +1086,10 @@ int GameFunctions::luaGameGetOfflinePlayer(lua_State* L) {
 	return 1;
 }
 
-int GameFunctions::luaGameLoginCompanion(lua_State* L) {
-	// Game.loginCompanion(name or guid[, position])
-	// Places a headless Player (no ProtocolGame) online for account-squad control.
+int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
+	// Game.headlessLogin(name or guid[, position])
+	// Places a headless Player (no ProtocolGame) online.
+	// NOTE: DB load is synchronous on the dispatcher — prefer headlessLoginBatch for multi-login.
 	Position position;
 	const bool hasPosition = lua_gettop(L) >= 2 && !Lua::isNil(L, 2);
 	if (hasPosition) {
@@ -1064,13 +1114,12 @@ int GameFunctions::luaGameLoginCompanion(lua_State* L) {
 	}
 
 	if (existing) {
-		// protocolVersion > 0 implies a live ProtocolGame (headless companions report 0).
-		if (existing->getProtocolVersion() > 0) {
-			// Real client session — cannot steal for companion control.
+		// Refuse stealing a live UI client session.
+		if (!existing->isHeadless() && existing->getProtocolVersion() > 0) {
 			lua_pushnil(L);
 			return 1;
 		}
-		// Already an online headless companion.
+		existing->setHeadless(true);
 		if (hasPosition) {
 			g_game().internalTeleport(existing, position, true);
 		}
@@ -1086,12 +1135,11 @@ int GameFunctions::luaGameLoginCompanion(lua_State* L) {
 	}
 
 	auto player = std::make_shared<Player>(nullptr);
-	player->setID();
 	const bool loaded = guid != 0
 		? IOLoginData::loadPlayerById(player, guid, false)
 		: IOLoginData::loadPlayerByName(player, name, false);
 	if (!loaded) {
-		g_logger().warn("[Game.loginCompanion] load failed for '{}'/guid {}", name, guid);
+		g_logger().warn("[Game.headlessLogin] load failed for '{}'/guid {}", name, guid);
 		lua_pushnil(L);
 		return 1;
 	}
@@ -1102,54 +1150,276 @@ int GameFunctions::luaGameLoginCompanion(lua_State* L) {
 		return 1;
 	}
 
-	if (!hasPosition) {
-		position = player->getLoginPosition();
-	}
-
-	// Forced place so companions can stack near the controller / temple.
-	// onPlacedCreature → playerLogin (SendFirstItems, product onLogin, ...) must see the
-	// DB lastLoginSaved — same order as ProtocolGame. Stamping *before* place permanently
-	// skipped first-login kits for companions that never had a real client session.
-	if (!g_game().placeCreature(player, position, false, true) && !g_game().placeCreature(player, player->getTemplePosition(), false, true)) {
-		g_logger().warn("[Game.loginCompanion] could not place '{}'", name);
+	if (!placeHeadlessPlayer(player, position, hasPosition)) {
+		g_logger().warn("[Game.headlessLogin] could not place '{}'", name);
 		lua_pushnil(L);
 		return 1;
 	}
 
-	// Stamp after place so subsequent companion deploys load lastlogin != 0 and do not
-	// re-run first-login scripts (previously lastlogin stayed 0 forever → backpack overflow).
-	player->stampLoginTimestamps();
-
-	// Ensure think/AI ticks even with zero spectators momentarily.
-	g_game().addCreatureCheck(player);
-
-	player->setOnline(true);
-
-	g_game().inheritAccountQuickLootFilter(player);
-
-	g_logger().info("[Game.loginCompanion] '{}' online (headless companion)", player->getName());
+	g_logger().info("[Game.headlessLogin] '{}' online (headless)", player->getName());
 
 	Lua::pushUserdata<Player>(L, player);
 	Lua::setMetatable(L, -1, "Player");
 	return 1;
 }
 
-int GameFunctions::luaGameLogoutCompanion(lua_State* L) {
-	// Game.logoutCompanion(player) — save + remove offline without a client.
+int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
+	// Game.headlessLoginBatch(names, position, callback)
+	// names: array of character name strings (and/or guids as numbers)
+	// callback(players|nil, err|nil) — invoked on the game dispatcher after place.
+	// DB loads run on ThreadPool so the dispatcher is not blocked.
+	if (!lua_istable(L, 1) || !lua_isfunction(L, 3)) {
+		lua_pushnil(L);
+		Lua::pushString(L, "headlessLoginBatch(names, position, callback) expected");
+		return 2;
+	}
+
+	Position position;
+	const bool hasPosition = !Lua::isNil(L, 2);
+	if (hasPosition) {
+		position = Lua::getPosition(L, 2);
+	}
+
+	lua_pushvalue(L, 3);
+	const int32_t callbackRef = luaL_ref(L, LUA_REGISTRYINDEX);
+	const auto scriptId = Lua::getScriptEnv()->getScriptId();
+
+	std::vector<HeadlessBatchSlot> slots;
+	lua_pushnil(L);
+	while (lua_next(L, 1) != 0) {
+		HeadlessBatchSlot slot;
+		if (Lua::isNumber(L, -1)) {
+			slot.kind = HeadlessBatchSlot::Kind::Guid;
+			slot.guid = Lua::getNumber<uint32_t>(L, -1);
+			slot.existing = g_game().getPlayerByGUID(slot.guid, false);
+			if (!slot.existing) {
+				slot.name = IOLoginData::getNameByGuid(slot.guid);
+			}
+		} else if (Lua::isString(L, -1)) {
+			slot.kind = HeadlessBatchSlot::Kind::Name;
+			slot.name = Lua::getString(L, -1);
+			slot.existing = g_game().getPlayerByName(slot.name, false);
+			if (slot.existing) {
+				slot.guid = slot.existing->getGUID();
+			}
+		} else {
+			lua_pop(L, 1);
+			continue;
+		}
+		slots.push_back(std::move(slot));
+		lua_pop(L, 1);
+	}
+
+	auto invokeCallback = [callbackRef, scriptId](const std::vector<std::shared_ptr<Player>> &players, const std::string &error) {
+		lua_State* luaState = g_luaEnvironment().getLuaState();
+		if (!luaState) {
+			return;
+		}
+		if (!Lua::reserveScriptEnv()) {
+			luaL_unref(luaState, LUA_REGISTRYINDEX, callbackRef);
+			return;
+		}
+
+		lua_rawgeti(luaState, LUA_REGISTRYINDEX, callbackRef);
+		if (!error.empty() || players.empty()) {
+			lua_pushnil(luaState);
+			Lua::pushString(luaState, error.empty() ? "headless login batch failed" : error);
+		} else {
+			lua_createtable(luaState, static_cast<int>(players.size()), 0);
+			int i = 1;
+			for (const auto &player : players) {
+				Lua::pushUserdata<Player>(luaState, player);
+				Lua::setMetatable(luaState, -1, "Player");
+				lua_rawseti(luaState, -2, i++);
+			}
+			lua_pushnil(luaState);
+		}
+		const auto env = Lua::getScriptEnv();
+		env->setScriptId(scriptId, &g_luaEnvironment());
+		g_luaEnvironment().callFunction(2);
+		luaL_unref(luaState, LUA_REGISTRYINDEX, callbackRef);
+	};
+
+	// Never invoke the Lua callback re-entrantly from this C call (script env is busy).
+	auto scheduleCallback = [invokeCallback](std::vector<std::shared_ptr<Player>> players, std::string error) {
+		g_dispatcher().addEvent(
+			[invokeCallback, players = std::move(players), error = std::move(error)]() {
+				invokeCallback(players, error);
+			},
+			"Game.headlessLoginBatch callback"
+		);
+	};
+
+	if (slots.empty()) {
+		scheduleCallback({}, "no characters to login");
+		return 0;
+	}
+
+	// Claim already-online headless players on the dispatcher; queue the rest for off-thread load.
+	std::vector<std::shared_ptr<Player>> claimed(slots.size());
+	std::vector<size_t> needLoad;
+	needLoad.reserve(slots.size());
+
+	for (size_t i = 0; i < slots.size(); ++i) {
+		auto &slot = slots[i];
+		if (slot.existing) {
+			if (!slot.existing->isHeadless() && slot.existing->getProtocolVersion() > 0) {
+				scheduleCallback({}, fmt::format("{} is online on a real client", slot.existing->getName()));
+				return 0;
+			}
+			slot.existing->setHeadless(true);
+			if (hasPosition) {
+				g_game().internalTeleport(slot.existing, position, true);
+			}
+			g_game().inheritAccountQuickLootFilter(slot.existing);
+			claimed[i] = slot.existing;
+			continue;
+		}
+		if (slot.name.empty() && slot.guid == 0) {
+			scheduleCallback({}, "invalid character identity");
+			return 0;
+		}
+		needLoad.push_back(i);
+	}
+
+	if (needLoad.empty()) {
+		std::vector<std::shared_ptr<Player>> players;
+		players.reserve(claimed.size());
+		for (const auto &p : claimed) {
+			if (p) {
+				players.push_back(p);
+			}
+		}
+		scheduleCallback(std::move(players), {});
+		return 0;
+	}
+
+	auto results = std::make_shared<std::vector<HeadlessBatchLoadResult>>(needLoad.size());
+	auto remaining = std::make_shared<std::atomic<size_t>>(needLoad.size());
+	auto slotsPtr = std::make_shared<std::vector<HeadlessBatchSlot>>(std::move(slots));
+	auto claimedPtr = std::make_shared<std::vector<std::shared_ptr<Player>>>(std::move(claimed));
+
+	auto finishOnDispatcher = [invokeCallback, results, slotsPtr, claimedPtr, position, hasPosition, needLoad]() {
+		std::vector<std::shared_ptr<Player>> placed;
+		placed.reserve(slotsPtr->size());
+		std::string firstError;
+
+		for (size_t r = 0; r < needLoad.size(); ++r) {
+			const auto &load = (*results)[r];
+			const size_t slotIndex = needLoad[r];
+			if (!load.ok || !load.player) {
+				if (firstError.empty()) {
+					firstError = load.error.empty() ? "headless load failed" : load.error;
+				}
+				continue;
+			}
+
+			// Another session may have logged in while we were loading.
+			auto live = g_game().getPlayerByGUID(load.player->getGUID(), false);
+			if (live && live.get() != load.player.get()) {
+				if (!live->isHeadless() && live->getProtocolVersion() > 0) {
+					if (firstError.empty()) {
+						firstError = fmt::format("{} is online on a real client", live->getName());
+					}
+					continue;
+				}
+				live->setHeadless(true);
+				if (hasPosition) {
+					g_game().internalTeleport(live, position, true);
+				}
+				g_game().inheritAccountQuickLootFilter(live);
+				(*claimedPtr)[slotIndex] = live;
+				continue;
+			}
+
+			if (!placeHeadlessPlayer(load.player, position, hasPosition)) {
+				if (firstError.empty()) {
+					firstError = fmt::format("could not place '{}'", load.player->getName());
+				}
+				continue;
+			}
+			g_logger().info("[Game.headlessLoginBatch] '{}' online (headless)", load.player->getName());
+			(*claimedPtr)[slotIndex] = load.player;
+		}
+
+		for (const auto &p : *claimedPtr) {
+			if (p) {
+				placed.push_back(p);
+			}
+		}
+
+		if (!firstError.empty() || placed.size() != slotsPtr->size()) {
+			for (const auto &p : placed) {
+				if (p && p->isHeadless() && p->getProtocolVersion() == 0) {
+					// Only roll back players we placed in this batch that were newly online.
+					// Already-claimed headless companions stay up for the caller to manage.
+				}
+			}
+			// Rollback newly placed companions from this batch so a partial deploy does not leak.
+			for (size_t r = 0; r < needLoad.size(); ++r) {
+				const size_t slotIndex = needLoad[r];
+				auto &p = (*claimedPtr)[slotIndex];
+				if (!p || (*slotsPtr)[slotIndex].existing) {
+					continue;
+				}
+				if (p->isHeadless() && p->getProtocolVersion() == 0) {
+					p->removePlayer(true, true);
+				}
+				p.reset();
+			}
+			invokeCallback({}, firstError.empty() ? "headless login batch failed" : firstError);
+			return;
+		}
+
+		invokeCallback(placed, {});
+	};
+
+	for (size_t r = 0; r < needLoad.size(); ++r) {
+		const size_t slotIndex = needLoad[r];
+		const HeadlessBatchSlot slot = (*slotsPtr)[slotIndex];
+		ThreadPool::getInstance().detach_task([results, remaining, r, slot, slotIndex, finishOnDispatcher]() {
+			HeadlessBatchLoadResult out;
+			out.index = slotIndex;
+			auto player = std::make_shared<Player>(nullptr);
+			const bool loaded = slot.kind == HeadlessBatchSlot::Kind::Guid && slot.guid != 0
+				? IOLoginData::loadPlayerById(player, slot.guid, false)
+				: IOLoginData::loadPlayerByName(player, slot.name, false);
+			if (!loaded || !player->getGUID()) {
+				out.ok = false;
+				out.error = fmt::format(
+					"load failed for '{}'/guid {}",
+					slot.name,
+					slot.guid
+				);
+				g_logger().warn("[Game.headlessLoginBatch] {}", out.error);
+			} else {
+				out.ok = true;
+				out.player = std::move(player);
+			}
+			(*results)[r] = std::move(out);
+			if (remaining->fetch_sub(1) == 1) {
+				g_dispatcher().addEvent(finishOnDispatcher, "Game.headlessLoginBatch finish");
+			}
+		});
+	}
+
+	return 0;
+}
+
+int GameFunctions::luaGameHeadlessLogout(lua_State* L) {
+	// Game.headlessLogout(player) — save + remove offline without a client.
 	const auto &player = Lua::getPlayer(L, 1);
 	if (!player) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
-	if (player->getProtocolVersion() > 0) {
-		// Refuse logging out a real session via companion API.
+	if (!player->isHeadless() || player->getProtocolVersion() > 0) {
+		// Refuse logging out a real session via headless API.
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
 
-	g_logger().info("[Game.logoutCompanion] '{}'", player->getName());
-	// removePlayer → playerLogout event → removeCreature when client is null;
-	// onRemoveCreature saves the player and updates online status.
+	g_logger().info("[Game.headlessLogout] '{}'", player->getName());
 	player->removePlayer(true, true);
 	Lua::pushBoolean(L, true);
 	return 1;
