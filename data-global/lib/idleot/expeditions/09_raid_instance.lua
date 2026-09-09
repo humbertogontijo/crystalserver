@@ -631,6 +631,10 @@ function RaidInstance.join(player, raidName, loadout, options)
 	if not player then
 		return
 	end
+	if ExpeditionSafety and not ExpeditionSafety.hasStamina(player) then
+		ExpeditionProtocol.sendError(player, "You need stamina to enter an expedition.")
+		return
+	end
 	if PzTeleport and PzTeleport.isAllowed then
 		local allowed, pzErr = PzTeleport.isAllowed(player)
 		if not allowed then

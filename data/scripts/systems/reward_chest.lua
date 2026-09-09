@@ -117,7 +117,7 @@ function bossDeath.onDeath(creature, corpse, killer, mostDamageKiller, lastHitUn
 					if rolls > 1 then
 						lootMessage = lootMessage .. " (boss bonus)"
 					end
-					if stamina > 840 then
+					if stamina > 0 then
 						reward:getContentDescription(lootMessage)
 					end
 					player:sendTextMessage(MESSAGE_LOOT, lootMessage)

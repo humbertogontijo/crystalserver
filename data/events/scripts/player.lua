@@ -132,6 +132,9 @@ local function useStamina(player, isStaminaEnabled)
 	end
 	if isStaminaEnabled then
 		player:setStamina(staminaMinutes)
+		if staminaMinutes == 0 and ExpeditionSafety and ExpeditionSafety.onStaminaDepleted then
+			ExpeditionSafety.onStaminaDepleted(player)
+		end
 	end
 end
 
@@ -714,16 +717,18 @@ function Player:onChangeZone(zone)
 		if configManager.getBoolean(configKeys.STAMINA_PZ) then
 			if zone == ZONE_PROTECTION then
 				local stamina = self:getStamina()
-				if stamina < 2520 then
+				local maxStamina = STAMINA_MAX_MINUTES or 2520
+				if stamina < maxStamina then
 					if not event then
-						local delay = configManager.getNumber(configKeys.STAMINA_ORANGE_DELAY)
-						if stamina > 2340 and stamina <= 2520 then
-							delay = configManager.getNumber(configKeys.STAMINA_GREEN_DELAY)
-						end
-
-						local message = string.format("In protection zone. Recharging %i stamina every %i minutes.", configManager.getNumber(configKeys.STAMINA_PZ_GAIN), delay)
+						local delay = getStaminaRegenDelayMs(stamina)
+						local delayMin = delay / (60 * 1000)
+						local message = string.format(
+							"In protection zone. Recharging %i stamina every %s minutes.",
+							configManager.getNumber(configKeys.STAMINA_PZ_GAIN),
+							tostring(delayMin)
+						)
 						self:sendTextMessage(MESSAGE_FAILURE, message)
-						staminaBonus.eventsPz[self:getId()] = addEvent(addStamina, delay * 60 * 1000, nil, self:getId(), delay * 60 * 1000)
+						staminaBonus.eventsPz[self:getId()] = addEvent(addStamina, delay, nil, self:getId(), delay)
 					end
 				end
 			else

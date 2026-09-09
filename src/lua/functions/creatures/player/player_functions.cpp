@@ -4839,7 +4839,7 @@ int PlayerFunctions::luaPlayerCanReceiveLoot(lua_State* L) {
 		return 1;
 	}
 
-	lua_pushboolean(L, player->getStaminaMinutes() > 840);
+	lua_pushboolean(L, player->getStaminaMinutes() > 0);
 	return 1;
 }
 

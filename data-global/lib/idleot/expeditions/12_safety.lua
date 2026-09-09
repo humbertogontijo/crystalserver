@@ -1,5 +1,6 @@
 -- Shared gold/cap shortage: auto-sell then suspend that character's automation
 -- (optionally still abort the expedition when session stop flags are set).
+-- Stamina: gate expedition entry for the whole party; abort when anyone hits 0.
 
 ExpeditionSafety = ExpeditionSafety or {}
 
@@ -21,6 +22,49 @@ local function shouldStop(session, kind)
 		return session.stopOnInsufficientCap == true
 	end
 	return false
+end
+
+--- True when the player may enter / stay in an expedition (stamina system off → always ok).
+function ExpeditionSafety.hasStamina(player)
+	if not player or not player.getStamina then
+		return false
+	end
+	if not configManager.getBoolean(configKeys.STAMINA_SYSTEM) then
+		return true
+	end
+	return player:getStamina() > 0
+end
+
+--- First player in `players` without stamina, or nil when all are ok.
+function ExpeditionSafety.firstWithoutStamina(players)
+	for _, p in ipairs(players or {}) do
+		if p and not ExpeditionSafety.hasStamina(p) then
+			return p
+		end
+	end
+	return nil
+end
+
+--- Abort the player's expedition when stamina hits zero (whole private team; solo eject on shared raids).
+function ExpeditionSafety.onStaminaDepleted(player)
+	if not player then
+		return
+	end
+	if not configManager.getBoolean(configKeys.STAMINA_SYSTEM) then
+		return
+	end
+	if player:getStamina() > 0 then
+		return
+	end
+	local session = sessionFor(player)
+	if not session or session.aborting or session.endedByDeath then
+		return
+	end
+	if not ExpeditionManager or not ExpeditionManager.abort then
+		return
+	end
+	local name = player.getName and player:getName() or "Adventurer"
+	ExpeditionManager.abort(session, string.format("%s ran out of stamina. Expedition stopped.", name))
 end
 
 local function suspendPlayerAutomation(player, kind)

@@ -175,6 +175,9 @@ function SoulPitExpedition.start(player)
 	if not player or not ExpeditionManager or not ExpeditionInstance then
 		return false, "Expeditions unavailable."
 	end
+	if ExpeditionSafety and not ExpeditionSafety.hasStamina(player) then
+		return false, "You need stamina to enter an expedition."
+	end
 	if PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) then
 		-- GOD may enter Soul Pit regardless of level.
 	elseif player:getLevel() < ((SoulPit and SoulPit.requiredLevel) or 8) then

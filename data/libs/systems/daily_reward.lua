@@ -23,13 +23,12 @@ function RegenStamina(id, delay)
 	end
 	if player:getTile():hasFlag(TILESTATE_PROTECTIONZONE) then
 		local actualStamina = player:getStamina()
-		if actualStamina > 2340 and actualStamina < 2520 then
-			delay = 6 * 60 * 1000 -- Bonus stamina
-		end
-		if actualStamina < 2520 then
+		local maxStamina = STAMINA_MAX_MINUTES or 2520
+		if actualStamina < maxStamina then
 			player:setStamina(actualStamina + 1)
 			player:sendTextMessage(MESSAGE_FAILURE, "One minute of stamina has been refilled.")
 		end
+		delay = getStaminaRegenDelayMs(player:getStamina())
 	end
 	stopEvent(staminaEvent)
 	DailyRewardBonus.Stamina[id] = addEvent(RegenStamina, delay, id, delay)

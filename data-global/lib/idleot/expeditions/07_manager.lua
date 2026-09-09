@@ -462,6 +462,76 @@ local function meetsExpeditionLevel(player, levelMin)
 	return player:getLevel() >= levelMin
 end
 
+local function playerHasExpeditionStamina(player)
+	if ExpeditionSafety and ExpeditionSafety.hasStamina then
+		return ExpeditionSafety.hasStamina(player)
+	end
+	if not configManager.getBoolean(configKeys.STAMINA_SYSTEM) then
+		return true
+	end
+	return player and player.getStamina and player:getStamina() > 0
+end
+
+--- nil when all have stamina; otherwise error naming the first blocked player.
+local function partyStaminaError(players)
+	if ExpeditionSafety and ExpeditionSafety.firstWithoutStamina then
+		local blocked = ExpeditionSafety.firstWithoutStamina(players)
+		if blocked then
+			return string.format("%s needs stamina to enter an expedition.", blocked:getName())
+		end
+		return nil
+	end
+	for _, p in ipairs(players or {}) do
+		if p and not playerHasExpeditionStamina(p) then
+			return string.format("%s needs stamina to enter an expedition.", p:getName())
+		end
+	end
+	return nil
+end
+
+--- Players whose stamina must be > 0 before the host can start (not every online friend).
+local function collectStaminaGatePlayers(host, options)
+	options = options or {}
+	local list = {}
+	local seen = {}
+	local function push(p)
+		if not p or not p.getId then
+			return
+		end
+		local id = p:getId()
+		if seen[id] then
+			return
+		end
+		seen[id] = true
+		list[#list + 1] = p
+	end
+	push(host)
+	if options.skipPartyGate then
+		-- Solo boss / arena / switch: only host (+ explicit pre-accepted below).
+	else
+		local party = host:getParty()
+		if party then
+			local leader = party:getLeader()
+			if leader and leader:getId() == host:getId() then
+				for _, member in ipairs(party:getMembers() or {}) do
+					push(member)
+				end
+			end
+		end
+		if ListingsStore and ListingsStore.getAcceptedMemberNames then
+			for _, name in ipairs(ListingsStore.getAcceptedMemberNames(host:getGuid()) or {}) do
+				push(Player(name))
+			end
+		end
+	end
+	if type(options.preAcceptedPlayers) == "table" then
+		for _, teammate in ipairs(options.preAcceptedPlayers) do
+			push(teammate)
+		end
+	end
+	return list
+end
+
 --- Collect online party for a hunt/boss: only leader can start; members pulled in.
 --- Returns eligible Players list, or nil + error when joiner cannot start.
 --- `extraPlayers`: optional Players (e.g. account-team companions) to include even
@@ -753,6 +823,14 @@ local function collectHuntJoinParty(player, levelMin, extraPlayers, opts)
 				MESSAGE_EVENT_ADVANCE,
 				"You were not pulled into the expedition (already on one)."
 			)
+		elseif not playerHasExpeditionStamina(member) then
+			if member:getId() == player:getId() then
+				return nil, "You need stamina to enter an expedition."
+			end
+			member:sendTextMessage(
+				MESSAGE_EVENT_ADVANCE,
+				"You were not pulled into the expedition (need stamina)."
+			)
 		elseif not meetsExpeditionLevel(member, levelMin) then
 			-- Account-team companions enter with the host; host already passed levelMin.
 			local isTeamCompanion = TeamManager
@@ -899,6 +977,10 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		return
 	end
 	options = options or {}
+	if not playerHasExpeditionStamina(player) then
+		ExpeditionProtocol.sendError(player, "You need stamina to enter an expedition.")
+		return
+	end
 	-- Switch leave→join already returned from an active expedition; do not require PZ
 	-- again (return travel can briefly leave the player off a PZ tile / torn-down hold).
 	if not options.skipPzCheck and PzTeleport and PzTeleport.isAllowed then
@@ -1006,6 +1088,21 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 			string.format("Level too low for this expedition (need %d, you are %d).", levelMin, player:getLevel())
 		)
 		return
+	end
+
+	-- Gate host + party / accepted listing teammates before allocating an instance.
+	do
+		local soloOrSwitch = (contentRole == "boss" and ExpeditionConfig.isSoloBoss and ExpeditionConfig.isSoloBoss(catalog))
+			or contentRole == "arena"
+			or options.skipPzCheck == true
+		local staminaErr = partyStaminaError(collectStaminaGatePlayers(player, {
+			skipPartyGate = soloOrSwitch,
+			preAcceptedPlayers = options.preAcceptedPlayers,
+		}))
+		if staminaErr then
+			ExpeditionProtocol.sendError(player, staminaErr)
+			return
+		end
 	end
 
 	local sessionLure = nil
@@ -1953,6 +2050,19 @@ function ExpeditionManager.startExpeditionEntry(session)
 	end
 
 	local function enterAfterDeploy(s, liveHost)
+		local members = {}
+		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s)) do
+			local p = Player(mid)
+			if p then
+				members[#members + 1] = p
+			end
+		end
+		local staminaErr = partyStaminaError(members)
+		if staminaErr then
+			ExpeditionProtocol.sendError(liveHost, staminaErr)
+			ExpeditionManager.cancelWaitingSession(s, staminaErr)
+			return
+		end
 		if not teleportMembers(s) then
 			return
 		end
@@ -2227,6 +2337,10 @@ function ExpeditionManager.acceptTeamInvite(player)
 	if not player then
 		return
 	end
+	if not playerHasExpeditionStamina(player) then
+		ExpeditionProtocol.sendError(player, "You need stamina to enter an expedition.")
+		return
+	end
 	if PzTeleport and PzTeleport.isAllowed then
 		local allowed, pzErr = PzTeleport.isAllowed(player)
 		if not allowed then
@@ -2334,6 +2448,10 @@ end
 function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 	opts = opts or {}
 	if not friend or not session then
+		return
+	end
+	if not playerHasExpeditionStamina(friend) then
+		ExpeditionProtocol.sendError(friend, "You need stamina to enter an expedition.")
 		return
 	end
 	if ExpeditionManager.getSessionByPlayer(friend) then
@@ -3707,6 +3825,31 @@ performDirectSwitch = function(host, session, switchTo, preAcceptedPlayers)
 		)
 		return
 	end
+	local staminaErr = partyStaminaError(toCheck)
+	if staminaErr then
+		if session then
+			clearPendingSwitch(session, {
+				reason = "stamina",
+				expeditionName = switchTo.catalogName,
+			})
+		end
+		local msg = string.format(
+			"Expedition change cancelled: %s Continuing the current expedition.",
+			staminaErr
+		)
+		host:sendTextMessage(MESSAGE_EVENT_ADVANCE, msg)
+		ExpeditionProtocol.sendError(host, staminaErr)
+		for _, p in ipairs(others) do
+			if p then
+				p:sendTextMessage(MESSAGE_EVENT_ADVANCE, msg)
+				if not playerHasExpeditionStamina(p) then
+					ExpeditionProtocol.sendError(p, "You need stamina to enter an expedition.")
+				end
+			end
+		end
+		logger.info("[Expedition] switch blocked by stamina host={} err={}", host:getName(), staminaErr)
+		return
+	end
 	if session then
 		clearPendingSwitch(session, { silent = true })
 		ExpeditionManager.abort(session, "Changing expedition.", {
@@ -3976,6 +4119,24 @@ function ExpeditionManager.acceptSwitch(player)
 		return
 	end
 	local levelMin = switchDestinationLevelMin(pending.switchTo)
+	if not playerHasExpeditionStamina(player) then
+		ExpeditionProtocol.sendError(player, "You need stamina to enter an expedition.")
+		clearPendingSwitch(session, {
+			reason = "stamina",
+			expeditionName = pending.catalogName,
+		})
+		local host = Player(pending.initiatorId)
+		local msg = string.format(
+			"%s needs stamina for %s. Continuing the current expedition.",
+			player:getName(),
+			tostring(pending.catalogName or "the new expedition")
+		)
+		if host then
+			host:sendTextMessage(MESSAGE_EVENT_ADVANCE, msg)
+		end
+		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You cannot change to that expedition. Continuing the current one.")
+		return
+	end
 	if not meetsExpeditionLevel(player, levelMin) then
 		ExpeditionProtocol.sendError(
 			player,

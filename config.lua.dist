@@ -649,19 +649,21 @@ deSpawnRadius = 50
 dropSurpriseBagsFromMonsters = false
 
 -- Stamina
+-- Regen is unified across offline / PZ / trainers (seconds per +1 stamina minute).
+-- Orange/normal (<= 36h): 1.5 min; green happy hour (> 36h, 6h band): 3 min.
 staminaSystem = true
-timeToRegenMinuteStamina = 3 * 60
-timeToRegenMinutePremiumStamina = 6 * 60
+timeToRegenMinuteStamina = 1.5 * 60
+timeToRegenMinutePremiumStamina = 3 * 60
 
--- Stamina in trainers
-staminaTrainer = false
-staminaTrainerDelay = 5
+-- Stamina in trainers (uses timeToRegen* above; delay keys kept for /serverinfo display)
+staminaTrainer = true
+staminaTrainerDelay = 1.5
 staminaTrainerGain = 1
 
--- Stamina in protect zone
-staminaPz = false
-staminaOrangeDelay = 1
-staminaGreenDelay = 5
+-- Stamina in protect zone (uses timeToRegen* above; delay keys kept for /serverinfo display)
+staminaPz = true
+staminaOrangeDelay = 1.5
+staminaGreenDelay = 3
 staminaPzGain = 1
 
 -- Mounts

@@ -435,10 +435,9 @@ function Player.getFinalBonusStamina(self)
 	local staminaBonus = 1
 	if configManager.getBoolean(configKeys.STAMINA_SYSTEM) then
 		local staminaMinutes = self:getStamina()
-		if staminaMinutes > 2340 and self:isPremium() then
+		local greenThreshold = STAMINA_GREEN_THRESHOLD or 2160
+		if staminaMinutes > greenThreshold and self:isPremium() then
 			staminaBonus = 1.5
-		elseif staminaMinutes <= 840 then
-			staminaBonus = 0.5
 		end
 	end
 	return staminaBonus
@@ -778,11 +777,8 @@ function Player.loadDailyRewardBonuses(self)
 	if streakLevel >= DAILY_REWARD_STAMINA_REGENERATION then
 		local staminaEvent = DailyRewardBonus.Stamina[self:getId()]
 		if not staminaEvent then
-			local delay = 3
-			if self:getStamina() > 2340 and self:getStamina() <= 2520 then
-				delay = 6
-			end
-			DailyRewardBonus.Stamina[self:getId()] = addEvent(RegenStamina, delay * 60 * 1000, self:getId(), delay * 60 * 1000)
+			local delayMs = getStaminaRegenDelayMs(self:getStamina())
+			DailyRewardBonus.Stamina[self:getId()] = addEvent(RegenStamina, delayMs, self:getId(), delayMs)
 		end
 	end
 	-- Soul regeneration

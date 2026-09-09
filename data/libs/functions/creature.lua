@@ -246,7 +246,8 @@ function Creature:addEventStamina(target)
 	if player and monster and monster:getName() == staminaBonus.target then
 		local playerId = player:getId()
 		if not staminaBonus.eventsTrainer[playerId] then
-			staminaBonus.eventsTrainer[playerId] = addEvent(addStamina, staminaBonus.period, playerId)
+			local delay = getStaminaRegenDelayMs(player:getStamina())
+			staminaBonus.eventsTrainer[playerId] = addEvent(addStamina, delay, playerId)
 		end
 	end
 end
