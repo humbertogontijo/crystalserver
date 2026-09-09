@@ -17,10 +17,10 @@ ExpeditionConfig.KV_BOSS_ATTEMPT = "expedition_boss_attempt"
 -- Drop stale hunt restore blobs after this many seconds (0 = no expiry).
 ExpeditionConfig.HUNT_RESTORE_TTL_SEC = 7 * 24 * 3600
 
--- Hunt / expedition clustering FOV (kept at classic widescreen pack size).
--- Live stream radii come from Crystal MAP_VISIBLE_SQM → MAP_MAX_CLIENT_VIEW_PORT_*.
-ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_X = 21
-ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_Y = 9
+-- Hunt / expedition clustering FOV — must match Crystal map_const.hpp
+-- MAP_MAX_CLIENT_VIEW_PORT_* (visible-sqm 12 @ 21:9 → aware radius 15).
+ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_X = 15
+ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_Y = 15
 ExpeditionConfig.SUBAREA_DIR = "tibia/subareas"
 ExpeditionConfig.AI_TICK_MS = 250
 -- Chebyshev distance: hunt monsters farther than this from the party anchor walk toward it

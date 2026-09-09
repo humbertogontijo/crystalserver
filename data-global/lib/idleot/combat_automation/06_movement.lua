@@ -105,7 +105,13 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force)
 	if maxSearch < 1 then
 		maxSearch = PATH_MAX_SEARCH
 	end
-	local path = dirsForAutoWalkFromGetPathTo(creature:getPathTo(dest, 0, 0, true, false, maxSearch))
+	local minDist, maxDist = 0, 0
+	local excl = exclusiveWalkById[id]
+	if force and excl and excl.x == dest.x and excl.y == dest.y and excl.z == dest.z then
+		minDist = math.max(0, math.floor(tonumber(excl.minDist) or 0))
+		maxDist = math.max(minDist, math.floor(tonumber(excl.maxDist) or 0))
+	end
+	local path = dirsForAutoWalkFromGetPathTo(creature:getPathTo(dest, minDist, maxDist, true, false, maxSearch))
 	if type(path) ~= "table" or #path == 0 then
 		clearQueuedWalk(creature)
 		return false
@@ -370,9 +376,11 @@ function CombatAutomationMovement.clearWalkDedupe(player)
 	clearPendingWalkAction(player)
 end
 
---- Force-walk to `dest` and keep owning the path until arrival / TTL.
---- Used by discovery POI FAB — not a general client-walk unlock.
-function CombatAutomationMovement.beginExclusiveWalk(player, dest, ttlMs)
+--- Force-walk to `dest` (or within optional [minDist,maxDist] Chebyshev) and keep
+--- owning the path until arrival / TTL. Used by discovery POI FAB — not a general
+--- client-walk unlock. `minDist`/`maxDist` let city pathfinding stop on any tile
+--- inside the discovery radius instead of requiring one exact (often blocked) sqm.
+function CombatAutomationMovement.beginExclusiveWalk(player, dest, ttlMs, minDist, maxDist)
 	if not player or not dest then
 		return false
 	end
@@ -382,21 +390,38 @@ function CombatAutomationMovement.beginExclusiveWalk(player, dest, ttlMs)
 	if not x or not y or not z then
 		return false
 	end
+	minDist = math.max(0, math.floor(tonumber(minDist) or 0))
+	maxDist = math.max(minDist, math.floor(tonumber(maxDist) or 0))
 	local id = player:getId()
 	exclusiveWalkById[id] = {
 		x = x,
 		y = y,
 		z = z,
+		minDist = minDist,
+		maxDist = maxDist,
 		untilMs = nowMs() + (tonumber(ttlMs) or EXCLUSIVE_WALK_TTL_MS),
 	}
 	clearFollowIfAny(player)
 	local target = Position(x, y, z)
-	if sameTile(player:getPosition(), target) then
-		exclusiveWalkById[id] = nil
-		clearQueuedWalk(player)
-		return true
+	local ppos = player:getPosition()
+	if ppos and ppos.z == z then
+		local cheb = math.max(math.abs(ppos.x - x), math.abs(ppos.y - y))
+		if maxDist > 0 and cheb <= maxDist and cheb >= minDist then
+			exclusiveWalkById[id] = nil
+			clearQueuedWalk(player)
+			return true
+		end
+		if maxDist == 0 and sameTile(ppos, target) then
+			exclusiveWalkById[id] = nil
+			clearQueuedWalk(player)
+			return true
+		end
 	end
-	return CombatAutomationMovement.queueWalkToward(player, target, true) == true
+	local ok = CombatAutomationMovement.queueWalkToward(player, target, true) == true
+	if not ok then
+		exclusiveWalkById[id] = nil
+	end
+	return ok
 end
 
 function CombatAutomationMovement.clearExclusiveWalk(player)
@@ -483,7 +508,18 @@ function CombatAutomationMovement.tick(player, config)
 	if excl then
 		local ppos = player:getPosition()
 		local dest = Position(excl.x, excl.y, excl.z)
-		if not ppos or nowMs() >= (excl.untilMs or 0) or ppos.z ~= dest.z or sameTile(ppos, dest) then
+		local minDist = math.max(0, math.floor(tonumber(excl.minDist) or 0))
+		local maxDist = math.max(minDist, math.floor(tonumber(excl.maxDist) or 0))
+		local inRange = false
+		if ppos and ppos.z == dest.z then
+			local cheb = math.max(math.abs(ppos.x - dest.x), math.abs(ppos.y - dest.y))
+			if maxDist > 0 then
+				inRange = cheb <= maxDist and cheb >= minDist
+			else
+				inRange = sameTile(ppos, dest)
+			end
+		end
+		if not ppos or nowMs() >= (excl.untilMs or 0) or ppos.z ~= dest.z or inRange then
 			exclusiveWalkById[player:getId()] = nil
 		else
 			clearFollowIfAny(player)

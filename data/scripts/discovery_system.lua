@@ -17,8 +17,16 @@ end
 
 DiscoverySystem = DiscoverySystem or {}
 
-local VIEW_X = 7 -- client game window is 15x11 -> half extents (marker visibility only)
-local VIEW_Y = 5
+-- Match Crystal MAP_MAX_CLIENT_VIEW_PORT_* (visible-sqm 12 @ 21:9 → aware radius 15).
+-- Classic 7×5 left POIs off-screen on widescreen Idle FOV.
+local VIEW_X = (ExpeditionConfig and tonumber(ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_X)) or 15
+local VIEW_Y = (ExpeditionConfig and tonumber(ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_Y)) or 15
+if VIEW_X < 15 then
+	VIEW_X = 15
+end
+if VIEW_Y < 15 then
+	VIEW_Y = 15
+end
 local DISCOVER_RADIUS = 4 -- Chebyshev: viewpoint counts as found only within this range
 local POI_TARGET = 7
 -- bump when subarea geometry OR the tibiamaps POI catalog changes: stale rolled/selected
@@ -927,6 +935,7 @@ end
 
 --- Client FAB: exclusive walk into discovery radius of a viewport-visible unfound POI.
 --- Validated against the live session — does not unlock general client autoWalk.
+--- Paths to any tile within DISCOVER_RADIUS (cities often block a single ideal sqm).
 function DiscoverySystem.walkTowardViewpoint(player, x, y, z)
 	if not player then
 		return false
@@ -941,7 +950,7 @@ function DiscoverySystem.walkTowardViewpoint(player, x, y, z)
 	end
 	local poi = nil
 	for _, p in ipairs(session.pois) do
-		if not p.found and p.x == x and p.y == y and p.z == z then
+		if not p.found and tonumber(p.x) == x and tonumber(p.y) == y and tonumber(p.z) == z then
 			poi = p
 			break
 		end
@@ -961,15 +970,28 @@ function DiscoverySystem.walkTowardViewpoint(player, x, y, z)
 		-- Already in range; discovery tick will mark found.
 		return true
 	end
-	local dest = discoveryWalkDest(pos, poi)
-	if not dest then
+	local focus = Position(x, y, z)
+	if CombatAutomationMovement and CombatAutomationMovement.beginExclusiveWalk then
+		-- Prefer pathfinding into the discovery ring (any walkable tile in range).
+		if CombatAutomationMovement.beginExclusiveWalk(player, focus, nil, 1, DISCOVER_RADIUS) then
+			return true
+		end
+		-- Fallback: single ideal edge tile (legacy).
+		local dest = discoveryWalkDest(pos, poi)
+		if dest and CombatAutomationMovement.beginExclusiveWalk(player, dest) then
+			return true
+		end
 		return false
 	end
-	if CombatAutomationMovement and CombatAutomationMovement.beginExclusiveWalk then
-		return CombatAutomationMovement.beginExclusiveWalk(player, dest) == true
-	end
 	-- Fallback when automation movement is unavailable: exclusive autoWalk only.
-	local path = player.getPathTo and player:getPathTo(dest, 0, 0, true, true, 128) or nil
+	local path = player.getPathTo and player:getPathTo(focus, 1, DISCOVER_RADIUS, true, true, 128) or nil
+	if type(path) ~= "table" or #path == 0 then
+		local dest = discoveryWalkDest(pos, poi)
+		if not dest then
+			return false
+		end
+		path = player:getPathTo(dest, 0, 0, true, true, 128)
+	end
 	if type(path) ~= "table" or #path == 0 then
 		return false
 	end
