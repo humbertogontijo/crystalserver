@@ -18,6 +18,7 @@
 #include "lua/functions/creatures/monster/monster_type_functions.hpp"
 
 #include "config/configmanager.hpp"
+#include "creatures/combat/combat.hpp"
 #include "creatures/combat/spells.hpp"
 #include "creatures/monsters/monster.hpp"
 #include "creatures/monsters/monsters.hpp"
@@ -27,6 +28,54 @@
 #include "lua/scripts/scripts.hpp"
 #include "utils/tools.hpp"
 #include "lua/functions/lua_functions_loader.hpp"
+
+namespace {
+	void pushSpellBlockFields(lua_State* L, const spellBlock_t &spellBlock) {
+		Lua::setField(L, "chance", spellBlock.chance);
+		Lua::setField(L, "isCombatSpell", spellBlock.combatSpell ? 1 : 0);
+		Lua::setField(L, "isMelee", spellBlock.isMelee ? 1 : 0);
+		Lua::setField(L, "minCombatValue", spellBlock.minCombatValue);
+		Lua::setField(L, "maxCombatValue", spellBlock.maxCombatValue);
+		Lua::setField(L, "range", spellBlock.range);
+		Lua::setField(L, "speed", spellBlock.speed);
+
+		CombatType_t combatType = COMBAT_NONE;
+		int32_t minBurst = std::abs(spellBlock.minCombatValue);
+		int32_t maxBurst = std::abs(spellBlock.maxCombatValue);
+		int32_t conditionPackage = 0;
+
+		if (spellBlock.combatSpell) {
+			if (const auto combatSpell = std::dynamic_pointer_cast<CombatSpell>(spellBlock.spell)) {
+				Lua::pushUserdata<CombatSpell>(L, combatSpell);
+				lua_setfield(L, -2, "spell");
+				if (const auto &combat = combatSpell->getCombat()) {
+					const auto magnitude = combat->estimateMagnitude();
+					combatType = magnitude.combatType;
+					if (magnitude.formulaKnown) {
+						minBurst = magnitude.minBurst;
+						maxBurst = magnitude.maxBurst;
+					}
+					conditionPackage = magnitude.conditionPackage;
+				}
+			} else {
+				lua_pushnil(L);
+				lua_setfield(L, -2, "spell");
+			}
+		} else if (const auto instant = std::dynamic_pointer_cast<InstantSpell>(spellBlock.spell)) {
+			Lua::pushUserdata<InstantSpell>(L, instant);
+			Lua::setMetatable(L, -1, "Spell");
+			lua_setfield(L, -2, "spell");
+		} else {
+			lua_pushnil(L);
+			lua_setfield(L, -2, "spell");
+		}
+
+		Lua::setField(L, "combatType", static_cast<lua_Number>(combatType));
+		Lua::setField(L, "minBurst", minBurst);
+		Lua::setField(L, "maxBurst", maxBurst);
+		Lua::setField(L, "conditionPackage", conditionPackage);
+	}
+} // namespace
 
 void MonsterTypeFunctions::init(lua_State* L) {
 	Lua::registerSharedClass(L, "MonsterType", "", MonsterTypeFunctions::luaMonsterTypeCreate);
@@ -122,6 +171,10 @@ void MonsterTypeFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "MonsterType", "addSummon", MonsterTypeFunctions::luaMonsterTypeAddSummon);
 
 	Lua::registerMethod(L, "MonsterType", "maxSummons", MonsterTypeFunctions::luaMonsterTypeMaxSummons);
+
+	Lua::registerMethod(L, "MonsterType", "estimateAttackRate", MonsterTypeFunctions::luaMonsterTypeEstimateAttackRate);
+	Lua::registerMethod(L, "MonsterType", "getCombatPower", MonsterTypeFunctions::luaMonsterTypeGetCombatPower);
+	Lua::registerMethod(L, "MonsterType", "getCombatPowerSelf", MonsterTypeFunctions::luaMonsterTypeGetCombatPowerSelf);
 
 	Lua::registerMethod(L, "MonsterType", "armor", MonsterTypeFunctions::luaMonsterTypeArmor);
 	Lua::registerMethod(L, "MonsterType", "mitigation", MonsterTypeFunctions::luaMonsterTypeMitigation);
@@ -984,19 +1037,8 @@ int MonsterTypeFunctions::luaMonsterTypeGetAttackList(lua_State* L) {
 
 	int index = 0;
 	for (const auto &spellBlock : monsterType->info.attackSpells) {
-		lua_createtable(L, 0, 8);
-
-		Lua::setField(L, "chance", spellBlock.chance);
-		Lua::setField(L, "isCombatSpell", spellBlock.combatSpell ? 1 : 0);
-		Lua::setField(L, "isMelee", spellBlock.isMelee ? 1 : 0);
-		Lua::setField(L, "minCombatValue", spellBlock.minCombatValue);
-		Lua::setField(L, "maxCombatValue", spellBlock.maxCombatValue);
-		Lua::setField(L, "range", spellBlock.range);
-		Lua::setField(L, "speed", spellBlock.speed);
-		const auto combatSpell = std::static_pointer_cast<CombatSpell>(spellBlock.spell);
-		Lua::pushUserdata<CombatSpell>(L, combatSpell);
-		lua_setfield(L, -2, "spell");
-
+		lua_createtable(L, 0, 12);
+		pushSpellBlockFields(L, spellBlock);
 		lua_rawseti(L, -2, ++index);
 	}
 	return 1;
@@ -1035,19 +1077,8 @@ int MonsterTypeFunctions::luaMonsterTypeGetDefenseList(lua_State* L) {
 
 	int index = 0;
 	for (const auto &spellBlock : monsterType->info.defenseSpells) {
-		lua_createtable(L, 0, 8);
-
-		Lua::setField(L, "chance", spellBlock.chance);
-		Lua::setField(L, "isCombatSpell", spellBlock.combatSpell ? 1 : 0);
-		Lua::setField(L, "isMelee", spellBlock.isMelee ? 1 : 0);
-		Lua::setField(L, "minCombatValue", spellBlock.minCombatValue);
-		Lua::setField(L, "maxCombatValue", spellBlock.maxCombatValue);
-		Lua::setField(L, "range", spellBlock.range);
-		Lua::setField(L, "speed", spellBlock.speed);
-		const auto combatSpell = std::static_pointer_cast<CombatSpell>(spellBlock.spell);
-		Lua::pushUserdata<CombatSpell>(L, combatSpell);
-		lua_setfield(L, -2, "spell");
-
+		lua_createtable(L, 0, 12);
+		pushSpellBlockFields(L, spellBlock);
 		lua_rawseti(L, -2, ++index);
 	}
 	return 1;
@@ -1307,6 +1338,7 @@ int MonsterTypeFunctions::luaMonsterTypeGetSummonList(lua_State* L) {
 		Lua::setField(L, "name", summonBlock.name);
 		Lua::setField(L, "speed", summonBlock.speed);
 		Lua::setField(L, "chance", summonBlock.chance);
+		Lua::setField(L, "count", summonBlock.count);
 		lua_rawseti(L, -2, ++index);
 	}
 	return 1;
@@ -1993,5 +2025,41 @@ int MonsterTypeFunctions::luaMonsterTypeCanTarget(lua_State* L) {
 		monsterType->info.canTarget = Lua::getBoolean(L, 2);
 		Lua::pushBoolean(L, true);
 	}
+	return 1;
+}
+
+int MonsterTypeFunctions::luaMonsterTypeEstimateAttackRate(lua_State* L) {
+	// monsterType:estimateAttackRate() -> { expectedDps, expectedHealDps }
+	const auto &monsterType = Lua::getUserdataShared<MonsterType>(L, 1);
+	if (!monsterType) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto rates = monsterType->estimateAttackRate();
+	lua_createtable(L, 0, 2);
+	Lua::setField(L, "expectedDps", rates.expectedDps);
+	Lua::setField(L, "expectedHealDps", rates.expectedHealDps);
+	return 1;
+}
+
+int MonsterTypeFunctions::luaMonsterTypeGetCombatPower(lua_State* L) {
+	// monsterType:getCombatPower()
+	const auto &monsterType = Lua::getUserdataShared<MonsterType>(L, 1);
+	if (!monsterType) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_pushnumber(L, monsterType->getCombatPower());
+	return 1;
+}
+
+int MonsterTypeFunctions::luaMonsterTypeGetCombatPowerSelf(lua_State* L) {
+	// monsterType:getCombatPowerSelf()
+	const auto &monsterType = Lua::getUserdataShared<MonsterType>(L, 1);
+	if (!monsterType) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_pushnumber(L, monsterType->getCombatPowerSelf());
 	return 1;
 }

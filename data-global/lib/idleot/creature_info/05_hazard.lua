@@ -115,7 +115,6 @@ local function traitsFromInfo(info)
 		mitigation = tonumber(info.mitigation) or 0,
 		meanElementPercent = tonumber(info.meanElementPercent) or 0,
 		speed = tonumber(info.speed) or 0,
-		softCapHp = info.softCapHp == true,
 	}
 end
 
@@ -142,7 +141,6 @@ function CreatureInfo.levelsForHazardPack(creatures, creatureDensity, points, ha
 				mitigation = tonumber(row.mitigation) or 0,
 				meanElementPercent = tonumber(row.meanElementPercent) or 0,
 				speed = tonumber(row.speed) or 0,
-				softCapHp = row.softCapHp == true,
 			}
 		end
 		local power = 0
@@ -185,7 +183,6 @@ function CreatureInfo.levelsForBossDifficulty(traits, difficulty, bossScale)
 	scaled.hp = hp * (1 + difficulty * hpPer)
 	scaled.health = scaled.hp
 	scaled.expectedDps = dps * (1 + difficulty * dmgPer)
-	scaled.softCapHp = true
 	local cp = CreatureInfo.computeCombatPower(scaled)
 	if cp <= 0 then
 		return {

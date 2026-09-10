@@ -8,11 +8,11 @@ local BOSS_LEVEL_LOG_COEF_HI = 120
 local BOSS_LEVEL_STEP = 25
 
 local MONSTER_LEVEL_STEP = 5
-local MONSTER_LEVEL_COEF = 0.6851034029143528
-local MONSTER_LEVEL_EXP = 0.7444942236267358
+local MONSTER_LEVEL_COEF = 0.64586146108913
+local MONSTER_LEVEL_EXP = 0.7488898225301996
 local PARTY_LEVEL_RATIO = 0.6
 --- Pack: Σ CP_i × n_i^HUNT_DENSITY_EXP (n_i = viewport count of creature i).
-local HUNT_DENSITY_EXP = 0.6637017678242599
+local HUNT_DENSITY_EXP = 0.6451901942271987
 
 local function roundLevelToStep(level, step)
 	level = tonumber(level) or 1

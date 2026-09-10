@@ -194,10 +194,36 @@ public:
 
 	bool isBoss() const;
 
+	struct AttackRateEstimate {
+		double expectedDps = 0;
+		double expectedHealDps = 0;
+	};
+
+	/// Offense + heal rates from attack/defense lists (no summon contribution).
+	AttackRateEstimate estimateAttackRate() const;
+
+	/// Self combat power from type traits only (no summons, no multi-form max).
+	double getCombatPowerSelf() const;
+
+	/// Self CP + expected summon CP; bosses take max across raceid sibling forms.
+	double getCombatPower() const;
+
 	void loadLoot(const std::shared_ptr<MonsterType> &monsterType, LootBlock lootblock) const;
 
 	bool canSpawn(const Position &pos) const;
 };
+
+/// Runtime SoT for combat-power trait product (MonsterType + Monster + Lua bindings).
+double computeCombatPowerFromTraits(
+	double health,
+	double expectedDps,
+	double expectedHealDps,
+	double armor,
+	double defense,
+	double mitigation,
+	double meanElementPercent,
+	double speed
+);
 
 class MonsterSpell {
 public:

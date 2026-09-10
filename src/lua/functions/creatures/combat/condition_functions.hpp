@@ -41,4 +41,5 @@ private:
 	static int luaConditionSetOutfit(lua_State* L);
 
 	static int luaConditionAddDamage(lua_State* L);
+	static int luaConditionGetTotalDamage(lua_State* L);
 };

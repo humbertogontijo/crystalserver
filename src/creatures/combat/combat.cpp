@@ -602,6 +602,26 @@ void Combat::setPlayerCombatValues(formulaType_t newFormulaType, double newMina,
 	this->maxb = newMaxb;
 }
 
+Combat::Magnitude Combat::estimateMagnitude() const {
+	Magnitude out;
+	out.combatType = params.combatType;
+	out.formula = formulaType;
+	if (formulaType == COMBAT_FORMULA_DAMAGE) {
+		out.minBurst = std::abs(static_cast<int32_t>(mina));
+		out.maxBurst = std::abs(static_cast<int32_t>(maxa));
+		out.formulaKnown = out.minBurst > 0 || out.maxBurst > 0;
+	}
+	for (const auto &condition : params.conditionList) {
+		if (!condition) {
+			continue;
+		}
+		if (const auto damageCondition = std::dynamic_pointer_cast<ConditionDamage>(condition)) {
+			out.conditionPackage += damageCondition->getTotalDamage();
+		}
+	}
+	return out;
+}
+
 void Combat::postCombatEffects(const std::shared_ptr<Creature> &caster, const Position &origin, const Position &pos) const {
 	postCombatEffects(caster, origin, pos, params);
 }

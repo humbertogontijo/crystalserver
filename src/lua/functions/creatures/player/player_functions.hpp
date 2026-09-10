@@ -369,6 +369,7 @@ class PlayerFunctions {
 	static int luaPlayerGetInstantSpells(lua_State* L);
 	static int luaPlayerCanCast(lua_State* L);
 	static int luaPlayerCastSpell(lua_State* L);
+	static int luaPlayerCanCastSpell(lua_State* L);
 	static int luaPlayerCastRune(lua_State* L);
 
 	static int luaPlayerHasChaseMode(lua_State* L);

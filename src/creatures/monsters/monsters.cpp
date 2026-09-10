@@ -17,6 +17,8 @@
 
 #include "creatures/monsters/monsters.hpp"
 
+#include <cmath>
+
 #include "config/configmanager.hpp"
 #include "creatures/combat/combat.hpp"
 #include "creatures/combat/condition.hpp"
@@ -341,6 +343,229 @@ float MonsterType::getDefenseMultiplier() const {
 
 bool MonsterType::isBoss() const {
 	return !info.bosstiaryClass.empty();
+}
+
+namespace {
+	constexpr double CP_RESIST_TAKEN_FLOOR = 0.03;
+
+	struct CombatPowerWeights {
+		double health = 1.0;
+		double heal = 1.0;
+		double armor = 0.980019587864914;
+		double mitigation = 0.7641856861632816;
+		double resist = 0.9941757884773436;
+		double dps = 0.81632397618286;
+		double speed = 0.9736514467958334;
+		double healRef = 100.2979895210889;
+		double armorScale = 80.0;
+		double speedRef = 200.0;
+	};
+
+	double powTerm(double value, double weight) {
+		if (!(weight > 0.0)) {
+			return 1.0;
+		}
+		if (!(value > 0.0)) {
+			return 0.0;
+		}
+		return std::pow(value, weight);
+	}
+
+	double mitigationToughnessFactor(double mitigation) {
+		if (!(mitigation > 0.0)) {
+			return 1.0;
+		}
+		if (mitigation < 1.0) {
+			const double taken = std::max(0.05, 1.0 - mitigation);
+			return 1.0 / taken;
+		}
+		return mitigation;
+	}
+
+	double resistTakenFactor(double meanElementPercent) {
+		const double taken = std::max(CP_RESIST_TAKEN_FLOOR, 1.0 - meanElementPercent / 100.0);
+		return 1.0 / taken;
+	}
+
+	double speedDpsFactor(double speed, double ref) {
+		if (!(speed > 0.0) || !(ref > 0.0)) {
+			return 1.0;
+		}
+		return std::sqrt(speed / ref);
+	}
+
+	double computeCombatPowerFromTraitsImpl(
+		double health,
+		double expectedDps,
+		double expectedHealDps,
+		double armor,
+		double defense,
+		double mitigation,
+		double meanElementPercent,
+		double speed
+	) {
+		if (!(expectedDps > 0.0)) {
+			return 0.0;
+		}
+		const CombatPowerWeights w {};
+		const double healFactor = (expectedHealDps > 0.0 && w.healRef > 0.0)
+			? (1.0 + expectedHealDps / w.healRef)
+			: 1.0;
+		const double hp = std::max(1.0, health);
+		const double bestArmor = std::max(std::max(0.0, armor), std::max(0.0, defense));
+		const double armorFactor = 1.0 + bestArmor / std::max(1e-6, w.armorScale);
+		const double mit = mitigationToughnessFactor(mitigation);
+		const double resist = resistTakenFactor(meanElementPercent);
+		const double speedFactor = speedDpsFactor(speed, w.speedRef);
+
+		const double prod = powTerm(hp, w.health)
+			* powTerm(healFactor, w.heal)
+			* powTerm(armorFactor, w.armor)
+			* powTerm(mit, w.mitigation)
+			* powTerm(resist, w.resist)
+			* powTerm(expectedDps, w.dps)
+			* powTerm(speedFactor, w.speed);
+		return std::sqrt(prod);
+	}
+
+	double spellBlockHit(const spellBlock_t &spellBlock) {
+		double hit = std::max(std::abs(spellBlock.minCombatValue), std::abs(spellBlock.maxCombatValue));
+		if (spellBlock.combatSpell) {
+			if (const auto combatSpell = std::dynamic_pointer_cast<CombatSpell>(spellBlock.spell)) {
+				if (const auto &combat = combatSpell->getCombat()) {
+					const auto magnitude = combat->estimateMagnitude();
+					if (magnitude.formulaKnown) {
+						hit = std::max(magnitude.minBurst, magnitude.maxBurst);
+					}
+					hit += static_cast<double>(magnitude.conditionPackage) * 0.25;
+				}
+			}
+		}
+		return hit;
+	}
+
+	bool spellBlockIsHealing(const spellBlock_t &spellBlock) {
+		if (!spellBlock.combatSpell) {
+			return false;
+		}
+		const auto combatSpell = std::dynamic_pointer_cast<CombatSpell>(spellBlock.spell);
+		if (!combatSpell) {
+			return false;
+		}
+		const auto &combat = combatSpell->getCombat();
+		return combat && combat->getCombatType() == COMBAT_HEALING;
+	}
+
+	double rateFromSpellBlock(const spellBlock_t &spellBlock) {
+		const double hit = spellBlockHit(spellBlock);
+		if (!(hit > 0.0)) {
+			return 0.0;
+		}
+		const double chance = spellBlock.chance > 0 ? static_cast<double>(spellBlock.chance) : 100.0;
+		const double intervalMs = spellBlock.speed > 0 ? static_cast<double>(spellBlock.speed) : 2000.0;
+		return hit * (chance / 100.0) / (intervalMs / 1000.0);
+	}
+
+	double meanElementPercentFromType(const MonsterType &monsterType) {
+		if (monsterType.info.elementMap.empty()) {
+			return 0.0;
+		}
+		double sum = 0.0;
+		size_t count = 0;
+		for (const auto &[combatType, percent] : monsterType.info.elementMap) {
+			(void)combatType;
+			sum += static_cast<double>(percent);
+			++count;
+		}
+		return count > 0 ? sum / static_cast<double>(count) : 0.0;
+	}
+} // namespace
+
+double computeCombatPowerFromTraits(
+	double health,
+	double expectedDps,
+	double expectedHealDps,
+	double armor,
+	double defense,
+	double mitigation,
+	double meanElementPercent,
+	double speed
+) {
+	return computeCombatPowerFromTraitsImpl(
+		health, expectedDps, expectedHealDps, armor, defense, mitigation, meanElementPercent, speed
+	);
+}
+
+MonsterType::AttackRateEstimate MonsterType::estimateAttackRate() const {
+	AttackRateEstimate out;
+	for (const auto &spellBlock : info.attackSpells) {
+		const double rate = rateFromSpellBlock(spellBlock);
+		if (spellBlockIsHealing(spellBlock)) {
+			out.expectedHealDps += rate;
+		} else {
+			out.expectedDps += rate;
+		}
+	}
+	for (const auto &spellBlock : info.defenseSpells) {
+		const double rate = rateFromSpellBlock(spellBlock);
+		if (spellBlockIsHealing(spellBlock)) {
+			out.expectedHealDps += rate;
+		}
+	}
+	return out;
+}
+
+double MonsterType::getCombatPowerSelf() const {
+	const auto rates = estimateAttackRate();
+	return computeCombatPowerFromTraits(
+		static_cast<double>(info.healthMax),
+		rates.expectedDps,
+		rates.expectedHealDps,
+		static_cast<double>(info.armor),
+		static_cast<double>(info.defense),
+		static_cast<double>(info.mitigation),
+		meanElementPercentFromType(*this),
+		static_cast<double>(info.baseSpeed)
+	);
+}
+
+double MonsterType::getCombatPower() const {
+	const auto addSummonExpectedCp = [](const MonsterType &self) {
+		double extra = 0.0;
+		for (const auto &summon : self.info.summons) {
+			if (summon.name.empty() || summon.count <= 0) {
+				continue;
+			}
+			const auto summonType = g_monsters().getMonsterType(summon.name, true);
+			if (!summonType) {
+				continue;
+			}
+			const double chance = summon.chance > 0 ? static_cast<double>(summon.chance) : 100.0;
+			extra += summonType->getCombatPowerSelf() * (chance / 100.0) * static_cast<double>(summon.count);
+		}
+		return extra;
+	};
+
+	const auto formPower = [&](const MonsterType &form) {
+		return form.getCombatPowerSelf() + addSummonExpectedCp(form);
+	};
+
+	double power = formPower(*this);
+	if (!isBoss() || info.raceid == 0) {
+		return power;
+	}
+
+	for (const auto &[name, other] : g_monsters().monsters) {
+		(void)name;
+		if (!other || other.get() == this) {
+			continue;
+		}
+		if (other->info.raceid != info.raceid || !other->isBoss()) {
+			continue;
+		}
+		power = std::max(power, formPower(*other));
+	}
+	return power;
 }
 
 Monsters &Monsters::getInstance() {

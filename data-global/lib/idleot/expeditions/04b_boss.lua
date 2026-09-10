@@ -23,8 +23,12 @@ local function clearDespawn(session)
 end
 
 --- HEALTHCHANGE kill-gates only (phase transforms must stay registered).
+--- tentuglysHeadPhase: CIP tentacle teleport/arena (absolute multi-floor).
+--- facelessHealth: CIP immortality / elemental absorb cleared only by arena tiles.
 local KILL_GATE_HEALTHCHANGE = {
 	["monster.invulnerable"] = true,
+	["tentuglysHeadPhase"] = true,
+	["facelessHealth"] = true,
 }
 
 --- Neutralize scripts that block HP from reaching 0. Keeps THINK (heals/summons).

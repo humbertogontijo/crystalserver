@@ -17,10 +17,12 @@
 
 #include "game/game.hpp"
 
+#include "game/instance_fence.hpp"
 #include "config/configmanager.hpp"
 #include "creatures/appearance/mounts/mounts.hpp"
 #include "creatures/appearance/attached_effects/attached_effects.hpp"
 #include "creatures/combat/condition.hpp"
+#include "creatures/combat/spell_feedback.hpp"
 #include "creatures/combat/spells.hpp"
 #include "creatures/creature.hpp"
 #include "creatures/interactions/chat.hpp"
@@ -1162,7 +1164,16 @@ void Game::releaseInstanceId(uint32_t id) {
 		g_logger().warn("[Game::releaseInstanceId] id {} was not in use (ignored)", id);
 		return;
 	}
+	// Soft check: actors still bound to this id will collide if recycled early.
+	for (const auto &[creatureId, creature] : getMonsters()) {
+		(void)creatureId;
+		if (creature && creature->getInstanceId() == id) {
+			g_logger().warn("[Game::releaseInstanceId] monster still on instance {} ({})", id, creature->getName());
+			break;
+		}
+	}
 	freePrivateInstanceIds.push_back(id);
+	g_instanceFences().clearPrivateFence(id);
 }
 
 bool Game::callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult) {
@@ -1255,11 +1266,7 @@ bool Game::routeInstanceTravel(const std::shared_ptr<Creature> &creature, const 
 }
 
 bool Game::canWalkInstance(const std::shared_ptr<Creature> &creature, const Position &toPos) {
-	if (g_dispatcher().context().isAsync()) {
-		// Match InstanceWorld.canWalk's instance-0 deny without calling Lua from A*.
-		return creature && creature->getInstanceId() != 0;
-	}
-	return callInstanceWorld("canWalk", creature, toPos, true);
+	return g_instanceFences().canWalk(creature, toPos);
 }
 
 void Game::disableWorldSpawns() {
@@ -9846,6 +9853,9 @@ void Game::addPlayerVocation(const std::shared_ptr<Player> &target) {
 }
 
 void Game::addMagicEffect(const Position &pos, uint16_t effect) {
+	if (SpellFeedback::suppressed() && effect == CONST_ME_POFF) {
+		return;
+	}
 	const uint32_t instanceId = resolveEffectInstanceId(pos);
 	auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId);
 	addMagicEffect(spectators.data(), pos, effect);

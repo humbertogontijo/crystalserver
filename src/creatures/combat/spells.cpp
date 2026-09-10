@@ -20,9 +20,12 @@
 #include "config/configmanager.hpp"
 #include "creatures/combat/combat.hpp"
 #include "creatures/combat/condition.hpp"
+#include "creatures/combat/spell_feedback.hpp"
 #include "creatures/players/player.hpp"
 #include "creatures/players/wheel/player_wheel.hpp"
 #include "creatures/players/wheel/wheel_definitions.hpp"
+
+#include <optional>
 #include "enums/account_group_type.hpp"
 #include "enums/account_type.hpp"
 #include "game/game.hpp"
@@ -1139,7 +1142,12 @@ static Direction getStraightDirectionTo(const Position &from, const Position &to
 	return DIRECTION_NONE;
 }
 
-bool InstantSpell::playerCastInstant(const std::shared_ptr<Player> &player, std::string &param, const Position &to) const {
+bool InstantSpell::playerCastInstant(const std::shared_ptr<Player> &player, std::string &param, const Position &to, bool silent, bool checkOnly) const {
+	std::optional<SpellFeedback::Suppress> feedbackGuard;
+	if (silent || checkOnly) {
+		feedbackGuard.emplace();
+	}
+
 	if (!playerSpellCheck(player)) {
 		return false;
 	}
@@ -1169,7 +1177,9 @@ bool InstantSpell::playerCastInstant(const std::shared_ptr<Player> &player, std:
 			target = playerTarget;
 			if (!target || target->isRemoved() || target->getHealth() <= 0) {
 				if (!casterTargetOrDirection) {
-					applyCooldownConditions(player);
+					if (!checkOnly) {
+						applyCooldownConditions(player);
+					}
 
 					player->sendCancelMessage(ret);
 					g_game().addMagicEffect(player->getPosition(), CONST_ME_POFF);
@@ -1219,7 +1229,9 @@ bool InstantSpell::playerCastInstant(const std::shared_ptr<Player> &player, std:
 			ReturnValue ret = g_game().getPlayerByNameWildcard(param, playerTarget);
 
 			if (ret != RETURNVALUE_NOERROR) {
-				applyCooldownConditions(player);
+				if (!checkOnly) {
+					applyCooldownConditions(player);
+				}
 
 				player->sendCancelMessage(ret);
 				g_game().addMagicEffect(player->getPosition(), CONST_ME_POFF);
@@ -1265,6 +1277,10 @@ bool InstantSpell::playerCastInstant(const std::shared_ptr<Player> &player, std:
 	if (!allowOnSelf && playerTarget && playerTarget->getName() == player->getName()) {
 		player->sendCancelMessage(RETURNVALUE_NOTPOSSIBLE);
 		return false;
+	}
+
+	if (checkOnly) {
+		return true;
 	}
 
 	auto worldType = g_game().worlds().getCurrentWorld()->type;

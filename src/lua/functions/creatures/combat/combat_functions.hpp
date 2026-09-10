@@ -30,6 +30,8 @@ private:
 
 	static int luaCombatSetParameter(lua_State* L);
 	static int luaCombatSetFormula(lua_State* L);
+	static int luaCombatGetFormula(lua_State* L);
+	static int luaCombatEstimateMagnitude(lua_State* L);
 
 	static int luaCombatSetArea(lua_State* L);
 	static int luaCombatSetCondition(lua_State* L);

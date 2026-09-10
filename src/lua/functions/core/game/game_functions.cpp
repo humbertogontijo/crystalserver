@@ -27,7 +27,9 @@
 #include "creatures/players/player.hpp"
 #include "game/functions/game_reload.hpp"
 #include "game/game.hpp"
+#include "game/instance_fence.hpp"
 #include "game/scheduling/dispatcher.hpp"
+#include "creatures/monsters/monsters.hpp"
 #ifdef IDLEOT_HAS_OCCUPANCY
 #include "occupancy_mask.hpp"
 #endif
@@ -111,6 +113,13 @@ void GameFunctions::init(lua_State* L) {
 #endif
 	Lua::registerMethod(L, "Game", "allocateInstance", GameFunctions::luaGameAllocateInstance);
 	Lua::registerMethod(L, "Game", "releaseInstance", GameFunctions::luaGameReleaseInstance);
+	Lua::registerMethod(L, "Game", "setInstanceHubFence", GameFunctions::luaGameSetInstanceHubFence);
+	Lua::registerMethod(L, "Game", "setInstanceAreaFence", GameFunctions::luaGameSetInstanceAreaFence);
+	Lua::registerMethod(L, "Game", "setInstancePrivateFence", GameFunctions::luaGameSetInstancePrivateFence);
+	Lua::registerMethod(L, "Game", "clearInstancePrivateFence", GameFunctions::luaGameClearInstancePrivateFence);
+	Lua::registerMethod(L, "Game", "setInstanceFloors", GameFunctions::luaGameSetInstanceFloors);
+	Lua::registerMethod(L, "Game", "canWalkInstance", GameFunctions::luaGameCanWalkInstance);
+	Lua::registerMethod(L, "Game", "computeCombatPowerFromTraits", GameFunctions::luaGameComputeCombatPowerFromTraits);
 	Lua::registerMethod(L, "Game", "disableWorldSpawns", GameFunctions::luaGameDisableWorldSpawns);
 	Lua::registerMethod(L, "Game", "getNpcs", GameFunctions::luaGameGetNpcs);
 	Lua::registerMethod(L, "Game", "getMonsters", GameFunctions::luaGameGetMonsters);
@@ -553,6 +562,184 @@ int GameFunctions::luaGameReleaseInstance(lua_State* L) {
 	// Game.releaseInstance(id)
 	g_game().releaseInstanceId(Lua::getNumber<uint32_t>(L, 1));
 	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+namespace {
+	std::vector<uint8_t> readFloorList(lua_State* L, int index) {
+		std::vector<uint8_t> floors;
+		if (!lua_istable(L, index)) {
+			return floors;
+		}
+		const int absIndex = index > 0 ? index : lua_gettop(L) + index + 1;
+		lua_pushnil(L);
+		while (lua_next(L, absIndex) != 0) {
+			int z = -1;
+			if (lua_isnumber(L, -1)) {
+				z = static_cast<int>(lua_tonumber(L, -1));
+			} else if (lua_isnumber(L, -2) && lua_toboolean(L, -1)) {
+				z = static_cast<int>(lua_tonumber(L, -2));
+			}
+			if (z >= 0 && z <= 15) {
+				floors.push_back(static_cast<uint8_t>(z));
+			}
+			lua_pop(L, 1);
+		}
+		return floors;
+	}
+
+	bool readOccupancyFromTable(lua_State* L, int index, InstanceFenceRegistry::Occupancy &out) {
+		if (!lua_istable(L, index)) {
+			return false;
+		}
+		const int absIndex = index > 0 ? index : lua_gettop(L) + index + 1;
+		lua_getfield(L, absIndex, "originX");
+		lua_getfield(L, absIndex, "originY");
+		lua_getfield(L, absIndex, "width");
+		lua_getfield(L, absIndex, "height");
+		lua_getfield(L, absIndex, "bits");
+		if (!lua_isnumber(L, -5) || !lua_isnumber(L, -4) || !lua_isnumber(L, -3) || !lua_isnumber(L, -2) || !lua_isstring(L, -1)) {
+			lua_pop(L, 5);
+			return false;
+		}
+		out.originX = static_cast<int32_t>(lua_tonumber(L, -5));
+		out.originY = static_cast<int32_t>(lua_tonumber(L, -4));
+		out.width = static_cast<int32_t>(lua_tonumber(L, -3));
+		out.height = static_cast<int32_t>(lua_tonumber(L, -2));
+		size_t len = 0;
+		const char* bits = lua_tolstring(L, -1, &len);
+		out.bits.assign(bits, bits + len);
+		lua_pop(L, 5);
+		return out.width > 0 && out.height > 0 && !out.bits.empty();
+	}
+
+	InstanceFenceRegistry::Fence makeFenceFromLua(lua_State* L, int occIndex, int aabbIndex, int floorsIndex, bool allFloors) {
+		InstanceFenceRegistry::Fence fence;
+		fence.allFloors = allFloors;
+		if (floorsIndex != 0) {
+			fence.floors = readFloorList(L, floorsIndex);
+			if (!fence.floors.empty()) {
+				fence.allFloors = false;
+			}
+		}
+		InstanceFenceRegistry::Occupancy occ;
+		if (occIndex != 0 && readOccupancyFromTable(L, occIndex, occ)) {
+			fence.occupancy = std::move(occ);
+		} else if (aabbIndex != 0 && lua_istable(L, aabbIndex)) {
+			const int absAabb = aabbIndex > 0 ? aabbIndex : lua_gettop(L) + aabbIndex + 1;
+			lua_getfield(L, absAabb, "x");
+			lua_getfield(L, absAabb, "y");
+			lua_getfield(L, absAabb, "w");
+			lua_getfield(L, absAabb, "h");
+			if (lua_isnumber(L, -4) && lua_isnumber(L, -3) && lua_isnumber(L, -2) && lua_isnumber(L, -1)) {
+				InstanceFenceRegistry::Aabb box;
+				box.x = static_cast<int32_t>(lua_tonumber(L, -4));
+				box.y = static_cast<int32_t>(lua_tonumber(L, -3));
+				box.w = static_cast<int32_t>(lua_tonumber(L, -2));
+				box.h = static_cast<int32_t>(lua_tonumber(L, -1));
+				if (box.w > 0 && box.h > 0) {
+					fence.aabb = box;
+				}
+			}
+			lua_pop(L, 4);
+		}
+		return fence;
+	}
+} // namespace
+
+int GameFunctions::luaGameSetInstanceHubFence(lua_State* L) {
+	// Game.setInstanceHubFence(centerX, centerY[, radius = 40[, floors]])
+	const auto cx = Lua::getNumber<int32_t>(L, 1);
+	const auto cy = Lua::getNumber<int32_t>(L, 2);
+	const auto radius = Lua::getNumber<int32_t>(L, 3, InstanceFenceRegistry::DEFAULT_HUB_WALK_RADIUS);
+	std::vector<uint8_t> floors;
+	if (lua_gettop(L) >= 4) {
+		floors = readFloorList(L, 4);
+	}
+	g_instanceFences().setHub(cx, cy, radius, floors);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameSetInstanceAreaFence(lua_State* L) {
+	// Game.setInstanceAreaFence(areaId, occupancyTable[, boundaryTable])
+	// Cities/settlements: all floors. occupancyTable from Game.loadOccupancyMask.
+	const auto areaId = Lua::getNumber<uint32_t>(L, 1);
+	auto fence = makeFenceFromLua(L, 2, lua_gettop(L) >= 3 ? 3 : 0, 0, true);
+	g_instanceFences().setAreaFence(areaId, std::move(fence));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameSetInstancePrivateFence(lua_State* L) {
+	// Game.setInstancePrivateFence(instanceId, occupancyTable[, boundaryTable[, floors]])
+	const auto instanceId = Lua::getNumber<uint32_t>(L, 1);
+	const int top = lua_gettop(L);
+	auto fence = makeFenceFromLua(L, 2, top >= 3 ? 3 : 0, top >= 4 ? 4 : 0, false);
+	g_instanceFences().setPrivateFence(instanceId, std::move(fence));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameClearInstancePrivateFence(lua_State* L) {
+	// Game.clearInstancePrivateFence(instanceId)
+	g_instanceFences().clearPrivateFence(Lua::getNumber<uint32_t>(L, 1));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameSetInstanceFloors(lua_State* L) {
+	// Game.setInstanceFloors(instanceId, floorsTable|nil)
+	const auto instanceId = Lua::getNumber<uint32_t>(L, 1);
+	if (lua_isnoneornil(L, 2)) {
+		g_instanceFences().setFloors(instanceId, {}, true);
+	} else {
+		auto floors = readFloorList(L, 2);
+		g_instanceFences().setFloors(instanceId, floors, floors.empty());
+	}
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameCanWalkInstance(lua_State* L) {
+	// Game.canWalkInstance(creature, position)
+	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
+	if (!creature) {
+		Lua::pushBoolean(L, true);
+		return 1;
+	}
+	const Position &pos = Lua::getPosition(L, 2);
+	Lua::pushBoolean(L, g_game().canWalkInstance(creature, pos));
+	return 1;
+}
+
+int GameFunctions::luaGameComputeCombatPowerFromTraits(lua_State* L) {
+	// Game.computeCombatPowerFromTraits(traitsTable)
+	// Keys: health|hp, expectedDps, expectedHealDps, armor, defense, mitigation,
+	//       meanElementPercent, speed
+	if (!lua_istable(L, 1)) {
+		lua_pushnumber(L, 0);
+		return 1;
+	}
+	auto read = [L](const char* a, const char* b = nullptr) {
+		lua_getfield(L, 1, a);
+		if (lua_isnil(L, -1) && b) {
+			lua_pop(L, 1);
+			lua_getfield(L, 1, b);
+		}
+		const double v = lua_isnumber(L, -1) ? lua_tonumber(L, -1) : 0.0;
+		lua_pop(L, 1);
+		return v;
+	};
+	const double health = read("health", "hp");
+	const double expectedDps = read("expectedDps", "expected_dps");
+	const double expectedHealDps = read("expectedHealDps", "expected_heal_dps");
+	const double armor = read("armor");
+	const double defense = read("defense");
+	const double mitigation = read("mitigation");
+	const double meanElement = read("meanElementPercent", "mean_element_percent");
+	const double speed = read("speed");
+	lua_pushnumber(L, computeCombatPowerFromTraits(health, expectedDps, expectedHealDps, armor, defense, mitigation, meanElement, speed));
 	return 1;
 }
 

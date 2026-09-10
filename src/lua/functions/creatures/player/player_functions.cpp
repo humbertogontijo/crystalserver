@@ -385,6 +385,7 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "getInstantSpells", PlayerFunctions::luaPlayerGetInstantSpells);
 	Lua::registerMethod(L, "Player", "canCast", PlayerFunctions::luaPlayerCanCast);
 	Lua::registerMethod(L, "Player", "castSpell", PlayerFunctions::luaPlayerCastSpell);
+	Lua::registerMethod(L, "Player", "canCastSpell", PlayerFunctions::luaPlayerCanCastSpell);
 	Lua::registerMethod(L, "Player", "castRune", PlayerFunctions::luaPlayerCastRune);
 
 	Lua::registerMethod(L, "Player", "hasChaseMode", PlayerFunctions::luaPlayerHasChaseMode);
@@ -4614,8 +4615,9 @@ int PlayerFunctions::luaPlayerCanCast(lua_State* L) {
 }
 
 int PlayerFunctions::luaPlayerCastSpell(lua_State* L) {
-	// player:castSpell(words[, param]) — casts an instant spell by words (mana/voc/cooldown checks apply).
+	// player:castSpell(words[, param][, silent = false])
 	// Optional param is required for hasPlayerNameParam spells (e.g. exura sio "Name").
+	// silent=true suppresses cancel messages and CONST_ME_POFF on failure.
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (!player) {
 		lua_pushnil(L);
@@ -4636,11 +4638,50 @@ int PlayerFunctions::luaPlayerCastSpell(lua_State* L) {
 	}
 
 	std::string param;
-	if (lua_gettop(L) >= 3 && !Lua::isNil(L, 3)) {
+	bool silent = false;
+	const int top = lua_gettop(L);
+	if (top >= 3 && !Lua::isNil(L, 3)) {
+		if (lua_isboolean(L, 3) && top == 3) {
+			silent = Lua::getBoolean(L, 3);
+		} else {
+			param = Lua::getString(L, 3);
+			if (top >= 4) {
+				silent = Lua::getBoolean(L, 4, false);
+			}
+		}
+	}
+	InstanceActorScope instanceActorScope(player);
+	Lua::pushBoolean(L, instantSpell->playerCastInstant(player, param, {}, silent, false));
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerCanCastSpell(lua_State* L) {
+	// player:canCastSpell(words[, param]) — dry-run of cast checks (no cast, no FX).
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	std::string words = asLowerCaseString(Lua::getString(L, 2));
+	trimString(words);
+	if (words.empty()) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const auto &instantSpell = g_spells().getInstantSpell(words);
+	if (!instantSpell) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	std::string param;
+	if (lua_gettop(L) >= 3 && !Lua::isNil(L, 3) && !lua_isboolean(L, 3)) {
 		param = Lua::getString(L, 3);
 	}
 	InstanceActorScope instanceActorScope(player);
-	Lua::pushBoolean(L, instantSpell->playerCastInstant(player, param));
+	Lua::pushBoolean(L, instantSpell->playerCastInstant(player, param, {}, true, true));
 	return 1;
 }
 

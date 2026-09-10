@@ -27,6 +27,7 @@
 #include "creatures/appearance/attached_effects/attached_effects.hpp"
 #include "creatures/combat/combat.hpp"
 #include "creatures/combat/condition.hpp"
+#include "creatures/combat/spell_feedback.hpp"
 #include "creatures/interactions/chat.hpp"
 #include "creatures/monsters/monster.hpp"
 #include "creatures/monsters/monsters.hpp"
@@ -2199,6 +2200,9 @@ std::vector<std::shared_ptr<Item>> Player::getRewardsFromContainer(const std::sh
 }
 
 void Player::sendCancelMessage(const std::string &msg) const {
+	if (SpellFeedback::suppressed()) {
+		return;
+	}
 	if (client) {
 		client->sendTextMessage(TextMessage(MESSAGE_FAILURE, msg));
 	}
@@ -2475,12 +2479,18 @@ void Player::sendSkills() const {
 }
 
 void Player::sendTextMessage(MessageClasses mclass, const std::string &message) const {
+	if (SpellFeedback::suppressed() && mclass == MESSAGE_FAILURE) {
+		return;
+	}
 	if (client) {
 		client->sendTextMessage(TextMessage(mclass, message));
 	}
 }
 
 void Player::sendTextMessage(const TextMessage &message) const {
+	if (SpellFeedback::suppressed() && message.type == MESSAGE_FAILURE) {
+		return;
+	}
 	if (client) {
 		client->sendTextMessage(message);
 	}

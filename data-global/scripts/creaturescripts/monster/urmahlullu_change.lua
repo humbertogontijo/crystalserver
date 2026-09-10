@@ -19,8 +19,34 @@ local stages = {
 local changeEvent = nil
 local revertEvent = nil
 
+--- Phase swaps must keep the private expedition instance and rebind ownership.
+local function spawnPhaseMonster(name, position, instanceId)
+	instanceId = math.floor(tonumber(instanceId) or 0)
+	local monster = nil
+	if instanceId > 0 then
+		monster = Game.createMonster(name, position, true, true, nil, instanceId)
+		if monster and monster.setInstanceId then
+			monster:setInstanceId(instanceId)
+		end
+	else
+		monster = Game.createMonster(name, position, true, true)
+	end
+
+	if monster and ExpeditionBoss and ExpeditionBoss.onPhaseSpawned then
+		pcall(ExpeditionBoss.onPhaseSpawned, monster)
+	end
+	return monster
+end
+
+local function creatureInstanceId(creature)
+	if creature and creature.getInstanceId then
+		return math.floor(tonumber(creature:getInstanceId()) or 0)
+	end
+	return 0
+end
+
 local function revert(cid, name)
-	local creature = Creature(cid, name)
+	local creature = Creature(cid)
 	if not creature then
 		return
 	end
@@ -30,14 +56,15 @@ local function revert(cid, name)
 	end
 
 	local position = creature:getPosition()
+	local instanceId = creatureInstanceId(creature)
 	creature:remove()
-	local monster = Game.createMonster(name, position, true, true)
+	local monster = spawnPhaseMonster(name, position, instanceId)
 	if not monster then
 		return
 	end
 	if name ~= stages[5].name then
 		changeEvent = nil
-		revertEvent = addEvent(revert, timetochange * 1000, creature:getId(), stages[1].name)
+		revertEvent = addEvent(revert, timetochange * 1000, monster:getId(), stages[1].name)
 	else
 		changeEvent = nil
 		revertEvent = nil
@@ -53,8 +80,9 @@ local function changeStage(cid, stage)
 
 	local position = creature:getPosition()
 	local previousName = creature:getName()
+	local instanceId = creatureInstanceId(creature)
 	creature:remove()
-	local newCreature = Game.createMonster(stage, position, true, true)
+	local newCreature = spawnPhaseMonster(stage, position, instanceId)
 	if not newCreature then
 		return
 	end

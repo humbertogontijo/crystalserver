@@ -1,14 +1,14 @@
 -- Pure combat-power formula (no Crystal globals).
--- Mirrors packages/asset-pipeline crystal_monsters.compute_combat_power + weights.
+-- Runtime SoT: C++ computeCombatPowerFromTraits / MonsterType::getCombatPower.
+-- This file remains the offline lupa mirror + custom-weight fit path.
 CreatureInfo = CreatureInfo or {}
 
-local CP_HP_SOFT_START = 80000
-local CP_HP_SOFT_CAP = 30000
 local CP_RESIST_TAKEN_FLOOR = 0.03
 
 -- Defaults; HUNT_LEVEL_FIT weights from 02_levels densityExp / optimize sync.
 local DEFAULT_WEIGHTS = {
 	health = 1,
+	heal = 1,
 	armor = 0.980019587864914,
 	mitigation = 0.7641856861632816,
 	resist = 0.9941757884773436,
@@ -49,21 +49,6 @@ local function powTerm(value, weight)
 	return value ^ weight
 end
 
-local function softCap(value, cap)
-	if not (cap and cap > 0) or not (value and value > 0) then
-		return math.max(0, value or 0)
-	end
-	return (value * cap) / (value + cap)
-end
-
-local function softCapHealthAbove(health)
-	local hp = math.max(1, health or 1)
-	if hp <= CP_HP_SOFT_START then
-		return hp
-	end
-	return CP_HP_SOFT_START + softCap(hp - CP_HP_SOFT_START, CP_HP_SOFT_CAP)
-end
-
 local function mitigationToughnessFactor(mitigation)
 	mitigation = tonumber(mitigation) or 0
 	if not (mitigation > 0) then
@@ -90,18 +75,10 @@ local function speedDpsFactor(speed, ref)
 	return math.sqrt(speed / ref)
 end
 
-local function healthWithHealing(health, expectedHealDps, healRef)
-	local hp = math.max(1, health or 1)
-	expectedHealDps = tonumber(expectedHealDps) or 0
-	healRef = tonumber(healRef) or 0
-	if not (expectedHealDps > 0) or not (healRef > 0) then
-		return hp
-	end
-	return hp * (1 + expectedHealDps / healRef)
-end
-
 --- traits: { hp|health, expectedDps, expectedHealDps, armor, defense, mitigation,
----           meanElementPercent, speed, softCapHp }
+---           meanElementPercent, speed }
+--- Runtime SoT is C++ computeCombatPowerFromTraits (Game.computeCombatPowerFromTraits).
+--- Offline lupa / custom weight fits still use the local product below (must match C++ defaults).
 function CreatureInfo.computeCombatPower(traits, weights)
 	if type(traits) ~= "table" then
 		return 0
@@ -109,6 +86,11 @@ function CreatureInfo.computeCombatPower(traits, weights)
 	local dps = math.max(0, tonumber(traits.expectedDps) or tonumber(traits.expected_dps) or 0)
 	if dps <= 0 then
 		return 0
+	end
+
+	-- Prefer engine SoT when weights are default (nil) and binding exists.
+	if weights == nil and Game and Game.computeCombatPowerFromTraits then
+		return tonumber(Game.computeCombatPowerFromTraits(traits)) or 0
 	end
 
 	local w = resolveWeights(weights)
@@ -119,10 +101,12 @@ function CreatureInfo.computeCombatPower(traits, weights)
 	local mitigation = tonumber(traits.mitigation) or 0
 	local meanEl = tonumber(traits.meanElementPercent) or tonumber(traits.mean_element_percent) or 0
 	local speed = tonumber(traits.speed) or 0
-	local softCapHp = traits.softCapHp == true or traits.soft_cap_hp == true
 
-	local rawHp = healthWithHealing(math.max(1, health), healDps, w.healRef)
-	local hp = softCapHp and softCapHealthAbove(rawHp) or rawHp
+	local hp = math.max(1, health)
+	local healFactor = 1
+	if healDps > 0 and w.healRef and w.healRef > 0 then
+		healFactor = 1 + healDps / w.healRef
+	end
 	local bestArmor = math.max(math.max(0, armor), math.max(0, defense))
 	local armorFactor = 1 + bestArmor / math.max(1e-6, w.armorScale)
 	local mit = mitigationToughnessFactor(mitigation)
@@ -130,6 +114,7 @@ function CreatureInfo.computeCombatPower(traits, weights)
 	local speedFactor = speedDpsFactor(speed, w.speedRef)
 
 	local prod = powTerm(hp, w.health)
+		* powTerm(healFactor, w.heal)
 		* powTerm(armorFactor, w.armor)
 		* powTerm(mit, w.mitigation)
 		* powTerm(resist, w.resist)
@@ -149,4 +134,44 @@ function CreatureInfo.roundCombatPower(value)
 		return 0
 	end
 	return math.floor(value * 100 + 0.5) / 100
+end
+
+--- Resolve Monster / MonsterType / name / creatureId to runtime combat power.
+function CreatureInfo.getCombatPower(ref)
+	if ref == nil then
+		return 0
+	end
+	if type(ref) == "userdata" then
+		if ref.getCombatPower then
+			return CreatureInfo.roundCombatPower(ref:getCombatPower() or 0)
+		end
+		if ref.getType then
+			local mType = ref:getType()
+			if mType and mType.getCombatPower then
+				return CreatureInfo.roundCombatPower(mType:getCombatPower() or 0)
+			end
+		end
+		return 0
+	end
+	if type(ref) == "number" then
+		local mType = MonsterType and MonsterType(ref) or nil
+		if mType and mType.getCombatPower then
+			return CreatureInfo.roundCombatPower(mType:getCombatPower() or 0)
+		end
+		local info = CreatureInfo.getByCreatureId and CreatureInfo.getByCreatureId(ref)
+		if info and info.name and MonsterType then
+			mType = MonsterType(info.name)
+			if mType and mType.getCombatPower then
+				return CreatureInfo.roundCombatPower(mType:getCombatPower() or 0)
+			end
+		end
+		return 0
+	end
+	if type(ref) == "string" then
+		local mType = MonsterType and MonsterType(ref) or nil
+		if mType and mType.getCombatPower then
+			return CreatureInfo.roundCombatPower(mType:getCombatPower() or 0)
+		end
+	end
+	return 0
 end

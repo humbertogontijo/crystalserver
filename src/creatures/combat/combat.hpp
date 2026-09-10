@@ -240,6 +240,34 @@ public:
 
 	void setOrigin(CombatOrigin origin);
 
+	formulaType_t getFormulaType() const {
+		return formulaType;
+	}
+	void getFormulaValues(double &outMina, double &outMinb, double &outMaxa, double &outMaxb) const {
+		outMina = mina;
+		outMinb = minb;
+		outMaxa = maxa;
+		outMaxb = maxb;
+	}
+	CombatType_t getCombatType() const {
+		return params.combatType;
+	}
+
+	/**
+	 * Non-rolling magnitude for combat-power / threat estimates (no RNG, no cast).
+	 * COMBAT_FORMULA_DAMAGE uses |mina|/|maxa|; other formulas leave formulaKnown false.
+	 * conditionPackage sums ConditionDamage::getTotalDamage over attached conditions.
+	 */
+	struct Magnitude {
+		formulaType_t formula = COMBAT_FORMULA_UNDEFINED;
+		CombatType_t combatType = COMBAT_NONE;
+		int32_t minBurst = 0;
+		int32_t maxBurst = 0;
+		int32_t conditionPackage = 0;
+		bool formulaKnown = false;
+	};
+	Magnitude estimateMagnitude() const;
+
 	/**
 	 * @brief Sets the name of the instant spell.
 	 *

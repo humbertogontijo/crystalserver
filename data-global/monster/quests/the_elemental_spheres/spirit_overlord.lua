@@ -17,8 +17,8 @@ monster.events = {
 	"ElementalOverlordDeath",
 }
 
-monster.health = 4
-monster.maxHealth = 4
+monster.health = 4000
+monster.maxHealth = 4000
 monster.race = "undead"
 monster.corpse = 8105
 monster.speed = 165

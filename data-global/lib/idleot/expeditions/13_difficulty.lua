@@ -108,7 +108,6 @@ local function bossTraitsFromCatalog(catalog)
 		mitigation = tonumber(info.mitigation) or 0,
 		meanElementPercent = tonumber(info.meanElementPercent) or 0,
 		speed = tonumber(info.speed) or 0,
-		softCapHp = true,
 	}
 end
 
@@ -554,18 +553,24 @@ function ExpeditionDifficulty.applyBossScale(monster, session)
 	if D <= 0 then
 		return
 	end
-	local hpMult = select(1, ExpeditionDifficulty.bossScaleMults(D, session.catalog))
-	if hpMult <= 1 then
+	local hpMult, dmgMult = ExpeditionDifficulty.bossScaleMults(D, session.catalog)
+	if (hpMult <= 1 and dmgMult <= 1) then
 		return
 	end
 	pcall(function()
-		local maxHp = monster:getMaxHealth()
-		local newMax = math.max(1, math.floor(maxHp * hpMult))
-		if monster.setMaxHealth then
-			monster:setMaxHealth(newMax)
+		if monster.scaleCombat then
+			monster:scaleCombat(hpMult, dmgMult)
+			return
 		end
-		if monster.setHealth then
-			monster:setHealth(newMax)
+		if hpMult > 1 then
+			local maxHp = monster:getMaxHealth()
+			local newMax = math.max(1, math.floor(maxHp * hpMult))
+			if monster.setMaxHealth then
+				monster:setMaxHealth(newMax)
+			end
+			if monster.setHealth then
+				monster:setHealth(newMax)
+			end
 		end
 	end)
 end

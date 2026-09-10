@@ -234,6 +234,11 @@ public:
 	float getDefenseMultiplier() const;
 
 	bool applyEchoWarden(float hpMult, float atkMult);
+	/// Scale HP and attack for bosses/hunts (no forge/warden icons). Idempotent once.
+	bool scaleCombat(float hpMult, float atkMult = 1.0f);
+
+	/// Live instance combat power (modifiers + summon expected CP).
+	double getCombatPower() const;
 
 	bool isDead() const override;
 
@@ -322,6 +327,8 @@ private:
 
 	bool echoWarden = false;
 	float echoAtkMult = 1.0f;
+	bool combatScaled = false;
+	float combatAtkMult = 1.0f;
 
 	bool m_isDead = false;
 	bool m_isImmune = false;

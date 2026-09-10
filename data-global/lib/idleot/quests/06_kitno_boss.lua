@@ -27,11 +27,39 @@ function QuestsKitnoBoss.resolveMonsterName(bossName)
 	if type(bossName) ~= "string" or bossName == "" then
 		return nil
 	end
-	local candidates = {
+	local stripped = bossName:gsub("^[Tt]he%s+", "")
+	local raw = {
 		bossName,
-		"The " .. bossName,
-		bossName:gsub("^[Tt]he%s+", ""),
+		"The " .. stripped,
+		stripped,
 	}
+	-- Deduplicate (case-insensitive) while preserving order.
+	local seen, candidates = {}, {}
+	for i = 1, #raw do
+		local name = raw[i]
+		local key = name:lower()
+		if name ~= "" and not seen[key] then
+			seen[key] = true
+			candidates[#candidates + 1] = name
+		end
+	end
+	-- Prefer CreatureInfo (silent) so short kitno aliases like "Snapper" /
+	-- "Many" resolve to "The Snapper" / "The Many" without getMonsterType errors.
+	if CreatureInfo and CreatureInfo.get then
+		for i = 1, #candidates do
+			local info = CreatureInfo.get(candidates[i])
+			if info and type(info.name) == "string" and info.name ~= "" then
+				local mType = MonsterType and MonsterType(info.name)
+				if mType and mType.name then
+					local resolved = mType:name()
+					if type(resolved) == "string" and resolved ~= "" then
+						return resolved
+					end
+				end
+				return info.name
+			end
+		end
+	end
 	for i = 1, #candidates do
 		local name = candidates[i]
 		local mType = MonsterType and MonsterType(name)

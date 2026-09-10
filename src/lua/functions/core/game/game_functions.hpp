@@ -39,6 +39,13 @@ private:
 #endif
 	static int luaGameAllocateInstance(lua_State* L);
 	static int luaGameReleaseInstance(lua_State* L);
+	static int luaGameSetInstanceHubFence(lua_State* L);
+	static int luaGameSetInstanceAreaFence(lua_State* L);
+	static int luaGameSetInstancePrivateFence(lua_State* L);
+	static int luaGameClearInstancePrivateFence(lua_State* L);
+	static int luaGameSetInstanceFloors(lua_State* L);
+	static int luaGameCanWalkInstance(lua_State* L);
+	static int luaGameComputeCombatPowerFromTraits(lua_State* L);
 	static int luaGameDisableWorldSpawns(lua_State* L);
 	static int luaGameGetNpcs(lua_State* L);
 	static int luaGameGetMonsters(lua_State* L);

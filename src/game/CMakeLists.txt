@@ -1,6 +1,7 @@
 target_sources(${PROJECT_NAME}_lib PRIVATE
     functions/game_reload.cpp
     game.cpp
+    instance_fence.cpp
     bank/bank.cpp
     movement/position.cpp
     movement/teleport.cpp

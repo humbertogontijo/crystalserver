@@ -17,8 +17,8 @@ monster.events = {
 	"FeasterOfSoulsBossDeath",
 }
 
-monster.health = 290
-monster.maxHealth = 290
+monster.health = 300000
+monster.maxHealth = 300000
 monster.race = "undead"
 monster.corpse = 32737
 monster.speed = 125

@@ -155,4 +155,8 @@ private:
 
 	static int luaMonsterTypeCanWalk(lua_State* L);
 	static int luaMonsterTypeCanTarget(lua_State* L);
+
+	static int luaMonsterTypeEstimateAttackRate(lua_State* L);
+	static int luaMonsterTypeGetCombatPower(lua_State* L);
+	static int luaMonsterTypeGetCombatPowerSelf(lua_State* L);
 };

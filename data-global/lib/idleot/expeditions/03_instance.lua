@@ -1,36 +1,20 @@
 ExpeditionInstance = {}
 
--- Lua-side live set: engine free-list bugs must not hand out an id still bound to a hunt.
-local liveInstanceIds = {}
-
 function ExpeditionInstance.resetSlots()
-	-- Slot grid removed; private hunts use engine instance ids.
-	liveInstanceIds = {}
+	-- Private hunts use engine instance ids (Game.allocateInstance / releaseInstance).
 end
 
 function ExpeditionInstance.allocate()
 	if not Game.allocateInstance then
 		return nil
 	end
-	for _ = 1, 32 do
-		local raw = Game.allocateInstance()
-		local id = math.floor(tonumber(raw) or 0)
-		if id < 3000000 then
-			logger.error("[ExpeditionInstance] allocate returned invalid id {}", tostring(raw))
-			return nil
-		end
-		if not liveInstanceIds[id] then
-			liveInstanceIds[id] = true
-			return id
-		end
-		-- Engine recycled an id that a live session still holds - discard and retry.
-		logger.error(
-			"[ExpeditionInstance] engine reused live instance id {} (requesting another)",
-			id
-		)
+	local raw = Game.allocateInstance()
+	local id = math.floor(tonumber(raw) or 0)
+	if id < 3000000 then
+		logger.error("[ExpeditionInstance] allocate returned invalid id {}", tostring(raw))
+		return nil
 	end
-	logger.error("[ExpeditionInstance] allocate exhausted retries without a free id")
-	return nil
+	return id
 end
 
 function ExpeditionInstance.free(instanceId)
@@ -41,13 +25,11 @@ function ExpeditionInstance.free(instanceId)
 	if id < 3000000 then
 		return
 	end
-	if not liveInstanceIds[id] then
-		logger.warn("[ExpeditionInstance] free of unknown/already-freed id {}", id)
-		return
-	end
-	liveInstanceIds[id] = nil
 	if Game.releaseInstance then
 		Game.releaseInstance(id)
+	end
+	if Game.clearInstancePrivateFence then
+		Game.clearInstancePrivateFence(id)
 	end
 end
 
@@ -233,7 +215,7 @@ function ExpeditionInstance.build(instanceId, opts, _seed, _kind)
 		InstanceWorld.rememberFloors(instanceId, floorSet)
 	end
 
-	return {
+	local instance = {
 		instanceId = instanceId,
 		slot = instanceId,
 		origin = origin,
@@ -249,6 +231,16 @@ function ExpeditionInstance.build(instanceId, opts, _seed, _kind)
 		floors = floors,
 		floorSet = floorSet,
 	}
+	if Game.setInstancePrivateFence then
+		local aabb = {
+			x = originX,
+			y = originY,
+			w = mapW,
+			h = mapH,
+		}
+		Game.setInstancePrivateFence(instanceId, occupancy, aabb, floors)
+	end
+	return instance
 end
 
 function ExpeditionInstance.worldToSlot(_instance, x, y, z)

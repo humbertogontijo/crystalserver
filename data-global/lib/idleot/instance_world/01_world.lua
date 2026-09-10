@@ -39,12 +39,21 @@ end
 function InstanceWorld.rememberFloors(instanceId, floorSet)
 	if instanceId and type(floorSet) == "table" then
 		InstanceWorld.floorSetByInstanceId[instanceId] = floorSet
+		if Game.setInstanceFloors then
+			Game.setInstanceFloors(instanceId, floorSet)
+		end
 	end
 end
 
 function InstanceWorld.forgetFloors(instanceId)
 	if instanceId then
 		InstanceWorld.floorSetByInstanceId[instanceId] = nil
+		if Game.setInstanceFloors then
+			Game.setInstanceFloors(instanceId, nil)
+		end
+		if Game.clearInstancePrivateFence and instanceId >= (InstanceWorld.PRIVATE_BASE or 3000000) then
+			Game.clearInstancePrivateFence(instanceId)
+		end
 	end
 end
 
@@ -155,6 +164,9 @@ local function loadGenerated()
 			if occ then
 				InstanceWorld.occupancyBySubarea[city.subareaId or city.id] = occ
 				InstanceWorld.occupancyByCityId[city.cityId] = occ
+				if Game.setInstanceAreaFence and city.cityId then
+					Game.setInstanceAreaFence(city.cityId, occ, city.boundary)
+				end
 			end
 			-- Cities are multi-floor (houses, depots, stairs). Occupancy is XY;
 			-- do not rememberFloors or zAllowed would lock the catalog surface z.
@@ -175,6 +187,9 @@ local function loadGenerated()
 			if occ and sid then
 				InstanceWorld.occupancyBySubarea[settlement.subareaId or sid] = occ
 				InstanceWorld.occupancyBySettlementId[sid] = occ
+				if Game.setInstanceAreaFence then
+					Game.setInstanceAreaFence(sid, occ, settlement.boundary)
+				end
 			end
 			-- Settlements match cities: XY occupancy, all floors.
 		end
@@ -199,8 +214,16 @@ local function loadGenerated()
 	InstanceWorld.hubs = travel.hubs or {}
 	if ExpeditionInstance and ExpeditionInstance.floorsFromSpec then
 		local hub = InstanceWorld.hubs[1]
-		local _, floorSet = ExpeditionInstance.floorsFromSpec(hub, hub and hub.center and hub.center.z)
+		local floors, floorSet = ExpeditionInstance.floorsFromSpec(hub, hub and hub.center and hub.center.z)
 		InstanceWorld.rememberFloors(InstanceWorld.HUB_ADVENTURERS, floorSet)
+		if Game.setInstanceHubFence and hub and hub.center then
+			Game.setInstanceHubFence(
+				hub.center.x,
+				hub.center.y,
+				InstanceWorld.HUB_WALK_RADIUS or 40,
+				floors
+			)
+		end
 	end
 	InstanceWorld.surroundings = travel.surroundings or {}
 	InstanceWorld.teleports = travel.teleports or {}
@@ -594,6 +617,9 @@ function InstanceWorld.enterInstance(creature, instanceId, destPos, persistKey)
 end
 
 function InstanceWorld.canWalk(creature, destPos)
+	if Game.canWalkInstance then
+		return Game.canWalkInstance(creature, destPos) and true or false
+	end
 	if not creature or not destPos then
 		return true
 	end
@@ -1239,7 +1265,4 @@ function InstanceWorld.onStartup()
 		logger.info("[InstanceWorld] world spawn.xml activity disabled")
 	end
 	InstanceWorld.tagCityNpcs()
-	if InstanceMonsterThink and InstanceMonsterThink.apply then
-		InstanceMonsterThink.apply()
-	end
 end

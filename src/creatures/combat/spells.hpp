@@ -299,7 +299,7 @@ private:
 class InstantSpell final : public Spell {
 public:
 	InstantSpell();
-	bool playerCastInstant(const std::shared_ptr<Player> &player, std::string &param, const Position &to = {}) const;
+	bool playerCastInstant(const std::shared_ptr<Player> &player, std::string &param, const Position &to = {}, bool silent = false, bool checkOnly = false) const;
 
 	bool castSpell(const std::shared_ptr<Creature> &creature) override;
 	bool castSpell(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &target) override;

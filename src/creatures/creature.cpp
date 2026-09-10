@@ -1145,7 +1145,14 @@ void Creature::goToFollowCreature() {
 		hasFollowPath = getPathTo(followCreature->getPosition(), listDir, fpp);
 	}
 
-	startAutoWalk(listDir);
+	if (!listDir.empty()) {
+		startAutoWalk(listDir);
+	} else if (hasFollowPath) {
+		// Already in range: stop rather than sliding past on leftover steps.
+		listWalkDir.clear();
+		autoWalkFlags = 0;
+	}
+	// Path failed: do not startAutoWalk({}) — that wipes a walk-back already queued.
 
 	if (executeOnFollow) {
 		onFollowCreatureComplete(followCreature);

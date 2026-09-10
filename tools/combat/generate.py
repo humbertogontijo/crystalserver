@@ -15,8 +15,23 @@ UMBRELLA = CRYSTAL.parent.parent if CRYSTAL.parent.name == "apps" else CRYSTAL.p
 
 SPELLS_ROOT = CRYSTAL / "data/scripts/spells"
 POTIONS = CRYSTAL / "data/scripts/actions/items/potions.lua"
+REGISTER_SPELLS = CRYSTAL / "data/scripts/lib/register_spells.lua"
 LUA_CONFIG = CRYSTAL / "data-global/lib/idleot/combat_automation/01_config.lua"
 SPELL_INFO = UMBRELLA / "packages/asset-pipeline/data/spellInfo.generated.json"
+
+# Matches Crystal Direction enum (position.hpp).
+DIR_NORTH, DIR_EAST, DIR_SOUTH, DIR_WEST = 0, 1, 2, 3
+DIR_SOUTHWEST, DIR_SOUTHEAST, DIR_NORTHWEST, DIR_NORTHEAST = 4, 5, 6, 7
+DIR_STEP = {
+    DIR_NORTH: (0, -1),
+    DIR_EAST: (1, 0),
+    DIR_SOUTH: (0, 1),
+    DIR_WEST: (-1, 0),
+    DIR_SOUTHWEST: (-1, 1),
+    DIR_SOUTHEAST: (1, 1),
+    DIR_NORTHWEST: (-1, -1),
+    DIR_NORTHEAST: (1, -1),
+}
 
 BEGIN = "-- BEGIN GENERATED COMBAT AUTOMATION CATALOG"
 END = "-- END GENERATED COMBAT AUTOMATION CATALOG"
@@ -122,23 +137,278 @@ def parse_vocations(src: str) -> list[str]:
     return out
 
 
+def matching_brace_end(src: str, open_index: int) -> int:
+    """Return index of the closing brace matching src[open_index]."""
+    depth = 0
+    for idx in range(open_index, len(src)):
+        char = src[idx]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return idx
+    return open_index
+
+
+def parse_matrix_body(body: str) -> list[list[int]]:
+    rows: list[list[int]] = []
+    for row_match in re.finditer(r"\{([^{}]*)\}", body):
+        cells = [int(value) for value in re.findall(r"\d+", row_match.group(1))]
+        if cells:
+            rows.append(cells)
+    return rows
+
+
+def parse_area_matrices(src: str) -> dict[str, list[list[int]]]:
+    """Parse AREA_* / AREADIAGONAL_* tables from Lua source."""
+    out: dict[str, list[list[int]]] = {}
+    for match in re.finditer(r"(AREA(?:DIAGONAL)?[A-Z0-9_]*)\s*=\s*\{", src):
+        name = match.group(1)
+        start = match.end() - 1
+        end = matching_brace_end(src, start)
+        rows = parse_matrix_body(src[start : end + 1])
+        if rows:
+            out[name] = rows
+    return out
+
+
+def extract_inline_matrix(src: str) -> list[list[int]] | None:
+    """Parse createCombatArea({ ... }) anonymous matrices."""
+    match = re.search(r"createCombatArea\(\s*\{", src)
+    if not match:
+        return None
+    start = match.end() - 1
+    end = matching_brace_end(src, start)
+    rows = parse_matrix_body(src[start : end + 1])
+    return rows or None
+
+
+_AREA_MATRICES: dict[str, list[list[int]]] | None = None
+
+
+def area_matrices() -> dict[str, list[list[int]]]:
+    global _AREA_MATRICES
+    if _AREA_MATRICES is None:
+        _AREA_MATRICES = parse_area_matrices(REGISTER_SPELLS.read_text(encoding="utf-8"))
+    return _AREA_MATRICES
+
+
+def matrix_offsets_from_center(matrix: list[list[int]]) -> list[tuple[int, int]]:
+    center: tuple[int, int] | None = None
+    for row_idx, row in enumerate(matrix):
+        for col_idx, value in enumerate(row):
+            if value in (2, 3):
+                center = (col_idx, row_idx)
+                break
+        if center:
+            break
+    if not center:
+        return []
+    cx, cy = center
+    offsets: list[tuple[int, int]] = []
+    for row_idx, row in enumerate(matrix):
+        for col_idx, value in enumerate(row):
+            if value in (1, 3):
+                offsets.append((col_idx - cx, row_idx - cy))
+    return offsets
+
+
+def rotate_offset(dx: int, dy: int, direction: int) -> tuple[int, int]:
+    """Rotate a NORTH-oriented offset into another cardinal direction."""
+    if direction == DIR_NORTH:
+        return dx, dy
+    if direction == DIR_EAST:
+        return -dy, dx
+    if direction == DIR_SOUTH:
+        return -dx, -dy
+    if direction == DIR_WEST:
+        return dy, -dx
+    return dx, dy
+
+
+def mirror_offset(dx: int, dy: int) -> tuple[int, int]:
+    return -dx, dy
+
+
+def flip_offset(dx: int, dy: int) -> tuple[int, int]:
+    return dx, -dy
+
+
+def unique_sorted(offsets: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    return sorted(set(offsets))
+
+
+def expand_direction_tiles(
+    ortho: list[list[int]], diagonal: list[list[int]] | None
+) -> dict[int, list[tuple[int, int]]]:
+    """Caster-relative hit tiles per facing, matching AreaCombat setupArea/setupExtArea."""
+    by_dir: dict[int, list[tuple[int, int]]] = {}
+    north_from_center = matrix_offsets_from_center(ortho)
+    for direction in (DIR_NORTH, DIR_EAST, DIR_SOUTH, DIR_WEST):
+        step_x, step_y = DIR_STEP[direction]
+        tiles = [
+            (
+                rotate_offset(dx, dy, direction)[0] + step_x,
+                rotate_offset(dx, dy, direction)[1] + step_y,
+            )
+            for dx, dy in north_from_center
+        ]
+        by_dir[direction] = unique_sorted(tiles)
+
+    if diagonal:
+        nw_from_center = matrix_offsets_from_center(diagonal)
+        nw_step = DIR_STEP[DIR_NORTHWEST]
+        by_dir[DIR_NORTHWEST] = unique_sorted(
+            [(dx + nw_step[0], dy + nw_step[1]) for dx, dy in nw_from_center]
+        )
+        ne_from_center = [mirror_offset(dx, dy) for dx, dy in nw_from_center]
+        ne_step = DIR_STEP[DIR_NORTHEAST]
+        by_dir[DIR_NORTHEAST] = unique_sorted(
+            [(dx + ne_step[0], dy + ne_step[1]) for dx, dy in ne_from_center]
+        )
+        sw_from_center = [flip_offset(dx, dy) for dx, dy in nw_from_center]
+        sw_step = DIR_STEP[DIR_SOUTHWEST]
+        by_dir[DIR_SOUTHWEST] = unique_sorted(
+            [(dx + sw_step[0], dy + sw_step[1]) for dx, dy in sw_from_center]
+        )
+        se_from_center = [mirror_offset(dx, dy) for dx, dy in sw_from_center]
+        se_step = DIR_STEP[DIR_SOUTHEAST]
+        by_dir[DIR_SOUTHEAST] = unique_sorted(
+            [(dx + se_step[0], dy + se_step[1]) for dx, dy in se_from_center]
+        )
+    return by_dir
+
+
+def collect_area_pairs(src: str) -> list[tuple[str, str]]:
+    """Ordered unique (AREA_*, AREADIAGONAL_*|"") from createCombat(Area) calls."""
+    pairs: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for match in re.finditer(
+        r"createCombat(?:Area)?\(\s*(AREA[A-Z0-9_]+)\s*(?:,\s*(AREADIAGONAL[A-Z0-9_]+))?",
+        src,
+    ):
+        pair = (match.group(1), match.group(2) or "")
+        if pair not in seen:
+            seen.add(pair)
+            pairs.append(pair)
+    return pairs
+
+
+def detect_wod_gate(src: str) -> dict | None:
+    match = re.search(r'getWheelSpellAdditionalArea\(\s*"([^"]+)"\s*\)', src)
+    if match:
+        return {"check": "additionalArea", "name": match.group(1)}
+    match = re.search(r'instantSkillWOD\(\s*"([^"]+)"\s*\)', src)
+    if match:
+        return {"check": "instantSkill", "name": match.group(1)}
+    if re.search(r"MAIN_AREAS\s*=", src):
+        match = re.search(r'upgradeSpellsWOD\(\s*"([^"]+)"\s*\)', src)
+        if match:
+            return {"check": "upgradeGrade", "name": match.group(1)}
+    return None
+
+
+def pick_base_and_wod_pairs(
+    pairs: list[tuple[str, str]],
+) -> tuple[tuple[str, str] | None, tuple[str, str] | None]:
+    if not pairs:
+        return None, None
+    base = next((pair for pair in pairs if "WOD" not in pair[0]), pairs[0])
+    wod = next((pair for pair in pairs if "WOD" in pair[0]), None)
+    if wod is None:
+        for pair in pairs:
+            if pair[0] != base[0]:
+                wod = pair
+                break
+    return base, wod
+
+
+def matrix_from_pair(
+    pair: tuple[str, str] | None,
+    global_mats: dict[str, list[list[int]]],
+    local_mats: dict[str, list[list[int]]],
+) -> tuple[list[list[int]] | None, list[list[int]] | None]:
+    if not pair:
+        return None, None
+    return (
+        resolve_matrix(pair[0], global_mats, local_mats),
+        resolve_matrix(pair[1], global_mats, local_mats) if pair[1] else None,
+    )
+
+
+def parse_main_areas_list(src: str) -> list[str]:
+    match = re.search(r"MAIN_AREAS\s*=\s*\{([^}]+)\}", src)
+    if not match:
+        return []
+    return re.findall(r"\b(AREA[A-Z0-9_]+)\b", match.group(1))
+
+
+def area_shape_from_name(area_name: str) -> str:
+    if "BEAM" in area_name:
+        return "beam"
+    if "SQUAREWAVE" in area_name:
+        return "squarewave"
+    if "CIRCLE" in area_name:
+        return "circle"
+    if "SQUARE" in area_name:
+        return "square"
+    if "WAVE" in area_name or area_name:
+        return "wave"
+    return "single"
+
+
+def extract_named_areas(src: str) -> tuple[str, str]:
+    """Return (AREA_*, AREADIAGONAL_* or '') from createCombat(Area) or first identifiers."""
+    pairs = collect_area_pairs(src)
+    if pairs:
+        base, _ = pick_base_and_wod_pairs(pairs)
+        if base:
+            return base[0], base[1]
+    areas = [
+        name
+        for name in re.findall(r"\b(AREA[A-Z0-9_]+)\b", src)
+        if "WOD" not in name
+    ]
+    diags = re.findall(r"\b(AREADIAGONAL[A-Z0-9_]+)\b", src)
+    return (areas[0] if areas else ""), (diags[0] if diags else "")
+
+
+def resolve_matrix(
+    name: str, global_mats: dict[str, list[list[int]]], local_mats: dict[str, list[list[int]]]
+) -> list[list[int]] | None:
+    if not name:
+        return None
+    return global_mats.get(name) or local_mats.get(name)
+
+
 def parse_spell_area(src: str, target_mode: str) -> dict:
     if target_mode == "friend":
         return {
             "kind": "friend",
             "shape": "single",
             "radius": 0,
-            "length": 0,
-            "spread": 0,
         }
 
     need_direction = match_bool_prop(src, "needDirection")
-    area_match = re.search(r"createCombatArea\(\s*(AREA[A-Z0-9_]+)", src)
-    if not area_match:
-        area_match = re.search(r"createCombat\(\s*(AREA[A-Z0-9_]+)", src)
-    area_name = area_match.group(1) if area_match else ""
+    pairs = collect_area_pairs(src)
+    base_pair, wod_pair = pick_base_and_wod_pairs(pairs)
+    area_name = base_pair[0] if base_pair else ""
+    diagonal_name = base_pair[1] if base_pair else ""
+    if not area_name:
+        area_name, diagonal_name = extract_named_areas(src)
+        base_pair = (area_name, diagonal_name) if area_name else None
+
+    matrices = area_matrices()
+    local_mats = parse_area_matrices(src)
     sizes = re.findall(r"\d+", area_name)
     size = int(sizes[-1]) if sizes else 0
+    ortho, diagonal = matrix_from_pair(base_pair, matrices, local_mats)
+    if ortho is None:
+        ortho = extract_inline_matrix(src)
+
+    wod_gate = detect_wod_gate(src)
+    wod_ortho, wod_diagonal = matrix_from_pair(wod_pair, matrices, local_mats)
 
     if target_mode == "enemy":
         chain = re.search(r"return\s+targets\s*,\s*(\d+)\s*,", src)
@@ -146,51 +416,76 @@ def parse_spell_area(src: str, target_mode: str) -> dict:
         shape = (
             "chain"
             if chain_range is not None
-            else "circle"
-            if "CIRCLE" in area_name
-            else "square"
-            if "SQUARE" in area_name
+            else area_shape_from_name(area_name)
+            if area_name
             else "single"
         )
+        if shape not in {"chain", "circle", "square", "single"}:
+            shape = "single"
         radius = (
             chain_range
             if chain_range is not None
             else size
-            if "CIRCLE" in area_name or "SQUARE" in area_name
+            if shape in {"circle", "square"}
             else 0
         )
-        return {
+        area: dict = {
             "kind": "target",
             "shape": shape,
             "radius": radius,
-            "length": 0,
-            "spread": 0,
         }
+        if ortho and shape in {"circle", "square"}:
+            area["tiles"] = unique_sorted(matrix_offsets_from_center(ortho))
+        return area
 
     if need_direction:
-        length = max(1, size or 1)
-        is_beam = "BEAM" in area_name
-        return {
+        shape = area_shape_from_name(area_name) if area_name else "wave"
+        if shape not in {"beam", "squarewave", "wave"}:
+            shape = "wave"
+        area = {
             "kind": "direction",
-            "shape": "beam" if is_beam else "wave",
+            "shape": shape,
             "radius": 0,
-            "length": length,
-            "spread": 0 if is_beam else max(1, length // 2),
         }
+        if wod_gate and wod_gate["check"] == "upgradeGrade":
+            grade_areas = parse_main_areas_list(src)
+            grade_by_dir: dict[int, dict[int, list[tuple[int, int]]]] = {}
+            for index, grade_name in enumerate(grade_areas, start=1):
+                grade_ortho = resolve_matrix(grade_name, matrices, local_mats)
+                if grade_ortho:
+                    grade_by_dir[index] = expand_direction_tiles(grade_ortho, None)
+            if grade_by_dir:
+                area["byDir"] = grade_by_dir[1]
+                area["gradeByDir"] = grade_by_dir
+                area["wod"] = wod_gate
+            elif ortho:
+                area["byDir"] = expand_direction_tiles(ortho, diagonal)
+            return area
 
-    return {
+        if ortho:
+            area["byDir"] = expand_direction_tiles(ortho, diagonal)
+        if wod_gate and wod_ortho:
+            area["wodByDir"] = expand_direction_tiles(wod_ortho, wod_diagonal)
+            area["wod"] = wod_gate
+        return area
+
+    shape = area_shape_from_name(area_name) if area_name else "single"
+    if shape not in {"circle", "square", "single"}:
+        shape = "single"
+    area = {
         "kind": "self",
-        "shape": (
-            "circle"
-            if "CIRCLE" in area_name
-            else "square"
-            if "SQUARE" in area_name
-            else "single"
-        ),
+        "shape": shape,
         "radius": max(0, size),
-        "length": 0,
-        "spread": 0,
     }
+    if ortho:
+        area["tiles"] = unique_sorted(matrix_offsets_from_center(ortho))
+        if area["tiles"] and area["radius"] == 0:
+            area["radius"] = max(max(abs(dx), abs(dy)) for dx, dy in area["tiles"])
+    if wod_gate and wod_ortho:
+        area["wodTiles"] = unique_sorted(matrix_offsets_from_center(wod_ortho))
+        area["wod"] = wod_gate
+        area["wodRadius"] = max(max(abs(dx), abs(dy)) for dx, dy in area["wodTiles"])
+    return area
 
 
 def parse_spell_file(path: Path, src: str) -> dict | None:
@@ -303,18 +598,6 @@ def parse_all_spells() -> list[dict]:
     return spells
 
 
-def matching_brace_end(src: str, open_brace: int) -> int:
-    depth = 0
-    for index in range(open_brace, len(src)):
-        if src[index] == "{":
-            depth += 1
-        elif src[index] == "}":
-            depth -= 1
-            if depth == 0:
-                return index
-    return open_brace
-
-
 def potion_title(type_id: int, kind: str) -> str:
     if type_id in POTION_NAMES:
         return POTION_NAMES[type_id]
@@ -390,6 +673,52 @@ def lua_voc_list(vocations: list[str]) -> str:
     return "{ " + ", ".join(lua_string(vocation) for vocation in vocations) + " }"
 
 
+def lua_tile_list(tiles: list[tuple[int, int]]) -> str:
+    return "{ " + ", ".join(f"{{{dx}, {dy}}}" for dx, dy in tiles) + " }"
+
+
+def lua_dir_map(by_dir: dict[int, list[tuple[int, int]]], indent: str = "\t\t") -> str:
+    lines = [
+        f"{indent}[{direction}] = {lua_tile_list(tiles)},"
+        for direction, tiles in sorted(by_dir.items())
+    ]
+    return "{\n" + "\n".join(lines) + f"\n{indent[:-1]}}}"
+
+
+def lua_area(area: dict) -> str:
+    parts = [f'kind = {lua_string(area["kind"])}']
+    if area.get("shape"):
+        parts.append(f'shape = {lua_string(area["shape"])}')
+    if "radius" in area:
+        parts.append(f'radius = {int(area["radius"])}')
+    if area.get("wod"):
+        wod = area["wod"]
+        parts.append(
+            "wod = { "
+            f'check = {lua_string(wod["check"])}, '
+            f'name = {lua_string(wod["name"])} '
+            "}"
+        )
+    if area.get("byDir"):
+        parts.append(f"byDir = {lua_dir_map(area['byDir'])}")
+    if area.get("wodByDir"):
+        parts.append(f"wodByDir = {lua_dir_map(area['wodByDir'])}")
+    if area.get("gradeByDir"):
+        grade_lines = []
+        for grade, by_dir in sorted(area["gradeByDir"].items()):
+            grade_lines.append(f"\t\t[{grade}] = {lua_dir_map(by_dir, indent=chr(9)*3)},")
+        parts.append("gradeByDir = {\n" + "\n".join(grade_lines) + "\n\t}")
+    if area.get("tiles"):
+        parts.append(f'tiles = {lua_tile_list(area["tiles"])}')
+    if area.get("wodTiles"):
+        parts.append(f'wodTiles = {lua_tile_list(area["wodTiles"])}')
+    if "wodRadius" in area:
+        parts.append(f'wodRadius = {int(area["wodRadius"])}')
+    if area.get("byDir") or area.get("wodByDir") or area.get("gradeByDir"):
+        return "{\n\t\t" + ",\n\t\t".join(parts) + ",\n\t}"
+    return "{ " + ", ".join(parts) + " }"
+
+
 def render_lua_catalog(spells: list[dict], potions: list[dict]) -> str:
     cooldown_lines = "\n".join(
         f'\t[{lua_string(spell["words"])}] = {spell["cooldownMs"]},'
@@ -412,11 +741,7 @@ def render_lua_catalog(spells: list[dict], potions: list[dict]) -> str:
         f'\t{spell["id"]} = {lua_string(spell["group"])},' for spell in spells
     )
     area_by_id = "\n".join(
-        f'\t{spell["id"]} = {{ kind = {lua_string(spell["area"]["kind"])}, '
-        f'shape = {lua_string(spell["area"]["shape"])}, '
-        f'radius = {spell["area"]["radius"]}, length = {spell["area"]["length"]}, '
-        f'spread = {spell["area"]["spread"]} }},'
-        for spell in spells
+        f'\t{spell["id"]} = {lua_area(spell["area"])},' for spell in spells
     )
     potion_lines = []
     for potion in potions:

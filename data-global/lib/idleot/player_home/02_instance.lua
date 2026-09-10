@@ -256,6 +256,15 @@ function PlayerHomeInstance.build(instanceId)
 		end
 	end
 
+	if Game.setInstancePrivateFence then
+		Game.setInstancePrivateFence(instanceId, nil, {
+			x = origin.x,
+			y = origin.y,
+			w = outer,
+			h = outer,
+		}, { z })
+	end
+
 	return instance
 end
 
@@ -470,4 +479,8 @@ function PlayerHomeInstance.teardown(instance)
 			end
 		end
 	end
+	if Game.clearInstancePrivateFence then
+		Game.clearInstancePrivateFence(instanceId)
+	end
+	instance.instanceId = nil
 end

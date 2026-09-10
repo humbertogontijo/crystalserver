@@ -94,6 +94,8 @@ void MonsterFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Monster", "walkTo", MonsterFunctions::luaMonsterWalkTo);
 
 	Lua::registerMethod(L, "Monster", "applyEchoWarden", MonsterFunctions::luaMonsterApplyEchoWarden);
+	Lua::registerMethod(L, "Monster", "scaleCombat", MonsterFunctions::luaMonsterScaleCombat);
+	Lua::registerMethod(L, "Monster", "getCombatPower", MonsterFunctions::luaMonsterGetCombatPower);
 
 	CharmFunctions::init(L);
 	LootFunctions::init(L);
@@ -960,5 +962,32 @@ int MonsterFunctions::luaMonsterApplyEchoWarden(lua_State* L) {
 	const float hpMult = Lua::getNumber<float>(L, 2, 1.0f);
 	const float atkMult = Lua::getNumber<float>(L, 3, 1.0f);
 	Lua::pushBoolean(L, monster->applyEchoWarden(hpMult, atkMult));
+	return 1;
+}
+
+int MonsterFunctions::luaMonsterScaleCombat(lua_State* L) {
+	// monster:scaleCombat(hpMult[, atkMult = 1.0]) — bosses/hunts; no forge icons.
+	const auto &monster = Lua::getUserdataShared<Monster>(L, 1);
+	if (!monster) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_MONSTER_NOT_FOUND));
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const float hpMult = Lua::getNumber<float>(L, 2, 1.0f);
+	const float atkMult = Lua::getNumber<float>(L, 3, 1.0f);
+	Lua::pushBoolean(L, monster->scaleCombat(hpMult, atkMult));
+	return 1;
+}
+
+int MonsterFunctions::luaMonsterGetCombatPower(lua_State* L) {
+	// monster:getCombatPower()
+	const auto &monster = Lua::getUserdataShared<Monster>(L, 1);
+	if (!monster) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_MONSTER_NOT_FOUND));
+		lua_pushnumber(L, 0);
+		return 1;
+	}
+	lua_pushnumber(L, monster->getCombatPower());
 	return 1;
 }

@@ -177,8 +177,15 @@ local function isAreaHealSlot(slot)
 	if not area or area.kind ~= "self" then
 		return false
 	end
+	if type(area.tiles) == "table" and #area.tiles > 1 then
+		return true
+	end
+	if type(area.wodTiles) == "table" and #area.wodTiles > 1 then
+		return true
+	end
 	local radius = math.max(0, tonumber(area.radius) or 0)
-	return radius > 0 and (area.shape == "circle" or area.shape == "square")
+	local wodRadius = math.max(0, tonumber(area.wodRadius) or 0)
+	return (radius > 0 or wodRadius > 0) and (area.shape == "circle" or area.shape == "square")
 end
 
 local function iterPartyPlayers(player)
@@ -697,109 +704,57 @@ local function runeExhaustMs(typeId)
 	return CombatAutomationConfig.RUNE_EXHAUST_MS or 2000
 end
 
---- Mirror Spell::playerSpellCheck cooldown gates (spells.cpp) without casting.
---- Casting while exhausted triggers CONST_ME_POFF; skip silently instead.
-local function playerSpellOnCooldown(player, spell)
-	if not player or not spell then
-		return true
+--- Returns: "cast" | "skip" | "fail"
+--- skip = not ready / gated (no attempt). fail = engine/script rejected (silent).
+--- param: optional player-name for friend/party heals (exura sio).
+local function tryCastSpellWords(player, words, param)
+	if type(words) ~= "string" or words == "" then
+		return "skip"
 	end
-	if type(CONDITION_SPELLCOOLDOWN) ~= "number" or type(CONDITION_SPELLGROUPCOOLDOWN) ~= "number" then
-		return false
+	if not CombatAutomationConfig.AllowedSpellWords[words] then
+		return "skip"
 	end
-	local spellId = spell:id()
-	if type(spellId) == "number" and spellId > 0 and player:hasCondition(CONDITION_SPELLCOOLDOWN, spellId) then
-		return true
+	-- Fail closed on vocation/level even if a stale slot slipped into KV.
+	local catalogId = nil
+	for id, mapped in pairs(CombatAutomationConfig.SpellWordsById or {}) do
+		if mapped == words then
+			catalogId = id
+			break
+		end
 	end
-	local group, secondaryGroup = spell:group()
-	if type(group) == "number" and group > 0 and player:hasCondition(CONDITION_SPELLGROUPCOOLDOWN, group) then
-		return true
+	if catalogId and CombatAutomationCatalog and CombatAutomationCatalog.spellAllowedForPlayer then
+		if not CombatAutomationCatalog.spellAllowedForPlayer(catalogId, player) then
+			return "skip"
+		end
 	end
-	if type(secondaryGroup) == "number" and secondaryGroup > 0 and player:hasCondition(CONDITION_SPELLGROUPCOOLDOWN, secondaryGroup) then
-		return true
-	end
-	return false
-end
 
-local function spellMethod(spell, method)
-	if not spell or type(spell[method]) ~= "function" then
-		return nil
+	if SampleSpells and SampleSpells.ensureWords then
+		SampleSpells.ensureWords(player, words)
 	end
-	local ok, value = pcall(spell[method], spell)
-	if not ok then
-		return nil
-	end
-	return value
-end
 
---- Silent mirror of InstantSpell::playerSpellCheck / playerCastInstant gates.
---- The engine versions send cancel + POFF; skip those casts instead.
-local function playerCanAttemptSpell(player, spell)
-	if not player or not spell then
-		return false
-	end
-	if playerSpellOnCooldown(player, spell) then
-		return false
-	end
-	if type(CONDITION_FEARED) == "number" and player:hasCondition(CONDITION_FEARED) then
-		return false
-	end
-	local level = spellMethod(spell, "level")
-	if type(level) == "number" and level > 0 and player:getLevel() < level then
-		return false
-	end
-	local magLevel = spellMethod(spell, "magicLevel")
-	if type(magLevel) == "number" and magLevel > 0 and player.getMagicLevel and player:getMagicLevel() < magLevel then
-		return false
-	end
-	local mana = spellMethod(spell, "mana")
-	if type(mana) == "number" and mana > 0 and player:getMana() < mana then
-		return false
-	end
-	local soul = spellMethod(spell, "soul")
-	if type(soul) == "number" and soul > 0 and player.getSoul and player:getSoul() < soul then
-		return false
-	end
-	if spellMethod(spell, "harmony") == true and player.getHarmony and (player:getHarmony() or 0) <= 0 then
-		return false
-	end
-	if spellMethod(spell, "isAggressive") == true then
-		local zoneProtection = ZONE_PROTECTION or 0
-		if player.getZoneType and player:getZoneType() == zoneProtection then
-			return false
+	local castParam = (type(param) == "string" and param ~= "") and param or nil
+	if player.canCastSpell then
+		local ready
+		if castParam then
+			ready = player:canCastSpell(words, castParam)
+		else
+			ready = player:canCastSpell(words)
 		end
-		if type(CONDITION_PACIFIED) == "number" and player:hasCondition(CONDITION_PACIFIED) then
-			return false
+		if not ready then
+			return "skip"
 		end
 	end
-	-- needTarget without casterTargetOrDirection: engine cancel "you can only use it on creatures".
-	local needTarget = spellMethod(spell, "needTarget") == true
-	local casterOrDir = spellMethod(spell, "needCasterTargetOrDirection") == true
-	if needTarget and not casterOrDir then
-		local target = player.getTarget and player:getTarget()
-		if not target or (target.getHealth and target:getHealth() <= 0) then
-			return false
-		end
-		local range = spellMethod(spell, "range")
-		if type(range) == "number" and range >= 0 then
-			local fromPos = player:getPosition()
-			local toPos = target.getPosition and target:getPosition()
-			if not fromPos or not toPos or fromPos.z ~= toPos.z then
-				return false
-			end
-			local dx = math.abs((fromPos.x or 0) - (toPos.x or 0))
-			local dy = math.abs((fromPos.y or 0) - (toPos.y or 0))
-			if math.max(dx, dy) > range then
-				return false
-			end
-			if spellMethod(spell, "isBlockingWalls") == true and fromPos.isSightClear then
-				local instanceId = player.getInstanceId and player:getInstanceId() or 0
-				if not fromPos:isSightClear(toPos, true, instanceId) then
-					return false
-				end
-			end
-		end
+
+	local result
+	if castParam then
+		result = player:castSpell(words, castParam, true)
+	else
+		result = player:castSpell(words, true)
 	end
-	return true
+	if result == true then
+		return "cast"
+	end
+	return "fail"
 end
 
 -- Canary `lua_enums.cpp` does not register TALKTYPE_SPELL_USE, so the global is nil and
@@ -865,149 +820,6 @@ local function useRune(player, typeId)
 		return player:castRune(typeId, target)
 	end)
 	return ok and result == true
-end
-
---- Returns: "cast" | "skip" | "fail"
---- skip = not ready / gated (group CD after an attack spell, etc.).
-local function tryUseRune(player, typeId)
-	if not CombatAutomationConfig.AllowedRunes or not CombatAutomationConfig.AllowedRunes[typeId] then
-		return "skip"
-	end
-	if CombatAutomationCatalog and CombatAutomationCatalog.runeAllowedForPlayer then
-		if not CombatAutomationCatalog.runeAllowedForPlayer(typeId, player) then
-			return "skip"
-		end
-	end
-	if not player:getTarget() then
-		return "skip"
-	end
-	if not player.castRune then
-		return "skip"
-	end
-	local spell = getRuneSpell(typeId)
-	if spell and playerSpellOnCooldown(player, spell) then
-		return "skip"
-	end
-	if useRune(player, typeId) then
-		return "cast"
-	end
-	return "fail"
-end
-
--- Script onCastSpell checks (no ranged monsters, no party, need shield, ...) are not
--- on InstantSpell. Swallow cancel + POFF for an automation attempt.
--- Hooks must be installed lazily: this file loads from datapack lib.lua, which
--- core.lua dofiles BEFORE libs/functions/player.lua defines sendCancelMessage.
-local silentCastDepth = 0
-local silentCastPlayerIds = {}
-
-local function silentCastPlayerId(self)
-	return self and self.getId and self:getId() or nil
-end
-
-local function installSilentCastHooks()
-	if type(Player) == "table" then
-		if type(Player.sendCancelMessage) == "function" and not Player._automationSilentCancelWrapped then
-			local raw = Player.sendCancelMessage
-			Player.sendCancelMessage = function(self, message)
-				local id = silentCastPlayerId(self)
-				if id and silentCastPlayerIds[id] then
-					return true
-				end
-				return raw(self, message)
-			end
-			Player._automationSilentCancelWrapped = true
-		end
-		-- Player.sendCancelMessage is a Lua helper that calls sendTextMessage.
-		if type(Player.sendTextMessage) == "function" and not Player._automationSilentTextWrapped then
-			local raw = Player.sendTextMessage
-			Player.sendTextMessage = function(self, msgType, message, ...)
-				local id = silentCastPlayerId(self)
-				if id and silentCastPlayerIds[id] and msgType == MESSAGE_FAILURE then
-					return true
-				end
-				return raw(self, msgType, message, ...)
-			end
-			Player._automationSilentTextWrapped = true
-		end
-	end
-	if type(Position) == "table" and type(Position.sendMagicEffect) == "function" and not Position._automationSilentPoffWrapped then
-		local raw = Position.sendMagicEffect
-		Position.sendMagicEffect = function(self, effect, ...)
-			if silentCastDepth > 0 and effect == CONST_ME_POFF then
-				return true
-			end
-			return raw(self, effect, ...)
-		end
-		Position._automationSilentPoffWrapped = true
-	end
-end
-
-local function withSilentCast(player, fn)
-	installSilentCastHooks()
-	local id = silentCastPlayerId(player)
-	if id then
-		silentCastPlayerIds[id] = true
-	end
-	silentCastDepth = silentCastDepth + 1
-	local ok, result = pcall(fn)
-	silentCastDepth = silentCastDepth - 1
-	if id then
-		silentCastPlayerIds[id] = nil
-	end
-	if not ok then
-		return false
-	end
-	return result
-end
-
---- Returns: "cast" | "skip" | "fail"
---- skip = not ready / gated (no attempt). fail = script/engine rejected; cancel+POFF swallowed.
---- param: optional player-name for friend/party heals (exura sio).
-local function tryCastSpellWords(player, words, param)
-	if type(words) ~= "string" or words == "" then
-		return "skip"
-	end
-	if not CombatAutomationConfig.AllowedSpellWords[words] then
-		return "skip"
-	end
-	-- Fail closed on vocation/level even if a stale slot slipped into KV.
-	local catalogId = nil
-	for id, mapped in pairs(CombatAutomationConfig.SpellWordsById or {}) do
-		if mapped == words then
-			catalogId = id
-			break
-		end
-	end
-	if catalogId and CombatAutomationCatalog and CombatAutomationCatalog.spellAllowedForPlayer then
-		if not CombatAutomationCatalog.spellAllowedForPlayer(catalogId, player) then
-			return "skip"
-		end
-	end
-
-	local spell = getInstantSpell(words)
-	if spell and not playerCanAttemptSpell(player, spell) then
-		return "skip"
-	end
-
-	if SampleSpells and SampleSpells.ensureWords then
-		SampleSpells.ensureWords(player, words)
-	end
-	-- Re-check after ensureWords in case learning/equipment changed nothing about CD.
-	if spell and playerSpellOnCooldown(player, spell) then
-		return "skip"
-	end
-
-	local result = withSilentCast(player, function()
-		if type(param) == "string" and param ~= "" then
-			return player:castSpell(words, param)
-		end
-		return player:castSpell(words)
-	end)
-	if result == true then
-		return "cast"
-	end
-	return "fail"
 end
 
 local function spellRank(slot)
@@ -1430,8 +1242,7 @@ supportSlotShouldFire = function(player, slot)
 		if playerHasFamiliarSummon(player) then
 			return false
 		end
-		local spell = getInstantSpell(words)
-		if spell and playerSpellOnCooldown(player, spell) then
+		if player.canCastSpell and not player:canCastSpell(words) then
 			return false
 		end
 		return true
@@ -1705,12 +1516,110 @@ local function autoTarget(player, config, state)
 	return nil
 end
 
+local function tileListContains(tiles, dx, dy)
+	if type(tiles) ~= "table" then
+		return false
+	end
+	local set = tiles._set
+	if not set then
+		set = {}
+		for i = 1, #tiles do
+			local t = tiles[i]
+			if type(t) == "table" then
+				set[(t[1] * 131) + t[2]] = true
+			end
+		end
+		tiles._set = set
+	end
+	return set[(dx * 131) + dy] == true
+end
+
+local function playerHasWodArea(player, wod)
+	if not player or type(wod) ~= "table" or type(wod.name) ~= "string" then
+		return false
+	end
+	local check = wod.check
+	if check == "additionalArea" then
+		return player.getWheelSpellAdditionalArea and player:getWheelSpellAdditionalArea(wod.name) == true
+	end
+	if check == "instantSkill" then
+		return player.instantSkillWOD and player:instantSkillWOD(wod.name) == true
+	end
+	return false
+end
+
+local function directionTilesForArea(player, area)
+	if type(area) ~= "table" then
+		return nil
+	end
+	local direction = player:getDirection()
+	if type(area.gradeByDir) == "table" and type(area.wod) == "table" and area.wod.check == "upgradeGrade" then
+		local grade = 0
+		if player.upgradeSpellsWOD then
+			grade = tonumber(player:upgradeSpellsWOD(area.wod.name)) or 0
+		end
+		local none = (type(WHEEL_GRADE_NONE) == "number" and WHEEL_GRADE_NONE) or 0
+		local index = (grade == none) and 1 or grade
+		local byDir = area.gradeByDir[index] or area.gradeByDir[1] or area.byDir
+		return byDir and byDir[direction] or nil
+	end
+	if type(area.wodByDir) == "table" and playerHasWodArea(player, area.wod) then
+		return area.wodByDir[direction]
+	end
+	if type(area.byDir) == "table" then
+		return area.byDir[direction]
+	end
+	return nil
+end
+
+local function selfTilesForArea(player, area)
+	if type(area) ~= "table" then
+		return nil
+	end
+	if type(area.wodTiles) == "table" and playerHasWodArea(player, area.wod) then
+		return area.wodTiles
+	end
+	return area.tiles
+end
+
 local function isInsideSpellArea(player, target, monster, area)
 	if type(area) ~= "table" then
 		return monster == target
 	end
 	local origin = player:getPosition()
 	local monsterPos = monster:getPosition()
+	if origin.z ~= monsterPos.z then
+		return false
+	end
+
+	-- Directional AREA_* matrices (base / WoD / upgrade-grade variants).
+	local dirTiles = directionTilesForArea(player, area)
+	if dirTiles ~= nil then
+		return tileListContains(dirTiles, monsterPos.x - origin.x, monsterPos.y - origin.y)
+	end
+
+	-- Target-centered matrices (runes / target AoE).
+	if area.kind == "target" and type(area.tiles) == "table" then
+		if not target then
+			return false
+		end
+		local center = target:getPosition()
+		if not center or center.z ~= monsterPos.z then
+			return false
+		end
+		return tileListContains(area.tiles, monsterPos.x - center.x, monsterPos.y - center.y)
+	end
+
+	-- Self-centered matrices (Mass Healing, Sap Strength, …) with optional WoD size.
+	if area.kind == "self" then
+		local tiles = selfTilesForArea(player, area)
+		if type(tiles) == "table" then
+			return tileListContains(tiles, monsterPos.x - origin.x, monsterPos.y - origin.y)
+		end
+	elseif type(area.tiles) == "table" and not area.byDir then
+		return tileListContains(area.tiles, monsterPos.x - origin.x, monsterPos.y - origin.y)
+	end
+
 	if area.kind == "target" then
 		if not target then
 			return false
@@ -1724,10 +1633,8 @@ local function isInsideSpellArea(player, target, monster, area)
 		end
 		return tileDistance(center, monsterPos) <= radius
 	end
-	if origin.z ~= monsterPos.z then
-		return false
-	end
 	if area.kind == "direction" then
+		-- Fallback for spells without a named AREA_* matrix.
 		local dx = monsterPos.x - origin.x
 		local dy = monsterPos.y - origin.y
 		local forward
@@ -1768,6 +1675,9 @@ local function isInsideSpellArea(player, target, monster, area)
 		return forward >= 1 and forward <= length and lateral <= allowedLateral
 	end
 	local radius = math.max(0, tonumber(area.radius) or 0)
+	if area.kind == "self" and type(area.wod) == "table" and playerHasWodArea(player, area.wod) then
+		radius = math.max(radius, tonumber(area.wodRadius) or radius)
+	end
 	if area.shape == "circle" then
 		local dx = monsterPos.x - origin.x
 		local dy = monsterPos.y - origin.y

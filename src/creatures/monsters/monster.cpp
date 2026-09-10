@@ -17,6 +17,8 @@
 
 #include "creatures/monsters/monster.hpp"
 
+#include <cmath>
+
 #include "config/configmanager.hpp"
 #include "creatures/combat/spells.hpp"
 #include "creatures/monsters/monsters.hpp"
@@ -1074,6 +1076,10 @@ void Monster::updateIdleStatus() {
 			} else {
 				isWalkingBack = true;
 			}
+		} else if (!isSummon() && !isInSpawnLocation() && !hasFollowPath) {
+			// Keep walking home when we still "see" a target we cannot path to
+			// (canSee is wider than follow A*, or the path is blocked).
+			isWalkingBack = true;
 		} else if (const auto &master = getMaster()) {
 			if (((!isSummon() && totalPlayersOnScreen == 0) || (isSummon() && master->getMonster() && master->getMonster()->totalPlayersOnScreen == 0)) && getFaction() != FACTION_DEFAULT) {
 				idle = true;
@@ -1136,7 +1142,11 @@ void Monster::onThink(uint32_t interval) {
 		lua_pushnumber(L, interval);
 
 		if (scriptInterface->callFunction(2)) {
-			return;
+			// Open-world quest hooks may return true to skip Monster AI. Private
+			// instances (expeditions/home/raids) always continue engine AI.
+			if (getInstanceId() < Game::INSTANCE_PRIVATE_BASE) {
+				return;
+			}
 		}
 	}
 
@@ -1573,6 +1583,18 @@ bool Monster::getNextStep(Direction &nextDirection, uint32_t &flags) {
 
 	if (getFollowCreature() && hasFollowPath) {
 		doFollowCreature(flags, nextDirection, result);
+		if (!result && !isSummon() && !isInSpawnLocation()) {
+			const auto &followCreature = getFollowCreature();
+			if (followCreature) {
+				const int32_t followDist = std::max(
+					Position::getDistanceX(position, followCreature->getPosition()),
+					Position::getDistanceY(position, followCreature->getPosition()));
+				if (followDist > std::max(1, targetDistance)) {
+					isWalkingBack = true;
+					doWalkBack(flags, nextDirection, result);
+				}
+			}
+		}
 	} else if (isWalkingBack) {
 		doWalkBack(flags, nextDirection, result);
 	} else if (isWalkingTo && !randomStepping) {
@@ -1639,7 +1661,13 @@ void Monster::doWalkBack(uint32_t &flags, Direction &nextDirection, bool &result
 		}
 
 		std::vector<Direction> listDir;
-		if (!getPathTo(masterPos, listDir, 0, std::max<int32_t>(0, distance - 5), true, true, distance)) {
+		const int32_t searchDist = std::max(distance, std::max(MAP_MAX_VIEW_PORT_X, MAP_MAX_VIEW_PORT_Y));
+		if (!getPathTo(masterPos, listDir, 0, std::max<int32_t>(0, distance - 5), true, false, searchDist)) {
+			// Script/expedition spawns have no SpawnMonster, so isInSpawnRange never
+			// teleports them home. Yank back when walk-back A* cannot reach the tile.
+			if (!spawnMonster && masterPos != Position() && distance > MAP_MAX_CLIENT_VIEW_PORT_X) {
+				g_game().internalTeleport(static_self_cast<Monster>(), masterPos);
+			}
 			isWalkingBack = false;
 			return;
 		}
@@ -2699,7 +2727,29 @@ float Monster::getAttackMultiplier() const {
 	if (echoWarden) {
 		multiplier *= echoAtkMult;
 	}
+	if (combatScaled) {
+		multiplier *= combatAtkMult;
+	}
 	return multiplier;
+}
+
+bool Monster::scaleCombat(float hpMult, float atkMult) {
+	if (combatScaled || !mType) {
+		return false;
+	}
+	if (!(hpMult > 0.f) || !(atkMult > 0.f)) {
+		return false;
+	}
+
+	combatScaled = true;
+	combatAtkMult = atkMult;
+
+	if (hpMult != 1.f) {
+		healthMax = static_cast<int32_t>(std::ceil(static_cast<float>(healthMax) * hpMult));
+		health = healthMax;
+		runAwayHealth = static_cast<int32_t>(std::ceil(static_cast<float>(runAwayHealth) * hpMult));
+	}
+	return true;
 }
 
 bool Monster::applyEchoWarden(float hpMult, float atkMult) {
@@ -2729,6 +2779,58 @@ bool Monster::applyEchoWarden(float hpMult, float atkMult) {
 	return true;
 }
 
+double Monster::getCombatPower() const {
+	if (!mType) {
+		return 0.0;
+	}
+
+	const auto rates = mType->estimateAttackRate();
+	double expectedDps = rates.expectedDps;
+	const float typeAtk = mType->getAttackMultiplier();
+	if (typeAtk > 0.f) {
+		expectedDps *= static_cast<double>(getAttackMultiplier() / typeAtk);
+	}
+
+	double meanElement = 0.0;
+	if (!mType->info.elementMap.empty()) {
+		double sum = 0.0;
+		for (const auto &[combatType, percent] : mType->info.elementMap) {
+			(void)combatType;
+			sum += static_cast<double>(percent);
+		}
+		meanElement = sum / static_cast<double>(mType->info.elementMap.size());
+	}
+
+	// Live HP / scaled DPS via shared trait product (runtime SoT).
+	double selfCp = 0.0;
+	if (expectedDps > 0.0) {
+		selfCp = computeCombatPowerFromTraits(
+			static_cast<double>(getMaxHealth()),
+			expectedDps,
+			rates.expectedHealDps,
+			static_cast<double>(mType->info.armor),
+			static_cast<double>(mType->info.defense),
+			static_cast<double>(mType->info.mitigation),
+			meanElement,
+			static_cast<double>(mType->info.baseSpeed)
+		);
+	}
+
+	double summonCp = 0.0;
+	for (const auto &summon : mType->info.summons) {
+		if (summon.name.empty() || summon.count <= 0) {
+			continue;
+		}
+		const auto summonType = g_monsters().getMonsterType(summon.name, true);
+		if (!summonType) {
+			continue;
+		}
+		const double chance = summon.chance > 0 ? static_cast<double>(summon.chance) : 100.0;
+		summonCp += summonType->getCombatPowerSelf() * (chance / 100.0) * static_cast<double>(summon.count);
+	}
+	return selfCp + summonCp;
+}
+
 float Monster::getDefenseMultiplier() const {
 	float multiplier = mType->getDefenseMultiplier();
 	return multiplier;
@@ -2745,6 +2847,9 @@ void Monster::setDead(bool isDead) {
 void Monster::getPathSearchParams(const std::shared_ptr<Creature> &creature, FindPathParams &fpp) {
 	Creature::getPathSearchParams(creature, fpp);
 
+	// Follow A* must cover server canSee. Classic TFS used 12 for viewport 11;
+	// widescreen canSee is MAP_MAX_VIEW_PORT_* (18×20) and catch-up teleport is 15.
+	fpp.maxSearchDist = std::max(MAP_MAX_VIEW_PORT_X, MAP_MAX_VIEW_PORT_Y);
 	fpp.minTargetDist = 1;
 	fpp.maxTargetDist = targetDistance;
 

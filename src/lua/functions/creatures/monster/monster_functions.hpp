@@ -99,6 +99,8 @@ private:
 	static int luaMonsterWalkTo(lua_State* L);
 
 	static int luaMonsterApplyEchoWarden(lua_State* L);
+	static int luaMonsterScaleCombat(lua_State* L);
+	static int luaMonsterGetCombatPower(lua_State* L);
 
 	friend class CreatureFunctions;
 };
