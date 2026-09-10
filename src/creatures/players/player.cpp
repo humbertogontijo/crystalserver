@@ -8407,6 +8407,8 @@ void Player::setBankBalance(uint64_t balance) {
 	}
 
 	bankBalance = balance;
+	// Keep the owner's bank UI in sync (loot/NPC autobank paths often only call setBankBalance).
+	sendResourceBalance(RESOURCE_BANK, balance);
 
 	// Account-shared bank (per world/DB): keep online alts in sync.
 	const auto accountId = getAccountId();

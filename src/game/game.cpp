@@ -3457,6 +3457,15 @@ void Game::addMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money, u
 		return;
 	}
 
+	// autoBank: credit the bank instead of spawning coin items (loot split, NPC sales, change, …).
+	// Bank::withdraw passes FLAG_IGNOREAUTOBANK so players still receive physical coins.
+	if (const auto &player = std::dynamic_pointer_cast<Player>(cylinder)) {
+		if (g_configManager().getBoolean(AUTOBANK) && !hasBitSet(FLAG_IGNOREAUTOBANK, flags)) {
+			player->setBankBalance(player->getBankBalance() + money);
+			return;
+		}
+	}
+
 	auto addCoins = [&](uint16_t itemId, uint32_t count) {
 		if (count == 0) {
 			return;
@@ -3469,10 +3478,9 @@ void Game::addMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money, u
 			bool triedManaged = false;
 
 			if (const auto &player = std::dynamic_pointer_cast<Player>(cylinder)) {
-				if (!g_configManager().getBoolean(AUTOBANK)) {
-					ret = internalCollectManagedItems(player, remaindItem, getObjectCategory(remaindItem), true);
-					triedManaged = true;
-				}
+				// Prefer gold managed container / pouch when not delivering via autobank.
+				ret = internalCollectManagedItems(player, remaindItem, getObjectCategory(remaindItem), true);
+				triedManaged = true;
 			}
 
 			if (!triedManaged || ret != RETURNVALUE_NOERROR) {
@@ -4851,8 +4859,7 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 			if (player->getPathTo(pos, listDir, 0, 1, true, true, MAP_MAX_CLIENT_VIEW_PORT_X)) {
 				// Smart map clicks often Use the tile top. Under idle combat only allowlisted
 				// items (echo portal) may force-walk; everything else stays AI-locked.
-				if (player->isIdleCombat() && !allowsIdleCombatWalkToUse(item)) {
-					denyIdleCombatClientControl(player, IdleCombatDeny::Walk);
+				if (!allowsIdleCombatWalkToUse(item) && denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
 					return;
 				}
 				if (player->isIdleCombat()) {

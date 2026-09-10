@@ -164,7 +164,8 @@ bool Bank::withdraw(const std::shared_ptr<Player> &player, uint64_t amount) {
 	if (!debit(amount)) {
 		return false;
 	}
-	g_game().addMoney(player, amount);
+	// Must deliver physical coins even when autoBank is on.
+	g_game().addMoney(player, amount, FLAG_IGNOREAUTOBANK);
 	g_metrics().addCounter("balance_decrease", amount, { { "player", player->getName() }, { "context", "bank_withdraw" } });
 	return true;
 }

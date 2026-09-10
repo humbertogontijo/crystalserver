@@ -345,6 +345,7 @@ local function deliverItem(destPlayer, item, statsPlayer)
 		if item.remove then
 			item:remove()
 		end
+		-- Player:addMoney respects autoBank (banks when enabled; else pouch/inventory).
 		if destPlayer.addMoney then
 			destPlayer:addMoney(worth)
 		end

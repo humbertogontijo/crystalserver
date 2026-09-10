@@ -822,6 +822,29 @@ local function useRune(player, typeId)
 	return ok and result == true
 end
 
+--- Returns: "cast" | "skip" | "fail"
+--- skip = not ready / gated (no attempt). fail = engine/script rejected (silent).
+local function tryUseRune(player, typeId)
+	if not CombatAutomationConfig.AllowedRunes or not CombatAutomationConfig.AllowedRunes[typeId] then
+		return "skip"
+	end
+	if CombatAutomationCatalog and CombatAutomationCatalog.runeAllowedForPlayer then
+		if not CombatAutomationCatalog.runeAllowedForPlayer(typeId, player) then
+			return "skip"
+		end
+	end
+	if not player:getTarget() then
+		return "skip"
+	end
+	if not player.castRune then
+		return "skip"
+	end
+	if useRune(player, typeId) then
+		return "cast"
+	end
+	return "fail"
+end
+
 local function spellRank(slot)
 	local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
 	if group == "healing" then
