@@ -493,11 +493,15 @@ local function collectRingWalkable(center, radius, instance, reserved)
 	return candidates
 end
 
-local function bindMonsterInstance(monster, instance)
-	if monster and instance and instance.instanceId and monster.setInstanceId then
-		monster:setInstanceId(instance.instanceId)
+-- createMonster(..., instanceId) already binds before placeCreature — do not
+-- call setInstanceId here (on-map remap is a client-ghost source).
+local function afterCreateMonster(monster, instance)
+	local session = nil
+	if instance and instance.instanceId and ExpeditionManager and ExpeditionManager.getSessionByInstanceId then
+		session = ExpeditionManager.getSessionByInstanceId(instance.instanceId)
 	end
-	if monster and InstanceWorld and InstanceWorld.applyOpenWorldForge then
+	local skipForge = session and session.skipOpenWorldForge == true
+	if monster and not skipForge and InstanceWorld and InstanceWorld.applyOpenWorldForge then
 		InstanceWorld.applyOpenWorldForge(monster)
 	end
 	return monster
@@ -510,7 +514,7 @@ function ExpeditionInstance.createMonsterExclusive(name, preferredPos, instance)
 	local instanceId = instance and instance.instanceId or nil
 	local monster = Game.createMonster(name, preferredPos, false, false, nil, instanceId)
 	if monster then
-		return bindMonsterInstance(monster, instance)
+		return afterCreateMonster(monster, instance)
 	end
 	if instance then
 		local reserved = {}
@@ -520,17 +524,17 @@ function ExpeditionInstance.createMonsterExclusive(name, preferredPos, instance)
 			if pos then
 				monster = Game.createMonster(name, pos, false, false, nil, instanceId)
 				if monster then
-					return bindMonsterInstance(monster, instance)
+					return afterCreateMonster(monster, instance)
 				end
 				ExpeditionInstance.reservePos(reserved, pos)
 			end
 		end
 		local any = ExpeditionInstance.randomWalkable(instance, preferredPos, reserved)
 		if any then
-			return bindMonsterInstance(Game.createMonster(name, any, false, false, nil, instanceId), instance)
+			return afterCreateMonster(Game.createMonster(name, any, false, false, nil, instanceId), instance)
 		end
 	end
-	return bindMonsterInstance(Game.createMonster(name, preferredPos, true, false, nil, instanceId), instance)
+	return afterCreateMonster(Game.createMonster(name, preferredPos, true, false, nil, instanceId), instance)
 end
 
 function ExpeditionInstance.randomAttackRangeWalkable(instance, center, radius, reserved)

@@ -253,7 +253,36 @@ local function sameExpedition(a, b)
 	end
 	local sa = ExpeditionManager.getSessionByPlayer(a)
 	local sb = ExpeditionManager.getSessionByPlayer(b)
-	return sa ~= nil and sa == sb
+	if not sa or not sb or sa ~= sb then
+		return false
+	end
+	-- World-boss band fights are open PvP: sharing a session must not ally rivals.
+	if sa.kind == "worldboss" then
+		return false
+	end
+	return true
+end
+
+--- Rival players in the same world-boss band (manual target / sticky AUTO).
+local function isWorldBossRival(player, creature)
+	if not player or not creature or not creature.isPlayer or not creature:isPlayer() then
+		return false
+	end
+	if creature:getId() == player:getId() then
+		return false
+	end
+	if player.isOpenPvp and creature.isOpenPvp and player:isOpenPvp() and creature:isOpenPvp() then
+		return true
+	end
+	if not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
+		return false
+	end
+	local sa = ExpeditionManager.getSessionByPlayer(player)
+	local sb = ExpeditionManager.getSessionByPlayer(creature)
+	if not sa or not sb or sa.kind ~= "worldboss" or sb.kind ~= "worldboss" then
+		return false
+	end
+	return sa.bandId ~= nil and sa.bandId == sb.bandId
 end
 
 local function sameTeamDeployment(a, b)
@@ -980,20 +1009,13 @@ local function sortDistanceSquared(a, b)
 	return dx * dx + dy * dy
 end
 
---- True when the player can open combat on this creature (PZ, attackable, clear LOS).
---- Mirrors the constraints Combat::canTargetCreature enforces for monsters, plus
---- isSightClear so we skip targets behind walls (engine still allows setTarget without LOS).
---- Player summons (familiars) are never auto-targets - party protection is player-vs-player only.
+--- Open-PvP arenas (world boss): never auto-pick players — sticky manual target only.
+--- Skulled rivals are hit by AOE via Creature:onTargetCombat, not by retargeting AUTO.
 function CombatAutomation.isValidAttackTarget(player, creature)
 	if not player or not creature then
 		return false
 	end
-	if creature:isRemoved() or not creature:isMonster() or creature:getHealth() <= 0 then
-		return false
-	end
-
-	local master = creature.getMaster and creature:getMaster() or nil
-	if master and master.isPlayer and master:isPlayer() then
+	if creature:isRemoved() or creature:getHealth() <= 0 then
 		return false
 	end
 
@@ -1002,11 +1024,6 @@ function CombatAutomation.isValidAttackTarget(player, creature)
 		return false
 	end
 	if creature:getZoneType() == zoneProtection then
-		return false
-	end
-
-	local mType = creature.getType and creature:getType()
-	if mType and mType.isAttackable and not mType:isAttackable() then
 		return false
 	end
 
@@ -1020,13 +1037,48 @@ function CombatAutomation.isValidAttackTarget(player, creature)
 		return false
 	end
 	local instanceId = player.getInstanceId and player:getInstanceId() or 0
-	-- Wall / blockage between tiles (same check player melee/ranged uses on each attack tick).
 	if fromPos.isSightClear and not fromPos:isSightClear(toPos, true, instanceId) then
 		return false
 	end
 
 	local tile = creature:getTile()
 	if tile and tile.hasProperty and CONST_PROP_BLOCKPROJECTILE and tile:hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId) then
+		return false
+	end
+
+	if creature:isPlayer() then
+		if creature:getId() == player:getId() then
+			return false
+		end
+		if SoftDeath and SoftDeath.isDowned and SoftDeath.isDowned(creature) then
+			return false
+		end
+		if not isWorldBossRival(player, creature) then
+			return false
+		end
+		-- Party / account-team allies stay protected even in open-PvP arenas.
+		if sameParty(player, creature) or sameTeamDeployment(player, creature) then
+			return false
+		end
+		-- Sticky manual target only — AOE splash on skulls is handled in onTargetCombat.
+		local current = player:getTarget()
+		if current and current:getId() == creature:getId() then
+			return true
+		end
+		return false
+	end
+
+	if not creature:isMonster() then
+		return false
+	end
+
+	local master = creature.getMaster and creature:getMaster() or nil
+	if master and master.isPlayer and master:isPlayer() then
+		return false
+	end
+
+	local mType = creature.getType and creature:getType()
+	if mType and mType.isAttackable and not mType:isAttackable() then
 		return false
 	end
 
@@ -1041,7 +1093,8 @@ local function computeVisibleMonsters(player)
 	local playerPos = player:getPosition()
 	local spectators = Game.getSpectators(playerPos, false, false, 8, 8, 6, 6, player.getInstanceId and player:getInstanceId() or nil)
 	for _, creature in ipairs(spectators) do
-		if CombatAutomation.isValidAttackTarget(player, creature) then
+		-- Pick pool is monsters only; rival players are sticky via getTarget(), never auto-picked.
+		if creature and creature:isMonster() and CombatAutomation.isValidAttackTarget(player, creature) then
 			result[#result + 1] = creature
 		end
 	end
@@ -1135,6 +1188,42 @@ local function monsterIsRewardBoss(monster)
 	return mType and mType.isRewardBoss and mType:isRewardBoss()
 end
 
+--- Prefer reward bosses and the active expedition/world-boss target over trash.
+local function monsterIsFocusBoss(player, monster)
+	if not monster then
+		return false
+	end
+	if monsterIsRewardBoss(monster) then
+		return true
+	end
+	if not player or not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
+		return false
+	end
+	local session = ExpeditionManager.getSessionByPlayer(player)
+	if not session then
+		return false
+	end
+	if session.bossCreatureId and monster:getId() == session.bossCreatureId then
+		return true
+	end
+	if session.kind == "worldboss" then
+		local wb = ActivityBoostWorldBoss and ActivityBoostWorldBoss.active and ActivityBoostWorldBoss.active[session.bandId]
+		if wb and wb.bossCreatureId and monster:getId() == wb.bossCreatureId then
+			return true
+		end
+		local bossName = (wb and wb.bossName) or (session.catalog and session.catalog.name)
+		if bossName and monster:getName() == bossName then
+			return true
+		end
+	elseif session.role == "boss" then
+		local bossName = session.catalog and session.catalog.name
+		if bossName and monster:getName() == bossName then
+			return true
+		end
+	end
+	return false
+end
+
 local function hasRewardBossNearby(player)
 	if not player then
 		return false
@@ -1147,6 +1236,11 @@ local function hasRewardBossNearby(player)
 		end
 	end
 	return false
+end
+
+--- Soft-despawned (knocked out): pause AUTO until softSpawn.
+local function isSoftDespawnedPlayer(player)
+	return SoftDeath and SoftDeath.isDowned and SoftDeath.isDowned(player)
 end
 
 --- Balanced Brawl directional footprint (matches support/balanced_brawl.lua matrix).
@@ -1376,6 +1470,12 @@ function CombatAutomation.pickMonsterBySort(player, monsters, sortMode)
 	end
 
 	table.sort(pool, function(a, b)
+		-- Always prefer bosses over trash, regardless of auto-target mode.
+		local ba, bb = monsterIsFocusBoss(player, a), monsterIsFocusBoss(player, b)
+		if ba ~= bb then
+			return ba
+		end
+
 		local da, db = distSq(a), distSq(b)
 		local ha, hb = monsterHpPercent(a), monsterHpPercent(b)
 		local ida, idb = a:getId(), b:getId()
@@ -1452,11 +1552,14 @@ function CombatAutomation.pickMonsterBySort(player, monsters, sortMode)
 end
 
 local function isOnScreen(player, creature)
-	local playerPos = player:getPosition()
-	local creaturePos = creature:getPosition()
-	return playerPos.z == creaturePos.z
-		and math.abs(playerPos.x - creaturePos.x) <= 8
-		and math.abs(playerPos.y - creaturePos.y) <= 6
+	if not CombatAutomationMovement or not CombatAutomationMovement.isInViewport then
+		local playerPos = player:getPosition()
+		local creaturePos = creature:getPosition()
+		return playerPos.z == creaturePos.z
+			and math.abs(playerPos.x - creaturePos.x) <= 8
+			and math.abs(playerPos.y - creaturePos.y) <= 6
+	end
+	return CombatAutomationMovement.isInViewport(player:getPosition(), creature:getPosition())
 end
 
 local function syncAutoAttackTarget(player, state, target, force)
@@ -1483,7 +1586,7 @@ function CombatAutomation.resyncAttackTarget(player)
 	end
 	local state = CombatAutomation.getState(player)
 	local target = player:getTarget()
-	if target and target:getHealth() > 0 then
+	if target and CombatAutomation.isValidAttackTarget(player, target) and isOnScreen(player, target) then
 		syncAutoAttackTarget(player, state, target, true)
 		return
 	end
@@ -1495,16 +1598,37 @@ local function autoTarget(player, config, state)
 	if type(options) ~= "table" or options.enabled ~= true then
 		return player:getTarget()
 	end
+	if isSoftDespawnedPlayer(player) then
+		if player:getTarget() then
+			player:setTarget(nil)
+		end
+		syncAutoAttackTarget(player, state, nil)
+		return nil
+	end
 	local mode = CombatAutomationConfig.normalizeAutoTargetMode(options.mode or options.sortMode)
 	local aggressive = mode == "E" or mode == "C" or mode == "D"
 
 	local current = player:getTarget()
 	if current and CombatAutomation.isValidAttackTarget(player, current) and isOnScreen(player, current) then
 		if not aggressive then
+			-- Sticky trash yields when a boss is in range — but never steal a live PvP player target.
+			if not current:isPlayer() and not monsterIsFocusBoss(player, current) then
+				local preferred = CombatAutomation.pickMonsterBySort(player, visibleMonsters(player), mode)
+				if preferred and monsterIsFocusBoss(player, preferred) and preferred:getId() ~= current:getId() then
+					player:setTarget(preferred)
+					syncAutoAttackTarget(player, state, preferred)
+					return preferred
+				end
+			end
 			syncAutoAttackTarget(player, state, current)
 			return current
 		end
 		-- Aggressive modes: keep sticky target unless a clearly better pick exists.
+		-- Live player targets stay sticky (pickMonsterBySort is monsters-only).
+		if current:isPlayer() then
+			syncAutoAttackTarget(player, state, current)
+			return current
+		end
 	elseif current then
 		player:setTarget(nil)
 		current = nil
@@ -1925,6 +2049,19 @@ function CombatAutomation.tick(player, opts)
 	end
 
 	tickVisibleMonsters = computeVisibleMonsters(player)
+
+	-- Soft-despawned: no target, move, or combat casts until respawn.
+	if isSoftDespawnedPlayer(player) then
+		if player:getTarget() then
+			player:setTarget(nil)
+		end
+		if player.setFollowCreature then
+			player:setFollowCreature(nil)
+		end
+		syncAutoAttackTarget(player, state, nil)
+		tickVisibleMonsters = nil
+		return
+	end
 
 	local autoEnabled = type(config.autoTarget) == "table" and config.autoTarget.enabled == true
 	if not autoEnabled then

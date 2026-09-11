@@ -153,6 +153,9 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "setTraining", PlayerFunctions::luaPlayerSetTraining);
 	Lua::registerMethod(L, "Player", "isIdleCombat", PlayerFunctions::luaPlayerGetIsIdleCombat);
 	Lua::registerMethod(L, "Player", "setIdleCombat", PlayerFunctions::luaPlayerSetIdleCombat);
+	Lua::registerMethod(L, "Player", "softDespawn", PlayerFunctions::luaPlayerSoftDespawn);
+	Lua::registerMethod(L, "Player", "softSpawn", PlayerFunctions::luaPlayerSoftSpawn);
+	Lua::registerMethod(L, "Player", "isSoftDespawned", PlayerFunctions::luaPlayerIsSoftDespawned);
 	Lua::registerMethod(L, "Player", "hasWalkTask", PlayerFunctions::luaPlayerHasWalkTask);
 	Lua::registerMethod(L, "Player", "clearWalkTask", PlayerFunctions::luaPlayerClearWalkTask);
 	Lua::registerMethod(L, "Player", "isHeadless", PlayerFunctions::luaPlayerIsHeadless);
@@ -184,6 +187,8 @@ void PlayerFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Player", "getSkullTime", PlayerFunctions::luaPlayerGetSkullTime);
 	Lua::registerMethod(L, "Player", "setSkullTime", PlayerFunctions::luaPlayerSetSkullTime);
+	Lua::registerMethod(L, "Player", "getSkullClient", PlayerFunctions::luaPlayerGetSkullClient);
+	Lua::registerMethod(L, "Player", "clearAttacked", PlayerFunctions::luaPlayerClearAttacked);
 	Lua::registerMethod(L, "Player", "getDeathPenalty", PlayerFunctions::luaPlayerGetDeathPenalty);
 
 	Lua::registerMethod(L, "Player", "getExperience", PlayerFunctions::luaPlayerGetExperience);
@@ -390,6 +395,11 @@ void PlayerFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Player", "hasChaseMode", PlayerFunctions::luaPlayerHasChaseMode);
 	Lua::registerMethod(L, "Player", "hasSecureMode", PlayerFunctions::luaPlayerHasSecureMode);
+	Lua::registerMethod(L, "Player", "setSecureMode", PlayerFunctions::luaPlayerSetSecureMode);
+	Lua::registerMethod(L, "Player", "isOpenPvp", PlayerFunctions::luaPlayerIsOpenPvp);
+	Lua::registerMethod(L, "Player", "setOpenPvp", PlayerFunctions::luaPlayerSetOpenPvp);
+	Lua::registerMethod(L, "Player", "isCombatUnattackable", PlayerFunctions::luaPlayerIsCombatUnattackable);
+	Lua::registerMethod(L, "Player", "setCombatUnattackable", PlayerFunctions::luaPlayerSetCombatUnattackable);
 	Lua::registerMethod(L, "Player", "getFightMode", PlayerFunctions::luaPlayerGetFightMode);
 
 	Lua::registerMethod(L, "Player", "getBaseXpGain", PlayerFunctions::luaPlayerGetBaseXpGain);
@@ -1539,6 +1549,40 @@ int PlayerFunctions::luaPlayerGetIsIdleCombat(lua_State* L) {
 	return 1;
 }
 
+int PlayerFunctions::luaPlayerSoftDespawn(lua_State* L) {
+	// player:softDespawn()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	Lua::pushBoolean(L, player->softDespawn());
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSoftSpawn(lua_State* L) {
+	// player:softSpawn(position)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	const Position &pos = Lua::getPosition(L, 2);
+	Lua::pushBoolean(L, player->softSpawn(pos));
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerIsSoftDespawned(lua_State* L) {
+	// player:isSoftDespawned()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	Lua::pushBoolean(L, player->isSoftDespawned());
+	return 1;
+}
+
 int PlayerFunctions::luaPlayerHasWalkTask(lua_State* L) {
 	// player:hasWalkTask()
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
@@ -2025,6 +2069,34 @@ int PlayerFunctions::luaPlayerSetSkullTime(lua_State* L) {
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (player) {
 		player->setSkullTicks(Lua::getNumber<int64_t>(L, 2));
+		Lua::pushBoolean(L, true);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGetSkullClient(lua_State* L) {
+	// player:getSkullClient(creature) — per-viewer mark (yellow/white/green/orange)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto &creature = Lua::getUserdataShared<Creature>(L, 2);
+	if (!creature) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_pushnumber(L, player->getSkullClient(creature));
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerClearAttacked(lua_State* L) {
+	// player:clearAttacked() — clear yellow-mark attackedSet
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player) {
+		player->clearAttacked();
 		Lua::pushBoolean(L, true);
 	} else {
 		lua_pushnil(L);
@@ -4748,6 +4820,64 @@ int PlayerFunctions::luaPlayerHasSecureMode(lua_State* L) {
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (player) {
 		Lua::pushBoolean(L, player->secureMode);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetSecureMode(lua_State* L) {
+	// player:setSecureMode(enabled)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player) {
+		player->setSecureMode(Lua::getBoolean(L, 2));
+		Lua::pushBoolean(L, true);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerIsOpenPvp(lua_State* L) {
+	// player:isOpenPvp()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player) {
+		Lua::pushBoolean(L, player->isOpenPvp());
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetOpenPvp(lua_State* L) {
+	// player:setOpenPvp(enabled)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player) {
+		player->setOpenPvp(Lua::getBoolean(L, 2));
+		Lua::pushBoolean(L, true);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerIsCombatUnattackable(lua_State* L) {
+	// player:isCombatUnattackable()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player) {
+		Lua::pushBoolean(L, player->isCombatUnattackable());
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetCombatUnattackable(lua_State* L) {
+	// player:setCombatUnattackable(enabled)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player) {
+		player->setCombatUnattackable(Lua::getBoolean(L, 2));
+		Lua::pushBoolean(L, true);
 	} else {
 		lua_pushnil(L);
 	}

@@ -733,7 +733,7 @@ bool Monster::isOpponent(const std::shared_ptr<Creature> &creature) const {
 		return creature != master;
 	}
 
-	if (creature->getPlayer() && creature->getPlayer()->hasFlag(PlayerFlags_t::IgnoredByMonsters)) {
+	if (creature->getPlayer() && (creature->getPlayer()->hasFlag(PlayerFlags_t::IgnoredByMonsters) || creature->getPlayer()->isCombatUnattackable() || creature->getPlayer()->isSoftDespawned())) {
 		return false;
 	}
 
@@ -1197,12 +1197,19 @@ void Monster::onThink(uint32_t interval) {
 	} else if (!targetList.empty()) {
 		const auto &attackedPlayer = attackedCreature ? attackedCreature->getPlayer() : nullptr;
 		const bool attackedCreatureIsDisconnected = attackedPlayer && attackedPlayer->isDisconnected() && !attackedPlayer->keepsDisconnectedCombat();
-		const bool attackedCreatureIsUnattackable = attackedCreature && !canUseAttack(getPosition(), attackedCreature);
-		const bool attackedCreatureIsUnreachable = targetDistance <= 1 && attackedCreature && followCreature && !hasFollowPath;
-		if (!attackedCreature || attackedCreatureIsDisconnected || attackedCreatureIsUnattackable || attackedCreatureIsUnreachable) {
-			if (!followCreature || !hasFollowPath || attackedCreatureIsDisconnected) {
+		// Soft-death / CannotBeAttacked / PZ / etc. — drop invalid focus and pick another.
+		const bool attackedCreatureIsInvalid = attackedCreature && !isTarget(attackedCreature);
+		if (attackedCreatureIsInvalid) {
+			setAttackedCreature(nullptr);
+			setFollowCreature(nullptr);
+		}
+		const auto &followAfterClear = getFollowCreature();
+		const bool attackedCreatureIsUnattackable = getAttackedCreature() && !canUseAttack(getPosition(), getAttackedCreature());
+		const bool attackedCreatureIsUnreachable = targetDistance <= 1 && getAttackedCreature() && followAfterClear && !hasFollowPath;
+		if (!getAttackedCreature() || attackedCreatureIsDisconnected || attackedCreatureIsUnattackable || attackedCreatureIsUnreachable || attackedCreatureIsInvalid) {
+			if (!followAfterClear || !hasFollowPath || attackedCreatureIsDisconnected || attackedCreatureIsInvalid) {
 				searchTarget(TARGETSEARCH_NEAREST);
-			} else if (attackedCreature && isFleeing() && !canUseAttack(getPosition(), attackedCreature)) {
+			} else if (getAttackedCreature() && isFleeing() && !canUseAttack(getPosition(), getAttackedCreature())) {
 				searchTarget(TARGETSEARCH_DEFAULT);
 			}
 		}

@@ -180,7 +180,15 @@ function ExpeditionManager.reconcilePresence(player)
 	if not session.entered then
 		return true
 	end
-	if ExpeditionInstance.contains(session.instance, player:getPosition()) then
+	-- Occupancy alone is not enough: shared hunt tiles exist on every instance id.
+	-- Match isInExpedition — wrong private id means the player is not in this hunt.
+	if session.instance and session.instance.instanceId and player.getInstanceId then
+		if player:getInstanceId() == session.instance.instanceId
+			and ExpeditionInstance.contains(session.instance, player:getPosition())
+		then
+			return true
+		end
+	elseif ExpeditionInstance.contains(session.instance, player:getPosition()) then
 		return true
 	end
 
@@ -231,6 +239,9 @@ end
 local function isOpenWorldReturnPos(pos)
 	if not pos then
 		return false
+	end
+	if InstanceWorld and InstanceWorld.isTownOnlyPos then
+		return InstanceWorld.isTownOnlyPos(pos)
 	end
 	if not InstanceWorld or not InstanceWorld.classify then
 		return true
@@ -1081,6 +1092,21 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		end
 	end
 
+	-- Today's Fiendish Hunt offer: force max lure + one-wave Fiendish spawn options.
+	if contentRole == "monster" and ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.get then
+		local offer = ActivityBoostFiendishHunt.get(player)
+		if offer and not offer.complete and tostring(offer.expeditionId) == tostring(catalog.id) then
+			options = options or {}
+			if options.maxWaves == nil then
+				options.maxWaves = tonumber(ActivityBoostConfig.FIENDISH_HUNT_MAX_WAVES) or 1
+			end
+			options.skipOpenWorldForge = true
+			options.forceFiendishCreatureId = tonumber(offer.creatureId) or options.forceFiendishCreatureId
+			local offerLureMax = tonumber(catalog.lureMax) or ExpeditionConfig.LURE_MAX
+			lure = ExpeditionConfig.normalizeLure(offerLureMax, offerLureMax)
+		end
+	end
+
 	local levelMin = catalog.levelMin or 1
 	if not meetsExpeditionLevel(player, levelMin) then
 		ExpeditionProtocol.sendError(
@@ -1319,6 +1345,10 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		hazardMax = sessionHazardMax,
 		bossDifficulty = sessionBossDifficulty,
 		waveLure = nil,
+		maxWaves = tonumber(options.maxWaves),
+		skipOpenWorldForge = options.skipOpenWorldForge == true,
+		forceFiendishCreatureId = tonumber(options.forceFiendishCreatureId),
+		onWaveLimitReached = options.onWaveLimitReached,
 		state = (awaitingHumanCount({ awaitingHumanGuids = awaitingHumanGuids }) > 0 or #readyTeammates > 0)
 				and "waiting"
 			or "idle",
@@ -1497,24 +1527,28 @@ local function teleportPlayerIntoRunningHunt(player, session)
 	if not player or not session or not session.instance or not session.instance.entry then
 		return false
 	end
-	if ExpeditionInstance.contains(session.instance, player:getPosition()) then
+	local instanceId = session.instance.instanceId
+	-- Headless restore logs players onto hunt tiles at instance 0. Occupancy
+	-- contains() is true there, but they are not bound to the private hunt id —
+	-- skipping enterInstance leaves them stranded while monsters spawn privately.
+	local onTiles = ExpeditionInstance.contains(session.instance, player:getPosition())
+	local bound = not instanceId
+		or not player.getInstanceId
+		or player:getInstanceId() == instanceId
+	if onTiles and bound then
 		return true
 	end
 	player:setFollowCreature(nil)
-	local entered = false
-	if InstanceWorld and InstanceWorld.enterInstance then
-		entered = InstanceWorld.enterInstance(
-			player,
-			session.instance.instanceId,
-			session.instance.entry,
-			"hunt:" .. tostring(session.key or "")
-		)
-	else
-		if player.setInstanceId then
-			player:setInstanceId(session.instance.instanceId)
-		end
-		entered = player:teleportTo(session.instance.entry)
+	if not (InstanceWorld and InstanceWorld.enterInstance) then
+		logger.error("[Expedition] InstanceWorld.enterInstance missing — cannot enter hunt")
+		return false
 	end
+	local entered = InstanceWorld.enterInstance(
+		player,
+		instanceId,
+		session.instance.entry,
+		"hunt:" .. tostring(session.key or "")
+	)
 	if not entered then
 		return false
 	end
@@ -1614,6 +1648,7 @@ local function startRestoredHuntOnStartup(session, snapshot)
 	local instance = session.instance
 	local catalog = session.catalog
 	local spawnPos = instance and instance.entry
+	local instanceId = instance and math.floor(tonumber(instance.instanceId) or 0) or 0
 	if not spawnPos then
 		session.starting = nil
 		return false
@@ -1717,6 +1752,7 @@ local function startRestoredHuntOnStartup(session, snapshot)
 		end
 		TeamManager.deploy(headlessHost, {
 			position = spawnPos,
+			instanceId = instanceId,
 			companionsOnly = true,
 			inviteFriends = false,
 			onComplete = function(depCompanions, depErr)
@@ -1760,7 +1796,7 @@ local function startRestoredHuntOnStartup(session, snapshot)
 							tostring(err2 or err or "unknown")
 						)
 					end
-				end)
+				end, instanceId)
 				return
 			end
 			if not host then
@@ -1771,13 +1807,14 @@ local function startRestoredHuntOnStartup(session, snapshot)
 				)
 			end
 			onHostReady(host)
-		end)
+		end, instanceId)
 		return true
 	end
 
 	local headlessHost = nil
 	if Game.headlessLogin then
-		headlessHost = Game.headlessLogin(hostName, spawnPos) or Game.headlessLogin(hostGuid, spawnPos)
+		headlessHost = Game.headlessLogin(hostName, spawnPos, instanceId)
+			or Game.headlessLogin(hostGuid, spawnPos, instanceId)
 	end
 	onHostReady(headlessHost)
 	return headlessHost ~= nil
@@ -1836,12 +1873,15 @@ function ExpeditionManager.attachPlayerToRunningHunt(player)
 		return false
 	end
 
-	-- Host already online headless in the instance — real client takes over that player.
+	-- Host already online headless — real client takes over that player.
+	-- Still require the private instance id (restore can leave them on tiles at id 0).
 	if playerGuid == hostGuid and session.playerId and session.playerId == player:getId() then
-		if ExpeditionInstance.contains(session.instance, player:getPosition()) then
-			ExpeditionManager.syncSessionClientIfNeeded(player)
-			return true
+		if not teleportPlayerIntoRunningHunt(player, session) then
+			ExpeditionProtocol.sendError(player, "Failed to rejoin expedition (teleport blocked).")
+			return false
 		end
+		ExpeditionManager.syncSessionClientIfNeeded(player)
+		return true
 	end
 
 	if playerGuid == hostGuid then
@@ -1965,13 +2005,10 @@ function ExpeditionManager.startExpeditionEntry(session)
 				end
 				if not atEntry then
 					local ok = false
-					if InstanceWorld and InstanceWorld.enterInstance then
-						ok = InstanceWorld.enterInstance(p, instance.instanceId, instance.entry, "hunt:" .. tostring(s.key or catalog.id))
+					if not (InstanceWorld and InstanceWorld.enterInstance) then
+						logger.error("[Expedition] InstanceWorld.enterInstance missing — cannot enter hunt")
 					else
-						if p.setInstanceId then
-							p:setInstanceId(instance.instanceId)
-						end
-						ok = p:teleportTo(instance.entry)
+						ok = InstanceWorld.enterInstance(p, instance.instanceId, instance.entry, "hunt:" .. tostring(s.key or catalog.id))
 					end
 					if not ok then
 						logger.error(
@@ -2091,13 +2128,14 @@ function ExpeditionManager.startExpeditionEntry(session)
 			return
 		end
 
-		-- Login companions in the city (host tile), register them, then teleport the
-		-- whole party together. Spawning at instance.entry races InstanceWorld login
-		-- rescue (hunt tile / private id before session bind) and left everyone in town.
+		-- Login companions already on the hunt entry + private instance id (atomic
+		-- headlessLogin). City hop was a workaround for place-at-entry @ instance 0
+		-- racing InstanceWorld login rescue before session bind.
 		if not soloBoss and TeamManager and TeamManager.deploy then
-			local spawnPos = liveHost:getPosition() or hostWorldPos
+			local spawnPos = instance.entry
 			TeamManager.deploy(liveHost, {
 				position = spawnPos,
+				instanceId = instance.instanceId,
 				companionsOnly = true,
 				inviteFriends = false,
 				onComplete = function(depCompanions, depErr)
@@ -2540,15 +2578,13 @@ function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 	end
 
 	friend:setFollowCreature(nil)
-	local entered = false
-	if InstanceWorld and InstanceWorld.enterInstance then
-		entered = InstanceWorld.enterInstance(friend, instance.instanceId, instance.entry, "hunt:" .. tostring(session.key or ""))
-	else
-		if friend.setInstanceId then
-			friend:setInstanceId(instance.instanceId)
-		end
-		entered = friend:teleportTo(instance.entry)
+	if not (InstanceWorld and InstanceWorld.enterInstance) then
+		logger.error("[Expedition] InstanceWorld.enterInstance missing — cannot accept invite")
+		ExpeditionProtocol.sendError(friend, "Failed to enter expedition (instance API missing).")
+		ExpeditionManager.leave(friend, { silent = true })
+		return
 	end
+	local entered = InstanceWorld.enterInstance(friend, instance.instanceId, instance.entry, "hunt:" .. tostring(session.key or ""))
 	if not entered then
 		ExpeditionProtocol.sendError(friend, "Failed to enter expedition (teleport blocked).")
 		ExpeditionManager.leave(friend, { silent = true })
@@ -2770,6 +2806,44 @@ function ExpeditionManager.leaveAll(session, opts)
 	if sessionsByKey[session.key] == session then
 		cleanupSession(session, nil, opts)
 	end
+end
+
+--- Delayed leaveAll after victory/failure messaging (boss clear, wave-limited hunts).
+--- opts: victory, endMsg, delayMs
+function ExpeditionManager.scheduleSessionExit(session, opts)
+	opts = opts or {}
+	if not session then
+		return
+	end
+	local victory = opts.victory == true
+	local endMsg = opts.endMsg
+	local delayMs = tonumber(opts.delayMs) or (ExpeditionConfig.BOSS_END_DELAY_MS or 2500)
+	local key = session.key
+	if session.waitingEvent then
+		stopEvent(session.waitingEvent)
+		session.waitingEvent = nil
+	end
+	session.waitingEvent = addEvent(function()
+		local s = ExpeditionManager.getSessionByKey(key)
+		if not s or s.state == "ended" then
+			return
+		end
+		local anyOnline = false
+		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s) or {}) do
+			local p = Player(mid)
+			if p then
+				anyOnline = true
+				if endMsg then
+					p:sendTextMessage(MESSAGE_EVENT_ADVANCE, endMsg)
+				end
+			end
+		end
+		if anyOnline then
+			ExpeditionManager.leaveAll(s, { silent = true, victory = victory })
+		else
+			ExpeditionManager.teardownSession(s)
+		end
+	end, delayMs)
 end
 
 --- End the expedition for all members (supplies / capacity safety options).
@@ -3070,7 +3144,7 @@ function ExpeditionManager.notifyHuntMemberDeath(deadRef, reason)
 	end
 
 	local session = resolveSessionForHuntDeath(deadRef, player)
-	if not session or session.kind == "raid" then
+	if not session or session.kind == "raid" or session.kind == "worldboss" then
 		return
 	end
 	if session.persistedForRestart then
@@ -3875,17 +3949,19 @@ performDirectSwitch = function(host, session, switchTo, preAcceptedPlayers)
 		joinOpts.preAcceptedPlayers = others
 	end
 	ExpeditionManager.join(host, switchTo.id, switchTo.role, switchTo.loadout, switchTo.lure, joinOpts)
-	-- Rescue anyone who did not land in the new expedition (host join ok but teammate
-	-- dropped, or host join failed). Old session is already gone at this point.
-	if InstanceWorld and InstanceWorld.rescueIfStranded then
-		if not ExpeditionManager.isInExpedition(host) then
-			pcall(InstanceWorld.rescueIfStranded, host)
+	-- Anyone who did not land in the new expedition must return to town-only open
+	-- world (atomic bindOpenWorld). Old session is already gone at this point.
+	local function exitIfNotInExpedition(p)
+		if not p or ExpeditionManager.isInExpedition(p) then
+			return
 		end
-		for _, p in ipairs(others) do
-			if p and not ExpeditionManager.isInExpedition(p) then
-				pcall(InstanceWorld.rescueIfStranded, p)
-			end
+		if InstanceWorld and InstanceWorld.exitToOpenWorld then
+			pcall(InstanceWorld.exitToOpenWorld, p, loadReturn(p))
 		end
+	end
+	exitIfNotInExpedition(host)
+	for _, p in ipairs(others) do
+		exitIfNotInExpedition(p)
 	end
 end
 
@@ -4264,9 +4340,9 @@ function ExpeditionManager.leave(player, opts)
 		ExpeditionManager.clearAreaEffects(player)
 		if not opts.skipTeleport then
 			teleportPlayerHome(player)
-		elseif InstanceWorld and InstanceWorld.rescueIfStranded then
-			pcall(InstanceWorld.rescueIfStranded, player)
 		end
+		-- skipTeleport: caller is mid hunt→hunt switch (or death eject). Do not
+		-- bind open-world here; join / exitIfNotInExpedition / death return owns it.
 		ExpeditionProtocol.sendEnded(player)
 		if not opts.skipTeamUndeploy and TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
 			TeamManager.undeploy(player)
@@ -4458,6 +4534,13 @@ function ExpeditionManager.onDeath(player)
 		RaidInstance.onPlayerDeath(player)
 		return
 	end
+	-- World boss uses arena knockout; never tear down the band fight on death.
+	if session and session.kind == "worldboss" then
+		if ActivityBoostWorldBoss and ActivityBoostWorldBoss.onPlayerDeath then
+			ActivityBoostWorldBoss.onPlayerDeath(player)
+		end
+		return
+	end
 	ExpeditionManager.notifyHuntMemberDeath(player, nil)
 end
 
@@ -4491,6 +4574,10 @@ function ExpeditionManager.onLogout(player)
 	end
 
 	if ExpeditionPersist and ExpeditionPersist.isServerShuttingDown() then
+		if session.kind == "worldboss" and ActivityBoostWorldBoss and ActivityBoostWorldBoss.leave then
+			ActivityBoostWorldBoss.leave(player, { silent = true, force = true })
+			return true
+		end
 		if ExpeditionPersist.isPersistableHunt(session) then
 			pcall(ExpeditionPersist.writeSession, session)
 			session.persistedForRestart = true
@@ -4542,6 +4629,12 @@ function ExpeditionManager.onLogout(player)
 	if session.kind == "raid" and RaidInstance and RaidInstance.leave then
 		-- Leave the shared raid without tearing it down for other players.
 		RaidInstance.leave(player, { silent = true })
+		return true
+	end
+
+	if session.kind == "worldboss" and ActivityBoostWorldBoss and ActivityBoostWorldBoss.leave then
+		-- Clear openPvp / skulls / SoftDeath before disconnect (same as voluntary leave).
+		ActivityBoostWorldBoss.leave(player, { silent = true })
 		return true
 	end
 
@@ -4707,7 +4800,15 @@ function ExpeditionManager.onLogin(player)
 			end
 		end
 		-- Spatial membership: once entered, being outside the instance ends the run.
+		-- Occupancy alone is not enough — bind private instance id when on hunt tiles.
 		if ExpeditionInstance.contains(session.instance, player:getPosition()) then
+			if not teleportPlayerIntoRunningHunt(player, session) then
+				logger.warn(
+					"[Expedition] login rebind failed to enter instance for {} on {}",
+					player:getName(),
+					tostring(session.key)
+				)
+			end
 			session.entered = true
 		elseif session.entered and not ExpeditionManager.reconcilePresence(player) then
 			ExpeditionProtocol.sendCatalog(player)
@@ -4763,6 +4864,13 @@ function ExpeditionManager.onLogin(player)
 	if InstanceWorld and InstanceWorld.rescueIfStranded then
 		InstanceWorld.rescueIfStranded(player)
 	elseif player:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
+		local kv = player.kv and player:kv() or nil
+		local expeditionId = kv and kv.get and kv:get("expedition_id") or nil
+		if ActivityBoostWorldBoss and ActivityBoostWorldBoss.clearArenaState then
+			if type(expeditionId) == "string" and expeditionId:find("^worldboss:", 1, false) then
+				ActivityBoostWorldBoss.clearArenaState(player)
+			end
+		end
 		local returnPos = loadReturn(player)
 		clearActive(player)
 		ExpeditionManager.clearAreaEffects(player)

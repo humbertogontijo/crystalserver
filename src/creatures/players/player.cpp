@@ -920,6 +920,14 @@ bool Player::hasSecureMode() const {
 	return secureMode;
 }
 
+bool Player::isOpenPvp() const {
+	return openPvp;
+}
+
+void Player::setOpenPvp(bool enabled) {
+	openPvp = enabled;
+}
+
 void Player::setParty(std::shared_ptr<Party> newParty) {
 	m_party = std::move(newParty);
 }
@@ -1456,6 +1464,13 @@ bool Player::canSeeCreature(const std::shared_ptr<Creature> &creature) const {
 		return false;
 	}
 
+	// Soft-despawned fighters are off the battlefield for other clients (corpse item remains).
+	if (const auto &targetPlayer = creature->getPlayer()) {
+		if (targetPlayer->isSoftDespawned() && !group->access) {
+			return false;
+		}
+	}
+
 	if (!creature->getPlayer() && !canSeeInvisibility() && creature->isInvisible()) {
 		return false;
 	}
@@ -1468,6 +1483,11 @@ bool Player::canWalkthrough(const std::shared_ptr<Creature> &creature) {
 	}
 
 	const auto &player = creature->getPlayer();
+	// Soft-death bodies / soft-despawned fighters are props for pathing — walk through them.
+	if (player && (player->isCombatUnattackable() || player->isSoftDespawned())) {
+		return true;
+	}
+
 	const auto &monster = creature->getMonster();
 	const auto &npc = creature->getNpc();
 	if (monster) {
@@ -1526,6 +1546,9 @@ bool Player::canWalkthroughEx(const std::shared_ptr<Creature> &creature) const {
 	const auto &player = creature->getPlayer();
 	const auto &npc = creature->getNpc();
 	if (player) {
+		if (player->isCombatUnattackable() || player->isSoftDespawned()) {
+			return true;
+		}
 		const auto &playerTile = player->getTile();
 		return playerTile && (playerTile->hasFlag(TILESTATE_NOPVPZONE) || playerTile->hasFlag(TILESTATE_PROTECTIONZONE) || player->getLevel() <= static_cast<uint32_t>(g_configManager().getNumber(PROTECTION_LEVEL)) || g_game().worlds().getCurrentWorld()->type == WORLDTYPE_OPTIONAL);
 	} else if (npc) {
@@ -4567,6 +4590,123 @@ void Player::despawn() {
 	setDead(true);
 }
 
+bool Player::softDespawn() {
+	if (isDead() || softDespawned) {
+		return false;
+	}
+
+	const auto &tile = getTile();
+	if (!tile) {
+		return false;
+	}
+
+	resetMovementState();
+	closeAllExternalContainers();
+	setAttackedCreature(nullptr);
+	setFollowCreature(nullptr);
+	sendCancelTarget();
+	Game::removeCreatureCheck(static_self_cast<Player>());
+
+	const Position tilePos = tile->getPosition();
+	const auto self = static_self_cast<Player>();
+
+	// Capture stack positions while still visible, then hide from other fighters.
+	// Stay on the tile so this client remains a spectator and keeps receiving map traffic.
+	std::vector<std::pair<std::shared_ptr<Player>, int32_t>> removeFor;
+	const auto &spectators = Spectators().find<Creature>(tilePos, true, 0, 0, 0, 0, false, getInstanceId());
+	for (const auto &spectator : spectators) {
+		if (const auto &player = spectator->getPlayer()) {
+			if (player.get() == this) {
+				continue;
+			}
+			removeFor.emplace_back(player, player->canSeeCreature(self) ? tile->getStackposOfCreature(player, self) : -1);
+		}
+	}
+
+	softDespawned = true;
+
+	// Soft-death cancels lethal damage, so HP would otherwise stay > 0. Clamp for
+	// bars / party / creature health without calling Creature::changeHealth (onDeath).
+	health = 0;
+
+	for (const auto &[player, stackpos] : removeFor) {
+		if (stackpos >= 0) {
+			player->sendRemoveTileThing(tilePos, stackpos);
+		}
+	}
+	for (const auto &spectator : spectators) {
+		if (spectator.get() == this) {
+			continue;
+		}
+		spectator->onRemoveCreature(self, false);
+	}
+
+	// Hide own outfit locally; viewport stays centered on this tile.
+	sendCreatureChangeVisible(self, false);
+
+	g_game().addCreatureHealth(self);
+	sendStats();
+
+	for (const auto &spectator : Spectators().find<Monster>(tilePos, true, 0, 0, 0, 0, false, getInstanceId())) {
+		if (const auto &monster = spectator->getMonster()) {
+			if (!monster->getAttackedCreature()) {
+				monster->searchTarget(TARGETSEARCH_NEAREST);
+			}
+		}
+	}
+	return true;
+}
+
+bool Player::softSpawn(const Position &pos) {
+	if (!softDespawned || isDead()) {
+		return false;
+	}
+
+	softDespawned = false;
+	health = healthMax;
+	mana = manaMax;
+
+	const auto self = static_self_cast<Player>();
+	Position spawnPos = pos.x != 0 ? pos : getPosition();
+
+	// Soft-despawn keeps the creature on the tile; only place if somehow detached.
+	if (!getTile()) {
+		loginPosition = spawnPos;
+		if (!g_game().map.placeCreature(spawnPos, getPlayer(), false, true)) {
+			softDespawned = true;
+			return false;
+		}
+	} else if (getPosition() != spawnPos) {
+		g_game().internalTeleport(self, spawnPos, true);
+	}
+
+	spawnPos = getPosition();
+	const auto &spectators = Spectators().find<Creature>(spawnPos, true, 0, 0, 0, 0, false, getInstanceId());
+	for (const auto &spectator : spectators) {
+		if (const auto &tmpPlayer = spectator->getPlayer()) {
+			if (tmpPlayer.get() == this) {
+				// Restore outfit only — never sendAddCreature(isLogin) (reopens inventory / enter-world).
+				sendCreatureChangeVisible(self, true);
+			} else if (tmpPlayer->canSeeCreature(self)) {
+				tmpPlayer->sendCreatureAppear(self, spawnPos, false);
+			}
+		}
+		if (spectator.get() != this) {
+			spectator->onCreatureAppear(self, false);
+		}
+	}
+
+	if (getParent()) {
+		getParent()->postAddNotification(self, nullptr, 0);
+	}
+	g_game().addCreatureCheck(self);
+	g_game().addCreatureHealth(self);
+	g_game().addPlayerMana(self);
+	onChangeZone(getZoneType());
+	sendStats();
+	return true;
+}
+
 bool Player::dropCorpse(const std::shared_ptr<Creature> &lastHitCreature, const std::shared_ptr<Creature> &mostDamageCreature, bool lastHitUnjustified, bool mostDamageUnjustified) {
 	if (getZoneType() != ZONE_PVP || !Player::lastHitIsPlayer(lastHitCreature)) {
 		return Creature::dropCorpse(lastHitCreature, mostDamageCreature, lastHitUnjustified, mostDamageUnjustified);
@@ -6312,7 +6452,11 @@ void Player::setFightMode(FightMode_t mode) {
 }
 
 void Player::setSecureMode(bool mode) {
+	if (secureMode == mode) {
+		return;
+	}
 	secureMode = mode;
+	sendFightModes();
 }
 
 Faction_t Player::getFaction() const {
@@ -6551,6 +6695,15 @@ void Player::onAttackedCreature(const std::shared_ptr<Creature> &target) {
 		return;
 	}
 
+	const auto &self = static_self_cast<Player>();
+	const auto &targetPlayer = target->getPlayer();
+	// Scripted open-PvP arenas (world boss) still assign white/yellow marks; only
+	// real ZONE_PVP tiles / non-openPvp isInPvpZone pairs skip skull logic.
+	const bool openPvpArena = targetPlayer && isOpenPvp() && targetPlayer->isOpenPvp();
+	if (Combat::isInPvpZone(self, target) && !openPvpArena) {
+		return;
+	}
+
 	if (target == getPlayer()) {
 		addInFightTicks();
 		return;
@@ -6560,31 +6713,41 @@ void Player::onAttackedCreature(const std::shared_ptr<Creature> &target) {
 		return;
 	}
 
-	const auto &targetPlayer = target->getPlayer();
 	if (targetPlayer && !isPartner(targetPlayer) && !isGuildMate(targetPlayer)) {
 		if (!pzLocked && g_game().worlds().getCurrentWorld()->type == WORLDTYPE_HARDCORE) {
 			pzLocked = true;
 			sendIcons();
 		}
 
+		// Open-PvP: white skull only from explicit target attacks on unmarked rivals.
+		// AOE splash on skulled players must not open white; yellow retaliation still marks.
+		if (openPvpArena && getAttackedCreature() != target) {
+			if (getSkull() == SKULL_NONE && getSkullClient(targetPlayer) == SKULL_YELLOW) {
+				addAttacked(targetPlayer);
+				targetPlayer->sendCreatureSkull(self);
+			}
+			addInFightTicks();
+			return;
+		}
+
 		if (getSkull() == SKULL_NONE && getSkullClient(targetPlayer) == SKULL_YELLOW) {
 			addAttacked(targetPlayer);
-			targetPlayer->sendCreatureSkull(static_self_cast<Player>());
-		} else if (!targetPlayer->hasAttacked(static_self_cast<Player>())) {
+			targetPlayer->sendCreatureSkull(self);
+		} else if (!targetPlayer->hasAttacked(self)) {
 			if (!pzLocked) {
 				pzLocked = true;
 				sendIcons();
 			}
 
-			if (!Combat::isInPvpZone(static_self_cast<Player>(), targetPlayer) && !isInWar(targetPlayer)) {
+			if ((!Combat::isInPvpZone(self, targetPlayer) || openPvpArena) && !isInWar(targetPlayer)) {
 				addAttacked(targetPlayer);
 
-				if (targetPlayer->getSkull() == SKULL_NONE && getSkull() == SKULL_NONE && !targetPlayer->hasKilled(static_self_cast<Player>())) {
+				if (targetPlayer->getSkull() == SKULL_NONE && getSkull() == SKULL_NONE && !targetPlayer->hasKilled(self)) {
 					setSkull(SKULL_WHITE);
 				}
 
 				if (getSkull() == SKULL_NONE) {
-					targetPlayer->sendCreatureSkull(static_self_cast<Player>());
+					targetPlayer->sendCreatureSkull(self);
 				}
 			}
 		}
@@ -6656,7 +6819,7 @@ void Player::onTargetCreatureGainHealth(const std::shared_ptr<Creature> &target,
 
 bool Player::onKilledPlayer(const std::shared_ptr<Player> &target, bool lastHit) {
 	bool unjustified = false;
-	if (target->getZoneType() == ZONE_PVP) {
+	if (target->getZoneType() == ZONE_PVP || Combat::isInPvpZone(getPlayer(), target)) {
 		target->setDropLoot(false);
 		target->setSkillLoss(false);
 	} else if (!hasFlag(PlayerFlags_t::NotGainInFight) && !isPartner(target)) {
@@ -6806,14 +6969,14 @@ void Player::onGainSharedExperience(uint64_t gainExp, const std::shared_ptr<Crea
 }
 
 bool Player::isImmune(CombatType_t type) const {
-	if (hasFlag(PlayerFlags_t::CannotBeAttacked)) {
+	if (hasFlag(PlayerFlags_t::CannotBeAttacked) || combatUnattackable || softDespawned) {
 		return true;
 	}
 	return Creature::isImmune(type);
 }
 
 bool Player::isImmune(ConditionType_t type) const {
-	if (hasFlag(PlayerFlags_t::CannotBeAttacked)) {
+	if (hasFlag(PlayerFlags_t::CannotBeAttacked) || combatUnattackable || softDespawned) {
 		return true;
 	}
 
@@ -6821,7 +6984,38 @@ bool Player::isImmune(ConditionType_t type) const {
 }
 
 bool Player::isAttackable() const {
-	return !hasFlag(PlayerFlags_t::CannotBeAttacked);
+	return !hasFlag(PlayerFlags_t::CannotBeAttacked) && !combatUnattackable && !softDespawned;
+}
+
+bool Player::isCombatUnattackable() const {
+	return combatUnattackable;
+}
+
+void Player::setCombatUnattackable(bool enabled) {
+	if (combatUnattackable == enabled) {
+		return;
+	}
+	combatUnattackable = enabled;
+	if (!enabled) {
+		return;
+	}
+
+	// Drop aggro immediately — same path as walking out of sight / logout.
+	const auto &self = static_self_cast<Player>();
+	for (const auto &spectator : Spectators().find<Creature>(getPosition(), true).matchingInstance(getInstanceId())) {
+		if (!spectator || spectator.get() == this) {
+			continue;
+		}
+		if (spectator->getAttackedCreature() == self || spectator->getFollowCreature() == self) {
+			// onCreatureDisappear is protected; onRemoveCreature is the public entry that clears targets.
+			spectator->onRemoveCreature(self, false);
+		}
+		if (const auto &monster = spectator->getMonster()) {
+			if (!monster->getAttackedCreature()) {
+				monster->searchTarget(TARGETSEARCH_NEAREST);
+			}
+		}
+	}
 }
 
 bool Player::lastHitIsPlayer(const std::shared_ptr<Creature> &lastHitCreature) {

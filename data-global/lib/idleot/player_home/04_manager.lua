@@ -165,7 +165,9 @@ local function endSession(player, session, teleportOut)
 		sessionsByPlayerId[player:getId()] = nil
 		if teleportOut then
 			local ret = loadReturnPos(player)
-			if InstanceWorld and InstanceWorld.travel then
+			if InstanceWorld and InstanceWorld.exitToOpenWorld then
+				InstanceWorld.exitToOpenWorld(player, ret)
+			elseif InstanceWorld and InstanceWorld.travel then
 				InstanceWorld.travel(player, ret)
 			else
 				player:teleportTo(ret)
@@ -274,13 +276,10 @@ function PlayerHomeManager.goHome(player)
 	}
 
 	local entered = false
-	if InstanceWorld and InstanceWorld.enterInstance then
-		entered = InstanceWorld.enterInstance(player, engineId, instance.entry, "home") and true or false
+	if not (InstanceWorld and InstanceWorld.enterInstance) then
+		logger.error("[PlayerHome] InstanceWorld.enterInstance missing — cannot enter home")
 	else
-		if player.setInstanceId then
-			player:setInstanceId(engineId)
-		end
-		entered = player:teleportTo(instance.entry) and true or false
+		entered = InstanceWorld.enterInstance(player, engineId, instance.entry, "home") and true or false
 	end
 	if not entered then
 		sessionsByPlayerId[player:getId()] = nil

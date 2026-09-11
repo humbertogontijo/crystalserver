@@ -54,13 +54,18 @@
 
 namespace {
 
-bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position position, bool hasPosition) {
+bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position position, bool hasPosition, uint32_t instanceId = 0) {
 	if (!player) {
 		return false;
 	}
 	player->setID();
 	if (!hasPosition) {
 		position = player->getLoginPosition();
+	}
+	// Bind before placeCreature (same pattern as Game.createMonster) so login hooks and
+	// spectators see the private hunt/raid id immediately — no post-place enterInstance race.
+	if (instanceId != 0) {
+		player->setInstanceId(instanceId);
 	}
 	// Forced place so headless players can stack near the controller / temple.
 	// onPlacedCreature → playerLogin must see the DB lastLoginSaved — same order as ProtocolGame.
@@ -74,6 +79,38 @@ bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position positio
 	player->setHeadless(true);
 	g_game().inheritAccountQuickLootFilter(player);
 	return true;
+}
+
+void reclaimHeadlessPlayer(const std::shared_ptr<Player> &player, Position position, bool hasPosition, uint32_t instanceId) {
+	if (!player) {
+		return;
+	}
+	player->setHeadless(true);
+	// Prefer bind+move together (same pattern as creature:teleportTo(..., instanceId)).
+	// Same-tile setInstanceId alone is what leaves client ghosts.
+	const auto &tile = player->getTile();
+	const bool onMap = tile && !player->isRemoved();
+	if (hasPosition && onMap && player->getPosition() != position) {
+		if (instanceId != 0) {
+			player->setInstanceId(instanceId);
+		}
+		g_game().internalTeleport(player, position, true);
+	} else if (hasPosition && !onMap) {
+		if (instanceId != 0) {
+			player->setInstanceId(instanceId);
+		}
+		g_game().internalTeleport(player, position, true);
+	} else if (instanceId != 0 && (!onMap || player->getInstanceId() == 0)) {
+		player->setInstanceId(instanceId);
+	} else if (instanceId != 0 && onMap && player->getInstanceId() != instanceId) {
+		g_logger().warn(
+			"[Game.headlessLogin] refusing same-tile instance rebind for '{}' ({} → {}); pass a distinct position",
+			player->getName(),
+			player->getInstanceId(),
+			instanceId
+		);
+	}
+	g_game().inheritAccountQuickLootFilter(player);
 }
 
 struct HeadlessBatchSlot {
@@ -1084,7 +1121,7 @@ int GameFunctions::luaGameGenerateNpc(lua_State* L) {
 }
 
 int GameFunctions::luaGameCreateNpc(lua_State* L) {
-	// Game.createNpc(npcName, position[, extended = false[, force = false]])
+	// Game.createNpc(npcName, position[, extended = false[, force = false[, instanceId = 0]]])
 	const auto &npc = Npc::createNpc(Lua::getString(L, 1));
 	if (!npc) {
 		lua_pushnil(L);
@@ -1094,6 +1131,10 @@ int GameFunctions::luaGameCreateNpc(lua_State* L) {
 	const Position &position = Lua::getPosition(L, 2);
 	const bool extended = Lua::getBoolean(L, 3, false);
 	const bool force = Lua::getBoolean(L, 4, false);
+	const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 5, 0);
+	if (instanceId != 0) {
+		npc->setInstanceId(instanceId);
+	}
 	if (g_game().placeCreature(npc, position, extended, force)) {
 		Lua::pushUserdata<Npc>(L, npc);
 		Lua::setMetatable(L, -1, "Npc");
@@ -1274,7 +1315,7 @@ int GameFunctions::luaGameGetOfflinePlayer(lua_State* L) {
 }
 
 int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
-	// Game.headlessLogin(name or guid[, position])
+	// Game.headlessLogin(name or guid[, position[, instanceId = 0]])
 	// Places a headless Player (no ProtocolGame) online.
 	// NOTE: DB load is synchronous on the dispatcher — prefer headlessLoginBatch for multi-login.
 	Position position;
@@ -1282,6 +1323,7 @@ int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
 	if (hasPosition) {
 		position = Lua::getPosition(L, 2);
 	}
+	const uint32_t instanceId = lua_gettop(L) >= 3 ? Lua::getNumber<uint32_t>(L, 3, 0) : 0;
 
 	std::shared_ptr<Player> existing = nullptr;
 	std::string name;
@@ -1306,11 +1348,7 @@ int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
 			lua_pushnil(L);
 			return 1;
 		}
-		existing->setHeadless(true);
-		if (hasPosition) {
-			g_game().internalTeleport(existing, position, true);
-		}
-		g_game().inheritAccountQuickLootFilter(existing);
+		reclaimHeadlessPlayer(existing, position, hasPosition, instanceId);
 		Lua::pushUserdata<Player>(L, existing);
 		Lua::setMetatable(L, -1, "Player");
 		return 1;
@@ -1337,7 +1375,7 @@ int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
 		return 1;
 	}
 
-	if (!placeHeadlessPlayer(player, position, hasPosition)) {
+	if (!placeHeadlessPlayer(player, position, hasPosition, instanceId)) {
 		g_logger().warn("[Game.headlessLogin] could not place '{}'", name);
 		lua_pushnil(L);
 		return 1;
@@ -1351,13 +1389,13 @@ int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
 }
 
 int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
-	// Game.headlessLoginBatch(names, position, callback)
+	// Game.headlessLoginBatch(names, position, callback[, instanceId = 0])
 	// names: array of character name strings (and/or guids as numbers)
 	// callback(players|nil, err|nil) — invoked on the game dispatcher after place.
 	// DB loads run on ThreadPool so the dispatcher is not blocked.
 	if (!lua_istable(L, 1) || !lua_isfunction(L, 3)) {
 		lua_pushnil(L);
-		Lua::pushString(L, "headlessLoginBatch(names, position, callback) expected");
+		Lua::pushString(L, "headlessLoginBatch(names, position, callback[, instanceId]) expected");
 		return 2;
 	}
 
@@ -1366,6 +1404,7 @@ int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
 	if (hasPosition) {
 		position = Lua::getPosition(L, 2);
 	}
+	const uint32_t instanceId = lua_gettop(L) >= 4 ? Lua::getNumber<uint32_t>(L, 4, 0) : 0;
 
 	lua_pushvalue(L, 3);
 	const int32_t callbackRef = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -1454,11 +1493,7 @@ int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
 				scheduleCallback({}, fmt::format("{} is online on a real client", slot.existing->getName()));
 				return 0;
 			}
-			slot.existing->setHeadless(true);
-			if (hasPosition) {
-				g_game().internalTeleport(slot.existing, position, true);
-			}
-			g_game().inheritAccountQuickLootFilter(slot.existing);
+			reclaimHeadlessPlayer(slot.existing, position, hasPosition, instanceId);
 			claimed[i] = slot.existing;
 			continue;
 		}
@@ -1486,7 +1521,7 @@ int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
 	auto slotsPtr = std::make_shared<std::vector<HeadlessBatchSlot>>(std::move(slots));
 	auto claimedPtr = std::make_shared<std::vector<std::shared_ptr<Player>>>(std::move(claimed));
 
-	auto finishOnDispatcher = [invokeCallback, results, slotsPtr, claimedPtr, position, hasPosition, needLoad]() {
+	auto finishOnDispatcher = [invokeCallback, results, slotsPtr, claimedPtr, position, hasPosition, needLoad, instanceId]() {
 		std::vector<std::shared_ptr<Player>> placed;
 		placed.reserve(slotsPtr->size());
 		std::string firstError;
@@ -1510,16 +1545,12 @@ int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
 					}
 					continue;
 				}
-				live->setHeadless(true);
-				if (hasPosition) {
-					g_game().internalTeleport(live, position, true);
-				}
-				g_game().inheritAccountQuickLootFilter(live);
+				reclaimHeadlessPlayer(live, position, hasPosition, instanceId);
 				(*claimedPtr)[slotIndex] = live;
 				continue;
 			}
 
-			if (!placeHeadlessPlayer(load.player, position, hasPosition)) {
+			if (!placeHeadlessPlayer(load.player, position, hasPosition, instanceId)) {
 				if (firstError.empty()) {
 					firstError = fmt::format("could not place '{}'", load.player->getName());
 				}

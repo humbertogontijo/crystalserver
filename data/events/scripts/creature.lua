@@ -87,7 +87,11 @@ function Creature:onTargetCombat(target)
 
 	if not isRetroPVP() then
 		if self:isPlayer() and target:isPlayer() then
-			if self:hasSecureMode() then
+			-- Open-PvP arenas (world boss): allow manual targeting of unmarked rivals.
+			-- AOE splash filtering for unmarked non-targets is done in Combat::CombatFunc.
+			if self.isOpenPvp and target.isOpenPvp and self:isOpenPvp() and target:isOpenPvp() then
+				-- allow
+			elseif self:hasSecureMode() then
 				return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER
 			end
 		end

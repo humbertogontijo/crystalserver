@@ -459,6 +459,10 @@ public:
 
 	bool hasSecureMode() const;
 
+	// Scripted open-PvP (world boss arena): treat mutual openPvp as ZONE_PVP for secure mode / skulls.
+	bool isOpenPvp() const;
+	void setOpenPvp(bool enabled);
+
 	uint8_t getOpenedContainersLimit() const;
 
 	void setParty(std::shared_ptr<Party> newParty);
@@ -597,8 +601,10 @@ public:
 		return idleCombat;
 	}
 	void setIdleCombat(bool enabled) {
-		// Only clear deferred walk-then-act when *entering* idle combat, not every tick.
-		if (enabled && !idleCombat) {
+		// Entering: drop deferred walk-then-act so AI can own the path.
+		// Leaving: same clear — a denied Use approach under idle combat used to
+		// set walkTask without starting a walk, soft-locking map-click autoWalk.
+		if (enabled != idleCombat) {
 			setNextWalkActionTask(nullptr);
 		}
 		idleCombat = enabled;
@@ -885,6 +891,16 @@ public:
 	bool hasRealShield() const;
 	bool isAttackable() const override;
 	static bool lastHitIsPlayer(const std::shared_ptr<Creature> &lastHitCreature);
+
+	// Soft-death / arena knockout: per-player, not shared group flags.
+	bool isCombatUnattackable() const;
+	void setCombatUnattackable(bool enabled);
+	/// Soft-death: hide from combat (stay on tile as spectator); restore with softSpawn.
+	bool softDespawn();
+	bool softSpawn(const Position &pos);
+	bool isSoftDespawned() const {
+		return softDespawned;
+	}
 
 	// stash functions
 	ReturnValue addItemFromStash(uint16_t itemId, uint32_t itemCount);
@@ -2116,6 +2132,9 @@ private:
 
 	bool chaseMode = false;
 	bool secureMode = true;
+	bool openPvp = false;
+	bool combatUnattackable = false;
+	bool softDespawned = false;
 	bool inMarket = false;
 	bool wasMounted = false;
 	bool ghostMode = false;

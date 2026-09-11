@@ -17,7 +17,8 @@ function ActivityBoostProtocol.sendState(player)
 	end
 	local ok, err = pcall(function()
 		ActivityBoostLedger.reconcileWithEngine(player)
-		local activities = ActivityBoostActivities.list(player)
+		local fiendishHunt = ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.get(player) or nil
+		local activities = ActivityBoostActivities.list(player, { fiendishHunt = fiendishHunt })
 		local fragsToday = 0
 		if ActivityBoostActivities and ActivityBoostActivities.getWorldBossFragsToday then
 			fragsToday = ActivityBoostActivities.getWorldBossFragsToday(player)
@@ -28,6 +29,7 @@ function ActivityBoostProtocol.sendState(player)
 			boost = ActivityBoostLedger.getStatus(player),
 			activities = activities,
 			soloBoss = ActivityBoostSoloBoss.get(player),
+			fiendishHunt = fiendishHunt,
 			worldBoss = {
 				active = ActivityBoostWorldBoss.listActive(),
 				schedule = ActivityBoostWorldBoss.listSchedule(),
@@ -90,6 +92,20 @@ function ActivityBoostProtocol.handle(player, buffer)
 			expeditionId = solo.expeditionId,
 			name = solo.name,
 		})
+		return
+	end
+	if action == "joinFiendishHunt" then
+		if not ActivityBoostFiendishHunt or not ActivityBoostFiendishHunt.join then
+			ActivityBoostProtocol.send(player, { type = "error", message = "Fiendish Hunt unavailable." })
+			return
+		end
+		local ok, err = ActivityBoostFiendishHunt.join(player)
+		if ok then
+			ActivityBoostProtocol.sendState(player)
+		else
+			player:sendTextMessage(MESSAGE_FAILURE, err or "Cannot join Fiendish Hunt.")
+			ActivityBoostProtocol.send(player, { type = "error", message = err or "Cannot join Fiendish Hunt." })
+		end
 		return
 	end
 end

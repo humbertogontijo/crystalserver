@@ -214,7 +214,6 @@ end
 local function finishBoss(session, opts)
 	opts = opts or {}
 	local victory = opts.victory == true
-	local key = session.key
 
 	clearDespawn(session)
 	session.alive = 0
@@ -256,38 +255,10 @@ local function finishBoss(session, opts)
 		session.waitingEvent = nil
 	end
 
-	session.waitingEvent = addEvent(function()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s then
-			return
-		end
-		local anyOnline = false
-		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s)) do
-			local p = Player(mid)
-			if p then
-				anyOnline = true
-			end
-		end
-		if anyOnline and ExpeditionManager.leaveAll then
-			for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s)) do
-				local p = Player(mid)
-				if p then
-					p:sendTextMessage(MESSAGE_EVENT_ADVANCE, endMsg)
-				end
-			end
-			ExpeditionManager.leaveAll(s, { silent = true, victory = victory })
-		elseif anyOnline then
-			local host = s.playerId and Player(s.playerId) or nil
-			if host then
-				host:sendTextMessage(MESSAGE_EVENT_ADVANCE, endMsg)
-				ExpeditionManager.leave(host, { silent = true, victory = victory })
-			else
-				ExpeditionManager.teardownSession(s)
-			end
-		else
-			ExpeditionManager.teardownSession(s)
-		end
-	end, ExpeditionConfig.BOSS_END_DELAY_MS or 2500)
+	ExpeditionManager.scheduleSessionExit(session, {
+		victory = victory,
+		endMsg = endMsg,
+	})
 end
 
 --- Lever-style timeToDefeat: despawn boss and fail the expedition (overtime).

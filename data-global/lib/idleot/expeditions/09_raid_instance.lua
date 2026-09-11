@@ -62,7 +62,8 @@ end
 function RaidInstance.listActive()
 	local out = {}
 	for name, session in pairs(RaidInstance.active) do
-		if session and not session.tearingDown then
+		-- Cleared (loot grace) and tearing-down raids are not listed / joinable.
+		if session and not session.tearingDown and not session.graceStarted then
 			local levels = ExpeditionConfig.RaidLevels and ExpeditionConfig.RaidLevels[name]
 			local levelMin = levels and levels.levelMin or nil
 			local recommendedLevel = levels and levels.recommendedLevel or nil
@@ -75,7 +76,7 @@ function RaidInstance.listActive()
 				displayName = session.displayName or displayName(name),
 				startedAt = session.startedAt or 0,
 				players = #(session.playerIds or {}),
-				joinable = not session.tearingDown,
+				joinable = true,
 				role = session.role or ExpeditionConfig.raidRole(name),
 				creatureId = type(creatureId) == "number" and creatureId > 0 and creatureId or nil,
 				-- Advisory only - join is never gated by level. Client may warn.
@@ -259,13 +260,19 @@ function RaidInstance.provision(raid)
 	raid._raidSpawnReserved = {}
 	-- Keep world zones so raid scripts spawn at real coordinates.
 
+	local levels = ExpeditionConfig.RaidLevels and ExpeditionConfig.RaidLevels[raid.name]
+	local seedRaceId = levels and tonumber(levels.creatureId) or nil
+	if seedRaceId and seedRaceId <= 0 then
+		seedRaceId = nil
+	end
+
 	local session = {
 		raid = raid,
 		raidName = raid.name,
 		displayName = displayName(raid.name),
 		role = ExpeditionConfig.raidRole(raid.name),
-		-- Race id of the marked boss spawn; client maps via creatureLooks.
-		bossRaceId = nil,
+		-- Race id of the showcase creature; seeded from catalog, refined on spawn.
+		bossRaceId = seedRaceId,
 		-- Runtime creature id for AI focus (not race id).
 		bossCreatureId = nil,
 		instance = instance,
@@ -651,6 +658,10 @@ function RaidInstance.join(player, raidName, loadout, options)
 		ExpeditionProtocol.sendError(player, "That raid is not active.")
 		return
 	end
+	if session.graceStarted then
+		ExpeditionProtocol.sendError(player, "That raid has already been cleared.")
+		return
+	end
 	if not session.instance or not session.instance.entry then
 		ExpeditionProtocol.sendError(player, "Raid instance is not ready.")
 		return
@@ -723,14 +734,11 @@ function RaidInstance.join(player, raidName, loadout, options)
 			return
 		end
 		p:setFollowCreature(nil)
-		if InstanceWorld and InstanceWorld.enterInstance then
-			InstanceWorld.enterInstance(p, instance.instanceId, instance.entry, "hunt:" .. tostring(bound.key or raidName))
-		else
-			if p.setInstanceId then
-				p:setInstanceId(instance.instanceId)
-			end
-			p:teleportTo(instance.entry)
+		if not (InstanceWorld and InstanceWorld.enterInstance) then
+			logger.error("[RaidInstance] InstanceWorld.enterInstance missing — cannot enter raid")
+			return
 		end
+		InstanceWorld.enterInstance(p, instance.instanceId, instance.entry, "hunt:" .. tostring(bound.key or raidName))
 		if ExpeditionInstance.sendMagicEffect then
 			ExpeditionInstance.sendMagicEffect(instance, p:getPosition(), CONST_ME_TELEPORT)
 		else
@@ -996,9 +1004,6 @@ function RaidInstance.installHooks()
 					if not monster then
 						local instanceId = inst and inst.instanceId or nil
 						monster = Game.createMonster(monsterName, spawnPos, true, true, nil, instanceId)
-						if monster and inst and inst.instanceId and monster.setInstanceId then
-							monster:setInstanceId(inst.instanceId)
-						end
 						if monster and InstanceWorld and InstanceWorld.applyOpenWorldForge then
 							InstanceWorld.applyOpenWorldForge(monster)
 						end

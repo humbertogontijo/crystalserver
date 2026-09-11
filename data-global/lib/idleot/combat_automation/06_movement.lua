@@ -547,7 +547,10 @@ function CombatAutomationMovement.tick(player, config)
 
 	local autoOn = autoEnabled(config)
 	local target = player:getTarget()
-	local hasFocus = target and target.getHealth and target:getHealth() > 0
+	local hasFocus = target
+		and CombatAutomation.isValidAttackTarget
+		and CombatAutomation.isValidAttackTarget(player, target)
+		and CombatAutomationMovement.isInViewport(player:getPosition(), target:getPosition())
 
 	if directive and directive.kind == "anchorStance" then
 		if hasFocus and autoOn then

@@ -127,6 +127,9 @@ class PlayerFunctions {
 	static int luaPlayerSetTraining(lua_State* L);
 	static int luaPlayerGetIsIdleCombat(lua_State* L);
 	static int luaPlayerSetIdleCombat(lua_State* L);
+	static int luaPlayerSoftDespawn(lua_State* L);
+	static int luaPlayerSoftSpawn(lua_State* L);
+	static int luaPlayerIsSoftDespawned(lua_State* L);
 	static int luaPlayerHasWalkTask(lua_State* L);
 	static int luaPlayerClearWalkTask(lua_State* L);
 	static int luaPlayerIsHeadless(lua_State* L);
@@ -165,6 +168,8 @@ class PlayerFunctions {
 
 	static int luaPlayerGetSkullTime(lua_State* L);
 	static int luaPlayerSetSkullTime(lua_State* L);
+	static int luaPlayerGetSkullClient(lua_State* L);
+	static int luaPlayerClearAttacked(lua_State* L);
 	static int luaPlayerGetDeathPenalty(lua_State* L);
 
 	static int luaPlayerGetExperience(lua_State* L);
@@ -374,6 +379,11 @@ class PlayerFunctions {
 
 	static int luaPlayerHasChaseMode(lua_State* L);
 	static int luaPlayerHasSecureMode(lua_State* L);
+	static int luaPlayerSetSecureMode(lua_State* L);
+	static int luaPlayerIsOpenPvp(lua_State* L);
+	static int luaPlayerSetOpenPvp(lua_State* L);
+	static int luaPlayerIsCombatUnattackable(lua_State* L);
+	static int luaPlayerSetCombatUnattackable(lua_State* L);
 	static int luaPlayerGetFightMode(lua_State* L);
 
 	static int luaPlayerGetBaseXpGain(lua_State* L);

@@ -20,6 +20,7 @@ public:
 	uint32_t soloBoss = 0;
 	uint32_t worldBoss = 0;
 	uint32_t bountyHunter = 0;
+	uint32_t fiendishHunt = 0;
 
 	// Throttle for Activity Boost opcode pushes after hunt kills.
 	int64_t lastStateNotifyMs = 0;

@@ -2410,7 +2410,7 @@ void Game::playerMoveItem(const std::shared_ptr<Player> &player, const Position 
 		// need to walk to the item first before using it
 		std::vector<Direction> listDir;
 		if (player->getPathTo(item->getPosition(), listDir, 0, 1, true, true)) {
-			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 			const auto &task = createPlayerTask(
 				400,
 				[this, playerId = player->getID(), fromPos, itemId, fromStackPos, toPos, count] {
@@ -2472,7 +2472,7 @@ void Game::playerMoveItem(const std::shared_ptr<Player> &player, const Position 
 
 			std::vector<Direction> listDir;
 			if (player->getPathTo(walkPos, listDir, 0, 0, true, true)) {
-				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 				const auto &task = createPlayerTask(
 					400,
 					[this, playerId = player->getID(), itemPos, itemId, itemStackPos, toPos, count] {
@@ -3744,6 +3744,10 @@ ReturnValue Game::internalTeleport(const std::shared_ptr<Thing> &thing, const Po
 			return ret;
 		}
 
+		// Drop pending autoWalk / walkTask before remove+map packets so the client
+		// is not sent stale 0x6D stackpos moves after teleport (parseCreatureMove miss).
+		creature->resetMovementState();
+
 		map.moveCreature(creature, toTile, !pushMove);
 
 		return RETURNVALUE_NOERROR;
@@ -4626,6 +4630,10 @@ void Game::playerAutoWalk(uint32_t playerId, const std::vector<Direction> &listD
 	}
 
 	player->resetIdleTime();
+	// Same as playerMove: drop deferred walk-then-act so startAutoWalk is not
+	// refused by hasWalkTask(). Map clicks must also recover from a stuck task
+	// left when Use-too-far set the task before a denied/failed walk ran.
+	player->setNextWalkActionTask(nullptr);
 	player->setNextWalkTask(nullptr);
 	player->startAutoWalk(listDir, false);
 }
@@ -4732,9 +4740,13 @@ void Game::playerUseItemEx(uint32_t playerId, const Position &fromPos, uint8_t f
 
 			std::vector<Direction> listDir;
 			if (player->getPathTo(walkToPos, listDir, 0, 1, true, true, MAP_MAX_CLIENT_VIEW_PORT_X)) {
-				// Keep playerAutoWalk: idle combat must deny map use-with locomotion.
-				// Tame FAB walks via playerUseWithCreature → forcePlayerAutoWalk.
-				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+				// Idle combat owns walk — do not queue a walkTask we will never complete.
+				if (denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
+					return;
+				}
+				// forcePlayerAutoWalk: walkTask is set before the deferred walk runs;
+				// non-forced startAutoWalk refuses hasWalkTask() and would soft-lock clicks.
+				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 				const auto &task = createPlayerTask(
 					400,
 					[this, playerId, itemPos, itemStackPos, fromItemId, toPos, toStackPos, toItemId] {
@@ -4862,11 +4874,10 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 				if (!allowsIdleCombatWalkToUse(item) && denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
 					return;
 				}
-				if (player->isIdleCombat()) {
-					g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
-				} else {
-					g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
-				}
+				// Always forcePlayerAutoWalk for walk-then-act. setNextWalkActionTask runs
+				// before the deferred walk event; non-forced startAutoWalk refuses hasWalkTask()
+				// and left map-click autoWalk soft-locked after a failed Use approach.
+				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 				const auto &task = createPlayerTask(
 					400,
 					[this, playerId, pos, stackPos, index, itemId] {
@@ -5196,7 +5207,7 @@ void Game::playerRotateItem(uint32_t playerId, const Position &pos, uint8_t stac
 	if (pos.x != 0xFFFF && !Position::areInRange<1, 1, 0>(pos, player->getPosition())) {
 		std::vector<Direction> listDir;
 		if (player->getPathTo(pos, listDir, 0, 1, true, true)) {
-			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 			const auto &task = createPlayerTask(
 				400,
 				[this, playerId, pos, stackPos, itemId] {
@@ -5252,7 +5263,7 @@ void Game::playerConfigureShowOffSocket(uint32_t playerId, const Position &pos, 
 	if (!Position::areInRange<1, 1, 0>(pos, player->getPosition())) {
 		std::vector<Direction> listDir;
 		if (player->getPathTo(pos, listDir, 0, 1, true, false)) {
-			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 			if (isPodiumOfRenown) {
 				const auto &task = createPlayerTask(
 					400,
@@ -5321,7 +5332,7 @@ void Game::playerSetShowOffSocket(uint32_t playerId, Outfit_t &outfit, const Pos
 	if (!Position::areInRange<1, 1, 0>(pos, player->getPosition())) {
 		std::vector<Direction> listDir;
 		if (player->getPathTo(pos, listDir, 0, 1, true, false)) {
-			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 			const auto &task = createPlayerTask(
 				400,
 				[this, playerId, pos] {
@@ -5492,7 +5503,7 @@ void Game::playerWrapableItem(uint32_t playerId, const Position &pos, uint8_t st
 	if (pos.x != 0xFFFF && !Position::areInRange<1, 1, 0>(pos, player->getPosition())) {
 		std::vector<Direction> listDir;
 		if (player->getPathTo(pos, listDir, 0, 1, true, true)) {
-			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 			const auto &task = createPlayerTask(
 				400,
 				[this, playerId, pos, stackPos, itemId] {
@@ -5695,7 +5706,7 @@ void Game::playerBrowseField(uint32_t playerId, const Position &pos) {
 	if (!Position::areInRange<1, 1>(playerPos, pos)) {
 		std::vector<Direction> listDir;
 		if (player->getPathTo(pos, listDir, 0, 1, true, true)) {
-			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 			const auto &task = createPlayerTask(
 				400,
 				[this, playerId, pos] {
@@ -5936,7 +5947,7 @@ void Game::playerRequestTrade(uint32_t playerId, const Position &pos, uint8_t st
 	if (!Position::areInRange<1, 1>(tradeItemPosition, playerPosition)) {
 		std::vector<Direction> listDir;
 		if (player->getPathTo(pos, listDir, 0, 1, true, true)) {
-			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 			const auto &task = createPlayerTask(
 				400,
 				[this, playerId, pos, stackPos, tradePlayerId, itemId] {
@@ -6690,7 +6701,7 @@ bool Game::walkPlayerToCorpse(const std::shared_ptr<Player> &player, const Posit
 	}
 
 	g_dispatcher().addEvent(
-		[this, id = player->getID(), path] { playerAutoWalk(id, path); },
+		[this, id = player->getID(), path] { forcePlayerAutoWalk(id, path); },
 		__FUNCTION__
 	);
 
@@ -10144,6 +10155,11 @@ void Game::updateCreatureSkull(const std::shared_ptr<Creature> &creature) const 
 	for (const auto &spectator : Spectators::around<Player>(creature->getPosition(), creature->getInstanceId())) {
 		spectator->getPlayer()->sendCreatureSkull(creature);
 	}
+	// Always notify the player of their own skull — around-spectators can omit self
+	// (softDespawn / instance edge), which left white skulls stuck on leave.
+	if (const auto &self = creature->getPlayer()) {
+		self->sendCreatureSkull(creature);
+	}
 }
 
 void Game::updatePlayerShield(const std::shared_ptr<Player> &player) {
@@ -12186,7 +12202,7 @@ void Game::playerSetMonsterPodium(uint32_t playerId, uint32_t monsterRaceId, con
 	if (!Position::areInRange<1, 1, 0>(pos, player->getPosition())) {
 		if (std::vector<Direction> listDir;
 		    player->getPathTo(pos, listDir, 0, 1, true, false)) {
-			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 			const auto &task = createPlayerTask(
 				400,
 				[this, playerId, pos] {
@@ -12293,7 +12309,7 @@ void Game::playerRotatePodium(uint32_t playerId, const Position &pos, uint8_t st
 	if (pos.x != 0xFFFF && !Position::areInRange<1, 1, 0>(pos, player->getPosition())) {
 		if (std::vector<Direction> listDir;
 		    player->getPathTo(pos, listDir, 0, 1, true, true)) {
-			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { playerAutoWalk(playerId, listDir); }, __FUNCTION__);
+			g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
 			const auto &task = createPlayerTask(
 				400,
 				[this, playerId, pos, stackPos, itemId] {

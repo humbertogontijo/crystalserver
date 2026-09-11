@@ -534,6 +534,8 @@ private:
 
 	// tiles
 	static void RemoveTileThing(NetworkMessage &msg, const Position &pos, uint32_t stackpos);
+	/// Prefer 0xFFFF + creature id when the client already knows the body (stackpos-safe).
+	void AddMappedCreatureRef(NetworkMessage &msg, const std::shared_ptr<Creature> &creature, const Position &pos, uint32_t stackPos);
 
 	void sendTaskHuntingData(const std::unique_ptr<TaskHuntingSlot> &slot);
 

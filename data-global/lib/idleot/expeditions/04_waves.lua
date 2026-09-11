@@ -7,6 +7,61 @@ local function huntEnded(session)
 	return not session or session.state == "ended"
 end
 
+local function waveLimitReached(session)
+	local maxWaves = session and tonumber(session.maxWaves)
+	if not maxWaves or maxWaves <= 0 then
+		return false
+	end
+	return (tonumber(session.wave) or 0) >= maxWaves
+end
+
+local FORGE_FIENDISH = 2
+
+--- Mark exactly one wave monster as Fiendish when session.forceFiendishCreatureId is set.
+function ExpeditionWaves.applyForcedFiendish(session)
+	if not session then
+		return
+	end
+	local targetRace = tonumber(session.forceFiendishCreatureId)
+	if not targetRace or targetRace <= 0 then
+		return
+	end
+	local instanceId = session.instance and session.instance.instanceId
+	if not instanceId or not Game.getMonsters then
+		return
+	end
+	local preferred = nil
+	local fallback = nil
+	for _, monster in ipairs(Game.getMonsters()) do
+		if monster and monster.getHealth and monster:getHealth() > 0
+			and monster.getInstanceId and monster:getInstanceId() == instanceId then
+			local forgeable = not monster.isForgeable or monster:isForgeable()
+			if forgeable then
+				local raceId = 0
+				local mType = monster.getType and monster:getType() or nil
+				if mType and mType.raceId then
+					raceId = tonumber(mType:raceId()) or 0
+				end
+				if raceId == targetRace then
+					preferred = monster
+					break
+				end
+				if not fallback then
+					fallback = monster
+				end
+			end
+		end
+	end
+	local monster = preferred or fallback
+	if not monster or not monster.setMonsterForgeClassification then
+		return
+	end
+	monster:setMonsterForgeClassification(FORGE_FIENDISH)
+	if monster.configureForgeSystem then
+		monster:configureForgeSystem()
+	end
+end
+
 --- Any living monster on this session's instance (wave + echo raids + strays).
 --- `exceptCreatureId` skips the dying creature (still present during onDeath).
 function ExpeditionWaves.sessionHasLiveMonsters(session, exceptCreatureId)
@@ -267,13 +322,13 @@ local function forceArriveAtHold(session)
 	local function teleportMember(p, dest)
 		p:setFollowCreature(nil)
 		local ok = false
-		if InstanceWorld and InstanceWorld.enterInstance and instanceId then
+		if not instanceId then
+			ok = p:teleportTo(dest) and true or false
+		elseif InstanceWorld and InstanceWorld.enterInstance then
 			ok = InstanceWorld.enterInstance(p, instanceId, dest) and true or false
-		elseif p.setInstanceId and instanceId then
-			p:setInstanceId(instanceId)
-			ok = p:teleportTo(dest) and true or false
 		else
-			ok = p:teleportTo(dest) and true or false
+			logger.warn("[Expedition] InstanceWorld.enterInstance missing — forceArrive refused for {}", p:getName())
+			ok = false
 		end
 		if not ok then
 			logger.warn(
@@ -389,7 +444,12 @@ local function materialize(session, planned)
 			end
 		end, 1500)
 	else
-		ExpeditionWaves.scheduleDespawn(session)
+		ExpeditionWaves.applyForcedFiendish(session)
+		-- Final wave of a finite hunt must be cleared by kills (no auto-despawn victory).
+		local maxWaves = tonumber(session.maxWaves)
+		if not maxWaves or maxWaves <= 0 or (tonumber(session.wave) or 0) < maxWaves then
+			ExpeditionWaves.scheduleDespawn(session)
+		end
 		ExpeditionManager.broadcastStatus(session)
 	end
 end
@@ -399,6 +459,36 @@ local function clearDespawn(session)
 		stopEvent(session.despawnEvent)
 		session.despawnEvent = nil
 	end
+end
+
+--- Finite hunt: maxWaves reached after a clear — credit hooks, then leave like a boss clear.
+function ExpeditionWaves.finishWaveLimitedHunt(session)
+	if not session or huntEnded(session) then
+		return
+	end
+	session.state = "waiting"
+	clearWaiting(session)
+	clearRelocate(session)
+	clearDespawn(session)
+	ExpeditionManager.broadcastStatus(session)
+
+	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session) or {}) do
+		local member = Player(mid)
+		if member then
+			member:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Hunt complete!")
+			if ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.onClear then
+				pcall(ActivityBoostFiendishHunt.onClear, member, session)
+			end
+			if type(session.onWaveLimitReached) == "function" then
+				pcall(session.onWaveLimitReached, member, session)
+			end
+		end
+	end
+
+	ExpeditionManager.scheduleSessionExit(session, {
+		victory = true,
+		endMsg = "Expedition complete.",
+	})
 end
 
 -- Mirror SpawnMonster::scheduleSpawn: flash CONST_ME_TELEPORT at each tile, then place.
@@ -603,6 +693,12 @@ local function scheduleNextWave(session)
 	end
 	clearWaiting(session)
 	clearRelocate(session)
+
+	-- Reusable finite hunts: stop after N cleared waves (session.wave set at spawn).
+	if waveLimitReached(session) then
+		ExpeditionWaves.finishWaveLimitedHunt(session)
+		return
+	end
 
 	local key = session.key
 	local totalDelay = session.catalog and session.catalog.spawnIntervalMs or ExpeditionConfig.WAVE_RESPAWN_MS

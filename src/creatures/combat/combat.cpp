@@ -407,6 +407,16 @@ ReturnValue Combat::canTargetCreature(const std::shared_ptr<Player> &player, con
 		if (player->hasSecureMode() && !Combat::isInPvpZone(player, target) && player->getSkullClient(target->getPlayer()) == SKULL_NONE) {
 			return RETURNVALUE_TURNSECUREMODETOATTACKUNMARKEDPLAYERS;
 		}
+
+		// Open-PvP arenas: allow selecting unmarked rivals as the attack target.
+		// Damage/AOE still goes through canDoCombat, which blocks unmarked non-targets.
+		if (player->isOpenPvp() && target->getPlayer()->isOpenPvp()) {
+			ReturnValue ret = g_events().eventCreatureOnTargetCombat(player, target);
+			if (ret == RETURNVALUE_NOERROR) {
+				ret = g_callbacks().checkCallbackWithReturnValue(EventCallback_t::creatureOnTargetCombat, &EventCallback::creatureOnTargetCombat, player, target);
+			}
+			return ret;
+		}
 	}
 
 	return canDoCombat(player, target, true);
@@ -448,7 +458,13 @@ ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &caster, const s
 }
 
 bool Combat::isInPvpZone(const std::shared_ptr<Creature> &attacker, const std::shared_ptr<Creature> &target) {
-	return attacker->getZoneType() == ZONE_PVP && target->getZoneType() == ZONE_PVP;
+	if (attacker->getZoneType() == ZONE_PVP && target->getZoneType() == ZONE_PVP) {
+		return true;
+	}
+	// Scripted open-PvP arenas (e.g. world boss): unmarked attacks with secure mode on.
+	const auto &attackerPlayer = attacker->getPlayer();
+	const auto &targetPlayer = target->getPlayer();
+	return attackerPlayer && targetPlayer && attackerPlayer->isOpenPvp() && targetPlayer->isOpenPvp();
 }
 
 bool Combat::isProtected(const std::shared_ptr<Player> &attacker, const std::shared_ptr<Player> &target) {
@@ -475,6 +491,13 @@ ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &attacker, const
 
 	if (!aggressive) {
 		return RETURNVALUE_NOERROR;
+	}
+
+	if (target && !target->isAttackable()) {
+		if (target->getPlayer()) {
+			return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
+		}
+		return RETURNVALUE_YOUMAYNOTATTACKTHISCREATURE;
 	}
 
 	const auto &targetPlayer = target ? target->getPlayer() : nullptr;
@@ -524,6 +547,16 @@ ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &attacker, const
 				if (attackerPlayer->getFaction() != FACTION_DEFAULT && attackerPlayer->getFaction() != FACTION_PLAYER && attackerPlayer->getFaction() == targetPlayer->getFaction()) {
 					return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
 				}
+
+				// Open-PvP arenas (world boss): only hurt the explicit attack target or
+				// players who show a skull to the attacker — blocks AOE splash on unmarked.
+				if (attackerPlayer->isOpenPvp() && targetPlayer->isOpenPvp()) {
+					const bool explicitTarget = attacker->getAttackedCreature() == target;
+					const bool skulled = attackerPlayer->getSkullClient(target) != SKULL_NONE;
+					if (!explicitTarget && !skulled) {
+						return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
+					}
+				}
 			}
 
 			if (attackerMaster) {
@@ -538,6 +571,14 @@ ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &attacker, const
 
 					if (isProtected(masterAttackerPlayer, targetPlayer)) {
 						return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
+					}
+
+					if (masterAttackerPlayer->isOpenPvp() && targetPlayer->isOpenPvp()) {
+						const bool explicitTarget = masterAttackerPlayer->getAttackedCreature() == target;
+						const bool skulled = masterAttackerPlayer->getSkullClient(target) != SKULL_NONE;
+						if (!explicitTarget && !skulled) {
+							return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
+						}
 					}
 				}
 			}
@@ -1523,8 +1564,13 @@ bool Combat::doCombatChain(const std::shared_ptr<Creature> &caster, const std::s
 			}
 
 			g_dispatcher().scheduleEvent(
-				delay, [combat, caster, origin = from, nextTarget, affected]() {
+				delay, [combat, caster, origin = from, nextTarget, affected, aggressive]() {
 					if (combat && caster && nextTarget) {
+						// Re-validate at impact time — pick-time state can change (skull clear,
+						// softDespawn, target switch). Never call CombatHealthFunc bare.
+						if (Combat::canDoCombat(caster, nextTarget, aggressive) != RETURNVALUE_NOERROR) {
+							return;
+						}
 						if (combat->params.chainEffect != CONST_ME_NONE) {
 							Combat::doChainEffect(origin, nextTarget->getPosition(), combat->params.chainEffect, caster);
 						}
@@ -1909,7 +1955,7 @@ void Combat::setRuneSpellName(const std::string &value) {
 	runeSpellName = value;
 }
 
-std::vector<std::pair<Position, std::vector<uint32_t>>> Combat::pickChainTargets(const std::shared_ptr<Creature> &caster, const CombatParams &params, uint8_t chainDistance, uint8_t maxTargets, bool backtracking, bool aggressive, const std::shared_ptr<Creature> &initialTarget /* = nullptr */) {
+std::vector<std::pair<Position, std::vector<uint32_t>>> Combat::pickChainTargets(const std::shared_ptr<Creature> &caster, const CombatParams &params, uint8_t chainDistance, uint8_t maxTargets, bool aggressive, bool backtracking, const std::shared_ptr<Creature> &initialTarget /* = nullptr */) {
 	Benchmark bm_pickChain;
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
 	if (!caster) {
@@ -1942,6 +1988,13 @@ std::vector<std::pair<Position, std::vector<uint32_t>>> Combat::pickChainTargets
 				continue;
 			}
 
+			// Soft-despawned / unattackable creatures stay on the tile for their own client
+			// but must never be chain/AOE combat targets for anyone else.
+			if (!spectator->isAttackable() || !caster->canSeeCreature(spectator)) {
+				visited.insert(spectator->getID());
+				continue;
+			}
+
 			if (spectator->getZoneType() == ZONE_PROTECTION) {
 				visited.insert(spectator->getID());
 				continue;
@@ -1963,6 +2016,8 @@ std::vector<std::pair<Position, std::vector<uint32_t>>> Combat::pickChainTargets
 			const auto &spectatorSummon = spectator->isSummon();
 
 			if (casterPlayer) {
+				// Secure mode: never chain onto players. Open-PvP arenas use canDoCombat
+				// (explicit target / skull marks) via isValidChainTarget below.
 				if (casterPlayer->hasSecureMode()) {
 					if (spectatorPlayer) {
 						visited.insert(spectator->getID());

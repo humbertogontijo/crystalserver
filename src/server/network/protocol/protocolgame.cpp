@@ -1106,7 +1106,8 @@ void ProtocolGame::parsePacket(NetworkMessage &msg) {
 		return;
 	}
 
-	if (player->isDead() || player->getHealth() <= 0) {
+	// Soft-despawn uses health 0 for vitals display without a real death screen.
+	if ((player->isDead() || player->getHealth() <= 0) && !player->isSoftDespawned()) {
 		// Check player activity on death screen
 		if (m_playerDeathTime == 0) {
 			g_game().playerCheckActivity(player->getName(), 1000);
@@ -1180,7 +1181,7 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 		return;
 	}
 
-	if (!player || player->isRemoved() || player->getHealth() <= 0) {
+	if (!player || player->isRemoved() || (player->getHealth() <= 0 && !player->isSoftDespawned())) {
 		return;
 	}
 
@@ -7792,8 +7793,7 @@ void ProtocolGame::sendCreatureTurn(const std::shared_ptr<Creature> &creature, u
 
 	NetworkMessage msg;
 	msg.addByte(0x6B);
-	msg.addPosition(creature->getPosition());
-	msg.addByte(static_cast<uint8_t>(stackPos));
+	AddMappedCreatureRef(msg, creature, creature->getPosition(), stackPos);
 	msg.add<uint16_t>(0x63);
 	msg.add<uint32_t>(creature->getID());
 	msg.addByte(creature->getDirection());
@@ -8538,8 +8538,7 @@ void ProtocolGame::sendMoveCreature(const std::shared_ptr<Creature> &creature, c
 				RemoveTileThing(msg, oldPos, oldStackPos);
 			} else {
 				msg.addByte(0x6D);
-				msg.addPosition(oldPos);
-				msg.addByte(static_cast<uint8_t>(oldStackPos));
+				AddMappedCreatureRef(msg, creature, oldPos, oldStackPos);
 				msg.addPosition(newPos);
 			}
 
@@ -8577,8 +8576,7 @@ void ProtocolGame::sendMoveCreature(const std::shared_ptr<Creature> &creature, c
 		} else {
 			NetworkMessage msg;
 			msg.addByte(0x6D);
-			msg.addPosition(oldPos);
-			msg.addByte(static_cast<uint8_t>(oldStackPos));
+			AddMappedCreatureRef(msg, creature, oldPos, oldStackPos);
 			msg.addPosition(newPos);
 			writeToOutputBuffer(msg);
 		}
@@ -10027,6 +10025,19 @@ void ProtocolGame::RemoveTileThing(NetworkMessage &msg, const Position &pos, uin
 	msg.addByte(0x6C);
 	msg.addPosition(pos);
 	msg.addByte(static_cast<uint8_t>(stackpos));
+}
+
+void ProtocolGame::AddMappedCreatureRef(NetworkMessage &msg, const std::shared_ptr<Creature> &creature, const Position &pos, uint32_t stackPos) {
+	// OTClient resolves 0xFFFF + id without depending on tile stackpos. Stackpos
+	// drifts on instance tiles (down-items / border priority), which then cascades
+	// into parseCreatureMove ghosts — prefer id when the client already knows them.
+	if (!oldProtocol && creature && knownCreatureSet.contains(creature->getID())) {
+		msg.add<uint16_t>(0xFFFF);
+		msg.add<uint32_t>(creature->getID());
+		return;
+	}
+	msg.addPosition(pos);
+	msg.addByte(static_cast<uint8_t>(stackPos));
 }
 
 void ProtocolGame::sendKillTrackerUpdate(const std::shared_ptr<Container> &corpse, const std::string &name, const Outfit_t creatureOutfit) {

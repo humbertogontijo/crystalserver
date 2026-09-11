@@ -670,10 +670,13 @@ int CreatureFunctions::luaCreatureSetMaxHealth(lua_State* L) {
 
 int CreatureFunctions::luaCreatureSetHiddenHealth(lua_State* L) {
 	// creature:setHiddenHealth(hide)
+	// Also refresh creature type so clients get CREATURETYPE_HIDDEN (no name plate)
+	// or the restored player/monster type when un-hiding.
 	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
 	if (creature) {
 		creature->setHiddenHealth(Lua::getBoolean(L, 2));
 		g_game().addCreatureHealth(creature);
+		g_game().updateCreatureType(creature);
 		Lua::pushBoolean(L, true);
 	} else {
 		lua_pushnil(L);
@@ -903,7 +906,9 @@ int CreatureFunctions::luaCreatureRemove(lua_State* L) {
 }
 
 int CreatureFunctions::luaCreatureTeleportTo(lua_State* L) {
-	// creature:teleportTo(position[, pushMovement = false])
+	// creature:teleportTo(position[, pushMovement = false[, instanceId]])
+	// Optional instanceId binds the creature (and remaps spectators) before the move —
+	// same atomic pattern as Game.createMonster / headlessLogin(..., instanceId).
 	const bool pushMovement = Lua::getBoolean(L, 3, false);
 
 	const Position &position = Lua::getPosition(L, 2);
@@ -912,6 +917,10 @@ int CreatureFunctions::luaCreatureTeleportTo(lua_State* L) {
 		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_CREATURE_NOT_FOUND));
 		Lua::pushBoolean(L, false);
 		return 1;
+	}
+
+	if (lua_gettop(L) >= 4 && !Lua::isNil(L, 4)) {
+		creature->setInstanceId(Lua::getNumber<uint32_t>(L, 4, 0));
 	}
 
 	const Position oldPosition = creature->getPosition();

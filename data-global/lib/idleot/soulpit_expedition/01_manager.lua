@@ -93,9 +93,6 @@ function SoulPitExpedition.spawnWave(session)
 			monster = Game.createMonster(monsterName, pos, true, true, nil, instanceId)
 		end
 		if monster then
-			if session.instance.instanceId and monster.setInstanceId then
-				monster:setInstanceId(session.instance.instanceId)
-			end
 			monster:registerEvent("ExpeditionMonsterDeath")
 			if stack == 40 and SoulPit and SoulPit.bossAbilities and SoulPit.possibleAbilities then
 				local abilityName = SoulPit.possibleAbilities[math.random(1, #SoulPit.possibleAbilities)]

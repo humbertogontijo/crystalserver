@@ -48,11 +48,21 @@ void Creature::setInstanceId(uint32_t id) {
 	if (!tile || isRemoved()) {
 		instanceId = id;
 		Spectators::clearCache();
+		// Summons placed with the master must share the private id before appear.
+		for (const auto &summon : m_summons) {
+			if (summon) {
+				summon->setInstanceId(id);
+			}
+		}
 		return;
 	}
 
 	const uint32_t oldInstanceId = instanceId;
 	const Position &pos = tile->getPosition();
+
+	// Same as internalTeleport: clear walks before remove/appear/map-description so
+	// leftover autoWalk steps cannot emit 0x6D against a client that already remapped.
+	resetMovementState();
 
 	// Capture old-instance viewers before the id change. moveCreature / teleport
 	// spectators are filtered by the *current* instanceId, so binding first and
@@ -110,6 +120,13 @@ void Creature::setInstanceId(uint32_t id) {
 	if (const auto &player = getPlayer()) {
 		player->sendMapDescription(pos);
 	}
+
+	// Keep summons on the same private instance (avoids Lua post-bind setInstanceId).
+	for (const auto &summon : m_summons) {
+		if (summon) {
+			summon->setInstanceId(id);
+		}
+	}
 }
 
 Creature::~Creature() {
@@ -150,6 +167,16 @@ bool Creature::canSeeCreature(const std::shared_ptr<Creature> &creature) const {
 	}
 	if (instanceId != creature->getInstanceId()) {
 		return false;
+	}
+	// Soft-death / arena knockout: not a combat creature for monsters/NPCs.
+	// Other players never see soft-despawned fighters (corpse item is the marker).
+	if (const auto &targetPlayer = creature->getPlayer()) {
+		if (targetPlayer->isSoftDespawned()) {
+			return false;
+		}
+		if (!getPlayer() && targetPlayer->isCombatUnattackable()) {
+			return false;
+		}
 	}
 	if (!canSeeInvisibility() && creature->isInvisible()) {
 		return false;
@@ -350,9 +377,11 @@ void Creature::resetMovementState() {
 	listWalkDir.clear();
 	autoWalkFlags = 0;
 	cancelNextWalk = false;
-	eventWalk = 0;
+	// stopEventWalk (not eventWalk = 0): otherwise a scheduled onCreatureWalk still fires.
+	stopEventWalk();
+	// Player::onWalkAborted clears walkTask and sends cancelWalk to the client.
+	onWalkAborted();
 	if (const auto player = getPlayer()) {
-		player->sendCancelWalk();
 		if (const auto playerTile = player->getTile()) {
 			player->sendUpdateTile(playerTile, player->getPosition());
 		}

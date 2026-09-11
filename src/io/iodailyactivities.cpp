@@ -90,6 +90,9 @@ uint32_t *IODailyActivities::statPtr(DailyActivityData &data, const std::string 
 	if (activityId == "bounty_hunter") {
 		return &data.bountyHunter;
 	}
+	if (activityId == "fiendish_hunt") {
+		return &data.fiendishHunt;
+	}
 	return nullptr;
 }
 
@@ -107,6 +110,7 @@ void IODailyActivities::ensureDay(const std::shared_ptr<Player> &player) {
 	data.soloBoss = 0;
 	data.worldBoss = 0;
 	data.bountyHunter = 0;
+	data.fiendishHunt = 0;
 	data.lastStateNotifyMs = 0;
 }
 
@@ -185,20 +189,22 @@ bool IODailyActivities::save(const std::shared_ptr<Player> &player) {
 
 	std::ostringstream query;
 	query << "INSERT INTO `player_daily_activities` ("
-		  << "`player_id`, `activity_day`, `daily_hunt`, `solo_boss`, `world_boss`, `bounty_hunter`"
+		  << "`player_id`, `activity_day`, `daily_hunt`, `solo_boss`, `world_boss`, `bounty_hunter`, `fiendish_hunt`"
 		  << ") VALUES ("
 		  << player->getGUID() << ", "
 		  << db.escapeString(data.activityDay) << ", "
 		  << data.dailyHunt << ", "
 		  << data.soloBoss << ", "
 		  << data.worldBoss << ", "
-		  << data.bountyHunter
+		  << data.bountyHunter << ", "
+		  << data.fiendishHunt
 		  << ") ON DUPLICATE KEY UPDATE "
 		  << "`activity_day` = VALUES(`activity_day`), "
 		  << "`daily_hunt` = VALUES(`daily_hunt`), "
 		  << "`solo_boss` = VALUES(`solo_boss`), "
 		  << "`world_boss` = VALUES(`world_boss`), "
-		  << "`bounty_hunter` = VALUES(`bounty_hunter`)";
+		  << "`bounty_hunter` = VALUES(`bounty_hunter`), "
+		  << "`fiendish_hunt` = VALUES(`fiendish_hunt`)";
 
 	if (!db.executeQuery(query.str())) {
 		g_logger().warn("[IODailyActivities::save] - Error saving daily activities for player: {}", player->getName());
@@ -215,7 +221,7 @@ void IODailyActivities::load(const std::shared_ptr<Player> &player) {
 
 	Database &db = Database::getInstance();
 	std::ostringstream query;
-	query << "SELECT `activity_day`, `daily_hunt`, `solo_boss`, `world_boss`, `bounty_hunter` "
+	query << "SELECT `activity_day`, `daily_hunt`, `solo_boss`, `world_boss`, `bounty_hunter`, `fiendish_hunt` "
 		  << "FROM `player_daily_activities` WHERE `player_id` = " << player->getGUID();
 	DBResult_ptr result = db.storeQuery(query.str());
 	if (!result) {
@@ -229,5 +235,6 @@ void IODailyActivities::load(const std::shared_ptr<Player> &player) {
 	data.soloBoss = result->getNumber<uint32_t>("solo_boss");
 	data.worldBoss = result->getNumber<uint32_t>("world_boss");
 	data.bountyHunter = result->getNumber<uint32_t>("bounty_hunter");
+	data.fiendishHunt = result->getNumber<uint32_t>("fiendish_hunt");
 	ensureDay(player);
 }

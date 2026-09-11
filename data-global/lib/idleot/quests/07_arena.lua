@@ -185,13 +185,13 @@ local function teleportToPit(session, pit)
 		local p = Player(mid)
 		if p then
 			p:setFollowCreature(nil)
-			if InstanceWorld and InstanceWorld.enterInstance and instanceId then
+			if not instanceId then
+				ok = p:teleportTo(dest) and true or false
+			elseif InstanceWorld and InstanceWorld.enterInstance then
 				ok = InstanceWorld.enterInstance(p, instanceId, dest, "arena:" .. tostring(session.key)) and true or false
 			else
-				if p.setInstanceId and instanceId then
-					p:setInstanceId(instanceId)
-				end
-				ok = p:teleportTo(dest) and true or false
+				logger.warn("[Arena] InstanceWorld.enterInstance missing — refuse teleport for {}", p:getName())
+				ok = false
 			end
 			if ok then
 				dest:sendMagicEffect(CONST_ME_MAGIC_RED)

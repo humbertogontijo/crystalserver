@@ -49,6 +49,9 @@ local function ensureBoostDay(player)
 		if ActivityBoostSoloBoss and ActivityBoostSoloBoss.resetForNewDay then
 			ActivityBoostSoloBoss.resetForNewDay(player)
 		end
+		if ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.resetForNewDay then
+			ActivityBoostFiendishHunt.resetForNewDay(player)
+		end
 	end
 	return store
 end
@@ -130,8 +133,9 @@ function ActivityBoostActivities.evaluateCredit(player, activityId)
 	return credited
 end
 
-function ActivityBoostActivities.list(player)
+function ActivityBoostActivities.list(player, opts)
 	ensureBoostDay(player)
+	opts = opts or {}
 	local out = {}
 	for _, def in ipairs(ActivityBoostConfig.ACTIVITIES or {}) do
 		local goal = tonumber(def.goal) or 1
@@ -140,10 +144,26 @@ function ActivityBoostActivities.list(player)
 		if goal > 0 then
 			percent = math.min(100, math.floor((current / goal) * 100 + 0.5))
 		end
+		local description = def.description
+		if def.id == "fiendish_hunt" then
+			local offer = opts.fiendishHunt
+			if offer == nil and ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.get then
+				offer = ActivityBoostFiendishHunt.get(player)
+			end
+			if offer and offer.huntName and not offer.complete then
+				description = string.format(
+					"Clear %s — Fiendish %s (%d/%d).",
+					offer.huntName,
+					offer.creatureName or "creature",
+					current,
+					goal
+				)
+			end
+		end
 		out[#out + 1] = {
 			id = def.id,
 			name = def.name,
-			description = def.description,
+			description = description,
 			rewardSec = def.rewardSec,
 			destination = def.destination,
 			destinationLabel = def.destinationLabel,

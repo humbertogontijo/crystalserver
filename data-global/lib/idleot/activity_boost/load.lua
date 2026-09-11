@@ -5,6 +5,7 @@ local files = {
 	"03_activities.lua",
 	"05_solo_boss.lua",
 	"06_world_boss.lua",
+	"08_fiendish_hunt.lua",
 	"07_protocol.lua",
 }
 

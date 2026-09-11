@@ -356,7 +356,7 @@ function PlayerHomeInstance.spawnHireling(instance)
 	if sharedHouse then
 		sharedHouse:addTile(pos)
 	end
-	local npc = Game.createNpc(npcName, pos)
+	local npc = Game.createNpc(npcName, pos, false, false, instance.instanceId)
 	if not npc then
 		logger.warn("[PlayerHome] failed to spawn hireling NPC at {},{},{}", pos.x, pos.y, pos.z)
 		return nil
@@ -365,9 +365,6 @@ function PlayerHomeInstance.spawnHireling(instance)
 		npc:setMasterPos(pos)
 	end
 	instance.hirelingNpcId = npc:getId()
-	if instance.instanceId and npc.setInstanceId then
-		npc:setInstanceId(instance.instanceId)
-	end
 	return npc
 end
 

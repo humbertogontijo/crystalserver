@@ -1200,7 +1200,16 @@ local function claimOnlineCompanion(controller, online, spawnPos, opts)
 		end
 	end
 	if opts.position then
-		online:teleportTo(spawnPos)
+		if opts.instanceId then
+			online:teleportTo(spawnPos, false, opts.instanceId)
+		else
+			online:teleportTo(spawnPos)
+		end
+	elseif opts.instanceId then
+		logger.warn(
+			"[Team] refusing same-tile instance rebind for {} (pass opts.position)",
+			online:getName()
+		)
 	end
 	markCompanion(online, controller)
 	if online.setHeadless then
@@ -1234,6 +1243,8 @@ local function acceptLoadedCompanions(controller, companions, loaded, accountId)
 end
 
 --- Deploy account companions near the controller.
+--- opts.position: spawn/teleport companions here (e.g. expedition entry).
+--- opts.instanceId: bind private hunt/raid id before place (atomic with headlessLogin).
 --- opts.onComplete = function(companions|nil, err|nil) — preferred; DB loads are async.
 --- Without onComplete, falls back to blocking Game.headlessLogin (legacy).
 function TeamManager.deploy(controller, opts)
@@ -1246,6 +1257,7 @@ function TeamManager.deploy(controller, opts)
 	end
 
 	local spawnPos = opts.position or controller:getPosition()
+	local instanceId = math.floor(tonumber(opts.instanceId) or 0)
 	local accountId = controller:getAccountId()
 
 	local existing = deployments[controller:getGuid()]
@@ -1262,7 +1274,16 @@ function TeamManager.deploy(controller, opts)
 				if p then
 					TeamManager.cancelCompanionLogout(p)
 					if opts.position then
-						p:teleportTo(spawnPos)
+						if opts.instanceId then
+							p:teleportTo(spawnPos, false, opts.instanceId)
+						else
+							p:teleportTo(spawnPos)
+						end
+					elseif opts.instanceId then
+						logger.warn(
+							"[Team] refusing same-tile instance rebind for {} (pass opts.position)",
+							p:getName()
+						)
 					end
 					live[#live + 1] = p
 					liveByName[p:getName():lower()] = true
@@ -1386,13 +1407,13 @@ function TeamManager.deploy(controller, opts)
 			end
 			local finalized, ferr = finalizeDeploy(controller, opts, merged)
 			opts.onComplete(finalized, ferr)
-		end)
+		end, instanceId)
 		return true
 	end
 
 	-- Legacy / no-callback: blocking sequential headlessLogin (stalls the dispatcher).
 	for _, name in ipairs(namesToLoad) do
-		local companion = Game.headlessLogin(name, spawnPos)
+		local companion = Game.headlessLogin(name, spawnPos, instanceId)
 		if not companion then
 			rollbackCompanions(companions)
 			return deliverDeployResult(opts, nil, string.format("Failed to login companion %s.", name))

@@ -5,9 +5,13 @@ ActivityBoostConfig.OPCODE = 125
 
 ActivityBoostConfig.KV_SCOPE = "activity-boost"
 -- Banked XP boost lasts until the next GlobalServerSave (no wall-clock TTL).
-ActivityBoostConfig.DAILY_EARN_CAP_SEC = 40 * 60
+ActivityBoostConfig.DAILY_EARN_CAP_SEC = 50 * 60
 ActivityBoostConfig.XP_BOOST_PERCENT = 50
 ActivityBoostConfig.PURGE_TICK_MS = 60 * 1000
+
+-- Fiendish forgeStack=15 → HP × (1 + (15*15+35)/100) = 3.6× (monster.cpp applyStacks).
+ActivityBoostConfig.FIENDISH_HP_MULT = 3.6
+ActivityBoostConfig.FIENDISH_HUNT_MAX_WAVES = 1
 
 ActivityBoostConfig.ACTIVITIES = {
 	{
@@ -36,6 +40,15 @@ ActivityBoostConfig.ACTIVITIES = {
 		rewardSec = 10 * 60,
 		destination = "expeditions_world",
 		destinationLabel = "Expeditions · World Bosses",
+	},
+	{
+		id = "fiendish_hunt",
+		name = "Fiendish Hunt",
+		description = "Clear 3 Fiendish hunts.",
+		goal = 3,
+		rewardSec = 10 * 60,
+		destination = "fiendish_hunt",
+		destinationLabel = "Expeditions · Fiendish Hunt",
 	},
 	{
 		id = "bounty_hunter",
