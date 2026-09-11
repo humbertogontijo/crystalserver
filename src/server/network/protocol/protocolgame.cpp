@@ -610,9 +610,54 @@ void ProtocolGame::AddItem(NetworkMessage &msg, const std::shared_ptr<Item> &ite
 	}
 }
 
+namespace {
+
+void callTeamManagerPlayerMethod(const std::shared_ptr<Player> &player, const char* method) {
+	if (!player || !method) {
+		return;
+	}
+	auto &scriptInterface = g_scripts().getScriptInterface();
+	lua_State* L = scriptInterface.getLuaState();
+	if (!L) {
+		return;
+	}
+	if (!Lua::reserveScriptEnv()) {
+		g_logger().error("[TeamManager] Lua call stack overflow ({})", method);
+		return;
+	}
+	ScriptEnvironment* env = Lua::getScriptEnv();
+	env->setScriptId(EVENT_ID_USER, &scriptInterface);
+	lua_getglobal(L, "TeamManager");
+	if (lua_type(L, -1) != LUA_TTABLE) {
+		lua_pop(L, 1);
+		Lua::resetScriptEnv();
+		return;
+	}
+	lua_getfield(L, -1, method);
+	lua_remove(L, -2);
+	if (lua_type(L, -1) != LUA_TFUNCTION) {
+		lua_pop(L, 1);
+		Lua::resetScriptEnv();
+		return;
+	}
+	Lua::pushUserdata<Player>(L, player);
+	Lua::setMetatable(L, -1, "Player");
+	scriptInterface.callFunction(1);
+}
+
+} // namespace
+
 void ProtocolGame::release() {
 	// dispatcher thread
 	if (player && player->client == shared_from_this()) {
+		// Creature may stay online (idle hunt / VIP stay). Notify Lua before clearing client
+		// so protocolVersion becomes 0 and headless leadership handoff can run.
+		const bool staysOnline = !player->isRemoved()
+			&& (player->keepsDisconnectedCombat()
+				|| (player->isVip() && g_configManager().getBoolean(VIP_STAY_ONLINE)));
+		if (staysOnline) {
+			callTeamManagerPlayerMethod(player, "onClientDetached");
+		}
 		player->client.reset();
 		player = nullptr;
 	}
@@ -847,6 +892,9 @@ void ProtocolGame::connect(const std::string &playerName, OperatingSystem_t oper
 	player->lastLoginSaved = std::max<time_t>(time(nullptr), player->lastLoginSaved + 1);
 	player->resetIdleTime();
 	acceptPackets = true;
+
+	// Headless body reclaim: no CreatureEvent onLogin — promote team host / party if needed.
+	callTeamManagerPlayerMethod(player, "onClientAttached");
 }
 
 void ProtocolGame::logout(bool displayEffect, bool forced) {

@@ -804,8 +804,8 @@ end
 
 local function endWorldBossKnockout(player)
 	if SoftDeath and SoftDeath.endDowned then
-		-- Mid-knockout leave / eject: softSpawn without "back in the fight" toast.
-		SoftDeath.endDowned(player, { reason = "worldboss", runCallback = false })
+		-- Mid-knockout leave / eject: softSpawn at temple (not arena), no revive toast.
+		SoftDeath.endDowned(player, { reason = "worldboss", revive = false, runCallback = false })
 	end
 end
 

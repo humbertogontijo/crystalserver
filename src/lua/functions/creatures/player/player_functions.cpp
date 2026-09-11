@@ -6798,7 +6798,7 @@ int PlayerFunctions::luaPlayerAcceptsQuickLootItem(lua_State* L) {
 
 	// Headless players may not have received the client filter push yet.
 	if (player->isHeadless() || player->getProtocolVersion() == 0) {
-		g_game().inheritAccountQuickLootFilter(player);
+		g_game().ensureAccountQuickLootFilter(player);
 	}
 
 	const bool listed = player->isQuickLootListedItem(item);
@@ -6824,7 +6824,7 @@ int PlayerFunctions::luaPlayerCollectQuickLootItem(lua_State* L) {
 	}
 
 	if (player->isHeadless() || player->getProtocolVersion() == 0) {
-		g_game().inheritAccountQuickLootFilter(player);
+		g_game().ensureAccountQuickLootFilter(player);
 	}
 
 	const ObjectCategory_t category = g_game().getObjectCategory(item);

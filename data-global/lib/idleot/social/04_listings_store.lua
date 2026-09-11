@@ -608,7 +608,7 @@ function ListingsStore.onLogout(player)
 		persistListing(player, listing)
 
 		local successor = ListingsStore.findOnlineAccountSuccessor(player, listing)
-		if successor and TeamStore and TeamStore.adoptAccountTeamLeadership then
+		if successor then
 			-- Keep KV parked for adoptListing; drop live map so successor becomes sole host.
 			closeTeamChannel(player)
 			clearMembershipIndexForHost(player:getGuid())
@@ -622,17 +622,28 @@ function ListingsStore.onLogout(player)
 				TeamStore.setControllerPointer(successor, player:getGuid())
 			end
 
-			local ok = TeamStore.adoptAccountTeamLeadership(successor, {
-				force = true,
-				fromHostGuid = player:getGuid(),
-			})
+			local ok = false
+			if TeamManager and TeamManager.transferLeadership then
+				ok = TeamManager.transferLeadership(successor, {
+					force = true,
+					fromHostGuid = player:getGuid(),
+					reason = "logout",
+				})
+			elseif TeamStore and TeamStore.adoptAccountTeamLeadership then
+				ok = TeamStore.adoptAccountTeamLeadership(successor, {
+					force = true,
+					fromHostGuid = player:getGuid(),
+				})
+				if ok then
+					if SocialProtocol and SocialProtocol.sendMyListing then
+						pcall(SocialProtocol.sendMyListing, successor)
+					end
+					if TeamProtocol and TeamProtocol.sendTeam then
+						pcall(TeamProtocol.sendTeam, successor)
+					end
+				end
+			end
 			if ok then
-				if SocialProtocol and SocialProtocol.sendMyListing then
-					pcall(SocialProtocol.sendMyListing, successor)
-				end
-				if TeamProtocol and TeamProtocol.sendTeam then
-					pcall(TeamProtocol.sendTeam, successor)
-				end
 				joinRequestsByJoiner[player:getGuid()] = nil
 				return
 			end
@@ -708,7 +719,7 @@ function ListingsStore.findParkedAccountHostForMember(player)
 	return found
 end
 
---- Online same-account teammate who can take over when the host logs out.
+--- Online same-account teammate who can take over when the host logs out / detaches.
 function ListingsStore.findOnlineAccountSuccessor(host, listing)
 	if not host then
 		return nil
@@ -720,6 +731,25 @@ function ListingsStore.findOnlineAccountSuccessor(host, listing)
 		return nil
 	end
 
+	local function isRealUi(p)
+		if TeamManager and TeamManager.isRealUiClient then
+			return TeamManager.isRealUiClient(p)
+		end
+		if not p then
+			return false
+		end
+		if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(p) then
+			return false
+		end
+		if p.isHeadless and p:isHeadless() then
+			return false
+		end
+		if p.getProtocolVersion and p:getProtocolVersion() == 0 then
+			return false
+		end
+		return true
+	end
+
 	local function isEligible(p)
 		if not p or p:getGuid() == hostGuid then
 			return false
@@ -727,10 +757,9 @@ function ListingsStore.findOnlineAccountSuccessor(host, listing)
 		if p:getAccountId() ~= accountId then
 			return false
 		end
-		if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(p) then
-			return false
-		end
-		return true
+		-- Prefer real UI clients; companion mark alone does not disqualify if they have a UI
+		-- (attach clears the mark first — this covers race / lag cases).
+		return isRealUi(p)
 	end
 
 	-- Prefer roster companions (account team order).
@@ -838,7 +867,9 @@ function ListingsStore.onLogin(player)
 	if not player then
 		return nil
 	end
-	if TeamStore and TeamStore.adoptAccountTeamLeadership then
+	if TeamManager and TeamManager.transferLeadership then
+		pcall(TeamManager.transferLeadership, player, { reason = "login" })
+	elseif TeamStore and TeamStore.adoptAccountTeamLeadership then
 		pcall(TeamStore.adoptAccountTeamLeadership, player)
 	end
 

@@ -362,62 +362,86 @@ local function clearCompanionMark(companion)
 	end
 end
 
+--- Steal/reform party so controller is leader. force=true allows taking from a live UI host (pass/attach).
+local function takePartyLeadership(controller, party, force)
+	if not controller or not party then
+		return nil, false, false
+	end
+	local leader = party:getLeader()
+	if leader and leader:getId() == controller:getId() then
+		return party, false, true
+	end
+	local leaderIsAbandonedHeadless = leader
+		and sameAccount(leader, controller)
+		and not isRealUiClient(leader)
+	if not force and not leaderIsAbandonedHeadless then
+		return nil, false, false
+	end
+	logger.info(
+		"[Team] {} taking party leadership from {} (force={})",
+		controller:getName(),
+		leader and leader:getName() or "?",
+		tostring(force == true)
+	)
+	local transferred = false
+	local inParty = false
+	for _, m in ipairs(party:getMembers() or {}) do
+		if m and m:getId() == controller:getId() then
+			inParty = true
+			break
+		end
+	end
+	if not inParty and leader and leader:getId() == controller:getId() then
+		inParty = true
+	end
+	if not inParty then
+		pcall(function()
+			party:addInvite(controller)
+			party:addMember(controller)
+		end)
+		inParty = controller:getParty() == party
+	end
+	if inParty and party.setLeader then
+		local okSet = pcall(function()
+			party:setLeader(controller)
+		end)
+		local newLeader = party.getLeader and party:getLeader() or nil
+		transferred = okSet and newLeader and newLeader:getId() == controller:getId()
+	end
+	if transferred then
+		return party, false, true
+	end
+	pcall(function()
+		party:disband()
+	end)
+	local newParty = Party(controller)
+	if not newParty then
+		return nil, false, false
+	end
+	return newParty, true, true
+end
+
 --- Ensure controller leads a party that includes all companions (reforms after switch cleanup).
+--- opts.force: take leadership even from a real-UI same-account leader (pass/attach/logout).
 --- Returns party, partyOwned, errMessage
-local function ensureControllerParty(controller, companions)
+local function ensureControllerParty(controller, companions, opts)
 	companions = companions or {}
+	opts = opts or {}
+	local force = opts.force == true
 	local party = controller:getParty()
 	local partyOwned = false
 
 	if party then
 		local leader = party:getLeader()
 		if not leader or leader:getId() ~= controller:getId() then
-			local leaderIsAbandonedHeadless = leader
-				and sameAccount(leader, controller)
-				and not isRealUiClient(leader)
-			if not leaderIsAbandonedHeadless then
+			local newParty, owned, ok = takePartyLeadership(controller, party, force)
+			if not ok then
 				return nil, false, "Only the party leader can deploy an account team."
 			end
-			logger.info(
-				"[Team] {} taking party from headless host {}",
-				controller:getName(),
-				leader:getName()
-			)
-			-- Prefer leadership transfer so shared XP / party state survive expedition hops.
-			local transferred = false
-			local inParty = false
-			for _, m in ipairs(party:getMembers() or {}) do
-				if m and m:getId() == controller:getId() then
-					inParty = true
-					break
-				end
-			end
-			if not inParty and leader and leader:getId() == controller:getId() then
-				inParty = true
-			end
-			if not inParty then
-				pcall(function()
-					party:addInvite(controller)
-					party:addMember(controller)
-				end)
-				inParty = controller:getParty() == party
-			end
-			if inParty and party.setLeader then
-				local okSet = pcall(function()
-					party:setLeader(controller)
-				end)
-				local newLeader = party.getLeader and party:getLeader() or nil
-				transferred = okSet and newLeader and newLeader:getId() == controller:getId()
-			end
-			if not transferred then
-				pcall(function()
-					party:disband()
-				end)
-				party = Party(controller)
-				partyOwned = true
-				if not party then
-					return nil, false, "Failed to create party for team."
-				end
+			party = newParty
+			partyOwned = owned
+			if not party then
+				return nil, false, "Failed to create party for team."
 			end
 		end
 	elseif #companions > 0 then
@@ -570,8 +594,200 @@ function TeamManager.isCompanion(player)
 	return isHeadlessCompanion(player)
 end
 
+function TeamManager.isRealUiClient(player)
+	return isRealUiClient(player)
+end
+
 function TeamManager.markCompanion(companion, controller)
 	markCompanion(companion, controller)
+end
+
+--- Keep Party leader aligned with account-team host after every host change.
+function TeamManager.syncPartyLeaderToTeamHost(host, opts)
+	if not host then
+		return false
+	end
+	opts = opts or {}
+	local companions = {}
+	local seen = {}
+	seen[host:getId()] = true
+
+	local function addCompanion(p)
+		if not p or not p.getId then
+			return
+		end
+		local id = p:getId()
+		if seen[id] then
+			return
+		end
+		seen[id] = true
+		companions[#companions + 1] = p
+	end
+
+	if TeamStore and TeamStore.getMembers then
+		for _, entry in ipairs(TeamStore.getMembers(host) or {}) do
+			if entry.name and entry.name:lower() ~= host:getName():lower() then
+				addCompanion(Player(entry.name))
+			end
+		end
+	end
+
+	local party = host:getParty()
+	if party then
+		local leader = party:getLeader()
+		if leader then
+			addCompanion(leader)
+		end
+		for _, m in ipairs(party:getMembers() or {}) do
+			addCompanion(m)
+		end
+	end
+
+	local _, _, err = ensureControllerParty(host, companions, { force = opts.force == true })
+	if err then
+		logger.warn("[Team] syncPartyLeaderToTeamHost failed for {}: {}", host:getName(), tostring(err))
+		return false
+	end
+	return true
+end
+
+--- Single path for team-host + party leadership transfer.
+--- opts: fromHostGuid, force, reason ("pass"|"attach"|"detach"|"login"|"logout")
+function TeamManager.transferLeadership(newHost, opts)
+	opts = opts or {}
+	if not newHost then
+		return false, "No player."
+	end
+
+	local fromHostGuid = tonumber(opts.fromHostGuid) or 0
+	local oldHost = nil
+	if fromHostGuid > 0 then
+		oldHost = TeamStore.resolvePlayerByGuid(fromHostGuid)
+		if not oldHost and TeamStore.findOnlinePlayerByGuid then
+			oldHost = TeamStore.findOnlinePlayerByGuid(fromHostGuid)
+		end
+	end
+	if not oldHost then
+		local controller = TeamStore.resolveTeamController(newHost)
+		if controller and controller:getGuid() ~= newHost:getGuid() then
+			oldHost = controller
+			fromHostGuid = controller:getGuid()
+		end
+	end
+	if not oldHost or oldHost:getGuid() == newHost:getGuid() then
+		return false, "Nothing to transfer."
+	end
+
+	local accountId = newHost:getAccountId()
+	if not accountId or accountId <= 0 or oldHost:getAccountId() ~= accountId then
+		return false, "Different account."
+	end
+
+	-- Friends cannot own account-team KV.
+	if TeamStore.isOnControllerRoster then
+		local onRoster = TeamStore.isOnControllerRoster(newHost, oldHost)
+		if not onRoster then
+			local listed = ListingsStore and ListingsStore.playerOnHostListing and ListingsStore.playerOnHostListing(oldHost, newHost)
+			if not listed and not opts.force then
+				return false, "Not on team roster."
+			end
+		end
+	end
+
+	local force = opts.force == true
+	if not force and TeamStore.isRealOnlineClient and TeamStore.isRealOnlineClient(oldHost:getGuid()) then
+		return false, "Current host still has a UI client."
+	end
+
+	local oldGuid = oldHost:getGuid()
+	local newGuid = newHost:getGuid()
+
+	local ok = TeamStore.adoptAccountTeamLeadership(newHost, {
+		force = true,
+		fromHostGuid = oldGuid,
+	})
+	if not ok then
+		return false, "Failed to adopt leadership."
+	end
+
+	if deployments[oldGuid] then
+		deployments[newGuid] = deployments[oldGuid]
+		deployments[oldGuid] = nil
+	end
+
+	local liveOld = TeamStore.findOnlinePlayerByGuid(oldGuid)
+	if liveOld then
+		markCompanion(liveOld, newHost)
+		if not isRealUiClient(liveOld) and liveOld.setHeadless then
+			liveOld:setHeadless(true)
+		end
+	end
+
+	-- Match team-transfer force: login (no force) only takes party from abandoned headless.
+	TeamManager.syncPartyLeaderToTeamHost(newHost, { force = force })
+
+	if TeamProtocol and TeamProtocol.sendTeamToRoster then
+		pcall(TeamProtocol.sendTeamToRoster, newHost)
+	end
+	if SocialProtocol and SocialProtocol.sendMyListing then
+		pcall(SocialProtocol.sendMyListing, newHost)
+		if liveOld and isRealUiClient(liveOld) then
+			pcall(SocialProtocol.sendMyListing, liveOld)
+		end
+	end
+
+	logger.info(
+		"[Team] leadership transferred {} → {} (reason={})",
+		oldHost:getName(),
+		newHost:getName(),
+		tostring(opts.reason or "transfer")
+	)
+	return true
+end
+
+--- Interactive pass from manage UI (host → same-account companion).
+function TeamManager.passLeadership(host, targetName)
+	if not host then
+		return false, "No player."
+	end
+	if not TeamStore.canEditTeam(host) then
+		return false, "Only the team host can pass leadership."
+	end
+	targetName = tostring(targetName or ""):match("^%s*(.-)%s*$") or ""
+	if targetName == "" then
+		return false, "No target."
+	end
+	if targetName:lower() == host:getName():lower() then
+		return false, "Already the team host."
+	end
+
+	local target = Player(targetName)
+	if not target then
+		return false, "Target must be online."
+	end
+	if target:getAccountId() ~= host:getAccountId() then
+		return false, "Can only pass leadership to same-account companions."
+	end
+
+	local onRoster = false
+	for _, entry in ipairs(TeamStore.getMembers(host) or {}) do
+		if entry.name and entry.name:lower() == targetName:lower() then
+			if entry.kind == TeamConfig.KIND_FRIEND then
+				return false, "Cannot pass leadership to friends."
+			end
+			onRoster = true
+			break
+		end
+	end
+	if not onRoster then
+		return false, "Target is not on the team roster."
+	end
+
+	return TeamManager.transferLeadership(target, {
+		fromHostGuid = host:getGuid(),
+		force = true,
+		reason = "pass",
+	})
 end
 
 --- Clear companion mark while a UI client is attached (opcodes); pointer stays in TeamStore.
@@ -592,6 +808,47 @@ function TeamManager.onAttachedClient(player)
 		if state and state.suspended == true then
 			CombatAutomation.setSuspended(player, false)
 		end
+	end
+end
+
+--- Called from C++ ProtocolGame::connect after a real client attaches.
+function TeamManager.onClientAttached(player)
+	if not player then
+		return
+	end
+	TeamManager.onAttachedClient(player)
+
+	local controller = TeamStore.resolveTeamController(player)
+	if controller and controller:getGuid() == player:getGuid() then
+		TeamManager.syncPartyLeaderToTeamHost(player, { force = true })
+		if TeamProtocol and TeamProtocol.sendTeamToRoster then
+			pcall(TeamProtocol.sendTeamToRoster, player)
+		end
+		if SocialProtocol and SocialProtocol.sendMyListing then
+			pcall(SocialProtocol.sendMyListing, player)
+		end
+	else
+		local host = controller
+		local hostGuid = host and host:getGuid() or 0
+		local hostIsReal = hostGuid > 0 and TeamStore.isRealOnlineClient and TeamStore.isRealOnlineClient(hostGuid)
+		if host and not hostIsReal then
+			pcall(TeamManager.transferLeadership, player, {
+				fromHostGuid = hostGuid,
+				force = true,
+				reason = "attach",
+			})
+		else
+			if TeamProtocol and TeamProtocol.sendTeam then
+				pcall(TeamProtocol.sendTeam, player)
+			end
+			if SocialProtocol and SocialProtocol.sendMyListing then
+				pcall(SocialProtocol.sendMyListing, player)
+			end
+		end
+	end
+
+	if ExpeditionManager and ExpeditionManager.syncSessionClientIfNeeded then
+		pcall(ExpeditionManager.syncSessionClientIfNeeded, player)
 	end
 end
 
@@ -640,6 +897,35 @@ function TeamManager.onBecameHeadless(player)
 		player:getName(),
 		host:getName()
 	)
+end
+
+--- Called from C++ ProtocolGame::release when the creature stays online without a UI.
+function TeamManager.onClientDetached(player)
+	if not player then
+		return
+	end
+
+	local wasHost = TeamStore.canEditTeam(player)
+	TeamManager.onBecameHeadless(player)
+
+	if not wasHost then
+		return
+	end
+
+	local successor = nil
+	if ListingsStore and ListingsStore.findOnlineAccountSuccessor then
+		successor = ListingsStore.findOnlineAccountSuccessor(player)
+	end
+	if not successor then
+		-- Host remains headless team host + party leader (hunt continues).
+		return
+	end
+
+	pcall(TeamManager.transferLeadership, successor, {
+		fromHostGuid = player:getGuid(),
+		force = true,
+		reason = "detach",
+	})
 end
 
 function TeamManager.safeLogoutCompanion(companion, deferMs)

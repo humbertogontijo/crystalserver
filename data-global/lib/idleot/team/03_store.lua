@@ -44,6 +44,7 @@ function TeamStore.findOnlinePlayerByGuid(guid)
 	return nil
 end
 
+--- True when guid has a live ProtocolGame UI (not headless / protocol 0 / companion).
 local function isRealOnlineClient(guid)
 	guid = tonumber(guid) or 0
 	if guid <= 0 then
@@ -53,13 +54,23 @@ local function isRealOnlineClient(guid)
 	if not online then
 		return false
 	end
+	if TeamManager and TeamManager.isRealUiClient then
+		return TeamManager.isRealUiClient(online) == true
+	end
 	if online.isHeadless and online:isHeadless() then
 		return false
 	end
 	if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(online) then
 		return false
 	end
+	if online.getProtocolVersion and online:getProtocolVersion() == 0 then
+		return false
+	end
 	return true
+end
+
+function TeamStore.isRealOnlineClient(guid)
+	return isRealOnlineClient(guid)
 end
 
 local function normalizeKind(kind, defaultKind)

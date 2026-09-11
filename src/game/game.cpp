@@ -89,6 +89,7 @@
 #include "enums/account_group_type.hpp"
 #include "enums/account_type.hpp"
 #include "enums/object_category.hpp"
+#include "kv/kv.hpp"
 
 #include <algorithm>
 #include <appearances.pb.h>
@@ -3762,10 +3763,9 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 		return;
 	}
 
-	// Headless companions may have logged in before the controlling client synced the
-	// quick-loot filter. Always refresh from a live account session before looting.
+	// Protocol-0 / headless: apply account-scoped quick-loot store into RAM cache before filtering.
 	if (player->getProtocolVersion() == 0) {
-		inheritAccountQuickLootFilter(player);
+		ensureAccountQuickLootFilter(player);
 	}
 
 	std::vector<std::shared_ptr<Item>> itemList;
@@ -7019,9 +7019,19 @@ void Game::playerQuickLootBlackWhitelist(uint32_t playerId, QuickLootFilter_t fi
 		other->quickLootFilter = filter;
 		other->quickLootListItemIds = itemIds;
 	}
+
+	// Persist once per account (source of truth for headless restore / no UI peers).
+	const auto store = g_kv().scoped("account")->scoped(std::to_string(accountId));
+	store->set("quickloot_filter", ValueWrapper(static_cast<int>(filter)));
+	ArrayType idWrappers;
+	idWrappers.reserve(itemIds.size());
+	for (const uint16_t itemId : itemIds) {
+		idWrappers.emplace_back(static_cast<int>(itemId));
+	}
+	store->set("quickloot_ids", ValueWrapper(idWrappers));
 }
 
-void Game::inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player) {
+void Game::ensureAccountQuickLootFilter(const std::shared_ptr<Player> &player) {
 	if (!player) {
 		return;
 	}
@@ -7031,18 +7041,39 @@ void Game::inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player) 
 		return;
 	}
 
-	for (const auto &[_, other] : getPlayers()) {
-		if (!other || other.get() == player.get() || other->getAccountId() != accountId) {
-			continue;
-		}
-		// Prefer a real client session (companions report protocolVersion 0).
-		if (other->getProtocolVersion() == 0) {
-			continue;
-		}
-		player->quickLootFilter = other->quickLootFilter;
-		player->quickLootListItemIds = other->quickLootListItemIds;
+	const auto store = g_kv().scoped("account")->scoped(std::to_string(accountId));
+	const auto filterOpt = store->get("quickloot_filter");
+	if (!filterOpt.has_value()) {
+		// Never configured — leave engine defaults on the player cache.
 		return;
 	}
+
+	const auto filterValue = static_cast<int>(filterOpt->getNumber());
+	player->quickLootFilter = filterValue == static_cast<int>(QUICKLOOTFILTER_ACCEPTEDLOOT)
+		? QUICKLOOTFILTER_ACCEPTEDLOOT
+		: QUICKLOOTFILTER_SKIPPEDLOOT;
+
+	player->quickLootListItemIds.clear();
+	if (const auto idsOpt = store->get("quickloot_ids"); idsOpt.has_value()) {
+		for (const auto &entry : idsOpt->get<ArrayType>()) {
+			const auto itemId = static_cast<uint16_t>(entry.getNumber());
+			if (itemId > 0) {
+				player->quickLootListItemIds.push_back(itemId);
+			}
+		}
+	}
+
+	g_logger().debug(
+		"[QuickLoot] applied account {} filter={} listSize={} onto {}",
+		accountId,
+		static_cast<int>(player->quickLootFilter),
+		player->quickLootListItemIds.size(),
+		player->getName()
+	);
+}
+
+void Game::inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player) {
+	ensureAccountQuickLootFilter(player);
 }
 
 /*******************************************************************************

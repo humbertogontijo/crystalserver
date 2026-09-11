@@ -1670,6 +1670,15 @@ local function startRestoredHuntOnStartup(session, snapshot)
 		live.playerId = headlessHost:getId()
 		live.memberGuids = live.memberGuids or {}
 		live.memberGuids[hostGuid] = headlessHost:getId()
+		-- Account quick-loot is applied in Game.headlessLogin → ensureAccountQuickLootFilter;
+		-- log restores so we can confirm headless loot filter without OTC.
+		logger.debug(
+			"[ExpeditionPersist] restored host {} guid={} headless={} protocol={} (account quickloot applied on headlessLogin)",
+			headlessHost:getName(),
+			tostring(headlessHost:getGuid()),
+			tostring(headlessHost.isHeadless and headlessHost:isHeadless() or false),
+			tostring(headlessHost.getProtocolVersion and headlessHost:getProtocolVersion() or -1)
+		)
 		teleportPlayerIntoRunningHunt(headlessHost, live)
 
 		companions = companions or {}

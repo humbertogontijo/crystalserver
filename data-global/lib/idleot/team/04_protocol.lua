@@ -139,6 +139,16 @@ function TeamProtocol.handle(player, buffer)
 			return
 		end
 		TeamProtocol.sendTeam(player)
+	elseif action == "passLeader" then
+		local ok, result = TeamManager.passLeadership(player, msg.name or msg.targetName)
+		if not ok then
+			TeamProtocol.sendError(player, result or "Failed to pass leadership.")
+			return
+		end
+		-- transferLeadership already pushes roster wire; refresh caller listing too.
+		if SocialProtocol and SocialProtocol.sendMyListing then
+			pcall(SocialProtocol.sendMyListing, player)
+		end
 	elseif action == "acceptRosterInvite" then
 		local ok, err = TeamManager.acceptRosterInvite(player)
 		if not ok then

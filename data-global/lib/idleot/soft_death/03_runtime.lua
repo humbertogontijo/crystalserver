@@ -129,7 +129,7 @@ function SoftDeath.beginDowned(player, opts)
 	return true
 end
 
---- Clear soft-death. opts.revive (default true when from timer) places the player back.
+--- Clear soft-death. opts.revive (default true) softSpawns at downed pos; false → temple.
 --- opts: reason, skipProtocol, revive (bool), runCallback (bool, default true)
 function SoftDeath.endDowned(player, opts)
 	if not player then
@@ -148,9 +148,14 @@ function SoftDeath.endDowned(player, opts)
 	SoftDeath._downed[pid] = nil
 
 	if player.isSoftDespawned and player:isSoftDespawned() and player.softSpawn then
-		local pos = entry and entry.pos
-		local fallback = (opts.revive ~= false) and player:getPosition() or player:getTemplePosition()
-		local spawnPos = pos and Position(pos.x, pos.y, pos.z) or fallback
+		local spawnPos
+		if opts.revive == false then
+			-- Leave / eject mid-knockout: do not reappear on the arena tile.
+			spawnPos = player:getTemplePosition()
+		else
+			local pos = entry and entry.pos
+			spawnPos = pos and Position(pos.x, pos.y, pos.z) or player:getPosition()
+		end
 		if not player:softSpawn(spawnPos) then
 			logger.error("[SoftDeath] softSpawn failed for {}", player:getName())
 		end

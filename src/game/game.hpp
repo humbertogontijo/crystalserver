@@ -483,7 +483,9 @@ public:
 	void playerOpenManagedContainer(uint32_t playerId, ObjectCategory_t category, bool isLootContainer);
 	void playerSetQuickLootFallback(uint32_t playerId, bool fallback);
 	void playerQuickLootBlackWhitelist(uint32_t playerId, QuickLootFilter_t filter, const std::vector<uint16_t> &itemIds);
-	/** Copy account-shared quick loot filter onto `player` from an online real client on the same account. */
+	/** Fetch account-scoped quick loot filter into `player` RAM cache (headless-safe). */
+	void ensureAccountQuickLootFilter(const std::shared_ptr<Player> &player);
+	/** @deprecated Prefer ensureAccountQuickLootFilter — kept as alias for call-site clarity. */
 	void inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player);
 
 	/**

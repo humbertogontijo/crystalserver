@@ -77,7 +77,7 @@ bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position positio
 	g_game().addCreatureCheck(player);
 	player->setOnline(true);
 	player->setHeadless(true);
-	g_game().inheritAccountQuickLootFilter(player);
+	g_game().ensureAccountQuickLootFilter(player);
 	return true;
 }
 
@@ -110,7 +110,7 @@ void reclaimHeadlessPlayer(const std::shared_ptr<Player> &player, Position posit
 			instanceId
 		);
 	}
-	g_game().inheritAccountQuickLootFilter(player);
+	g_game().ensureAccountQuickLootFilter(player);
 }
 
 struct HeadlessBatchSlot {
