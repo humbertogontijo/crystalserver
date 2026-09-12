@@ -232,8 +232,6 @@ local function clearRelocate(session)
 		session.relocateWalkEvent = nil
 	end
 	if session then
-		session.relocatePath = nil
-		session.relocatePathIndex = nil
 		session.relocateSpawnScheduled = nil
 		session.relocateCanSpawn = nil
 		session.relocateDelayMs = nil
@@ -271,17 +269,6 @@ local function advanceHold(session)
 	local nextHold = holds[nextIdx]
 	if not nextHold then
 		return false
-	end
-	-- Occupancy-safe path from the hold we are leaving (routes[idx]: hold[idx] → hold[next]).
-	session.relocatePath = nil
-	session.relocatePathIndex = nil
-	if idx >= 1 and ExpeditionConfig.holdRoutes then
-		local routes = ExpeditionConfig.holdRoutes(session.catalog)
-		local route = type(routes) == "table" and routes[idx] or nil
-		if type(route) == "table" and #route > 0 then
-			session.relocatePath = route
-			session.relocatePathIndex = 1
-		end
 	end
 	session.positionIndex = nextIdx
 	session.holdPos = Position(nextHold.x, nextHold.y, nextHold.z)
@@ -710,7 +697,6 @@ local function scheduleNextWave(session)
 		session.state = "relocating"
 		session.relocateDelayMs = delay
 		session.relocateSpawnScheduled = nil
-		-- relocatePath / relocatePathIndex set by advanceHold (catalog occupancy route).
 		local timeout = ExpeditionConfig.relocateTimeoutMs and ExpeditionConfig.relocateTimeoutMs()
 			or ExpeditionConfig.RELOCATE_TIMEOUT_MS
 			or 45000

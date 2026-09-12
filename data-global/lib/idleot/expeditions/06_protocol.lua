@@ -54,28 +54,6 @@ function ExpeditionProtocol.sendCatalog(player)
 	return ok
 end
 
---- Precomputed walk routes for one hunt (detail map / HUD). Kept off the bulk catalog.
-function ExpeditionProtocol.sendHuntRoutes(player, expeditionId)
-	if not player or expeditionId == nil or expeditionId == "" then
-		return false
-	end
-	local entry = ExpeditionConfig.findById and ExpeditionConfig.findById(expeditionId) or nil
-	if not entry then
-		for _, e in ipairs(ExpeditionConfig.Catalog or {}) do
-			if tostring(e.id) == tostring(expeditionId) then
-				entry = e
-				break
-			end
-		end
-	end
-	local routes = entry and ExpeditionConfig.holdRoutes and ExpeditionConfig.holdRoutes(entry) or {}
-	return ExpeditionProtocol.send(player, {
-		type = "huntRoutes",
-		id = expeditionId,
-		routes = routes,
-	})
-end
-
 --- Boss creature sheet (bosstiary race ids). Not bestiary - dedicated expedition payload.
 function ExpeditionProtocol.sendBossDetail(player, creatureId, nameHint, bosstiaryClassHint)
 	if not player then
@@ -312,12 +290,6 @@ function ExpeditionProtocol.sendStatus(player, session)
 			}
 		elseif status.positions and status.positions[idx] then
 			status.holdPos = status.positions[idx]
-		end
-		local routes = ExpeditionConfig.holdRoutes and ExpeditionConfig.holdRoutes(session.catalog) or nil
-		-- Routes are large; only attach once per session (HUD fetches via huntDetail otherwise).
-		if type(routes) == "table" and #routes > 0 and not session._routesSent then
-			status.routes = routes
-			session._routesSent = true
 		end
 	end
 	status.stopOnInsufficientGold = session.stopOnInsufficientGold == true
@@ -638,8 +610,6 @@ function ExpeditionProtocol.handle(player, buffer)
 		if RaidInstance and RaidInstance.sendActiveRaids then
 			RaidInstance.sendActiveRaids(player)
 		end
-	elseif action == "getRoutes" then
-		ExpeditionProtocol.sendHuntRoutes(player, msg.id)
 	elseif action == "getBossDetail" then
 		local creatureId = tonumber(msg.id or msg.creatureId)
 		local nameHint = msg.name

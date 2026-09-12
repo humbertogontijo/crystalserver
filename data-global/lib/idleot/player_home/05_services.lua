@@ -88,6 +88,10 @@ local function countPlayersOnDummy(dummyPos)
 	return count
 end
 
+-- Forward-declare: scheduleNextTick must close over the local trainingTick
+-- (not a nil global), or addEvent fails after the first charge.
+local trainingTick
+
 local function scheduleNextTick(playerId, weaponId)
 	local player = Player(playerId)
 	local state = trainingByPlayerId[playerId]
@@ -107,7 +111,7 @@ local function scheduleNextTick(playerId, weaponId)
 	state.event = addEvent(trainingTick, delay, playerId, weaponId)
 end
 
-local function trainingTick(playerId, _lastWeaponId)
+trainingTick = function(playerId, _lastWeaponId)
 	local player = Player(playerId)
 	if not player then
 		leaveTraining(playerId)

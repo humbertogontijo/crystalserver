@@ -427,9 +427,6 @@ function ExpeditionAI.startRelocateWalk(session)
 		stopEvent(session.relocateWalkEvent)
 		session.relocateWalkEvent = nil
 	end
-	if session.relocatePath and not session.relocatePathIndex then
-		session.relocatePathIndex = 1
-	end
 	session._relocateFollowReady = nil
 	ExpeditionAI.syncDirectives(session)
 
@@ -617,8 +614,6 @@ function ExpeditionAI.stop(session)
 		stopEvent(session.relocateWalkEvent)
 		session.relocateWalkEvent = nil
 	end
-	session.relocatePath = nil
-	session.relocatePathIndex = nil
 	session._relocateMember = nil
 	session._relocateDestsAssigned = nil
 	session._relocateFollowReady = nil

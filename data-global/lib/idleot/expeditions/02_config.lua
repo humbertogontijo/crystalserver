@@ -758,18 +758,6 @@ function ExpeditionConfig.canRelocateHolds(catalog)
 	return #ExpeditionConfig.catalogPositions(catalog) >= 2
 end
 
---- Precomputed walk routes between consecutive holds (cycle). From catalog generation.
-function ExpeditionConfig.holdRoutes(catalog)
-	if not catalog then
-		return {}
-	end
-	local routes = catalog.routes
-	if type(routes) ~= "table" then
-		return {}
-	end
-	return routes
-end
-
 --- Boss lever timeToDefeat (Crystal bossDefaultTimeToDefeat), in seconds.
 function ExpeditionConfig.bossTimeToDefeatSec()
 	local duration = tonumber(ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC) or (20 * 60)
@@ -1144,7 +1132,6 @@ function ExpeditionConfig.catalogForClient(player)
 					}
 				end
 				row.positions = slim
-				-- routes are large - sent on demand via getRoutes / status, not bulk catalog
 			end
 			out[#out + 1] = row
 		end
