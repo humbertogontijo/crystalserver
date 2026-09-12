@@ -145,7 +145,25 @@ function ExpeditionInstance.hasLivingPlayers(instance, opts)
 end
 
 local function loadOccupancy(opts)
-	if type(opts) ~= "table" or not Game.loadOccupancyMask then
+	if type(opts) ~= "table" then
+		return nil
+	end
+	-- Prefer masks already registered at InstanceWorld startup.
+	local huntId = tonumber(opts.id)
+	if huntId and InstanceWorld and InstanceWorld.occupancyByHuntId then
+		local cached = InstanceWorld.occupancyByHuntId[huntId]
+		if cached then
+			return cached
+		end
+	end
+	local subareaId = tonumber(opts.subareaId) or huntId
+	if subareaId and InstanceWorld and InstanceWorld.occupancyBySubarea then
+		local cached = InstanceWorld.occupancyBySubarea[subareaId]
+		if cached then
+			return cached
+		end
+	end
+	if not Game.loadOccupancyMask then
 		return nil
 	end
 	local file = opts.overviewFile

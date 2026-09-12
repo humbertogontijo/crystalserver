@@ -197,12 +197,23 @@ local function loadGenerated()
 	end
 
 	if type(catalog) == "table" and type(catalog.catalog) == "table" then
+		local huntMasks = 0
+		local huntMissing = 0
 		for _, hunt in ipairs(catalog.catalog) do
 			local occ = loadMask(hunt.overviewFile, hunt.boundary)
 			if occ and hunt.id then
 				InstanceWorld.occupancyByHuntId[hunt.id] = occ
+				InstanceWorld.occupancyBySubarea[hunt.id] = occ
+				huntMasks = huntMasks + 1
+			elseif hunt.overviewFile and hunt.overviewFile ~= "" then
+				huntMissing = huntMissing + 1
 			end
 		end
+		logger.info(
+			"[InstanceWorld] loaded {} hunt occupancy masks ({} missing files)",
+			huntMasks,
+			huntMissing
+		)
 	end
 
 	local travelPath = DATA_DIRECTORY .. "/lib/idleot/instance_world/travel.generated.json"

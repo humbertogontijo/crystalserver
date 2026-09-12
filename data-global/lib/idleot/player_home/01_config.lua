@@ -33,7 +33,7 @@ PlayerHomeConfig.STORAGE_RETURN_Z = 910103
 PlayerHomeConfig.ZONE_NAME = "player-home"
 PlayerHomeConfig.ZONE_PREFIX = "player-home"
 
--- Identity place id for topbar / instanceBounds (no CIP mask; AABB sent as bounds).
+-- Identity place id for topbar / instanceBounds (no client fence).
 PlayerHomeConfig.PLACE_ID = 0
 
 -- House-equivalent movable furniture (wrapable / usedbyhouseguests depot).

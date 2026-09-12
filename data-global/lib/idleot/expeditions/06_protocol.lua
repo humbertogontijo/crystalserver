@@ -421,8 +421,7 @@ function ExpeditionProtocol.sendHuntDeath(player, payload)
 	})
 end
 
---- Current instance identity (client loads CIP occupancy masks locally).
---- Hub still includes a small AABB because it has no subarea mask.
+--- Current instance identity (topbar place/channel). Bounds are server-enforced.
 function ExpeditionProtocol.sendInstanceBounds(player, desc)
 	if not desc then
 		return ExpeditionProtocol.send(player, { type = "instanceBounds" })
@@ -435,15 +434,6 @@ function ExpeditionProtocol.sendInstanceBounds(player, desc)
 		key = tostring(desc.key or ""),
 		channel = math.floor(tonumber(desc.channel) or 0),
 	}
-	-- Hub / home have no CIP occupancy mask - send an AABB fence.
-	if (desc.key == "hub:adventurers" or desc.key == "home") and type(desc.bounds) == "table" then
-		payload.bounds = {
-			x = tonumber(desc.bounds.x) or 0,
-			y = tonumber(desc.bounds.y) or 0,
-			w = tonumber(desc.bounds.w) or 0,
-			h = tonumber(desc.bounds.h) or 0,
-		}
-	end
 	return ExpeditionProtocol.send(player, payload)
 end
 

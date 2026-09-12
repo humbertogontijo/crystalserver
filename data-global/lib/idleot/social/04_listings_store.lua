@@ -873,20 +873,20 @@ function ListingsStore.onLogin(player)
 		pcall(TeamStore.adoptAccountTeamLeadership, player)
 	end
 
-	-- Another same-account character already hosts a live team → never create a second listing.
+	-- If another same-account character hosts and this player is on that team, heal roster
+	-- and do not restore a second listing for this character.
 	local accountHost = ListingsStore.findHostForAccount(player:getAccountId(), player:getGuid())
 	if accountHost then
-		-- Heal listing-only same-account members onto the account roster + pointer.
-		if TeamManager and TeamManager.addCompanionToRoster then
-			local onListing = ListingsStore.playerOnHostListing and ListingsStore.playerOnHostListing(accountHost, player)
-			local onRoster = TeamStore and TeamStore.isOnControllerRoster and TeamStore.isOnControllerRoster(player, accountHost)
-			if onListing or onRoster then
+		local onListing = ListingsStore.playerOnHostListing and ListingsStore.playerOnHostListing(accountHost, player)
+		local onRoster = TeamStore and TeamStore.isOnControllerRoster and TeamStore.isOnControllerRoster(player, accountHost)
+		if onListing or onRoster then
+			if TeamManager and TeamManager.addCompanionToRoster then
 				pcall(TeamManager.addCompanionToRoster, accountHost, player)
 			end
+			listingsByHostGuid[player:getGuid()] = nil
+			persistListing(player, nil)
+			return nil
 		end
-		listingsByHostGuid[player:getGuid()] = nil
-		persistListing(player, nil)
-		return nil
 	end
 
 	local pointerGuid = TeamStore and TeamStore.getControllerPointer and TeamStore.getControllerPointer(player)
@@ -898,9 +898,13 @@ function ListingsStore.onLogin(player)
 			liveHost = Player(pointerGuid)
 		end
 		if liveHost and not (TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(liveHost)) then
-			listingsByHostGuid[player:getGuid()] = nil
-			persistListing(player, nil)
-			return nil
+			local onListing = ListingsStore.playerOnHostListing and ListingsStore.playerOnHostListing(liveHost, player)
+			local onRoster = TeamStore and TeamStore.isOnControllerRoster and TeamStore.isOnControllerRoster(player, liveHost)
+			if onListing or onRoster then
+				listingsByHostGuid[player:getGuid()] = nil
+				persistListing(player, nil)
+				return nil
+			end
 		end
 	end
 
@@ -1043,12 +1047,8 @@ function ListingsStore.publish(player, opts)
 	if not player then
 		return false, "No player."
 	end
-	-- One assembled team per account while another character already hosts.
-	local accountHost = ListingsStore.findHostForAccount(player:getAccountId(), player:getGuid())
-	if accountHost then
-		return false, "Your account already has an assembled team on " .. accountHost:getName() .. "."
-	end
-	-- Player can only be in one team at a time.
+	-- Each character may host their own listing. leaveAllOtherTeams only drops this
+	-- player's memberships elsewhere (same-account siblings keep their own teams).
 	ListingsStore.leaveAllOtherTeams(player, player:getGuid())
 
 	opts = opts or {}
