@@ -166,7 +166,8 @@ ExpeditionConfig.RANGED_DISTANCE_OPTIONS = { 3 }
 -- Back-compat aliases (older call sites).
 ExpeditionConfig.BOSS_ROLES = ExpeditionConfig.STANCE_ROLES
 ExpeditionConfig.BOSS_STANCE_DISTANCE = ExpeditionConfig.STANCE_DISTANCE
-ExpeditionConfig.BOSS_END_DELAY_MS = 2500
+-- Post-clear loot window before eject/sweep (boss, hunt wave-limit, raid).
+ExpeditionConfig.LOOT_GRACE_MS = 5000
 -- Fallback when configKeys.BOSS_DEFAULT_TIME_TO_DEFEAT is unavailable (lever timeout).
 ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC = 20 * 60
 -- Fallback when raids.xml interval2 is missing (matches typical interval2=1440).
@@ -428,7 +429,6 @@ function ExpeditionConfig.getAnchorPlayer(session)
 end
 
 -- Shared Lua raids redirected into expedition slots (see 09_raid_instance.lua).
-ExpeditionConfig.RAID_LOOT_GRACE_MS = 45000
 -- Wait after the last stage starts before allowing "all clear" (covers spawn flash delay).
 -- Actual eligibility is max(this, raid.timeToSpawnMonsters + 2000); grace also requires a successful spawn.
 ExpeditionConfig.RAID_CLEAR_ELIGIBLE_DELAY_MS = 5000
@@ -729,7 +729,36 @@ function ExpeditionConfig.relocateTimeoutMs()
 	return math.max(1000, math.floor(ms))
 end
 
+--- Predefined lure for a hold: catalog `lure`, else floor(creatureDensity), else hunt lureMax.
+--- Lure is the density count directly (no 1/2/4/6/8/12/16 snap).
+function ExpeditionConfig.lureFromDensity(density)
+	local n = math.floor(tonumber(density) or 0)
+	if n < 1 then
+		return ExpeditionConfig.LURE_DEFAULT or 1
+	end
+	return n
+end
+
+function ExpeditionConfig.holdLure(hold, catalog)
+	if type(hold) == "table" then
+		local lure = tonumber(hold.lure)
+		if lure and lure > 0 then
+			return math.max(1, math.floor(lure))
+		end
+		local dens = tonumber(hold.creatureDensity)
+		if dens and dens > 0 then
+			return ExpeditionConfig.lureFromDensity(dens)
+		end
+	end
+	local huntMax = catalog and tonumber(catalog.lureMax)
+	if huntMax and huntMax > 0 then
+		return math.max(1, math.floor(huntMax))
+	end
+	return ExpeditionConfig.LURE_DEFAULT or 1
+end
+
 --- Catalog hold list for monster hunts (team-fit positions). Falls back to center.
+--- Each hold keeps `{x,y,z,lure}` (lure derived from catalog when missing).
 function ExpeditionConfig.catalogPositions(catalog)
 	if not catalog then
 		return {}
@@ -739,7 +768,12 @@ function ExpeditionConfig.catalogPositions(catalog)
 		local out = {}
 		for _, p in ipairs(positions) do
 			if p and p.x and p.y and p.z then
-				out[#out + 1] = { x = p.x, y = p.y, z = p.z }
+				out[#out + 1] = {
+					x = p.x,
+					y = p.y,
+					z = p.z,
+					lure = ExpeditionConfig.holdLure(p, catalog),
+				}
 			end
 		end
 		if #out > 0 then
@@ -748,9 +782,32 @@ function ExpeditionConfig.catalogPositions(catalog)
 	end
 	local c = catalog.center
 	if c and c.x and c.y and c.z then
-		return { { x = c.x, y = c.y, z = c.z } }
+		return {
+			{
+				x = c.x,
+				y = c.y,
+				z = c.z,
+				lure = ExpeditionConfig.holdLure(nil, catalog),
+			},
+		}
 	end
 	return {}
+end
+
+--- Active lure for session's current hold (or first hold / hunt lureMax).
+function ExpeditionConfig.sessionHoldLure(session)
+	if not session then
+		return ExpeditionConfig.LURE_DEFAULT or 1
+	end
+	local holds = ExpeditionConfig.catalogPositions(session.catalog)
+	if #holds == 0 then
+		return ExpeditionConfig.lureFromDensity(session.catalog and session.catalog.lureMax)
+	end
+	local idx = math.floor(tonumber(session.positionIndex) or 0)
+	if idx < 1 or idx > #holds then
+		idx = 1
+	end
+	return holds[idx].lure or ExpeditionConfig.holdLure(holds[idx], session.catalog)
 end
 
 --- True when this hunt has enough holds to walk between waves.
@@ -1037,7 +1094,8 @@ function ExpeditionConfig.catalogForClient(player)
 			elseif entry.creatureId then
 				row.creatureIds = { entry.creatureId }
 			end
-			-- Slim creature mix for client hunt-detail looks (id + spawn percent).
+			-- Slim creature mix for client hunt-detail looks (id + spawn percent + name).
+			-- Names come from CreatureInfo so OTC HuntFinder never falls back to the place title.
 			local creatures = entry.creatures
 			if type(creatures) == "table" and #creatures > 0 then
 				local slimCreatures = {}
@@ -1054,8 +1112,13 @@ function ExpeditionConfig.catalogForClient(player)
 						if amt and amt > 0 then
 							crow.count = amt
 						end
-						if c.name then
-							crow.name = c.name
+						local cname = c.name
+						if (not cname or cname == "") and CreatureInfo and CreatureInfo.getByCreatureId then
+							local info = CreatureInfo.getByCreatureId(cid)
+							cname = info and info.name or nil
+						end
+						if cname and cname ~= "" then
+							crow.name = cname
 						end
 						if c.combatPower then
 							crow.combatPower = tonumber(c.combatPower)
@@ -1129,6 +1192,7 @@ function ExpeditionConfig.catalogForClient(player)
 						x = tonumber(p.x) or 0,
 						y = tonumber(p.y) or 0,
 						z = tonumber(p.z) or 7,
+						lure = tonumber(p.lure) or ExpeditionConfig.holdLure(p, entry),
 					}
 				end
 				row.positions = slim

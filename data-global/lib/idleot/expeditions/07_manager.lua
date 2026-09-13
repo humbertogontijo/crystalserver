@@ -1138,7 +1138,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		end
 	end
 
-	-- Today's Fiendish Hunt offer: force max lure + one-wave Fiendish spawn options.
+	-- Today's Fiendish Hunt offer: one-wave Fiendish spawn options (lure is hold-predefined).
 	if contentRole == "monster" and ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.get then
 		local offer = ActivityBoostFiendishHunt.get(player)
 		if offer and not offer.complete and tostring(offer.expeditionId) == tostring(catalog.id) then
@@ -1148,8 +1148,6 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 			end
 			options.skipOpenWorldForge = true
 			options.forceFiendishCreatureId = tonumber(offer.creatureId) or options.forceFiendishCreatureId
-			local offerLureMax = tonumber(catalog.lureMax) or ExpeditionConfig.LURE_MAX
-			lure = ExpeditionConfig.normalizeLure(offerLureMax, offerLureMax)
 		end
 	end
 
@@ -1183,25 +1181,36 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	local sessionHazardMax = nil
 	if contentRole ~= "boss" and contentRole ~= "arena" then
 		sessionLureMax = tonumber(catalog.lureMax) or ExpeditionConfig.LURE_MAX
-		sessionLure = ExpeditionConfig.normalizeLure(lure, sessionLureMax)
+		-- Ignore client lure; use the first catalog hold's predefined lure (density).
+		local holds = ExpeditionConfig.catalogPositions and ExpeditionConfig.catalogPositions(catalog) or {}
+		local firstHold = holds[1]
+		sessionLure = firstHold and (tonumber(firstHold.lure) or ExpeditionConfig.holdLure(firstHold, catalog))
+			or ExpeditionConfig.lureFromDensity(sessionLureMax)
 		if ExpeditionDifficulty then
 			sessionHazardMax = tonumber(catalog.hazardMax) or ExpeditionDifficulty.HAZARD_MAX
-			local requestedHazard = options.hazard
-			if requestedHazard == nil then
-				requestedHazard = ExpeditionDifficulty.HAZARD_DEFAULT
-			end
-			sessionHazard = ExpeditionDifficulty.normalizeHazard(requestedHazard, catalog)
 			local gatePlayers = { player }
 			for _, teammate in ipairs(collectExpectedHumanTeammates(player) or {}) do
 				gatePlayers[#gatePlayers + 1] = teammate
 			end
-			local okHazard, hazardErr, maxAllowed =
-				ExpeditionDifficulty.canAttemptHazard(gatePlayers, catalog, sessionHazard, player)
-			if not okHazard then
-				ExpeditionProtocol.sendError(player, hazardErr or "Hazard level too high for party.")
-				return
+			local maxAllowed = ExpeditionDifficulty.maxAllowedHazard
+					and ExpeditionDifficulty.maxAllowedHazard(gatePlayers, catalog)
+				or 0
+			-- Toggle: off → 0, on (any positive) → highest available.
+			local requestedHazard = options.hazard
+			local wantOn = requestedHazard ~= nil and math.floor(tonumber(requestedHazard) or 0) > 0
+			if wantOn then
+				sessionHazard = math.max(0, math.floor(tonumber(maxAllowed) or 0))
+				if sessionHazard > 0 then
+					local okHazard, hazardErr =
+						ExpeditionDifficulty.canAttemptHazard(gatePlayers, catalog, sessionHazard, player)
+					if not okHazard then
+						ExpeditionProtocol.sendError(player, hazardErr or "Hazard level too high for party.")
+						return
+					end
+				end
+			else
+				sessionHazard = 0
 			end
-			sessionHazard = math.min(sessionHazard, maxAllowed or sessionHazard)
 		end
 	end
 	local sessionBossDifficulty = nil
@@ -1427,8 +1436,13 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		for i, h in ipairs(holds) do
 			if h and h.x == instance.entry.x and h.y == instance.entry.y and h.z == instance.entry.z then
 				session.positionIndex = i
+				session.lure = tonumber(h.lure) or ExpeditionConfig.holdLure(h, catalog)
 				break
 			end
+		end
+		if (not session.positionIndex or session.positionIndex < 1) and holds[1] then
+			session.positionIndex = 1
+			session.lure = tonumber(holds[1].lure) or ExpeditionConfig.holdLure(holds[1], catalog)
 		end
 	end
 
@@ -1515,7 +1529,10 @@ local function bootstrapRestoredHunt(snapshot)
 
 	local sessionKey = snapshot.sessionKey
 	local channel = allocateHuntChannel(catalog.id, sessionKey)
-	local sessionLure = ExpeditionConfig.normalizeLure(snapshot.lure, snapshot.lureMax)
+	local sessionLure = math.max(
+		1,
+		math.floor(tonumber(snapshot.lure) or ExpeditionConfig.lureFromDensity(snapshot.lureMax) or 1)
+	)
 	local session = {
 		key = sessionKey,
 		playerId = nil,
@@ -2703,48 +2720,84 @@ function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 	end
 
 	friend:setFollowCreature(nil)
-	if not (InstanceWorld and InstanceWorld.enterInstance) then
-		logger.error("[Expedition] InstanceWorld.enterInstance missing — cannot accept invite")
-		ExpeditionProtocol.sendError(friend, "Failed to enter expedition (instance API missing).")
-		ExpeditionManager.leave(friend, { silent = true })
-		return
-	end
-	local entered = InstanceWorld.enterInstance(friend, instance.instanceId, instance.entry, "hunt:" .. tostring(session.key or ""))
-	if not entered then
-		ExpeditionProtocol.sendError(friend, "Failed to enter expedition (teleport blocked).")
-		ExpeditionManager.leave(friend, { silent = true })
-		return
-	end
-	if ExpeditionInstance.sendMagicEffect then
-		ExpeditionInstance.sendMagicEffect(instance, friend:getPosition(), CONST_ME_TELEPORT)
-	else
-		friend:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
-	end
-	friend:sendTextMessage(
-		MESSAGE_EVENT_ADVANCE,
-		string.format(
-			"Joined %s's expedition: %s",
-			host and host:getName() or "team",
-			catalog and catalog.name or (catalog and catalog.id) or "expedition"
-		)
-	)
-	ExpeditionProtocol.send(friend, { type = "teamExpeditionInviteCleared" })
-	ExpeditionProtocol.sendStatus(friend, session)
-	ExpeditionManager.broadcastStatus(session)
-	ExpeditionConfig.pickAnchor(session)
-	local friendSessionKey = session.key
-	addEvent(function()
-		local live = ExpeditionManager.getSessionByKey(friendSessionKey)
-		if live and Player(friendId) then
-			syncClientMaps(live)
+
+	local function finishLateFriendEnter(p)
+		local live = ExpeditionManager.getSessionByKey(session.key)
+		if not live or live.state == "ended" or not live.entered then
+			ExpeditionManager.leave(p, { silent = true })
+			return
 		end
-	end, ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500)
-	logger.info(
-		"[Expedition] friend {} joined session {} via team invite",
-		friend:getName(),
-		tostring(session.key)
-	)
-	syncHuntPersist(session)
+		local inst = live.instance
+		if not inst or not inst.entry then
+			ExpeditionProtocol.sendError(p, "Failed to enter expedition (instance missing).")
+			ExpeditionManager.leave(p, { silent = true })
+			return
+		end
+		if not (InstanceWorld and InstanceWorld.enterInstance) then
+			logger.error("[Expedition] InstanceWorld.enterInstance missing — cannot accept invite")
+			ExpeditionProtocol.sendError(p, "Failed to enter expedition (instance API missing).")
+			ExpeditionManager.leave(p, { silent = true })
+			return
+		end
+		local entered = InstanceWorld.enterInstance(p, inst.instanceId, inst.entry, "hunt:" .. tostring(live.key or ""))
+		if not entered then
+			ExpeditionProtocol.sendError(p, "Failed to enter expedition (teleport blocked).")
+			ExpeditionManager.leave(p, { silent = true })
+			return
+		end
+		if ExpeditionInstance.sendMagicEffect then
+			ExpeditionInstance.sendMagicEffect(inst, p:getPosition(), CONST_ME_TELEPORT)
+		else
+			p:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
+		end
+		local hostPlayer = host or (live.playerId and Player(live.playerId)) or nil
+		p:sendTextMessage(
+			MESSAGE_EVENT_ADVANCE,
+			string.format(
+				"Joined %s's expedition: %s",
+				hostPlayer and hostPlayer:getName() or "team",
+				catalog and catalog.name or (catalog and catalog.id) or "expedition"
+			)
+		)
+		ExpeditionProtocol.send(p, { type = "teamExpeditionInviteCleared" })
+		ExpeditionProtocol.sendStatus(p, live)
+		ExpeditionManager.broadcastStatus(live)
+		ExpeditionConfig.pickAnchor(live)
+		local friendSessionKey = live.key
+		addEvent(function()
+			local s = ExpeditionManager.getSessionByKey(friendSessionKey)
+			if s and Player(friendId) then
+				syncClientMaps(s)
+			end
+		end, ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500)
+		logger.info(
+			"[Expedition] friend {} joined session {} via team invite",
+			p:getName(),
+			tostring(live.key)
+		)
+		syncHuntPersist(live)
+	end
+
+	if InstanceTeleport and InstanceTeleport.armSoloExpedition then
+		local ok, err = InstanceTeleport.armSoloExpedition(friend, {
+			onComplete = finishLateFriendEnter,
+			onCancel = function(p)
+				if p then
+					ExpeditionManager.leave(p, { silent = true })
+				end
+			end,
+		})
+		if not ok then
+			ExpeditionProtocol.sendError(friend, err or "Could not start expedition teleport.")
+			ExpeditionManager.leave(friend, { silent = true })
+			return
+		end
+		ExpeditionProtocol.send(friend, { type = "teamExpeditionInviteCleared" })
+		ExpeditionProtocol.sendStatus(friend, session)
+		return
+	end
+
+	finishLateFriendEnter(friend)
 end
 
 local function sessionMemberIds(session)
@@ -2945,7 +2998,7 @@ function ExpeditionManager.leaveAll(session, opts)
 end
 
 --- Delayed leaveAll after victory/failure messaging (boss clear, wave-limited hunts).
---- opts: victory, endMsg, delayMs
+--- opts: victory, endMsg, delayMs (defaults to ExpeditionConfig.LOOT_GRACE_MS)
 function ExpeditionManager.scheduleSessionExit(session, opts)
 	opts = opts or {}
 	if not session then
@@ -2953,7 +3006,7 @@ function ExpeditionManager.scheduleSessionExit(session, opts)
 	end
 	local victory = opts.victory == true
 	local endMsg = opts.endMsg
-	local delayMs = tonumber(opts.delayMs) or (ExpeditionConfig.BOSS_END_DELAY_MS or 2500)
+	local delayMs = tonumber(opts.delayMs) or (ExpeditionConfig.LOOT_GRACE_MS or 5000)
 	local key = session.key
 	if session.waitingEvent then
 		stopEvent(session.waitingEvent)
@@ -3377,49 +3430,13 @@ function ExpeditionManager.endIfNoPlayers(session, opts)
 end
 
 function ExpeditionManager.setLure(player, lure)
+	-- Lure is predefined per hold; player configuration is disabled.
 	if not player then
 		return
 	end
 	local session = ExpeditionManager.getSessionByPlayer(player)
-	if not session then
-		ExpeditionProtocol.sendError(player, "Not on an expedition.")
-		return
-	end
-	if session.kind == "raid" or session.role == "boss" then
-		ExpeditionProtocol.sendError(player, "Lure is only available on monster hunt expeditions.")
-		return
-	end
-	local value = math.floor(tonumber(lure) or 0)
-	local lureMax = tonumber(session.lureMax)
-		or (session.catalog and tonumber(session.catalog.lureMax))
-		or ExpeditionConfig.LURE_MAX
-	if not ExpeditionConfig.isValidLure(value, lureMax) then
-		local values = ExpeditionConfig.lureValuesUpTo(lureMax)
-		if type(values) == "table" and #values > 0 then
-			ExpeditionProtocol.sendError(
-				player,
-				string.format("Lure must be one of: %s.", table.concat(values, ", "))
-			)
-		else
-			local lureMin = ExpeditionConfig.LURE_MIN or 1
-			ExpeditionProtocol.sendError(player, string.format("Lure must be between %d and %d.", lureMin, lureMax or lureMin))
-		end
-		return
-	end
-	if session.lure == value then
+	if session then
 		ExpeditionManager.broadcastStatus(session)
-		return
-	end
-	session.lure = value
-	-- Applies on the next wave spawn only; current wave keeps session.waveLure.
-	ExpeditionManager.broadcastStatus(session)
-	if session.state == "hunting" and session.waveLure and session.waveLure ~= value then
-		player:sendTextMessage(
-			MESSAGE_EVENT_ADVANCE,
-			string.format("Lure set to %d (applies next wave).", value)
-		)
-	else
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Lure set to %d.", value))
 	end
 end
 
@@ -3445,7 +3462,6 @@ function ExpeditionManager.setHazardLevel(player, hazard)
 		ExpeditionProtocol.sendError(player, "Only the expedition host can change hazard level.")
 		return
 	end
-	local value = ExpeditionDifficulty.normalizeHazard(hazard, session.catalog)
 	local members = {}
 	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
 		local m = Player(mid)
@@ -3453,15 +3469,21 @@ function ExpeditionManager.setHazardLevel(player, hazard)
 			members[#members + 1] = m
 		end
 	end
-	local raising = value > (tonumber(session.hazardLevel) or 0)
-	if raising then
-		local ok, err, maxAllowed = ExpeditionDifficulty.canAttemptHazard(members, session.catalog, value, player)
-		if not ok then
-			ExpeditionProtocol.sendError(player, err or "Hazard level too high for party.")
-			ExpeditionManager.broadcastStatus(session)
-			return
+	local requested = math.floor(tonumber(hazard) or 0)
+	local value = 0
+	if requested > 0 then
+		local maxAllowed = ExpeditionDifficulty.maxAllowedHazard
+				and ExpeditionDifficulty.maxAllowedHazard(members, session.catalog)
+			or 0
+		value = math.max(0, math.floor(tonumber(maxAllowed) or 0))
+		if value > 0 then
+			local ok, err = ExpeditionDifficulty.canAttemptHazard(members, session.catalog, value, player)
+			if not ok then
+				ExpeditionProtocol.sendError(player, err or "Hazard level too high for party.")
+				ExpeditionManager.broadcastStatus(session)
+				return
+			end
 		end
-		value = math.min(value, maxAllowed or value)
 	end
 	if session.hazardLevel == value then
 		ExpeditionManager.broadcastStatus(session)
@@ -3470,7 +3492,11 @@ function ExpeditionManager.setHazardLevel(player, hazard)
 	session.hazardLevel = value
 	ExpeditionDifficulty.applySessionPoints(session)
 	ExpeditionManager.broadcastStatus(session)
-	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Hazard level set to %d.", value))
+	if value > 0 then
+		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Hazard enabled (level %d).", value))
+	else
+		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Hazard disabled.")
+	end
 end
 
 function ExpeditionManager.prepareBoss(player, expeditionId, loadout, options)

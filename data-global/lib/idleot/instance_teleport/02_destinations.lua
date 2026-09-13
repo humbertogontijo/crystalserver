@@ -210,6 +210,36 @@ function InstanceTeleport.requestExpedition(opts)
 	return InstanceTeleport.beginGroup(opts)
 end
 
+--- Solo expedition-kind channel then opts.onComplete(player). Use holdUntilReady + markReady when prep is async.
+function InstanceTeleport.armSoloExpedition(player, opts)
+	opts = opts or {}
+	if not player then
+		return false, "Invalid player."
+	end
+	if InstanceTeleport.isPending(player) then
+		return false, "Already channeling a teleport."
+	end
+	local playerId = player:getId()
+	return InstanceTeleport.requestExpedition({
+		initiatorId = playerId,
+		memberIds = { playerId },
+		holdUntilReady = opts.holdUntilReady == true,
+		forceDurationMs = opts.forceDurationMs,
+		onComplete = function()
+			local p = Player(playerId)
+			if p and opts.onComplete then
+				opts.onComplete(p)
+			end
+		end,
+		onCancel = function()
+			local p = Player(playerId)
+			if opts.onCancel then
+				opts.onCancel(p)
+			end
+		end,
+	})
+end
+
 --- Group hometown channel (team recall leave). Caller supplies onComplete / onCancel.
 function InstanceTeleport.requestHometownGroup(opts)
 	opts = opts or {}

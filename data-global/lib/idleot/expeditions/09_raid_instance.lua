@@ -242,6 +242,11 @@ function RaidInstance.provision(raid)
 		kind = kind,
 		center = center,
 	}
+	-- XML raids may span multiple floors; keep all spawn zs so falling/stairs
+	-- do not trip reconcilePresence ("You left the raid area.").
+	if type(raid._raidSpawnFloors) == "table" and #raid._raidSpawnFloors > 0 then
+		buildOpts.floors = raid._raidSpawnFloors
+	end
 	local instance, err = ExpeditionInstance.build(instanceId, buildOpts, os.time() + instanceId)
 	if not instance then
 		ExpeditionInstance.free(instanceId)
@@ -548,7 +553,7 @@ local function beginGrace(session)
 		return
 	end
 	session.graceStarted = true
-	local graceMs = ExpeditionConfig.RAID_LOOT_GRACE_MS or 45000
+	local graceMs = ExpeditionConfig.LOOT_GRACE_MS or 5000
 	logger.info("[RaidInstance] loot grace started for {} ({} ms)", session.raidName, graceMs)
 	for _, id in ipairs(session.playerIds or {}) do
 		local player = Player(id)
@@ -718,18 +723,18 @@ function RaidInstance.join(player, raidName, loadout, options)
 	player:registerEvent("ExpeditionPlayerDeath")
 	ExpeditionAI.enablePersistence(player)
 
-	local attempts = 0
-	local function enterWhenReady()
-		attempts = attempts + 1
+	local function finishRaidEnter(p)
 		local s = RaidInstance.active[raidName]
-		local p = Player(member.playerId)
 		local bound = ExpeditionManager.getSessionByKey(key)
 		if not s or not p or not bound then
 			return
 		end
 		local instance = s.instance
-		if not ExpeditionInstance.hasGround(instance.entry) and attempts < 16 then
-			addEvent(enterWhenReady, 250)
+		if not instance or not instance.entry then
+			if RaidInstance.leave then
+				RaidInstance.leave(p, { silent = true })
+			end
+			ExpeditionProtocol.sendError(p, "Raid instance is not ready.")
 			return
 		end
 		p:setFollowCreature(nil)
@@ -737,11 +742,59 @@ function RaidInstance.join(player, raidName, loadout, options)
 			logger.error("[RaidInstance] InstanceWorld.enterInstance missing — cannot enter raid")
 			return
 		end
-		InstanceWorld.enterInstance(p, instance.instanceId, instance.entry, "hunt:" .. tostring(bound.key or raidName))
+		local entry = instance.entry
+		if entry and not isGroundWalkable(entry, instance.instanceId) then
+			entry = resolveRaidSpawnPosition(s.raid, entry) or entry
+			if entry then
+				instance.entry = entry
+			end
+		end
+		local entered = InstanceWorld.enterInstance(
+			p,
+			instance.instanceId,
+			entry,
+			"hunt:" .. tostring(bound.key or raidName)
+		)
+		if not entered then
+			logger.error(
+				"[RaidInstance] enterInstance failed for {} into {} at {},{},{}",
+				p:getName(),
+				raidName,
+				entry and entry.x or 0,
+				entry and entry.y or 0,
+				entry and entry.z or 0
+			)
+			if RaidInstance.leave then
+				RaidInstance.leave(p, { silent = true })
+			end
+			ExpeditionProtocol.sendError(p, "Could not enter the raid arena.")
+			return
+		end
+		local pos = p:getPosition()
+		if
+			not pos
+			or (p.getInstanceId and p:getInstanceId() ~= instance.instanceId)
+			or not ExpeditionInstance.contains(instance, pos)
+		then
+			logger.error(
+				"[RaidInstance] {} landed outside raid {} at {},{},{} (instance={})",
+				p:getName(),
+				raidName,
+				pos and pos.x or 0,
+				pos and pos.y or 0,
+				pos and pos.z or 0,
+				instance.instanceId or 0
+			)
+			if RaidInstance.leave then
+				RaidInstance.leave(p, { silent = true })
+			end
+			ExpeditionProtocol.sendError(p, "Could not enter the raid arena.")
+			return
+		end
 		if ExpeditionInstance.sendMagicEffect then
-			ExpeditionInstance.sendMagicEffect(instance, p:getPosition(), CONST_ME_TELEPORT)
+			ExpeditionInstance.sendMagicEffect(instance, pos, CONST_ME_TELEPORT)
 		else
-			p:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
+			pos:sendMagicEffect(CONST_ME_TELEPORT)
 		end
 		bound.entered = true
 		p:sendTextMessage(
@@ -758,16 +811,57 @@ function RaidInstance.join(player, raidName, loadout, options)
 				return
 			end
 			if joined.sendMapDescription then
-				local pos = joined:getPosition()
-				if pos then
-					joined:sendMapDescription(pos)
+				local landed = joined:getPosition()
+				if landed then
+					joined:sendMapDescription(landed)
 				end
 			end
 			ExpeditionAI.start(live)
 			RaidInstance.broadcastActiveRaids()
 		end, ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500)
 	end
-	addEvent(enterWhenReady, 500)
+
+	local function armRaidEnter()
+		if not InstanceTeleport or not InstanceTeleport.armSoloExpedition then
+			finishRaidEnter(player)
+			return
+		end
+		local ok, groupKeyOrErr = InstanceTeleport.armSoloExpedition(player, {
+			holdUntilReady = true,
+			onComplete = finishRaidEnter,
+			onCancel = function(p)
+				if p and RaidInstance.leave then
+					RaidInstance.leave(p, { silent = true })
+				end
+			end,
+		})
+		if not ok then
+			ExpeditionProtocol.sendError(player, groupKeyOrErr or "Could not start raid teleport.")
+			if RaidInstance.leave then
+				RaidInstance.leave(player, { silent = true })
+			end
+			return
+		end
+		local groupKey = groupKeyOrErr
+		local attempts = 0
+		local function waitGroundReady()
+			attempts = attempts + 1
+			local s = RaidInstance.active[raidName]
+			local p = Player(member.playerId)
+			if not s or not p then
+				return
+			end
+			local instance = s.instance
+			if instance and instance.entry and not ExpeditionInstance.hasGround(instance.entry) and attempts < 16 then
+				addEvent(waitGroundReady, 250)
+				return
+			end
+			InstanceTeleport.markReady(groupKey)
+		end
+		addEvent(waitGroundReady, 0)
+	end
+
+	armRaidEnter()
 	ExpeditionProtocol.sendStatus(player, member)
 end
 

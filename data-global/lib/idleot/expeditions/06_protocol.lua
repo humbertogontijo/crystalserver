@@ -242,7 +242,8 @@ function ExpeditionProtocol.sendStatus(player, session)
 		status.waveLure = session.waveLure or session.lure or ExpeditionConfig.LURE_DEFAULT or 1
 		status.lureMin = ExpeditionConfig.LURE_MIN or 1
 		status.lureMax = lureMax
-		status.lureValues = ExpeditionConfig.lureValuesUpTo(lureMax)
+		-- Lure is hold-predefined (not player-selectable).
+		status.lureValues = { status.lure }
 		if ExpeditionDifficulty then
 			status.hazard = tonumber(session.hazardLevel) or ExpeditionDifficulty.HAZARD_DEFAULT
 			local members = { player }
@@ -272,6 +273,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 					x = tonumber(p.x) or 0,
 					y = tonumber(p.y) or 0,
 					z = tonumber(p.z) or 7,
+					lure = tonumber(p.lure) or ExpeditionConfig.holdLure(p, session.catalog),
 				}
 			end
 			status.positions = slim

@@ -145,11 +145,40 @@ local function parseRaidBody(source)
 	return events
 end
 
+--- Unique sorted floors from all spawn points (multi-floor raids e.g. fleabringer3).
+local function spawnFloors(events)
+	local set = {}
+	local list = {}
+	local function add(z)
+		z = math.floor(tonumber(z) or -1)
+		if z < 0 or z > 15 or set[z] then
+			return
+		end
+		set[z] = true
+		list[#list + 1] = z
+	end
+	for _, event in ipairs(events or {}) do
+		if event.kind == "singlespawn" then
+			add(event.z)
+		elseif event.kind == "areaspawn" then
+			add(event.fromZ)
+			add(event.toZ)
+		end
+	end
+	table.sort(list)
+	return list
+end
+
+--- Arena entry: prefer last singlespawn (Crystal XML puts the boss last).
+--- Averaging XY across all points with first-z wrongly parks players on filler
+--- floors (e.g. Insect Swarm z=8 while Fleabringer is on z=7) → immediate kick.
 local function spawnCenter(events)
 	local points = {}
+	local lastSingle = nil
 	for _, event in ipairs(events) do
 		if event.kind == "singlespawn" then
 			addPoint(points, event.x, event.y, event.z)
+			lastSingle = event
 		elseif event.kind == "areaspawn" then
 			local x1, x2 = event.fromX, event.toX
 			local y1, y2 = event.fromY, event.toY
@@ -158,6 +187,13 @@ local function spawnCenter(events)
 				addPoint(points, math.floor((x1 + x2) / 2), math.floor((y1 + y2) / 2), z)
 			end
 		end
+	end
+	if lastSingle and lastSingle.x and lastSingle.y and lastSingle.z then
+		return {
+			x = lastSingle.x,
+			y = lastSingle.y,
+			z = lastSingle.z,
+		}
 	end
 	if #points == 0 then
 		return nil
@@ -313,6 +349,10 @@ local function registerOne(entry, raidsRoot)
 		minGapBetween = tostring(marginMin) .. "m",
 	})
 	raid._raidSpawnCenter = center
+	local floors = spawnFloors(events)
+	if #floors > 0 then
+		raid._raidSpawnFloors = floors
+	end
 	addRaidStages(raid, groups)
 	raid:register()
 	return true

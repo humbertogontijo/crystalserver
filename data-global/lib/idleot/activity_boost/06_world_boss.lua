@@ -606,11 +606,10 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 	if bossOnCooldown(bandId, session.bossName) then
 		return false, "World boss is recovering (30 minute cooldown after defeat)."
 	end
-	if PzTeleport and PzTeleport.isAllowed then
-		local allowed, pzErr = PzTeleport.isAllowed(player)
-		if not allowed then
-			return false, pzErr or "You can only join from a protection zone."
-		end
+	if PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(player)
+		and not (PzTeleport.isGod and PzTeleport.isGod(player))
+	then
+		return false, PzTeleport.PZ_LOCKED_MESSAGE or "You cannot teleport while PZ-locked."
 	end
 
 	ExpeditionManager.saveReturnPos(player)
@@ -651,32 +650,67 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 		player:setSkillLoss(false)
 	end
 
-	local instance = session.instance
-	if not (InstanceWorld and InstanceWorld.enterInstance) then
-		logger.error("[ActivityBoost] InstanceWorld.enterInstance missing — cannot join world boss")
+	local function finishWorldBossEnter(p)
+		local liveMember = ExpeditionManager.getSessionByPlayer(p)
+		if not liveMember or liveMember.key ~= key then
+			return false
+		end
+		local liveSession = ActivityBoostWorldBoss.active[bandId]
+		if not liveSession or liveSession.tearingDown or liveSession.bossDead then
+			ActivityBoostWorldBoss.leave(p, { silent = true, force = true })
+			return false, "That world boss is not available right now."
+		end
+		local instance = liveSession.instance
+		if not (InstanceWorld and InstanceWorld.enterInstance) then
+			logger.error("[ActivityBoost] InstanceWorld.enterInstance missing — cannot join world boss")
+			return false
+		end
+		if not InstanceWorld.enterInstance(p, instance.instanceId, instance.entry, "worldboss:" .. bandId) then
+			logger.error("[ActivityBoost] enterInstance failed for {} into world boss {}", p:getName(), liveSession.bossName)
+			ActivityBoostWorldBoss.leave(p, { silent = true, force = true })
+			return false
+		end
+		liveMember.entered = true
+		if p.setOpenPvp then
+			p:setOpenPvp(true)
+		end
+		if p.setSecureMode and p.hasSecureMode then
+			liveMember.prevSecureMode = p:hasSecureMode() and true or false
+			p:setSecureMode(false)
+		end
+		p:sendTextMessage(
+			MESSAGE_EVENT_ADVANCE,
+			string.format("Joined World Boss: %s (%s band). Open PvP — skulls apply; no death penalty.", liveSession.bossName, band.name)
+		)
+		ExpeditionProtocol.sendStatus(p, liveMember)
+		ActivityBoostWorldBoss.broadcastSchedule()
+		broadcastMeter(liveSession)
+		return true
+	end
+
+	if InstanceTeleport and InstanceTeleport.armSoloExpedition then
+		local ok, err = InstanceTeleport.armSoloExpedition(player, {
+			onComplete = function(p)
+				finishWorldBossEnter(p)
+			end,
+			onCancel = function(p)
+				if p then
+					ActivityBoostWorldBoss.leave(p, { silent = true, force = true })
+				end
+			end,
+		})
+		if not ok then
+			ActivityBoostWorldBoss.leave(player, { silent = true, force = true })
+			return false, err or "Could not start world boss teleport."
+		end
+		ExpeditionProtocol.sendStatus(player, member)
+		return true
+	end
+
+	local enteredOk = finishWorldBossEnter(player)
+	if not enteredOk then
 		return false
 	end
-	if not InstanceWorld.enterInstance(player, instance.instanceId, instance.entry, "worldboss:" .. bandId) then
-		logger.error("[ActivityBoost] enterInstance failed for {} into world boss {}", player:getName(), session.bossName)
-		return false
-	end
-	member.entered = true
-	if player.setOpenPvp then
-		player:setOpenPvp(true)
-	end
-	-- Upstream Creature:onTargetCombat blocks all PvP while secure mode is on.
-	-- Force it off for the arena; restore the player's prior preference on leave.
-	if player.setSecureMode and player.hasSecureMode then
-		member.prevSecureMode = player:hasSecureMode() and true or false
-		player:setSecureMode(false)
-	end
-	player:sendTextMessage(
-		MESSAGE_EVENT_ADVANCE,
-		string.format("Joined World Boss: %s (%s band). Open PvP — skulls apply; no death penalty.", session.bossName, band.name)
-	)
-	ExpeditionProtocol.sendStatus(player, member)
-	ActivityBoostWorldBoss.broadcastSchedule()
-	broadcastMeter(session)
 	return true
 end
 

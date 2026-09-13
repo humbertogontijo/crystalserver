@@ -90,7 +90,17 @@ local function bestiaryElements(mType)
 end
 
 local function monsterInfo(name)
-	local mType = MonsterType(name)
+	-- Prefer race-id lookup (no error log on miss). Skip unknown names entirely so
+	-- hunt place titles ("Exotic Cave") never hit Monsters::getMonsterType.
+	local mType = nil
+	local info = CreatureInfo and CreatureInfo.get and CreatureInfo.get(name)
+	local raceId = info and tonumber(info.creatureId)
+	if raceId and raceId > 0 and MonsterType then
+		mType = MonsterType(raceId)
+	end
+	if not mType and info and MonsterType then
+		mType = MonsterType(name)
+	end
 	if not mType then
 		return nil
 	end

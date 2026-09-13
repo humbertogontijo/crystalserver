@@ -203,8 +203,11 @@ local function preSpawnDurationMs()
 end
 
 local function lureCount(session)
-	local count = ExpeditionConfig.normalizeLure(session and session.lure)
-	return count
+	local n = math.floor(tonumber(session and session.lure) or 0)
+	if n < 1 then
+		return ExpeditionConfig.LURE_DEFAULT or 1
+	end
+	return n
 end
 
 local function clearWaiting(session)
@@ -272,6 +275,8 @@ local function advanceHold(session)
 	end
 	session.positionIndex = nextIdx
 	session.holdPos = Position(nextHold.x, nextHold.y, nextHold.z)
+	-- Wave spawn count follows this hold's predefined lure.
+	session.lure = tonumber(nextHold.lure) or ExpeditionConfig.holdLure(nextHold, session.catalog)
 	return true
 end
 
