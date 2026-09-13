@@ -642,12 +642,11 @@ function RaidInstance.join(player, raidName, loadout, options)
 		ExpeditionProtocol.sendError(player, "You need stamina to enter an expedition.")
 		return
 	end
-	if PzTeleport and PzTeleport.isAllowed then
-		local allowed, pzErr = PzTeleport.isAllowed(player)
-		if not allowed then
-			ExpeditionProtocol.sendError(player, pzErr or "You can only join a raid from a protection zone.")
-			return
-		end
+	if PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(player)
+		and not (PzTeleport.isGod and PzTeleport.isGod(player))
+	then
+		ExpeditionProtocol.sendError(player, PzTeleport.PZ_LOCKED_MESSAGE or "You cannot teleport while PZ-locked.")
+		return
 	end
 	if ExpeditionManager.getSessionByPlayer(player) then
 		ExpeditionProtocol.sendError(player, "Already on an expedition.")
@@ -816,12 +815,18 @@ function RaidInstance.leave(player, opts)
 		ExpeditionManager.clearAreaEffects(player)
 	end
 	if player:getHealth() > 0 then
-		if InstanceWorld and InstanceWorld.exitToOpenWorld then
-			InstanceWorld.exitToOpenWorld(player, returnPos)
-		elseif InstanceWorld and InstanceWorld.travel then
-			InstanceWorld.travel(player, returnPos)
-		else
-			player:teleportTo(returnPos)
+		local wentHometown = false
+		if opts.goHometown and InstanceTeleport and InstanceTeleport.executeHometown then
+			wentHometown = InstanceTeleport.executeHometown(player, { fromExpedition = true }) and true or false
+		end
+		if not wentHometown then
+			if InstanceWorld and InstanceWorld.exitToOpenWorld then
+				InstanceWorld.exitToOpenWorld(player, returnPos)
+			elseif InstanceWorld and InstanceWorld.travel then
+				InstanceWorld.travel(player, returnPos)
+			else
+				player:teleportTo(returnPos)
+			end
 		end
 		local now = player:getPosition()
 		if now then
@@ -830,7 +835,10 @@ function RaidInstance.leave(player, opts)
 	end
 	ExpeditionProtocol.sendEnded(player)
 	if not opts.silent then
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You left the raid.")
+		player:sendTextMessage(
+			MESSAGE_EVENT_ADVANCE,
+			opts.goHometown and "You recalled to your hometown." or "You left the raid."
+		)
 	end
 	RaidInstance.broadcastActiveRaids()
 	-- Shared instance keeps running with zero players (late join still allowed).

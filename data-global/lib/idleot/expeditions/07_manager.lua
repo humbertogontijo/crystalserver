@@ -317,6 +317,38 @@ local function teleportPlayerHome(player, returnPos)
 	return player:teleportTo(returnPos) and true or false
 end
 
+--- After expedition cleanup: hometown temple (recall) or open-world return.
+--- Always immediate — the IT channel already completed before leave/abort.
+local function teleportAfterLeave(player, returnPos, opts)
+	opts = opts or {}
+	if opts.goHometown and InstanceTeleport and InstanceTeleport.executeHometown then
+		local ok, err = InstanceTeleport.executeHometown(player, { fromExpedition = true })
+		if ok then
+			return true
+		end
+		logger.warn(
+			"[Expedition] goHometown after leave failed for {}: {} — falling back to open world",
+			player:getName(),
+			tostring(err)
+		)
+	end
+	return teleportPlayerHome(player, returnPos)
+end
+
+--- Combat-lock gate for IT kinds (non-PZ is allowed; duration handles it).
+local function expeditionTeleportCombatOk(player)
+	if not player then
+		return false, "Invalid player."
+	end
+	if PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) then
+		return true
+	end
+	if PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(player) then
+		return false, PzTeleport.PZ_LOCKED_MESSAGE or "You cannot teleport while PZ-locked."
+	end
+	return true
+end
+
 local function markActive(player, expeditionId, slot)
 	player:setStorageValue(ExpeditionConfig.STORAGE_ACTIVE, 1)
 	player:setStorageValue(ExpeditionConfig.STORAGE_EXPEDITION_ID, expeditionId and 1 or -1)
@@ -570,6 +602,21 @@ local function hasUiClient(player)
 		return false
 	end
 	return true
+end
+
+local function collectSessionHumans(session)
+	local humans = {}
+	if not session then
+		return humans
+	end
+	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
+		local p = Player(id)
+		-- Headless (companions or disconnected alts) never need switch accept prompts.
+		if p and not isSessionCompanion(session, p) and hasUiClient(p) then
+			humans[#humans + 1] = p
+		end
+	end
+	return humans
 end
 
 local function countHumanMembers(session)
@@ -863,19 +910,18 @@ local function collectHuntJoinParty(player, levelMin, extraPlayers, opts)
 			local isTeamCompanion = TeamManager
 				and TeamManager.isCompanion
 				and TeamManager.isCompanion(member)
-			local needPz = not skipPzCheck
+			local needCombat = not skipPzCheck
 				and not isTeamCompanion
 				and PzTeleport
-				and PzTeleport.isAllowed
-			if needPz then
-				local allowed = PzTeleport.isAllowed(member)
+			if needCombat then
+				local allowed, combatErr = expeditionTeleportCombatOk(member)
 				if not allowed then
 					if member:getId() == player:getId() then
-						return nil, "You can only start an expedition from a protection zone."
+						return nil, combatErr or "You cannot teleport while PZ-locked."
 					end
 					member:sendTextMessage(
 						MESSAGE_EVENT_ADVANCE,
-						"You were not pulled into the expedition (must be in a protection zone)."
+						"You were not pulled into the expedition (PZ-locked)."
 					)
 				else
 					eligible[#eligible + 1] = member
@@ -992,12 +1038,12 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		ExpeditionProtocol.sendError(player, "You need stamina to enter an expedition.")
 		return
 	end
-	-- Switch leave→join already returned from an active expedition; do not require PZ
-	-- again (return travel can briefly leave the player off a PZ tile / torn-down hold).
-	if not options.skipPzCheck and PzTeleport and PzTeleport.isAllowed then
-		local allowed, pzErr = PzTeleport.isAllowed(player)
+	-- Switch leave→join already returned from an active expedition; do not re-check
+	-- combat lock mid-hop. Open-world join: combat lock only (non-PZ uses longer IT).
+	if not options.skipPzCheck then
+		local allowed, combatErr = expeditionTeleportCombatOk(player)
 		if not allowed then
-			ExpeditionProtocol.sendError(player, pzErr or "You can only start an expedition from a protection zone.")
+			ExpeditionProtocol.sendError(player, combatErr or "You cannot teleport while PZ-locked.")
 			return
 		end
 	end
@@ -1301,9 +1347,9 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 				-- Already queued via preAcceptedPlayers.
 			elseif hasUiClient(teammate) and meetsExpeditionLevel(teammate, levelMin) then
 				local allowed = true
-				-- Switch hops skip PZ: teammates are still on the prior hunt footprint.
-				if not options.skipPzCheck and PzTeleport and PzTeleport.isAllowed then
-					allowed = PzTeleport.isAllowed(teammate) == true
+				-- Switch hops skip combat check: teammates are still on the prior hunt footprint.
+				if not options.skipPzCheck then
+					allowed = expeditionTeleportCombatOk(teammate) == true
 				end
 				local isReady = ListingsStore
 					and ListingsStore.isMemberReady
@@ -2095,7 +2141,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 		end
 	end
 
-	local function enterAfterDeploy(s, liveHost)
+	local function enterAfterPrep(s, liveHost)
 		local members = {}
 		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s)) do
 			local p = Player(mid)
@@ -2109,69 +2155,139 @@ function ExpeditionManager.startExpeditionEntry(session)
 			ExpeditionManager.cancelWaitingSession(s, staminaErr)
 			return
 		end
-		if not teleportMembers(s) then
-			return
-		end
-		finishEntry(s)
-		logger.info(
-			"[Expedition] {} joined {} role={} instance={} members={} (entered)",
-			liveHost:getName(),
-			catalog.id,
-			contentRole,
-			instance.instanceId,
-			#ExpeditionManager.sessionMemberIds(s)
-		)
-		ExpeditionManager.broadcastStatus(s)
-	end
 
-	local function deployAndEnter()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s then
-			logger.warn("[Expedition] enter aborted (session gone) key={}", key)
-			return
+		local memberIds = {}
+		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s)) do
+			local p = Player(mid)
+			if p and not isSessionCompanion(s, p) then
+				memberIds[#memberIds + 1] = mid
+			end
 		end
-		local liveHost = Player(s.playerId)
-		if not liveHost then
-			logger.warn("[Expedition] enter aborted (host offline) key={}", key)
-			ExpeditionManager.teardownSession(s)
-			return
+		if #memberIds == 0 then
+			memberIds = { liveHost:getId() }
 		end
 
-		-- Login companions already on the hunt entry + private instance id (atomic
-		-- headlessLogin). City hop was a workaround for place-at-entry @ instance 0
-		-- racing InstanceWorld login rescue before session bind.
-		if not soloBoss and TeamManager and TeamManager.deploy then
-			local spawnPos = instance.entry
-			TeamManager.deploy(liveHost, {
-				position = spawnPos,
-				instanceId = instance.instanceId,
-				companionsOnly = true,
-				inviteFriends = false,
-				onComplete = function(depCompanions, depErr)
-					local live = ExpeditionManager.getSessionByKey(key)
-					if not live or live.state == "ended" then
-						return
-					end
-					local host = Player(live.playerId)
-					if not host then
-						ExpeditionManager.teardownSession(live)
-						return
-					end
-					if not depCompanions then
-						ExpeditionManager.cancelWaitingSession(live, depErr or "Failed to deploy account team.")
-						return
-					end
-					registerDeployedCompanions(live, host, depCompanions, {
-						loadout = loadout,
-						hostWorldPos = hostWorldPos,
-					})
-					enterAfterDeploy(live, host)
-				end,
-			})
+		local sessionKey = s.key
+		local function doEnter(live, host)
+			if not teleportMembers(live) then
+				return
+			end
+			finishEntry(live)
+			logger.info(
+				"[Expedition] {} joined {} role={} instance={} members={} (entered)",
+				host:getName(),
+				catalog.id,
+				contentRole,
+				instance.instanceId,
+				#ExpeditionManager.sessionMemberIds(live)
+			)
+			ExpeditionManager.broadcastStatus(live)
+		end
+
+		-- No IT: deploy then enter (legacy).
+		if not InstanceTeleport or not InstanceTeleport.requestExpedition then
+			local function afterDeployNoIt(live, host)
+				doEnter(live, host)
+			end
+			if not soloBoss and TeamManager and TeamManager.deploy then
+				TeamManager.deploy(liveHost, {
+					position = instance.entry,
+					instanceId = instance.instanceId,
+					companionsOnly = true,
+					inviteFriends = false,
+					onComplete = function(depCompanions, depErr)
+						local live = ExpeditionManager.getSessionByKey(sessionKey)
+						if not live or live.state == "ended" then
+							return
+						end
+						local host = Player(live.playerId)
+						if not host then
+							ExpeditionManager.teardownSession(live)
+							return
+						end
+						if not depCompanions then
+							ExpeditionManager.cancelWaitingSession(live, depErr or "Failed to deploy account team.")
+							return
+						end
+						registerDeployedCompanions(live, host, depCompanions, {
+							loadout = loadout,
+							hostWorldPos = hostWorldPos,
+						})
+						afterDeployNoIt(live, host)
+					end,
+				})
+				return
+			end
+			afterDeployNoIt(s, liveHost)
 			return
 		end
 
-		enterAfterDeploy(s, liveHost)
+		-- Overlap IT channel with companion deploy. Hop when both channel timer and prep are done.
+		local needDeploy = not soloBoss and TeamManager and TeamManager.deploy
+		local ok, groupKeyOrErr = InstanceTeleport.requestExpedition({
+			initiatorId = liveHost:getId(),
+			memberIds = memberIds,
+			holdUntilReady = needDeploy and true or false,
+			onComplete = function()
+				local live = ExpeditionManager.getSessionByKey(sessionKey)
+				if not live or live.state == "ended" or live.entered then
+					return
+				end
+				local host = Player(live.playerId)
+				if not host then
+					ExpeditionManager.teardownSession(live)
+					return
+				end
+				doEnter(live, host)
+			end,
+			onCancel = function()
+				local live = ExpeditionManager.getSessionByKey(sessionKey)
+				if live and not live.entered then
+					ExpeditionManager.cancelWaitingSession(live, "Expedition entry cancelled.")
+				end
+			end,
+		})
+		if not ok then
+			ExpeditionProtocol.sendError(liveHost, groupKeyOrErr or "Could not start expedition teleport.")
+			ExpeditionManager.cancelWaitingSession(s, tostring(groupKeyOrErr or "Could not start expedition teleport."))
+			return
+		end
+		local groupKey = groupKeyOrErr
+
+		if not needDeploy then
+			return
+		end
+
+		TeamManager.deploy(liveHost, {
+			position = instance.entry,
+			instanceId = instance.instanceId,
+			companionsOnly = true,
+			inviteFriends = false,
+			onComplete = function(depCompanions, depErr)
+				local live = ExpeditionManager.getSessionByKey(sessionKey)
+				if not live or live.state == "ended" or live.entered or not live.starting then
+					return
+				end
+				local host = Player(live.playerId)
+				if not host then
+					ExpeditionManager.teardownSession(live)
+					return
+				end
+				if not depCompanions then
+					if InstanceTeleport.cancel then
+						InstanceTeleport.cancel(host)
+					end
+					ExpeditionManager.cancelWaitingSession(live, depErr or "Failed to deploy account team.")
+					return
+				end
+				registerDeployedCompanions(live, host, depCompanions, {
+					loadout = loadout,
+					hostWorldPos = hostWorldPos,
+				})
+				-- Marks prep ready; hop fires once the channel timer has also elapsed.
+				InstanceTeleport.markReady(groupKey)
+			end,
+		})
 	end
 
 	-- Live-world tiles (no clone): entry ground is either present now or the catalog
@@ -2203,7 +2319,9 @@ function ExpeditionManager.startExpeditionEntry(session)
 		ExpeditionManager.teardownSession(s)
 		return
 	end
-	deployAndEnter()
+
+	local liveHost = Player(s.playerId)
+	enterAfterPrep(s, liveHost)
 end
 
 function ExpeditionManager.maybeStartExpeditionEntry(session)
@@ -2388,12 +2506,10 @@ function ExpeditionManager.acceptTeamInvite(player)
 		ExpeditionProtocol.sendError(player, "You need stamina to enter an expedition.")
 		return
 	end
-	if PzTeleport and PzTeleport.isAllowed then
-		local allowed, pzErr = PzTeleport.isAllowed(player)
-		if not allowed then
-			ExpeditionProtocol.sendError(player, pzErr or "You can only join an expedition from a protection zone.")
-			return
-		end
+	local allowed, combatErr = expeditionTeleportCombatOk(player)
+	if not allowed then
+		ExpeditionProtocol.sendError(player, combatErr or "You cannot teleport while PZ-locked.")
+		return
 	end
 	local invite = teamInvitesByFriendGuid[player:getGuid()]
 	if not invite then
@@ -2797,6 +2913,7 @@ local function cleanupSession(session, player, opts)
 end
 
 --- Leave all living members (boss victory / party teardown).
+--- opts.goHometownPlayerId: that member recalls to town temple instead of open-world return.
 function ExpeditionManager.leaveAll(session, opts)
 	opts = opts or {}
 	if not session then
@@ -2806,10 +2923,20 @@ function ExpeditionManager.leaveAll(session, opts)
 	for _, id in ipairs(sessionMemberIds(session)) do
 		ids[#ids + 1] = id
 	end
+	local goHometownId = tonumber(opts.goHometownPlayerId)
 	for _, id in ipairs(ids) do
 		local p = Player(id)
 		if p then
-			ExpeditionManager.leave(p, opts)
+			local memberOpts = opts
+			if goHometownId and id == goHometownId then
+				memberOpts = {}
+				for k, v in pairs(opts) do
+					memberOpts[k] = v
+				end
+				memberOpts.goHometown = true
+				memberOpts.goHometownPlayerId = nil
+			end
+			ExpeditionManager.leave(p, memberOpts)
 		end
 	end
 	if sessionsByKey[session.key] == session then
@@ -2883,11 +3010,17 @@ function ExpeditionManager.abort(session, reason, opts)
 	if opts.skipTeleport then
 		leaveOpts.skipTeleport = true
 	end
+	if opts.goHometownPlayerId then
+		leaveOpts.goHometownPlayerId = opts.goHometownPlayerId
+	end
 	if session.kind == "raid" then
 		local p = Player(session.playerId)
 		if p then
 			if not opts.silent then
 				p:sendTextMessage(MESSAGE_EVENT_ADVANCE, message)
+			end
+			if opts.goHometownPlayerId and p:getId() == opts.goHometownPlayerId then
+				leaveOpts.goHometown = true
 			end
 			ExpeditionManager.leave(p, leaveOpts)
 		end
@@ -3510,11 +3643,17 @@ function ExpeditionManager.setStopOptions(player, options)
 	ExpeditionManager.broadcastStatus(session)
 end
 
---- Cancel a pending voluntary leave countdown (client Cancel, forced leave, logout).
---- Any human with a team leave-pending entry may cancel the shared countdown.
+--- Cancel a pending voluntary leave countdown or InstanceTeleport channel.
+--- Hometown (recall): initiator-only via IT policy. Expedition switch/entry: any member.
 function ExpeditionManager.cancelLeave(player)
 	if not player then
 		return false
+	end
+	if InstanceTeleport and InstanceTeleport.isPending and InstanceTeleport.isPending(player) then
+		if InstanceTeleport.cancel(player) then
+			return true
+		end
+		-- Policy denied (e.g. non-initiator recall) — fall through to leavePending if any.
 	end
 	local playerId = player:getId()
 	local pending = leavePendingByPlayerId[playerId]
@@ -3549,6 +3688,7 @@ function ExpeditionManager.cancelLeave(player)
 		stopEvent(pending.event)
 	end
 	leavePendingByPlayerId[playerId] = nil
+	ExpeditionProtocol.send(player, { type = "leaveCancelled" })
 	return true
 end
 
@@ -3558,7 +3698,10 @@ local performDirectSwitch
 --- Finish a voluntary leave countdown. Uses sessionKey so team abort still runs
 --- when the initiator is briefly unresolvable via Player(id) in a delayed event.
 --- When switchTo is set: hop hunt→hunt in place (no city return) after the countdown.
-local function completeLeaveCountdown(sessionKey, initiatorId, initiatorName, switchTo)
+--- leaveMeta.goHometown: initiator recalls to town temple.
+local function completeLeaveCountdown(sessionKey, initiatorId, initiatorName, switchTo, leaveMeta)
+	leaveMeta = leaveMeta or {}
+	local goHometown = leaveMeta.goHometown == true
 	local s = sessionKey and ExpeditionManager.getSessionByKey(sessionKey) or nil
 	if switchTo then
 		local joiner = Player(initiatorId)
@@ -3579,13 +3722,14 @@ local function completeLeaveCountdown(sessionKey, initiatorId, initiatorName, sw
 		return
 	end
 
-	local leaveOpts = { silent = false }
+	local leaveOpts = { silent = false, goHometown = goHometown }
 	if not s then
 		local p = Player(initiatorId)
 		if p then
 			logger.info(
-				"[Expedition] leave countdown complete solo (no session) by={}",
-				tostring(initiatorName or initiatorId)
+				"[Expedition] leave countdown complete solo (no session) by={} goHometown={}",
+				tostring(initiatorName or initiatorId),
+				tostring(goHometown)
 			)
 			ExpeditionManager.leave(p, leaveOpts)
 		end
@@ -3600,13 +3744,25 @@ local function completeLeaveCountdown(sessionKey, initiatorId, initiatorName, sw
 	if teamStop then
 		if not s.entered then
 			ExpeditionManager.cancelWaitingSession(s, name .. " cancelled the expedition.")
+			if goHometown then
+				local p = Player(initiatorId)
+				if p and InstanceTeleport and InstanceTeleport.executeHometown then
+					InstanceTeleport.executeHometown(p, { fromExpedition = true })
+				end
+			end
 		else
 			logger.info(
-				"[Expedition] leave countdown complete teamStop key={} by={}",
+				"[Expedition] leave countdown complete teamStop key={} by={} goHometown={}",
 				tostring(sessionKey),
-				name
+				name,
+				tostring(goHometown)
 			)
-			ExpeditionManager.abort(s, name .. " stopped the expedition.")
+			local abortMsg = goHometown and (name .. " recalled.") or (name .. " stopped the expedition.")
+			local abortOpts = {}
+			if goHometown then
+				abortOpts.goHometownPlayerId = initiatorId
+			end
+			ExpeditionManager.abort(s, abortMsg, abortOpts)
 		end
 		return
 	end
@@ -3614,9 +3770,10 @@ local function completeLeaveCountdown(sessionKey, initiatorId, initiatorName, sw
 	local p = Player(initiatorId)
 	if p then
 		logger.info(
-			"[Expedition] leave countdown complete solo key={} by={}",
+			"[Expedition] leave countdown complete solo key={} by={} goHometown={}",
 			tostring(sessionKey),
-			name
+			name,
+			tostring(goHometown)
 		)
 		ExpeditionManager.leave(p, leaveOpts)
 	else
@@ -3654,13 +3811,17 @@ function ExpeditionManager.requestLeave(player, opts)
 		end
 		return
 	end
+	if InstanceTeleport and InstanceTeleport.isPending and InstanceTeleport.isPending(player) then
+		return
+	end
 	local session = ExpeditionManager.getSessionByPlayer(player)
 	if not session then
 		if opts.switchTo then
 			-- Sticky HUD / no live session: hop straight into the destination.
 			performDirectSwitch(player, nil, opts.switchTo, {})
 		else
-			ExpeditionManager.leave(player)
+			local goHometown = opts.reason == "recall" or opts.goHometown == true
+			ExpeditionManager.leave(player, { goHometown = goHometown })
 		end
 		return
 	end
@@ -3668,23 +3829,69 @@ function ExpeditionManager.requestLeave(player, opts)
 	-- Pre-entry (team-accept lobby / not yet teleported): cancel immediately.
 	if not session.entered then
 		local switchTo = opts.switchTo
+		local goHometown = opts.reason == "recall" or opts.goHometown == true
 		ExpeditionManager.cancelWaitingSession(
 			session,
 			player:getName() .. " cancelled the expedition."
 		)
 		if switchTo then
 			performDirectSwitch(player, nil, switchTo, {})
+		elseif goHometown and InstanceTeleport and InstanceTeleport.executeHometown then
+			InstanceTeleport.executeHometown(player, { fromExpedition = true })
+		end
+		return
+	end
+
+	local switchTo = opts.switchTo
+	local sessionKey = session.key
+	local leaverName = player:getName()
+	local goHometown = opts.reason == "recall" or opts.goHometown == true
+
+	-- Recall / switch: shared InstanceTeleport channel (server-timed).
+	if (goHometown or switchTo) and InstanceTeleport then
+		if InstanceTeleport.isPending(player) then
+			return
+		end
+		local humans = collectSessionHumans(session)
+		local memberIds = {}
+		for _, member in ipairs(humans) do
+			memberIds[#memberIds + 1] = member:getId()
+		end
+		if #memberIds == 0 then
+			memberIds = { playerId }
+		end
+		local requestFn = goHometown and InstanceTeleport.requestHometownGroup or InstanceTeleport.requestExpedition
+		if not requestFn then
+			ExpeditionProtocol.sendError(player, "Teleport is unavailable.")
+			return
+		end
+		local ok, err = requestFn({
+			initiatorId = playerId,
+			memberIds = memberIds,
+			onComplete = function()
+				completeLeaveCountdown(sessionKey, playerId, leaverName, switchTo, { goHometown = goHometown })
+			end,
+			onCancel = function(ids)
+				for _, id in ipairs(ids or memberIds) do
+					local p = Player(id)
+					if p then
+						ExpeditionProtocol.send(p, { type = "leaveCancelled" })
+					end
+				end
+			end,
+		})
+		if not ok then
+			ExpeditionProtocol.sendError(player, err or "Could not start teleport.")
 		end
 		return
 	end
 
 	local sec = math.max(0, math.floor(tonumber(ExpeditionConfig.LEAVE_COUNTDOWN_SEC) or 5))
-	local switchTo = opts.switchTo
-	local sessionKey = session.key
-	local leaverName = player:getName()
+	local switchToLegacy = opts.switchTo
+	local goHometownLegacy = goHometown
 
 	if sec <= 0 then
-		completeLeaveCountdown(sessionKey, playerId, leaverName, switchTo)
+		completeLeaveCountdown(sessionKey, playerId, leaverName, switchToLegacy, { goHometown = goHometownLegacy })
 		return
 	end
 
@@ -3696,10 +3903,14 @@ function ExpeditionManager.requestLeave(player, opts)
 	if teamStop then
 		if leavePendingBySessionKey[sessionKey] then
 			-- Allow a newer switch target to replace the pending one.
-			if switchTo then
-				leavePendingBySessionKey[sessionKey].switchTo = switchTo
+			if switchToLegacy then
+				leavePendingBySessionKey[sessionKey].switchTo = switchToLegacy
 				leavePendingBySessionKey[sessionKey].initiatorId = playerId
 				leavePendingBySessionKey[sessionKey].initiatorName = leaverName
+			end
+			if goHometownLegacy then
+				leavePendingBySessionKey[sessionKey].goHometown = true
+				leavePendingBySessionKey[sessionKey].reason = opts.reason
 			end
 			return
 		end
@@ -3709,16 +3920,19 @@ function ExpeditionManager.requestLeave(player, opts)
 			startedAt = os.time(),
 			sessionKey = sessionKey,
 			team = true,
-			switchTo = switchTo,
+			switchTo = switchToLegacy,
 			initiatorId = playerId,
 			initiatorName = leaverName,
+			reason = opts.reason,
+			goHometown = goHometownLegacy,
 		}
 		local event = addEvent(function(key, pid)
 			local pending = leavePendingBySessionKey[key]
 			local to = pending and pending.switchTo or nil
 			local name = (pending and pending.initiatorName) or nil
+			local pendingGoHometown = pending and pending.goHometown == true
 			clearLeavePendingForSession(key, pid)
-			completeLeaveCountdown(key, pid, name, to)
+			completeLeaveCountdown(key, pid, name, to, { goHometown = pendingGoHometown })
 		end, sec * 1000, sessionKey, playerId)
 		pendingInfo.event = event
 		leavePendingBySessionKey[sessionKey] = pendingInfo
@@ -3740,17 +3954,20 @@ function ExpeditionManager.requestLeave(player, opts)
 
 	leavePendingByPlayerId[playerId] = {
 		startedAt = os.time(),
-		switchTo = switchTo,
+		switchTo = switchToLegacy,
 		sessionKey = sessionKey,
 		initiatorName = leaverName,
+		reason = opts.reason,
+		goHometown = goHometownLegacy,
 	}
 	local event = addEvent(function(pid)
 		local pending = leavePendingByPlayerId[pid]
 		local to = pending and pending.switchTo or nil
 		local name = pending and pending.initiatorName or nil
 		local key = pending and pending.sessionKey or nil
+		local pendingGoHometown = pending and pending.goHometown == true
 		leavePendingByPlayerId[pid] = nil
-		completeLeaveCountdown(key, pid, name, to)
+		completeLeaveCountdown(key, pid, name, to, { goHometown = pendingGoHometown })
 	end, sec * 1000, playerId)
 	leavePendingByPlayerId[playerId].event = event
 	ExpeditionProtocol.send(player, {
@@ -3807,21 +4024,6 @@ local function clearPendingSwitch(session, opts)
 			end
 		end
 	end
-end
-
-local function collectSessionHumans(session)
-	local humans = {}
-	if not session then
-		return humans
-	end
-	for _, id in ipairs(sessionMemberIds(session)) do
-		local p = Player(id)
-		-- Headless (companions or disconnected alts) never need switch accept prompts.
-		if p and not isSessionCompanion(session, p) and hasUiClient(p) then
-			humans[#humans + 1] = p
-		end
-	end
-	return humans
 end
 
 local function pendingSwitchAwaitingNames(pending)
@@ -3995,13 +4197,60 @@ local function tryCompletePendingSwitch(session)
 		end
 	end
 	local switchTo = pending.switchTo
+	local catalogName = pending.catalogName
+	local hostId = host:getId()
+	local sessionKey = session.key
+	local memberIds = { hostId }
+	for _, p in ipairs(accepted) do
+		memberIds[#memberIds + 1] = p:getId()
+	end
 	logger.info(
-		"[Expedition] {} switch accepted → {} (teammates={})",
+		"[Expedition] {} switch accepted → {} (teammates={}) — arming IT",
 		host:getName(),
 		tostring(switchTo and switchTo.id or ""),
 		#accepted
 	)
-	performDirectSwitch(host, session, switchTo, accepted)
+	clearPendingSwitch(session, { silent = true })
+	if not InstanceTeleport or not InstanceTeleport.requestExpedition then
+		performDirectSwitch(host, session, switchTo, accepted)
+		return
+	end
+	local ok, err = InstanceTeleport.requestExpedition({
+		initiatorId = hostId,
+		memberIds = memberIds,
+		onComplete = function()
+			local joiner = Player(hostId)
+			local live = ExpeditionManager.getSessionByKey(sessionKey)
+			if not joiner then
+				return
+			end
+			performDirectSwitch(joiner, live, switchTo, accepted)
+		end,
+		onCancel = function(ids)
+			for _, id in ipairs(ids or memberIds) do
+				local p = Player(id)
+				if p then
+					ExpeditionProtocol.send(p, {
+						type = "switchCancelled",
+						reason = "cancelled",
+						expeditionName = catalogName,
+					})
+				end
+			end
+		end,
+	})
+	if not ok then
+		ExpeditionProtocol.sendError(host, err or "Could not start expedition change.")
+		for _, p in ipairs(accepted) do
+			if p then
+				ExpeditionProtocol.send(p, {
+					type = "switchCancelled",
+					reason = "cancelled",
+					expeditionName = catalogName,
+				})
+			end
+		end
+	end
 end
 
 local function armPendingSwitchTimeout(session)
@@ -4348,7 +4597,7 @@ function ExpeditionManager.leave(player, opts)
 		clearActive(player)
 		ExpeditionManager.clearAreaEffects(player)
 		if not opts.skipTeleport then
-			teleportPlayerHome(player)
+			teleportAfterLeave(player, nil, opts)
 		end
 		-- skipTeleport: caller is mid hunt→hunt switch (or death eject). Do not
 		-- bind open-world here; join / exitIfNotInExpedition / death return owns it.
@@ -4424,11 +4673,11 @@ function ExpeditionManager.leave(player, opts)
 				ExpeditionManager.clearAreaEffects(player)
 				if not opts.skipTeleport then
 					local returnPos = loadReturn(player)
-					if returnPos then
+					if returnPos or opts.goHometown then
 						if InstanceWorld and InstanceWorld.suppressHuntLeave then
 							InstanceWorld.suppressHuntLeave(player, true)
 						end
-						teleportPlayerHome(player, returnPos)
+						teleportAfterLeave(player, returnPos, opts)
 						if InstanceWorld and InstanceWorld.suppressHuntLeave then
 							InstanceWorld.suppressHuntLeave(player, false)
 						end
@@ -4451,11 +4700,11 @@ function ExpeditionManager.leave(player, opts)
 				ExpeditionManager.clearAreaEffects(player)
 				if not opts.skipTeleport then
 					local returnPos = loadReturn(player)
-					if returnPos then
+					if returnPos or opts.goHometown then
 						if InstanceWorld and InstanceWorld.suppressHuntLeave then
 							InstanceWorld.suppressHuntLeave(player, true)
 						end
-						teleportPlayerHome(player, returnPos)
+						teleportAfterLeave(player, returnPos, opts)
 						if InstanceWorld and InstanceWorld.suppressHuntLeave then
 							InstanceWorld.suppressHuntLeave(player, false)
 						end
@@ -4504,7 +4753,7 @@ function ExpeditionManager.leave(player, opts)
 		if InstanceWorld and InstanceWorld.suppressHuntLeave then
 			InstanceWorld.suppressHuntLeave(player, true)
 		end
-		teleportPlayerHome(player, returnPos)
+		teleportAfterLeave(player, returnPos, opts)
 		if InstanceWorld and InstanceWorld.suppressHuntLeave then
 			InstanceWorld.suppressHuntLeave(player, false)
 		end
@@ -4528,6 +4777,8 @@ function ExpeditionManager.leave(player, opts)
 	if not opts.silent then
 		if wasVictory then
 			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Expedition complete.")
+		elseif opts.goHometown then
+			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You recalled to your hometown.")
 		else
 			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You left the expedition.")
 		end

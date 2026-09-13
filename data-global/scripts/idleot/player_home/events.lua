@@ -1,7 +1,10 @@
--- personal home instance (top-bar Home button).
+-- personal home instance (top-bar Home) + opcode 116 mux.
 -- Client extended opcode 116
---   → { "action": "goHome" } | { "action": "leaveHome" }
---   ← { "type": "error", "message": "..." }
+--   → home: { "action": "goHome" } | { "action": "leaveHome" }
+--   → recall: { "action": "goHometown" }  (forwarded to InstanceTeleport)
+--   → IT cancel: { "action": "channelCancel" }  (forwarded to InstanceTeleport)
+--   → training: { "action": "startTraining" } | { "action": "stopTraining" }
+--   ← { "type": "error", "message": "..." } | trainingState | channel*
 
 local loginEvent = CreatureEvent("PlayerHomeLogin")
 

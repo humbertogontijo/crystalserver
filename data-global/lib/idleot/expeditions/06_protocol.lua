@@ -584,6 +584,13 @@ function ExpeditionProtocol.handle(player, buffer)
 	elseif action == "cancelLeave" then
 		logger.info("[Expedition] {} cancelLeave", player:getName())
 		ExpeditionManager.cancelLeave(player)
+	elseif action == "channelCancel" then
+		logger.info("[Expedition] {} channelCancel", player:getName())
+		if InstanceTeleport and InstanceTeleport.handleChannelCancel then
+			InstanceTeleport.handleChannelCancel(player)
+		elseif ExpeditionManager.cancelLeave then
+			ExpeditionManager.cancelLeave(player)
+		end
 	elseif action == "ackHuntDeath" then
 		logger.info("[Expedition] {} ackHuntDeath", player:getName())
 		if ExpeditionManager.ackHuntDeath then

@@ -1,5 +1,5 @@
--- Shared gate for HUD teleports (home, expedition).
--- Allowed from any protection-zone tile, or while inside a personal home instance.
+-- Shared gate helpers for instance teleport durations (PZ vs wilderness).
+-- isAllowed remains the hard gate for legacy callers; IT uses isInSafeZone + isCombatLocked.
 PzTeleport = PzTeleport or {}
 
 PzTeleport.FAIL_MESSAGE = "You can only teleport from a protection zone."
@@ -17,6 +17,25 @@ function PzTeleport.isGod(player)
 	return group:getId() == godId
 end
 
+--- True if standing on a PZ tile or inside a personal home instance.
+function PzTeleport.isInSafeZone(player)
+	if not player then
+		return false
+	end
+	if PlayerHomeManager and PlayerHomeManager.isPlayerInHome and PlayerHomeManager.isPlayerInHome(player) then
+		return true
+	end
+	local tile = Tile(player:getPosition())
+	return tile and tile:hasFlag(TILESTATE_PROTECTIONZONE) and true or false
+end
+
+function PzTeleport.isCombatLocked(player)
+	if not player then
+		return true
+	end
+	return player.isPzLocked and player:isPzLocked() and true or false
+end
+
 function PzTeleport.isAllowed(player)
 	if not player then
 		return false, "Invalid player."
@@ -24,15 +43,11 @@ function PzTeleport.isAllowed(player)
 	if PzTeleport.isGod(player) then
 		return true
 	end
-	if player.isPzLocked and player:isPzLocked() then
+	if PzTeleport.isCombatLocked(player) then
 		return false, PzTeleport.PZ_LOCKED_MESSAGE
 	end
-	if PlayerHomeManager and PlayerHomeManager.isPlayerInHome and PlayerHomeManager.isPlayerInHome(player) then
+	if PzTeleport.isInSafeZone(player) then
 		return true
 	end
-	local tile = Tile(player:getPosition())
-	if not tile or not tile:hasFlag(TILESTATE_PROTECTIONZONE) then
-		return false, PzTeleport.FAIL_MESSAGE
-	end
-	return true
+	return false, PzTeleport.FAIL_MESSAGE
 end

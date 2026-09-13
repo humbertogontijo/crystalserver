@@ -1,5 +1,6 @@
 -- Product libs (not stock Canary/Crystal). Load order matters.
 dofile(DATA_DIRECTORY .. "/lib/idleot/pz_teleport.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/instance_teleport/load.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/expeditions/01_json.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/creature_info/load.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/instance_world/load.lua")

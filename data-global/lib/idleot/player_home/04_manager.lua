@@ -206,29 +206,42 @@ function PlayerHomeManager.leaveHome(player)
 	return true
 end
 
-function PlayerHomeManager.goHome(player)
+--- Tear down home session without traveling (caller owns the next hop, e.g. temple recall).
+function PlayerHomeManager.closeHomeSession(player)
+	local session = PlayerHomeManager.getSession(player)
+	if not session then
+		return false
+	end
+	if PlayerHomeServices and PlayerHomeServices.onLeave then
+		PlayerHomeServices.onLeave(player)
+	end
+	endSession(player, session, false)
+	return true
+end
+
+local function fromExpeditionSafe(player, opts)
+	if opts and opts.fromExpedition then
+		return true
+	end
+	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
+		return false
+	end
+	return true
+end
+
+--- Enter personal home instance (no channel — InstanceTeleport.requestHome arms IT).
+function PlayerHomeManager.enterHome(player, opts)
+	opts = opts or {}
 	if not player then
 		return false, "Invalid player."
 	end
-
-	-- Block mid-expedition teleports; client should show leave confirmation first.
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
+	if not fromExpeditionSafe(player, opts) then
 		return false, "Leave the expedition before going home."
 	end
-
-	-- Toggle leave if already inside (no protection-zone check).
 	if PlayerHomeManager.isPlayerInHome(player) then
 		return PlayerHomeManager.leaveHome(player)
 	end
 
-	if PzTeleport and PzTeleport.isAllowed then
-		local allowed, pzErr = PzTeleport.isAllowed(player)
-		if not allowed then
-			return false, pzErr or "You can only go home from a protection zone."
-		end
-	end
-
-	-- Already has a session object (shouldn't happen) - clean it.
 	local existing = PlayerHomeManager.getSession(player)
 	if existing then
 		endSession(player, existing, false)
@@ -302,12 +315,19 @@ function PlayerHomeManager.goHome(player)
 	if InstanceWorld and InstanceWorld.sendBounds then
 		InstanceWorld.sendBounds(player, true)
 	end
-	-- Ensure imbuement shrine is usable (Forgotten Knowledge gate).
 	local tomes = PlayerHomeConfig.shaperTomesStorage and PlayerHomeConfig.shaperTomesStorage() or 0
 	if tomes and tomes > 0 and player:getStorageValue(tomes) < 1 then
 		player:setStorageValue(tomes, 1)
 	end
 	return true
+end
+
+--- Topbar / opcode goHome — InstanceTeleport owns the channel + hop.
+function PlayerHomeManager.goHome(player, opts)
+	if InstanceTeleport and InstanceTeleport.requestHome then
+		return InstanceTeleport.requestHome(player, opts)
+	end
+	return PlayerHomeManager.enterHome(player, opts)
 end
 
 function PlayerHomeManager.onLogout(player)
@@ -375,6 +395,10 @@ local function decodeOpcode(buffer)
 		action = "stopTraining"
 	elseif buffer:find('"leaveHome"', 1, true) then
 		action = "leaveHome"
+	elseif buffer:find('"goHometown"', 1, true) then
+		action = "goHometown"
+	elseif buffer:find('"channelCancel"', 1, true) then
+		action = "channelCancel"
 	elseif buffer:find('"goHome"', 1, true) then
 		action = "goHome"
 	else
@@ -402,6 +426,7 @@ function PlayerHomeManager.handleOpcode(player, buffer)
 	end
 
 	local action = tostring(msg.action or "")
+	-- Training is a home-instance service (dummies); keep on this opcode.
 	if action == "startTraining" then
 		local ok, errMsg = PlayerHomeServices.startTraining(player, {
 			skill = msg.skill,
@@ -422,20 +447,32 @@ function PlayerHomeManager.handleOpcode(player, buffer)
 		return
 	end
 
-	if action ~= "goHome" and action ~= "leaveHome" then
+	-- Instance teleport verbs (channel + hop owned by InstanceTeleport).
+	if action == "channelCancel" then
+		if InstanceTeleport and InstanceTeleport.handleChannelCancel then
+			InstanceTeleport.handleChannelCancel(player)
+		end
 		return
 	end
-
-	local ok, errMsg
-	if action == "leaveHome" then
-		ok, errMsg = PlayerHomeManager.leaveHome(player)
-	else
-		ok, errMsg = PlayerHomeManager.goHome(player)
-	end
-	if ok then
+	if action == "goHometown" then
+		local ok, errMsg
+		if InstanceTeleport and InstanceTeleport.requestHometown then
+			ok, errMsg = InstanceTeleport.requestHometown(player)
+		else
+			ok, errMsg = false, "Recall is unavailable."
+		end
+		if not ok then
+			player:sendTextMessage(MESSAGE_FAILURE, errMsg or "Could not recall.")
+			reply(player, encodeError(errMsg))
+		end
 		return
 	end
-	local msg = errMsg or "Could not enter home."
-	player:sendTextMessage(MESSAGE_FAILURE, msg)
-	reply(player, encodeError(msg))
+	if action == "goHome" or action == "leaveHome" then
+		local ok, errMsg = PlayerHomeManager.goHome(player)
+		if not ok then
+			player:sendTextMessage(MESSAGE_FAILURE, errMsg or "Could not enter home.")
+			reply(player, encodeError(errMsg))
+		end
+		return
+	end
 end
