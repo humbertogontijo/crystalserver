@@ -540,7 +540,7 @@ function ExpeditionAI.tick(session)
 
 	ExpeditionAI.syncDirectives(session)
 
-	-- Keep hunt monsters (incl. echo raids) near the party anchor / viewport.
+	-- Keep instance monsters near the live party anchor (hunts, raids, bosses, …).
 	if session.state == "hunting" and ExpeditionWaves and ExpeditionWaves.pullMonstersToAnchor then
 		ExpeditionWaves.pullMonstersToAnchor(session)
 	end

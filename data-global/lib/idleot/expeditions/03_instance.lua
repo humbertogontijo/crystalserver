@@ -261,10 +261,6 @@ function ExpeditionInstance.build(instanceId, opts, _seed, _kind)
 	return instance
 end
 
-function ExpeditionInstance.worldToSlot(_instance, x, y, z)
-	return Position(x, y, z)
-end
-
 local function spawnBounds(instance)
 	local origin = instance.origin
 	if origin and instance.mapWidth and instance.mapHeight then
@@ -275,6 +271,114 @@ local function spawnBounds(instance)
 		return entry.x - 8, entry.x + 8, entry.y - 8, entry.y + 8
 	end
 	return 0, 0, 0, 0
+end
+
+local doorOpenByClosed = nil
+
+local function buildDoorOpenLookup()
+	if doorOpenByClosed then
+		return doorOpenByClosed
+	end
+	doorOpenByClosed = {}
+	local function ingest(rows)
+		if type(rows) ~= "table" then
+			return
+		end
+		for _, row in ipairs(rows) do
+			if type(row) == "table" and row.openDoor then
+				if row.closedDoor then
+					doorOpenByClosed[row.closedDoor] = row.openDoor
+				end
+				if row.lockedDoor then
+					doorOpenByClosed[row.lockedDoor] = row.openDoor
+				end
+			end
+		end
+	end
+	ingest(KeyDoorTable)
+	ingest(CustomDoorTable)
+	ingest(LevelDoorTable)
+	ingest(QuestDoorTable)
+	return doorOpenByClosed
+end
+
+local function findInstanceDoorFork(tile, instanceId)
+	local items = tile.getItems and tile:getItems() or nil
+	if type(items) ~= "table" then
+		return nil
+	end
+	for _, item in ipairs(items) do
+		if item and item.getInstanceId and item:getInstanceId() == instanceId then
+			local it = ItemType(item:getId())
+			if it and it.isDoor and it:isDoor() then
+				return item
+			end
+		end
+	end
+	return nil
+end
+
+--- Fork closed/locked doors open for this private instance (does not mutate the shared map).
+function ExpeditionInstance.openDoors(instance)
+	if not instance or not instance.instanceId then
+		return
+	end
+	local instanceId = instance.instanceId
+	local openByClosed = buildDoorOpenLookup()
+	local minX, maxX, minY, maxY = spawnBounds(instance)
+	local floors = instance.floors
+	if type(floors) ~= "table" or #floors == 0 then
+		local z0 = (instance.origin and tonumber(instance.origin.z))
+			or (instance.entry and tonumber(instance.entry.z))
+			or 7
+		floors = { z0 }
+	end
+	local flags = FLAG_NOLIMIT or 1
+	for _, z in ipairs(floors) do
+		for x = minX, maxX do
+			for y = minY, maxY do
+				local tile = Tile(Position(x, y, z))
+				if tile then
+					local items = tile.getItems and tile:getItems() or nil
+					if type(items) == "table" then
+						-- Snapshot first: transforming/adding mutates the tile item list.
+						local toOpen = {}
+						for _, item in ipairs(items) do
+							if item and (not item.getInstanceId or item:getInstanceId() == 0) then
+								local id = item:getId()
+								local openId = openByClosed[id]
+								if openId then
+									toOpen[#toOpen + 1] = { item = item, openId = openId }
+								end
+							end
+						end
+						for _, entry in ipairs(toOpen) do
+							local fork = findInstanceDoorFork(tile, instanceId)
+							if not fork then
+								fork = entry.item.clone and entry.item:clone() or nil
+								if fork then
+									if fork.setInstanceId then
+										fork:setInstanceId(instanceId)
+									end
+									local ret = tile:addItemEx(fork, flags)
+									if ret ~= 0 then
+										fork = nil
+									end
+								end
+							end
+							if fork and fork.getId and fork:getId() ~= entry.openId and fork.transform then
+								fork:transform(entry.openId)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+function ExpeditionInstance.worldToSlot(_instance, x, y, z)
+	return Position(x, y, z)
 end
 
 function ExpeditionInstance.hasGround(pos)

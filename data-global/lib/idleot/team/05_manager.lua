@@ -801,14 +801,6 @@ function TeamManager.onAttachedClient(player)
 	if isHeadlessCompanion(player) then
 		clearCompanionMark(player)
 	end
-	-- Headless ticks auto-clear shortage suspend; UI cannot until the player notices.
-	-- Drop any sticky suspend left over from the headless session / gold buy attempt.
-	if CombatAutomation and CombatAutomation.setSuspended then
-		local state = CombatAutomation.getState and CombatAutomation.getState(player)
-		if state and state.suspended == true then
-			CombatAutomation.setSuspended(player, false)
-		end
-	end
 end
 
 --- Called from C++ ProtocolGame::connect after a real client attaches.

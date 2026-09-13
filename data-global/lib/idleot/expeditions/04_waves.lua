@@ -84,14 +84,10 @@ function ExpeditionWaves.sessionHasLiveMonsters(session, exceptCreatureId)
 	return false
 end
 
---- Keep instance monsters' home on the party anchor so C++ walk-back / idle-at-home works.
+--- Keep instance monsters' home on the live party anchor so C++ walk-back / idle-at-home works.
+--- Only pulls when a living anchor player exists — never toward entry/hold with nobody present.
 function ExpeditionWaves.pullMonstersToAnchor(session)
 	if not session or session.state ~= "hunting" then
-		return
-	end
-	local role = session.role or (session.catalog and session.catalog.role) or "monster"
-	local kind = session.kind or (session.catalog and session.catalog.kind) or "hunt"
-	if role == "boss" or kind == "raid" or kind == "worldboss" or kind == "soulpit" then
 		return
 	end
 	local instanceId = session.instance and session.instance.instanceId
@@ -100,9 +96,6 @@ function ExpeditionWaves.pullMonstersToAnchor(session)
 	end
 	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
 	local anchorPos = anchor and anchor:getPosition() or nil
-	if not anchorPos then
-		anchorPos = session.holdPos
-	end
 	if not anchorPos then
 		return
 	end

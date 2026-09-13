@@ -1989,7 +1989,6 @@ function CombatAutomation.getState(player)
 			exhaust = {},
 			exhaustUntil = {},
 			event = nil,
-			suspended = false,
 			lastSyncedAttackCreatureId = nil,
 			directive = nil,
 		}
@@ -2010,30 +2009,12 @@ function CombatAutomation.clearState(player)
 	statesByPlayerId[id] = nil
 end
 
-function CombatAutomation.setSuspended(player, suspended)
-	local state = CombatAutomation.getState(player)
-	if not state then
-		return
-	end
-	state.suspended = suspended == true
-	if CombatAutomationProtocol and CombatAutomationProtocol.sendConfig and state.config then
-		-- Clients listen for setAutomationSuspended; keep existing protocol path.
-	end
-	if CombatAutomation.refreshLoop then
-		CombatAutomation.refreshLoop(player)
-	end
-end
-
 --- Run one automation tick for the player.
 --- AUTO off: clear target and skip attack/rune slots; heals/support/potions still run.
---- Shortage suspend: keep targeting + stance/hold/follow so melee still fights; still
---- run healing/support spells and inventory potions; skip gold-gated ammo buys and
---- attack/rune casts until the player clears suspended.
-function CombatAutomation.tick(player, opts)
+function CombatAutomation.tick(player)
 	if not player then
 		return
 	end
-	opts = opts or {}
 	local state = CombatAutomation.getState(player)
 	local config = state.config
 		or {
@@ -2041,12 +2022,6 @@ function CombatAutomation.tick(player, opts)
 			autoTarget = { enabled = false, stance = "melee", rangedDistance = 3, mode = "A" },
 			forceSkillOrder = true,
 		}
-	local suspended = not opts.force and state.suspended == true
-	-- Headless cannot clear suspend via UI; drop stale shortage locks so targeting/casts resume.
-	if suspended and player.isHeadless and player:isHeadless() then
-		state.suspended = false
-		suspended = false
-	end
 
 	tickVisibleMonsters = computeVisibleMonsters(player)
 
@@ -2080,14 +2055,11 @@ function CombatAutomation.tick(player, opts)
 	end
 
 	-- Paladin distance ammo: equip preferred type; charge gold when inventory is empty.
-	-- Skip while suspended so shortage cannot re-buy every tick.
-	if not suspended then
-		local ammoSlots = config.slots
-		ensureAmmo(player, {
-			slots = ammoSlots,
-			ammoTypeId = config.ammoTypeId or 0,
-		})
-	end
+	local ammoSlots = config.slots
+	ensureAmmo(player, {
+		slots = ammoSlots,
+		ammoTypeId = config.ammoTypeId or 0,
+	})
 
 	local slots = config.slots
 	if type(slots) ~= "table" or #slots == 0 then
@@ -2104,8 +2076,6 @@ function CombatAutomation.tick(player, opts)
 	-- Potions: do not stop after the first success — HP and mana pots can both be
 	-- eligible in the same tick. Cap one success per restored resource so stacked
 	-- HP potions do not all fire together.
-	-- Inventory potions still run while suspended; empty stacks that need a gold buy
-	-- fail inside consumeSupply without blocking spell heals below.
 	local usedPotionHealth, usedPotionMana = false, false
 	for _, slot in ipairs(slots) do
 		if slot.kind == "potion" and slotShouldFire(slot, hpPercent, manaPercent, player) then
@@ -2175,7 +2145,7 @@ function CombatAutomation.tick(player, opts)
 
 	local preferredStances = preferredStanceWordsByChannel(supportSlots)
 
-	-- Healing / support / shield always run (mana-only); shortage suspend must not soft-lock deaths.
+	-- Healing / support / shield always run (mana-only).
 	for _, slot in ipairs(supportSlots) do
 		local partyTarget = nil
 		local shouldFire = false
@@ -2207,11 +2177,6 @@ function CombatAutomation.tick(player, opts)
 				end
 			end
 		end
-	end
-
-	if suspended then
-		tickVisibleMonsters = nil
-		return
 	end
 
 	local forceSkillOrder = config.forceSkillOrder ~= false
@@ -2314,11 +2279,9 @@ local function loopBody(playerId)
 		return
 	end
 
-	-- Player-owned loadout: targeting/movement always; casting gated inside tick when suspended.
+	-- Player-owned loadout: targeting, movement, and casting.
 	if state.config then
-		CombatAutomation.tick(player, {
-			force = false,
-		})
+		CombatAutomation.tick(player)
 	end
 
 	if shouldRunLoop(player, state, session, frozen) then

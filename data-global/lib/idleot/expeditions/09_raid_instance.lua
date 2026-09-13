@@ -253,6 +253,9 @@ function RaidInstance.provision(raid)
 		logger.error("[RaidInstance] failed to build arena for {}: {}", raid.name, err or "unknown")
 		return false
 	end
+	if ExpeditionInstance.openDoors then
+		ExpeditionInstance.openDoors(instance)
+	end
 
 	local aabb = zoneAABB(Zone(worldZoneName))
 
@@ -719,6 +722,9 @@ function RaidInstance.join(player, raidName, loadout, options)
 	session.playerIds[#session.playerIds + 1] = player:getId()
 	session.memberKeys[player:getId()] = key
 	ExpeditionManager.bindSession(member)
+	if ExpeditionConfig and ExpeditionConfig.pickAnchor then
+		ExpeditionConfig.pickAnchor(member)
+	end
 
 	player:registerEvent("ExpeditionPlayerDeath")
 	ExpeditionAI.enablePersistence(player)

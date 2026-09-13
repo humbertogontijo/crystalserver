@@ -127,15 +127,5 @@ function CombatAutomationProtocol.handleAction(player, msg)
 		end
 		return true
 	end
-	if action == "setAutomationSuspended" then
-		if CombatAutomation.setSuspended then
-			CombatAutomation.setSuspended(player, msg.suspended == true)
-		else
-			local state = CombatAutomation.getState(player)
-			state.suspended = msg.suspended == true
-			CombatAutomation.refreshLoop(player)
-		end
-		return true
-	end
 	return false
 end
