@@ -1523,15 +1523,17 @@ end
 --- Deploy account companions near the controller.
 --- opts.position: spawn/teleport companions here (e.g. expedition entry).
 --- opts.instanceId: bind private hunt/raid id before place (atomic with headlessLogin).
---- opts.onComplete = function(companions|nil, err|nil) — preferred; DB loads are async.
---- Without onComplete, falls back to blocking Game.headlessLogin (legacy).
+--- opts.onComplete = function(companions|nil, err|nil) — required; DB loads are async via headlessLoginBatch.
 function TeamManager.deploy(controller, opts)
 	opts = opts or {}
 	if not controller then
 		return deliverDeployResult(opts, nil, "No player.")
 	end
-	if not Game.headlessLogin and not Game.headlessLoginBatch then
-		return deliverDeployResult(opts, nil, "Headless login is not available on this server build.")
+	if type(opts.onComplete) ~= "function" then
+		return deliverDeployResult(opts, nil, "Team deploy requires async onComplete.")
+	end
+	if not Game.headlessLoginBatch then
+		return deliverDeployResult(opts, nil, "Headless login batch is not available on this server build.")
 	end
 
 	local spawnPos = opts.position or controller:getPosition()
@@ -1660,49 +1662,31 @@ function TeamManager.deploy(controller, opts)
 		return finishWithCompanions(companions)
 	end
 
-	-- Preferred path: parallel DB load off the game thread.
-	if Game.headlessLoginBatch and opts.onComplete then
-		local claimed = companions
-		Game.headlessLoginBatch(namesToLoad, spawnPos, function(loaded, loadErr)
-			if not controller or not Player(controller:getId()) then
-				for _, c in ipairs(loaded or {}) do
-					if c and isHeadlessCompanion(c) then
-						safeLogoutCompanion(c)
-					end
+	local claimed = companions
+	Game.headlessLoginBatch(namesToLoad, spawnPos, function(loaded, loadErr)
+		if not controller or not Player(controller:getId()) then
+			for _, c in ipairs(loaded or {}) do
+				if c and isHeadlessCompanion(c) then
+					safeLogoutCompanion(c)
 				end
-				opts.onComplete(nil, "Controller offline during deploy.")
-				return
 			end
-			if not loaded then
-				rollbackCompanions(claimed)
-				opts.onComplete(nil, loadErr or "Failed to login companions.")
-				return
-			end
-			local merged, mergeErr = acceptLoadedCompanions(controller, claimed, loaded, accountId)
-			if not merged then
-				opts.onComplete(nil, mergeErr)
-				return
-			end
-			local finalized, ferr = finalizeDeploy(controller, opts, merged)
-			opts.onComplete(finalized, ferr)
-		end, instanceId)
-		return true
-	end
-
-	-- Legacy / no-callback: blocking sequential headlessLogin (stalls the dispatcher).
-	for _, name in ipairs(namesToLoad) do
-		local companion = Game.headlessLogin(name, spawnPos, instanceId)
-		if not companion then
-			rollbackCompanions(companions)
-			return deliverDeployResult(opts, nil, string.format("Failed to login companion %s.", name))
+			opts.onComplete(nil, "Controller offline during deploy.")
+			return
 		end
-		local merged, mergeErr = acceptLoadedCompanions(controller, companions, { companion }, accountId)
+		if not loaded then
+			rollbackCompanions(claimed)
+			opts.onComplete(nil, loadErr or "Failed to login companions.")
+			return
+		end
+		local merged, mergeErr = acceptLoadedCompanions(controller, claimed, loaded, accountId)
 		if not merged then
-			return deliverDeployResult(opts, nil, mergeErr)
+			opts.onComplete(nil, mergeErr)
+			return
 		end
-		companions = merged
-	end
-	return finishWithCompanions(companions)
+		local finalized, ferr = finalizeDeploy(controller, opts, merged)
+		opts.onComplete(finalized, ferr)
+	end, instanceId)
+	return true
 end
 
 function TeamManager.undeploy(controller, opts)
@@ -1854,46 +1838,7 @@ function TeamManager.ensureOnlineMember(controller, nameOrGuid)
 		end
 		return online
 	end
-	if not Game.headlessLogin then
-		return nil, "Character must be online for remote feature access."
-	end
-	local offline = Game.getOfflinePlayer(name)
-	if not offline then
-		return nil, string.format("Character not found: %s", name)
-	end
-	if offline:getAccountId() ~= controller:getAccountId() then
-		return nil, "Characters must be on your account."
-	end
-	local companion = Game.headlessLogin(name, controller:getPosition())
-	if not companion then
-		return nil, string.format("Failed to login companion %s for wheel edit.", name)
-	end
-	if companion:getAccountId() ~= controller:getAccountId() then
-		Game.headlessLogout(companion)
-		return nil, "Characters must be on your account."
-	end
-	markCompanion(companion, controller)
-	local dep = deployments[controller:getGuid()]
-	if not dep then
-		deployments[controller:getGuid()] = {
-			companionIds = { companion:getId() },
-			partyOwned = false,
-		}
-	else
-		local ids = dep.companionIds or {}
-		local found = false
-		for _, id in ipairs(ids) do
-			if id == companion:getId() then
-				found = true
-				break
-			end
-		end
-		if not found then
-			ids[#ids + 1] = companion:getId()
-			dep.companionIds = ids
-		end
-	end
-	return companion
+	return nil, "Character must be online for remote feature access."
 end
 
 --- Ensure online and return creature id for client g_game.openWheel.
@@ -1963,7 +1908,7 @@ function TeamManager.openTaskBoard(controller, nameOrGuid)
 	return deliverCompanionFeatureOffline(controller, nameOrGuid, "taskBoard")
 end
 
-local function findItemByPathOrLegacy(player, msg)
+local function findItemByPath(player, msg)
 	if type(msg) == "table" and msg.path then
 		local item = resolveItemByPath(player, msg.path)
 		if item then
@@ -2754,7 +2699,7 @@ function TeamManager.setAutomation(controller, msg)
 	}
 end
 
---- Ensure headlessLogin API presence message once.
+--- Ensure headless companion API presence (async batch + logout).
 function TeamManager.hasCompanionApi()
-	return type(Game.headlessLogin) == "function" and type(Game.headlessLogout) == "function"
+	return type(Game.headlessLoginBatch) == "function" and type(Game.headlessLogout) == "function"
 end

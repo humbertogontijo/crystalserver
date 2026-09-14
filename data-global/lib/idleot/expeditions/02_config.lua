@@ -163,9 +163,6 @@ ExpeditionConfig.STANCE_DISTANCE = { melee = 1, close = 1, ranged = 3 }
 -- Single ranged hold distance (formation / creature-stance Chebyshev).
 ExpeditionConfig.RANGED_DISTANCE_DEFAULT = 3
 ExpeditionConfig.RANGED_DISTANCE_OPTIONS = { 3 }
--- Back-compat aliases (older call sites).
-ExpeditionConfig.BOSS_ROLES = ExpeditionConfig.STANCE_ROLES
-ExpeditionConfig.BOSS_STANCE_DISTANCE = ExpeditionConfig.STANCE_DISTANCE
 -- Post-clear loot window before eject/sweep (boss, hunt wave-limit, raid).
 ExpeditionConfig.LOOT_GRACE_MS = 5000
 -- Fallback when configKeys.BOSS_DEFAULT_TIME_TO_DEFEAT is unavailable (lever timeout).
@@ -276,7 +273,7 @@ end
 
 --- Chebyshev hold distance for a stance role (ranged vocations may override via automation config).
 function ExpeditionConfig.stanceDistanceFor(role, rangedDistance)
-	local map = ExpeditionConfig.STANCE_DISTANCE or ExpeditionConfig.BOSS_STANCE_DISTANCE or {}
+	local map = ExpeditionConfig.STANCE_DISTANCE or {}
 	if role == "ranged" then
 		return ExpeditionConfig.normalizeRangedDistance(rangedDistance or map.ranged)
 	end
@@ -636,13 +633,34 @@ end
 
 loadGeneratedCatalog()
 
+--- Ephemeral catalog entries (e.g. Soul Pit per-run) without monkey-patching getById.
+ExpeditionConfig.TransientById = ExpeditionConfig.TransientById or {}
+
+function ExpeditionConfig.setTransient(id, entry)
+	if id == nil or type(entry) ~= "table" then
+		return
+	end
+	ExpeditionConfig.TransientById[tostring(id)] = entry
+end
+
+function ExpeditionConfig.clearTransient(id)
+	if id == nil then
+		return
+	end
+	ExpeditionConfig.TransientById[tostring(id)] = nil
+end
+
 function ExpeditionConfig.getById(id, role)
 	if id == nil then
 		return nil
 	end
+	local key = tostring(id)
+	local transient = ExpeditionConfig.TransientById[key]
+	if transient then
+		return transient
+	end
 	-- Hunt ids are subarea numbers; boss ids are bossRaceId numbers.
 	-- The same number can appear once per role (e.g. hunt 46 vs Black Knight 46).
-	local key = tostring(id)
 	local wantRole = nil
 	if role == "boss" or role == "monster" or role == "arena" then
 		wantRole = role

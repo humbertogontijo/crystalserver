@@ -1,5 +1,5 @@
--- Minimal JSON encode/decode for combat automation protocol / KV.
-CombatAutomationJson = CombatAutomationJson or {}
+-- Shared JSON encode/decode for idleot protocol / KV payloads.
+IdleotJson = IdleotJson or {}
 
 local function escapeString(s)
 	s = s:gsub("\\", "\\\\")
@@ -10,7 +10,7 @@ local function escapeString(s)
 	return '"' .. s .. '"'
 end
 
-function CombatAutomationJson.encode(value)
+function IdleotJson.encode(value)
 	local t = type(value)
 	if t == "nil" then
 		return "null"
@@ -35,14 +35,16 @@ function CombatAutomationJson.encode(value)
 		if isArray then
 			local parts = {}
 			for i = 1, maxIndex do
-				parts[#parts + 1] = CombatAutomationJson.encode(value[i])
+				parts[#parts + 1] = IdleotJson.encode(value[i])
 			end
 			return "[" .. table.concat(parts, ",") .. "]"
 		end
 		local parts = {}
 		for k, v in pairs(value) do
 			if type(k) == "string" then
-				parts[#parts + 1] = escapeString(k) .. ":" .. CombatAutomationJson.encode(v)
+				parts[#parts + 1] = escapeString(k) .. ":" .. IdleotJson.encode(v)
+			elseif type(k) == "number" then
+				parts[#parts + 1] = escapeString(tostring(k)) .. ":" .. IdleotJson.encode(v)
 			end
 		end
 		return "{" .. table.concat(parts, ",") .. "}"
@@ -177,7 +179,7 @@ decodeValue = function(s, i)
 	end
 end
 
-function CombatAutomationJson.decode(raw)
+function IdleotJson.decode(raw)
 	if type(raw) ~= "string" or raw == "" then
 		return nil
 	end
@@ -190,3 +192,10 @@ function CombatAutomationJson.decode(raw)
 	end
 	return nil
 end
+
+-- Module aliases (same table).
+ExpeditionJson = IdleotJson
+CombatAutomationJson = IdleotJson
+TeamJson = IdleotJson
+SocialJson = IdleotJson
+QuestJson = IdleotJson

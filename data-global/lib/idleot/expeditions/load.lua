@@ -1,7 +1,6 @@
 -- Ordered expedition library loader (not under scripts/, so not auto-scanned).
 local base = DATA_DIRECTORY .. "/lib/idleot/expeditions/"
 local files = {
-	"01_json.lua",
 	"02_config.lua",
 	"02a_creature_info.lua",
 	"03_instance.lua",

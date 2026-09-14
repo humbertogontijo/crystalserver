@@ -103,13 +103,13 @@ end
 
 monsterDeath:register()
 
-local thinkCallback = EventCallback("ExpeditionPlayerOnThink")
+local thinkCallback = EventCallback("CombatAutomationPlayerOnThink")
 
 function thinkCallback.playerOnThink(player, interval)
-	-- Ensure the 250ms automation loop is armed (do not tick expedition AI here -
-	-- ExpeditionAI.start owns the session tick; avoids double pathing/casts).
-	if CombatAutomation and CombatAutomation.refreshLoop then
-		pcall(CombatAutomation.refreshLoop, player)
+	-- Engine think owns per-player combat cadence (idleCombat 250ms).
+	-- Session AI is only ExpeditionAI.start's aiEvent — do not call ExpeditionAI.tick here.
+	if CombatAutomation and CombatAutomation.onThink then
+		pcall(CombatAutomation.onThink, player, interval)
 	end
 	-- Player attack packets can change the server target between AI ticks; keep the
 	-- client red square in sync (vanilla has no S→C attack opcode).

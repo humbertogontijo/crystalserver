@@ -16,7 +16,6 @@ end
 
 local base = DATA_DIRECTORY .. "/lib/idleot/quests/"
 local files = {
-	"01_json.lua",
 	"02_config.lua",
 	"03_catalog.lua",
 	"04_manager.lua",

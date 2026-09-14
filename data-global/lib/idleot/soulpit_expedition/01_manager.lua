@@ -221,23 +221,11 @@ function SoulPitExpedition.start(player)
 		soulPit = true,
 	}
 
-	-- Reuse join pipeline via temporary catalog injection.
-	local prev = ExpeditionConfig._soulPitCatalog
-	ExpeditionConfig._soulPitCatalog = catalog
-	local oldGet = ExpeditionConfig.getById
-	ExpeditionConfig.getById = function(id, role)
-		if id == "soul-pit" then
-			return ExpeditionConfig._soulPitCatalog
-		end
-		return oldGet(id, role)
-	end
-
+	ExpeditionConfig.setTransient("soul-pit", catalog)
 	local ok, err = pcall(function()
 		ExpeditionManager.join(player, "soul-pit", "boss", nil, nil)
 	end)
-
-	ExpeditionConfig.getById = oldGet
-	ExpeditionConfig._soulPitCatalog = prev
+	ExpeditionConfig.clearTransient("soul-pit")
 
 	if not ok then
 		return false, tostring(err)

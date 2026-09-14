@@ -1,4 +1,0 @@
--- Formerly wrapped quest MonsterType.onThink so private instances kept AI.
--- Engine Monster::onThink now ignores Lua "cancel AI" returns in private
--- instances (instanceId >= Game::INSTANCE_PRIVATE_BASE). Rotten-blood icons
--- route via onRottenMonsterThink → RottenBloodInstanceIcons (see 03_*.lua).

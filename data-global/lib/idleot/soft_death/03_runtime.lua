@@ -172,8 +172,8 @@ function SoftDeath.endDowned(player, opts)
 	if ExpeditionAI and ExpeditionAI.enablePersistence then
 		ExpeditionAI.enablePersistence(player)
 	end
-	if CombatAutomation and CombatAutomation.refreshLoop then
-		CombatAutomation.refreshLoop(player)
+	if CombatAutomation and CombatAutomation.ensureLoop then
+		CombatAutomation.ensureLoop(player)
 	end
 	return true
 end

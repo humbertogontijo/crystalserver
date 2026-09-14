@@ -104,6 +104,8 @@ Player::Player(std::shared_ptr<ProtocolGame> p) :
 }
 
 Player::~Player() {
+	stopIdleCombatThink();
+
 	for (const auto &item : inventory) {
 		if (item) {
 			item->resetParent();
@@ -9027,7 +9029,49 @@ void Player::onThink(uint32_t interval) {
 	// Wheel of destiny major spells
 	wheel()->onThink();
 
-	g_callbacks().executeCallback(EventCallback_t::playerOnThink, &EventCallback::playerOnThink, getPlayer(), interval);
+	// Idle combat: 250ms cycle drives playerOnThink; skip stock 1s callback to avoid double ticks.
+	if (!idleCombat) {
+		g_callbacks().executeCallback(EventCallback_t::playerOnThink, &EventCallback::playerOnThink, getPlayer(), interval);
+	}
+}
+
+void Player::setIdleCombat(bool enabled) {
+	// Entering: drop deferred walk-then-act so AI can own the path.
+	// Leaving: same clear — a denied Use approach under idle combat used to
+	// set walkTask without starting a walk, soft-locking map-click autoWalk.
+	if (enabled != idleCombat) {
+		setNextWalkActionTask(nullptr);
+	}
+	idleCombat = enabled;
+	if (enabled) {
+		startIdleCombatThink();
+	} else {
+		stopIdleCombatThink();
+	}
+}
+
+void Player::startIdleCombatThink() {
+	if (idleCombatThinkEvent != 0) {
+		return;
+	}
+	const uint32_t playerId = getID();
+	idleCombatThinkEvent = g_dispatcher().cycleEvent(
+		IDLE_COMBAT_THINK_INTERVAL,
+		[playerId] {
+			const auto &player = g_game().getPlayerByID(playerId);
+			if (!player || !player->isIdleCombat()) {
+				return;
+			}
+			g_callbacks().executeCallback(EventCallback_t::playerOnThink, &EventCallback::playerOnThink, player, Player::IDLE_COMBAT_THINK_INTERVAL);
+		},
+		"Player::idleCombatThink");
+}
+
+void Player::stopIdleCombatThink() {
+	if (idleCombatThinkEvent != 0) {
+		g_dispatcher().stopEvent(idleCombatThinkEvent);
+		idleCombatThinkEvent = 0;
+	}
 }
 
 void Player::postAddNotification(const std::shared_ptr<Thing> &thing, const std::shared_ptr<Cylinder> &oldParent, int32_t index, CylinderLink_t link) {

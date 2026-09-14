@@ -238,9 +238,6 @@ local function clearRelocate(session)
 		session._relocateMember = nil
 		session._relocateDestsAssigned = nil
 		session._relocateFollowReady = nil
-		if ExpeditionAI and ExpeditionAI.clearCatchUpBoosts then
-			ExpeditionAI.clearCatchUpBoosts(session)
-		end
 	end
 end
 

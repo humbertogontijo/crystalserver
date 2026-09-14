@@ -33,7 +33,6 @@ function ActivityBoostProtocol.sendState(player)
 			worldBoss = {
 				active = ActivityBoostWorldBoss.listActive(),
 				schedule = ActivityBoostWorldBoss.listSchedule(),
-				bosses = ActivityBoostWorldBoss.listBossTimetable(),
 				worldBossFragsToday = fragsToday,
 				fraggedToday = fragsToday >= cap,
 				sessionTimes = ActivityBoostConfig.WORLD_BOSS_SESSION_TIMES or {},

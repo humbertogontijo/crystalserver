@@ -282,7 +282,7 @@ function CombatAutomationStore.applyToRuntime(player, config)
 	elseif autoResumed and CombatAutomationMovement and CombatAutomationMovement.onAutoResumed then
 		CombatAutomationMovement.onAutoResumed(player)
 	end
-	CombatAutomation.refreshLoop(player)
+	CombatAutomation.ensureLoop(player)
 end
 
 function CombatAutomationStore.setConfig(player, raw)

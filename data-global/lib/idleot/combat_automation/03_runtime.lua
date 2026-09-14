@@ -686,7 +686,7 @@ end
 -- Soft backoff after a cast that still failed (mana/weapon/range/etc.) so we do not
 -- spam CONST_ME_POFF every TICK_MS. Spell/group CDs are checked before cast instead.
 -- Keep this short (one tick) so transient range/LOS misses recover quickly.
-local CAST_FAIL_BACKOFF_MS = CombatAutomationConfig.TICK_MS or 100
+local CAST_FAIL_BACKOFF_MS = CombatAutomationConfig.TICK_MS or 250
 
 local function getInstantSpell(words)
 	if type(words) ~= "string" or words == "" then
@@ -2002,10 +2002,6 @@ function CombatAutomation.clearState(player)
 		return
 	end
 	local id = player:getId()
-	local state = statesByPlayerId[id]
-	if state and state.event then
-		stopEvent(state.event)
-	end
 	statesByPlayerId[id] = nil
 end
 
@@ -2263,69 +2259,32 @@ local function shouldRunLoop(player, state, session, frozen)
 	return hasSlots or hasAutoTarget
 end
 
-local function loopBody(playerId)
-	local player = Player(playerId)
-	local state = statesByPlayerId[playerId]
-	if not player or not state then
-		if state then
-			state.event = nil
-		end
-		return
-	end
-
-	local session, frozen = expeditionSession(player)
-	if frozen then
-		state.event = nil
-		return
-	end
-
-	-- Player-owned loadout: targeting, movement, and casting.
-	if state.config then
-		CombatAutomation.tick(player)
-	end
-
-	if shouldRunLoop(player, state, session, frozen) then
-		state.event = addEvent(function()
-			loopBody(playerId)
-		end, CombatAutomationConfig.TICK_MS or 100)
-	else
-		state.event = nil
-	end
-end
-
-function CombatAutomation.ensureLoop(player)
+--- Driven by Player::onThink / idle-combat 250ms cycle (EventCallback playerOnThink).
+--- Do not schedule addEvent here — engine think owns cadence.
+function CombatAutomation.onThink(player, _interval)
 	if not player then
 		return
 	end
 	local state = CombatAutomation.getState(player)
 	local session, frozen = expeditionSession(player)
 	if not shouldRunLoop(player, state, session, frozen) then
-		if state.event then
-			stopEvent(state.event)
-			state.event = nil
-		end
 		return
 	end
-	if state.event then
-		return
+	if state.config then
+		CombatAutomation.tick(player)
 	end
-	local playerId = player:getId()
-	state.event = addEvent(function()
-		loopBody(playerId)
-	end, CombatAutomationConfig.TICK_MS or 100)
 end
 
-function CombatAutomation.refreshLoop(player)
-	CombatAutomation.ensureLoop(player)
+--- Ensure loadout is in runtime state so onThink can tick (think pipeline owns the loop).
+function CombatAutomation.ensureLoop(player)
+	if player and CombatAutomationStore and CombatAutomationStore.getConfig then
+		CombatAutomationStore.getConfig(player)
+	end
 end
 
 function CombatAutomation.stopLoop(player)
-	if not player then
-		return
-	end
-	local state = statesByPlayerId[player:getId()]
-	if state and state.event then
-		stopEvent(state.event)
-		state.event = nil
+	-- Think pipeline stops naturally when shouldRunLoop is false / idleCombat clears.
+	if player then
+		CombatAutomation.clearState(player)
 	end
 end

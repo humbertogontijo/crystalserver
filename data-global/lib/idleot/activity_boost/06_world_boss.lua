@@ -5,8 +5,6 @@ ActivityBoostWorldBoss.active = ActivityBoostWorldBoss.active or {}
 ActivityBoostWorldBoss.schedule = ActivityBoostWorldBoss.schedule or {}
 -- Cooldown per band+boss so the same boss in another band stays available.
 ActivityBoostWorldBoss.bossCooldownUntil = ActivityBoostWorldBoss.bossCooldownUntil or {}
--- Legacy alias (cleared on load so old band-wide locks do not linger).
-ActivityBoostWorldBoss.bandCooldownUntil = ActivityBoostWorldBoss.bandCooldownUntil or {}
 
 local function bandForLevel(level)
 	level = tonumber(level) or 0
@@ -378,40 +376,11 @@ function ActivityBoostWorldBoss.listSchedule()
 	return out
 end
 
---- Flat boss list (unique names) for legacy protocol consumers.
-function ActivityBoostWorldBoss.listBossTimetable()
-	local now = os.time()
-	local seen = {}
-	local out = {}
-	for _, row in ipairs(ActivityBoostWorldBoss.listSchedule()) do
-		if not seen[row.bossName] then
-			seen[row.bossName] = true
-			out[#out + 1] = {
-				bossName = row.bossName,
-				nextAt = row.nextAt or 0,
-				nextClock = row.nextClock or "",
-				band = row.band,
-				bandName = row.bandName,
-				levelMin = row.levelMin,
-				levelMax = row.levelMax,
-			}
-		end
-	end
-	table.sort(out, function(a, b)
-		if (a.nextAt or 0) == (b.nextAt or 0) then
-			return tostring(a.bossName) < tostring(b.bossName)
-		end
-		return (a.nextAt or 0) < (b.nextAt or 0)
-	end)
-	return out
-end
-
 function ActivityBoostWorldBoss.broadcastSchedule()
 	local payload = {
 		type = "worldBossSchedule",
 		active = ActivityBoostWorldBoss.listActive(),
 		schedule = ActivityBoostWorldBoss.listSchedule(),
-		bosses = ActivityBoostWorldBoss.listBossTimetable(),
 		sessionTimes = ActivityBoostConfig.WORLD_BOSS_SESSION_TIMES or {},
 	}
 	for _, player in ipairs(Game.getPlayers()) do

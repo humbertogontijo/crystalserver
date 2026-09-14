@@ -110,9 +110,6 @@ end
 --- Suggest AUTO on once at hunt start (do not force-lock; player may toggle off).
 local function suggestAutoOn(player)
 	if not player or not CombatAutomationStore then
-		if player and CombatAutomation and CombatAutomation.refreshLoop then
-			CombatAutomation.refreshLoop(player)
-		end
 		return
 	end
 	local config = CombatAutomationStore.getConfig(player)
@@ -131,8 +128,6 @@ local function suggestAutoOn(player)
 		if CombatAutomationProtocol and CombatAutomationProtocol.sendConfig then
 			CombatAutomationProtocol.sendConfig(player, config)
 		end
-	elseif CombatAutomation and CombatAutomation.refreshLoop then
-		CombatAutomation.refreshLoop(player)
 	end
 end
 
@@ -157,9 +152,7 @@ local function clearPlayerCombat(session, player)
 		CombatAutomationMovement.clearDirective(player)
 		CombatAutomationMovement.clearWalkDedupe(player)
 	end
-	if CombatAutomation and CombatAutomation.refreshLoop then
-		CombatAutomation.refreshLoop(player)
-	end
+	-- Think pipeline stops when idleCombat clears; do not re-arm combat here.
 end
 
 --- Teleport lagging non-anchors near the anchor — never onto holdPos (that blocks the wave gate).
@@ -325,10 +318,6 @@ function ExpeditionAI.onPlayerWalk(player)
 	tickCatchUp(session)
 end
 
-function ExpeditionAI.clearCatchUpBoosts(_session)
-	-- Speed boosts removed; kept as no-op for call-site compat.
-end
-
 function ExpeditionAI.stopPlayer(session, player)
 	if not session or not player then
 		return
@@ -479,9 +468,7 @@ function ExpeditionAI.startRelocateWalk(session)
 			if ExpeditionWaves and ExpeditionWaves.onRelocatePartySettled then
 				ExpeditionWaves.onRelocatePartySettled(s)
 			end
-			if ExpeditionAI.tick then
-				ExpeditionAI.tick(s)
-			end
+			-- Session tick stays on aiEvent (ExpeditionAI.start); do not double-tick here.
 			return
 		end
 
@@ -569,29 +556,38 @@ function ExpeditionAI.tick(session)
 	end
 end
 
+--- Sole session-tick driver at AI_TICK_MS (250). Do not also schedule from
+--- playerOnThink / CombatAutomation.onThink — those own per-player combat only.
 function ExpeditionAI.start(session)
 	if not session or session.state == "ended" then
 		return
 	end
 	if session.aiEvent then
 		stopEvent(session.aiEvent)
+		session.aiEvent = nil
 	end
 	for _, id in ipairs(memberIds(session)) do
 		ExpeditionAI.enablePersistence(Player(id))
 	end
 	local key = session.key
+	local tickMs = ExpeditionConfig.AI_TICK_MS or 250
 	local function loop()
 		local s = ExpeditionManager.getSessionByKey(key)
 		if not s or s.state == "ended" then
+			if s then
+				s.aiEvent = nil
+			end
 			return
 		end
 		ExpeditionAI.tick(s)
 		s = ExpeditionManager.getSessionByKey(key)
 		if s and s.state ~= "ended" then
-			s.aiEvent = addEvent(loop, ExpeditionConfig.AI_TICK_MS)
+			s.aiEvent = addEvent(loop, tickMs)
+		elseif s then
+			s.aiEvent = nil
 		end
 	end
-	session.aiEvent = addEvent(loop, ExpeditionConfig.AI_TICK_MS)
+	session.aiEvent = addEvent(loop, tickMs)
 
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)

@@ -46,6 +46,8 @@ private:
 	static int luaCreatureGetId(lua_State* L);
 	static int luaCreatureGetInstanceId(lua_State* L);
 	static int luaCreatureSetInstanceId(lua_State* L);
+	/** Players in Chebyshev range sharing this creature's instanceId (hot-path helper). */
+	static int luaCreatureGetPlayersInRange(lua_State* L);
 	static int luaCreatureGetName(lua_State* L);
 	static int luaCreatureGetTypeName(lua_State* L);
 

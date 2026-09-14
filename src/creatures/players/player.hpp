@@ -600,15 +600,12 @@ public:
 	bool isIdleCombat() const {
 		return idleCombat;
 	}
-	void setIdleCombat(bool enabled) {
-		// Entering: drop deferred walk-then-act so AI can own the path.
-		// Leaving: same clear — a denied Use approach under idle combat used to
-		// set walkTask without starting a walk, soft-locking map-click autoWalk.
-		if (enabled != idleCombat) {
-			setNextWalkActionTask(nullptr);
-		}
-		idleCombat = enabled;
-	}
+	void setIdleCombat(bool enabled);
+	/** Cadence for idle-combat policy think (CombatAutomation / expedition sync). */
+	static constexpr uint32_t IDLE_COMBAT_THINK_INTERVAL = 250;
+
+	void startIdleCombatThink();
+	void stopIdleCombatThink();
 	/** Exercise dummy or idle combat — keep attacking without a live client. */
 	bool keepsDisconnectedCombat() const {
 		return idleCombat || exerciseTraining;
@@ -2150,6 +2147,7 @@ private:
 	bool marketMenu = false; // Menu option 'show in market'
 	bool exerciseTraining = false;
 	bool idleCombat = false;
+	uint64_t idleCombatThinkEvent = 0;
 	bool m_headless = false;
 	bool moved = false;
 	bool m_isDead = false;

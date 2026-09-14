@@ -45,6 +45,7 @@ void CreatureFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Creature", "getId", CreatureFunctions::luaCreatureGetId);
 	Lua::registerMethod(L, "Creature", "getInstanceId", CreatureFunctions::luaCreatureGetInstanceId);
 	Lua::registerMethod(L, "Creature", "setInstanceId", CreatureFunctions::luaCreatureSetInstanceId);
+	Lua::registerMethod(L, "Creature", "getPlayersInRange", CreatureFunctions::luaCreatureGetPlayersInRange);
 	Lua::registerMethod(L, "Creature", "getName", CreatureFunctions::luaCreatureGetName);
 	Lua::registerMethod(L, "Creature", "getTypeName", CreatureFunctions::luaCreatureGetTypeName);
 	Lua::registerMethod(L, "Creature", "getTarget", CreatureFunctions::luaCreatureGetTarget);
@@ -297,6 +298,31 @@ int CreatureFunctions::luaCreatureSetInstanceId(lua_State* L) {
 	}
 	creature->setInstanceId(Lua::getNumber<uint32_t>(L, 2));
 	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int CreatureFunctions::luaCreatureGetPlayersInRange(lua_State* L) {
+	// creature:getPlayersInRange(range = 15) — same-instance players within Chebyshev range.
+	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
+	if (!creature) {
+		lua_createtable(L, 0, 0);
+		return 1;
+	}
+	const auto range = std::max<int32_t>(0, Lua::getNumber<int32_t>(L, 2, 15));
+	const Position &pos = creature->getPosition();
+	Spectators spectators = Spectators().find<Player>(pos, false, range, range, range, range, true, creature->getInstanceId());
+
+	lua_createtable(L, static_cast<int>(spectators.size()), 0);
+	int index = 0;
+	for (const auto &entry : spectators) {
+		const auto &player = entry ? entry->getPlayer() : nullptr;
+		if (!player) {
+			continue;
+		}
+		Lua::pushUserdata<Player>(L, player);
+		Lua::setMetatable(L, -1, "Player");
+		lua_rawseti(L, -2, ++index);
+	}
 	return 1;
 }
 

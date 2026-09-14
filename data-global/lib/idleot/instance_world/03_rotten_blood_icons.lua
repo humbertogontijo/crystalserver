@@ -10,6 +10,7 @@ RottenBloodInstanceIcons = RottenBloodInstanceIcons or {}
 
 local partyTaintCache = setmetatable({}, { __mode = "v" })
 local processedPlayers = setmetatable({}, { __mode = "k" })
+local lastMonsterThink = setmetatable({}, { __mode = "k" })
 local lastCacheReset = os.time()
 local KV_SCOPE = "rotten-blood-area-icons"
 
@@ -149,20 +150,31 @@ function RottenBloodInstanceIcons.onMonsterThink(monster)
 	local currentTime = os.time()
 	if currentTime - lastCacheReset >= 1 then
 		processedPlayers = setmetatable({}, { __mode = "k" })
+		lastMonsterThink = setmetatable({}, { __mode = "k" })
 		lastCacheReset = currentTime
 	end
 
-	local monsterPos = monster:getPosition()
-	if not monsterPos then
+	-- At most one spectator scan per monster per second (icons tick on 1s cadence).
+	if lastMonsterThink[monster] == currentTime then
 		return
 	end
+	lastMonsterThink[monster] = currentTime
 
-	local instanceId = monster.getInstanceId and monster:getInstanceId() or nil
+	-- Engine Spectators with creature instanceId (Creature:getPlayersInRange).
 	local spectators
-	if instanceId ~= nil then
-		spectators = Game.getSpectators(monsterPos, false, true, 15, 15, 15, 15, instanceId)
+	if monster.getPlayersInRange then
+		spectators = monster:getPlayersInRange(15)
 	else
-		spectators = Game.getSpectators(monsterPos, false, true, 15, 15, 15, 15)
+		local monsterPos = monster:getPosition()
+		if not monsterPos then
+			return
+		end
+		local instanceId = monster.getInstanceId and monster:getInstanceId() or nil
+		if instanceId ~= nil then
+			spectators = Game.getSpectators(monsterPos, false, true, 15, 15, 15, 15, instanceId)
+		else
+			spectators = Game.getSpectators(monsterPos, false, true, 15, 15, 15, 15)
+		end
 	end
 
 	for _, player in ipairs(spectators or {}) do

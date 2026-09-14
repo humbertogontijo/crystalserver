@@ -551,6 +551,7 @@ function TeamStore.getMembers(player)
 	local members = TeamStore.sanitizeMembers(controller, raw or {})
 	if migrated then
 		TeamStore.setMembersOnController(controller, members)
+		kvRemove(controller, TeamConfig.KV_MEMBERS_LEGACY)
 	end
 	return members
 end

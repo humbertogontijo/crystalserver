@@ -3,10 +3,10 @@
 --                   { action = "itemIds", items = { "great health potion", ... } }
 -- Client response: { action = "allMonsterInfo", data = { [name] = {
 --                     raceId, health, experience, speed, armor, mitigation, defense,
---                     elements, resistances  -- same map; keys 0=phys … 7=heal; values = 100 - absorb%
+--                     resistances  -- keys 0=phys … 7=heal; values = 100 - absorb%
 --                   } } }
 --                   { action = "itemIds", data = { [name] = itemId } }
--- Element / resistance keys match bestiary / OTC huntfinder.
+-- Resistance keys match bestiary / OTC huntfinder.
 
 HuntFinderProtocol = HuntFinderProtocol or {}
 
@@ -131,8 +131,6 @@ local function monsterInfo(name)
 		armor = mType:armor() or 0,
 		defense = defense,
 		mitigation = mType:mitigation() or 0,
-		-- elements: legacy huntfinder field; resistances: explicit alias for OTC.
-		elements = elements,
 		resistances = elements,
 	}
 end

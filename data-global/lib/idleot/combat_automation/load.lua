@@ -1,7 +1,6 @@
 -- Ordered combat automation library loader (not under scripts/, so not auto-scanned).
 local base = DATA_DIRECTORY .. "/lib/idleot/combat_automation/"
 local files = {
-	"01_json.lua",
 	"01_config.lua",
 	"01_base_loadouts.lua",
 	"02_catalog.lua",

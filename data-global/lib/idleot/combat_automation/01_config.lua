@@ -5,7 +5,7 @@ CombatAutomationConfig.OPCODE = 113
 CombatAutomationConfig.KV_KEY = "combat_automation"
 CombatAutomationConfig.KV_LEGACY_KEY = "expedition_automation"
 
-CombatAutomationConfig.TICK_MS = 100
+CombatAutomationConfig.TICK_MS = 250
 CombatAutomationConfig.POTION_EXHAUST_MS = 1000
 CombatAutomationConfig.RUNE_EXHAUST_MS = 2000
 CombatAutomationConfig.SPELL_EXHAUST_MS = 2000
