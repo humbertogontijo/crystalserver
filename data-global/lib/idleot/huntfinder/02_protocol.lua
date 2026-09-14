@@ -22,15 +22,15 @@ local ELEMENT_INDEX = {
 }
 
 local function encode(payload)
-	if ExpeditionJson and ExpeditionJson.encode then
-		return ExpeditionJson.encode(payload)
+	if JsonParser and JsonParser.encode then
+		return JsonParser.encode(payload)
 	end
 	return nil
 end
 
 local function decode(buffer)
-	if ExpeditionJson and ExpeditionJson.decode then
-		local ok, decoded = pcall(ExpeditionJson.decode, buffer)
+	if JsonParser and JsonParser.decode then
+		local ok, decoded = pcall(JsonParser.decode, buffer)
 		if ok and type(decoded) == "table" then
 			return decoded
 		end

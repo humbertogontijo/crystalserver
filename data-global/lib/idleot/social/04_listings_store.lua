@@ -60,7 +60,7 @@ end
 
 local function decodeStored(stored)
 	if type(stored) == "string" and stored ~= "" then
-		local decoded = SocialJson.decode(stored)
+		local decoded = JsonParser.decode(stored)
 		if type(decoded) == "table" then
 			return decoded
 		end
@@ -78,7 +78,7 @@ local function persistListing(player, listing)
 	if not listing then
 		return kvSet(player, key, "")
 	end
-	return kvSet(player, key, SocialJson.encode(listing))
+	return kvSet(player, key, JsonParser.encode(listing))
 end
 
 --- Write current in-memory listing for a host (online preferred).

@@ -4,7 +4,7 @@ function SoftDeathProtocol.send(player, payload)
 	if not player or not SoftDeathConfig then
 		return false
 	end
-	local encoded = ExpeditionJson and ExpeditionJson.encode and ExpeditionJson.encode(payload) or nil
+	local encoded = JsonParser and JsonParser.encode and JsonParser.encode(payload) or nil
 	if not encoded then
 		return false
 	end

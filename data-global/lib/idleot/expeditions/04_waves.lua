@@ -198,6 +198,9 @@ end
 local function lureCount(session)
 	local n = math.floor(tonumber(session and session.lure) or 0)
 	if n < 1 then
+		n = math.floor(tonumber(ExpeditionConfig.sessionHoldLure(session)) or 0)
+	end
+	if n < 1 then
 		return ExpeditionConfig.LURE_DEFAULT or 1
 	end
 	return n
@@ -241,33 +244,17 @@ local function clearRelocate(session)
 	end
 end
 
---- Advance to the next catalog hold (round-robin). Returns true when the party should walk.
---- positionIndex 0 = first wave at instance.entry (not yet on the catalog cycle).
-local function advanceHold(session)
-	if not session or not session.catalog then
-		return false
-	end
-	if session.role and session.role ~= "monster" then
-		return false
-	end
-	if not ExpeditionConfig.canRelocateHolds or not ExpeditionConfig.canRelocateHolds(session.catalog) then
-		return false
-	end
-	local holds = ExpeditionConfig.catalogPositions(session.catalog)
-	if #holds < 2 then
-		return false
-	end
-	local idx = tonumber(session.positionIndex) or 0
-	local nextIdx = idx < 1 and 1 or ((idx % #holds) + 1)
-	local nextHold = holds[nextIdx]
-	if not nextHold then
-		return false
-	end
-	session.positionIndex = nextIdx
-	session.holdPos = Position(nextHold.x, nextHold.y, nextHold.z)
-	-- Wave spawn count follows this hold's predefined lure.
-	session.lure = tonumber(nextHold.lure) or ExpeditionConfig.holdLure(nextHold, session.catalog)
-	return true
+--- Skip an unusable hold: next wave (and its hold) then retry spawn.
+local function skipHoldAndRespawn(session, delayMs)
+	ExpeditionConfig.advanceWave(session)
+	local key = session.key
+	session.waitingEvent = addEvent(function()
+		local s = ExpeditionManager.getSessionByKey(key)
+		if s and not huntEnded(s) then
+			ExpeditionWaves.spawn(s)
+		end
+	end, delayMs or 250)
+	ExpeditionManager.broadcastStatus(session)
 end
 
 --- Teleport session members for a timed-out relocate.
@@ -589,6 +576,10 @@ beginSpawnOnceSettled = function(session)
 	if huntEnded(session) then
 		return
 	end
+	-- First spawn: wave 0 → 1 (hold 1). Later spawns already advanced in scheduleNextWave.
+	if (tonumber(session.wave) or 0) < 1 then
+		ExpeditionConfig.advanceWave(session)
+	end
 	-- Hard gate: never start a wave while still walking to the hold.
 	if session.holdPos and not anchorAtHold(session) then
 		logger.warn("[Expedition] spawn blocked - anchor not at hold yet")
@@ -611,7 +602,6 @@ beginSpawnOnceSettled = function(session)
 
 	local count = lureCount(session)
 	session.waveLure = count
-	session.wave = (session.wave or 0) + 1
 	session.state = "waiting"
 	session.alive = 0
 
@@ -620,22 +610,7 @@ beginSpawnOnceSettled = function(session)
 	if anchor and ExpeditionInstance and ExpeditionInstance.hasLureSpawnRing then
 		if not ExpeditionInstance.hasLureSpawnRing(session.instance, anchor) then
 			logger.warn("[Expedition] hold lacks lure spawn ring; advancing hold")
-			if advanceHold(session) then
-				session.waitingEvent = addEvent(function()
-					local s = ExpeditionManager.getSessionByKey(session.key)
-					if s and not huntEnded(s) then
-						ExpeditionWaves.spawn(s)
-					end
-				end, 250)
-			else
-				session.waitingEvent = addEvent(function()
-					local s = ExpeditionManager.getSessionByKey(session.key)
-					if s and not huntEnded(s) then
-						ExpeditionWaves.spawn(s)
-					end
-				end, 1500)
-			end
-			ExpeditionManager.broadcastStatus(session)
+			skipHoldAndRespawn(session, 250)
 			return
 		end
 	end
@@ -643,22 +618,7 @@ beginSpawnOnceSettled = function(session)
 	local planned = planWave(session, count)
 	if #planned == 0 then
 		logger.warn("[Expedition] wave plan empty at anchor; advancing hold")
-		if advanceHold(session) then
-			session.waitingEvent = addEvent(function()
-				local s = ExpeditionManager.getSessionByKey(session.key)
-				if s and not huntEnded(s) then
-					ExpeditionWaves.spawn(s)
-				end
-			end, 250)
-		else
-			session.waitingEvent = addEvent(function()
-				local s = ExpeditionManager.getSessionByKey(session.key)
-				if s and not huntEnded(s) then
-					ExpeditionWaves.spawn(s)
-				end
-			end, 1500)
-		end
-		ExpeditionManager.broadcastStatus(session)
+		skipHoldAndRespawn(session, ExpeditionConfig.canRelocateHolds(session.catalog) and 250 or 1500)
 		return
 	end
 
@@ -676,7 +636,7 @@ local function scheduleNextWave(session)
 	clearWaiting(session)
 	clearRelocate(session)
 
-	-- Reusable finite hunts: stop after N cleared waves (session.wave set at spawn).
+	-- Reusable finite hunts: stop after N cleared waves (session.wave set when the wave starts).
 	if waveLimitReached(session) then
 		ExpeditionWaves.finishWaveLimitedHunt(session)
 		return
@@ -687,7 +647,7 @@ local function scheduleNextWave(session)
 	local preMs = preSpawnDurationMs()
 	local delay = math.max(0, totalDelay - preMs)
 
-	local shouldWalk = advanceHold(session)
+	local shouldWalk = ExpeditionConfig.advanceWave(session)
 	if shouldWalk then
 		session.state = "relocating"
 		session.relocateDelayMs = delay

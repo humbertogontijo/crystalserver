@@ -21,7 +21,7 @@ function CreatureInfo.load()
 	end
 	local content = file:read("*a")
 	file:close()
-	local data = ExpeditionJson and ExpeditionJson.decode(content) or json.decode(content)
+	local data = JsonParser and JsonParser.decode(content) or json.decode(content)
 	if type(data) ~= "table" or type(data.byName) ~= "table" then
 		logger.error("[CreatureInfo] creatures.generated.json decode failed")
 		CreatureInfo.ByName = {}

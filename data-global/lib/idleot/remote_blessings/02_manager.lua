@@ -67,8 +67,8 @@ local function decode(str)
 	if SquadJson and SquadJson.decode then
 		return SquadJson.decode(str)
 	end
-	if ExpeditionJson and ExpeditionJson.decode then
-		return ExpeditionJson.decode(str)
+	if JsonParser and JsonParser.decode then
+		return JsonParser.decode(str)
 	end
 	-- Minimal fallback: only used when sibling libs are not present.
 	return nil

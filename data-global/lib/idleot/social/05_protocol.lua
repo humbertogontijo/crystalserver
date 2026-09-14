@@ -4,7 +4,7 @@ function SocialProtocol.send(player, payload)
 	if not player then
 		return false
 	end
-	return player:sendExtendedOpcode(SocialConfig.OPCODE, SocialJson.encode(payload))
+	return player:sendExtendedOpcode(SocialConfig.OPCODE, JsonParser.encode(payload))
 end
 
 function SocialProtocol.sendError(player, message)
@@ -81,7 +81,7 @@ local function notifyPlayer(guidOrName, payload)
 end
 
 function SocialProtocol.handle(player, buffer)
-	local msg = SocialJson.decode(buffer)
+	local msg = JsonParser.decode(buffer)
 	if not msg or type(msg) ~= "table" then
 		return
 	end

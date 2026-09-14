@@ -376,8 +376,8 @@ local function decodeOpcode(buffer)
 	if type(buffer) ~= "string" or buffer == "" then
 		return nil
 	end
-	if ExpeditionJson and ExpeditionJson.decode then
-		local ok, decoded = pcall(ExpeditionJson.decode, buffer)
+	if JsonParser and JsonParser.decode then
+		local ok, decoded = pcall(JsonParser.decode, buffer)
 		if ok and type(decoded) == "table" then
 			return decoded
 		end

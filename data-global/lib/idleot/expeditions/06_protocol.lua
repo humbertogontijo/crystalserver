@@ -4,7 +4,7 @@ function ExpeditionProtocol.send(player, payload)
 	if not player then
 		return false
 	end
-	return player:sendExtendedOpcode(ExpeditionConfig.OPCODE, ExpeditionJson.encode(payload))
+	return player:sendExtendedOpcode(ExpeditionConfig.OPCODE, JsonParser.encode(payload))
 end
 
 --- Sync staff flag for GOD spectators (/goto into hunts) without paging the full catalog.
@@ -278,7 +278,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 			end
 			status.positions = slim
 		end
-		local idx = math.floor(tonumber(session.positionIndex) or 1)
+		local _, idx = ExpeditionConfig.holdForWave(session.catalog, session.wave)
 		if idx < 1 then
 			idx = 1
 		end
@@ -452,7 +452,7 @@ function ExpeditionProtocol.sendAutomationCast(player, payload)
 end
 
 function ExpeditionProtocol.handle(player, buffer)
-	local msg = ExpeditionJson.decode(buffer)
+	local msg = JsonParser.decode(buffer)
 	if not msg or type(msg) ~= "table" then
 		logger.warn(
 			"[Expedition] {} sent invalid opcode payload (len={})",

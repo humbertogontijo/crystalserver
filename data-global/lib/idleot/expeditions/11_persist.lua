@@ -98,6 +98,7 @@ function ExpeditionPersist.snapshotFromSession(session)
 		catalogRole = catalog.role or "monster",
 		lure = session.lure,
 		lureMax = session.lureMax,
+		wave = tonumber(session.wave) or 0,
 		hazardLevel = session.hazardLevel,
 		hazardMax = session.hazardMax,
 		stopOnInsufficientGold = session.stopOnInsufficientGold == true,
@@ -167,11 +168,11 @@ function ExpeditionPersist.writeSession(session)
 	end
 
 	local store = huntsKv()
-	if not store or not ExpeditionJson then
+	if not store or not JsonParser then
 		return false
 	end
 
-	local encoded = ExpeditionJson.encode(snapshot)
+	local encoded = JsonParser.encode(snapshot)
 	if not encoded then
 		return false
 	end
@@ -229,7 +230,7 @@ function ExpeditionPersist.loadAll()
 	pendingByGuid = {}
 
 	local store = huntsKv()
-	if not store or not store.keys or not ExpeditionJson then
+	if not store or not store.keys or not JsonParser then
 		return 0
 	end
 
@@ -244,7 +245,7 @@ function ExpeditionPersist.loadAll()
 	for _, key in ipairs(keys) do
 		local raw = store:get(key)
 		if type(raw) == "string" and raw ~= "" then
-			local snapshot = ExpeditionJson.decode(raw)
+			local snapshot = JsonParser.decode(raw)
 			if type(snapshot) == "table" and snapshot.catalogId and snapshot.hostGuid then
 				snapshot.sessionKey = snapshot.sessionKey or key
 				local savedAt = tonumber(snapshot.savedAt) or 0

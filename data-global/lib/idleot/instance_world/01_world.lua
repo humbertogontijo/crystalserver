@@ -128,10 +128,10 @@ local function loadJson(path)
 	end
 	local content = file:read("*a")
 	file:close()
-	if not ExpeditionJson or not ExpeditionJson.decode then
+	if not JsonParser or not JsonParser.decode then
 		return nil
 	end
-	return ExpeditionJson.decode(content)
+	return JsonParser.decode(content)
 end
 
 local function loadMask(overviewFile, boundary)

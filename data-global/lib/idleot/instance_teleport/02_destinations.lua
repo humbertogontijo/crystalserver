@@ -11,8 +11,8 @@ local EXP_OPCODE = function()
 end
 
 local function encodeBody(payload)
-	if ExpeditionJson and ExpeditionJson.encode then
-		local ok, encoded = pcall(ExpeditionJson.encode, payload)
+	if JsonParser and JsonParser.encode then
+		local ok, encoded = pcall(JsonParser.encode, payload)
 		if ok and type(encoded) == "string" then
 			return encoded
 		end

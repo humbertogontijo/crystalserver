@@ -158,7 +158,7 @@ end
 
 local function decodeStored(stored)
 	if type(stored) == "string" and stored ~= "" then
-		local decoded = TeamJson.decode(stored)
+		local decoded = JsonParser.decode(stored)
 		if type(decoded) == "table" then
 			return decoded
 		end
@@ -522,7 +522,7 @@ function TeamStore.setMembersOnController(controller, members)
 	local oldRaw = decodeStored(kvGet(controller, TeamConfig.KV_MEMBERS))
 	local oldSanitized = TeamStore.sanitizeMembers(controller, oldRaw or {})
 	local sanitized = TeamStore.sanitizeMembers(controller, members)
-	local payload = TeamJson.encode(sanitized)
+	local payload = JsonParser.encode(sanitized)
 	if not kvSet(controller, TeamConfig.KV_MEMBERS, payload) then
 		return false, "Failed to persist team."
 	end

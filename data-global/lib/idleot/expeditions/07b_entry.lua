@@ -378,7 +378,6 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 				and "waiting"
 			or "idle",
 		startedAt = os.time(),
-		positionIndex = 0,
 		holdPos = nil,
 		automation = hostAutomation or { slots = {} },
 		memberAutomation = memberAutomation,
@@ -401,20 +400,8 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 
 	if instance and instance.entry then
 		session.holdPos = Position(instance.entry.x, instance.entry.y, instance.entry.z)
-		session.positionIndex = 0
-		local holds = ExpeditionConfig.catalogPositions and ExpeditionConfig.catalogPositions(catalog) or {}
-		for i, h in ipairs(holds) do
-			if h and h.x == instance.entry.x and h.y == instance.entry.y and h.z == instance.entry.z then
-				session.positionIndex = i
-				session.lure = tonumber(h.lure) or ExpeditionConfig.holdLure(h, catalog)
-				break
-			end
-		end
-		if (not session.positionIndex or session.positionIndex < 1) and holds[1] then
-			session.positionIndex = 1
-			session.lure = tonumber(holds[1].lure) or ExpeditionConfig.holdLure(holds[1], catalog)
-		end
 	end
+	ExpeditionConfig.syncHoldFromWave(session)
 
 	ExpeditionManager.broadcastStatus(session)
 
@@ -515,7 +502,7 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 		role = contentRole,
 		channel = channel,
 		instance = instance,
-		wave = 0,
+		wave = math.max(0, math.floor(tonumber(snapshot.wave) or 0)),
 		alive = 0,
 		kills = 0,
 		lure = sessionLure,
@@ -530,7 +517,6 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 		waveLure = nil,
 		state = "idle",
 		startedAt = os.time(),
-		positionIndex = 0,
 		holdPos = nil,
 		automation = { slots = {} },
 		memberAutomation = {},
@@ -546,6 +532,7 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 	if instance.entry then
 		session.holdPos = Position(instance.entry.x, instance.entry.y, instance.entry.z)
 	end
+	ExpeditionConfig.syncHoldFromWave(session)
 	logger.info(
 		"[ExpeditionPersist] restored hunt {} catalog={} instance={} channel={}",
 		sessionKey,

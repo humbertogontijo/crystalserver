@@ -26,8 +26,8 @@ local function decode(raw)
 	if type(raw) == "table" then
 		return raw
 	end
-	if type(raw) == "string" and raw ~= "" and TeamJson and TeamJson.decode then
-		local ok, decoded = pcall(TeamJson.decode, raw)
+	if type(raw) == "string" and raw ~= "" and JsonParser and JsonParser.decode then
+		local ok, decoded = pcall(JsonParser.decode, raw)
 		if ok and type(decoded) == "table" then
 			return decoded
 		end
@@ -36,8 +36,8 @@ local function decode(raw)
 end
 
 local function encode(tbl)
-	if TeamJson and TeamJson.encode then
-		return TeamJson.encode(tbl)
+	if JsonParser and JsonParser.encode then
+		return JsonParser.encode(tbl)
 	end
 	return nil
 end

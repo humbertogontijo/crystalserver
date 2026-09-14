@@ -204,7 +204,7 @@ function CombatAutomationStore.persist(player, config)
 		or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0, forceSkillOrder = true }
 	kv:set(
 		CombatAutomationConfig.KV_KEY,
-		CombatAutomationJson.encode({
+		JsonParser.encode({
 			slots = payload.slots or {},
 			autoTarget = payload.autoTarget or defaultAutoTarget(),
 			ammoTypeId = math.floor(tonumber(payload.ammoTypeId) or 0),
@@ -242,7 +242,7 @@ function CombatAutomationStore.load(player)
 	if type(raw) ~= "string" or raw == "" then
 		raw = kv:get(CombatAutomationConfig.KV_LEGACY_KEY)
 		if type(raw) == "string" and raw ~= "" then
-			local migrated = CombatAutomationStore.sanitize(CombatAutomationJson.decode(raw), player)
+			local migrated = CombatAutomationStore.sanitize(JsonParser.decode(raw), player)
 			CombatAutomationStore.persist(player, migrated)
 			return migrated
 		end
@@ -253,7 +253,7 @@ function CombatAutomationStore.load(player)
 		end
 		return emptyConfig()
 	end
-	return CombatAutomationStore.sanitize(CombatAutomationJson.decode(raw), player)
+	return CombatAutomationStore.sanitize(JsonParser.decode(raw), player)
 end
 
 function CombatAutomationStore.applyToRuntime(player, config)

@@ -7,6 +7,7 @@
 CombatAutomationMovement = CombatAutomationMovement or {}
 
 local lastQueuedWalkById = {}
+local lastPathFailLogById = {}
 -- Temporary exclusive destinations (discovery POI FAB). Blocks stance/hold from
 -- stealing the path under idle combat without unlocking general client autoWalk.
 local exclusiveWalkById = {}
@@ -61,9 +62,47 @@ local function dirsForAutoWalkFromGetPathTo(path)
 	return out
 end
 
+local PATH_FAIL_LOG_MS = 5000
+
+local function chebyshev(a, b)
+	if not a or not b then
+		return -1
+	end
+	return math.max(math.abs((a.x or 0) - (b.x or 0)), math.abs((a.y or 0) - (b.y or 0)))
+end
+
+--- Rate-limited so relocate's 250ms tick does not flood when a hold is unreachable.
+local function logWalkFail(creature, dest, reason, extra)
+	if not logger or not logger.warn then
+		return
+	end
+	local id = creature and creature.getId and creature:getId() or 0
+	local key = string.format("%s:%s", tostring(reason), walkDestKey(dest) or "?")
+	local now = nowMs()
+	local prev = lastPathFailLogById[id]
+	if prev and prev.key == key and (now - (prev.at or 0)) < PATH_FAIL_LOG_MS then
+		return
+	end
+	lastPathFailLogById[id] = { key = key, at = now }
+	local from = creature and creature.getPosition and creature:getPosition() or nil
+	local name = creature and creature.getName and creature:getName() or "?"
+	local instanceId = creature and creature.getInstanceId and creature:getInstanceId() or 0
+	logger.warn(
+		"[CombatAutomation] {} {} from {} to {} dist={} instance={}{}",
+		reason,
+		name,
+		from and string.format("%d,%d,%d", from.x, from.y, from.z) or "?",
+		dest and string.format("%d,%d,%d", dest.x, dest.y, dest.z) or "?",
+		chebyshev(from, dest),
+		instanceId,
+		extra and (" " .. extra) or ""
+	)
+end
+
 --- Regular engine path only (flags = 0). Soft creature cost + hard PvP blocks apply.
---- `force` = skip dedupe and clear stuck walkTask (relocate / stall repath).
-function CombatAutomationMovement.queueWalkToward(creature, dest, force)
+--- `force` = skip dedupe and clear stuck walkTask (stall repath).
+--- `ignoreConditions` = autoWalk despite rooted/feared (hold-to-hold relocate).
+function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreConditions)
 	if not creature or not dest or not creature.autoWalk then
 		return false
 	end
@@ -91,7 +130,7 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force)
 	-- A pending walk-then-act (Use / use-with) owns the path until it fires or fails.
 	-- Do not clear it for soft repaths — that broke echo portal / tame under idle combat.
 	if creature.hasWalkTask and creature:hasWalkTask() then
-		if not force then
+		if not force and not ignoreConditions then
 			return true
 		end
 		-- Relocate / explicit force may supersede a deferred Use.
@@ -113,13 +152,22 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force)
 	end
 	local path = dirsForAutoWalkFromGetPathTo(creature:getPathTo(dest, minDist, maxDist, true, false, maxSearch))
 	if type(path) ~= "table" or #path == 0 then
+		-- Stance / follow retries (exact tile occupied, BLOCKPATH, etc.) are
+		-- expected every tick. Only hold-to-hold relocate is worth a warning.
+		if ignoreConditions then
+			logWalkFail(
+				creature,
+				dest,
+				"getPathTo failed",
+				string.format("search=%d minDist=%d maxDist=%d relocate=true", maxSearch, minDist, maxDist)
+			)
+		end
 		clearQueuedWalk(creature)
 		return false
 	end
 
-	-- ignoreConditions on force/stall so a lingering walkTask cannot soft-lock relocate.
-	local ignoreConditions = (force or stuck) and true or false
-	if creature:autoWalk(path, 0, ignoreConditions) == true then
+	local skipConds = (force or stuck or ignoreConditions) and true or false
+	if creature:autoWalk(path, 0, skipConds) == true then
 		lastQueuedWalkById[id] = { key = key, at = now, posKey = pkey }
 		return true
 	end
@@ -133,6 +181,9 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force)
 		end
 	end
 
+	if ignoreConditions then
+		logWalkFail(creature, dest, "autoWalk refused", string.format("steps=%d relocate=true", #path))
+	end
 	clearQueuedWalk(creature)
 	return false
 end
@@ -574,8 +625,10 @@ function CombatAutomationMovement.tick(player, config)
 			clearFollowIfAny(player)
 			if autoOn or relocatePriority then
 				if not sameTile(player:getPosition(), hold) then
-					-- Always force repath when relocating so a blocked last SQM is retried.
-					CombatAutomationMovement.queueWalkToward(player, hold, relocatePriority == true)
+					-- Do not force-repath every tick: autoWalk waits a stepDuration
+					-- before the first tile, so a 250ms force restart never moves.
+					-- Stuck detection inside queueWalkToward retries after ~400ms.
+					CombatAutomationMovement.queueWalkToward(player, hold, false, relocatePriority)
 				else
 					clearQueuedWalk(player)
 				end

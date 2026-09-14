@@ -4,7 +4,7 @@ function ActivityBoostProtocol.send(player, payload)
 	if not player or not ActivityBoostConfig then
 		return false
 	end
-	local encoded = ExpeditionJson and ExpeditionJson.encode and ExpeditionJson.encode(payload) or nil
+	local encoded = JsonParser and JsonParser.encode and JsonParser.encode(payload) or nil
 	if not encoded then
 		return false
 	end
@@ -49,7 +49,7 @@ function ActivityBoostProtocol.handle(player, buffer)
 	if not player then
 		return
 	end
-	local data = ExpeditionJson and ExpeditionJson.decode and ExpeditionJson.decode(buffer) or nil
+	local data = JsonParser and JsonParser.decode and JsonParser.decode(buffer) or nil
 	if type(data) ~= "table" then
 		return
 	end

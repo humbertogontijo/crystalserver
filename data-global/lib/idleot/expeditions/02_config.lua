@@ -602,7 +602,7 @@ local function loadGeneratedCatalog()
 	end
 	local content = file:read("*a")
 	file:close()
-	local data = ExpeditionJson.decode(content)
+	local data = JsonParser.decode(content)
 	if type(data) ~= "table" then
 		logger.error("[Expedition] catalog.generated.json decode failed")
 		ExpeditionConfig.Catalog = {}
@@ -812,20 +812,68 @@ function ExpeditionConfig.catalogPositions(catalog)
 	return {}
 end
 
---- Active lure for session's current hold (or first hold / hunt lureMax).
+function ExpeditionConfig.sameHoldTile(a, b)
+	if not a or not b then
+		return false
+	end
+	local ax, ay, az = tonumber(a.x), tonumber(a.y), tonumber(a.z)
+	local bx, by, bz = tonumber(b.x), tonumber(b.y), tonumber(b.z)
+	return ax and bx and ax == bx and ay == by and az == bz
+end
+
+--- Hold for wave N (1-based, wraps). Wave 0 / nil uses hold 1 (upcoming first wave).
+function ExpeditionConfig.holdForWave(catalog, wave)
+	local holds = ExpeditionConfig.catalogPositions(catalog)
+	if #holds == 0 then
+		return nil, 0
+	end
+	local w = math.max(1, math.floor(tonumber(wave) or 1))
+	local idx = ((w - 1) % #holds) + 1
+	return holds[idx], idx
+end
+
+--- Copy hold tile + lure from session.wave onto the session (wave 0 → hold 1).
+function ExpeditionConfig.syncHoldFromWave(session)
+	if not session then
+		return nil, 0
+	end
+	local wave = math.floor(tonumber(session.wave) or 0)
+	local hold, idx = ExpeditionConfig.holdForWave(session.catalog, wave < 1 and 1 or wave)
+	if hold then
+		session.holdPos = Position(hold.x, hold.y, hold.z)
+		session.lure = tonumber(hold.lure) or ExpeditionConfig.holdLure(hold, session.catalog)
+	end
+	return hold, idx
+end
+
+--- Commit the next wave. Hold tile and lure follow `session.wave`.
+--- Returns true when the party should walk to a different hold.
+function ExpeditionConfig.advanceWave(session)
+	if not session then
+		return false
+	end
+	local prev = session.holdPos
+	session.wave = math.floor(tonumber(session.wave) or 0) + 1
+	ExpeditionConfig.syncHoldFromWave(session)
+	if session.role and session.role ~= "monster" then
+		return false
+	end
+	if not ExpeditionConfig.canRelocateHolds(session.catalog) then
+		return false
+	end
+	return not ExpeditionConfig.sameHoldTile(prev, session.holdPos)
+end
+
+--- Active lure for session's current (or upcoming first) hold.
 function ExpeditionConfig.sessionHoldLure(session)
 	if not session then
 		return ExpeditionConfig.LURE_DEFAULT or 1
 	end
-	local holds = ExpeditionConfig.catalogPositions(session.catalog)
-	if #holds == 0 then
-		return ExpeditionConfig.lureFromDensity(session.catalog and session.catalog.lureMax)
+	local hold = ExpeditionConfig.holdForWave(session.catalog, session.wave)
+	if hold then
+		return tonumber(hold.lure) or ExpeditionConfig.holdLure(hold, session.catalog)
 	end
-	local idx = math.floor(tonumber(session.positionIndex) or 0)
-	if idx < 1 or idx > #holds then
-		idx = 1
-	end
-	return holds[idx].lure or ExpeditionConfig.holdLure(holds[idx], session.catalog)
+	return ExpeditionConfig.lureFromDensity(session.catalog and session.catalog.lureMax)
 end
 
 --- True when this hunt has enough holds to walk between waves.

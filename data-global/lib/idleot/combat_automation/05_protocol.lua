@@ -8,7 +8,7 @@ local function send(player, payload)
 	if ExpeditionConfig and ExpeditionConfig.OPCODE then
 		opcode = ExpeditionConfig.OPCODE
 	end
-	return player:sendExtendedOpcode(opcode, CombatAutomationJson.encode(payload))
+	return player:sendExtendedOpcode(opcode, JsonParser.encode(payload))
 end
 
 function CombatAutomationProtocol.sendConfig(player, config)

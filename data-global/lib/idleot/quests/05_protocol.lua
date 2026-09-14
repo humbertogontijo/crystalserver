@@ -4,7 +4,7 @@ function QuestsProtocol.send(player, payload)
 	if not player or not QuestsConfig then
 		return
 	end
-	player:sendExtendedOpcode(QuestsConfig.OPCODE, QuestsJson.encode(payload))
+	player:sendExtendedOpcode(QuestsConfig.OPCODE, JsonParser.encode(payload))
 end
 
 local function resolveQuestTarget(controller, nameOrGuid, requireOnline)
@@ -52,7 +52,7 @@ function QuestsProtocol.sendList(player, kind, targetName)
 end
 
 function QuestsProtocol.handle(player, buffer)
-	local data = QuestsJson.decode(buffer)
+	local data = JsonParser.decode(buffer)
 	if type(data) ~= "table" then
 		return
 	end

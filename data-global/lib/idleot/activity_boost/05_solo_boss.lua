@@ -8,8 +8,8 @@ local function kv(player)
 end
 
 local function encode(value)
-	if ExpeditionJson and ExpeditionJson.encode then
-		return ExpeditionJson.encode(value)
+	if JsonParser and JsonParser.encode then
+		return JsonParser.encode(value)
 	end
 	return "{}"
 end
@@ -18,8 +18,8 @@ local function decode(raw)
 	if type(raw) ~= "string" or raw == "" then
 		return {}
 	end
-	if ExpeditionJson and ExpeditionJson.decode then
-		local ok, decoded = pcall(ExpeditionJson.decode, raw)
+	if JsonParser and JsonParser.decode then
+		local ok, decoded = pcall(JsonParser.decode, raw)
 		if ok and type(decoded) == "table" then
 			return decoded
 		end

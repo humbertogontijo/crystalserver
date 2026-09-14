@@ -4,7 +4,7 @@ function TeamProtocol.send(player, payload)
 	if not player then
 		return false
 	end
-	return player:sendExtendedOpcode(TeamConfig.OPCODE, TeamJson.encode(payload))
+	return player:sendExtendedOpcode(TeamConfig.OPCODE, JsonParser.encode(payload))
 end
 
 function TeamProtocol.sendError(player, message)
@@ -114,7 +114,7 @@ local function refreshInventories(player, fromName, toName)
 end
 
 function TeamProtocol.handle(player, buffer)
-	local msg = TeamJson.decode(buffer)
+	local msg = JsonParser.decode(buffer)
 	if not msg or type(msg) ~= "table" then
 		return
 	end

@@ -39,7 +39,7 @@ end
 
 local function decodeStored(stored)
 	if type(stored) == "string" and stored ~= "" then
-		local decoded = SocialJson.decode(stored)
+		local decoded = JsonParser.decode(stored)
 		if type(decoded) == "table" then
 			return decoded
 		end
@@ -128,7 +128,7 @@ function FriendsStore.save(player, data)
 	if not player then
 		return false
 	end
-	local payload = SocialJson.encode(sanitizeData(data))
+	local payload = JsonParser.encode(sanitizeData(data))
 	return kvSet(player, SocialConfig.KV_FRIENDS, payload)
 end
 

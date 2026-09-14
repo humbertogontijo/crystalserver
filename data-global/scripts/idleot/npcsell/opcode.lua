@@ -5,8 +5,8 @@
 local NPCSELL_OPCODE = 123
 
 local function decodePayload(buffer)
-	if ExpeditionJson and ExpeditionJson.decode then
-		local ok, decoded = pcall(ExpeditionJson.decode, buffer)
+	if JsonParser and JsonParser.decode then
+		local ok, decoded = pcall(JsonParser.decode, buffer)
 		if ok and type(decoded) == "table" then
 			return decoded
 		end
