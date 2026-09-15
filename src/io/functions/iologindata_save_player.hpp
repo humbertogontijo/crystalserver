@@ -31,6 +31,7 @@ public:
 	static bool savePlayerBestiarySystem(const std::shared_ptr<Player> &player);
 	static bool savePlayerItem(const std::shared_ptr<Player> &player);
 	static bool savePlayerDepotItems(const std::shared_ptr<Player> &player);
+	static bool saveAccountLootPouch(const std::shared_ptr<Player> &player);
 	static bool saveRewardItems(const std::shared_ptr<Player> &player);
 	static bool savePlayerInbox(const std::shared_ptr<Player> &player);
 	static bool savePlayerPreyClass(const std::shared_ptr<Player> &player);

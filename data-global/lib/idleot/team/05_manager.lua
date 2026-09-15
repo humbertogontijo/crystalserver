@@ -178,35 +178,14 @@ local function containerWire(container, parentPath, maxItems)
 	return items
 end
 
-local LOOT_POUCH_ID = ITEM_GOLD_POUCH or 23721
-
---- Find loot pouch + equip-path (store inbox index preferred).
+--- Account-scoped loot pouch (shared across same-account characters).
 local function findLootPouch(player)
-	if not player then
+	if not player or not player.getLootPouch then
 		return nil, nil
 	end
-	local inboxSlot = CONST_SLOT_STORE_INBOX or 11
-	local inbox = player.getStoreInbox and player:getStoreInbox() or player:getSlotItem(inboxSlot)
-	if inbox and inbox.getSize then
-		local size = inbox:getSize() or 0
-		for i = 0, size - 1 do
-			local it = inbox:getItem(i)
-			if it and it:getId() == LOOT_POUCH_ID then
-				return it, { slot = inboxSlot, indices = { i } }
-			end
-		end
-	end
-	if player.findItemInInbox then
-		local pouch = player:findItemInInbox(LOOT_POUCH_ID)
-		if pouch then
-			return pouch, { lootPouch = true }
-		end
-	end
-	if player.getItemById then
-		local pouch = player:getItemById(LOOT_POUCH_ID, true)
-		if pouch then
-			return pouch, { lootPouch = true }
-		end
+	local pouch = player:getLootPouch()
+	if pouch then
+		return pouch, { lootPouch = true }
 	end
 	return nil, nil
 end
@@ -2519,7 +2498,7 @@ function TeamManager.collectRewardChest(controller, nameOrGuid)
 	}
 end
 
---- Open the loot pouch for a same-account character (store inbox or inventory).
+--- Open the account loot pouch (shared across same-account characters).
 function TeamManager.openLootPouch(controller, nameOrGuid)
 	local target, err = TeamStore.resolveAccountMember(controller, nameOrGuid)
 	if not target then
@@ -2529,7 +2508,11 @@ function TeamManager.openLootPouch(controller, nameOrGuid)
 	if not ok then
 		return nil, accErr
 	end
-	local pouch, path = findLootPouch(target)
+	-- Same-account characters share one pouch; open via the acting controller.
+	local pouch, path = findLootPouch(controller)
+	if not pouch then
+		pouch, path = findLootPouch(target)
+	end
 	if not pouch then
 		return nil, "No loot pouch found."
 	end
@@ -2541,64 +2524,9 @@ function TeamManager.openLootPouch(controller, nameOrGuid)
 		name = target:getName(),
 		guid = target:getGuid(),
 		path = path,
-		itemId = pouch:getId(),
+		itemId = pouch:getId() or ITEM_GOLD_POUCH or 23721,
 		label = pouch:getName() or "Loot Pouch",
 		items = containerWire(pouch, path, 100),
-	}
-end
-
---- Move every item from all team companions' loot pouches into the controller's pouch.
-function TeamManager.pullAllLootPouches(controller)
-	if not controller then
-		return nil, "No player."
-	end
-	local destPouch = select(1, findLootPouch(controller))
-	if not destPouch or not destPouch.getSize then
-		return nil, "You have no loot pouch."
-	end
-
-	local controllerName = controller:getName()
-	local names = TeamStore.getCompanionNames(controller)
-	local moved = 0
-	local failed = 0
-	local sources = {}
-
-	for _, name in ipairs(names) do
-		if name and controllerName and name:lower() ~= controllerName:lower() then
-			local member = TeamStore.resolveAccountMember(controller, name)
-			if member then
-				local srcPouch = select(1, findLootPouch(member))
-				if srcPouch and srcPouch.getSize and srcPouch ~= destPouch then
-					local size = srcPouch:getSize() or 0
-					local memberMoved = 0
-					local memberFailed = 0
-					-- Walk backwards so removals do not shift pending indices.
-					for i = size - 1, 0, -1 do
-						local it = srcPouch:getItem(i)
-						if it then
-							if it.moveTo and it:moveTo(destPouch) then
-								moved = moved + 1
-								memberMoved = memberMoved + 1
-							else
-								failed = failed + 1
-								memberFailed = memberFailed + 1
-							end
-						end
-					end
-					if memberMoved > 0 or memberFailed > 0 then
-						sources[#sources + 1] = member:getName()
-					end
-					saveIfOffline(member)
-				end
-			end
-		end
-	end
-
-	saveIfOffline(controller)
-	return {
-		moved = moved,
-		failed = failed,
-		sources = sources,
 	}
 end
 

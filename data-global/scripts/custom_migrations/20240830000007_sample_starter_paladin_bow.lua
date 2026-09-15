@@ -3,7 +3,6 @@
 -- Migration 69 left spear/shield equipped and bow loose in the backpack.
 
 local STORE_INBOX_ID = 23396
-local LOOT_POUCH_ID = 23721
 local BACKPACK_ID = 2854
 
 local SLOT_HEAD = 1
@@ -119,17 +118,6 @@ local function buildRows(playerId)
 		SLOT_STORE_INBOX,
 		inboxSid,
 		STORE_INBOX_ID,
-		1,
-		EMPTY_ATTR
-	)
-
-	local pouchSid = nextSid(sidCounter)
-	rows[#rows + 1] = string.format(
-		"(%d, %d, %d, %d, %d, %s)",
-		playerId,
-		inboxSid,
-		pouchSid,
-		LOOT_POUCH_ID,
 		1,
 		EMPTY_ATTR
 	)

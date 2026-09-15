@@ -104,6 +104,15 @@ enum VirtueMonk_t : uint8_t;
 
 using GuildWarVector = std::vector<uint32_t>;
 using StashContainerList = std::vector<std::pair<std::shared_ptr<Item>, uint32_t>>;
+
+/** Shared account loot pouch: stash map is source of truth; view is a live projection. */
+struct AccountLootPouchState {
+	StashItemList items;
+	std::shared_ptr<Container> view;
+	bool syncing = false;
+	/** Suppress container add/update/remove packets (materialize + full refresh). */
+	bool silent = false;
+};
 using ItemVector = std::vector<std::shared_ptr<Item>>;
 using UsersMap = std::map<uint32_t, std::shared_ptr<Player>>;
 using InvitedMap = std::map<uint32_t, std::shared_ptr<Player>>;
@@ -1752,8 +1761,29 @@ public:
 	void sendLootMessage(const std::string &message) const;
 
 	std::shared_ptr<Container> getLootPouch();
-	/** Inventory gold/loot pouch container (no store-inbox / CM placement rules). */
-	std::shared_ptr<Container> getInventoryGoldPouch() const;
+	/** Shared account pouch view (peek; no ensure / parent link). */
+	std::shared_ptr<Container> getAccountLootPouch() const;
+	/** Shared stash-map state for the account loot pouch. */
+	const std::shared_ptr<AccountLootPouchState> &getAccountLootPouchState() const {
+		return accountLootPouchState;
+	}
+	void setAccountLootPouchState(const std::shared_ptr<AccountLootPouchState> &state);
+	const StashItemList &getAccountLootPouchItems() const;
+	/** Toggle-open the account loot pouch view (slot-12 handle use). */
+	ReturnValue openAccountLootPouch();
+	bool isAccountLootPouchSyncing() const;
+	bool isAccountLootPouchSilent() const;
+	/** True when this container is the account loot pouch view. */
+	bool isAccountLootPouchContainer(const std::shared_ptr<Container> &container) const;
+	bool canAbsorbIntoAccountLootPouch(const std::shared_ptr<Item> &item) const;
+	ReturnValue queryAccountLootPouchAdd(const std::shared_ptr<Item> &item, uint32_t count) const;
+	/** Map += amount and patch the live view (source of truth is the stash map). */
+	void addAccountLootPouchItem(uint16_t itemId, uint32_t amount);
+	bool withdrawAccountLootPouchItem(uint16_t itemId, uint32_t amount);
+	/** Called from Container hooks when the view is mutated outside sync. */
+	void onAccountLootPouchViewCountDelta(uint16_t itemId, int32_t delta);
+	/** Rebuild the openable view container from the stash map (load / repair). */
+	void materializeAccountLootPouchView();
 
 	bool hasPermittedConditionInPZ() const;
 
@@ -2031,6 +2061,19 @@ private:
 	std::shared_ptr<Town> town;
 	std::shared_ptr<Vocation> vocation = nullptr;
 	std::shared_ptr<RewardChest> rewardChest = nullptr;
+	/** Shared across online characters on the same account (one pouch per account/world). */
+	std::shared_ptr<AccountLootPouchState> accountLootPouchState;
+	bool accountLootPouchNotifyScheduled = false;
+
+	void ensureAccountLootPouchState();
+	/** Install empty pouch handle into CONST_SLOT_LOOT_POUCH (appearance / use target). */
+	void installAccountLootPouchSlot();
+	void patchAccountLootPouchViewAdd(uint16_t itemId, uint32_t amount);
+	void notifyAccountLootPouchChanged();
+	void scheduleAccountLootPouchNotify();
+	void flushAccountLootPouchNotify();
+	uint32_t getAccountLootPouchIdealSlots() const;
+	uint32_t getAccountLootPouchIdealSlotsAfter(uint16_t itemId, uint32_t addAmount) const;
 
 	uint32_t inventoryWeight = 0;
 	uint32_t capacity = 60000;

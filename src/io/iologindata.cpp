@@ -152,6 +152,9 @@ bool IOLoginData::loadPlayer(const std::shared_ptr<Player> &player, const DBResu
 		// load depot items
 		IOLoginDataLoad::loadPlayerDepotItems(player, result);
 
+		// account-scoped loot pouch (shared across alts)
+		IOLoginDataLoad::loadAccountLootPouch(player);
+
 		// load reward items
 		IOLoginDataLoad::loadRewardItems(player);
 
@@ -251,6 +254,10 @@ bool IOLoginData::savePlayerGuard(const std::shared_ptr<Player> &player) {
 
 	if (!IOLoginDataSave::savePlayerDepotItems(player)) {
 		throw DatabaseException("[IOLoginDataSave::savePlayerDepotItems] - Failed to save player depot items: " + player->getName());
+	}
+
+	if (!IOLoginDataSave::saveAccountLootPouch(player)) {
+		throw DatabaseException("[IOLoginDataSave::saveAccountLootPouch] - Failed to save account loot pouch: " + player->getName());
 	}
 
 	if (!IOLoginDataSave::saveRewardItems(player)) {

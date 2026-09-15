@@ -173,6 +173,8 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "linkRewardChestParents", PlayerFunctions::luaPlayerLinkRewardChestParents);
 	Lua::registerMethod(L, "Player", "openRewardChest", PlayerFunctions::luaPlayerOpenRewardChest);
 	Lua::registerMethod(L, "Player", "collectRewardChest", PlayerFunctions::luaPlayerCollectRewardChest);
+	Lua::registerMethod(L, "Player", "getLootPouch", PlayerFunctions::luaPlayerGetLootPouch);
+	Lua::registerMethod(L, "Player", "openLootPouch", PlayerFunctions::luaPlayerOpenLootPouch);
 
 	Lua::registerMethod(L, "Player", "setDailyReward", PlayerFunctions::luaPlayerSetDailyReward);
 
@@ -1961,6 +1963,41 @@ int PlayerFunctions::luaPlayerCollectRewardChest(lua_State* L) {
 
 	const uint32_t maxMoveItems = Lua::getNumber<uint32_t>(L, 2, 0);
 	const ReturnValue ret = player->collectRewardChest(maxMoveItems);
+	if (ret != RETURNVALUE_NOERROR) {
+		player->sendCancelMessage(ret);
+		Lua::pushBoolean(L, false);
+	} else {
+		Lua::pushBoolean(L, true);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGetLootPouch(lua_State* L) {
+	// player:getLootPouch()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	if (const auto &container = player->getLootPouch()) {
+		Lua::pushUserdata<Container>(L, container);
+		Lua::setMetatable(L, -1, "Container");
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerOpenLootPouch(lua_State* L) {
+	// player:openLootPouch()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	const ReturnValue ret = player->openAccountLootPouch();
 	if (ret != RETURNVALUE_NOERROR) {
 		player->sendCancelMessage(ret);
 		Lua::pushBoolean(L, false);
@@ -4690,6 +4727,8 @@ int PlayerFunctions::luaPlayerCastSpell(lua_State* L) {
 	// player:castSpell(words[, param][, silent = false])
 	// Optional param is required for hasPlayerNameParam spells (e.g. exura sio "Name").
 	// silent=true suppresses cancel messages and CONST_ME_POFF on failure.
+	// needPosition spells use the player's crosshair aim when set, otherwise the
+	// current attack target tile (combat automation).
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (!player) {
 		lua_pushnil(L);
@@ -4722,8 +4761,12 @@ int PlayerFunctions::luaPlayerCastSpell(lua_State* L) {
 			}
 		}
 	}
+	// Prefer the player's current crosshair aim (say-packet tail) when present so
+	// needPosition spells cast at the aimed tile; otherwise InstantSpell falls back
+	// to the attack target for automation.
+	const Position aim = player->hasSpellAimPosition() ? player->getSpellAimPosition() : Position();
 	InstanceActorScope instanceActorScope(player);
-	Lua::pushBoolean(L, instantSpell->playerCastInstant(player, param, {}, silent, false));
+	Lua::pushBoolean(L, instantSpell->playerCastInstant(player, param, aim, silent, false));
 	return 1;
 }
 
@@ -4752,8 +4795,9 @@ int PlayerFunctions::luaPlayerCanCastSpell(lua_State* L) {
 	if (lua_gettop(L) >= 3 && !Lua::isNil(L, 3) && !lua_isboolean(L, 3)) {
 		param = Lua::getString(L, 3);
 	}
+	const Position aim = player->hasSpellAimPosition() ? player->getSpellAimPosition() : Position();
 	InstanceActorScope instanceActorScope(player);
-	Lua::pushBoolean(L, instantSpell->playerCastInstant(player, param, {}, true, true));
+	Lua::pushBoolean(L, instantSpell->playerCastInstant(player, param, aim, true, true));
 	return 1;
 }
 

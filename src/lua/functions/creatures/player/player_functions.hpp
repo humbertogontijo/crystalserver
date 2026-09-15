@@ -154,6 +154,8 @@ class PlayerFunctions {
 	static int luaPlayerLinkRewardChestParents(lua_State* L);
 	static int luaPlayerOpenRewardChest(lua_State* L);
 	static int luaPlayerCollectRewardChest(lua_State* L);
+	static int luaPlayerGetLootPouch(lua_State* L);
+	static int luaPlayerOpenLootPouch(lua_State* L);
 
 	static int luaPlayerSetDailyReward(lua_State* L);
 

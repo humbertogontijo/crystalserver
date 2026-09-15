@@ -471,7 +471,7 @@ void ProtocolGame::AddItem(NetworkMessage &msg, uint16_t id, uint8_t count, uint
 	}
 }
 
-void ProtocolGame::AddItem(NetworkMessage &msg, const std::shared_ptr<Item> &item) {
+void ProtocolGame::AddItem(NetworkMessage &msg, const std::shared_ptr<Item> &item, bool forceExactCount /*= false*/) {
 	if (!item) {
 		return;
 	}
@@ -486,6 +486,15 @@ void ProtocolGame::AddItem(NetworkMessage &msg, const std::shared_ptr<Item> &ite
 
 	if (it.stackable) {
 		msg.addByte(static_cast<uint8_t>(std::min<uint16_t>(std::numeric_limits<uint8_t>::max(), item->getItemCount())));
+	} else if (forceExactCount) {
+		// Account loot pouch stash-style grouping for non-stackables.
+		msg.addByte(static_cast<uint8_t>(std::min<uint16_t>(std::numeric_limits<uint8_t>::max(), std::max<uint16_t>(1, item->getItemCount()))));
+	} else if (player) {
+		const auto &parent = item->getParent();
+		const auto &parentContainer = parent ? parent->getContainer() : nullptr;
+		if (parentContainer && player->isAccountLootPouchContainer(parentContainer)) {
+			msg.addByte(static_cast<uint8_t>(std::min<uint16_t>(std::numeric_limits<uint8_t>::max(), std::max<uint16_t>(1, item->getItemCount()))));
+		}
 	}
 
 	if (it.isSplash() || it.isFluidContainer()) {
@@ -5992,6 +6001,7 @@ void ProtocolGame::sendContainer(uint8_t cid, const std::shared_ptr<Container> &
 	}
 
 	const ItemDeque &itemList = container->getItemList();
+	const bool exactCounts = player->isAccountLootPouchContainer(container);
 	if (firstIndex >= containerSize) {
 		msg.addByte(0x00);
 	} else if (container->getID() == ITEM_STORE_INBOX && !itemsStoreInboxToSend.empty()) {
@@ -6004,7 +6014,7 @@ void ProtocolGame::sendContainer(uint8_t cid, const std::shared_ptr<Container> &
 
 		uint32_t i = 0;
 		for (auto it = itemList.begin() + firstIndex, end = itemList.end(); i < maxItemsToSend && it != end; ++it, ++i) {
-			AddItem(msg, *it);
+			AddItem(msg, *it, exactCounts);
 		}
 	}
 
@@ -8694,7 +8704,8 @@ void ProtocolGame::sendAddContainerItem(uint8_t cid, uint16_t slot, const std::s
 	msg.addByte(0x70);
 	msg.addByte(cid);
 	msg.add<uint16_t>(slot);
-	AddItem(msg, item);
+	const auto &container = player ? player->getContainerByID(cid) : nullptr;
+	AddItem(msg, item, container && player->isAccountLootPouchContainer(container));
 	writeToOutputBuffer(msg);
 }
 
@@ -8703,7 +8714,8 @@ void ProtocolGame::sendUpdateContainerItem(uint8_t cid, uint16_t slot, const std
 	msg.addByte(0x71);
 	msg.addByte(cid);
 	msg.add<uint16_t>(slot);
-	AddItem(msg, item);
+	const auto &container = player ? player->getContainerByID(cid) : nullptr;
+	AddItem(msg, item, container && player->isAccountLootPouchContainer(container));
 	writeToOutputBuffer(msg);
 }
 
@@ -8713,7 +8725,8 @@ void ProtocolGame::sendRemoveContainerItem(uint8_t cid, uint16_t slot, const std
 	msg.addByte(cid);
 	msg.add<uint16_t>(slot);
 	if (lastItem) {
-		AddItem(msg, lastItem);
+		const auto &container = player ? player->getContainerByID(cid) : nullptr;
+		AddItem(msg, lastItem, container && player->isAccountLootPouchContainer(container));
 	} else {
 		msg.add<uint16_t>(0x00);
 	}

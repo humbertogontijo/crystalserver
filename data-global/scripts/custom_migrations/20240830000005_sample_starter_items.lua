@@ -1,9 +1,9 @@
 -- IdleOT custom migration (was numbered core *.product).
--- Seed vocation starter kit + store inbox loot pouch on "* Sample" characters.
+-- Seed vocation starter kit + store inbox on "* Sample" characters.
+-- Loot pouch is account-scoped (see account_loot_pouch migration); not seeded here.
 -- New player rows copy these via SlenderAAC (see copyTemplateLoadout).
 
 local STORE_INBOX_ID = 23396
-local LOOT_POUCH_ID = 23721
 local BACKPACK_ID = 2854
 
 local SLOT_HEAD = 1
@@ -208,17 +208,6 @@ local function buildRows(playerId, kit)
 		EMPTY_ATTR
 	)
 
-	local pouchSid = nextSid(sidCounter)
-	rows[#rows + 1] = string.format(
-		"(%d, %d, %d, %d, %d, %s)",
-		playerId,
-		inboxSid,
-		pouchSid,
-		LOOT_POUCH_ID,
-		1,
-		EMPTY_ATTR
-	)
-
 	return rows
 end
 
@@ -238,7 +227,7 @@ function m:onExecute()
 			return
 		end
 	end
-	logger.info("Updating database: seed Sample character starter items (kit + loot pouch)")
+	logger.info("Updating database: seed Sample character starter items (kit + store inbox)")
 
 	db.query([[
 		DELETE FROM `player_items`

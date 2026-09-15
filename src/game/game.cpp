@@ -1445,6 +1445,14 @@ std::shared_ptr<Thing> Game::internalGetThing(const std::shared_ptr<Player> &pla
 			return nullptr;
 		}
 
+		// Hotkey gold pouch: prefer the slot-12 account handle (store-inbox style).
+		// Leftover character gold pouches fall through to findItemOfType below.
+		if (it.id == ITEM_GOLD_POUCH) {
+			if (const auto &handle = player->getInventoryItem(CONST_SLOT_LOOT_POUCH)) {
+				return handle;
+			}
+		}
+
 		int32_t subType;
 		if (it.isFluidContainer()) {
 			subType = index;
@@ -3940,7 +3948,7 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 
 namespace {
 bool bindUnassignedLootToPouch(const std::shared_ptr<Player> &player) {
-	const auto &pouch = player->getInventoryGoldPouch();
+	const auto &pouch = player->getLootPouch();
 	if (!pouch) {
 		return false;
 	}
@@ -3963,7 +3971,7 @@ bool bindUnassignedLootToPouch(const std::shared_ptr<Player> &player) {
 std::shared_ptr<Container> Game::findManagedContainer(const std::shared_ptr<Player> &player, bool &fallbackConsumed, ObjectCategory_t category, bool isLootContainer) {
 	auto lootContainer = player->getManagedContainer(category, isLootContainer);
 	// Do not promote the main backpack to Unassigned when a loot pouch exists (Unassigned is hard-locked).
-	const bool hasLootPouch = isLootContainer && static_cast<bool>(player->getInventoryGoldPouch());
+	const bool hasLootPouch = isLootContainer && static_cast<bool>(player->getAccountLootPouch());
 	if (!lootContainer && player->quickLootFallbackToMainContainer && !fallbackConsumed && !hasLootPouch) {
 		auto fallbackItem = player->getInventoryItem(CONST_SLOT_BACKPACK);
 		auto mainBackpack = fallbackItem ? fallbackItem->getContainer() : nullptr;
@@ -4844,6 +4852,17 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 	const auto &item = thing->getItem();
 	if (!item || item->isMultiUse() || item->getID() != itemId) {
 		player->sendCancelMessage(RETURNVALUE_CANNOTUSETHISOBJECT);
+		return;
+	}
+
+	// Account loot pouch slot handle → open shared stash view (not the empty handle container).
+	if (player->getInventoryItem(CONST_SLOT_LOOT_POUCH) == item) {
+		player->resetIdleTime();
+		player->setNextActionTask(nullptr);
+		const ReturnValue openRet = player->openAccountLootPouch();
+		if (openRet != RETURNVALUE_NOERROR) {
+			player->sendCancelMessage(openRet);
+		}
 		return;
 	}
 

@@ -265,39 +265,6 @@ function TeamProtocol.handle(player, buffer)
 			message = message,
 		})
 		refreshInventories(player, player:getName(), result.name)
-	elseif action == "pullAllLootPouches" then
-		local result, err = TeamManager.pullAllLootPouches(player)
-		if not result then
-			TeamProtocol.sendError(player, err or "Failed to pull team loot.")
-			return
-		end
-		local message
-		if result.moved <= 0 and (result.failed or 0) <= 0 then
-			message = "No items found in companion loot pouches."
-		elseif (result.failed or 0) > 0 then
-			message = string.format(
-				"Pulled %d items from companions; %d could not fit in your loot pouch.",
-				result.moved or 0,
-				result.failed or 0
-			)
-		else
-			message = string.format(
-				"Pulled %d items from companions into your loot pouch.",
-				result.moved or 0
-			)
-		end
-		TeamProtocol.send(player, {
-			type = "lootPulled",
-			ok = true,
-			moved = result.moved or 0,
-			failed = result.failed or 0,
-			sources = result.sources or {},
-			message = message,
-		})
-		refreshInventories(player, player:getName(), nil)
-		for _, sourceName in ipairs(result.sources or {}) do
-			refreshInventories(player, sourceName, nil)
-		end
 	elseif action == "moveItem" then
 		local ok, err = TeamManager.moveItem(player, msg)
 		if not ok then

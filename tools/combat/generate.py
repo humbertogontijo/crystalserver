@@ -184,6 +184,29 @@ def extract_inline_matrix(src: str) -> list[list[int]] | None:
     return rows or None
 
 
+def parse_named_matrix_assignment(src: str, name: str) -> list[list[int]] | None:
+    """Parse `NAME = { {..}, ... }` local combat matrices (e.g. DEATH_ECHO_AREA)."""
+    match = re.search(rf"\b{re.escape(name)}\s*=\s*\{{", src)
+    if not match:
+        return None
+    start = match.end() - 1
+    end = matching_brace_end(src, start)
+    rows = parse_matrix_body(src[start : end + 1])
+    return rows or None
+
+
+def infer_area_shape_from_matrix(matrix: list[list[int]]) -> tuple[str, int]:
+    """Infer (shape, radius) from a centered combat matrix when AREA_* naming is absent."""
+    offsets = matrix_offsets_from_center(matrix)
+    if not offsets:
+        return "single", 0
+    cheb = max(max(abs(dx), abs(dy)) for dx, dy in offsets)
+    square_cells = (2 * cheb + 1) ** 2
+    if len(offsets) == square_cells:
+        return "square", cheb
+    return "circle", cheb
+
+
 _AREA_MATRICES: dict[str, list[list[int]]] | None = None
 
 
@@ -406,6 +429,16 @@ def parse_spell_area(src: str, target_mode: str) -> dict:
     ortho, diagonal = matrix_from_pair(base_pair, matrices, local_mats)
     if ortho is None:
         ortho = extract_inline_matrix(src)
+    if ortho is None:
+        # Local named matrix: createCombatArea(DEATH_ECHO_AREA) + DEATH_ECHO_AREA = {…}
+        ref = re.search(r"createCombatArea\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)", src)
+        if ref:
+            local_name = ref.group(1)
+            ortho = resolve_matrix(local_name, matrices, local_mats) or parse_named_matrix_assignment(
+                src, local_name
+            )
+            if ortho is not None and not area_name:
+                area_name = local_name
 
     wod_gate = detect_wod_gate(src)
     wod_ortho, wod_diagonal = matrix_from_pair(wod_pair, matrices, local_mats)
@@ -422,6 +455,8 @@ def parse_spell_area(src: str, target_mode: str) -> dict:
         )
         if shape not in {"chain", "circle", "square", "single"}:
             shape = "single"
+        if ortho is not None and shape == "single":
+            shape, size = infer_area_shape_from_matrix(ortho)
         radius = (
             chain_range
             if chain_range is not None
@@ -525,9 +560,12 @@ def parse_spell_file(path: Path, src: str) -> dict | None:
         return None
 
     self_target = match_bool_prop(src, "isSelfTarget")
+    # needPosition(true): crosshair / aim-at-tile spells (Death Echo, Divine Grenade, …).
+    # Monster-count gating and cast aim are target-centered, same as needTarget.
     need_target = (
         match_bool_prop(src, "needTarget")
         or match_bool_prop(src, "needCasterTargetOrDirection")
+        or match_bool_prop(src, "needPosition")
         or "CALLBACK_PARAM_CHAINVALUE" in src
     )
     target_mode = (

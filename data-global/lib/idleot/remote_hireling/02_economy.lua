@@ -280,23 +280,12 @@ local function isEquippedNonContainer(player, item)
 	return false
 end
 
---- Find the account loot / gold pouch container.
+--- Account-scoped loot pouch container.
 local function findLootPouch(player)
-	if not player then
+	if not player or not player.getLootPouch then
 		return nil
 	end
-	local pouchId = ITEM_GOLD_POUCH or 23721
-	local pouch = nil
-	if player.findItemInInbox and pouchId then
-		pouch = player:findItemInInbox(pouchId)
-	end
-	if not pouch then
-		pouch = player:getItemById(pouchId, true)
-	end
-	if pouch and pouch.isContainer and pouch:isContainer() then
-		return pouch
-	end
-	return nil
+	return player:getLootPouch()
 end
 
 local function collectStacks(player, ignoreEquipped)

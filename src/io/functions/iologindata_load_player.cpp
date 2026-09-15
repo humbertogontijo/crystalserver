@@ -618,6 +618,10 @@ void IOLoginDataLoad::loadPlayerInventoryItems(const std::shared_ptr<Player> &pl
 				}
 
 				int32_t pid = pair.second;
+				if (pid == CONST_SLOT_LOOT_POUCH) {
+					// Slot is engine-managed; contents live in account_loot_pouch_items.
+					continue;
+				}
 				if (pid >= CONST_SLOT_FIRST && pid <= CONST_SLOT_LAST) {
 					player->internalAddThing(pid, item);
 					item->startDecaying();
@@ -736,6 +740,56 @@ void IOLoginDataLoad::loadPlayerDepotItems(const std::shared_ptr<Player> &player
 	for (const auto &item : itemsToStartDecaying) {
 		item->startDecaying();
 	}
+}
+
+void IOLoginDataLoad::loadAccountLootPouch(const std::shared_ptr<Player> &player) {
+	if (!player) {
+		g_logger().warn("[{}] - Player nullptr", __FUNCTION__);
+		return;
+	}
+
+	const auto accountId = player->getAccountId();
+	if (accountId == 0) {
+		return;
+	}
+
+	// Prefer an online alt's shared pouch so unsaved loot is not overwritten on login.
+	for (const auto &[_, other] : g_game().getPlayers()) {
+		if (!other || other.get() == player.get() || other->getAccountId() != accountId) {
+			continue;
+		}
+		if (const auto &shared = other->getAccountLootPouchState()) {
+			player->setAccountLootPouchState(shared);
+			return;
+		}
+	}
+
+	auto state = std::make_shared<AccountLootPouchState>();
+	const auto &created = Item::CreateItem(ITEM_GOLD_POUCH, 1);
+	state->view = created ? created->getContainer() : nullptr;
+	if (!state->view) {
+		g_logger().error("[{}] - Failed to create account loot pouch for account {}", __FUNCTION__, accountId);
+		return;
+	}
+	player->setAccountLootPouchState(state);
+
+	auto query = fmt::format(
+		"SELECT `item_id`, `item_count` FROM `account_loot_pouch_items` WHERE `account_id` = {}",
+		accountId
+	);
+	DBResult_ptr result = g_database().storeQuery(query);
+	if (result) {
+		do {
+			const auto itemId = result->getNumber<uint16_t>("item_id");
+			const auto itemCount = result->getNumber<uint32_t>("item_count");
+			if (itemId != 0 && itemCount != 0) {
+				state->items[itemId] += itemCount;
+			}
+		} while (result->next());
+	}
+
+	player->materializeAccountLootPouchView();
+	player->installAccountLootPouchSlot();
 }
 
 void IOLoginDataLoad::loadPlayerInboxItems(const std::shared_ptr<Player> &player, DBResult_ptr result) {

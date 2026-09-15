@@ -9,8 +9,6 @@ if HirelingShopItems and HirelingBuyLootItems then
 	HirelingShopItems["buy loot"] = HirelingBuyLootItems
 end
 
-local LOOT_POUCH_CLIENT_ID = ITEM_GOLD_POUCH or 23721
-
 --- One inventory walk → set of type ids the player currently holds.
 --- Avoids getItemCount() × full loot catalog (1000+ recursive scans).
 local function collectOwnedItemIds(player)
@@ -42,11 +40,9 @@ local function collectOwnedItemIds(player)
 		scan(player:getSlotItem(slot))
 	end
 
-	-- Loot / gold pouch often lives in the Store inbox, outside normal slots.
-	if player.getStoreInbox then
-		scan(player:getStoreInbox())
-	elseif player.findItemInInbox then
-		scan(player:findItemInInbox(LOOT_POUCH_CLIENT_ID))
+	-- Account-scoped loot pouch view (slot 12 is only an empty handle).
+	if player.getLootPouch then
+		scan(player:getLootPouch())
 	end
 
 	return owned

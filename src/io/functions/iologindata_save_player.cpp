@@ -575,6 +575,10 @@ bool IOLoginDataSave::savePlayerItem(const std::shared_ptr<Player> &player) {
 
 	ItemBlockList itemList;
 	for (int32_t slotId = CONST_SLOT_FIRST; slotId <= CONST_SLOT_LAST; ++slotId) {
+		if (slotId == CONST_SLOT_LOOT_POUCH) {
+			// Account loot pouch contents persist in account_loot_pouch_items; slot is a handle only.
+			continue;
+		}
 		const auto &item = player->inventory[slotId];
 		if (item) {
 			itemList.emplace_back(slotId, item);
@@ -621,6 +625,46 @@ bool IOLoginDataSave::savePlayerDepotItems(const std::shared_ptr<Player> &player
 		return true;
 	}
 	return true;
+}
+
+bool IOLoginDataSave::saveAccountLootPouch(const std::shared_ptr<Player> &player) {
+	if (!player) {
+		g_logger().warn("[IOLoginData::savePlayer] - Player nullptr: {}", __FUNCTION__);
+		return false;
+	}
+
+	const auto accountId = player->getAccountId();
+	if (accountId == 0) {
+		return true;
+	}
+
+	if (!player->getAccountLootPouchState()) {
+		return true;
+	}
+
+	Database &db = Database::getInstance();
+	if (!db.executeQuery(fmt::format("DELETE FROM `account_loot_pouch_items` WHERE `account_id` = {}", accountId))) {
+		return false;
+	}
+
+	const auto &items = player->getAccountLootPouchItems();
+	if (items.empty()) {
+		return true;
+	}
+
+	DBInsert pouchQuery("INSERT INTO `account_loot_pouch_items` (`account_id`,`item_id`,`item_count`) VALUES ");
+	std::ostringstream ss;
+	for (const auto &[itemId, itemCount] : items) {
+		if (itemId == 0 || itemCount == 0) {
+			continue;
+		}
+		ss << accountId << ',' << itemId << ',' << itemCount;
+		if (!pouchQuery.addRow(ss)) {
+			return false;
+		}
+	}
+
+	return pouchQuery.execute();
 }
 
 bool IOLoginDataSave::saveRewardItems(const std::shared_ptr<Player> &player) {

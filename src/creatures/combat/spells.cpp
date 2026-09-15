@@ -1263,8 +1263,25 @@ bool InstantSpell::playerCastInstant(const std::shared_ptr<Player> &player, std:
 		}
 		// Vocation Adjustment 15.25: crossHairTarget spells cast at the clicked tile (cursor/crosshair).
 		// The client sends the aimed tile in the say packet tail; parseSay forwards it here as `to`.
-		else if (needPosition && to.x != 0) {
-			var.pos = to;
+		// Lua automation / castSpell without an aim tile fall back to the attack target's position
+		// (Death Echo, Divine Grenade, Thousand Fist Blows, …).
+		else if (needPosition) {
+			if (to.x != 0) {
+				var.pos = to;
+			} else {
+				const auto &target = player->getAttackedCreature();
+				if (!target || target->isRemoved() || target->getHealth() <= 0) {
+					player->sendCancelMessage(RETURNVALUE_YOUCANONLYUSEITONCREATURES);
+					g_game().addMagicEffect(player->getPosition(), CONST_ME_POFF);
+					return false;
+				}
+				if (!canThrowSpell(player, target)) {
+					player->sendCancelMessage(RETURNVALUE_CREATUREISNOTREACHABLE);
+					g_game().addMagicEffect(player->getPosition(), CONST_ME_POFF);
+					return false;
+				}
+				var.pos = target->getPosition();
+			}
 		} else {
 			var.pos = player->getPosition();
 		}
