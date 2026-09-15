@@ -195,6 +195,8 @@ function TeamProtocol.handle(player, buffer)
 			path = cont.path,
 			itemId = cont.itemId,
 			label = cont.label,
+			capacity = cont.capacity or cont.slots or 0,
+			slots = cont.slots or cont.capacity or 0,
 			items = cont.items or {},
 		})
 	elseif action == "openLootPouch" then
@@ -209,6 +211,8 @@ function TeamProtocol.handle(player, buffer)
 			path = cont.path,
 			itemId = cont.itemId,
 			label = cont.label,
+			capacity = cont.capacity or cont.slots or 0,
+			slots = cont.slots or cont.capacity or 0,
 			items = cont.items or {},
 		})
 	elseif action == "openRewardChest" then
@@ -225,6 +229,8 @@ function TeamProtocol.handle(player, buffer)
 			path = cont.path,
 			itemId = cont.itemId,
 			label = cont.label,
+			capacity = cont.capacity or cont.slots or 0,
+			slots = cont.slots or cont.capacity or 0,
 			items = cont.items or {},
 		})
 	elseif action == "collectRewardChest" then
@@ -291,6 +297,8 @@ function TeamProtocol.handle(player, buffer)
 					path = cont.path,
 					itemId = cont.itemId,
 					label = cont.label,
+					capacity = cont.capacity or cont.slots or 0,
+					slots = cont.slots or cont.capacity or 0,
 					items = cont.items or {},
 				})
 			end

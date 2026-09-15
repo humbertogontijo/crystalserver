@@ -86,6 +86,9 @@ local function copyPath(path)
 				out.indices[i] = tonumber(idx) or 0
 			end
 		end
+		if path.slots ~= nil then
+			out.slots = tonumber(path.slots) or path.slots
+		end
 		return out
 	end
 	if path.lootPouch == true then
@@ -96,6 +99,9 @@ local function copyPath(path)
 				out.indices[i] = tonumber(idx) or 0
 			end
 		end
+		if path.slots ~= nil then
+			out.slots = tonumber(path.slots) or path.slots
+		end
 		return out
 	end
 	local out = { slot = tonumber(path.slot) or 0 }
@@ -105,6 +111,9 @@ local function copyPath(path)
 			out.indices[i] = tonumber(idx) or 0
 		end
 	end
+	if path.slots ~= nil then
+		out.slots = tonumber(path.slots) or path.slots
+	end
 	return out
 end
 
@@ -112,6 +121,8 @@ local function childPath(parentPath, index)
 	local path = copyPath(parentPath) or { slot = 0, indices = {} }
 	path.indices = path.indices or {}
 	path.indices[#path.indices + 1] = tonumber(index) or 0
+	-- Slot count belongs to the opened container, not each child item path.
+	path.slots = nil
 	return path
 end
 
@@ -159,7 +170,70 @@ local function itemWire(item, path)
 	}
 end
 
+local function asContainer(item)
+	if not item then
+		return nil
+	end
+	if item.getCapacity or item.getSize then
+		return item
+	end
+	if item.getContainer then
+		local ok, cont = pcall(function()
+			return item:getContainer()
+		end)
+		if ok and cont and cont ~= false then
+			return cont
+		end
+	end
+	return nil
+end
+
+local function containerCapacity(item)
+	if not item then
+		return 0
+	end
+	-- ItemType.containersize is the authoritative slot count (e.g. backpack = 20).
+	local id = 0
+	if item.getId then
+		local ok, raw = pcall(function()
+			return item:getId()
+		end)
+		if ok and raw then
+			id = tonumber(raw) or 0
+		end
+	end
+	if id > 0 and ItemType then
+		local ok, cap = pcall(function()
+			local it = ItemType(id)
+			if it and it.getCapacity then
+				return it:getCapacity()
+			end
+			return nil
+		end)
+		if ok and cap ~= nil then
+			local n = math.floor(tonumber(cap) or 0)
+			if n > 0 then
+				return n
+			end
+		end
+	end
+	local cont = asContainer(item) or item
+	if cont and cont.getCapacity then
+		local ok, n = pcall(function()
+			return cont:getCapacity()
+		end)
+		if ok and n ~= nil then
+			local cap = math.floor(tonumber(n) or 0)
+			if cap > 0 then
+				return cap
+			end
+		end
+	end
+	return 0
+end
+
 local function containerWire(container, parentPath, maxItems)
+	container = asContainer(container) or container
 	maxItems = maxItems or 40
 	local items = {}
 	if not container or not container.getSize then
@@ -1747,9 +1821,11 @@ function TeamManager.getInventorySnapshot(controller, nameOrGuid)
 
 	local backpack = target:getSlotItem(CONST_SLOT_BACKPACK)
 	local bagItems = {}
+	local backpackCapacity = 0
 	local backpackPath = { slot = CONST_SLOT_BACKPACK }
 	if backpack and backpack.getSize then
 		bagItems = containerWire(backpack, backpackPath, 60)
+		backpackCapacity = containerCapacity(backpack)
 	end
 
 	-- Offline players from getOfflinePlayer need save only when modified.
@@ -1794,6 +1870,7 @@ function TeamManager.getInventorySnapshot(controller, nameOrGuid)
 		creatureId = creatureId,
 		equipment = equipment,
 		backpack = bagItems,
+		backpackCapacity = backpackCapacity,
 		blessVisualState = blessVisualState,
 		blessings = blessings,
 	}
@@ -2362,13 +2439,20 @@ function TeamManager.openContainer(controller, msg)
 	if not item.getSize then
 		return nil, "Item is not a container."
 	end
-	local openPath = path or { slot = 0 }
+	local openPath = copyPath(path) or { slot = 0 }
+	local slots = containerCapacity(item)
+	-- Stash on path so clients that miss a top-level field still get slot count.
+	if slots > 0 then
+		openPath.slots = slots
+	end
 	return {
 		name = target:getName(),
 		guid = target:getGuid(),
 		path = openPath,
 		itemId = item:getId(),
 		label = item:getName() or "Container",
+		capacity = slots,
+		slots = slots,
 		items = containerWire(item, openPath, 100),
 	}
 end
@@ -2520,12 +2604,19 @@ function TeamManager.openLootPouch(controller, nameOrGuid)
 		return nil, "Loot pouch is not a container."
 	end
 	path = path or { lootPouch = true }
+	local slots = containerCapacity(pouch)
+	if slots > 0 then
+		path = copyPath(path) or path
+		path.slots = slots
+	end
 	return {
 		name = target:getName(),
 		guid = target:getGuid(),
 		path = path,
 		itemId = pouch:getId() or ITEM_GOLD_POUCH or 23721,
 		label = pouch:getName() or "Loot Pouch",
+		capacity = slots,
+		slots = slots,
 		items = containerWire(pouch, path, 100),
 	}
 end
