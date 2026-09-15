@@ -1322,13 +1322,8 @@ void Player::refreshRewardChestAfterCollect() {
 		return;
 	}
 
-	if (chest->empty()) {
-		onCloseContainer(chest);
-		closeContainer(static_cast<uint8_t>(chestCid));
-	} else {
-		// Resync so emptied bags disappear from the open chest window.
-		onSendContainer(chest);
-	}
+	// Keep the reward chest window open when empty (storage sidebar host).
+	onSendContainer(chest);
 }
 
 bool Player::hasOtherRewardContainerOpen(const std::shared_ptr<Container> &container) const {
@@ -2140,10 +2135,7 @@ ReturnValue Player::openRewardChest() {
 		removeEmptyRewards();
 	}
 
-	if (playerRewardChest->empty()) {
-		return RETURNVALUE_REWARDCHESTISEMPTY;
-	}
-
+	// Always open (including empty) so the storage UI can keep a stable host window.
 	linkRewardChestParents();
 
 	const int32_t oldContainerId = getContainerID(playerRewardChest);
