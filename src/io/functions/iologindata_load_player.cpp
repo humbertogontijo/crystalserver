@@ -771,6 +771,8 @@ void IOLoginDataLoad::loadAccountLootPouch(const std::shared_ptr<Player> &player
 		g_logger().error("[{}] - Failed to create account loot pouch for account {}", __FUNCTION__, accountId);
 		return;
 	}
+	// Distinct from leftover character "gold pouch" (same client id) for OTC exact counts.
+	state->view->setAttribute(ItemAttribute_t::NAME, "Loot Pouch");
 	player->setAccountLootPouchState(state);
 
 	auto query = fmt::format(

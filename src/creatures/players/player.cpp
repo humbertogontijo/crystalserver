@@ -11918,16 +11918,31 @@ void Player::openPlayerContainers() {
 		if (itemContainer) {
 			const auto &cid = item->getAttribute<int64_t>(ItemAttribute_t::OPENCONTAINER);
 			if (cid > 0) {
-				openContainersList[cid] = itemContainer;
+				// Slot-12 handle is ITEM_GOLD_POUCH but opens the account view via use,
+				// not this empty container — never restore gold-pouch OPENCONTAINER roots.
+				if (item->getID() != ITEM_GOLD_POUCH) {
+					openContainersList[cid] = itemContainer;
+				} else {
+					item->removeAttribute(ItemAttribute_t::OPENCONTAINER);
+				}
 			}
 			for (ContainerIterator it = itemContainer->iterator(); it.hasNext(); it.advance()) {
-				const auto &subContainer = (*it)->getContainer();
-				if (subContainer) {
-					const auto &subcid = (*it)->getAttribute<uint8_t>(ItemAttribute_t::OPENCONTAINER);
-					if (subcid > 0) {
-						openContainersList[subcid] = subContainer;
-					}
+				const auto &subItem = *it;
+				const auto &subContainer = subItem ? subItem->getContainer() : nullptr;
+				if (!subContainer) {
+					continue;
 				}
+				const auto &subcid = subItem->getAttribute<uint8_t>(ItemAttribute_t::OPENCONTAINER);
+				if (subcid == 0) {
+					continue;
+				}
+				// Character gold pouches share id 23721 with the account loot-pouch handle.
+				// Never auto-reopen them — OTC storage binds the pouch host to the account view only.
+				if (subItem->getID() == ITEM_GOLD_POUCH) {
+					subItem->removeAttribute(ItemAttribute_t::OPENCONTAINER);
+					continue;
+				}
+				openContainersList[subcid] = subContainer;
 			}
 		}
 	}
@@ -12771,9 +12786,20 @@ const StashItemList &Player::getAccountLootPouchItems() const {
 	return accountLootPouchState ? accountLootPouchState->items : empty;
 }
 
+namespace {
+void applyAccountLootPouchViewName(const std::shared_ptr<Container> &view) {
+	if (!view) {
+		return;
+	}
+	// Distinct from leftover character "gold pouch" items (same client id).
+	view->setAttribute(ItemAttribute_t::NAME, "Loot Pouch");
+}
+} // namespace
+
 void Player::ensureAccountLootPouchState() {
 	if (accountLootPouchState) {
 		if (accountLootPouchState->view) {
+			applyAccountLootPouchViewName(accountLootPouchState->view);
 			installAccountLootPouchSlot();
 			return;
 		}
@@ -12782,6 +12808,7 @@ void Player::ensureAccountLootPouchState() {
 	}
 	const auto &created = Item::CreateItem(ITEM_GOLD_POUCH, 1);
 	accountLootPouchState->view = created ? created->getContainer() : nullptr;
+	applyAccountLootPouchViewName(accountLootPouchState->view);
 	installAccountLootPouchSlot();
 }
 
@@ -12832,7 +12859,7 @@ std::shared_ptr<Container> Player::getLootPouch() {
 	return getAccountLootPouch();
 }
 
-ReturnValue Player::openAccountLootPouch() {
+ReturnValue Player::openAccountLootPouch(uint8_t preferredContainerId) {
 	const auto &pouch = getLootPouch();
 	if (!pouch) {
 		return RETURNVALUE_NOTPOSSIBLE;
@@ -12848,13 +12875,17 @@ ReturnValue Player::openAccountLootPouch() {
 
 	// Fresh open — rebuild view from the stash map, then show.
 	materializeAccountLootPouchView();
+	applyAccountLootPouchViewName(pouch);
 	pouch->setParent(static_self_cast<Player>());
 
 	const uint8_t limit = getOpenedContainersLimit();
-	uint8_t cid = 0;
-	for (; cid < limit; ++cid) {
-		if (!getContainerByID(cid)) {
-			break;
+	uint8_t cid = preferredContainerId;
+	if (cid >= limit || getContainerByID(cid)) {
+		cid = 0;
+		for (; cid < limit; ++cid) {
+			if (!getContainerByID(cid)) {
+				break;
+			}
 		}
 	}
 	if (cid >= limit) {
@@ -12909,8 +12940,15 @@ uint32_t accountLootPouchMaxPerSlot(uint16_t itemId) {
 	if (it.id == 0) {
 		return 1;
 	}
-	// Stash-style view: stackables use normal stack size; non-stackables group up to 255 per slot.
-	return it.stackable ? std::max<uint8_t>(1, it.stackSize) : 255;
+	// View grouping: stackables use normal stack size; fluids stay 1/slot;
+	// other non-stackables group up to 255 (counts are server-side only for now).
+	if (it.stackable) {
+		return std::max<uint8_t>(1, it.stackSize);
+	}
+	if (it.isSplash() || it.isFluidContainer()) {
+		return 1;
+	}
+	return 255;
 }
 
 uint32_t accountLootPouchSlotsFor(uint16_t itemId, uint32_t count) {

@@ -471,7 +471,7 @@ void ProtocolGame::AddItem(NetworkMessage &msg, uint16_t id, uint8_t count, uint
 	}
 }
 
-void ProtocolGame::AddItem(NetworkMessage &msg, const std::shared_ptr<Item> &item, bool forceExactCount /*= false*/) {
+void ProtocolGame::AddItem(NetworkMessage &msg, const std::shared_ptr<Item> &item) {
 	if (!item) {
 		return;
 	}
@@ -486,15 +486,6 @@ void ProtocolGame::AddItem(NetworkMessage &msg, const std::shared_ptr<Item> &ite
 
 	if (it.stackable) {
 		msg.addByte(static_cast<uint8_t>(std::min<uint16_t>(std::numeric_limits<uint8_t>::max(), item->getItemCount())));
-	} else if (forceExactCount) {
-		// Account loot pouch stash-style grouping for non-stackables.
-		msg.addByte(static_cast<uint8_t>(std::min<uint16_t>(std::numeric_limits<uint8_t>::max(), std::max<uint16_t>(1, item->getItemCount()))));
-	} else if (player) {
-		const auto &parent = item->getParent();
-		const auto &parentContainer = parent ? parent->getContainer() : nullptr;
-		if (parentContainer && player->isAccountLootPouchContainer(parentContainer)) {
-			msg.addByte(static_cast<uint8_t>(std::min<uint16_t>(std::numeric_limits<uint8_t>::max(), std::max<uint16_t>(1, item->getItemCount()))));
-		}
 	}
 
 	if (it.isSplash() || it.isFluidContainer()) {
@@ -879,15 +870,16 @@ void ProtocolGame::connect(const std::string &playerName, OperatingSystem_t oper
 	player->isConnecting = false;
 
 	player->client = getThis();
-	player->openPlayerContainers();
 
-	// OTC reconnect: send OTCR feature flags before map/items (same as login).
+	// OTC reconnect: feature flags (isOTCR + GameItemShader) before any containers/items.
 	if (operatingSystem >= CLIENTOS_OTCLIENT_LINUX) {
 		isOTC = true;
 		if (otclientV8 == 0) {
 			sendOTCRFeatures();
 		}
 	}
+
+	player->openPlayerContainers();
 
 	player->sendHarmonyProtocol();
 	player->sendSereneProtocol();
@@ -6001,7 +5993,6 @@ void ProtocolGame::sendContainer(uint8_t cid, const std::shared_ptr<Container> &
 	}
 
 	const ItemDeque &itemList = container->getItemList();
-	const bool exactCounts = player->isAccountLootPouchContainer(container);
 	if (firstIndex >= containerSize) {
 		msg.addByte(0x00);
 	} else if (container->getID() == ITEM_STORE_INBOX && !itemsStoreInboxToSend.empty()) {
@@ -6014,7 +6005,7 @@ void ProtocolGame::sendContainer(uint8_t cid, const std::shared_ptr<Container> &
 
 		uint32_t i = 0;
 		for (auto it = itemList.begin() + firstIndex, end = itemList.end(); i < maxItemsToSend && it != end; ++it, ++i) {
-			AddItem(msg, *it, exactCounts);
+			AddItem(msg, *it);
 		}
 	}
 
@@ -8586,9 +8577,14 @@ void ProtocolGame::sendMoveCreature(const std::shared_ptr<Creature> &creature, c
 		if (oldStackPos >= 10) {
 			sendMapDescription(newPos);
 		} else if (teleport) {
-			NetworkMessage msg;
-			RemoveTileThing(msg, oldPos, oldStackPos);
-			writeToOutputBuffer(msg);
+			// Player is already at newPos here. Far teleports leave oldPos outside the
+			// new viewport — a RemoveTileThing would arrive after (or race) the map
+			// refresh and log getMappedThing/aware:false on OTC. Full map replaces the view.
+			if (oldStackPos >= 0 && canSee(oldPos)) {
+				NetworkMessage msg;
+				RemoveTileThing(msg, oldPos, oldStackPos);
+				writeToOutputBuffer(msg);
+			}
 			sendMapDescription(newPos);
 		} else {
 			NetworkMessage msg;
@@ -8704,8 +8700,7 @@ void ProtocolGame::sendAddContainerItem(uint8_t cid, uint16_t slot, const std::s
 	msg.addByte(0x70);
 	msg.addByte(cid);
 	msg.add<uint16_t>(slot);
-	const auto &container = player ? player->getContainerByID(cid) : nullptr;
-	AddItem(msg, item, container && player->isAccountLootPouchContainer(container));
+	AddItem(msg, item);
 	writeToOutputBuffer(msg);
 }
 
@@ -8714,8 +8709,7 @@ void ProtocolGame::sendUpdateContainerItem(uint8_t cid, uint16_t slot, const std
 	msg.addByte(0x71);
 	msg.addByte(cid);
 	msg.add<uint16_t>(slot);
-	const auto &container = player ? player->getContainerByID(cid) : nullptr;
-	AddItem(msg, item, container && player->isAccountLootPouchContainer(container));
+	AddItem(msg, item);
 	writeToOutputBuffer(msg);
 }
 
@@ -8725,8 +8719,7 @@ void ProtocolGame::sendRemoveContainerItem(uint8_t cid, uint16_t slot, const std
 	msg.addByte(cid);
 	msg.add<uint16_t>(slot);
 	if (lastItem) {
-		const auto &container = player ? player->getContainerByID(cid) : nullptr;
-		AddItem(msg, lastItem, container && player->isAccountLootPouchContainer(container));
+		AddItem(msg, lastItem);
 	} else {
 		msg.add<uint16_t>(0x00);
 	}

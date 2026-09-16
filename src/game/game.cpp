@@ -4859,7 +4859,7 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 	if (player->getInventoryItem(CONST_SLOT_LOOT_POUCH) == item) {
 		player->resetIdleTime();
 		player->setNextActionTask(nullptr);
-		const ReturnValue openRet = player->openAccountLootPouch();
+		const ReturnValue openRet = player->openAccountLootPouch(index);
 		if (openRet != RETURNVALUE_NOERROR) {
 			player->sendCancelMessage(openRet);
 		}

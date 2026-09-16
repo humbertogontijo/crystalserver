@@ -1769,8 +1769,9 @@ public:
 	}
 	void setAccountLootPouchState(const std::shared_ptr<AccountLootPouchState> &state);
 	const StashItemList &getAccountLootPouchItems() const;
-	/** Toggle-open the account loot pouch view (slot-12 handle use). */
-	ReturnValue openAccountLootPouch();
+	/** Toggle-open the account loot pouch view (slot-12 handle use).
+	 *  preferredContainerId is the OTC container window cid from useItem (0xFF = first free). */
+	ReturnValue openAccountLootPouch(uint8_t preferredContainerId = 0xFF);
 	bool isAccountLootPouchSyncing() const;
 	bool isAccountLootPouchSilent() const;
 	/** True when this container is the account loot pouch view. */
