@@ -37,7 +37,7 @@ local function soloBossPool()
 			if ExpeditionConfig.isSoloBoss then
 				isSolo = ExpeditionConfig.isSoloBoss(entry)
 			elseif entry.bosstiaryClass then
-				-- Bane = solo; Archfoe/Nemesis = lever.
+				-- Fallback when catalog.encounter missing: Bane ≈ solo.
 				isSolo = tostring(entry.bosstiaryClass):lower() == "bane"
 			end
 			if isSolo then

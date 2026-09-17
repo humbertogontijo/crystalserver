@@ -150,9 +150,8 @@ function CreatureInfo.enrichCreatureMix(creatures)
 			if info then
 				enriched.name = info.name
 				enriched.combatPower = tonumber(info.combatPower) or 0
-				enriched.huntLevelMin = tonumber(info.huntLevelMin) or tonumber(info.levelMin)
-				enriched.huntRecommendedLevel = tonumber(info.huntRecommendedLevel)
-					or tonumber(info.recommendedLevel)
+				enriched.levelMin = tonumber(info.levelMin) or 1
+				enriched.recommendedLevel = tonumber(info.recommendedLevel) or 1
 				enriched.hp = tonumber(info.hp) or 0
 				enriched.exp = tonumber(info.exp) or 0
 				enriched.expectedDps = tonumber(info.expectedDps) or 0
@@ -162,7 +161,6 @@ function CreatureInfo.enrichCreatureMix(creatures)
 				enriched.mitigation = tonumber(info.mitigation) or 0
 				enriched.meanElementPercent = tonumber(info.meanElementPercent) or 0
 				enriched.speed = tonumber(info.speed) or 0
-				enriched.softCapHp = info.softCapHp == true
 			end
 		end
 		out[i] = enriched
@@ -181,7 +179,7 @@ function CreatureInfo.levelsForHuntPack(creatures, creatureDensity)
 	return levels
 end
 
---- Boss / raid levels for a single creature (boss curve).
+--- Boss / raid levels for a single creature (same CP→level pair as hunts).
 function CreatureInfo.levelsForBoss(creatureId, name)
 	local info = CreatureInfo.getByCreatureId(creatureId) or (name and CreatureInfo.get(name))
 	if not info then

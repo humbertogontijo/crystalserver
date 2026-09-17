@@ -939,11 +939,14 @@ function ExpeditionConfig.bossTypeName(catalog)
 	return ExpeditionConfig.monsterNameByCreatureId(raceId, catalog.name)
 end
 
---- Bane = solo (host only); Archfoe/Nemesis = lever (full party).
---- Legacy catalog.encounter is ignored when bosstiaryClass is present.
+--- Prefer catalog.encounter (access-based); bosstiaryClass is display-only.
 function ExpeditionConfig.bossEncounter(catalog)
 	if not catalog then
 		return "lever"
+	end
+	local encounter = catalog.encounter
+	if encounter == "solo" or encounter == "lever" then
+		return encounter
 	end
 	local class = catalog.bosstiaryClass
 	if class == "Bane" then
@@ -951,10 +954,6 @@ function ExpeditionConfig.bossEncounter(catalog)
 	end
 	if class == "Archfoe" or class == "Nemesis" then
 		return "lever"
-	end
-	local encounter = catalog.encounter
-	if encounter == "solo" or encounter == "lever" then
-		return encounter
 	end
 	return "lever"
 end
@@ -1130,6 +1129,10 @@ function ExpeditionConfig.catalogForClient(player)
 				creatureId = entry.creatureId,
 				floorOffset = tonumber(entry.floorOffset) or 0,
 			}
+			local combatPower = tonumber(entry.combatPower)
+			if combatPower then
+				row.combatPower = combatPower
+			end
 			if entry.exclusiveKitno then
 				row.exclusiveKitno = true
 			end
@@ -1208,11 +1211,11 @@ function ExpeditionConfig.catalogForClient(player)
 						if c.combatPower then
 							crow.combatPower = tonumber(c.combatPower)
 						end
-						if c.huntRecommendedLevel then
-							crow.huntRecommendedLevel = tonumber(c.huntRecommendedLevel)
+						if c.recommendedLevel then
+							crow.recommendedLevel = tonumber(c.recommendedLevel)
 						end
-						if c.huntLevelMin then
-							crow.huntLevelMin = tonumber(c.huntLevelMin)
+						if c.levelMin then
+							crow.levelMin = tonumber(c.levelMin)
 						end
 						slimCreatures[#slimCreatures + 1] = crow
 					end
@@ -1223,15 +1226,7 @@ function ExpeditionConfig.catalogForClient(player)
 			end
 			if role == "boss" then
 				row.bosstiaryClass = entry.bosstiaryClass
-				local class = entry.bosstiaryClass
-				local encounter = "lever"
-				if class == "Bane" then
-					encounter = "solo"
-				elseif class == "Archfoe" or class == "Nemesis" then
-					encounter = "lever"
-				elseif entry.encounter == "solo" or entry.encounter == "lever" then
-					encounter = entry.encounter
-				end
+				local encounter = ExpeditionConfig.bossEncounter(entry)
 				row.encounter = encounter
 				local maxPlayers = tonumber(entry.maxPlayers)
 				if maxPlayers and maxPlayers > 0 then

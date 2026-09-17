@@ -9,15 +9,15 @@ local CP_RESIST_TAKEN_FLOOR = 0.03
 local DEFAULT_WEIGHTS = {
 	health = 1,
 	heal = 1,
-	armor = 0.980019587864914,
-	mitigation = 0.7641856861632816,
-	resist = 0.9941757884773436,
-	dps = 0.81632397618286,
-	speed = 0.9736514467958334,
-	healRef = 100.2979895210889,
+	armor = 0.98,
+	mitigation = 0.76,
+	resist = 0.99,
+	dps = 0.82,
+	speed = 0.97,
+	healRef = 100,
 	armorScale = 80,
 	speedRef = 200,
-	densityExp = 0.6637017678242599,
+	densityExp = 0.75,
 }
 
 local function resolveWeights(weights)
@@ -103,9 +103,10 @@ function CreatureInfo.computeCombatPower(traits, weights)
 	local speed = tonumber(traits.speed) or 0
 
 	local hp = math.max(1, health)
+	-- Saturating heal: 1 + h/(h+ref) ∈ (1, 2). Matches C++ computeCombatPowerFromTraits.
 	local healFactor = 1
 	if healDps > 0 and w.healRef and w.healRef > 0 then
-		healFactor = 1 + healDps / w.healRef
+		healFactor = 1 + healDps / (healDps + w.healRef)
 	end
 	local bestArmor = math.max(math.max(0, armor), math.max(0, defense))
 	local armorFactor = 1 + bestArmor / math.max(1e-6, w.armorScale)

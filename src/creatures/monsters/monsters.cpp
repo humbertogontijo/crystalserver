@@ -408,8 +408,10 @@ namespace {
 			return 0.0;
 		}
 		const CombatPowerWeights w {};
+		// Saturating heal: 1 + h/(h+ref) ∈ (1, 2). Linear 1+h/ref let pad heal
+		// dominate (e.g. Murcion heal DPS ≫ Bakragore despite lower DPS/HP).
 		const double healFactor = (expectedHealDps > 0.0 && w.healRef > 0.0)
-			? (1.0 + expectedHealDps / w.healRef)
+			? (1.0 + expectedHealDps / (expectedHealDps + w.healRef))
 			: 1.0;
 		const double hp = std::max(1.0, health);
 		const double bestArmor = std::max(std::max(0.0, armor), std::max(0.0, defense));

@@ -1,18 +1,14 @@
--- Mirrors packages/asset-pipeline/src/expedition/domain/hunt-levels.ts (+ hunt-level-fit.generated.ts).
+-- Shared CP → level map for creatures, hunt packs, bosses, and raids.
+-- Player formula: recommended ≈ 1.5 × CP^0.6 ; levelMin ≈ recommended × 0.6
+-- Constants synced from hunt_level_fit_generated.py via `make optimize`.
 CreatureInfo = CreatureInfo or {}
 
-local BOSS_LEVEL_OFFSET = -545
-local BOSS_LEVEL_LOG_COEF = 80
-local BOSS_LEVEL_CP_KNEE = 100000
-local BOSS_LEVEL_LOG_COEF_HI = 120
-local BOSS_LEVEL_STEP = 25
-
 local MONSTER_LEVEL_STEP = 5
-local MONSTER_LEVEL_COEF = 0.614420080104573
-local MONSTER_LEVEL_EXP = 0.7406889121682472
+local MONSTER_LEVEL_COEF = 1.5
+local MONSTER_LEVEL_EXP = 0.6
 local PARTY_LEVEL_RATIO = 0.6
---- Pack: Σ CP_i × n_i^HUNT_DENSITY_EXP (n_i = viewport count of creature i).
-local HUNT_DENSITY_EXP = 0.3991151798523199
+--- Pack: Σ CP_i × n_i^HUNT_DENSITY_EXP
+local HUNT_DENSITY_EXP = 0.75
 
 local function roundLevelToStep(level, step)
 	level = tonumber(level) or 1
@@ -34,22 +30,7 @@ local function monsterLevelStepForRaw(rawLevel)
 	return MONSTER_LEVEL_STEP
 end
 
-local function bossLevelFromCombatPower(combatPower)
-	combatPower = tonumber(combatPower) or 0
-	if combatPower <= 0 then
-		return 1
-	end
-	local ln = math.log(combatPower)
-	if combatPower <= BOSS_LEVEL_CP_KNEE then
-		return roundLevelToStep(BOSS_LEVEL_OFFSET + BOSS_LEVEL_LOG_COEF * ln, BOSS_LEVEL_STEP)
-	end
-	local lnKnee = math.log(BOSS_LEVEL_CP_KNEE)
-	local atKnee = BOSS_LEVEL_OFFSET + BOSS_LEVEL_LOG_COEF * lnKnee
-	return roundLevelToStep(atKnee + BOSS_LEVEL_LOG_COEF_HI * (ln - lnKnee), BOSS_LEVEL_STEP)
-end
-
---- One power-law for creatures and hunt packs.
-local function rawMonsterLevelFromCombatPower(combatPower)
+local function rawLevelFromCombatPower(combatPower)
 	combatPower = tonumber(combatPower) or 0
 	if combatPower <= 0 then
 		return 1
@@ -57,50 +38,42 @@ local function rawMonsterLevelFromCombatPower(combatPower)
 	return MONSTER_LEVEL_COEF * (combatPower ^ MONSTER_LEVEL_EXP)
 end
 
-local function monsterLevelFromCombatPower(combatPower)
-	local raw = rawMonsterLevelFromCombatPower(combatPower)
+local function levelFromCombatPower(combatPower)
+	local raw = rawLevelFromCombatPower(combatPower)
 	return roundLevelToStep(raw, monsterLevelStepForRaw(raw))
 end
 
-local function recommendedLevelFromCombatPower(combatPower, isMonster)
+local function recommendedLevelFromCombatPower(combatPower)
 	combatPower = tonumber(combatPower) or 0
 	if combatPower <= 0 then
 		return 1
 	end
-	if isMonster then
-		return monsterLevelFromCombatPower(combatPower)
-	end
-	return bossLevelFromCombatPower(combatPower)
+	return levelFromCombatPower(combatPower)
 end
 
-local function levelMinFromCombatPower(combatPower, isMonster)
+local function levelMinFromCombatPower(combatPower)
 	combatPower = tonumber(combatPower) or 0
 	if combatPower <= 0 then
 		return 1
 	end
-	if not isMonster then
-		return recommendedLevelFromCombatPower(combatPower, false)
-	end
-	local recommended = recommendedLevelFromCombatPower(combatPower, true)
+	local recommended = recommendedLevelFromCombatPower(combatPower)
 	local partyRaw = recommended * PARTY_LEVEL_RATIO
-	-- Step from the party value, not rec — otherwise rec 19→min 11 and rec 20→min 10.
 	local party = roundLevelToStep(partyRaw, monsterLevelStepForRaw(partyRaw))
 	return math.max(1, math.min(recommended, party))
 end
 
---- Same curves as asset-pipeline levelsFromCombatPower(combatPower, isMonster).
-function CreatureInfo.levelsFromCombatPower(combatPower, isMonster)
-	local recommendedLevel = recommendedLevelFromCombatPower(combatPower, isMonster)
-	local levelMin = levelMinFromCombatPower(combatPower, isMonster)
+--- One meaning everywhere: recommended from CP; levelMin = recommended × partyRatio.
+function CreatureInfo.levelsFromCombatPower(combatPower)
+	local recommendedLevel = recommendedLevelFromCombatPower(combatPower)
+	local levelMin = levelMinFromCombatPower(combatPower)
 	return {
 		levelMin = math.min(levelMin, recommendedLevel),
 		recommendedLevel = recommendedLevel,
 	}
 end
 
---- Expedition hunt levels from viewport pack combat power (same power-law).
 function CreatureInfo.huntLevelsFromPackCombatPower(packCombatPower)
-	return CreatureInfo.levelsFromCombatPower(packCombatPower, true)
+	return CreatureInfo.levelsFromCombatPower(packCombatPower)
 end
 
 function CreatureInfo.huntDensityExp()

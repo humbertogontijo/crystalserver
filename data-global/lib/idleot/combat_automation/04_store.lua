@@ -1,5 +1,8 @@
 CombatAutomationStore = CombatAutomationStore or {}
 
+-- Attack-page loadout banks (mirrors client AttackPreset.COUNT).
+local ATTACK_PRESET_COUNT = 3
+
 local function sanitizeSlot(raw, index, player)
 	if type(raw) ~= "table" then
 		return nil
@@ -97,6 +100,51 @@ local function sanitizeSlot(raw, index, player)
 	return slot
 end
 
+local function sanitizeAttackPresetEntries(entries, player)
+	local out = {}
+	if type(entries) ~= "table" then
+		return out
+	end
+	for i, entry in ipairs(entries) do
+		local slot = sanitizeSlot(entry, i, player)
+		if slot then
+			out[#out + 1] = slot
+		end
+	end
+	return out
+end
+
+--- Normalize attack-preset bank ({ index, seeded, presets = { {...}, ... } }).
+function CombatAutomationStore.sanitizeAttackPresets(raw, player)
+	if type(raw) ~= "table" then
+		return nil
+	end
+	local source = raw.presets
+	if type(source) ~= "table" then
+		return nil
+	end
+	local presets = {}
+	local hasAny = false
+	for i = 1, ATTACK_PRESET_COUNT do
+		local entries = sanitizeAttackPresetEntries(source[i], player)
+		presets[i] = entries
+		if #entries > 0 then
+			hasAny = true
+		end
+	end
+	local index = math.floor(tonumber(raw.index) or 1)
+	if index < 1 then
+		index = 1
+	elseif index > ATTACK_PRESET_COUNT then
+		index = ATTACK_PRESET_COUNT
+	end
+	return {
+		index = index,
+		seeded = raw.seeded == true or hasAny,
+		presets = presets,
+	}
+end
+
 function CombatAutomationStore.sanitize(raw, player)
 	local slots = {}
 	local source = {}
@@ -109,6 +157,7 @@ function CombatAutomationStore.sanitize(raw, player)
 	}
 	local ammoTypeId = 0
 	local forceSkillOrder = true
+	local attackPresets = nil
 	if type(raw) == "table" then
 		forceSkillOrder = raw.forceSkillOrder ~= false
 		if type(raw.autoTarget) == "table" then
@@ -150,6 +199,11 @@ function CombatAutomationStore.sanitize(raw, player)
 				source = raw
 			end
 		end
+		local rawPresets = raw.attackPresets or raw.presets
+		if type(raw.loadout) == "table" and rawPresets == nil then
+			rawPresets = raw.loadout.attackPresets or raw.loadout.presets
+		end
+		attackPresets = CombatAutomationStore.sanitizeAttackPresets(rawPresets, player)
 	end
 	for i, entry in ipairs(source) do
 		local slot = sanitizeSlot(entry, i, player)
@@ -175,12 +229,16 @@ function CombatAutomationStore.sanitize(raw, player)
 			end
 		end
 	end
-	return {
+	local config = {
 		slots = slots,
 		autoTarget = autoTarget,
 		ammoTypeId = ammoTypeId,
 		forceSkillOrder = forceSkillOrder,
 	}
+	if attackPresets then
+		config.attackPresets = attackPresets
+	end
+	return config
 end
 
 local function defaultAutoTarget()
@@ -202,15 +260,16 @@ function CombatAutomationStore.persist(player, config)
 	end
 	local payload = config
 		or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0, forceSkillOrder = true }
-	kv:set(
-		CombatAutomationConfig.KV_KEY,
-		JsonParser.encode({
-			slots = payload.slots or {},
-			autoTarget = payload.autoTarget or defaultAutoTarget(),
-			ammoTypeId = math.floor(tonumber(payload.ammoTypeId) or 0),
-			forceSkillOrder = payload.forceSkillOrder ~= false,
-		})
-	)
+	local encoded = {
+		slots = payload.slots or {},
+		autoTarget = payload.autoTarget or defaultAutoTarget(),
+		ammoTypeId = math.floor(tonumber(payload.ammoTypeId) or 0),
+		forceSkillOrder = payload.forceSkillOrder ~= false,
+	}
+	if type(payload.attackPresets) == "table" then
+		encoded.attackPresets = payload.attackPresets
+	end
+	kv:set(CombatAutomationConfig.KV_KEY, JsonParser.encode(encoded))
 	if kv.remove then
 		pcall(function()
 			kv:remove(CombatAutomationConfig.KV_LEGACY_KEY)
@@ -312,6 +371,16 @@ function CombatAutomationStore.setConfig(player, raw)
 			config.forceSkillOrder = existing.forceSkillOrder ~= false
 		end
 	end
+	-- Preserve attack presets when payloads omit them (slot-only / legacy updates).
+	if type(raw) == "table" then
+		local rawPresets = raw.attackPresets or raw.presets
+		if rawPresets == nil and type(raw.loadout) == "table" then
+			rawPresets = raw.loadout.attackPresets or raw.loadout.presets
+		end
+		if rawPresets == nil then
+			config.attackPresets = existing.attackPresets
+		end
+	end
 	-- AUTO may be toggled off during expeditions (e.g. to tame). Attack slots and
 	-- hunt AI honor autoTarget.enabled; heals/support/potions keep running.
 	CombatAutomationStore.persist(player, config)
@@ -338,7 +407,7 @@ function CombatAutomationStore.onLogin(player)
 	config._loaded = true
 	CombatAutomationStore.applyToRuntime(player, config)
 	if CombatAutomationProtocol and CombatAutomationProtocol.sendConfig then
-		CombatAutomationProtocol.sendConfig(player, config)
+		CombatAutomationProtocol.sendConfig(player, config, { includePresets = true })
 	end
 	-- Delayed resync: early login ticks can fire before the client has self/map,
 	-- and deduped attackTarget syncs would then never paint the red square.

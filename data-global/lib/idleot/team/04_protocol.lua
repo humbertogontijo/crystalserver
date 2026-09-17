@@ -345,6 +345,7 @@ function TeamProtocol.handle(player, buffer)
 			vocation = data.vocation,
 			autoTarget = data.autoTarget,
 			ammoTypeId = data.ammoTypeId,
+			attackPresets = data.attackPresets,
 			loadout = data.loadout,
 		})
 	elseif action == "setAutomation" then
@@ -353,6 +354,7 @@ function TeamProtocol.handle(player, buffer)
 			TeamProtocol.sendError(player, err or "Failed to save automation.")
 			return
 		end
+		-- Persist presets server-side but do not echo them (avoids client re-import logout).
 		TeamProtocol.send(player, {
 			type = "automationConfig",
 			name = data.name,
@@ -362,6 +364,18 @@ function TeamProtocol.handle(player, buffer)
 			autoTarget = data.autoTarget,
 			ammoTypeId = data.ammoTypeId,
 			loadout = data.loadout,
+		})
+	elseif action == "setAttackPresets" then
+		local data, err = TeamManager.setAttackPresets(player, msg)
+		if not data then
+			TeamProtocol.sendError(player, err or "Failed to save attack presets.")
+			return
+		end
+		TeamProtocol.send(player, {
+			type = "attackPresetsSaved",
+			ok = true,
+			name = data.name,
+			guid = data.guid,
 		})
 	elseif action == "openWheel" then
 		local data, err = TeamManager.openWheel(player, msg.name or msg.guid)

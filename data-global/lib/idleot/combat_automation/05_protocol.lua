@@ -11,12 +11,15 @@ local function send(player, payload)
 	return player:sendExtendedOpcode(opcode, JsonParser.encode(payload))
 end
 
-function CombatAutomationProtocol.sendConfig(player, config)
+function CombatAutomationProtocol.sendConfig(player, config, opts)
+	opts = opts or {}
 	config = config or CombatAutomationStore.getConfig(player)
 	local at = config.autoTarget
 		or { enabled = false, stance = "melee", rangedDistance = 3, mode = "A" }
-	return send(player, {
+	local payload = {
 		type = "automationConfig",
+		guid = player and player.getGuid and player:getGuid() or 0,
+		name = player and player.getName and player:getName() or nil,
 		autoTarget = {
 			enabled = at.enabled == true,
 			stance = at.stance or "melee",
@@ -29,7 +32,13 @@ function CombatAutomationProtocol.sendConfig(player, config)
 			slots = config.slots or {},
 			ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
 		},
-	})
+	}
+	-- Only include presets on explicit get/login. Echoing them on every setAutomation
+	-- made the client re-import mid-click and disconnect.
+	if opts.includePresets and type(config.attackPresets) == "table" then
+		payload.attackPresets = config.attackPresets
+	end
+	return send(player, payload)
 end
 
 function CombatAutomationProtocol.sendCast(player, payload)
@@ -71,6 +80,7 @@ local function wireLoadoutFromMsg(msg)
 	local ammoTypeId = msg.ammoTypeId
 	local loadout = msg.loadout
 	local forceSkillOrder = msg.forceSkillOrder
+	local attackPresets = msg.attackPresets or msg.presets
 	if type(loadout) == "table" then
 		if ammoTypeId == nil then
 			ammoTypeId = loadout.ammoTypeId
@@ -78,11 +88,15 @@ local function wireLoadoutFromMsg(msg)
 		if forceSkillOrder == nil then
 			forceSkillOrder = loadout.forceSkillOrder
 		end
+		if attackPresets == nil then
+			attackPresets = loadout.attackPresets or loadout.presets
+		end
 		return {
 			slots = loadout.slots or loadout,
 			autoTarget = msg.autoTarget,
 			ammoTypeId = ammoTypeId,
 			forceSkillOrder = forceSkillOrder,
+			attackPresets = attackPresets,
 		}
 	end
 	if type(msg.slots) == "table" then
@@ -91,6 +105,7 @@ local function wireLoadoutFromMsg(msg)
 			autoTarget = msg.autoTarget,
 			ammoTypeId = ammoTypeId,
 			forceSkillOrder = forceSkillOrder,
+			attackPresets = attackPresets,
 		}
 	end
 	return {
@@ -98,6 +113,7 @@ local function wireLoadoutFromMsg(msg)
 		autoTarget = msg.autoTarget,
 		ammoTypeId = ammoTypeId,
 		forceSkillOrder = forceSkillOrder,
+		attackPresets = attackPresets,
 	}
 end
 
@@ -109,7 +125,7 @@ function CombatAutomationProtocol.handleAction(player, msg)
 	local action = msg.action
 	if action == "getAutomation" then
 		local config = CombatAutomationStore.getConfig(player)
-		CombatAutomationProtocol.sendConfig(player, config)
+		CombatAutomationProtocol.sendConfig(player, config, { includePresets = true })
 		-- Client is ready (map/self loaded); force-paint the current server target.
 		local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
 		if session and ExpeditionAI and ExpeditionAI.resyncAttackTarget then
@@ -121,10 +137,26 @@ function CombatAutomationProtocol.handleAction(player, msg)
 	end
 	if action == "setAutomation" or action == "setBotConfig" then
 		local config = CombatAutomationStore.setConfig(player, wireLoadoutFromMsg(msg))
-		CombatAutomationProtocol.sendConfig(player, config)
+		-- Do not echo attackPresets; client already has the bank it just pushed.
+		CombatAutomationProtocol.sendConfig(player, config, { includePresets = false })
 		if CombatAutomation and CombatAutomation.resyncAttackTarget then
 			CombatAutomation.resyncAttackTarget(player)
 		end
+		return true
+	end
+	if action == "setAttackPresets" then
+		logger.info("[CombatAutomation] setAttackPresets from {}", player:getName())
+		local existing = CombatAutomationStore.getConfig(player)
+		local presets = CombatAutomationStore.sanitizeAttackPresets(msg.attackPresets or msg.presets, player)
+		if presets then
+			existing.attackPresets = presets
+			CombatAutomationStore.persist(player, existing)
+			if CombatAutomationStore.applyToRuntime then
+				CombatAutomationStore.applyToRuntime(player, existing)
+			end
+		end
+		-- Tiny ack only — never re-send full automationConfig.
+		send(player, { type = "attackPresetsSaved", ok = presets ~= nil })
 		return true
 	end
 	return false

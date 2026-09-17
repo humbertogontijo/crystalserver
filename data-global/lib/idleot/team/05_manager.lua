@@ -2650,6 +2650,7 @@ function TeamManager.getAutomation(controller, nameOrGuid)
 		vocation = profile.vocation,
 		autoTarget = config.autoTarget or { enabled = false, stance = "melee", rangedDistance = 3 },
 		ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
+		attackPresets = config.attackPresets,
 		loadout = {
 			slots = config.slots or {},
 			ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
@@ -2678,6 +2679,7 @@ function TeamManager.setAutomation(controller, msg)
 		slots = msg.slots,
 		autoTarget = msg.autoTarget,
 		ammoTypeId = msg.ammoTypeId,
+		attackPresets = msg.attackPresets or msg.presets,
 	}
 	if type(msg.loadout) == "table" then
 		if msg.loadout.slots then
@@ -2685,6 +2687,9 @@ function TeamManager.setAutomation(controller, msg)
 		end
 		if raw.ammoTypeId == nil then
 			raw.ammoTypeId = msg.loadout.ammoTypeId
+		end
+		if raw.attackPresets == nil then
+			raw.attackPresets = msg.loadout.attackPresets or msg.loadout.presets
 		end
 	end
 
@@ -2697,6 +2702,11 @@ function TeamManager.setAutomation(controller, msg)
 	else
 		-- Offline character: persist KV only (no combat tick loop).
 		config = CombatAutomationStore.sanitize(raw, target)
+		-- Preserve attack presets when team payloads omit them.
+		if raw.attackPresets == nil then
+			local existing = CombatAutomationStore.load(target)
+			config.attackPresets = existing and existing.attackPresets or nil
+		end
 		CombatAutomationStore.persist(target, config)
 		if target.save then
 			target:save()
@@ -2711,10 +2721,51 @@ function TeamManager.setAutomation(controller, msg)
 		vocation = profile.vocation,
 		autoTarget = config.autoTarget or { enabled = false, stance = "melee", rangedDistance = 3 },
 		ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
+		attackPresets = config.attackPresets,
 		loadout = {
 			slots = config.slots or {},
 			ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
 		},
+	}
+end
+
+--- Persist attack-preset bank only (no loadout echo / runtime slot replace).
+function TeamManager.setAttackPresets(controller, msg)
+	msg = msg or {}
+	local name = msg.name or msg.character or msg.target
+	local target, err = TeamStore.resolveAccountMember(controller, name)
+	if not target then
+		return nil, err
+	end
+	local ok, accErr = TeamManager.requireSameAccount(controller, target)
+	if not ok then
+		return nil, accErr
+	end
+	if not CombatAutomationStore or not CombatAutomationStore.sanitizeAttackPresets then
+		return nil, "Combat automation is not available."
+	end
+	local presets = CombatAutomationStore.sanitizeAttackPresets(msg.attackPresets or msg.presets, target)
+	if not presets then
+		return nil, "Invalid attack presets."
+	end
+	local online = Player(target:getName())
+	local config
+	if online and CombatAutomationStore.getConfig then
+		config = CombatAutomationStore.getConfig(online)
+		config.attackPresets = presets
+		CombatAutomationStore.persist(online, config)
+		saveIfOffline(online)
+	else
+		config = CombatAutomationStore.load(target)
+		config.attackPresets = presets
+		CombatAutomationStore.persist(target, config)
+		if target.save then
+			target:save()
+		end
+	end
+	return {
+		name = target:getName(),
+		guid = target:getGuid(),
 	}
 end
 

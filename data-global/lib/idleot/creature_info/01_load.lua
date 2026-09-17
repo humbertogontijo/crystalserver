@@ -82,7 +82,7 @@ function CreatureInfo.get(name)
 	return CreatureInfo.ByName[normalizeKey(name)]
 end
 
---- Boss-curve recommended level (raids, solo bosses, world bosses).
+--- Recommended level from shared CP→level map (raids, solo bosses, world bosses).
 function CreatureInfo.recommendedLevel(name)
 	local info = CreatureInfo.get(name)
 	if not info then
