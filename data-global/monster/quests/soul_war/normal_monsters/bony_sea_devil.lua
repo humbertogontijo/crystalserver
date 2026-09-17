@@ -82,25 +82,26 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 59290 },
+	{ name = "crystal coin", chance = 43389 },
 	{ name = "ultimate health potion", chance = 19470, maxCount = 6 },
 	{ name = "gold ingot", chance = 15040 },
-	{ id = 282, chance = 9730 }, -- giant shimmering pearl
-	{ name = "hailstorm rod", chance = 7960 },
-	{ name = "onyx chip", chance = 6190 },
-	{ name = "green crystal fragment", chance = 5310 },
-	{ name = "wand of voodoo", chance = 4420 },
-	{ name = "violet gem", chance = 4420 },
-	{ name = "jaws", chance = 3540 },
+	{ id = 282, chance = 7263 }, -- giant shimmering pearl
+	{ name = "hailstorm rod", chance = 3166 },
+	{ name = "onyx chip", chance = 3352 },
+	{ name = "green crystal fragment", chance = 3166 },
+	{ name = "wand of voodoo", chance = 1490 },
+	{ name = "violet gem", chance = 1862 },
+	{ name = "jaws", chance = 1490 },
 	{ name = "rainbow quartz", chance = 2650, maxCount = 3 },
-	{ name = "northwind rod", chance = 1770 },
+	{ name = "northwind rod", chance = 2421 },
 	{ name = "underworld rod", chance = 1770 },
-	{ name = "skullcracker armor", chance = 1770 },
-	{ id = 33929, chance = 880 }, -- rod
-	{ name = "goblet of gloom", chance = 880 },
+	{ name = "skullcracker armor", chance = 372 },
+	{ id = 33929, chance = 4283 }, -- rod
+	{ name = "goblet of gloom", chance = 372 },
 	{ name = "glacier kilt", chance = 880 },
 	{ name = "glacial rod", chance = 1210 },
 	{ name = "bag you desire", chance = 15 },
+	{ id = 281, chance = 7263 }, -- giant shimmering pearl
 }
 
 monster.attacks = {

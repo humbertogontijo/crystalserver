@@ -84,19 +84,19 @@ monster.loot = {
 	{ id = 239, chance = 30000, minCount = 1, maxCount = 19 }, -- great health potion
 	{ id = 238, chance = 30000, minCount = 1, maxCount = 19 }, -- great mana potion
 	{ id = 23373, chance = 25000, minCount = 1, maxCount = 19 }, -- ultimate mana potion
-	{ id = 7440, chance = 22000, minCount = 1, maxCount = 9 }, -- mastermind potion
+	{ id = 7440, chance = 11538, minCount = 1, maxCount = 9 }, -- mastermind potion
 	{ id = 7443, chance = 20000, minCount = 1, maxCount = 9 }, -- bullseye potion
 	{ id = 35572, chance = 17000, minCount = 3, maxCount = 102 }, -- pirate coin
-	{ id = 7439, chance = 16000, minCount = 1, maxCount = 9 }, -- berserk potion
+	{ id = 7439, chance = 10256, minCount = 1, maxCount = 9 }, -- berserk potion
 	{ id = 35613, chance = 8000 }, -- ratmiral's hat
-	{ id = 35571, chance = 7140 }, -- small treasure chest
-	{ id = 35578, chance = 6250 }, -- tiara
-	{ id = 35579, chance = 3570 }, -- golden dustbin
-	{ id = 32626, chance = 2680 }, -- amber
-	{ id = 35581, chance = 2680 }, -- golden cheese wedge
-	{ id = 35595, chance = 2680 }, -- soap
-	{ id = 35695, chance = 1790 }, -- scrubbing brush
-	{ id = 35614, chance = 890 }, -- cheesy membership card
+	{ id = 35571, chance = 4487 }, -- small treasure chest
+	{ id = 35578, chance = 2564 }, -- tiara
+	{ id = 35579, chance = 5769 }, -- golden dustbin
+	{ id = 32626, chance = 1923 }, -- amber
+	{ id = 35581, chance = 3846 }, -- golden cheese wedge
+	{ id = 35595, chance = 641 }, -- soap
+	{ id = 35695, chance = 1282 }, -- scrubbing brush
+	{ id = 35614, chance = 5128 }, -- cheesy membership card
 	{ id = 35523, chance = 890 }, -- exotic amulet
 	{ id = 35515, chance = 890 }, -- throwing axe
 	{ id = 35517, chance = 890 }, -- bast legs
@@ -110,6 +110,7 @@ monster.loot = {
 	{ id = 35520, chance = 890 }, -- make-do boots
 	{ id = 50270, chance = 890 }, -- bambus jo
 	{ id = 50186, chance = 890 }, -- jungle survivor legs
+	{ name = "transcendence potion", chance = 16026, maxCount = 9 },
 }
 
 monster.attacks = {

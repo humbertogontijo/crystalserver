@@ -87,37 +87,38 @@ monster.loot = {
 	{ id = 238, chance = 21000 }, -- great mana potion
 	{ id = 6299, chance = 19000 }, -- death ring
 	{ id = 3067, chance = 19000 }, -- hailstorm rod
-	{ id = 2950, chance = 19000 }, -- lute
+	{ id = 2950, chance = 10983 }, -- lute
 	{ id = 3035, chance = 19000, maxCount = 26 }, -- platinum coin
 	{ id = 3265, chance = 19000 }, -- two handed sword
 	{ id = 7404, chance = 16000 }, -- assassin dagger
-	{ id = 3092, chance = 16000 }, -- axe ring
-	{ id = 7643, chance = 16000 }, -- ultimate health potion
-	{ id = 8082, chance = 16000 }, -- underworld rod
+	{ id = 3092, chance = 10983 }, -- axe ring
+	{ id = 7643, chance = 24855 }, -- ultimate health potion
+	{ id = 8082, chance = 11561 }, -- underworld rod
 	{ id = 3093, chance = 14000 }, -- club ring
 	{ id = 6499, chance = 14000 }, -- demonic essence
-	{ id = 7407, chance = 14000 }, -- haunted blade
+	{ id = 7407, chance = 10405 }, -- haunted blade
 	{ id = 2949, chance = 14000 }, -- lyre
 	{ id = 7418, chance = 14000 }, -- nightmare blade
 	{ id = 8084, chance = 14000 }, -- springsprout rod
 	{ id = 2966, chance = 14000 }, -- war drum
-	{ id = 3071, chance = 11000 }, -- wand of inferno
-	{ id = 8094, chance = 11000 }, -- wand of voodoo
+	{ id = 3071, chance = 16763 }, -- wand of inferno
+	{ id = 8094, chance = 15607 }, -- wand of voodoo
 	{ id = 7416, chance = 9500 }, -- bloody edge
 	{ id = 7449, chance = 9500 }, -- crystal sword
 	{ id = 3098, chance = 9500 }, -- ring of healing
-	{ id = 5954, chance = 7000, maxCount = 2 }, -- demon horn
-	{ id = 3052, chance = 7000 }, -- life ring
+	{ id = 5954, chance = 11561, maxCount = 2 }, -- demon horn
+	{ id = 3052, chance = 9827 }, -- life ring
 	{ id = 7383, chance = 7000 }, -- relic sword
-	{ id = 3053, chance = 7000 }, -- time ring
-	{ id = 8092, chance = 7000 }, -- wand of starstorm
-	{ id = 2958, chance = 7000 }, -- war horn
+	{ id = 3053, chance = 11561 }, -- time ring
+	{ id = 8092, chance = 12139 }, -- wand of starstorm
+	{ id = 2958, chance = 10983 }, -- war horn
 	{ id = 2948, chance = 7000 }, -- wooden flute
-	{ id = 2965, chance = 4700 }, -- didgeridoo
-	{ id = 3097, chance = 4700 }, -- dwarven ring
-	{ id = 3284, chance = 4700 }, -- ice rapier
-	{ id = 7386, chance = 4700 }, -- mercenary sword
-	{ id = 3091, chance = 4700 }, -- sword ring
+	{ id = 2965, chance = 10405 }, -- didgeridoo
+	{ id = 3097, chance = 6358 }, -- dwarven ring
+	{ id = 3284, chance = 9249 }, -- ice rapier
+	{ id = 7386, chance = 11561 }, -- mercenary sword
+	{ id = 3091, chance = 8092 }, -- sword ring
+	{ name = "transcendence potion", chance = 15029 },
 }
 
 monster.attacks = {

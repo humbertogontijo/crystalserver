@@ -89,7 +89,7 @@ monster.loot = {
 	{ id = 9636, chance = 10000 }, -- fiery heart
 	{ id = 3280, chance = 7000 }, -- fire sword
 	{ id = 3281, chance = 1000 }, -- giant sword
-	{ id = 9058, chance = 1500 }, -- gold ingot
+	{ id = 9058, chance = 2532 }, -- gold ingot
 	{ id = 238, chance = 30000, maxCount = 3 }, -- great mana potion
 	{ id = 7642, chance = 20000 }, -- great spirit potion
 	{ id = 3038, chance = 1000 }, -- green gem

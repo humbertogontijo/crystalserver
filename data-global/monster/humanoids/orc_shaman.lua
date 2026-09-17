@@ -93,7 +93,7 @@ monster.loot = {
 	{ name = "broken shamanic staff", chance = 10300 },
 	{ name = "shamanic hood", chance = 6860 },
 	{ name = "orc leather", chance = 4300 },
-	{ id = 23986, chance = 1000 }, -- heavy old tome
+	{ id = 23986, chance = 2141 }, -- heavy old tome
 }
 
 monster.attacks = {

@@ -91,12 +91,12 @@ monster.loot = {
 	{ name = "gemmed figurine", chance = 4189 },
 	{ name = "white pearl", chance = 3514 },
 	{ name = "glacier shoes", chance = 2432 },
-	{ name = "knight armor", chance = 1892 },
-	{ name = "coral brooch", chance = 1757 },
-	{ name = "assassin dagger", chance = 1622 },
+	{ name = "knight armor", chance = 3147 },
+	{ name = "coral brooch", chance = 1157 },
+	{ name = "assassin dagger", chance = 1073 },
 	{ name = "ornate crossbow", chance = 946 },
 	{ name = "emerald bangle", chance = 811 },
-	{ name = "wood cape", chance = 405 },
+	{ name = "wood cape", chance = 1058 },
 	{ name = "elvish bow", chance = 270 },
 }
 

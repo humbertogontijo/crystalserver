@@ -94,7 +94,7 @@ monster.loot = {
 	{ name = "steel shield", chance = 5940 },
 	{ name = "piece of dead brain", chance = 5030 },
 	{ name = "bonelord eye", chance = 2960 },
-	{ name = "clerical mace", chance = 1970 },
+	{ name = "clerical mace", chance = 2787 },
 	{ name = "haunted blade", chance = 1440 },
 	{ id = 3059, chance = 930 }, -- spellbook
 	{ name = "spiked squelcher", chance = 180 },

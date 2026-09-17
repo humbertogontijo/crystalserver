@@ -67,26 +67,27 @@ monster.loot = {
 	{ id = 3043, chance = 59860, minCount = 1, maxCount = 3 }, -- crystal coin
 	{ id = 23373, chance = 59860, minCount = 1, maxCount = 34 }, -- ultimate mana potion
 	{ id = 7643, chance = 47890, minCount = 1, maxCount = 33 }, -- ultimate health potion
-	{ id = 23374, chance = 28870, minCount = 2, maxCount = 19 }, -- ultimate spirit potion
-	{ id = 7439, chance = 23940, minCount = 1, maxCount = 9 }, -- berserk potion
+	{ id = 23374, chance = 15819, minCount = 2, maxCount = 19 }, -- ultimate spirit potion
+	{ id = 7439, chance = 15254, minCount = 1, maxCount = 9 }, -- berserk potion
 	{ id = 3035, chance = 23240, minCount = 2, maxCount = 19 }, -- platinum coin
 	{ id = 7443, chance = 20420, minCount = 1, maxCount = 9 }, -- bullseye potion
 	{ id = 7440, chance = 16900, minCount = 2, maxCount = 9 }, -- mastermind potion
-	{ id = 35572, chance = 13380, minCount = 3, maxCount = 86 }, -- pirate coin
-	{ id = 35508, chance = 7750 }, -- cheesy key
+	{ id = 35572, chance = 18079, minCount = 3, maxCount = 86 }, -- pirate coin
+	{ id = 35508, chance = 55932 }, -- cheesy key
 	{ id = 32623, chance = 4930 }, -- giant topaz
 	{ id = 35571, chance = 4230 }, -- small treasure chest
 	{ id = 35581, chance = 3520 }, -- golden cheese wedge
-	{ id = 35580, chance = 3520 }, -- golden skull
-	{ id = 32622, chance = 2820 }, -- giant amethyst
+	{ id = 35580, chance = 1695 }, -- golden skull
+	{ id = 32622, chance = 5650 }, -- giant amethyst
 	{ id = 31911, chance = 2820 }, -- sea horse figurine
-	{ id = 30059, chance = 2110 }, -- giant ruby
-	{ id = 35579, chance = 2110 }, -- golden dustbin
-	{ id = 35576, chance = 2110 }, -- plushie of tentugly
-	{ id = 35611, chance = 2110 }, -- tentacle of tentugly
-	{ id = 35578, chance = 1410 }, -- tiara
-	{ id = 35610, chance = 700 }, -- tentugly's eye
+	{ id = 30059, chance = 2825 }, -- giant ruby
+	{ id = 35579, chance = 3955 }, -- golden dustbin
+	{ id = 35576, chance = 565 }, -- plushie of tentugly
+	{ id = 35611, chance = 4520 }, -- tentacle of tentugly
+	{ id = 35578, chance = 2825 }, -- tiara
+	{ id = 35610, chance = 2260 }, -- tentugly's eye
 	{ id = 35612, chance = 700 }, -- tentugly's jaws
+	{ name = "transcendence potion", chance = 8475, maxCount = 8 },
 }
 
 monster.attacks = {

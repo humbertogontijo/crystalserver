@@ -71,21 +71,26 @@ monster.summon = {}
 monster.voices = {}
 
 monster.loot = {
-	{ name = "crystal coin", chance = 29000, maxCount = 82 },
-	{ name = "supreme health potion", chance = 27500, maxCount = 28 },
-	{ name = "ultimate mana potion", chance = 27500, maxCount = 194 },
-	{ name = "ultimate spirit potion", chance = 27500, maxCount = 168 },
-	{ name = "berserk potion", chance = 25500, maxCount = 16 },
-	{ name = "blue gem", chance = 20000, maxCount = 4 },
-	{ name = "green gem", chance = 20000, maxCount = 2 },
+	{ name = "crystal coin", chance = 100000, maxCount = 82 },
+	{ name = "supreme health potion", chance = 45000, maxCount = 28 },
+	{ name = "ultimate mana potion", chance = 50000, maxCount = 194 },
+	{ name = "ultimate spirit potion", chance = 60000, maxCount = 168 },
+	{ name = "berserk potion", chance = 10000, maxCount = 16 },
+	{ name = "blue gem", chance = 35000, maxCount = 4 },
+	{ name = "green gem", chance = 30000, maxCount = 2 },
 	{ id = 3039, chance = 40000, maxCount = 4 }, -- red gem
-	{ name = "mastermind potion", chance = 30000, maxCount = 25 },
-	{ name = "gold ingot", chance = 50000 },
-	{ name = "white gem", chance = 10000, maxCount = 1 },
-	{ name = "amber with a dragonfly", chance = 21250 },
-	{ name = "giant emerald", chance = 21250 },
-	{ name = "spiritual horseshoe", chance = 21312 },
+	{ name = "mastermind potion", chance = 15000, maxCount = 25 },
+	{ name = "gold ingot", chance = 30000 },
+	{ name = "white gem", chance = 15000, maxCount = 1 },
+	{ name = "amber with a dragonfly", chance = 30000 },
+	{ name = "giant emerald", chance = 35000 },
+	{ name = "spiritual horseshoe", chance = 5000 },
 	{ id = 43895, chance = 360, unique = true }, ---bag you covet
+	{ name = "bullseye potion", chance = 45000, maxCount = 46 },
+	{ name = "amber with a bug", chance = 35000, maxCount = 3 },
+	{ name = "transcendence potion", chance = 30000, maxCount = 40 },
+	{ name = "yellow gem", chance = 25000, maxCount = 5 },
+	{ name = "violet gem", chance = 10000, maxCount = 4 },
 }
 
 monster.attacks = {

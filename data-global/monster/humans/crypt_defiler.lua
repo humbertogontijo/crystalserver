@@ -83,7 +83,7 @@ monster.loot = {
 	{ name = "mace", chance = 1800 },
 	{ name = "iron helmet", chance = 450 },
 	{ name = "brass armor", chance = 2240 },
-	{ name = "steel shield", chance = 450 },
+	{ name = "steel shield", chance = 958 },
 	{ name = "nomad parchment", chance = 220 },
 	{ name = "potato", chance = 4840, maxCount = 3 },
 	{ name = "dirty turban", chance = 1570 },

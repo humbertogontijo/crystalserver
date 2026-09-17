@@ -82,7 +82,7 @@ monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 200 },
 	{ name = "platinum coin", chance = 88010, maxCount = 37 },
 	{ name = "demon root", chance = 6840 },
-	{ name = "amber sickle", chance = 5980 },
+	{ name = "amber sickle", chance = 33333 },
 	{ name = "resin parasite", chance = 5980 },
 	{ name = "crystal coin", chance = 2560 },
 	{ name = "wooden spellbook", chance = 2560 },

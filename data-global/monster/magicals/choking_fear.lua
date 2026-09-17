@@ -87,8 +87,8 @@ monster.loot = {
 	{ id = 3098, chance = 3000 }, -- ring of healing
 	{ name = "guardian shield", chance = 1540 },
 	{ name = "beastslayer axe", chance = 3290 },
-	{ name = "brown piece of cloth", chance = 6000 },
-	{ name = "yellow piece of cloth", chance = 3500 },
+	{ name = "brown piece of cloth", chance = 4087 },
+	{ name = "yellow piece of cloth", chance = 2319 },
 	{ id = 238, chance = 20000, maxCount = 3 }, -- great mana potion
 	{ name = "terra boots", chance = 720 },
 	{ name = "great spirit potion", chance = 20000, maxCount = 3 },
@@ -97,9 +97,9 @@ monster.loot = {
 	{ name = "underworld rod", chance = 720 },
 	{ name = "springsprout rod", chance = 510 },
 	{ name = "green crystal shard", chance = 1540 },
-	{ name = "brown crystal splinter", chance = 52500, maxCount = 2 },
+	{ name = "brown crystal splinter", chance = 39005, maxCount = 2 },
 	{ name = "blue crystal splinter", chance = 10000, maxCount = 3 },
-	{ name = "cluster of solace", chance = 4620 },
+	{ name = "cluster of solace", chance = 550 },
 	{ name = "dead weight", chance = 14180 },
 	{ name = "hemp rope", chance = 14180 },
 }

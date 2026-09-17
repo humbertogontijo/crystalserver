@@ -81,19 +81,19 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "golden mug", chance = 6002 },
-	{ name = "black pearl", chance = 22780, maxCount = 2 },
-	{ name = "small sapphire", chance = 28370, maxCount = 2 },
-	{ name = "gold coin", chance = 35500, maxCount = 100 },
-	{ name = "gold coin", chance = 55500, maxCount = 98 },
+	{ name = "black pearl", chance = 9561, maxCount = 2 },
+	{ name = "small sapphire", chance = 8355, maxCount = 2 },
+	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "gold coin", chance = 100000, maxCount = 98 },
 	{ name = "platinum coin", chance = 52000, maxCount = 5 },
-	{ name = "life crystal", chance = 2500 },
+	{ name = "life crystal", chance = 1481 },
 	{ name = "war axe", chance = 1290 },
 	{ name = "golden armor", chance = 860 },
 	{ name = "knight armor", chance = 5500 },
-	{ name = "royal helmet", chance = 1720 },
+	{ name = "royal helmet", chance = 878 },
 	{ name = "power bolt", chance = 15190, maxCount = 15 },
 	{ name = "hardened bone", chance = 14180 },
-	{ id = 6299, chance = 1150 }, -- death ring
+	{ id = 6299, chance = 1956 }, -- death ring
 	{ name = "demonic essence", chance = 12460 },
 	{ name = "assassin star", chance = 26650, maxCount = 5 },
 	{ name = "dragon slayer", chance = 860 },
@@ -102,7 +102,7 @@ monster.loot = {
 	{ name = "great health potion", chance = 21200 },
 	{ name = "divine plate", chance = 430 },
 	{ name = "skullcracker armor", chance = 290 },
-	{ name = "gold ingot", chance = 570 },
+	{ name = "gold ingot", chance = 1316 },
 	{ name = "unholy bone", chance = 33380 },
 	{ name = "spellweaver's robe", chance = 860 },
 }

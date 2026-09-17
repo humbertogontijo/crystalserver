@@ -82,15 +82,15 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
-	{ name = "gold coin", chance = 50000, maxCount = 90 },
-	{ name = "small emerald", chance = 5882, maxCount = 5 },
-	{ name = "platinum coin", chance = 35333, maxCount = 2 },
+	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "gold coin", chance = 100000, maxCount = 90 },
+	{ name = "small emerald", chance = 16667, maxCount = 5 },
+	{ name = "platinum coin", chance = 66667, maxCount = 2 },
 	{ id = 3051, chance = 606 }, -- energy ring
 	{ name = "brown mushroom", chance = 5263, maxCount = 5 },
 	{ name = "magic sulphur", chance = 620 },
 	{ name = "assassin star", chance = 70, maxCount = 5 },
-	{ name = "dreaded cleaver", chance = 30 },
+	{ name = "dreaded cleaver", chance = 16667 },
 	{ name = "mastermind potion", chance = 750 },
 	{ name = "strong health potion", chance = 6250 },
 	{ name = "strong mana potion", chance = 7692 },

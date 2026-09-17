@@ -83,13 +83,13 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 58990 },
+	{ name = "crystal coin", chance = 42146 },
 	{ name = "ultimate health potion", chance = 29110, maxCount = 4 },
 	{ id = 33936, chance = 5490 }, -- hand
 	{ id = 33937, chance = 3710 }, -- head brachiodemon
 	{ name = "epee", chance = 3290 },
 	{ name = "crystal mace", chance = 1690 },
-	{ name = "noble axe", chance = 1600 },
+	{ name = "noble axe", chance = 822 },
 	{ name = "spellbook of mind control", chance = 1180 },
 	{ name = "skull staff", chance = 930 },
 	{ id = 23531, chance = 930 }, -- ring of green plasma
@@ -101,7 +101,7 @@ monster.loot = {
 	{ name = "crystalline sword", chance = 420 },
 	{ name = "butcher's axe", chance = 420 },
 	{ name = "mastermind shield", chance = 420 },
-	{ name = "assassin dagger", chance = 340 },
+	{ name = "assassin dagger", chance = 905 },
 	{ name = "alloy legs", chance = 170 },
 	{ name = "bag you desire", chance = 15 },
 }

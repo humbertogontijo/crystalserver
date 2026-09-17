@@ -77,17 +77,17 @@ monster.loot = {
 	{ name = "Emerald Tortoise Shell", chance = 28590 },
 	{ name = "Crystal Coin", chance = 15520, minCount = 1, maxCount = 3 },
 	{ name = "Great Spirit Potion", chance = 13360, minCount = 1, maxCount = 2 },
-	{ name = "Blue Crystal Shard", chance = 4030 },
+	{ name = "Blue Crystal Shard", chance = 6122 },
 	{ name = "Green Crystal Fragment", chance = 3950 },
-	{ name = "Violet Gem", chance = 3950 },
+	{ name = "Violet Gem", chance = 2721 },
 	{ name = "Red Crystal Fragment", chance = 3350 },
-	{ name = "Yellow Gem", chance = 3320 },
-	{ name = "White Pearl", chance = 3240 },
+	{ name = "Yellow Gem", chance = 5102 },
+	{ name = "White Pearl", chance = 2381 },
 	{ name = "Green Crystal Shard", chance = 2900 },
-	{ name = "Green Gem", chance = 2870 },
-	{ name = "Orichalcum Pearl", chance = 2640, minCount = 1, maxCount = 2 },
-	{ id = 282, chance = 2420 }, -- Giant Shimmering Pearl (Green)
-	{ id = 3039, chance = 2420 }, -- Red Gem
+	{ name = "Green Gem", chance = 5102 },
+	{ name = "Orichalcum Pearl", chance = 1701, minCount = 1, maxCount = 2 },
+	{ id = 282, chance = 1361 }, -- Giant Shimmering Pearl (Green)
+	{ id = 3039, chance = 1701 }, -- Red Gem
 	{ name = "Black Pearl", chance = 2160, minCount = 1, maxCount = 2 },
 }
 

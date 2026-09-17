@@ -72,23 +72,27 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 7500, maxCount = 63 },
-	{ name = "black pearl", chance = 6000 },
-	{ name = "white pearl", chance = 5000 },
-	{ name = "onyx chip", chance = 4800, maxCount = 2 },
-	{ id = 3050, chance = 3000 }, -- power ring
-	{ id = 3091, chance = 3000 }, -- sword ring
-	{ name = "proficiency catalyst", chance = 3500 },
-	{ name = "crystalline armor", chance = 3200 },
-	{ name = "two handed sword", chance = 3000 },
-	{ id = 6299, chance = 3000 }, -- death ring
-	{ name = "moonstone", chance = 3000 },
-	{ name = "terra legs", chance = 3000 },
-	{ name = "terra boots", chance = 3000 },
-	{ name = "small topaz", chance = 3000, maxCount = 5 },
-	{ name = "strange helmet", chance = 2000 },
-	{ name = "cyan crystal fragment", chance = 2000 },
-	{ name = "dark armor", chance = 2000 },
+	{ name = "platinum coin", chance = 100000, maxCount = 63 },
+	{ name = "black pearl", chance = 35241 },
+	{ name = "white pearl", chance = 36747 },
+	{ name = "onyx chip", chance = 26205, maxCount = 2 },
+	{ id = 3050, chance = 28012 }, -- power ring
+	{ id = 3091, chance = 32229 }, -- sword ring
+	{ name = "proficiency catalyst", chance = 6928 },
+	{ name = "crystalline armor", chance = 5723 },
+	{ name = "two handed sword", chance = 20482 },
+	{ id = 6299, chance = 27410 }, -- death ring
+	{ name = "moonstone", chance = 16265 },
+	{ name = "terra legs", chance = 8133 },
+	{ name = "terra boots", chance = 16265 },
+	{ name = "small topaz", chance = 28614, maxCount = 5 },
+	{ name = "strange helmet", chance = 18373 },
+	{ name = "cyan crystal fragment", chance = 24699 },
+	{ name = "dark armor", chance = 18072 },
+	{ name = "gold ingot", chance = 13554, maxCount = 2 },
+	{ name = "mercenary sword", chance = 6928 },
+	{ name = "etcher", chance = 5723 },
+	{ name = "stone skin amulet", chance = 5723 },
 }
 
 -- missing spells

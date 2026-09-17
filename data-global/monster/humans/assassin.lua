@@ -81,7 +81,7 @@ monster.loot = {
 	{ id = 2920, chance = 29980, maxCount = 2 }, -- torch
 	{ name = "small diamond", chance = 220 },
 	{ name = "gold coin", chance = 83210, maxCount = 50 },
-	{ name = "gold coin", chance = 7250, maxCount = 14 },
+	{ name = "gold coin", chance = 83026, maxCount = 14 },
 	{ name = "knife", chance = 9500 },
 	{ name = "combat knife", chance = 4000 },
 	{ name = "steel helmet", chance = 3230 },
@@ -91,6 +91,7 @@ monster.loot = {
 	{ name = "leopard armor", chance = 480 },
 	{ name = "horseman helmet", chance = 230 },
 	{ name = "viper star", chance = 4200, maxCount = 7 },
+	{ name = "throwing star", chance = 7079, maxCount = 14 },
 }
 
 monster.attacks = {

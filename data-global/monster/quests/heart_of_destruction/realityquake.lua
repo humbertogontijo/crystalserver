@@ -67,26 +67,42 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 200 }, -- gold coin
-	{ id = 238, chance = 8000, maxCount = 5 }, -- great mana potion
-	{ id = 7642, chance = 8000, maxCount = 5 }, -- great spirit potion
-	{ id = 7643, chance = 8000, maxCount = 5 }, -- ultimate health potion
-	{ id = 23535, chance = 8000, maxCount = 5 }, -- energy bar
-	{ id = 16119, chance = 8000, maxCount = 3 }, -- blue crystal shard
-	{ id = 16121, chance = 8000, maxCount = 3 }, -- green crystal shard
+	{ id = 238, chance = 61404, maxCount = 5 }, -- great mana potion
+	{ id = 7642, chance = 50877, maxCount = 5 }, -- great spirit potion
+	{ id = 7643, chance = 54386, maxCount = 5 }, -- ultimate health potion
+	{ id = 23535, chance = 100000, maxCount = 5 }, -- energy bar
+	{ id = 16119, chance = 61404, maxCount = 3 }, -- blue crystal shard
+	{ id = 16121, chance = 63158, maxCount = 3 }, -- green crystal shard
 	{ id = 3032, chance = 8000, maxCount = 5 }, -- small emerald
-	{ id = 3030, chance = 8000, maxCount = 5 }, -- small ruby
-	{ id = 16120, chance = 8000, maxCount = 3 }, -- violet crystal shard
-	{ id = 23507, chance = 8000 }, -- crystallized anger
-	{ id = 23508, chance = 8000 }, -- energy vein
-	{ id = 3039, chance = 8000 }, -- red gem
+	{ id = 3030, chance = 21053, maxCount = 5 }, -- small ruby
+	{ id = 16120, chance = 68421, maxCount = 3 }, -- violet crystal shard
+	{ id = 23507, chance = 100000 }, -- crystallized anger
+	{ id = 23508, chance = 100000 }, -- energy vein
+	{ id = 3039, chance = 22807 }, -- red gem
 	{ id = 22721, chance = 100000, maxCount = 7 }, -- gold token
 	{ id = 23509, chance = 100000 }, -- mysterious remains
 	{ id = 23510, chance = 100000 }, -- odd organ
-	{ id = 281, chance = 4000 }, -- giant shimmering pearl (green)
-	{ id = 282, chance = 4000 }, -- giant shimmering pearl (brown)
-	{ id = 3073, chance = 8000 }, -- wand of cosmic energy
-	{ id = 23531, chance = 6000 }, -- ring of green plasma
-	{ id = 23533, chance = 6000 }, -- ring of red plasma
+	{ id = 281, chance = 14035 }, -- giant shimmering pearl (green)
+	{ id = 282, chance = 14035 }, -- giant shimmering pearl (brown)
+	{ id = 3073, chance = 28070 }, -- wand of cosmic energy
+	{ id = 23531, chance = 22807 }, -- ring of green plasma
+	{ id = 23533, chance = 12281 }, -- ring of red plasma
+	{ name = "platinum coin", chance = 100000, maxCount = 45 },
+	{ name = "small amethyst", chance = 29825, maxCount = 19 },
+	{ name = "yellow gem", chance = 24561 },
+	{ id = 23476, chance = 22807 }, -- void boots
+	{ name = "small sapphire", chance = 21053, maxCount = 17 },
+	{ name = "small topaz", chance = 17544, maxCount = 16 },
+	{ name = "blue gem", chance = 15789 },
+	{ id = 23527, chance = 14035 }, -- collar of green plasma
+	{ name = "green gem", chance = 14035 },
+	{ name = "crystal mace", chance = 8772 },
+	{ id = 23529, chance = 8772 }, -- ring of blue plasma
+	{ name = "violet gem", chance = 8772 },
+	{ name = "lightning headband", chance = 7018 },
+	{ id = 23526, chance = 5263 }, -- collar of blue plasma
+	{ id = 23528, chance = 5263 }, -- collar of red plasma
+	{ name = "lightning robe", chance = 5263 },
 }
 
 monster.attacks = {

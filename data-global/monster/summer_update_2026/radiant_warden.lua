@@ -72,7 +72,7 @@ monster.light = {
 }
 
 monster.loot = {
-	{ id = 860, chance = 4000 }, -- crimson sword
+	{ id = 860, chance = 6349 }, -- crimson sword
 	{ name = "Tatty Robe", chance = 4000 },
 	{ name = "Gilded Bell", chance = 150 },
 	{ name = "radiant warden soul core", chance = 100 },

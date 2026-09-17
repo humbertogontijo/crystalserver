@@ -94,11 +94,11 @@ monster.loot = {
 	{ name = "silver amulet", chance = 2280 },
 	{ name = "terra amulet", chance = 1430 },
 	{ name = "blue gem", chance = 1180 },
-	{ name = "terra hood", chance = 1100 },
+	{ name = "terra hood", chance = 485 },
 	{ name = "blue crystal splinter", chance = 1010 },
 	{ name = "sacred tree amulet", chance = 840 },
 	{ name = "small tortoise", chance = 670 },
-	{ name = "lizard heart", chance = 590 },
+	{ name = "lizard heart", chance = 1129 },
 	{ name = "wooden spellbook", chance = 170 },
 	{ name = "fur armor", chance = 80 },
 }

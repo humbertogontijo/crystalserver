@@ -78,11 +78,11 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "small stone", chance = 25280, maxCount = 10 },
-	{ name = "gold coin", chance = 32000, maxCount = 100 },
-	{ name = "gold coin", chance = 32000, maxCount = 100 },
-	{ name = "gold coin", chance = 32000, maxCount = 41 },
+	{ name = "gold coin", chance = 93750, maxCount = 100 },
+	{ name = "gold coin", chance = 93750, maxCount = 100 },
+	{ name = "gold coin", chance = 93750, maxCount = 41 },
 	{ name = "stone skin amulet", chance = 980 },
-	{ name = "protection amulet", chance = 1580 },
+	{ name = "protection amulet", chance = 2778 },
 	{ id = 3097, chance = 2790 }, -- dwarven ring
 	{ name = "diamond sceptre", chance = 150 },
 	{ name = "terra amulet", chance = 500 },

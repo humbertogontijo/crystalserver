@@ -85,8 +85,8 @@ monster.loot = {
 	{ id = 24385, chance = 20000 }, -- cracked alabaster vase
 	{ id = 24386, chance = 13000 }, -- rhino horn carving
 	{ id = 24390, chance = 4000 }, -- ancient coin
-	{ id = 3147, chance = 15000 }, -- blank rune
-	{ id = 3577, chance = 50320, maxCount = 2 }, -- meat
+	{ id = 3147, chance = 7988 }, -- blank rune
+	{ id = 3577, chance = 9688, maxCount = 2 }, -- meat
 	{ id = 5021, chance = 5000, maxCount = 2 }, -- orichalcum pearl
 	{ id = 5912, chance = 1000, maxCount = 2 }, -- blue piece of cloth
 	{ id = 5913, chance = 5000, maxCount = 2 }, -- brown piece of cloth
@@ -97,7 +97,7 @@ monster.loot = {
 	{ id = 3046, chance = 1000 }, -- magic light wand
 	{ id = 22193, chance = 4200 }, -- onyx chip
 	{ id = 3098, chance = 2000 }, -- ring of healing
-	{ id = 3030, chance = 3000 }, -- small ruby
+	{ id = 3030, chance = 4098 }, -- small ruby
 	{ id = 3029, chance = 5000 }, -- small sapphire
 	{ id = 3725, chance = 6500, maxCount = 5 }, -- brown mushroom
 }

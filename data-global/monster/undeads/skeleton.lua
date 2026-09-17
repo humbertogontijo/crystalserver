@@ -83,9 +83,9 @@ monster.loot = {
 	{ name = "hatchet", chance = 4850 },
 	{ name = "mace", chance = 4850 },
 	{ name = "viking helmet", chance = 7520 },
-	{ name = "brass shield", chance = 2090 },
+	{ name = "brass shield", chance = 1018 },
 	{ name = "pelvis bone", chance = 9940 },
-	{ id = 23986, chance = 1000 }, -- heavy old tome
+	{ id = 23986, chance = 1907 }, -- heavy old tome
 }
 
 monster.attacks = {

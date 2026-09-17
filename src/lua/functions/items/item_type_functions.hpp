@@ -98,4 +98,9 @@ private:
 
 	static int luaItemTypeGetElementalBond(lua_State* L);
 	static int luaItemTypeGetMantra(lua_State* L);
+
+	static int luaItemTypeGetSellPrice(lua_State* L);
+	static int luaItemTypeSetSellPrice(lua_State* L);
+	static int luaItemTypeGetBuyPrice(lua_State* L);
+	static int luaItemTypeSetBuyPrice(lua_State* L);
 };

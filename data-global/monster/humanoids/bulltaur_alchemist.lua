@@ -79,21 +79,23 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 5000, maxCount = 6 },
-	{ name = "platinum coin", chance = 3533, maxCount = 7 },
-	{ id = 44736, chance = 4545 }, -- stealth ring
+	{ name = "platinum coin", chance = 51618, maxCount = 6 },
+	{ name = "platinum coin", chance = 51618, maxCount = 7 },
+	{ id = 44736, chance = 14990 }, -- stealth ring
 	{ id = 44737, chance = 4545 }, -- stealth ring
 	{ id = 44738, chance = 4545 }, -- stealth ring
 	{ name = "might ring", chance = 4285 },
 	{ name = "mino shield", chance = 840 },
 	{ name = "dragon hammer", chance = 420 },
-	{ id = 3041, chance = 4545 }, -- stealth ring
-	{ name = "ultimate health potion", chance = 5285 },
-	{ id = 238, chance = 6285 }, -- great mana potion
+	{ id = 3041, chance = 1069 }, -- stealth ring
+	{ name = "ultimate health potion", chance = 2671 },
+	{ id = 238, chance = 1781 }, -- great mana potion
 	{ name = "alloy legs", chance = 1285 },
-	{ name = "encrypted notes", chance = 985 },
+	{ name = "encrypted notes", chance = 8697 },
 	{ name = "ultimate mana potion", chance = 1285 },
-	{ name = "gold ingot", chance = 1285 },
+	{ name = "gold ingot", chance = 3443 },
+	{ name = "strange substance", chance = 5996 },
+	{ name = "great health potion", chance = 5907 },
 }
 
 monster.attacks = {

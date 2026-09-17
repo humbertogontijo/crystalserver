@@ -79,12 +79,12 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "health potion", chance = 40000, maxCount = 2 },
-	{ name = "mana potion", chance = 40000, maxCount = 2 },
-	{ name = "gold coin", chance = 50000, maxCount = 40 },
-	{ name = "dragon necklace", chance = 30000 },
+	{ name = "mana potion", chance = 27027, maxCount = 2 },
+	{ name = "gold coin", chance = 74865, maxCount = 40 },
+	{ name = "dragon necklace", chance = 51081 },
 	{ name = "scale armor", chance = 9000 },
-	{ name = "lizard tail", chance = 9000 },
-	{ name = "small emerald", chance = 2500, maxCount = 2 },
+	{ name = "lizard tail", chance = 18378 },
+	{ name = "small emerald", chance = 4865, maxCount = 2 },
 	{ name = "green dragon leather", chance = 700 },
 	{ name = "lizard scale", chance = 700 },
 }

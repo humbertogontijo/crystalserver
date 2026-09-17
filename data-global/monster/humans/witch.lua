@@ -82,7 +82,7 @@ monster.loot = {
 	{ id = 3012, chance = 10120 }, -- wolf tooth chain
 	{ name = "gold coin", chance = 64000, maxCount = 40 },
 	{ name = "necrotic rod", chance = 1140 },
-	{ name = "garlic necklace", chance = 1000 },
+	{ name = "garlic necklace", chance = 2547 },
 	{ name = "silver dagger", chance = 500 },
 	{ name = "sickle", chance = 3910 },
 	{ name = "leather boots", chance = 4950 },

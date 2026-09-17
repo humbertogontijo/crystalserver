@@ -78,7 +78,7 @@ monster.loot = {
 	{ name = "Mantosaurus Jaw", chance = 19120 },
 	{ name = "Ultimate Mana Potion", chance = 9660, minCount = 1, maxCount = 3 },
 	{ name = "Silver Brooch", chance = 3920 },
-	{ name = "Red Crystal Fragment", chance = 3570 },
+	{ name = "Red Crystal Fragment", chance = 2574 },
 	{ name = "Cyan Crystal Fragment", chance = 3010 },
 	{ name = "Green Crystal Shard", chance = 3010 },
 	{ name = "Coral Brooch", chance = 2420 },

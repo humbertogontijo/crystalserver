@@ -73,21 +73,21 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 89960, maxCount = 28 },
-	{ name = "book page", chance = 3000, maxCount = 7 },
-	{ name = "demonic essence", chance = 3000, maxCount = 5 },
-	{ name = "flask of demonic blood", chance = 3000, maxCount = 3 },
-	{ name = "small amethyst", chance = 2000, maxCount = 4 },
-	{ id = 3307, chance = 3000 }, -- scimitar
-	{ name = "silken bookmark", chance = 2000, maxCount = 2 },
-	{ name = "magma coat", chance = 2000 },
-	{ name = "guardian shield", chance = 1500 },
-	{ name = "soul orb", chance = 3000, maxCount = 4 },
+	{ name = "platinum coin", chance = 61535, maxCount = 28 },
+	{ name = "book page", chance = 49000, maxCount = 7 },
+	{ name = "demonic essence", chance = 18925, maxCount = 5 },
+	{ name = "flask of demonic blood", chance = 41818, maxCount = 3 },
+	{ name = "small amethyst", chance = 5445, maxCount = 4 },
+	{ id = 3307, chance = 4440 }, -- scimitar
+	{ name = "silken bookmark", chance = 19698, maxCount = 2 },
+	{ name = "magma coat", chance = 11871 },
+	{ name = "guardian shield", chance = 9357 },
+	{ name = "soul orb", chance = 5140, maxCount = 4 },
 	{ name = "necrotic rod", chance = 3000 },
 	{ name = "magma monocle", chance = 1500 },
-	{ id = 6299, chance = 1200 }, -- death ring
-	{ id = 3049, chance = 1800 }, -- stealth ring
-	{ name = "shadow sceptre", chance = 8990 },
+	{ id = 6299, chance = 2308 }, -- death ring
+	{ id = 3049, chance = 768 }, -- stealth ring
+	{ name = "shadow sceptre", chance = 409 },
 }
 
 monster.attacks = {

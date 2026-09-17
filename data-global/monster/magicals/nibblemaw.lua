@@ -93,7 +93,7 @@ monster.loot = {
 	{ name = "Red Crystal Fragment", chance = 3440, maxCount = 1 },
 	{ name = "Melon", chance = 1500, maxCount = 1 },
 	{ name = "Raspberry", chance = 1270, maxCount = 2 },
-	{ name = "Lime Tart", chance = 950, maxCount = 1 },
+	{ name = "Lime Tart", chance = 1627, maxCount = 1 },
 	{ name = "Dark Chocolate Coin", chance = 750, maxCount = 64 },
 	{ name = "Assassin Dagger", chance = 440, maxCount = 1 },
 }

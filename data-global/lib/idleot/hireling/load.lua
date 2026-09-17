@@ -1,8 +1,39 @@
 dofile(DATA_DIRECTORY .. "/lib/idleot/hireling/shop_items.lua")
-dofile(DATA_DIRECTORY .. "/lib/idleot/hireling/buy_loot.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/hireling/buy_loot.generated.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/hireling/buy_loot_overrides.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/hireling/sync.lua")
 -- lamp_overlay.lua patches stock Hireling after core libs/systems/hireling.lua.
 -- Loaded from scripts/idleot/hireling/lamp_overlay.lua (scripts run after libs).
+
+-- Merge optional sell overrides into the CIP-generated catalog.
+if HirelingBuyLootItems and HirelingBuyLootOverrides then
+	local byClient = {}
+	for _, entry in ipairs(HirelingBuyLootItems) do
+		local cid = tonumber(entry.clientId)
+		if cid then
+			byClient[cid] = entry
+		end
+	end
+	for clientId, override in pairs(HirelingBuyLootOverrides) do
+		local cid = tonumber(clientId)
+		local sell = math.floor(tonumber(override and override.sell) or 0)
+		if cid and sell > 0 then
+			local row = byClient[cid]
+			if row then
+				row.sell = sell
+				if override.itemName then
+					row.itemName = override.itemName
+				end
+			else
+				HirelingBuyLootItems[#HirelingBuyLootItems + 1] = {
+					itemName = override.itemName or ("item_" .. cid),
+					clientId = cid,
+					sell = sell,
+				}
+			end
+		end
+	end
+end
 
 -- Attach loot-sell catalog (Sell all is a client trade-UI button, not a row).
 if HirelingShopItems and HirelingBuyLootItems then
@@ -49,7 +80,7 @@ local function collectOwnedItemIds(player)
 end
 
 --- Shrink a sell catalog to owned items only.
---- Full HirelingBuyLootItems (~1350 rows) freezes OTC when opening trade.
+--- Full HirelingBuyLootItems freezes OTC when opening trade.
 function HirelingShopItems.filterSellCatalogForPlayer(player, catalog)
 	catalog = catalog or HirelingShopItems["buy loot"] or {}
 	if not player then

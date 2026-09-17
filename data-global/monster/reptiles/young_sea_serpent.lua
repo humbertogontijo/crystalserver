@@ -76,8 +76,8 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "small sapphire", chance = 1900, maxCount = 2 },
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
-	{ name = "gold coin", chance = 48000, maxCount = 74 },
+	{ name = "gold coin", chance = 98246, maxCount = 100 },
+	{ name = "gold coin", chance = 98246, maxCount = 74 },
 	{ id = 3049, chance = 1000 }, -- stealth ring
 	{ name = "life crystal", chance = 300 },
 	{ name = "battle axe", chance = 8000 },
@@ -86,7 +86,7 @@ monster.loot = {
 	{ name = "strong health potion", chance = 5000 },
 	{ name = "strong mana potion", chance = 4000 },
 	{ id = 8894, chance = 7940 }, -- heavily rusted armor
-	{ id = 8895, chance = 7940 }, -- rusted armor
+	{ id = 8895, chance = 832 }, -- rusted armor
 	{ name = "sea serpent scale", chance = 5000 },
 }
 

@@ -80,15 +80,15 @@ monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 176 },
 	{ name = "strong health potion", chance = 16340 },
 	{ name = "small ruby", chance = 12870, maxCount = 6 },
-	{ name = "black pearl", chance = 1980 },
-	{ name = "cultish robe", chance = 18870 },
+	{ name = "black pearl", chance = 2788 },
+	{ name = "cultish robe", chance = 10224 },
 	{ name = "orc leather", chance = 8420, maxCount = 3 },
 	{ name = "orc tooth", chance = 5940, maxCount = 2 },
 	{ name = "green piece of cloth", chance = 12380 },
 	{ name = "mysterious fetish", chance = 8910 },
 	{ name = "shamanic hood", chance = 14360 },
-	{ name = "broken shamanic staff", chance = 5940 },
-	{ name = "heavy old tome", chance = 99 },
+	{ name = "broken shamanic staff", chance = 9421 },
+	{ name = "heavy old tome", chance = 1711 },
 }
 
 monster.attacks = {

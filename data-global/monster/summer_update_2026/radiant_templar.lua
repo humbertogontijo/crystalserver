@@ -72,7 +72,7 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "Ceremonial Bowl", chance = 4000 },
+	{ name = "Ceremonial Bowl", chance = 5517 },
 	{ name = "Gilded Bell", chance = 150 },
 	{ name = "radiant templar soul core", chance = 100 },
 }

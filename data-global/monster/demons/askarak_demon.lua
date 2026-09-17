@@ -83,9 +83,9 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "piggy bank", chance = 1052 },
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
-	{ name = "gold coin", chance = 40000, maxCount = 35 },
+	{ name = "gold coin", chance = 95714, maxCount = 100 },
+	{ name = "gold coin", chance = 95714, maxCount = 100 },
+	{ name = "gold coin", chance = 95714, maxCount = 35 },
 	{ name = "small emerald", chance = 6250, maxCount = 4 },
 	{ id = 3051, chance = 961 }, -- energy ring
 	{ name = "brown mushroom", chance = 3846, maxCount = 5 },
@@ -93,9 +93,10 @@ monster.loot = {
 	{ name = "assassin star", chance = 4761, maxCount = 5 },
 	{ name = "mastermind potion", chance = 431 },
 	{ name = "strong health potion", chance = 5263 },
-	{ name = "strong mana potion", chance = 5263 },
+	{ name = "strong mana potion", chance = 2857 },
 	{ name = "terra legs", chance = 123 },
 	{ name = "springsprout rod", chance = 512 },
+	{ name = "platinum coin", chance = 76667, maxCount = 3 },
 }
 
 monster.attacks = {

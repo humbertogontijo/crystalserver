@@ -72,8 +72,8 @@ monster.light = {
 
 monster.loot = {
 	{ name = "Blue Quiver", chance = 4000 },
-	{ name = "Broken Arrow", chance = 4000, maxCount = 3 },
-	{ name = "Gilded Bell", chance = 150 },
+	{ name = "Broken Arrow", chance = 5960, maxCount = 3 },
+	{ name = "Gilded Bell", chance = 662 },
 	{ name = "radiant paragon soul core", chance = 100 },
 }
 

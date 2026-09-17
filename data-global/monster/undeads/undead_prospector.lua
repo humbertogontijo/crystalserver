@@ -84,11 +84,11 @@ monster.loot = {
 	{ id = 3052, chance = 200 }, -- life ring
 	{ id = 3114, chance = 240 }, -- skull
 	{ name = "knife", chance = 15380 },
-	{ name = "brass helmet", chance = 23000 },
-	{ name = "viking helmet", chance = 1000 },
+	{ name = "brass helmet", chance = 15625 },
+	{ name = "viking helmet", chance = 3125 },
 	{ name = "scale armor", chance = 1000 },
 	{ name = "worm", chance = 92310, maxCount = 6 },
-	{ name = "brown piece of cloth", chance = 1000 },
+	{ name = "brown piece of cloth", chance = 1563 },
 }
 
 monster.attacks = {

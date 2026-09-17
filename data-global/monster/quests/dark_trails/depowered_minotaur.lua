@@ -62,11 +62,14 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 82 }, -- gold coin
-	{ id = 11472, chance = 100000 }, -- minotaur horn
-	{ id = 3035, chance = 100000, maxCount = 4 }, -- platinum coin
-	{ id = 236, chance = 25000 }, -- strong health potion
-	{ id = 5878, chance = 25000 }, -- minotaur leather
-	{ id = 3029, chance = 25000 }, -- small sapphire
+	{ id = 11472, chance = 15056 }, -- minotaur horn
+	{ id = 3035, chance = 58218, maxCount = 4 }, -- platinum coin
+	{ id = 236, chance = 10038 }, -- strong health potion
+	{ id = 5878, chance = 10038 }, -- minotaur leather
+	{ id = 3029, chance = 4642 }, -- small sapphire
+	{ name = "strong mana potion", chance = 9536, maxCount = 3 },
+	{ name = "meat", chance = 6650 },
+	{ name = "small ruby", chance = 6023 },
 }
 
 monster.attacks = {

@@ -80,17 +80,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 16500, maxCount = 40 },
-	{ name = "Demonic Core Essence", chance = 1000, maxCount = 1 },
-	{ name = "Small Sapphire", chance = 12500, maxCount = 5 },
-	{ name = "Gorger Antlers", chance = 9300, maxCount = 1 },
-	{ name = "Spiked Squelcher", chance = 14500, maxCount = 1 },
-	{ name = "Mummified Demon Finger", chance = 1500, maxCount = 1 },
-	{ name = "Demonic Matter", chance = 1000, maxCount = 1 },
-	{ name = "Spiked Squelcher", chance = 14500, maxCount = 1 },
-	{ id = 3053, chance = 5000, maxCount = 1 }, -- Time ring
-	{ id = 3040, chance = 5000, maxCount = 1 }, -- gold nugget
-	{ id = 3093, chance = 5000, maxCount = 1 }, -- club ring
+	{ name = "Platinum Coin", chance = 100000, maxCount = 40 },
+	{ name = "Demonic Core Essence", chance = 2570, maxCount = 1 },
+	{ name = "Small Sapphire", chance = 4009, maxCount = 5 },
+	{ name = "Gorger Antlers", chance = 1732, maxCount = 1 },
+	{ name = "Spiked Squelcher", chance = 3171, maxCount = 1 },
+	{ name = "Mummified Demon Finger", chance = 972, maxCount = 1 },
+	{ name = "Demonic Matter", chance = 464, maxCount = 1 },
+	{ name = "Spiked Squelcher", chance = 3171, maxCount = 1 },
+	{ id = 3053, chance = 441, maxCount = 1 }, -- Time ring
+	{ id = 3040, chance = 462, maxCount = 1 }, -- gold nugget
+	{ id = 3093, chance = 2331, maxCount = 1 }, -- club ring
 	{ name = "gorger inferniarch soul core", chance = 100 },
 }
 

@@ -82,7 +82,7 @@ monster.loot = {
 	{ name = "great spirit potion", chance = 3840, maxCount = 4 },
 	{ name = "green crystal shard", chance = 3470, maxCount = 3 },
 	{ name = "blue crystal shard", chance = 2950, maxCount = 3 },
-	{ name = "small diamond", chance = 2950, maxCount = 6 },
+	{ name = "small diamond", chance = 3943, maxCount = 6 },
 	{ name = "violet gem", chance = 2730 },
 	{ name = "bashmu fang", chance = 2070 },
 	{ name = "rainbow quartz", chance = 1770 },

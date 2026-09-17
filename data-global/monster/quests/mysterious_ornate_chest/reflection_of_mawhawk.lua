@@ -64,7 +64,7 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 198 }, -- gold coin
-	{ id = 3035, chance = 67610, maxCount = 3 }, -- platinum coin
+	{ id = 3035, chance = 100000, maxCount = 3 }, -- platinum coin
 	{ id = 9058, chance = 390 }, -- gold ingot
 	{ id = 5911, chance = 3230 }, -- red piece of cloth
 	{ id = 5878, chance = 14710 }, -- minotaur leather
@@ -81,6 +81,12 @@ monster.loot = {
 	{ id = 3318, chance = 770 }, -- knight axe
 	{ id = 7413, chance = 390 }, -- titan axe
 	{ id = 7401, chance = 520 }, -- minotaur trophy
+	{ name = "cluster of solace", chance = 100000, maxCount = 2 },
+	{ name = "frazzle tongue", chance = 100000 },
+	{ name = "unrealized dream", chance = 100000, maxCount = 2 },
+	{ name = "brown crystal splinter", chance = 50000, maxCount = 9 },
+	{ name = "blue crystal splinter", chance = 25000, maxCount = 8 },
+	{ name = "green crystal splinter", chance = 25000, maxCount = 9 },
 }
 
 monster.attacks = {

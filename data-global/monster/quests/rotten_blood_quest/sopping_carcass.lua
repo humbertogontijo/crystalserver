@@ -74,19 +74,22 @@ monster.light = {
 
 monster.loot = {
 	{ name = "crystal coin", chance = 42860 },
-	{ name = "ultimate mana potion", chance = 42860, minCount = 2, maxCount = 3 },
+	{ name = "ultimate mana potion", chance = 4142, minCount = 2, maxCount = 3 },
 	{ id = 7385, chance = 14290 }, -- crimson sword
 	{ name = "ultimate health potion", chance = 14290, maxCount = 2 },
 	{ name = "organic acid", chance = 7678, maxCount = 1 },
-	{ name = "rotten roots", chance = 13133, maxCount = 1 },
+	{ name = "rotten roots", chance = 5325, maxCount = 1 },
 	{ name = "emerald bangle", chance = 8558, maxCount = 1 },
-	{ name = "underworld rod", chance = 8380, maxCount = 1 },
+	{ name = "underworld rod", chance = 2959, maxCount = 1 },
 	{ name = "violet gem", chance = 5084, maxCount = 1 },
 	{ name = "blue gem", chance = 9808, maxCount = 1 },
 	{ name = "relic sword", chance = 6964, maxCount = 1 },
 	{ name = "skullcracker armor", chance = 7270, maxCount = 1 },
 	{ id = 23531, chance = 3073, maxCount = 1 }, -- ring of green plasma
 	{ name = "tainted heart", chance = 1, maxCount = 1 },
+	{ name = "soul orb", chance = 15976, maxCount = 3 },
+	{ name = "decayed finger bone", chance = 8580 },
+	{ name = "yellow gem", chance = 5325 },
 }
 
 monster.attacks = {

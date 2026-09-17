@@ -81,12 +81,13 @@ monster.loot = {
 	{ name = "magma amulet", chance = 7000 },
 	{ id = 31438, chance = 5500 }, -- sphinx tiara
 	{ name = "magma boots", chance = 3600 },
-	{ name = "lightning pendant", chance = 3500 },
+	{ name = "lightning pendant", chance = 2378 },
 	{ name = "lightning headband", chance = 3100 },
-	{ name = "wand of starstorm", chance = 2900 },
+	{ name = "wand of starstorm", chance = 2007 },
 	{ name = "wand of defiance", chance = 1800 },
-	{ name = "magma monocle", chance = 1400 },
+	{ name = "magma monocle", chance = 1924 },
 	{ name = "magma legs", chance = 1300 },
+	{ name = "green gem", chance = 5477 },
 }
 
 monster.attacks = {

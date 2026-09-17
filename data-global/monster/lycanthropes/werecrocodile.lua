@@ -77,15 +77,15 @@ monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 13 },
 	{ name = "werecrocodile tongue", chance = 10800 },
 	{ name = "serpent sword", chance = 5910 },
-	{ name = "crocodile boots", chance = 8530 },
+	{ name = "crocodile boots", chance = 5088 },
 	{ name = "meat", chance = 5500, maxCount = 4 },
 	{ name = "small topaz", chance = 9120, maxCount = 4 },
-	{ name = "moonlight crystals", chance = 3000 },
+	{ name = "moonlight crystals", chance = 5175 },
 	{ id = 3039, chance = 5120 }, -- red gem
 	{ name = "green crystal shard", chance = 2800 },
 	{ name = "bonebreaker", chance = 500 },
-	{ name = "glorious axe", chance = 2190 },
-	{ name = "golden sun coin", chance = 1770 },
+	{ name = "glorious axe", chance = 2982 },
+	{ name = "golden sun coin", chance = 833 },
 	{ id = 43916, chance = 200 }, -- werecrocodile trophy
 }
 

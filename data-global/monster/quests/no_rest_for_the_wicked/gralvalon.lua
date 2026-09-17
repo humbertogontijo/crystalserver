@@ -79,9 +79,15 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3035, chance = 99000, maxCount = 50 }, -- platinum coin
-	{ id = 49894, chance = 7000, maxCount = 1 }, -- demonic matter
-	{ id = 49892, chance = 1000, maxCount = 1 }, -- skin of gralvalon
+	{ id = 49894, chance = 100000, maxCount = 1 }, -- demonic matter
+	{ id = 49892, chance = 6542, maxCount = 1 }, -- skin of gralvalon
 	{ id = 50055, chance = 5500, maxCount = 1 },
+	{ name = "demonic core essence", chance = 28037 },
+	{ name = "white gem", chance = 17757 },
+	{ name = "cyan crystal fragment", chance = 12150 },
+	{ name = "onyx arrow", chance = 9346, maxCount = 9 },
+	{ name = "assassin star", chance = 7477, maxCount = 12 },
+	{ name = "sniper arrow", chance = 7477, maxCount = 10 },
 }
 
 monster.attacks = {

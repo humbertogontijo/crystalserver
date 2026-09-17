@@ -99,6 +99,11 @@ void ItemTypeFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "ItemType", "isWrapKit", ItemTypeFunctions::luaItemTypeIsWrapKit);
 	Lua::registerMethod(L, "ItemType", "isSpellBook", ItemTypeFunctions::luaItemTypeIsSpellBook);
 
+	Lua::registerMethod(L, "ItemType", "getSellPrice", ItemTypeFunctions::luaItemTypeGetSellPrice);
+	Lua::registerMethod(L, "ItemType", "setSellPrice", ItemTypeFunctions::luaItemTypeSetSellPrice);
+	Lua::registerMethod(L, "ItemType", "getBuyPrice", ItemTypeFunctions::luaItemTypeGetBuyPrice);
+	Lua::registerMethod(L, "ItemType", "setBuyPrice", ItemTypeFunctions::luaItemTypeSetBuyPrice);
+
 	ItemClassificationFunctions::init(L);
 }
 
@@ -935,5 +940,53 @@ int ItemTypeFunctions::luaItemTypeGetMantra(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
+	return 1;
+}
+
+int ItemTypeFunctions::luaItemTypeGetSellPrice(lua_State* L) {
+	// itemType:getSellPrice() — gold NPC pays when buying from the player
+	const auto* itemType = Lua::getUserdata<const ItemType>(L, 1);
+	if (itemType) {
+		lua_pushnumber(L, itemType->sellPrice);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int ItemTypeFunctions::luaItemTypeSetSellPrice(lua_State* L) {
+	// itemType:setSellPrice(price)
+	const auto* itemType = Lua::getUserdata<const ItemType>(L, 1);
+	if (!itemType) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	ItemType &mutableType = Item::items.getItemType(itemType->id);
+	mutableType.sellPrice = Lua::getNumber<uint32_t>(L, 2);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int ItemTypeFunctions::luaItemTypeGetBuyPrice(lua_State* L) {
+	// itemType:getBuyPrice() — gold player pays when buying from an NPC
+	const auto* itemType = Lua::getUserdata<const ItemType>(L, 1);
+	if (itemType) {
+		lua_pushnumber(L, itemType->buyPrice);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int ItemTypeFunctions::luaItemTypeSetBuyPrice(lua_State* L) {
+	// itemType:setBuyPrice(price)
+	const auto* itemType = Lua::getUserdata<const ItemType>(L, 1);
+	if (!itemType) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	ItemType &mutableType = Item::items.getItemType(itemType->id);
+	mutableType.buyPrice = Lua::getNumber<uint32_t>(L, 2);
+	Lua::pushBoolean(L, true);
 	return 1;
 }

@@ -89,7 +89,7 @@ monster.loot = {
 	{ id = 23506, chance = 8000 }, -- plasma pearls
 	{ id = 16126, chance = 3400 }, -- red crystal fragment
 	{ id = 16120, chance = 3400 }, -- violet crystal shard
-	{ id = 16124, chance = 2700, maxCount = 2 }, -- blue crystal splinter
+	{ id = 16124, chance = 3825, maxCount = 2 }, -- blue crystal splinter
 	{ id = 16119, chance = 1900 }, -- blue crystal shard
 	{ id = 3039, chance = 1500 }, -- red gem
 	{ id = 8092, chance = 1100 }, -- wand of starstorm

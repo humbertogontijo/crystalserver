@@ -79,16 +79,16 @@ monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 12 },
 	{ id = 30058, chance = 15750, maxCount = 3 }, -- ice flower
 	{ name = "dream essence egg", chance = 13700 },
-	{ name = "elvish talisman", chance = 4790 },
-	{ name = "knight legs", chance = 4450 },
+	{ name = "elvish talisman", chance = 9591 },
+	{ name = "knight legs", chance = 2299 },
 	{ name = "glacier kilt", chance = 4110 },
 	{ name = "glacier shoes", chance = 3770 },
 	{ name = "ice rapier", chance = 3770 },
-	{ name = "spellbook of mind control", chance = 2400 },
+	{ name = "spellbook of mind control", chance = 1240 },
 	{ name = "crown shield", chance = 1710 },
 	{ name = "wood cape", chance = 1710 },
-	{ id = 23529, chance = 1370 }, -- ring of blue plasma
-	{ name = "tower shield", chance = 680 },
+	{ id = 23529, chance = 2632 }, -- ring of blue plasma
+	{ name = "tower shield", chance = 1856 },
 	{ id = 23543, chance = 680 }, -- collar of green plasma
 }
 

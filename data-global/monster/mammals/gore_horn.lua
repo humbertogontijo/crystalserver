@@ -75,13 +75,13 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "Gore Horn", chance = 36040 },
-	{ name = "Crystal Coin", chance = 30050 },
+	{ name = "Crystal Coin", chance = 20294 },
 	{ name = "Big Bone", chance = 5270 },
-	{ id = 3097, chance = 3590 }, -- Dwarven Ring
-	{ name = "Metal Spats", chance = 3100 },
-	{ name = "Knight Legs", chance = 2330 },
+	{ id = 3097, chance = 2353 }, -- Dwarven Ring
+	{ name = "Metal Spats", chance = 2059 },
+	{ name = "Knight Legs", chance = 1471 },
 	{ name = "Diamond Sceptre", chance = 2060 },
-	{ name = "Doublet", chance = 1390 },
+	{ name = "Doublet", chance = 2647 },
 	{ name = "Hammer of Wrath", chance = 1070 },
 }
 

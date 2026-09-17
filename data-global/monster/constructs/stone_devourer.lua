@@ -80,25 +80,25 @@ monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "platinum coin", chance = 92000, maxCount = 7 },
 	{ name = "stone skin amulet", chance = 2270 },
-	{ id = 3097, chance = 2840 }, -- dwarven ring
+	{ id = 3097, chance = 1695 }, -- dwarven ring
 	{ name = "giant sword", chance = 570 },
 	{ name = "crystal mace", chance = 850 },
-	{ name = "war axe", chance = 920 },
-	{ name = "sapphire hammer", chance = 1490 },
+	{ name = "war axe", chance = 1695 },
+	{ name = "sapphire hammer", chance = 5085 },
 	{ name = "spiked squelcher", chance = 1490 },
-	{ name = "glorious axe", chance = 3340 },
-	{ name = "strong health potion", chance = 13840, maxCount = 2 },
+	{ name = "glorious axe", chance = 5085 },
+	{ name = "strong health potion", chance = 10169, maxCount = 2 },
 	{ name = "strong mana potion", chance = 14900, maxCount = 2 },
 	{ id = 238, chance = 15610, maxCount = 2 }, -- great mana potion
 	{ name = "mana potion", chance = 15050, maxCount = 2 },
-	{ name = "ultimate health potion", chance = 14410 },
+	{ name = "ultimate health potion", chance = 22034 },
 	{ id = 12600, chance = 11360 }, -- coal
 	{ name = "ancient stone", chance = 12850 },
-	{ name = "crystalline arrow", chance = 9940, maxCount = 10 },
-	{ name = "green crystal splinter", chance = 6960 },
-	{ name = "cyan crystal fragment", chance = 6810 },
+	{ name = "crystalline arrow", chance = 3390, maxCount = 10 },
+	{ name = "green crystal splinter", chance = 3390 },
+	{ name = "cyan crystal fragment", chance = 11864 },
 	{ name = "stone nose", chance = 18679 },
-	{ name = "crystalline spikes", chance = 16320 },
+	{ name = "crystalline spikes", chance = 22034 },
 }
 
 monster.attacks = {

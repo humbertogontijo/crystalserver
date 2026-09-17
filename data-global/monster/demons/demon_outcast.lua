@@ -110,7 +110,7 @@ monster.loot = {
 	{ id = 238, chance = 18000, maxCount = 2 }, -- great mana potion
 	{ name = "ultimate health potion", chance = 20500, maxCount = 3 },
 	{ name = "small topaz", chance = 9300, maxCount = 5 },
-	{ name = "cluster of solace", chance = 4550 },
+	{ name = "cluster of solace", chance = 465 },
 }
 
 monster.attacks = {

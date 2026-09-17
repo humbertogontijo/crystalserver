@@ -85,6 +85,7 @@ monster.loot = {
 	{ name = "gold ingot", chance = 960 },
 	{ name = "broken iks headpiece", chance = 70 },
 	{ id = 50150, chance = 560 }, -- ring of orange plasma
+	{ name = "platinum coin", chance = 39620, maxCount = 4 },
 }
 
 monster.attacks = {

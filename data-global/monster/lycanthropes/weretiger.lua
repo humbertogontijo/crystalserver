@@ -79,8 +79,8 @@ monster.loot = {
 	{ name = "furry club", chance = 6230 },
 	{ name = "meat", chance = 5500, maxCount = 4 },
 	{ name = "violet crystal shard", chance = 3370 },
-	{ name = "moonlight crystals", chance = 2550 },
-	{ id = 3041, chance = 1200 }, -- blue gem
+	{ name = "moonlight crystals", chance = 3488 },
+	{ id = 3041, chance = 629 }, -- blue gem
 	{ name = "knight armor", chance = 3000 },
 	{ name = "angelic axe", chance = 1430 },
 	{ name = "gemmed figurine", chance = 1770 },

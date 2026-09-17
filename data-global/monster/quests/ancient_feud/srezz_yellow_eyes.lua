@@ -70,7 +70,7 @@ monster.loot = {
 	{ id = 7643, chance = 100000, minCount = 1, maxCount = 5 }, -- ultimate health potion
 	{ id = 9694, chance = 25560, minCount = 1, maxCount = 3 }, -- snake skin
 	{ id = 7440, chance = 17780 }, -- mastermind potion
-	{ id = 9058, chance = 16110 }, -- gold ingot
+	{ id = 9058, chance = 100000 }, -- gold ingot
 	{ id = 16119, chance = 10560 }, -- blue crystal shard
 	{ id = 282, chance = 10560 }, -- giant shimmering pearl (brown)
 	{ id = 3027, chance = 10000 }, -- black pearl
@@ -85,7 +85,7 @@ monster.loot = {
 	{ id = 824, chance = 2780 }, -- glacier robe
 	{ id = 3342, chance = 2220 }, -- war axe
 	{ id = 23531, chance = 1670 }, -- ring of green plasma
-	{ id = 3281, chance = 1110 }, -- giant sword
+	{ id = 3281, chance = 100000 }, -- giant sword
 	{ id = 7382, chance = 560 }, -- demonrage sword
 	{ id = 3040, chance = 560 }, -- gold nugget
 	{ id = 34258, chance = 360 }, -- red silk flower

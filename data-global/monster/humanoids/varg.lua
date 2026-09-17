@@ -80,12 +80,12 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 60000, minCount = 1, maxCount = 15 },
-	{ name = "onyx arrow", chance = 2800, minCount = 1, maxCount = 10 },
-	{ name = "ritual bone knife", chance = 2500 },
-	{ id = 281, chance = 2690 }, -- giant shimmering pearl
+	{ name = "onyx arrow", chance = 8110, minCount = 1, maxCount = 10 },
+	{ name = "ritual bone knife", chance = 6656 },
+	{ id = 281, chance = 4897 }, -- giant shimmering pearl
 	{ name = "bat wing", chance = 1800, minCount = 1, maxCount = 5 },
 	{ name = "vampire teeth", chance = 1600 },
-	{ name = "onyx chip", chance = 1400, minCount = 1, maxCount = 3 },
+	{ name = "onyx chip", chance = 1989, minCount = 1, maxCount = 3 },
 	{ id = 51487, chance = 1000 }, -- norcferatu talisman
 }
 

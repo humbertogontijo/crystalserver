@@ -44,14 +44,14 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 60590, maxCount = 100 },
-	{ name = "platinum coin", chance = 40590, maxCount = 11 },
+	{ name = "platinum coin", chance = 85884, maxCount = 11 },
 	{ name = "blood amulet", chance = 5590 }, -- new item
-	{ name = "small sapphire", chance = 3030, maxCount = 3 },
-	{ name = "small emerald", chance = 2500, maxCount = 2 },
+	{ name = "small sapphire", chance = 5160, maxCount = 3 },
+	{ name = "small emerald", chance = 3974, maxCount = 2 },
 	{ name = "poison dagger", chance = 1900 },
-	{ name = "vampire teeth", chance = 1900 },
-	{ name = "green crystal shard", chance = 1560 },
-	{ name = "bone rattle", chance = 1540 }, -- new item
+	{ name = "vampire teeth", chance = 3915 },
+	{ name = "green crystal shard", chance = 2788 },
+	{ name = "bone rattle", chance = 4982 }, -- new item
 	{ name = "stone skin amulet", chance = 1000 },
 	{ name = "tribal mask", chance = 800 },
 	{ id = 51487, chance = 600 }, -- new item rare // norcferatu talisman

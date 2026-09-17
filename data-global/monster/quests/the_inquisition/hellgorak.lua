@@ -111,17 +111,19 @@ monster.loot = {
 	{ id = 8074, chance = 8770 }, -- spellbook of mind control
 	{ id = 8075, chance = 8620 }, -- spellbook of lost souls
 	{ id = 3567, chance = 8170 }, -- blue robe
-	{ id = 3360, chance = 2870 }, -- golden armor
+	{ id = 3360, chance = 2049 }, -- golden armor
 	{ id = 7412, chance = 2720 }, -- butcher's axe
-	{ id = 7388, chance = 1970 }, -- vile axe
+	{ id = 7388, chance = 1149 }, -- vile axe
 	{ id = 8076, chance = 1360 }, -- spellscroll of prophecies
 	{ id = 7453, chance = 610 }, -- executioner
 	{ id = 8098, chance = 450 }, -- demonwing axe
 	{ id = 3364, chance = 450 }, -- golden legs
 	{ id = 8051, chance = 450 }, -- voltage armor
 	{ id = 8090, chance = 300 }, -- spellbook of dark mysteries
-	{ id = 3019, chance = 150 }, -- demonbone amulet
+	{ id = 3019, chance = 700 }, -- demonbone amulet
 	{ id = 3303, chance = 100 }, -- great axe
+	{ name = "demonic essence", chance = 100000 },
+	{ name = "stone skin amulet", chance = 10045 },
 }
 
 monster.attacks = {

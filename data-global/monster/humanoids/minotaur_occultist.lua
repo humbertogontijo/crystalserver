@@ -66,8 +66,8 @@ monster.loot = {
 	{ id = 11472, chance = 10000 }, -- minotaur horn
 	{ id = 3559, chance = 9000 }, -- leather legs
 	{ id = 268, chance = 3500 }, -- mana potion
-	{ id = 2920, chance = 3500 }, -- torch
-	{ id = 3355, chance = 1800 }, -- leather helmet
+	{ id = 2920, chance = 10345 }, -- torch
+	{ id = 3355, chance = 6897 }, -- leather helmet
 	{ id = 11473, chance = 1800 }, -- purple robe
 }
 

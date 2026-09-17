@@ -79,19 +79,20 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 60590, maxCount = 100 },
-	{ name = "platinum coin", chance = 40590, maxCount = 18 },
+	{ name = "gold coin", chance = 94530, maxCount = 100 },
+	{ name = "platinum coin", chance = 71432, maxCount = 18 },
 	{ name = "earth arrow", chance = 5590, maxCount = 5 },
-	{ name = "small topaz", chance = 3030, maxCount = 3 },
-	{ name = "rainbow quartz", chance = 2500, maxCount = 4 },
+	{ name = "small topaz", chance = 6123, maxCount = 3 },
+	{ name = "rainbow quartz", chance = 5034, maxCount = 4 },
 	-- { name = "pressed flower", chance = 1900 }, -- new item ( DOUBLE CHECK FOR ID )
-	{ id = 3578, chance = 1560 }, -- fish
+	{ id = 3578, chance = 2767 }, -- fish
 	{ id = 3595, chance = 1540 }, -- carrot
-	{ name = "opal", chance = 1000 },
-	{ name = "royal star", chance = 1000, maxCount = 5 },
+	{ name = "opal", chance = 2506 },
+	{ name = "royal star", chance = 1896, maxCount = 5 },
 	{ name = "butterfly ring", chance = 800 },
 	{ name = "etcher", chance = 800 }, -- new item
 	{ name = "elvish bow", chance = 600 },
+	{ name = "pressed flower", chance = 7344 },
 }
 
 monster.attacks = {

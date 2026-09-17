@@ -73,7 +73,7 @@ monster.light = {
 
 monster.loot = {
 	{ name = "Loose Prayer Beads", chance = 4000 },
-	{ name = "Etcher", chance = 900 },
+	{ name = "Etcher", chance = 1754 },
 	{ name = "Cloud Familiar", chance = 900 },
 	{ name = "Lunar Ascension Orb", chance = 150 },
 	{ name = "devoted radiant zealot soul core", chance = 100 },

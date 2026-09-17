@@ -72,6 +72,20 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 6537, chance = 100000 }, -- mr. punish's handcuffs
+	{ name = "gold coin", chance = 100000, maxCount = 129 },
+	{ name = "demonic essence", chance = 92857 },
+	{ name = "soul orb", chance = 92857 },
+	{ name = "double axe", chance = 28571 },
+	{ name = "jewelled backpack", chance = 21429 },
+	{ name = "assassin star", chance = 14286, maxCount = 3 },
+	{ name = "cat's paw", chance = 14286 },
+	{ name = "gold ingot", chance = 14286 },
+	{ name = "great health potion", chance = 14286 },
+	{ name = "platinum coin", chance = 14286, maxCount = 2 },
+	{ id = 6491, chance = 7143 }, -- bat decoration
+	{ name = "great mana potion", chance = 7143 },
+	{ name = "ravager's axe", chance = 7143 },
+	{ name = "small diamond", chance = 7143 },
 }
 
 monster.attacks = {

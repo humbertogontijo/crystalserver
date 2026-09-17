@@ -79,26 +79,27 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 5000, maxCount = 6 },
-	{ name = "platinum coin", chance = 3533, maxCount = 7 },
-	{ id = 44736, chance = 4545 }, -- stealth ring
+	{ name = "platinum coin", chance = 53926, maxCount = 6 },
+	{ name = "platinum coin", chance = 53926, maxCount = 7 },
+	{ id = 44736, chance = 16699 }, -- stealth ring
 	{ id = 44737, chance = 4545 }, -- stealth ring
 	{ id = 44738, chance = 4545 }, -- stealth ring
 	{ name = "might ring", chance = 14285 },
 	{ name = "mino shield", chance = 840 },
 	{ name = "dragon hammer", chance = 420 },
-	{ id = 3041, chance = 4545 }, -- stealth ring
+	{ id = 3041, chance = 996 }, -- stealth ring
 	{ name = "ultimate health potion", chance = 5285 },
 	{ id = 238, chance = 6285 }, -- great mana potion
 	{ name = "alloy legs", chance = 1285 },
 	{ name = "encrypted notes", chance = 985 },
 	{ name = "ultimate mana potion", chance = 1285 },
-	{ name = "gold ingot", chance = 1285 },
+	{ name = "gold ingot", chance = 2528 },
 	{ name = "lightning robe", chance = 500, maxCount = 1 },
-	{ name = "small topaz", chance = 1200, maxCount = 3 },
-	{ name = "stone skin amulet", chance = 1200, maxCount = 1 },
+	{ name = "small topaz", chance = 9881, maxCount = 3 },
+	{ name = "stone skin amulet", chance = 498, maxCount = 1 },
 	{ name = "spellbook of mind control", chance = 1200, maxCount = 1 },
 	{ name = "wand of defiance", chance = 1200, maxCount = 1 },
+	{ name = "staff piece", chance = 8043 },
 }
 
 monster.attacks = {

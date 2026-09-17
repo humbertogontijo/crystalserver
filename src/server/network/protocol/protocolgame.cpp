@@ -896,6 +896,12 @@ void ProtocolGame::connect(const std::string &playerName, OperatingSystem_t oper
 
 	// Headless body reclaim: no CreatureEvent onLogin — promote team host / party if needed.
 	callTeamManagerPlayerMethod(player, "onClientAttached");
+
+	// Fresh ProtocolGame has an empty knownCreatureSet — re-push party show-status
+	// (health/mana + vocation/level) so party HUD labels survive client reopen.
+	if (const auto &party = player->getParty()) {
+		party->updatePlayerStatus(player);
+	}
 }
 
 void ProtocolGame::logout(bool displayEffect, bool forced) {
@@ -8174,20 +8180,44 @@ void ProtocolGame::sendPartyCreatureSkull(const std::shared_ptr<Creature> &targe
 }
 
 void ProtocolGame::sendPartyCreatureHealth(const std::shared_ptr<Creature> &target, uint8_t healthPercent) {
-	uint32_t cid = target->getID();
-	if (!knownCreatureSet.contains(cid)) {
-		sendPartyCreatureUpdate(target);
+	if (!target) {
 		return;
 	}
 
+	uint32_t cid = target->getID();
+	if (!knownCreatureSet.contains(cid)) {
+		sendPartyCreatureUpdate(target);
+	}
+
+	const uint8_t percent = std::min<uint8_t>(100, healthPercent);
+	const uint32_t health = static_cast<uint32_t>(std::max<int32_t>(0, target->getHealth()));
+	const uint32_t maxHealth = static_cast<uint32_t>(std::max<int32_t>(1, target->getMaxHealth()));
+
+	if (oldProtocol) {
+		NetworkMessage msg;
+		msg.addByte(0x8C);
+		msg.add<uint32_t>(cid);
+		msg.addByte(percent);
+		writeToOutputBuffer(msg);
+		return;
+	}
+
+	// IdleOT party vitals: percent + absolute (do not overload map 0x8C).
 	NetworkMessage msg;
-	msg.addByte(0x8C);
+	msg.addByte(0x8B);
 	msg.add<uint32_t>(cid);
-	msg.addByte(std::min<uint8_t>(100, healthPercent));
+	msg.addByte(16); // party health (percent + absolute)
+	msg.addByte(percent);
+	msg.add<uint32_t>(health);
+	msg.add<uint32_t>(maxHealth);
 	writeToOutputBuffer(msg);
 }
 
 void ProtocolGame::sendPartyPlayerMana(const std::shared_ptr<Player> &target, uint8_t manaPercent) {
+	if (!target) {
+		return;
+	}
+
 	uint32_t cid = target->getID();
 	if (!knownCreatureSet.contains(cid)) {
 		sendPartyCreatureUpdate(target);
@@ -8197,11 +8227,17 @@ void ProtocolGame::sendPartyPlayerMana(const std::shared_ptr<Player> &target, ui
 		return;
 	}
 
+	const uint8_t percent = std::min<uint8_t>(100, manaPercent);
+	const uint32_t mana = static_cast<uint32_t>(std::max<int32_t>(0, target->getMana()));
+	const uint32_t maxMana = static_cast<uint32_t>(std::max<int32_t>(1, target->getMaxMana()));
+
 	NetworkMessage msg;
 	msg.addByte(0x8B);
 	msg.add<uint32_t>(cid);
-	msg.addByte(11); // mana percent
-	msg.addByte(std::min<uint8_t>(100, manaPercent));
+	msg.addByte(11); // party mana (percent + absolute)
+	msg.addByte(percent);
+	msg.add<uint32_t>(mana);
+	msg.add<uint32_t>(maxMana);
 	writeToOutputBuffer(msg);
 }
 
@@ -8231,7 +8267,6 @@ void ProtocolGame::sendPartyPlayerVocation(const std::shared_ptr<Player> &target
 	uint32_t cid = target->getID();
 	if (!knownCreatureSet.contains(cid)) {
 		sendPartyCreatureUpdate(target);
-		return;
 	}
 
 	if (oldProtocol) {
@@ -8241,8 +8276,9 @@ void ProtocolGame::sendPartyPlayerVocation(const std::shared_ptr<Player> &target
 	NetworkMessage msg;
 	msg.addByte(0x8B);
 	msg.add<uint32_t>(cid);
-	msg.addByte(13); // vocation
+	msg.addByte(13); // vocation + level (IdleOT party HUD)
 	msg.addByte(target->getVocation()->getClientId());
+	msg.add<uint16_t>(static_cast<uint16_t>(std::min<uint32_t>(target->getLevel(), 0xFFFF)));
 	writeToOutputBuffer(msg);
 }
 
@@ -8254,8 +8290,9 @@ void ProtocolGame::sendPlayerVocation(const std::shared_ptr<Player> &target) {
 	NetworkMessage msg;
 	msg.addByte(0x8B);
 	msg.add<uint32_t>(target->getID());
-	msg.addByte(13); // vocation
+	msg.addByte(13); // vocation + level (IdleOT party HUD)
 	msg.addByte(target->getVocation()->getClientId());
+	msg.add<uint16_t>(static_cast<uint16_t>(std::min<uint32_t>(target->getLevel(), 0xFFFF)));
 	writeToOutputBuffer(msg);
 }
 

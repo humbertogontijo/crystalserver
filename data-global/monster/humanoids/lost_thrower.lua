@@ -76,8 +76,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
-	{ name = "gold coin", chance = 50000, maxCount = 37 },
+	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "gold coin", chance = 100000, maxCount = 37 },
 	{ name = "platinum coin", chance = 70000, maxCount = 2 },
 	{ name = "brown mushroom", chance = 14500, maxCount = 2 },
 	{ name = "iron ore", chance = 9470 },
@@ -85,12 +85,14 @@ monster.loot = {
 	{ name = "great health potion", chance = 14730 },
 	{ id = 12600, chance = 12180 }, -- coal
 	{ name = "buckle", chance = 850 },
-	{ name = "broken throwing axe", chance = 1390 },
-	{ name = "helmet of the lost", chance = 13560 },
+	{ name = "broken throwing axe", chance = 15085 },
+	{ name = "helmet of the lost", chance = 1598 },
 	{ name = "lost bracers", chance = 14860 },
 	{ name = "mad froth", chance = 11810 },
 	{ name = "basalt fetish", chance = 6150 },
 	{ name = "basalt figurine", chance = 7900 },
+	{ name = "red hair dye", chance = 12314 },
+	{ name = "bloody dwarven beard", chance = 11822 },
 }
 
 monster.attacks = {

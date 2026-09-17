@@ -78,7 +78,7 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "piggy bank", chance = 4450 },
-	{ name = "gold coin", chance = 60000, maxCount = 100 },
+	{ name = "gold coin", chance = 99993, maxCount = 100 },
 	{ name = "platinum coin", chance = 70000, maxCount = 2 },
 	{ name = "fire axe", chance = 310 },
 	{ name = "war axe", chance = 120 },
@@ -96,12 +96,15 @@ monster.loot = {
 	{ name = "blue crystal shard", chance = 840 },
 	{ name = "lost basher's spike", chance = 17260 },
 	{ name = "lost basher's spike", chance = 14380 },
-	{ name = "bloody dwarven beard", chance = 1730 },
+	{ name = "bloody dwarven beard", chance = 17385 },
 	{ name = "pair of iron fists", chance = 1500 },
-	{ name = "buckle", chance = 10930 },
-	{ name = "bonecarving knife", chance = 7320 },
+	{ name = "buckle", chance = 1115 },
+	{ name = "bonecarving knife", chance = 10175 },
 	{ name = "basalt fetish", chance = 8800 },
 	{ name = "basalt figurine", chance = 9470 },
+	{ name = "wimp tooth chain", chance = 12053 },
+	{ name = "red hair dye", chance = 11896 },
+	{ name = "bone fetish", chance = 7557 },
 }
 
 monster.attacks = {

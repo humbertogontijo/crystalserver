@@ -73,29 +73,34 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 55000, minCount = 70, maxCount = 75 },
-	{ id = 281, chance = 1150 }, -- giant shimmering pearl (green)
+	{ name = "crystal coin", chance = 100000, minCount = 70, maxCount = 75 },
+	{ id = 281, chance = 16667 }, -- giant shimmering pearl (green)
 	{ name = "giant sapphire", chance = 10000, maxCount = 1 },
 	{ name = "giant topaz", chance = 10000, maxCount = 1 },
-	{ name = "violet gem", chance = 6000, maxCount = 1 },
-	{ name = "blue gem", chance = 10000, maxCount = 3 },
-	{ id = 3039, chance = 10000, maxCount = 3 }, -- red gem
+	{ name = "violet gem", chance = 8333, maxCount = 1 },
+	{ name = "blue gem", chance = 16667, maxCount = 3 },
+	{ id = 3039, chance = 33333, maxCount = 3 }, -- red gem
 	{ name = "green gem", chance = 10000, maxCount = 3 },
-	{ name = "yellow gem", chance = 10000, maxCount = 3 },
-	{ name = "white gem", chance = 6000, maxCount = 3 },
+	{ name = "yellow gem", chance = 66667, maxCount = 3 },
+	{ name = "white gem", chance = 25000, maxCount = 3 },
 	{ name = "dragon figurine", chance = 10000, maxCount = 1 },
-	{ name = "bullseye potion", chance = 15000, minCount = 10, maxCount = 25 },
+	{ name = "bullseye potion", chance = 25000, minCount = 10, maxCount = 25 },
 	{ name = "mastermind potion", chance = 15000, minCount = 10, maxCount = 25 },
-	{ name = "berserk potion", chance = 15000, minCount = 10, maxCount = 25 },
-	{ name = "ultimate mana potion", chance = 18000, minCount = 50, maxCount = 100 },
-	{ name = "supreme health potion", chance = 18000, minCount = 50, maxCount = 100 },
-	{ name = "ultimate spirit potion", chance = 18000, minCount = 50, maxCount = 100 },
-	{ name = "vial of hatred", chance = 25000, maxCount = 1 },
+	{ name = "berserk potion", chance = 33333, minCount = 10, maxCount = 25 },
+	{ name = "ultimate mana potion", chance = 33333, minCount = 50, maxCount = 100 },
+	{ name = "supreme health potion", chance = 66667, minCount = 50, maxCount = 100 },
+	{ name = "ultimate spirit potion", chance = 75000, minCount = 50, maxCount = 100 },
+	{ name = "vial of hatred", chance = 16667, maxCount = 1 },
 	{ name = "figurine of hatred", chance = 400 },
-	{ name = "spectral horseshoe", chance = 400 },
+	{ name = "spectral horseshoe", chance = 8333 },
 	{ name = "spectral horse tack", chance = 400 },
 	{ name = "bracelet of strengthening", chance = 400 },
 	{ name = "bag you desire", chance = 100 },
+	{ name = "giant ruby", chance = 58333 },
+	{ name = "giant amethyst", chance = 33333 },
+	{ name = "transcendence potion", chance = 25000, maxCount = 42 },
+	{ name = "gold ingot", chance = 16667 },
+	{ name = "giant emerald", chance = 8333 },
 }
 
 monster.attacks = {

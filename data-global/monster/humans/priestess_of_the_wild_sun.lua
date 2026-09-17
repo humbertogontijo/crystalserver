@@ -91,11 +91,11 @@ monster.loot = {
 	{ id = 31331, chance = 2540 }, -- empty honey glass
 	{ name = "sea horse figurine", chance = 910 },
 	{ id = 31369, chance = 530 }, -- gryphon mask
-	{ name = "wand of decay", chance = 1250 },
+	{ name = "wand of decay", chance = 2116 },
 	{ name = "wand of everblazing", chance = 1290 },
 	{ name = "golden sickle", chance = 1250 },
 	{ name = "relic sword", chance = 1390 },
-	{ name = "war axe", chance = 1777 },
+	{ name = "war axe", chance = 2508 },
 }
 
 monster.attacks = {

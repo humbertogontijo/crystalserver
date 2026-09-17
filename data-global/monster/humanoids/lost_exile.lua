@@ -91,7 +91,7 @@ monster.loot = {
 	{ id = 12600, chance = 13100 }, -- coal
 	{ name = "holy ash", chance = 13100 },
 	{ name = "small topaz", chance = 10240 },
-	{ name = "lost husher's staff", chance = 6900 },
+	{ name = "lost husher's staff", chance = 9474 },
 	{ name = "skull shatterer", chance = 7620 },
 	{ name = "wimp tooth chain", chance = 11900 },
 	{ name = "red hair dye", chance = 12620 },
@@ -99,9 +99,9 @@ monster.loot = {
 	{ name = "bonecarving knife", chance = 8100 },
 	{ name = "basalt figurine", chance = 8100 },
 	{ name = "bone fetish", chance = 8881 },
-	{ id = 3097, chance = 1043 }, -- dwarven ring
-	{ name = "guardian shield", chance = 1430 },
-	{ name = "buckle", chance = 1900 },
+	{ id = 3097, chance = 2378 }, -- dwarven ring
+	{ name = "guardian shield", chance = 921 },
+	{ name = "buckle", chance = 844 },
 	{ name = "clay lump", chance = 710 },
 	{ name = "knight axe", chance = 950 },
 	{ name = "terra boots", chance = 240 },

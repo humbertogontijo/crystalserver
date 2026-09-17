@@ -100,9 +100,9 @@ monster.loot = {
 	{ name = "wood cape", chance = 1280 },
 	{ name = "white pearl", chance = 1280 },
 	{ name = "small tortoise", chance = 1190 },
-	{ name = "sacred tree amulet", chance = 1020 },
+	{ name = "sacred tree amulet", chance = 2391 },
 	{ name = "coral brooch", chance = 770 },
-	{ name = "lizard heart", chance = 770 },
+	{ name = "lizard heart", chance = 1350 },
 }
 
 monster.attacks = {

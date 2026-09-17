@@ -88,13 +88,13 @@ monster.voices = {
 monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 5 },
 	{ name = "blue crystal shard", chance = 5000 },
-	{ name = "snakebite rod", chance = 4700 },
-	{ name = "underworld rod", chance = 3400 },
+	{ name = "snakebite rod", chance = 7331 },
+	{ name = "underworld rod", chance = 6353 },
 	{ name = "violet gem", chance = 2600 },
-	{ name = "opal", chance = 2200, maxCount = 2 },
+	{ name = "opal", chance = 3282, maxCount = 2 },
 	{ name = "wand of voodoo", chance = 2200 },
 	{ id = 31331, chance = 3400 }, -- empty honey glass
-	{ name = "small enchanted emerald", chance = 1500, maxCount = 3 },
+	{ name = "small enchanted emerald", chance = 2589, maxCount = 3 },
 }
 
 monster.attacks = {

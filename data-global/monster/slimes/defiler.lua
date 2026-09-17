@@ -89,7 +89,7 @@ monster.loot = {
 	{ name = "yellow gem", chance = 1219 },
 	{ name = "green gem", chance = 613 },
 	{ id = 3039, chance = 1538 }, -- red gem
-	{ name = "blue gem", chance = 300 },
+	{ name = "blue gem", chance = 836 },
 	{ name = "soul orb", chance = 20000 },
 	{ id = 6299, chance = 3030 }, -- death ring
 	{ name = "demonic essence", chance = 20320 },

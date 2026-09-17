@@ -64,11 +64,11 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 44000, maxCount = 120 },
-	{ name = "holy ash", chance = 10800 },
+	{ name = "gold coin", chance = 87495, maxCount = 120 },
+	{ name = "holy ash", chance = 49583 },
 	{ name = "small topaz", chance = 4500, maxCount = 2 },
-	{ name = "spirited soil", chance = 2100 },
-	{ name = "moonlight rod", chance = 1935 },
+	{ name = "spirited soil", chance = 9785 },
+	{ name = "moonlight rod", chance = 439 },
 }
 
 monster.attacks = {

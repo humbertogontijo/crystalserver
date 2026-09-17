@@ -79,26 +79,27 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "small ruby", chance = 9600, maxCount = 3 },
+	{ name = "small ruby", chance = 13242, maxCount = 3 },
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "small emerald", chance = 14000 },
 	{ name = "small amethyst", chance = 17000, maxCount = 3 },
 	{ name = "platinum coin", chance = 100000, maxCount = 8 },
-	{ name = "giant sword", chance = 560 },
+	{ name = "giant sword", chance = 1142 },
 	{ name = "warrior helmet", chance = 2820 },
 	{ name = "knight armor", chance = 4000 },
-	{ id = 5909, chance = 4520 }, -- white piece of cloth
+	{ id = 5909, chance = 2740 }, -- white piece of cloth
 	{ name = "red piece of cloth", chance = 1130 },
 	{ id = 238, chance = 36000, maxCount = 2 }, -- great mana potion
 	{ name = "ultimate health potion", chance = 26000 },
 	{ name = "small topaz", chance = 17000, maxCount = 2 },
-	{ name = "blue crystal shard", chance = 6000 },
+	{ name = "blue crystal shard", chance = 8676 },
 	{ name = "blue crystal splinter", chance = 13000 },
 	{ name = "cyan crystal fragment", chance = 17000 },
 	{ id = 20029, chance = 1130 }, -- broken dream
 	{ name = "trapped bad dream monster", chance = 13000 },
 	{ name = "bowl of terror sweat", chance = 18000 },
-	{ id = 50152, chance = 560 }, -- collar of orange plasma
+	{ id = 50152, chance = 2055 }, -- collar of orange plasma
+	{ name = "blue piece of cloth", chance = 5023 },
 }
 
 monster.attacks = {

@@ -85,11 +85,11 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "small sapphire", chance = 7142, maxCount = 4 },
-	{ name = "small ruby", chance = 11111, maxCount = 4 },
+	{ name = "small ruby", chance = 6757, maxCount = 4 },
 	{ name = "small emerald", chance = 11111, maxCount = 4 },
 	{ name = "small amethyst", chance = 11111, maxCount = 3 },
-	{ name = "platinum coin", chance = 50000, maxCount = 9 },
-	{ name = "earthborn titan armor", chance = 2063 },
+	{ name = "platinum coin", chance = 92793, maxCount = 9 },
+	{ name = "earthborn titan armor", chance = 450 },
 	{ name = "gold ingot", chance = 25000 },
 	{ name = "jade conical hat", chance = 800 },
 }

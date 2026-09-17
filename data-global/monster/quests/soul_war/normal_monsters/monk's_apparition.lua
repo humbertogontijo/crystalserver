@@ -87,12 +87,14 @@ monster.loot = {
 	{ name = "epee", chance = 6870 },
 	{ name = "green gem", chance = 4940 },
 	{ name = "violet gem", chance = 3860 },
-	{ name = "glacier amulet", chance = 3860 },
+	{ name = "glacier amulet", chance = 2020 },
 	{ name = "crystal mace", chance = 2360 },
 	{ name = "giant sword", chance = 1720 },
-	{ name = "stone skin amulet", chance = 1500 },
+	{ name = "stone skin amulet", chance = 381 },
 	{ name = "crown shield", chance = 640 },
 	{ name = "bag you desire", chance = 15 },
+	{ name = "warrior helmet", chance = 6936 },
+	{ name = "great spirit potion", chance = 5069 },
 }
 
 monster.attacks = {

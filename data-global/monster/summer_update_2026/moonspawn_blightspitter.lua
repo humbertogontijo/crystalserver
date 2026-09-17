@@ -79,16 +79,16 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 20000, maxCount = 8 },
+	{ name = "Platinum Coin", chance = 74863, maxCount = 8 },
 	{ name = "Mushroom Pie", chance = 9000 },
-	{ name = "Terra Mantle", chance = 4000 },
-	{ name = "Terra Legs", chance = 4000 },
-	{ name = "Terra Boots", chance = 4000 },
+	{ name = "Terra Mantle", chance = 1639 },
+	{ name = "Terra Legs", chance = 1639 },
+	{ name = "Terra Boots", chance = 1366 },
 	{ name = "Terra Amulet", chance = 4000 },
 	{ name = "Green Gem", chance = 4000 },
 	{ name = "Green Mushroom", chance = 4000 },
-	{ name = "Muck Rod", chance = 4000 },
-	{ name = "Moonspawn Headpiece", chance = 4000 },
+	{ name = "Muck Rod", chance = 2186 },
+	{ name = "Moonspawn Headpiece", chance = 5464 },
 	{ name = "Moonstone", chance = 900 },
 	{ name = "Mushroom Backpack", chance = 150 },
 	{ name = "moonspawn blightspitter soul core", chance = 100 },

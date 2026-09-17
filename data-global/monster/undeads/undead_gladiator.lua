@@ -78,8 +78,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 44000, maxCount = 100 },
-	{ name = "gold coin", chance = 50500, maxCount = 48 },
+	{ name = "gold coin", chance = 94886, maxCount = 100 },
+	{ name = "gold coin", chance = 94886, maxCount = 48 },
 	{ id = 3049, chance = 30 }, -- stealth ring
 	{ name = "protection amulet", chance = 2200 },
 	{ name = "two handed sword", chance = 1900 },
@@ -91,10 +91,10 @@ monster.loot = {
 	{ name = "brass legs", chance = 5500 },
 	{ name = "dark helmet", chance = 1460 },
 	{ name = "crusader helmet", chance = 100 },
-	{ name = "plate legs", chance = 2444 },
+	{ name = "plate legs", chance = 1567 },
 	{ name = "hunting spear", chance = 4200 },
 	{ name = "flask of warrior's sweat", chance = 210 },
-	{ name = "health potion", chance = 350 },
+	{ name = "health potion", chance = 887 },
 	{ name = "belted cape", chance = 5000 },
 	{ name = "broken gladiator shield", chance = 5200 },
 }

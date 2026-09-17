@@ -82,9 +82,9 @@ monster.loot = {
 	{ id = 2817, chance = 910 }, -- blank parchment
 	{ name = "gold coin", chance = 48000, maxCount = 67 },
 	{ id = 3049, chance = 650 }, -- stealth ring
-	{ name = "spike sword", chance = 130 },
+	{ name = "spike sword", chance = 660 },
 	{ name = "red robe", chance = 130 },
-	{ name = "tattered piece of robe", chance = 4300 },
+	{ name = "tattered piece of robe", chance = 7261 },
 }
 
 monster.attacks = {

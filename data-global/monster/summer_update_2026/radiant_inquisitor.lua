@@ -72,8 +72,8 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "Blue Quiver", chance = 4000 },
-	{ name = "Golden Belt", chance = 4000 },
+	{ name = "Blue Quiver", chance = 9016 },
+	{ name = "Golden Belt", chance = 9836 },
 	{ name = "Gilded Bell", chance = 150 },
 	{ name = "radiant inquisitor soul core", chance = 100 },
 }

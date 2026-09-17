@@ -79,12 +79,12 @@ monster.voices = {
 monster.loot = {
 	{ name = "black pearl", chance = 22780, maxCount = 2 },
 	{ name = "small sapphire", chance = 28370, maxCount = 2 },
-	{ name = "gold coin", chance = 35500, maxCount = 100 },
-	{ name = "gold coin", chance = 55500, maxCount = 98 },
-	{ name = "platinum coin", chance = 52000, maxCount = 5 },
-	{ name = "life crystal", chance = 2500 },
+	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "gold coin", chance = 100000, maxCount = 98 },
+	{ name = "platinum coin", chance = 33797, maxCount = 5 },
+	{ name = "life crystal", chance = 1314 },
 	{ name = "hardened bone", chance = 14180 },
-	{ id = 6299, chance = 1150 }, -- death ring
+	{ id = 6299, chance = 2138 }, -- death ring
 	{ name = "demonic essence", chance = 12460 },
 	{ name = "assassin star", chance = 26650, maxCount = 5 },
 	{ name = "dragon slayer", chance = 860 },
@@ -92,9 +92,13 @@ monster.loot = {
 	{ id = 238, chance = 21490 }, -- great mana potion
 	{ name = "great health potion", chance = 21200 },
 	{ name = "skullcracker armor", chance = 290 },
-	{ name = "gold ingot", chance = 570 },
+	{ name = "gold ingot", chance = 3478 },
 	{ name = "unholy bone", chance = 33380 },
 	{ name = "spellweaver's robe", chance = 860 },
+	{ name = "ancient coin", chance = 30113, maxCount = 2 },
+	{ name = "mind stone", chance = 8140 },
+	{ name = "dragon necklace", chance = 6929 },
+	{ id = 3039, chance = 5023 }, -- red gem
 }
 
 monster.attacks = {

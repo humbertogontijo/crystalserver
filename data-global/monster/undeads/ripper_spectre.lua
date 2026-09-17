@@ -76,17 +76,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 5 },
-	{ name = "great spirit potion", chance = 30910, maxCount = 2 },
-	{ name = "two handed sword", chance = 16500 },
-	{ name = "terra rod", chance = 4780 },
-	{ name = "silver brooch", chance = 15190 },
-	{ name = "emerald bangle", chance = 14740 },
-	{ name = "twin hooks", chance = 1170 },
-	{ name = "springsprout rod", chance = 1210 },
+	{ name = "platinum coin", chance = 74296, maxCount = 5 },
+	{ name = "great spirit potion", chance = 23123, maxCount = 2 },
+	{ name = "two handed sword", chance = 12219 },
+	{ name = "terra rod", chance = 6743 },
+	{ name = "silver brooch", chance = 3779 },
+	{ name = "emerald bangle", chance = 3985 },
+	{ name = "twin hooks", chance = 3396 },
+	{ name = "springsprout rod", chance = 2611 },
 	{ id = 30083, chance = 1890 }, -- green ectoplasm
 	{ name = "coral brooch", chance = 1330 },
-	{ name = "serpent sword", chance = 1950 },
+	{ name = "serpent sword", chance = 1070 },
 	{ name = "hexagonal ruby", chance = 800 },
 	{ name = "assassin dagger", chance = 970 },
 	{ name = "spike sword", chance = 530 },

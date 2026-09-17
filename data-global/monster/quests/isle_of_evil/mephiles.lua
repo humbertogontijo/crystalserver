@@ -72,7 +72,11 @@ monster.voices = {
 	{ text = "Come on. being a bit evil won't hurt you.", yell = false },
 }
 
-monster.loot = {}
+monster.loot = {
+	{ name = "shield of the white knight", chance = 40000 },
+	{ name = "stale bread of ancientness", chance = 40000 },
+	{ name = "poet's fencing quill", chance = 20000 },
+}
 
 monster.attacks = {
 	{ name = "melee", interval = 1200, chance = 100, minDamage = 0, maxDamage = -35 },

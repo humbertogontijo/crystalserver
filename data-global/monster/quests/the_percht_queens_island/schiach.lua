@@ -82,6 +82,8 @@ monster.loot = {
 	{ name = "bright bell", chance = 2920 },
 	{ name = "glacier kilt", chance = 1180 },
 	{ name = "glacier robe", chance = 630 },
+	{ name = "fireworks capsule", chance = 13727 },
+	{ name = "grainy fireworks powder", chance = 8177 },
 }
 
 monster.attacks = {

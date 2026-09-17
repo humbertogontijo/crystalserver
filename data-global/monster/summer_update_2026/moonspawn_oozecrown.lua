@@ -79,14 +79,14 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 20000, maxCount = 9 },
+	{ name = "Platinum Coin", chance = 79397, maxCount = 9 },
 	{ name = "Mushroom Pie", chance = 9000 },
 	{ name = "Moonspawn Tentacle", chance = 9000 },
-	{ name = "Yellow Gem", chance = 4000 },
+	{ name = "Yellow Gem", chance = 1759 },
 	{ name = "Wand of Decay", chance = 4000 },
 	{ name = "Dark Mushroom", chance = 4000 },
-	{ name = "Magic Sulphur", chance = 900 },
-	{ name = "Moonstone", chance = 900 },
+	{ name = "Magic Sulphur", chance = 251 },
+	{ name = "Moonstone", chance = 251 },
 	{ name = "Mycological Bow", chance = 150 },
 	{ name = "moonspawn oozecrown soul core", chance = 100 },
 }

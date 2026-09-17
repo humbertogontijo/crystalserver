@@ -79,18 +79,18 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 60000, minCount = 1, maxCount = 100 },
-	{ name = "platinum coin", chance = 45000, minCount = 1, maxCount = 15 },
-	{ name = "sealing wax", chance = 2800 },
+	{ name = "gold coin", chance = 82287, minCount = 1, maxCount = 100 },
+	{ name = "platinum coin", chance = 64679, minCount = 1, maxCount = 15 },
+	{ name = "sealing wax", chance = 7619 },
 	{ name = "silver brooch", chance = 2000 },
-	{ name = "small diamond", chance = 1800, minCount = 1, maxCount = 3 },
-	{ name = "ham", chance = 1600, minCount = 1, maxCount = 2 },
-	{ name = "hydra head", chance = 1400 },
+	{ name = "small diamond", chance = 3103, minCount = 1, maxCount = 3 },
+	{ name = "ham", chance = 3713, minCount = 1, maxCount = 2 },
+	{ name = "hydra head", chance = 2249 },
 	{ name = "onyx chip", chance = 1200 },
 	{ name = "titan axe", chance = 1000 },
 	{ name = "sacred tree amulet", chance = 1000 },
-	{ name = "medusa shield", chance = 1000 },
-	{ name = "gold ingot", chance = 800 },
+	{ name = "medusa shield", chance = 139 },
+	{ name = "gold ingot", chance = 209 },
 }
 
 monster.attacks = {

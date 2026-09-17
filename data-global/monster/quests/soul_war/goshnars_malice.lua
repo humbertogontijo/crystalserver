@@ -73,30 +73,34 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 55000, minCount = 70, maxCount = 75 },
-	{ id = 281, chance = 1150 }, -- giant shimmering pearl (green)
-	{ name = "giant sapphire", chance = 10000, maxCount = 1 },
-	{ name = "giant topaz", chance = 10000, maxCount = 1 },
-	{ name = "violet gem", chance = 6000, maxCount = 1 },
+	{ name = "crystal coin", chance = 100000, minCount = 70, maxCount = 75 },
+	{ id = 281, chance = 29412 }, -- giant shimmering pearl (green)
+	{ name = "giant sapphire", chance = 35294, maxCount = 1 },
+	{ name = "giant topaz", chance = 17647, maxCount = 1 },
+	{ name = "violet gem", chance = 23529, maxCount = 1 },
 	{ name = "blue gem", chance = 10000, maxCount = 3 },
-	{ id = 3039, chance = 10000, maxCount = 3 }, -- red gem
-	{ name = "green gem", chance = 10000, maxCount = 3 },
-	{ name = "yellow gem", chance = 10000, maxCount = 3 },
-	{ name = "white gem", chance = 6000, maxCount = 3 },
-	{ name = "dragon figurine", chance = 10000, maxCount = 1 },
-	{ name = "bullseye potion", chance = 15000, minCount = 10, maxCount = 25 },
-	{ name = "mastermind potion", chance = 15000, minCount = 10, maxCount = 25 },
+	{ id = 3039, chance = 23529, maxCount = 3 }, -- red gem
+	{ name = "green gem", chance = 23529, maxCount = 3 },
+	{ name = "yellow gem", chance = 52941, maxCount = 3 },
+	{ name = "white gem", chance = 11765, maxCount = 3 },
+	{ name = "dragon figurine", chance = 5882, maxCount = 1 },
+	{ name = "bullseye potion", chance = 23529, minCount = 10, maxCount = 25 },
+	{ name = "mastermind potion", chance = 41176, minCount = 10, maxCount = 25 },
 	{ name = "berserk potion", chance = 15000, minCount = 10, maxCount = 25 },
-	{ name = "ultimate mana potion", chance = 18000, minCount = 50, maxCount = 100 },
-	{ name = "supreme health potion", chance = 18000, minCount = 50, maxCount = 100 },
-	{ name = "ultimate spirit potion", chance = 18000, minCount = 50, maxCount = 100 },
-	{ name = "malice's spine", chance = 2000, maxCount = 1 },
-	{ name = "malice's horn", chance = 2000, maxCount = 1 },
-	{ name = "bracelet of strengthening", chance = 400 },
+	{ name = "ultimate mana potion", chance = 82353, minCount = 50, maxCount = 100 },
+	{ name = "supreme health potion", chance = 35294, minCount = 50, maxCount = 100 },
+	{ name = "ultimate spirit potion", chance = 47059, minCount = 50, maxCount = 100 },
+	{ name = "malice's spine", chance = 11765, maxCount = 1 },
+	{ name = "malice's horn", chance = 5882, maxCount = 1 },
+	{ name = "bracelet of strengthening", chance = 5882 },
 	{ name = "spectral horseshoe", chance = 400 },
 	{ name = "the skull of a beast", chance = 400 },
 	{ name = "figurine of malice", chance = 400 },
 	{ name = "bag you desire", chance = 100 },
+	{ name = "giant amethyst", chance = 47059 },
+	{ name = "transcendence potion", chance = 23529, maxCount = 43 },
+	{ name = "gold ingot", chance = 11765 },
+	{ name = "mystic gem", chance = 5882 },
 }
 
 monster.attacks = {

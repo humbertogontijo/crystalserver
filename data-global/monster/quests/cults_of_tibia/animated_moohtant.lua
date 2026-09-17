@@ -66,15 +66,15 @@ monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 195 }, -- gold coin
 	{ id = 3035, chance = 58160, maxCount = 2 }, -- platinum coin
 	{ id = 21200, chance = 2740, maxCount = 2 }, -- moohtant horn
-	{ id = 21199, chance = 1770 }, -- giant pacifier
-	{ id = 239, chance = 7380, maxCount = 3 }, -- great health potion
-	{ id = 238, chance = 7230, maxCount = 3 }, -- great mana potion
-	{ id = 3577, chance = 6520 }, -- meat
-	{ id = 3030, chance = 4680, maxCount = 2 }, -- small ruby
+	{ id = 21199, chance = 26087 }, -- giant pacifier
+	{ id = 239, chance = 13043, maxCount = 3 }, -- great health potion
+	{ id = 238, chance = 21739, maxCount = 3 }, -- great mana potion
+	{ id = 3577, chance = 8696 }, -- meat
+	{ id = 3030, chance = 13043, maxCount = 2 }, -- small ruby
 	{ id = 5878, chance = 4110 }, -- minotaur leather
 	{ id = 3028, chance = 4400, maxCount = 2 }, -- small diamond
-	{ id = 3098, chance = 2410 }, -- ring of healing
-	{ id = 5911, chance = 900 }, -- red piece of cloth
+	{ id = 3098, chance = 8696 }, -- ring of healing
+	{ id = 5911, chance = 4348 }, -- red piece of cloth
 	{ id = 21173, chance = 860 }, -- moohtant cudgel
 	{ id = 3037, chance = 710 }, -- yellow gem
 	{ id = 7452, chance = 430 }, -- spiked squelcher

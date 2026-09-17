@@ -1,15 +1,31 @@
 CreatureInfo = CreatureInfo or {}
 
---- Lookup by bosstiary race id (case-insensitive name fallback via get).
+--- Lookup by bosstiary / bestiary race id.
+--- Ensures ``name`` is present (byCreatureId JSON rows often omit it; load()
+--- usually backfills from byName, but defend here for raceId-only callers).
 function CreatureInfo.getByCreatureId(creatureId)
 	local id = tonumber(creatureId)
 	if not id or id <= 0 then
 		return nil
 	end
-	if CreatureInfo.ByCreatureId then
-		return CreatureInfo.ByCreatureId[id]
+	local info = CreatureInfo.ByCreatureId and CreatureInfo.ByCreatureId[id] or nil
+	if not info then
+		return nil
 	end
-	return nil
+	if type(info.name) ~= "string" or info.name == "" then
+		if CreatureInfo.ByName then
+			for _, entry in pairs(CreatureInfo.ByName) do
+				if tonumber(entry.creatureId) == id and type(entry.name) == "string" and entry.name ~= "" then
+					info.name = entry.name
+					break
+				end
+			end
+		end
+	end
+	if type(info.name) ~= "string" or info.name == "" then
+		return nil
+	end
+	return info
 end
 
 --- Spawn-weighted mean of generated creature combatPower (density not applied).

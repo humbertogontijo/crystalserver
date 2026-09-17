@@ -79,7 +79,7 @@ monster.loot = {
 	{ name = "platinum coin", chance = 65410, maxCount = 8 },
 	{ name = "morning star", chance = 16730 },
 	{ name = "ultimate mana potion", chance = 9820 },
-	{ name = "violet glass plate", chance = 691 },
+	{ name = "violet glass plate", chance = 6430 },
 	{ name = "crystal sword", chance = 4750 },
 	{ name = "terra rod", chance = 4480 },
 	{ name = "small ruby", chance = 4000 },

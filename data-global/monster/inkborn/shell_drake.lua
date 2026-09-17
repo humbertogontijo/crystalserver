@@ -79,17 +79,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 60000, minCount = 1, maxCount = 150 },
-	{ name = "platinum coin", chance = 45000, minCount = 1, maxCount = 8 },
-	{ name = "paper plane", chance = 2800 }, -- new item
+	{ name = "gold coin", chance = 43811, minCount = 1, maxCount = 150 },
+	{ name = "platinum coin", chance = 73485, minCount = 1, maxCount = 8 },
+	{ name = "paper plane", chance = 7524 }, -- new item
 	{ id = 238, chance = 2000 }, -- great mana potion
-	{ name = "small enchanted amethyst", chance = 1800 },
-	{ name = "spiked squelcher", chance = 1600 },
-	{ name = "violet crystal shard", chance = 1500 },
-	{ name = "cave turnip", chance = 1400 },
-	{ name = "prismatic quartz", chance = 1200 },
-	{ name = "blank imbuement scroll", chance = 1200 },
-	{ name = "warrior's shield", chance = 800 },
+	{ name = "small enchanted amethyst", chance = 3453 },
+	{ name = "spiked squelcher", chance = 977 },
+	{ name = "violet crystal shard", chance = 2182 },
+	{ name = "cave turnip", chance = 2866 },
+	{ name = "prismatic quartz", chance = 2150 },
+	{ name = "blank imbuement scroll", chance = 456 },
+	{ name = "warrior's shield", chance = 65 },
 }
 
 monster.attacks = {

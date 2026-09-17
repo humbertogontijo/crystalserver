@@ -67,13 +67,14 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 44000, maxCount = 120 },
-	{ name = "platinum coin", chance = 29000, maxCount = 3 },
-	{ name = "holy ash", chance = 10800 },
+	{ name = "gold coin", chance = 66667, maxCount = 120 },
+	{ name = "platinum coin", chance = 66667, maxCount = 3 },
+	{ name = "holy ash", chance = 100000 },
 	{ name = "great spirit potion", chance = 8750, maxCount = 2 },
 	{ name = "moonlight rod", chance = 8300 },
 	{ name = "spirited soil", chance = 7000 },
-	{ name = "holy orchid", chance = 6000 },
+	{ name = "holy orchid", chance = 100000 },
+	{ name = "reality splinter", chance = 100000 },
 }
 
 monster.attacks = {

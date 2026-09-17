@@ -79,16 +79,16 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 5000, maxCount = 6 },
-	{ name = "small topaz", chance = 1200, maxCount = 5 },
-	{ name = "platinum coin", chance = 3533, maxCount = 7 },
-	{ id = 44736, chance = 4545 }, -- stealth ring
-	{ id = 44737, chance = 4545 }, -- stealth ring
-	{ id = 44738, chance = 4545 }, -- stealth ring
-	{ name = "might ring", chance = 14285 },
-	{ name = "mino shield", chance = 840 },
-	{ name = "dragon hammer", chance = 420 },
-	{ id = 3041, chance = 4545 }, -- stealth ring
+	{ name = "platinum coin", chance = 55563, maxCount = 6 },
+	{ name = "small topaz", chance = 9993, maxCount = 5 },
+	{ name = "platinum coin", chance = 55563, maxCount = 7 },
+	{ id = 44736, chance = 17576 }, -- stealth ring
+	{ id = 44737, chance = 8505 }, -- stealth ring
+	{ id = 44738, chance = 11198 }, -- stealth ring
+	{ name = "might ring", chance = 780 },
+	{ name = "mino shield", chance = 3898 },
+	{ name = "dragon hammer", chance = 1205 },
+	{ id = 3041, chance = 1205 }, -- stealth ring
 }
 
 monster.attacks = {

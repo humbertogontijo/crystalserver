@@ -85,11 +85,11 @@ monster.loot = {
 	{ name = "platinum coin", chance = 49910, maxCount = 3 },
 	{ name = "hydra head", chance = 10820 },
 	{ name = "cucumber", chance = 6900 },
-	{ name = "small sapphire", chance = 3920 },
+	{ name = "small sapphire", chance = 5234 },
 	{ name = "warrior helmet", chance = 1310 },
 	{ name = "knight armor", chance = 1120 },
 	{ name = "life crystal", chance = 930 },
-	{ id = 3098, chance = 840 }, -- ring of healing
+	{ id = 3098, chance = 1379 }, -- ring of healing
 	{ name = "hydra egg", chance = 840 },
 	{ name = "strong mana potion", chance = 840 },
 	{ name = "stone skin amulet", chance = 750 },

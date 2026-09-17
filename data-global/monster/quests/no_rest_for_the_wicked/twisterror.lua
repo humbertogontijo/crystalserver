@@ -79,9 +79,14 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3035, chance = 99000, maxCount = 50 }, -- platinum coin
-	{ id = 49894, chance = 7000, maxCount = 1 }, -- demonic matter
-	{ id = 49891, chance = 1000, maxCount = 1 }, -- skin of twisterror
-	{ id = 50054, chance = 7500, maxCount = 1 }, -- spellreaper staff totem
+	{ id = 49894, chance = 100000, maxCount = 1 }, -- demonic matter
+	{ id = 49891, chance = 6667, maxCount = 1 }, -- skin of twisterror
+	{ id = 50054, chance = 1481, maxCount = 1 }, -- spellreaper staff totem
+	{ name = "blue gem", chance = 26667 },
+	{ name = "demonic core essence", chance = 25185 },
+	{ name = "great mana potion", chance = 10370, maxCount = 3 },
+	{ name = "fire mushroom", chance = 6667 },
+	{ name = "small ruby", chance = 5185, maxCount = 4 },
 }
 
 monster.attacks = {

@@ -76,20 +76,20 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 70000, maxCount = 24 },
+	{ name = "platinum coin", chance = 100000, maxCount = 24 },
 	{ name = "gold ingot", chance = 18430, maxCount = 2 },
 	{ name = "violet crystal shard", chance = 15630, maxCount = 3 },
-	{ name = "lavaworm spike roots", chance = 20310, maxCount = 3 },
-	{ name = "violet gem", chance = 6750 },
+	{ name = "lavaworm spike roots", chance = 7818, maxCount = 3 },
+	{ name = "violet gem", chance = 9107 },
 	{ name = "lavaworm spikes", chance = 4230 },
 	{ name = "green gem", chance = 4130 },
 	{ name = "butterfly ring", chance = 3120 },
-	{ name = "underworld rod", chance = 2920 },
-	{ name = "lavaworm jaws", chance = 2620 },
-	{ name = "blue crystal shard", chance = 2520 },
+	{ name = "underworld rod", chance = 4811 },
+	{ name = "lavaworm jaws", chance = 4124 },
+	{ name = "blue crystal shard", chance = 4811 },
 	{ name = "warrior helmet", chance = 1560 },
-	{ name = "wand of voodoo", chance = 1560 },
-	{ name = "crusader helmet", chance = 1560 },
+	{ name = "wand of voodoo", chance = 2577 },
+	{ name = "crusader helmet", chance = 344 },
 	{ name = "strange helmet", chance = 500 },
 }
 

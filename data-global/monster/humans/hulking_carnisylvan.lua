@@ -73,18 +73,18 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 70000, maxCount = 30 },
+	{ name = "platinum coin", chance = 100000, maxCount = 30 },
 	{ id = 3115, chance = 27670, maxCount = 1 }, -- bone
 	{ name = "great health potion", chance = 14990, maxCount = 4 },
 	{ name = "carnisylvan bark", chance = 12100, maxCount = 1 },
 	{ name = "carnisylvan finger", chance = 10090, maxCount = 2 },
 	{ name = "terra hood", chance = 7200 },
 	{ name = "terra boots", chance = 4900 },
-	{ name = "knight axe", chance = 3460 },
+	{ name = "knight axe", chance = 4675 },
 	{ name = "lightning headband", chance = 3460 },
 	{ name = "dragonbone staff", chance = 5190 },
 	{ name = "diamond sceptre", chance = 4320 },
-	{ name = "epee", chance = 2590 },
+	{ name = "epee", chance = 4082 },
 	{ name = "war hammer", chance = 3750 },
 	{ name = "human teeth", chance = 580 },
 }

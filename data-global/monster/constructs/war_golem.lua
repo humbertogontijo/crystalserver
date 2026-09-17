@@ -86,8 +86,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 3031, chance = 37500, maxCount = 90 }, -- gold coin
-	{ id = 3031, chance = 37500, maxCount = 80 }, -- gold coin
+	{ id = 3031, chance = 99553, maxCount = 90 }, -- gold coin
+	{ id = 3031, chance = 99553, maxCount = 80 }, -- gold coin
 	{ id = 953, chance = 5260, maxCount = 5 }, -- nail
 	{ id = 3265, chance = 5500 }, -- two handed sword
 	{ id = 3410, chance = 9000 }, -- plate shield
@@ -98,7 +98,7 @@ monster.loot = {
 	{ id = 5880, chance = 1920 }, -- iron ore
 	{ id = 7439, chance = 900 }, -- berserk potion
 	{ id = 3326, chance = 6400 }, -- epee
-	{ id = 8895, chance = 260 }, -- rusted armor
+	{ id = 8895, chance = 3501 }, -- rusted armor
 	{ id = 3093, chance = 810 }, -- club ring
 	{ id = 3097, chance = 1210 }, -- dwarven ring
 	{ id = 9067, chance = 130 }, -- crystal of power
@@ -110,6 +110,7 @@ monster.loot = {
 	{ id = 7428, chance = 770 }, -- bonebreaker
 	{ id = 3061, chance = 1000 }, -- life crystal
 	{ id = 12305, chance = 100 }, -- tin key
+	{ name = "war crystal", chance = 8145 },
 }
 
 monster.attacks = {

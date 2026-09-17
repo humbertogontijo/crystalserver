@@ -85,7 +85,7 @@ monster.loot = {
 	{ id = 9058, chance = 390 }, -- gold ingot
 	{ id = 5911, chance = 3230 }, -- red piece of cloth
 	{ id = 5878, chance = 14710 }, -- minotaur leather
-	{ id = 11472, chance = 6580, maxCount = 2 }, -- minotaur horn
+	{ id = 11472, chance = 4924, maxCount = 2 }, -- minotaur horn
 	{ id = 21201, chance = 13160 }, -- execowtioner mask
 	{ id = 239, chance = 11480 }, -- great health potion
 	{ id = 238, chance = 10060 }, -- great mana potion

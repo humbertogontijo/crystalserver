@@ -683,6 +683,9 @@ void Party::showPlayerStatus(const std::shared_ptr<Player> &player, const std::s
 		member->sendPartyCreatureHealth(player, std::ceil((static_cast<double>(player->getHealth()) / std::max<int32_t>(player->getMaxHealth(), 1)) * 100));
 		player->sendPartyPlayerMana(member, std::ceil((static_cast<double>(member->getMana()) / std::max<int32_t>(member->getMaxMana(), 1)) * 100));
 		member->sendPartyPlayerMana(player, std::ceil((static_cast<double>(player->getMana()) / std::max<int32_t>(player->getMaxMana(), 1)) * 100));
+		// Vocation + level for party HUD labels (not every HP/mana tick).
+		player->sendPartyPlayerVocation(member);
+		member->sendPartyPlayerVocation(player);
 	} else {
 		for (const auto &summon : player->getSummons()) {
 			member->sendPartyCreatureShowStatus(summon, showStatus);

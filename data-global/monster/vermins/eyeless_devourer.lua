@@ -73,7 +73,7 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 70000, maxCount = 22 },
+	{ name = "platinum coin", chance = 100000, maxCount = 22 },
 	{ name = "ultimate health potion", chance = 29210, maxCount = 3 },
 	{ name = "eyeless devourer maw", chance = 14680, maxCount = 1 },
 	{ name = "blue crystal shard", chance = 6700, maxCount = 3 },
@@ -85,11 +85,11 @@ monster.loot = {
 	{ name = "sacred tree amulet", chance = 3190 },
 	{ name = "crystal mace", chance = 1840 },
 	{ name = "glacier amulet", chance = 2790 },
-	{ name = "noble axe", chance = 1840 },
-	{ name = "warrior's axe", chance = 1440 },
+	{ name = "noble axe", chance = 1226 },
+	{ name = "warrior's axe", chance = 1974 },
 	{ name = "relic sword", chance = 880 },
 	{ name = "giant sword", chance = 880 },
-	{ name = "mercenary sword", chance = 640 },
+	{ name = "mercenary sword", chance = 1376 },
 	{ name = "war axe", chance = 1360, maxCount = 1 },
 	{ name = "execowtioner axe", chance = 640 },
 	{ name = "ornate crossbow", chance = 1040 },

@@ -77,19 +77,20 @@ monster.loot = {
 	{ id = 239, chance = 36960, maxCount = 3 }, -- great health potion
 	{ id = 3037, chance = 36960 }, -- yellow gem
 	{ id = 7642, chance = 32610, maxCount = 3 }, -- great spirit potion
-	{ id = 238, chance = 30430, maxCount = 3 }, -- great mana potion
+	{ id = 238, chance = 40909, maxCount = 3 }, -- great mana potion
 	{ id = 3039, chance = 23910 }, -- red gem
-	{ id = 10389, chance = 23910 }, -- sai
+	{ id = 10389, chance = 1136 }, -- sai
 	{ id = 3038, chance = 21740 }, -- green gem
 	{ id = 10390, chance = 19570 }, -- zaoan sword
 	{ id = 10384, chance = 15220 }, -- zaoan armor
 	{ id = 3386, chance = 13040 }, -- dragon scale mail
-	{ id = 8052, chance = 10870 }, -- swamplair armor
+	{ id = 8052, chance = 20455 }, -- swamplair armor
 	{ id = 11657, chance = 10870 }, -- twiceslicer
 	{ id = 3041, chance = 8700 }, -- blue gem
-	{ id = 11651, chance = 8700 }, -- elite draken mail
-	{ id = 3032, chance = 8700, maxCount = 8 }, -- small emerald
-	{ id = 12307, chance = 4350 }, -- harness
+	{ id = 11651, chance = 5682 }, -- elite draken mail
+	{ id = 3032, chance = 5682, maxCount = 8 }, -- small emerald
+	{ id = 12307, chance = 2273 }, -- harness
+	{ name = "sai", chance = 21591 },
 }
 
 monster.attacks = {

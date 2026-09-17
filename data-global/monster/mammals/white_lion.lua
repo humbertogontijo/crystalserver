@@ -70,16 +70,16 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 5 },
-	{ name = "great spirit potion", chance = 5000, maxCount = 2 },
-	{ name = "lion's mane", chance = 5000 },
+	{ name = "great spirit potion", chance = 24420, maxCount = 2 },
+	{ name = "lion's mane", chance = 19138 },
 	{ name = "green crystal shard", chance = 5000, maxCount = 2 },
-	{ name = "cyan crystal fragment", chance = 1500 },
+	{ name = "cyan crystal fragment", chance = 4467 },
 	{ name = "green crystal fragment", chance = 1500 },
-	{ name = "terra boots", chance = 5000 },
-	{ name = "axe", chance = 5000 },
-	{ name = "leather boots", chance = 5000 },
-	{ name = "twin hooks", chance = 5000 },
-	{ name = "war hammer", chance = 1500 },
+	{ name = "terra boots", chance = 14978 },
+	{ name = "axe", chance = 15254 },
+	{ name = "leather boots", chance = 14671 },
+	{ name = "twin hooks", chance = 12904 },
+	{ name = "war hammer", chance = 3387 },
 	{ name = "combat knife", chance = 1500 },
 }
 

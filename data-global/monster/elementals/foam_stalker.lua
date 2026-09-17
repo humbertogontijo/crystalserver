@@ -70,25 +70,25 @@ monster.loot = {
 	{ name = "halberd", chance = 11025 },
 	{ name = "strong mana potion", chance = 9728 },
 	{ name = "orichalcum pearl", chance = 9728 },
-	{ name = "spike sword", chance = 8301 },
+	{ name = "spike sword", chance = 6152 },
 	{ name = "combat knife", chance = 7004 },
 	{ name = "flotsam", chance = 6874 },
 	{ name = "white pearl", chance = 6485 },
 	{ id = 3130, chance = 6355 }, -- twigs
 	{ id = 3289, chance = 6355 }, -- staff
-	{ name = "remains of a fish", chance = 5966 },
+	{ name = "remains of a fish", chance = 8926 },
 	{ name = "glacier shoes", chance = 5707 },
 	{ name = "coral branch", chance = 4929 },
 	{ name = "soul orb", chance = 4929 },
-	{ id = 3027, chance = 4669 }, -- black pearl
+	{ id = 3027, chance = 6514 }, -- black pearl
 	{ name = "small diamond", chance = 3891 },
-	{ name = "small emerald", chance = 3243, maxCount = 2 },
+	{ name = "small emerald", chance = 5187, maxCount = 2 },
 	{ id = 281, chance = 2205 }, -- giant shimmering pearl (green)
-	{ name = "terra boots", chance = 5075 },
-	{ name = "mercenary sword", chance = 4167 },
-	{ name = "knight legs", chance = 3649 },
-	{ name = "violet gem", chance = 3389 },
-	{ id = 50152, chance = 560 }, -- collar of orange plasma
+	{ name = "terra boots", chance = 2413 },
+	{ name = "mercenary sword", chance = 724 },
+	{ name = "knight legs", chance = 1930 },
+	{ name = "violet gem", chance = 362 },
+	{ id = 50152, chance = 1086 }, -- collar of orange plasma
 }
 
 monster.attacks = {

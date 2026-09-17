@@ -42,14 +42,14 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 60590, maxCount = 100 },
-	{ name = "platinum coin", chance = 40590, maxCount = 15 },
-	{ name = "small sapphire", chance = 1600, maxCount = 2 },
-	{ name = "paper boat", chance = 2000 }, -- new item
-	{ name = "star ink", chance = 1400 }, -- new item
+	{ name = "gold coin", chance = 81765, maxCount = 100 },
+	{ name = "platinum coin", chance = 62563, maxCount = 15 },
+	{ name = "small sapphire", chance = 7898, maxCount = 2 },
+	{ name = "paper boat", chance = 5439 }, -- new item
+	{ name = "star ink", chance = 8130 }, -- new item
 	{ name = "hailstorm rod", chance = 1000 },
-	{ name = "grapes", chance = 800 },
-	{ name = "blue crystal splinter", chance = 600 },
+	{ name = "grapes", chance = 2033 },
+	{ name = "blue crystal splinter", chance = 1626 },
 	{ name = "glacier amulet", chance = 600 },
 	{ name = "glacier shoes", chance = 600 },
 	{ name = "blue crystal shard", chance = 600 },

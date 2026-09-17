@@ -42,15 +42,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 40590, maxCount = 20 },
-	{ name = "torn page", chance = 5590 }, -- new item
-	{ name = "small topaz", chance = 3030 },
+	{ name = "platinum coin", chance = 62820, maxCount = 20 },
+	{ name = "torn page", chance = 7548 }, -- new item
+	{ name = "small topaz", chance = 6483 },
 	{ name = "great health potion", chance = 2500 },
-	{ id = 281, chance = 1900 },
-	{ name = "knight axe", chance = 1900 },
+	{ id = 281, chance = 3450 },
+	{ name = "knight axe", chance = 3295 },
 	{ name = "ancient shield", chance = 1560 },
-	{ id = 3234, chance = 1540 }, -- cookbook
+	{ id = 3234, chance = 3033 }, -- cookbook
 	{ name = "warrior helmet", chance = 400 },
+	{ name = "gold coin", chance = 84545, maxCount = 100 },
+	{ name = "strong health potion", chance = 5165 },
 }
 
 monster.attacks = {

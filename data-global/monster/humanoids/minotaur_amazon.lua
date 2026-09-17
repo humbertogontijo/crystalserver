@@ -80,17 +80,17 @@ monster.loot = {
 	{ id = 21204, chance = 19830 }, -- cowbell
 	{ id = 3031, chance = 100000, maxCount = 196 }, -- gold coin
 	{ id = 3582, chance = 60780 }, -- ham
-	{ id = 3577, chance = 4920 }, -- meat
+	{ id = 3577, chance = 7038 }, -- meat
 	{ id = 3035, chance = 62080, maxCount = 3 }, -- platinum coin
 	{ id = 9058, chance = 290 }, -- gold ingot
 	{ id = 5878, chance = 17950 }, -- minotaur leather
 	{ id = 239, chance = 7670 }, -- great health potion
 	{ id = 238, chance = 7380 }, -- great mana potion
-	{ id = 11472, chance = 6800, maxCount = 2 }, -- minotaur horn
+	{ id = 11472, chance = 5058, maxCount = 2 }, -- minotaur horn
 	{ id = 3098, chance = 3040 }, -- ring of healing
 	{ id = 3030, chance = 5500, maxCount = 2 }, -- small ruby
-	{ id = 9057, chance = 900, maxCount = 2 }, -- small topaz
-	{ id = 3033, chance = 970, maxCount = 2 }, -- small amethyst
+	{ id = 9057, chance = 5281, maxCount = 2 }, -- small topaz
+	{ id = 3033, chance = 4893, maxCount = 2 }, -- small amethyst
 	{ id = 3032, chance = 4050, maxCount = 2 }, -- small emerald
 	{ id = 21175, chance = 3040 }, -- mino shield
 	{ id = 21174, chance = 1740 }, -- mino lance

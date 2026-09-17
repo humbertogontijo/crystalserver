@@ -71,11 +71,11 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 20000, maxCount = 8 },
-	{ name = "Small Sapphire", chance = 9000, maxCount = 3 },
+	{ name = "Platinum Coin", chance = 89737, maxCount = 8 },
+	{ name = "Small Sapphire", chance = 15155, maxCount = 3 },
 	{ name = "Crystal Coin", chance = 9000 },
-	{ name = "Blue Gem", chance = 4000 },
-	{ name = "Northwind Rod", chance = 4000 },
+	{ name = "Blue Gem", chance = 2864 },
+	{ name = "Northwind Rod", chance = 1909 },
 	{ name = "Ice Shard", chance = 4000 },
 	{ id = 3007, chance = 900 }, -- crystal ring
 	{ name = "Blue Robe", chance = 900 },

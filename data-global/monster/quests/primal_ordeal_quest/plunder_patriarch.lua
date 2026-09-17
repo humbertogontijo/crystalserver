@@ -70,16 +70,16 @@ monster.loot = {
 	{ name = "bullseye potion", chance = 24490, maxCount = 5 },
 	{ name = "berserk potion", chance = 22449, maxCount = 5 },
 	{ name = "mastermind potion", chance = 18367, maxCount = 5 },
-	{ name = "royal almandine", chance = 8322 },
-	{ name = "raw watermelon tourmaline", chance = 7322 },
+	{ name = "royal almandine", chance = 80000 },
+	{ name = "raw watermelon tourmaline", chance = 80000 },
 	{ name = "giant amethyst", chance = 6122 },
 	{ name = "giant ruby", chance = 4082 },
 	{ name = "giant emerald", chance = 4082 },
-	{ name = "giant sapphire", chance = 2041 },
+	{ name = "giant sapphire", chance = 30000 },
 	{ name = "giant topaz", chance = 2041 },
-	{ name = "amber with a bug", chance = 2450 },
-	{ name = "amber with a dragonfly", chance = 2150 },
-	{ name = "arboreal tome", chance = 100 },
+	{ name = "amber with a bug", chance = 30000 },
+	{ name = "amber with a dragonfly", chance = 20000 },
+	{ name = "arboreal tome", chance = 20000 },
 	{ name = "arboreal crown", chance = 100 },
 	{ name = "spiritthorn armor", id = 39147, chance = 100 },
 	{ name = "spiritthorn helmet", id = 39148, chance = 100 },
@@ -89,7 +89,7 @@ monster.loot = {
 	{ name = "arcanomancer folio", chance = 100 },
 	{ name = "ethereal coned hat", chance = 100 },
 	{ id = 50147, chance = 100 },
-	{ id = 39183, chance = 100 }, -- name = "charged arcanomancer sigil"
+	{ id = 39183, chance = 10000 }, -- name = "charged arcanomancer sigil"
 	{ id = 39186, chance = 100 }, -- name = "charged arboreal ring"
 	{ id = 39180, chance = 100 }, -- name = "charged alicorn ring"
 	{ id = 39177, chance = 100 }, -- name = "charged spiritthorn ring"

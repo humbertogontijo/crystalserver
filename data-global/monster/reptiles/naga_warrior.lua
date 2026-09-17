@@ -80,7 +80,7 @@ monster.loot = {
 	{ name = "naga warrior scales", chance = 10600, maxCount = 3 },
 	{ name = "naga earring", chance = 6420, maxCount = 3 },
 	{ id = 3307, chance = 5520 }, -- scimitar
-	{ name = "naga armring", chance = 3730 },
+	{ name = "naga armring", chance = 2744 },
 	{ name = "plate armor", chance = 2990 },
 	{ name = "spiky club", chance = 2090 },
 	{ name = "serpent sword", chance = 1940 },

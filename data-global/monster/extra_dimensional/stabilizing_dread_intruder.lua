@@ -78,7 +78,7 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 100 }, -- gold coin
-	{ id = 3035, chance = 20000, maxCount = 5 }, -- platinum coin
+	{ id = 3035, chance = 86510, maxCount = 5 }, -- platinum coin
 	{ id = 23535, chance = 12200 }, -- energy bar
 	{ id = 238, chance = 10800 }, -- great mana potion
 	{ id = 23513, chance = 9800 }, -- strange proto matter
@@ -92,7 +92,7 @@ monster.loot = {
 	{ id = 3029, chance = 4400, maxCount = 2 }, -- small sapphire
 	{ id = 16120, chance = 4200 }, -- violet crystal shard
 	{ id = 3030, chance = 3400, maxCount = 2 }, -- small ruby
-	{ id = 16125, chance = 3300 }, -- cyan crystal fragment
+	{ id = 16125, chance = 5312 }, -- cyan crystal fragment
 }
 
 monster.attacks = {

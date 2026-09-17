@@ -73,34 +73,34 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 28570, chance = 10000 }, -- glowing rune
-	{ name = "great spirit potion", chance = 10000, maxCount = 3 },
-	{ name = "fire mushroom", chance = 10000, maxCount = 6 },
-	{ name = "small amethyst", chance = 90000, maxCount = 5 },
+	{ id = 28570, chance = 18910 }, -- glowing rune
+	{ name = "great spirit potion", chance = 18671, maxCount = 3 },
+	{ name = "fire mushroom", chance = 15052, maxCount = 6 },
+	{ name = "small amethyst", chance = 7470, maxCount = 5 },
 	{ name = "slime heart", chance = 3000 },
-	{ name = "piece of dead brain", chance = 4900 },
+	{ name = "piece of dead brain", chance = 1098 },
 	{ name = "platinum coin", chance = 100000, maxCount = 6 },
-	{ name = "ultimate health potion", chance = 10000, maxCount = 3 },
-	{ name = "small topaz", chance = 90000, maxCount = 5 },
-	{ name = "small emerald", chance = 90000, maxCount = 5 },
-	{ id = 3039, chance = 9800, maxCount = 5 }, -- red gem
-	{ name = "orb", chance = 66000, maxCount = 5 },
-	{ name = "purple tome", chance = 6333 },
-	{ id = 238, chance = 10000, maxCount = 3 }, -- great mana potion
-	{ name = "demonic essence", chance = 4300 },
+	{ name = "ultimate health potion", chance = 30257, maxCount = 3 },
+	{ name = "small topaz", chance = 7709, maxCount = 5 },
+	{ name = "small emerald", chance = 7692, maxCount = 5 },
+	{ id = 3039, chance = 2215, maxCount = 5 }, -- red gem
+	{ name = "orb", chance = 2147, maxCount = 5 },
+	{ name = "purple tome", chance = 1042 },
+	{ id = 238, chance = 19278, maxCount = 3 }, -- great mana potion
+	{ name = "demonic essence", chance = 7341 },
 	{ id = 28568, chance = 10000 }, -- inkwell
-	{ name = "small ruby", chance = 90000, maxCount = 5 },
-	{ name = "talon", chance = 8990 },
-	{ name = "might ring", chance = 4990 },
-	{ name = "devil helmet", chance = 6990 },
-	{ name = "demonrage sword", chance = 400 },
+	{ name = "small ruby", chance = 7376, maxCount = 5 },
+	{ name = "talon", chance = 2589 },
+	{ name = "might ring", chance = 1784 },
+	{ name = "devil helmet", chance = 845 },
+	{ name = "demonrage sword", chance = 1454 },
 	{ id = 7393, chance = 390 }, -- demon trophy
-	{ name = "giant sword", chance = 250 },
-	{ name = "demon shield", chance = 250 },
+	{ name = "giant sword", chance = 2205 },
+	{ name = "demon shield", chance = 2079 },
 	{ name = "magic plate armor", chance = 150 },
-	{ name = "platinum amulet", chance = 350 },
+	{ name = "platinum amulet", chance = 2037 },
 	{ name = "wand of everblazing", chance = 300 },
-	{ name = "fire axe", chance = 500 },
+	{ name = "fire axe", chance = 6002 },
 }
 
 monster.attacks = {

@@ -80,24 +80,24 @@ monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "gold coin", chance = 100000, maxCount = 98 },
 	{ name = "platinum coin", chance = 95000, maxCount = 7 },
-	{ id = 3053, chance = 1000 }, -- time ring
-	{ name = "tower shield", chance = 620 },
-	{ name = "titan axe", chance = 1540 },
+	{ id = 3053, chance = 1639 }, -- time ring
+	{ name = "tower shield", chance = 1639 },
+	{ name = "titan axe", chance = 4918 },
 	{ name = "bonebreaker", chance = 1150 },
-	{ name = "strong health potion", chance = 14285, maxCount = 2 },
+	{ name = "strong health potion", chance = 8197, maxCount = 2 },
 	{ name = "strong mana potion", chance = 15000, maxCount = 2 },
 	{ id = 238, chance = 15920, maxCount = 2 }, -- great mana potion
-	{ name = "great health potion", chance = 15000, maxCount = 2 },
+	{ name = "great health potion", chance = 21311, maxCount = 2 },
 	{ name = "mana potion", chance = 14285, maxCount = 3 },
 	{ name = "terra boots", chance = 2850 },
 	{ name = "crystalline armor", chance = 230 },
 	{ name = "battle stone", chance = 12460 },
-	{ id = 12600, chance = 6000 }, -- coal
+	{ id = 12600, chance = 8197 }, -- coal
 	{ name = "green crystal splinter", chance = 3920, maxCount = 2 },
 	{ name = "green crystal fragment", chance = 5690, maxCount = 2 },
 	{ name = "crystalline spikes", chance = 14540 },
-	{ name = "drill bolt", chance = 7692, maxCount = 5 },
-	{ name = "envenomed arrow", chance = 10230, maxCount = 10 },
+	{ name = "drill bolt", chance = 13115, maxCount = 5 },
+	{ name = "envenomed arrow", chance = 4918, maxCount = 10 },
 	{ name = "jade conical hat", chance = 1000 },
 }
 

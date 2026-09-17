@@ -79,12 +79,12 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 161 },
-	{ name = "platinum coin", chance = 52380, maxCount = 3 },
-	{ name = "wyrm scale", chance = 33330 },
-	{ name = "dragon ham", chance = 23810, maxCount = 2 },
+	{ name = "platinum coin", chance = 25444, maxCount = 3 },
+	{ name = "wyrm scale", chance = 17601 },
+	{ name = "dragon ham", chance = 34115, maxCount = 2 },
 	{ name = "strong health potion", chance = 23810 },
 	{ name = "strong mana potion", chance = 19050 },
-	{ name = "crossbow", chance = 14290 },
+	{ name = "crossbow", chance = 8487 },
 	{ name = "small diamond", chance = 4760 },
 	{ name = "soul orb", chance = 4760 },
 	{ name = "wand of draconia", chance = 1510 },

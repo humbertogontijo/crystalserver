@@ -70,7 +70,7 @@ monster.loot = {
 	{ id = 7643, chance = 100000, minCount = 1, maxCount = 5 }, -- ultimate health potion
 	{ id = 9058, chance = 11540 }, -- gold ingot
 	{ id = 24392, chance = 8790 }, -- gemmed figurine
-	{ id = 34102, chance = 8240 }, -- yirkas' egg
+	{ id = 34102, chance = 100000 }, -- yirkas' egg
 	{ id = 31340, chance = 6590 }, -- lizard heart
 	{ id = 3038, chance = 3850 }, -- green gem
 	{ id = 3041, chance = 3300 }, -- blue gem

@@ -77,12 +77,12 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
-	{ name = "gold coin", chance = 50000, maxCount = 30 },
-	{ name = "scarab coin", chance = 4166 },
-	{ name = "daramian waraxe", chance = 1170 },
+	{ name = "gold coin", chance = 93902, maxCount = 100 },
+	{ name = "gold coin", chance = 93902, maxCount = 30 },
+	{ name = "scarab coin", chance = 6707 },
+	{ name = "daramian waraxe", chance = 610 },
 	{ name = "grave flower", chance = 70000 },
-	{ id = 6299, chance = 1754 }, -- death ring
+	{ id = 6299, chance = 4268 }, -- death ring
 	{ name = "health potion", chance = 20000 },
 	{ name = "mana potion", chance = 20000 },
 }

@@ -73,9 +73,9 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 9 },
-	{ id = 3039, chance = 65000, maxCount = 2 }, -- red gem
+	{ id = 3039, chance = 87755, maxCount = 2 }, -- red gem
 	{ name = "green crystal shard", chance = 16000 },
-	{ name = "sea horse figurine", chance = 2400 },
+	{ name = "sea horse figurine", chance = 8163 },
 	{ name = "winged boots", chance = 120 },
 	{ name = "small sapphire", chance = 48000, maxCount = 3 },
 	{ name = "stone skin amulet", chance = 54000 },

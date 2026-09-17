@@ -76,26 +76,26 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 70000, maxCount = 24 },
+	{ name = "platinum coin", chance = 100000, maxCount = 24 },
 	{ name = "gold ingot", chance = 11820, maxCount = 2 },
-	{ id = 3039, chance = 14550, maxCount = 1 }, -- red gem
+	{ id = 3039, chance = 9478, maxCount = 1 }, -- red gem
 	{ name = "violet crystal shard", chance = 6360, maxCount = 3 },
 	{ name = "green crystal shard", chance = 5450 },
 	{ name = "blue crystal shard", chance = 5450 },
 	{ name = "tremendous tyrant shell", chance = 4550 },
-	{ name = "yellow gem", chance = 9090, maxCount = 1 },
-	{ name = "spellbook of warding", chance = 8180 },
-	{ name = "wand of starstorm", chance = 910 },
-	{ name = "ice rapier", chance = 1820 },
+	{ name = "yellow gem", chance = 4992, maxCount = 1 },
+	{ name = "spellbook of warding", chance = 5048 },
+	{ name = "wand of starstorm", chance = 3253 },
+	{ name = "ice rapier", chance = 3926 },
 	{ name = "hailstorm rod", chance = 2730 },
 	{ name = "knight axe", chance = 4550 },
 	{ name = "dragonbone staff", chance = 3640 },
-	{ name = "tremendous tyrant head", chance = 8180 },
+	{ name = "tremendous tyrant head", chance = 3365 },
 	{ name = "wand of cosmic energy", chance = 2730 },
-	{ name = "warrior's shield", chance = 1820 },
-	{ name = "elven amulet", chance = 2730 },
+	{ name = "warrior's shield", chance = 2524 },
+	{ name = "elven amulet", chance = 1963 },
 	{ name = "focus cape", chance = 1820 },
-	{ name = "glacier robe", chance = 4555 },
+	{ name = "glacier robe", chance = 2524 },
 }
 
 monster.attacks = {

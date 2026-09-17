@@ -80,17 +80,17 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 60000, minCount = 1, maxCount = 20 },
-	{ name = "green crystal splinter", chance = 2800 },
-	{ name = "heart amphora", chance = 2500 }, -- new item
+	{ name = "green crystal splinter", chance = 4637 },
+	{ name = "heart amphora", chance = 6182 }, -- new item
 	{ name = "vampire teeth", chance = 2000 },
-	{ name = "brown crystal splinter", chance = 1800 },
-	{ name = "blue crystal splinter", chance = 1600 },
-	{ name = "pot of orcish warpaint", chance = 1500 }, -- new item
+	{ name = "brown crystal splinter", chance = 3555 },
+	{ name = "blue crystal splinter", chance = 4740 },
+	{ name = "pot of orcish warpaint", chance = 4534 }, -- new item
 	{ name = "war axe", chance = 1400 },
-	{ name = "chaos mace", chance = 1200 },
-	{ name = "greater garlic necklace", chance = 1200 }, -- new item
+	{ name = "chaos mace", chance = 567 },
+	{ name = "greater garlic necklace", chance = 618 }, -- new item
 	{ id = 51487, chance = 800 }, -- norcferatu talisman
-	{ name = "vampire shield", chance = 800 },
+	{ name = "vampire shield", chance = 206 },
 }
 
 monster.attacks = {

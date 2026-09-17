@@ -96,9 +96,9 @@ monster.loot = {
 	{ id = 3449, chance = 8060, maxCount = 10 }, -- burst arrow
 	{ name = "longsword", chance = 3830 },
 	{ name = "steel helmet", chance = 3490 },
-	{ name = "broadsword", chance = 2700 },
+	{ name = "broadsword", chance = 1709 },
 	{ name = "plate legs", chance = 2029 },
-	{ name = "double axe", chance = 1580 },
+	{ name = "double axe", chance = 1052 },
 	{ name = "strong health potion", chance = 1130 },
 	{ name = "green dragon leather", chance = 1070 },
 	{ name = "green dragon scale", chance = 1010 },

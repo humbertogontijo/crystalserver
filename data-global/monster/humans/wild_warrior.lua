@@ -77,9 +77,9 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 2991, chance = 520 }, -- doll
-	{ name = "gold coin", chance = 49070, maxCount = 30 },
-	{ name = "axe", chance = 30710 },
-	{ name = "mace", chance = 9800 },
+	{ name = "gold coin", chance = 65700, maxCount = 30 },
+	{ name = "axe", chance = 20970 },
+	{ name = "mace", chance = 13292 },
 	{ name = "chain helmet", chance = 5250 },
 	{ name = "iron helmet", chance = 580 },
 	{ name = "brass armor", chance = 2540 },

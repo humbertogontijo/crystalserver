@@ -79,19 +79,19 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 2920, chance = 6680 }, -- torch
-	{ name = "gold coin", chance = 8240, maxCount = 30 },
+	{ id = 2920, chance = 60679 }, -- torch
+	{ name = "gold coin", chance = 74729, maxCount = 30 },
 	{ id = 3052, chance = 300 }, -- life ring
 	{ id = 3114, chance = 3000 }, -- skull
-	{ name = "knife", chance = 1067 },
-	{ name = "brass helmet", chance = 2200 },
-	{ name = "viking helmet", chance = 860 },
-	{ name = "scale armor", chance = 440 },
+	{ name = "knife", chance = 14910 },
+	{ name = "brass helmet", chance = 20249 },
+	{ name = "viking helmet", chance = 7805 },
+	{ name = "scale armor", chance = 4118 },
 	{ name = "brown piece of cloth", chance = 500 },
 	{ name = "crystal sword", chance = 100 },
 	{ name = "fur boots", chance = 100 },
 	{ name = "ragnir helmet", chance = 100 },
-	{ name = "health potion", chance = 100 },
+	{ name = "health potion", chance = 769 },
 }
 
 monster.attacks = {

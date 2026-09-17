@@ -85,7 +85,7 @@ monster.loot = {
 	{ name = "onyx arrow", chance = 14000, maxCount = 15 },
 	{ id = 3039, chance = 7500, maxCount = 3 }, -- red gem
 	{ name = "green gem", chance = 4880 },
-	{ name = "violet gem", chance = 4180 },
+	{ name = "violet gem", chance = 5963 },
 	{ id = 282, chance = 2260 }, -- giant shimmering pearl (brown)
 	{ name = "damaged armor plates", chance = 1120 },
 	{ name = "falcon crest", chance = 730 },

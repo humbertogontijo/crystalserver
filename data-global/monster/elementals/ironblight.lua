@@ -93,7 +93,7 @@ monster.loot = {
 	{ name = "composite hornbow", chance = 210 },
 	{ name = "springsprout rod", chance = 1720 },
 	{ name = "crystal of balance", chance = 4480 },
-	{ name = "crystal of power", chance = 2480 },
+	{ name = "crystal of power", chance = 1644 },
 	{ name = "war crystal", chance = 21230 },
 	{ name = "shiny stone", chance = 15230 },
 	{ name = "jade hat", chance = 210 },

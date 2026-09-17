@@ -79,17 +79,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 60000, minCount = 1, maxCount = 30 },
-	{ name = "orcish axe", chance = 2800 },
-	{ name = "orcish toothbrush", chance = 2600 }, -- new item
-	{ name = "bone fibula", chance = 2400 }, -- new item
-	{ name = "green gem", chance = 2200 },
-	{ name = "vampire teeth", chance = 2000 },
-	{ name = "green crystal shard", chance = 1800 },
-	{ name = "bone toothpick", chance = 1600 },
-	{ name = "bloodshot giant eye", chance = 1600 }, -- new item
-	{ name = "war drum", chance = 1400 },
-	{ name = "stone skin amulet", chance = 1200 },
+	{ name = "platinum coin", chance = 80916, minCount = 1, maxCount = 30 },
+	{ name = "orcish axe", chance = 8661 },
+	{ name = "orcish toothbrush", chance = 8207 }, -- new item
+	{ name = "bone fibula", chance = 5841 }, -- new item
+	{ name = "green gem", chance = 3374 },
+	{ name = "vampire teeth", chance = 1309 },
+	{ name = "green crystal shard", chance = 4028 },
+	{ name = "bone toothpick", chance = 4733 },
+	{ name = "bloodshot giant eye", chance = 4683 }, -- new item
+	{ name = "war drum", chance = 403 },
+	{ name = "stone skin amulet", chance = 453 },
 	{ name = "berserk potion", chance = 800 },
 	{ id = 51487, chance = 800 }, -- norcferatu talisman
 }

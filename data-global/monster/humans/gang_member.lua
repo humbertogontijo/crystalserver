@@ -82,6 +82,8 @@ monster.loot = {
 	{ id = 3093, chance = 740 }, -- club ring
 	{ name = "studded legs", chance = 5220 },
 	{ name = "leather legs", chance = 15330 },
+	{ name = "mace", chance = 9581 },
+	{ name = "brown bread", chance = 5375 },
 }
 
 monster.attacks = {

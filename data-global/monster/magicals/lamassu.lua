@@ -84,13 +84,15 @@ monster.loot = {
 	{ name = "red crystal fragment", chance = 10500 },
 	{ name = "terra amulet", chance = 10000 },
 	{ name = "lamassu hoof", chance = 7700 },
-	{ name = "violet crystal shard", chance = 6800 },
-	{ name = "blue crystal shard", chance = 6500 },
-	{ id = 3039, chance = 6200 }, -- red gem
+	{ name = "violet crystal shard", chance = 10829 },
+	{ name = "blue crystal shard", chance = 10522 },
+	{ id = 3039, chance = 17281 }, -- red gem
 	{ name = "terra hood", chance = 5900 },
 	{ name = "sacred tree amulet", chance = 2300 },
 	{ name = "elven amulet", chance = 2000 },
 	{ name = "violet gem", chance = 1700 },
+	{ name = "opal", chance = 6810 },
+	{ name = "small emerald", chance = 5351 },
 }
 
 monster.attacks = {

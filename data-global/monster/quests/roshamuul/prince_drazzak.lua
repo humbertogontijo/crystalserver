@@ -89,9 +89,19 @@ monster.loot = {
 	{ id = 7417, chance = 2500, unique = true }, -- runed sword
 	{ id = 20276, chance = 7000, unique = true }, -- dream warden mask
 	{ id = 7418, chance = 1000 }, -- nightmare blade
-	{ id = 820, chance = 1000 }, -- lightning boots
+	{ id = 820, chance = 50000 }, -- lightning boots
 	{ id = 281, chance = 5000 }, -- giant shimmering pearl (green)
 	{ id = 282, chance = 5000 }, -- giant shimmering pearl (brown)
+	{ name = "blue crystal shard", chance = 50000, maxCount = 3 },
+	{ name = "cyan crystal fragment", chance = 50000, maxCount = 4 },
+	{ name = "demonbone", chance = 50000 },
+	{ name = "gold coin", chance = 50000, maxCount = 120 },
+	{ name = "green crystal shard", chance = 50000, maxCount = 5 },
+	{ name = "green gem", chance = 50000 },
+	{ name = "lightning robe", chance = 50000 },
+	{ name = "nightmare hook", chance = 50000 },
+	{ name = "red crystal fragment", chance = 50000, maxCount = 5 },
+	{ id = 3098, chance = 50000 }, -- ring of healing
 }
 
 monster.attacks = {

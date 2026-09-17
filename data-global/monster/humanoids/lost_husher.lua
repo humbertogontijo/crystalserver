@@ -77,7 +77,7 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
+	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "platinum coin", chance = 58670, maxCount = 2 },
 	{ name = "fire axe", chance = 330 },
 	{ name = "skull staff", chance = 280 },
@@ -92,13 +92,17 @@ monster.loot = {
 	{ name = "small topaz", chance = 9780 },
 	{ name = "clay lump", chance = 500 },
 	{ id = 12600, chance = 10930 }, -- coal
-	{ name = "buckle", chance = 8180 },
+	{ name = "buckle", chance = 742 },
 	{ name = "buckle", chance = 770 },
 	{ name = "bonecarving knife", chance = 8510 },
-	{ name = "wimp tooth chain", chance = 8950 },
-	{ name = "skull shatterer", chance = 12320 },
-	{ name = "red hair dye", chance = 8510 },
+	{ name = "wimp tooth chain", chance = 12054 },
+	{ name = "skull shatterer", chance = 8984 },
+	{ name = "red hair dye", chance = 15247 },
 	{ name = "basalt figurine", chance = 8560 },
+	{ name = "holy ash", chance = 11613 },
+	{ name = "lost husher's staff", chance = 9139 },
+	{ name = "bone fetish", chance = 7492 },
+	{ name = "basalt fetish", chance = 5907 },
 }
 
 monster.attacks = {

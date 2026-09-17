@@ -83,14 +83,14 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
-	{ name = "gold coin", chance = 50000, maxCount = 55 },
+	{ name = "gold coin", chance = 97253, maxCount = 100 },
+	{ name = "gold coin", chance = 97253, maxCount = 55 },
 	{ name = "platinum coin", chance = 2564, maxCount = 3 },
 	{ name = "boots of haste", chance = 337 },
 	{ name = "war axe", chance = 95 },
 	{ name = "knight legs", chance = 961 },
 	{ name = "ancient shield", chance = 990 },
-	{ name = "power bolt", chance = 9090, maxCount = 4 },
+	{ name = "power bolt", chance = 1136, maxCount = 4 },
 	{ name = "ham", chance = 29000, maxCount = 2 },
 	{ name = "mysterious voodoo skull", chance = 123 },
 	{ name = "soul orb", chance = 20000 },

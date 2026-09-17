@@ -80,17 +80,18 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 60590, maxCount = 100 },
-	{ name = "platinum coin", chance = 40590, maxCount = 25 },
+	{ name = "platinum coin", chance = 74166, maxCount = 25 },
 	{ name = "chain leash", chance = 5590 }, -- new item
-	{ name = "black pearl", chance = 3030 },
-	{ name = "piece of frozen night", chance = 2500 }, -- new item
-	{ id = 3039, chance = 1500 }, -- red gem
-	{ name = "black shield", chance = 1400 },
-	{ name = "bat wing", chance = 1560, maxCount = 3 },
-	{ name = "stone skin amulet", chance = 1540 },
+	{ name = "black pearl", chance = 4904 },
+	{ name = "piece of frozen night", chance = 7836 }, -- new item
+	{ id = 3039, chance = 2376 }, -- red gem
+	{ name = "black shield", chance = 2477 },
+	{ name = "bat wing", chance = 2629, maxCount = 3 },
+	{ name = "stone skin amulet", chance = 556 },
 	{ name = "batwing hat", chance = 1000 },
-	{ id = 51470, chance = 1000 }, -- tiny bat coffin
+	{ id = 51470, chance = 354 }, -- tiny bat coffin
 	{ id = 51487, chance = 800 }, -- new item // norcferatu talisman
+	{ name = "onyx chip", chance = 5410, maxCount = 2 },
 }
 
 monster.attacks = {

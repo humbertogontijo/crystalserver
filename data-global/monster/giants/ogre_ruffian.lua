@@ -77,16 +77,19 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 3 },
+	{ name = "platinum coin", chance = 74563, maxCount = 3 },
 	{ name = "ogre ear stud", chance = 17270 },
 	{ name = "ogre nose ring", chance = 15830 },
-	{ name = "pair of iron fists", chance = 2200 },
-	{ name = "meat", chance = 8630, maxCount = 5 },
+	{ name = "pair of iron fists", chance = 1638 },
+	{ name = "meat", chance = 15284, maxCount = 5 },
 	{ name = "diamond sceptre", chance = 5760 },
-	{ name = "war hammer", chance = 2160 },
+	{ name = "war hammer", chance = 2948 },
 	{ name = "metal spats", chance = 1440 },
-	{ name = "skull fetish", chance = 1440 },
-	{ name = "stone skin amulet", chance = 4320 },
+	{ name = "skull fetish", chance = 3384 },
+	{ name = "stone skin amulet", chance = 873 },
+	{ name = "small sapphire", chance = 18668, maxCount = 2 },
+	{ name = "cyan crystal fragment", chance = 7096 },
+	{ name = "small emerald", chance = 5568 },
 }
 
 monster.attacks = {

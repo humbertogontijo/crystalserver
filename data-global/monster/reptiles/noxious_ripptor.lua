@@ -81,7 +81,7 @@ monster.loot = {
 	{ name = "Ripptor Claw", chance = 8280, minCount = 1, maxCount = 2 },
 	{ name = "Serpent Sword", chance = 1440 },
 	{ name = "Sacred Tree Amulet", chance = 1360 },
-	{ name = "Muck Rod", chance = 1290 },
+	{ name = "Muck Rod", chance = 619 },
 	{ name = "Terra Legs", chance = 750 },
 	{ name = "Wooden Spellbook", chance = 450 },
 }

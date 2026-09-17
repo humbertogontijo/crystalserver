@@ -79,7 +79,10 @@ monster.voices = {
 	{ text = "I'll take you into the darkness ... forever!", yell = false },
 }
 
-monster.loot = {}
+monster.loot = {
+	{ name = "heavy metal t-shirt", chance = 60000 },
+	{ name = "club of the fury", chance = 40000 },
+}
 
 monster.attacks = {
 	{ name = "melee", interval = 1200, chance = 100, minDamage = 0, maxDamage = -120 },

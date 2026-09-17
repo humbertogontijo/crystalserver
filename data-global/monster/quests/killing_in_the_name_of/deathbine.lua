@@ -67,13 +67,13 @@ monster.loot = {
 	{ id = 3035, chance = 100000, maxCount = 5 }, -- platinum coin
 	{ id = 3740, chance = 100000 }, -- shadow herb
 	{ id = 3032, chance = 100000, maxCount = 4 }, -- small emerald
-	{ id = 3728, chance = 50000 }, -- dark mushroom
-	{ id = 647, chance = 50000 }, -- seeds
+	{ id = 3728, chance = 80000 }, -- dark mushroom
+	{ id = 647, chance = 77647 }, -- seeds
 	{ id = 814, chance = 50000 }, -- terra amulet
 	{ id = 813, chance = 50000 }, -- terra boots
 	{ id = 8084, chance = 50000 }, -- springsprout rod
-	{ id = 5014, chance = 5555 }, -- mandrake
-	{ id = 12320, chance = 2854 }, -- sweet smelling bait
+	{ id = 5014, chance = 2941 }, -- mandrake
+	{ id = 12320, chance = 4706 }, -- sweet smelling bait
 }
 
 monster.attacks = {

@@ -79,17 +79,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 26500, maxCount = 40 },
-	{ name = "Demonic Core Essence", chance = 1000, maxCount = 1 },
-	{ name = "Blue Crystal Splinter", chance = 24500, maxCount = 2 },
-	{ name = "Mummified Demon Finger", chance = 500, maxCount = 1 },
-	{ name = "Demonic Matter", chance = 1000, maxCount = 1 },
-	{ name = "Magma Legs", chance = 2000, maxCount = 1 },
-	{ name = "Arbalest", chance = 1500, maxCount = 1 },
-	{ name = "Drill Bolt", chance = 24500, maxCount = 25 },
-	{ name = "Power Bolt", chance = 24500, maxCount = 35 },
-	{ name = "Onyx Chip", chance = 24500, maxCount = 5 },
-	{ name = "Broodrider Saddle", chance = 24500, maxCount = 1 },
+	{ name = "Platinum Coin", chance = 100000, maxCount = 40 },
+	{ name = "Demonic Core Essence", chance = 2667, maxCount = 1 },
+	{ name = "Blue Crystal Splinter", chance = 5225, maxCount = 2 },
+	{ name = "Mummified Demon Finger", chance = 1016, maxCount = 1 },
+	{ name = "Demonic Matter", chance = 457, maxCount = 1 },
+	{ name = "Magma Legs", chance = 816, maxCount = 1 },
+	{ name = "Arbalest", chance = 46, maxCount = 1 },
+	{ name = "Drill Bolt", chance = 2901, maxCount = 25 },
+	{ name = "Power Bolt", chance = 2936, maxCount = 35 },
+	{ name = "Onyx Chip", chance = 5044, maxCount = 5 },
+	{ name = "Broodrider Saddle", chance = 1869, maxCount = 1 },
 	{ name = "broodrider inferniarch soul core", chance = 100 },
 }
 

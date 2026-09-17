@@ -3883,6 +3883,8 @@ void Player::addExperience(const std::shared_ptr<Creature> &target, uint64_t exp
 
 		if (m_party) {
 			m_party->updateSharedExperience();
+			// Refresh party HUD vocation+level (type 13 now carries level).
+			m_party->updatePlayerVocation(static_self_cast<Player>());
 		}
 
 		g_creatureEvents().playerAdvance(static_self_cast<Player>(), SKILL_LEVEL, prevLevel, level);
@@ -3974,6 +3976,8 @@ void Player::removeExperience(uint64_t exp, bool sendText /* = false*/) {
 
 		if (m_party) {
 			m_party->updateSharedExperience();
+			// Refresh party HUD vocation+level after level loss.
+			m_party->updatePlayerVocation(static_self_cast<Player>());
 		}
 
 		if (level < oldLevel && g_configManager().getBoolean(TOGGLE_WHEELSYSTEM)) {

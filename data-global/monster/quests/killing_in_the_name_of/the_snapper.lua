@@ -68,8 +68,9 @@ monster.loot = {
 	{ id = 3032, chance = 75000, maxCount = 4 }, -- small emerald
 	{ id = 3557, chance = 44000 }, -- plate legs
 	{ id = 3357, chance = 39800 }, -- plate armor
-	{ id = 3556, chance = 6000 }, -- crocodile boots
-	{ id = 3370, chance = 400 }, -- knight armor
+	{ id = 3556, chance = 9816 }, -- crocodile boots
+	{ id = 3370, chance = 3681 }, -- knight armor
+	{ id = 3052, chance = 99387 }, -- life ring
 }
 
 monster.attacks = {

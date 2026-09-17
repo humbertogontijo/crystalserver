@@ -74,11 +74,11 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "crystal coin", chance = 96080, maxCount = 2 },
-	{ name = "white gem", chance = 52940, maxCount = 2 },
+	{ name = "white gem", chance = 24242, maxCount = 2 },
 	{ name = "moonstone", chance = 52940, maxCount = 2 },
 	{ name = "ultimate mana potion", chance = 43140, maxCount = 6 },
 	{ name = "supreme health potion", chance = 29410, maxCount = 6 },
-	{ name = "silver hand mirror", chance = 27450 },
+	{ name = "silver hand mirror", chance = 14141 },
 	{ name = "berserk potion", chance = 23530, maxCount = 10 },
 	{ name = "ultimate spirit potion", chance = 23530, maxCount = 6 },
 	{ name = "bullseye potion", chance = 19610, maxCount = 10 },
@@ -86,24 +86,25 @@ monster.loot = {
 	{ name = "death toll", chance = 13730, maxCount = 2 },
 	{ name = "ivory comb", chance = 13730 },
 	{ name = "angel figurine", chance = 11760 },
-	{ name = "diamond", chance = 11760 },
-	{ name = "cursed bone", chance = 7840 },
+	{ name = "diamond", chance = 44444 },
+	{ name = "cursed bone", chance = 19192 },
 	{ name = "soulforged lantern", chance = 7840 },
 	{ name = "grimace", chance = 5880 },
 	{ name = "amber", chance = 5880 },
-	{ name = "amber with a dragonfly", chance = 3920 },
+	{ name = "amber with a dragonfly", chance = 6061 },
 	{ name = "ghost claw", chance = 1960 },
 	{ name = "bloody tears", chance = 1500 },
 	{ name = "ghost chestplate", chance = 150 },
 	{ name = "spooky hood", chance = 150 },
-	{ name = "pale worm's scalp", chance = 1200 },
-	{ name = "spectral scrap of cloth", chance = 250 },
-	{ name = "fabulous legs", chance = 150 },
-	{ name = "phantasmal axe", chance = 150 },
+	{ name = "pale worm's scalp", chance = 2020 },
+	{ name = "spectral scrap of cloth", chance = 5051 },
+	{ name = "fabulous legs", chance = 2020 },
+	{ name = "phantasmal axe", chance = 2020 },
 	{ name = "ghost backpack", chance = 150 },
 	{ name = "soulful legs", chance = 150 },
 	{ id = 32621, chance = 400 }, -- ring of souls
 	{ id = 50185, chance = 730 }, -- jade legs
+	{ name = "transcendence potion", chance = 7071, maxCount = 19 },
 }
 
 monster.attacks = {

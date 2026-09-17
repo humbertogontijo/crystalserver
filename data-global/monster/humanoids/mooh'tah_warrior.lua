@@ -81,15 +81,15 @@ monster.loot = {
 	{ id = 21202, chance = 18970 }, -- mooh'tah shell
 	{ name = "strong mana potion", chance = 9290 },
 	{ name = "strong health potion", chance = 8500 },
-	{ name = "small ruby", chance = 7710 },
+	{ name = "small ruby", chance = 4928 },
 	{ name = "small emerald", chance = 6320 },
 	{ name = "small amethyst", chance = 5340 },
 	{ name = "minotaur leather", chance = 5340 },
 	{ name = "minotaur horn", chance = 4550, maxCount = 2 },
 	{ name = "small topaz", chance = 4350 },
-	{ id = 3094, chance = 1580 }, -- sword ring
+	{ id = 3094, chance = 982 }, -- sword ring
 	{ name = "cowtana", chance = 1380 },
-	{ id = 21166, chance = 1380 }, -- mooh'tah plate
+	{ id = 21166, chance = 877 }, -- mooh'tah plate
 	{ name = "knight armor", chance = 990 },
 	{ name = "red piece of cloth", chance = 790 },
 	{ name = "knight legs", chance = 590 },

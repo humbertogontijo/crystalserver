@@ -71,10 +71,10 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 20000, maxCount = 4 },
-	{ name = "Strong Health Potion", chance = 9000 },
+	{ name = "Platinum Coin", chance = 89599, maxCount = 4 },
+	{ name = "Strong Health Potion", chance = 13595 },
 	{ name = "Beastslayer Axe", chance = 4000 },
-	{ name = "Ham", chance = 4000, maxCount = 2 },
+	{ name = "Ham", chance = 2372, maxCount = 2 },
 	{ name = "Furry Club", chance = 4000 },
 	{ name = "jaracal soul core", chance = 100 },
 }

@@ -73,9 +73,9 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "depth ocrea", chance = 1200 },
-	{ name = "ornate mace", chance = 1100, unique = true },
-	{ name = "ornate shield", chance = 1100 },
+	{ name = "depth ocrea", chance = 50000 },
+	{ name = "ornate mace", chance = 23077, unique = true },
+	{ name = "ornate shield", chance = 26923 },
 }
 
 monster.attacks = {

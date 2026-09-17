@@ -77,22 +77,22 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 85480, maxCount = 4 },
-	{ name = "terra rod", chance = 43000 },
-	{ name = "snakebite rod", chance = 20970 },
+	{ name = "terra rod", chance = 31644 },
+	{ name = "snakebite rod", chance = 12420 },
 	{ name = "cobra crest", chance = 16130 },
 	{ name = "terra hood", chance = 13710 },
 	{ name = "cyan crystal fragment", chance = 10805 },
-	{ name = "terra boots", chance = 9680 },
+	{ name = "terra boots", chance = 14004 },
 	{ id = 281, chance = 8870 }, -- giant shimmering pearl (green)
 	{ id = 3039, chance = 6450 }, -- red gem
-	{ name = "emerald bangle", chance = 5650 },
+	{ name = "emerald bangle", chance = 3349 },
 	{ name = "gemmed figurine", chance = 4840 },
-	{ name = "green crystal fragment", chance = 3230 },
+	{ name = "green crystal fragment", chance = 5079 },
 	{ name = "red crystal fragment", chance = 3230 },
 	{ name = "serpent sword", chance = 2420 },
-	{ name = "violet crystal shard", chance = 2420 },
-	{ name = "green gem", chance = 1610 },
-	{ name = "onyx chip", chance = 1610, maxCount = 3 },
+	{ name = "violet crystal shard", chance = 4065 },
+	{ name = "green gem", chance = 2982 },
+	{ name = "onyx chip", chance = 925, maxCount = 3 },
 }
 
 monster.attacks = {

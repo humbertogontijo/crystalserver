@@ -73,24 +73,25 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 120000, maxCount = 4 },
-	{ name = "envenomed arrow", chance = 1200, maxCount = 14 },
-	{ id = 28568, chance = 1200, maxCount = 4 }, -- inkwell
-	{ name = "poisonous slime", chance = 1200, maxCount = 4 },
-	{ name = "small diamond", chance = 1200, maxCount = 4 },
-	{ name = "small topaz", chance = 1200, maxCount = 4 },
-	{ id = 282, chance = 900, maxCount = 4 }, -- giant shimmering pearl (brown)
-	{ name = "blue gem", chance = 950, maxCount = 4 },
-	{ name = "terra boots", chance = 850, maxCount = 4 },
-	{ name = "terra hood", chance = 980, maxCount = 4 },
+	{ name = "platinum coin", chance = 75447, maxCount = 4 },
+	{ name = "envenomed arrow", chance = 69486, maxCount = 14 },
+	{ id = 28568, chance = 43968, maxCount = 4 }, -- inkwell
+	{ name = "poisonous slime", chance = 35510, maxCount = 4 },
+	{ name = "small diamond", chance = 66846, maxCount = 4 },
+	{ name = "small topaz", chance = 49787, maxCount = 4 },
+	{ id = 282, chance = 15527, maxCount = 4 }, -- giant shimmering pearl (brown)
+	{ name = "blue gem", chance = 4712, maxCount = 4 },
+	{ name = "terra boots", chance = 5251, maxCount = 4 },
+	{ name = "terra hood", chance = 5677, maxCount = 4 },
 	{ name = "protection amulet", chance = 1200, maxCount = 4 },
-	{ name = "sacred tree amulet", chance = 1200, maxCount = 4 },
+	{ name = "sacred tree amulet", chance = 1703, maxCount = 4 },
 	{ name = "springsprout rod", chance = 790, maxCount = 4 },
 	{ name = "stone skin amulet", chance = 1200, maxCount = 4 },
-	{ name = "terra legs", chance = 650, maxCount = 4 },
+	{ name = "terra legs", chance = 2867, maxCount = 4 },
 	{ name = "terra mantle", chance = 550, maxCount = 4 },
-	{ name = "clay lump", chance = 1200, maxCount = 4 },
-	{ name = "terra amulet", chance = 1200, maxCount = 4 },
+	{ name = "clay lump", chance = 596, maxCount = 4 },
+	{ name = "terra amulet", chance = 397, maxCount = 4 },
+	{ id = 281, chance = 15527 }, -- giant shimmering pearl
 }
 
 monster.attacks = {

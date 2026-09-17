@@ -65,30 +65,30 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 4366, maxCount = 1 },
-	{ name = "terra rod", chance = 2276 },
-	{ name = "dagger", chance = 1791 },
-	{ name = "ultimate health potion", chance = 1119, maxCount = 4 },
-	{ name = "gold ingot", chance = 1045, maxCount = 1 },
-	{ name = "great spirit potion", chance = 784, maxCount = 2 },
-	{ name = "fire sword", chance = 746 },
-	{ name = "terra boots", chance = 522 },
-	{ name = "hailstorm rod", chance = 485 },
-	{ name = "lightning headband", chance = 410 },
-	{ name = "terra hood", chance = 373 },
-	{ name = "knight axe", chance = 336 },
-	{ name = "lightning legs", chance = 336 },
-	{ id = 23533, chance = 299 }, -- ring of red plasma
-	{ name = "spellbook of warding", chance = 261 },
-	{ name = "glacier shoes", chance = 224 },
-	{ name = "knight armor", chance = 224 },
-	{ name = "eye-embroidered veil", chance = 187 },
-	{ name = "violet crystal shard", chance = 187 },
-	{ name = "glacier mask", chance = 149 },
-	{ name = "sea horse figurine", chance = 149 },
-	{ id = 3049, chance = 149 }, -- stealth ring
-	{ name = "violet gem", chance = 149 },
-	{ name = "golden mask", chance = 75 },
+	{ name = "crystal coin", chance = 46924, maxCount = 1 },
+	{ name = "terra rod", chance = 21793 },
+	{ name = "dagger", chance = 21793 },
+	{ name = "ultimate health potion", chance = 10721, maxCount = 4 },
+	{ name = "gold ingot", chance = 10896, maxCount = 1 },
+	{ name = "great spirit potion", chance = 7206, maxCount = 2 },
+	{ name = "fire sword", chance = 6854 },
+	{ name = "terra boots", chance = 4569 },
+	{ name = "hailstorm rod", chance = 4394 },
+	{ name = "lightning headband", chance = 4394 },
+	{ name = "terra hood", chance = 3339 },
+	{ name = "knight axe", chance = 3163 },
+	{ name = "lightning legs", chance = 3163 },
+	{ id = 23533, chance = 4394 }, -- ring of red plasma
+	{ name = "spellbook of warding", chance = 1582 },
+	{ name = "glacier shoes", chance = 2109 },
+	{ name = "knight armor", chance = 1757 },
+	{ name = "eye-embroidered veil", chance = 1054 },
+	{ name = "violet crystal shard", chance = 2460 },
+	{ name = "glacier mask", chance = 2636 },
+	{ name = "sea horse figurine", chance = 703 },
+	{ id = 3049, chance = 2460 }, -- stealth ring
+	{ name = "violet gem", chance = 2285 },
+	{ name = "golden mask", chance = 1230 },
 }
 
 monster.attacks = {

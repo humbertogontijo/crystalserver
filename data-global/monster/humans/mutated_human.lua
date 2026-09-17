@@ -79,8 +79,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 44000, maxCount = 80 },
-	{ name = "gold coin", chance = 44000, maxCount = 50 },
+	{ name = "gold coin", chance = 88223, maxCount = 80 },
+	{ name = "gold coin", chance = 88223, maxCount = 50 },
 	{ name = "strange talisman", chance = 4980 },
 	{ name = "silver amulet", chance = 70 },
 	{ name = "fishbone", chance = 10050 },
@@ -90,7 +90,7 @@ monster.loot = {
 	{ name = "fern", chance = 420 },
 	{ name = "worm", chance = 7110, maxCount = 2 },
 	{ name = "peanut", chance = 580 },
-	{ id = 8894, chance = 190 }, -- heavily rusted armor
+	{ id = 8894, chance = 2011 }, -- heavily rusted armor
 	{ name = "mutated flesh", chance = 19940 },
 }
 

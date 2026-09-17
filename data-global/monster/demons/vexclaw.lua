@@ -79,32 +79,32 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 200 },
-	{ name = "platinum coin", chance = 100000, maxCount = 6 },
-	{ name = "great spirit potion", chance = 26010, maxCount = 5 },
-	{ id = 238, chance = 25210, maxCount = 5 }, -- great mana potion
-	{ name = "vexclaw talon", chance = 21500 },
-	{ name = "demonic essence", chance = 20730 },
-	{ name = "ultimate health potion", chance = 19960, maxCount = 5 },
-	{ name = "fire mushroom", chance = 19940, maxCount = 6 },
+	{ name = "platinum coin", chance = 35068, maxCount = 6 },
+	{ name = "great spirit potion", chance = 15811, maxCount = 5 },
+	{ id = 238, chance = 16824, maxCount = 5 }, -- great mana potion
+	{ name = "vexclaw talon", chance = 12095 },
+	{ name = "demonic essence", chance = 13581 },
+	{ name = "ultimate health potion", chance = 14054, maxCount = 5 },
+	{ name = "fire mushroom", chance = 12365, maxCount = 6 },
 	{ name = "golden sickle", chance = 18940 },
 	{ name = "purple tome", chance = 18450 },
-	{ name = "small amethyst", chance = 10090, maxCount = 5 },
-	{ name = "small topaz", chance = 9790, maxCount = 5 },
-	{ name = "small emerald", chance = 9770, maxCount = 5 },
-	{ name = "small ruby", chance = 9590, maxCount = 5 },
+	{ name = "small amethyst", chance = 3041, maxCount = 5 },
+	{ name = "small topaz", chance = 2703, maxCount = 5 },
+	{ name = "small emerald", chance = 3243, maxCount = 5 },
+	{ name = "small ruby", chance = 3041, maxCount = 5 },
 	{ name = "talon", chance = 5400 },
-	{ name = "yellow gem", chance = 5090 },
+	{ name = "yellow gem", chance = 1284 },
 	{ name = "wand of voodoo", chance = 4940 },
-	{ id = 3039, chance = 4730 }, -- red gem
-	{ name = "ice rapier", chance = 4730 },
+	{ id = 3039, chance = 1014 }, -- red gem
+	{ name = "ice rapier", chance = 2770 },
 	{ name = "fire axe", chance = 3520 },
-	{ name = "might ring", chance = 2250 },
-	{ name = "giant sword", chance = 1880 },
+	{ name = "might ring", chance = 811 },
+	{ name = "giant sword", chance = 1216 },
 	{ id = 3049, chance = 1790 }, -- stealth ring
 	{ id = 3051, chance = 1790 }, -- energy ring
-	{ name = "rift lance", chance = 1360 },
+	{ name = "rift lance", chance = 676 },
 	{ id = 3098, chance = 1320 }, -- ring of healing
-	{ name = "platinum amulet", chance = 940 },
+	{ name = "platinum amulet", chance = 405 },
 	{ name = "devil helmet", chance = 520 },
 	{ name = "rift crossbow", chance = 370 },
 	{ name = "rift bow", chance = 370 },

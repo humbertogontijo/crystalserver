@@ -79,14 +79,25 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3035, chance = 99000, maxCount = 50 }, -- platinum coin
-	{ id = 16124, chance = 99000, maxCount = 1 }, -- blue crystal splinter
-	{ id = 16122, chance = 99000, maxCount = 1 }, -- green crystal splinter
+	{ id = 16124, chance = 16667, maxCount = 1 }, -- blue crystal splinter
+	{ id = 16122, chance = 5556, maxCount = 1 }, -- green crystal splinter
 	{ id = 7642, chance = 99000, maxCount = 1 }, -- great spirit potion
-	{ id = 3029, chance = 99000, maxCount = 3 }, -- small sapphire
+	{ id = 3029, chance = 5556, maxCount = 3 }, -- small sapphire
 	{ id = 49949, chance = 7000, maxCount = 1 }, -- demonic core essence
-	{ id = 49894, chance = 7000, maxCount = 1 }, -- demonic matter
+	{ id = 49894, chance = 100000, maxCount = 1 }, -- demonic matter
 	{ id = 3098, chance = 7000, maxCount = 1 }, -- ring of healing
 	{ id = 49893, chance = 1000, maxCount = 1 }, -- skin of malvaroth
+	{ name = "brinebrute claw", chance = 100000 },
+	{ name = "demonic core essence", chance = 30556 },
+	{ name = "crystal coin", chance = 25000 },
+	{ name = "gold ingot", chance = 16667 },
+	{ name = "brown crystal splinter", chance = 13889 },
+	{ name = "giant sword", chance = 11111 },
+	{ name = "green crystal shard", chance = 11111, maxCount = 2 },
+	{ name = "violet crystal shard", chance = 11111, maxCount = 2 },
+	{ name = "blue crystal shard", chance = 8333, maxCount = 2 },
+	{ name = "ultimate health potion", chance = 8333, maxCount = 5 },
+	{ name = "might ring", chance = 5556 },
 }
 
 monster.attacks = {

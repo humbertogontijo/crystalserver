@@ -81,13 +81,13 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "silver brooch", chance = 7000 },
+	{ name = "silver brooch", chance = 4323 },
 	{ name = "holy scarab", chance = 400 },
-	{ name = "gold coin", chance = 50000, maxCount = 80 },
-	{ name = "gold coin", chance = 50000, maxCount = 60 },
-	{ name = "might ring", chance = 1000 },
-	{ name = "crown armor", chance = 80000 },
-	{ id = 238, chance = 1500 }, -- great mana potion
+	{ name = "gold coin", chance = 93880, maxCount = 80 },
+	{ name = "gold coin", chance = 93880, maxCount = 60 },
+	{ name = "might ring", chance = 4773 },
+	{ name = "crown armor", chance = 449 },
+	{ id = 238, chance = 11960 }, -- great mana potion
 }
 
 monster.attacks = {

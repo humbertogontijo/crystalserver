@@ -82,18 +82,18 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 80700 },
+	{ name = "crystal coin", chance = 57700 },
 	{ name = "terra rod", chance = 17540 },
-	{ id = 238, chance = 17110, maxCount = 3 }, -- great mana potion
-	{ name = "blue gem", chance = 12720 },
+	{ id = 238, chance = 11858, maxCount = 3 }, -- great mana potion
+	{ name = "blue gem", chance = 7546 },
 	{ name = "green gem", chance = 6580 },
 	{ name = "stone skin amulet", chance = 4820 },
-	{ name = "glacier amulet", chance = 3510 },
+	{ name = "glacier amulet", chance = 1951 },
 	{ name = "sacred tree amulet", chance = 3070 },
 	{ name = "springsprout rod", chance = 2190 },
 	{ name = "underworld rod", chance = 2190 },
 	{ name = "platinum amulet", chance = 1750 },
-	{ name = "glacier robe", chance = 880 },
+	{ name = "glacier robe", chance = 1643 },
 	{ id = 23544, chance = 440 }, -- collar of red plasma
 	{ name = "bag you desire", chance = 15 },
 }

@@ -84,7 +84,7 @@ monster.loot = {
 	{ id = 3039, chance = 2190 }, -- Red Gem
 	{ name = "Warrior's Shield", chance = 1760 },
 	{ id = 23533, chance = 1110 }, -- Ring of Red Plasma
-	{ name = "Fire Sword", chance = 770 },
+	{ name = "Fire Sword", chance = 1295 },
 	{ name = "Crystal Crossbow", chance = 510 },
 }
 

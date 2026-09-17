@@ -92,6 +92,7 @@ monster.loot = {
 	{ name = "ritual tooth", chance = 1330 },
 	{ name = "gold-brocaded cloth", chance = 890 },
 	{ name = "broken iks sandals", chance = 40 },
+	{ name = "platinum coin", chance = 42371, maxCount = 5 },
 }
 
 monster.attacks = {

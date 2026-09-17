@@ -79,10 +79,10 @@ monster.loot = {
 	{ name = "mystic turban", chance = 33330 },
 	{ name = "small sapphire", chance = 14290, maxCount = 2 },
 	{ name = "seeds", chance = 7140 },
-	{ name = "magma monocle", chance = 4760 },
-	{ name = "blue gem", chance = 2380 },
+	{ name = "magma monocle", chance = 3509 },
+	{ name = "blue gem", chance = 1754 },
 	{ name = "small oil lamp", chance = 580 },
-	{ id = 2948, chance = 480 }, -- wooden flute
+	{ id = 2948, chance = 1754 }, -- wooden flute
 	{ name = "heavy machete", chance = 380 },
 }
 

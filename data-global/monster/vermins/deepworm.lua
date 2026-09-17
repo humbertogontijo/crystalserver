@@ -95,7 +95,7 @@ monster.loot = {
 	{ name = "springsprout rod", chance = 1120 },
 	{ name = "sacred tree amulet", chance = 2390 },
 	{ id = 281, chance = 860 }, -- giant shimmering pearl (green)
-	{ name = "suspicious device", chance = 530 },
+	{ name = "suspicious device", chance = 1702 },
 }
 
 monster.attacks = {

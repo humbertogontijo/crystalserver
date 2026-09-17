@@ -40,14 +40,14 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 60000, minCount = 1, maxCount = 100 },
-	{ name = "platinum coin", chance = 45000, minCount = 1, maxCount = 5 },
-	{ name = "star ink", chance = 2800 },
+	{ name = "platinum coin", chance = 64373, minCount = 1, maxCount = 5 },
+	{ name = "star ink", chance = 6595 },
 	{ id = 281, chance = 2690 }, -- giant shimmering pearl
-	{ name = "poisonous slime", chance = 1800 },
-	{ id = 3509, chance = 1600 }, -- inkwell
+	{ name = "poisonous slime", chance = 4409 },
+	{ id = 3509, chance = 3369 }, -- inkwell
 	{ name = "candlestick", chance = 1200 },
 	{ name = "black pearl", chance = 1000 },
-	{ name = "terra amulet", chance = 800 },
+	{ name = "terra amulet", chance = 215 },
 	{ name = "terra hood", chance = 800 },
 	{ name = "terra legs", chance = 800 },
 }

@@ -77,10 +77,10 @@ monster.loot = {
 	{ name = "twig arms", chance = 91770 },
 	{ name = "shiver arrow", chance = 7310 },
 	{ name = "ice rapier", chance = 4750 },
-	{ name = "glacier mask", chance = 4570 },
-	{ id = 2992, chance = 4000, maxCount = 5 }, -- snowball
+	{ name = "glacier mask", chance = 3131 },
+	{ id = 2992, chance = 5525, maxCount = 5 }, -- snowball
 	{ name = "hailstorm rod", chance = 3470 },
-	{ name = "glacier mask", chance = 250 },
+	{ name = "glacier mask", chance = 3131 },
 	{ name = "glacier amulet", chance = 3290 },
 	{ name = "moonlight rod", chance = 1830 },
 	{ name = "glacier kilt", chance = 1100 },

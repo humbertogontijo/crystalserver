@@ -41,17 +41,17 @@ function CreatureInfo.load()
 		end
 	end
 
-	-- Prefer explicit byCreatureId index when present (same entries, faster load).
+	-- Prefer explicit byCreatureId index when present. JSON decode yields separate
+	-- tables (not aliases of byName), so row==entry never backfills name — copy
+	-- the name already set from byName for the same creatureId.
 	if type(data.byCreatureId) == "table" then
 		for key, entry in pairs(data.byCreatureId) do
 			local id = tonumber(key)
 			if id and id > 0 and type(entry) == "table" then
-				if not entry.name and type(data.byName) == "table" then
-					for n, row in pairs(data.byName) do
-						if row == entry then
-							entry.name = n
-							break
-						end
+				if type(entry.name) ~= "string" or entry.name == "" then
+					local prior = byCreatureId[id]
+					if prior and type(prior.name) == "string" and prior.name ~= "" then
+						entry.name = prior.name
 					end
 				end
 				byCreatureId[id] = entry

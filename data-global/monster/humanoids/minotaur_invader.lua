@@ -76,11 +76,14 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 3031, chance = 59640, maxCount = 160 }, -- gold coin
+	{ id = 3031, chance = 100000, maxCount = 160 }, -- gold coin
 	{ id = 11472, chance = 8330, maxCount = 2 }, -- minotaur horn
-	{ id = 11482, chance = 5040 }, -- piece of warrior armor
-	{ id = 5878, chance = 1000 }, -- minotaur leather
+	{ id = 11482, chance = 14986 }, -- piece of warrior armor
+	{ id = 5878, chance = 5061 }, -- minotaur leather
 	{ id = 7401, chance = 90 }, -- minotaur trophy
+	{ name = "platinum coin", chance = 49766, maxCount = 4 },
+	{ name = "small topaz", chance = 10305, maxCount = 2 },
+	{ name = "small amethyst", chance = 5181 },
 }
 
 monster.attacks = {

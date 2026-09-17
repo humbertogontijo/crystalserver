@@ -73,29 +73,33 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 55000, minCount = 70, maxCount = 75 },
-	{ id = 281, chance = 1150 }, -- giant shimmering pearl (green)
-	{ name = "giant sapphire", chance = 10000, maxCount = 1 },
+	{ name = "crystal coin", chance = 100000, minCount = 70, maxCount = 75 },
+	{ id = 281, chance = 18182 }, -- giant shimmering pearl (green)
+	{ name = "giant sapphire", chance = 18182, maxCount = 1 },
 	{ name = "giant topaz", chance = 10000, maxCount = 1 },
-	{ name = "violet gem", chance = 6000, maxCount = 1 },
-	{ name = "blue gem", chance = 10000, maxCount = 3 },
-	{ id = 3039, chance = 10000, maxCount = 3 }, -- red gem
-	{ name = "green gem", chance = 10000, maxCount = 3 },
-	{ name = "yellow gem", chance = 10000, maxCount = 3 },
-	{ name = "white gem", chance = 6000, maxCount = 3 },
+	{ name = "violet gem", chance = 27273, maxCount = 1 },
+	{ name = "blue gem", chance = 45455, maxCount = 3 },
+	{ id = 3039, chance = 27273, maxCount = 3 }, -- red gem
+	{ name = "green gem", chance = 18182, maxCount = 3 },
+	{ name = "yellow gem", chance = 27273, maxCount = 3 },
+	{ name = "white gem", chance = 9091, maxCount = 3 },
 	{ name = "dragon figurine", chance = 10000 },
-	{ name = "bullseye potion", chance = 15000, minCount = 10, maxCount = 25 },
-	{ name = "mastermind potion", chance = 15000, minCount = 10, maxCount = 25 },
-	{ name = "berserk potion", chance = 15000, minCount = 10, maxCount = 25 },
-	{ name = "ultimate mana potion", chance = 18000, minCount = 50, maxCount = 100 },
-	{ name = "supreme health potion", chance = 18000, minCount = 50, maxCount = 100 },
-	{ name = "ultimate spirit potion", chance = 18000, minCount = 50, maxCount = 100 },
-	{ name = "cruelty's chest", chance = 2000 },
-	{ name = "cruelty's claw", chance = 2000 },
+	{ name = "bullseye potion", chance = 45455, minCount = 10, maxCount = 25 },
+	{ name = "mastermind potion", chance = 27273, minCount = 10, maxCount = 25 },
+	{ name = "berserk potion", chance = 9091, minCount = 10, maxCount = 25 },
+	{ name = "ultimate mana potion", chance = 72727, minCount = 50, maxCount = 100 },
+	{ name = "supreme health potion", chance = 45455, minCount = 50, maxCount = 100 },
+	{ name = "ultimate spirit potion", chance = 36364, minCount = 50, maxCount = 100 },
+	{ name = "cruelty's chest", chance = 18182 },
+	{ name = "cruelty's claw", chance = 18182 },
 	{ name = "figurine of cruelty", chance = 400 },
 	{ name = "spectral saddle", chance = 400 },
 	{ name = "spectral horse tack", chance = 400 },
 	{ name = "bag you desire", chance = 100 },
+	{ name = "giant amethyst", chance = 54545 },
+	{ name = "giant emerald", chance = 27273 },
+	{ name = "transcendence potion", chance = 18182, maxCount = 33 },
+	{ name = "gold ingot", chance = 9091 },
 }
 
 monster.attacks = {

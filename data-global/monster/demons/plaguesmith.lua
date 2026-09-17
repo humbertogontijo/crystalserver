@@ -83,9 +83,9 @@ monster.voices = {
 monster.loot = {
 	{ name = "emerald bangle", chance = 341 },
 	{ name = "silver brooch", chance = 2000 },
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
-	{ name = "gold coin", chance = 40000, maxCount = 100 },
-	{ name = "gold coin", chance = 50000, maxCount = 65 },
+	{ name = "gold coin", chance = 96265, maxCount = 100 },
+	{ name = "gold coin", chance = 96265, maxCount = 100 },
+	{ name = "gold coin", chance = 96265, maxCount = 65 },
 	{ name = "small amethyst", chance = 5000, maxCount = 3 },
 	{ name = "platinum coin", chance = 7142, maxCount = 2 },
 	{ id = 3092, chance = 4347 }, -- axe ring
@@ -107,8 +107,8 @@ monster.loot = {
 	{ name = "soul orb", chance = 11111 },
 	{ name = "demonic essence", chance = 9033 },
 	{ name = "onyx arrow", chance = 7692, maxCount = 4 },
-	{ name = "great health potion", chance = 10000 },
-	{ id = 8896, chance = 540 }, -- slightly rusted armor
+	{ name = "great health potion", chance = 7417 },
+	{ id = 8896, chance = 6326 }, -- slightly rusted armor
 }
 
 monster.attacks = {

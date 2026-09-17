@@ -82,14 +82,14 @@ monster.loot = {
 	{ name = "werepanther claw", chance = 13820, maxCount = 2 },
 	{ name = "golden sickle", chance = 6720 },
 	{ name = "meat", chance = 5500, maxCount = 2 },
-	{ name = "small ruby", chance = 8470, maxCount = 3 },
-	{ name = "moonlight crystals", chance = 2550 },
-	{ id = 3039, chance = 1240 }, -- red gem
-	{ name = "magma monocle", chance = 3080 },
+	{ name = "small ruby", chance = 4306, maxCount = 3 },
+	{ name = "moonlight crystals", chance = 3993 },
+	{ id = 3039, chance = 1801 }, -- red gem
+	{ name = "magma monocle", chance = 1461 },
 	{ name = "ripper lance", chance = 850 },
-	{ name = "gemmed figurine", chance = 1770 },
-	{ id = 817, chance = 2770 }, -- magma amulet
-	{ name = "fur armor", chance = 2620 },
+	{ name = "gemmed figurine", chance = 835 },
+	{ id = 817, chance = 548 }, -- magma amulet
+	{ name = "fur armor", chance = 861 },
 	{ id = 43917, chance = 650 }, -- werepanther trophy
 }
 

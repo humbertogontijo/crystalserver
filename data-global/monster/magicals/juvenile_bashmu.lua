@@ -71,7 +71,7 @@ monster.voices = {
 monster.loot = {
 	{ name = "platinum coin", chance = 70000, maxCount = 19 },
 	{ name = "great spirit potion", chance = 14700, maxCount = 4 },
-	{ name = "ultimate health potion", chance = 1300, maxCount = 4 },
+	{ name = "ultimate health potion", chance = 10654, maxCount = 4 },
 	{ name = "blue crystal shard", chance = 6160, maxCount = 3 },
 	{ name = "bashmu tongue", chance = 5840, maxCount = 3 },
 	{ name = "bashmu feather", chance = 4620, maxCount = 2 },
@@ -82,7 +82,7 @@ monster.loot = {
 	{ name = "lightning legs", chance = 2230 },
 	{ name = "diamond sceptre", chance = 2180 },
 	{ name = "lightning pendant", chance = 2180 },
-	{ name = "bashmu fang", chance = 2120 },
+	{ name = "bashmu fang", chance = 1396 },
 	{ name = "yellow gem", chance = 2070 },
 	{ name = "war hammer", chance = 1540 },
 	{ name = "violet crystal shard", chance = 1490 },

@@ -84,17 +84,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 77650 },
-	{ name = "great spirit potion", chance = 61410, maxCount = 5 },
-	{ name = "blue gem", chance = 9410 },
-	{ name = "gold ingot", chance = 9410 },
-	{ name = "capricious heart", chance = 7530 },
-	{ name = "violet gem", chance = 4710 },
+	{ name = "crystal coin", chance = 45998 },
+	{ name = "great spirit potion", chance = 43169, maxCount = 5 },
+	{ name = "blue gem", chance = 6629 },
+	{ name = "gold ingot", chance = 5255 },
+	{ name = "capricious heart", chance = 3234 },
+	{ name = "violet gem", chance = 3476 },
 	{ name = "capricious robe", chance = 2350 },
-	{ id = 23529, chance = 1880 }, -- ring of blue plasma
-	{ name = "fur armor", chance = 1650 },
+	{ id = 23529, chance = 970 }, -- ring of blue plasma
+	{ name = "fur armor", chance = 970 },
 	{ name = "wood cape", chance = 1410 },
-	{ id = 23542, chance = 1180 }, -- collar of blue plasma
+	{ id = 23542, chance = 404 }, -- collar of blue plasma
 	{ name = "glacial rod", chance = 940 },
 	{ name = "ornate crossbow", chance = 940 },
 	{ name = "bag you desire", chance = 15 },

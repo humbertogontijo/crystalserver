@@ -89,6 +89,7 @@ monster.loot = {
 	{ name = "cyan crystal fragment", chance = 18000 },
 	{ name = "trapped bad dream monster", chance = 17000 },
 	{ name = "bowl of terror sweat", chance = 14000 },
+	{ name = "small ruby", chance = 12680, maxCount = 3 },
 }
 
 monster.attacks = {

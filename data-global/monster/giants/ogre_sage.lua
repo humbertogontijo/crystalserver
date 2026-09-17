@@ -85,14 +85,17 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 3 },
-	{ name = "ogre ear stud", chance = 7950 },
-	{ name = "ogre nose ring", chance = 15830 },
+	{ name = "ogre ear stud", chance = 12795 },
+	{ name = "ogre nose ring", chance = 10034 },
 	{ name = "shamanic talisman", chance = 10230 },
-	{ name = "broken shamanic staff", chance = 12500 },
+	{ name = "broken shamanic staff", chance = 6801 },
 	{ name = "skull fetish", chance = 9090 },
-	{ name = "terra boots", chance = 4550 },
-	{ name = "bone fetish", chance = 2270 },
-	{ name = "sacred tree amulet", chance = 1140 },
+	{ name = "terra boots", chance = 8283 },
+	{ name = "bone fetish", chance = 3636 },
+	{ name = "sacred tree amulet", chance = 2357 },
+	{ name = "terra amulet", chance = 8418 },
+	{ name = "violet crystal shard", chance = 6869 },
+	{ name = "green crystal fragment", chance = 6061 },
 }
 
 monster.attacks = {

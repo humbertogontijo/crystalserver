@@ -69,25 +69,36 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3035, chance = 100000, maxCount = 5 }, -- platinum coin
-	{ id = 23535, chance = 15000 }, -- energy bar
-	{ id = 23545, chance = 15000 }, -- energy drink
+	{ id = 23535, chance = 100000 }, -- energy bar
+	{ id = 23545, chance = 100000 }, -- energy drink
 	{ id = 23516, chance = 15000 }, -- instable proto matter
-	{ id = 239, chance = 12200 }, -- great health potion
-	{ id = 238, chance = 12000 }, -- great mana potion
-	{ id = 7642, chance = 11700 }, -- great spirit potion
+	{ id = 239, chance = 29167 }, -- great health potion
+	{ id = 238, chance = 20833 }, -- great mana potion
+	{ id = 7642, chance = 25000 }, -- great spirit potion
 	{ id = 23507, chance = 11500 }, -- crystallized anger
 	{ id = 23511, chance = 10600 }, -- curious matter
 	{ id = 23514, chance = 9600 }, -- volatile proto matter
-	{ id = 23506, chance = 9600 }, -- plasma pearls
+	{ id = 23506, chance = 100000 }, -- plasma pearls
 	{ id = 16124, chance = 7400, maxCount = 2 }, -- blue crystal splinter
 	{ id = 16125, chance = 6500 }, -- cyan crystal fragment
-	{ id = 16119, chance = 4400 }, -- blue crystal shard
+	{ id = 16119, chance = 12500 }, -- blue crystal shard
 	{ id = 16121, chance = 4100 }, -- green crystal shard
 	{ id = 23544, chance = 4470 }, -- collar of red plasma
-	{ id = 23542, chance = 4470 }, -- collar of blue plasma
+	{ id = 23542, chance = 29167 }, -- collar of blue plasma
 	{ id = 50150, chance = 350 }, -- ring of orange plasma
 	{ id = 50152, chance = 350 }, -- collar of orange plasma
 	{ name = "spark sphere", chance = 14870 },
+	{ name = "dangerous proto matter", chance = 100000 },
+	{ id = 23508, chance = 100000 }, -- energy vein
+	{ name = "gold coin", chance = 100000, maxCount = 93 },
+	{ name = "plasmatic lightning", chance = 100000 },
+	{ id = 23533, chance = 50000 }, -- ring of red plasma
+	{ id = 23527, chance = 25000 }, -- collar of green plasma
+	{ id = 23531, chance = 20833 }, -- ring of green plasma
+	{ id = 23529, chance = 16667 }, -- ring of blue plasma
+	{ name = "violet crystal shard", chance = 16667, maxCount = 5 },
+	{ id = 3039, chance = 12500 }, -- red gem
+	{ name = "red crystal fragment", chance = 8333 },
 }
 
 monster.attacks = {

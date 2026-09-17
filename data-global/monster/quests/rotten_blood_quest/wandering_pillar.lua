@@ -82,21 +82,21 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 6629, maxCount = 1 },
-	{ name = "darklight obsidian axe", chance = 14652, maxCount = 1 },
+	{ name = "crystal coin", chance = 56428, maxCount = 1 },
+	{ name = "darklight obsidian axe", chance = 10009, maxCount = 1 },
 	{ name = "basalt crumbs", chance = 8184, maxCount = 1 },
 	{ name = "sulphurous stone", chance = 5873, maxCount = 1 },
 	{ name = "magma boots", chance = 5080, maxCount = 1 },
-	{ id = 12600, chance = 9802, maxCount = 4 }, -- coal
+	{ id = 12600, chance = 4228, maxCount = 4 }, -- coal
 	{ name = "dark helmet", chance = 7490, maxCount = 1 },
-	{ name = "magma coat", chance = 11753, maxCount = 1 },
-	{ name = "onyx chip", chance = 9311, maxCount = 2 },
+	{ name = "magma coat", chance = 1812, maxCount = 1 },
+	{ name = "onyx chip", chance = 3624, maxCount = 2 },
 	{ name = "darklight core", chance = 5957, maxCount = 1 },
-	{ name = "fire sword", chance = 8319, maxCount = 1 },
-	{ name = "magma clump", chance = 6260, maxCount = 1 },
-	{ id = 3039, chance = 9915, maxCount = 1 }, -- red gem
-	{ name = "green gem", chance = 12864, maxCount = 1 },
-	{ name = "basalt core", chance = 9037, maxCount = 1 },
+	{ name = "fire sword", chance = 3796, maxCount = 1 },
+	{ name = "magma clump", chance = 4314, maxCount = 1 },
+	{ id = 3039, chance = 4659, maxCount = 1 }, -- red gem
+	{ name = "green gem", chance = 2761, maxCount = 1 },
+	{ name = "basalt core", chance = 690, maxCount = 1 },
 	{ name = "darklight heart", chance = 1, maxCount = 1 },
 }
 

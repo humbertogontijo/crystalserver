@@ -86,7 +86,7 @@ monster.loot = {
 	{ name = "demon shield", chance = 670 },
 	{ name = "demonrage sword", chance = 270 },
 	{ name = "preserved purple seed", chance = 80 },
-	{ name = "platinum coin", chance = 10000, maxCount = 25 },
+	{ name = "platinum coin", chance = 57161, maxCount = 25 },
 }
 
 monster.attacks = {

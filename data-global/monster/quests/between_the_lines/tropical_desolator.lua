@@ -72,19 +72,23 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "mango", chance = 7500, maxCount = 3 },
-	{ name = "pineapple", chance = 7500, maxCount = 2 },
-	{ name = "melon", chance = 7500, maxCount = 4 },
-	{ name = "banana", chance = 7500, maxCount = 3 },
-	{ name = "coconut", chance = 7500, maxCount = 3 },
-	{ name = "black pearl", chance = 5000, maxCount = 2 },
-	{ name = "white pearl", chance = 5000, maxCount = 2 },
-	{ id = 3038, chance = 3000 }, -- green gem
-	{ id = 281, chance = 3000 }, -- giant shimmering pearl
-	{ name = "green crystal shard", chance = 2500, maxCount = 2 },
-	{ name = "opal", chance = 2500, maxCount = 3 },
-	{ name = "rainbow quartz", chance = 2500, maxCount = 3 },
-	{ name = "proficiency catalyst", chance = 3000 },
+	{ name = "mango", chance = 40237, maxCount = 3 },
+	{ name = "pineapple", chance = 33728, maxCount = 2 },
+	{ name = "melon", chance = 37574, maxCount = 4 },
+	{ name = "banana", chance = 33728, maxCount = 3 },
+	{ name = "coconut", chance = 37870, maxCount = 3 },
+	{ name = "black pearl", chance = 49408, maxCount = 2 },
+	{ name = "white pearl", chance = 52959, maxCount = 2 },
+	{ id = 3038, chance = 15680 }, -- green gem
+	{ id = 281, chance = 13609 }, -- giant shimmering pearl
+	{ name = "green crystal shard", chance = 23373, maxCount = 2 },
+	{ name = "opal", chance = 29586, maxCount = 3 },
+	{ name = "rainbow quartz", chance = 25740, maxCount = 3 },
+	{ name = "proficiency catalyst", chance = 9172 },
+	{ name = "platinum coin", chance = 100000, maxCount = 94 },
+	{ name = "gold ingot", chance = 27515, maxCount = 2 },
+	{ id = 3039, chance = 22189, maxCount = 2 }, -- red gem
+	{ name = "etcher", chance = 8284 },
 }
 
 -- missing spells

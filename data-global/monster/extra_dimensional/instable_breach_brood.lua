@@ -78,7 +78,7 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 100 }, -- gold coin
-	{ id = 3035, chance = 20000, maxCount = 2 }, -- platinum coin
+	{ id = 3035, chance = 69747, maxCount = 2 }, -- platinum coin
 	{ id = 23521, chance = 10200 }, -- crystal bone
 	{ id = 23506, chance = 10100 }, -- plasma pearls
 	{ id = 23545, chance = 4900 }, -- energy drink
@@ -88,7 +88,7 @@ monster.loot = {
 	{ id = 239, chance = 4200 }, -- great health potion
 	{ id = 16121, chance = 3400 }, -- green crystal shard
 	{ id = 16125, chance = 3300 }, -- cyan crystal fragment
-	{ id = 16124, chance = 2600 }, -- blue crystal splinter
+	{ id = 16124, chance = 3977 }, -- blue crystal splinter
 	{ id = 16119, chance = 2100 }, -- blue crystal shard
 }
 

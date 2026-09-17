@@ -80,16 +80,16 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 26500, maxCount = 40 },
-	{ id = 238, chance = 24500, maxCount = 5 }, -- great mana potion
-	{ id = 3030, chance = 24500, maxCount = 5 },
-	{ name = "Demonic Core Essence", chance = 1500, maxCount = 1 },
-	{ name = "Sineater Wing", chance = 5500, maxCount = 1 },
-	{ name = "Wand of Defiance", chance = 12000, maxCount = 1 },
-	{ name = "Ruby Necklace", chance = 10000, maxCount = 1 },
+	{ name = "Platinum Coin", chance = 100000, maxCount = 40 },
+	{ id = 238, chance = 6571, maxCount = 5 }, -- great mana potion
+	{ id = 3030, chance = 4773, maxCount = 5 },
+	{ name = "Demonic Core Essence", chance = 2572, maxCount = 1 },
+	{ name = "Sineater Wing", chance = 1989, maxCount = 1 },
+	{ name = "Wand of Defiance", chance = 1107, maxCount = 1 },
+	{ name = "Ruby Necklace", chance = 1897, maxCount = 1 },
 	{ name = "Mummified Demon Finger", chance = 1500, maxCount = 1 },
-	{ name = "Demonic Matter", chance = 1500, maxCount = 1 },
-	{ name = "Wooden Spellbook", chance = 3500, maxCount = 1 },
+	{ name = "Demonic Matter", chance = 541, maxCount = 1 },
+	{ name = "Wooden Spellbook", chance = 484, maxCount = 1 },
 	{ name = "broodrider inferniarch soul core", chance = 100 },
 }
 

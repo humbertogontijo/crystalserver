@@ -92,7 +92,7 @@ monster.loot = {
 	{ id = 6299, chance = 340 }, -- death ring
 	{ id = 6499, chance = 10660 }, -- demonic essence
 	{ id = 8043, chance = 870 }, -- focus cape
-	{ id = 21974, chance = 1230 }, -- golden lotus brooch
+	{ id = 21974, chance = 12302 }, -- golden lotus brooch
 	{ id = 826, chance = 570 }, -- magma coat
 	{ id = 3078, chance = 1160 }, -- mysterious fetish
 	{ id = 3574, chance = 2190 }, -- mystic turban

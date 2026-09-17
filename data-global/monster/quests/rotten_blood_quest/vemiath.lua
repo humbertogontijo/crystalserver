@@ -82,8 +82,8 @@ monster.summon = {}
 
 monster.loot = {
 	{ id = 43895, chance = 360, unique = true }, ---bag you covet
-	{ name = "crystal coin", chance = 28852, maxCount = 99 },
-	{ name = "ultimate mana potion", chance = 21337, maxCount = 211 },
+	{ name = "crystal coin", chance = 100000, maxCount = 99 },
+	{ name = "ultimate mana potion", chance = 48000, maxCount = 211 },
 	{ name = "giant emerald", chance = 26423, maxCount = 1 },
 	{ name = "supreme health potion", chance = 44385, maxCount = 154 },
 	{ name = "yellow gem", chance = 33000, maxCount = 4 },
@@ -91,16 +91,18 @@ monster.loot = {
 	{ name = "blue gem", chance = 33000, maxCount = 5 },
 	{ name = "green gem", chance = 28000, maxCount = 4 },
 	{ name = "bullseye potion", chance = 16530, maxCount = 22 },
-	{ name = "mastermind potion", chance = 22700, maxCount = 31 },
-	{ name = "ultimate spirit potion", chance = 19216, maxCount = 203 },
-	{ name = "giant topaz", chance = 11191, maxCount = 1 },
-	{ name = "giant amethyst", chance = 18527, maxCount = 1 },
+	{ name = "mastermind potion", chance = 16000, maxCount = 31 },
+	{ name = "ultimate spirit potion", chance = 68000, maxCount = 203 },
+	{ name = "giant topaz", chance = 36000, maxCount = 1 },
+	{ name = "giant amethyst", chance = 32000, maxCount = 1 },
 	{ name = "gold ingot", chance = 20866, maxCount = 1 },
-	{ id = 3039, chance = 18945, maxCount = 4 }, -- red gem
-	{ name = "dragon figurine", chance = 19502, maxCount = 1 },
+	{ id = 3039, chance = 48000, maxCount = 4 }, -- red gem
+	{ name = "dragon figurine", chance = 12000, maxCount = 1 },
 	{ name = "raw watermelon tourmaline", chance = 19302, maxCount = 1 },
-	{ name = "vemiath's infused basalt", chance = 28000, maxCount = 1 },
+	{ name = "vemiath's infused basalt", chance = 20000, maxCount = 1 },
 	{ name = "violet gem", chance = 11100, maxCount = 3 },
+	{ name = "transcendence potion", chance = 32000, maxCount = 29 },
+	{ name = "white gem", chance = 8000, maxCount = 3 },
 }
 
 monster.attacks = {

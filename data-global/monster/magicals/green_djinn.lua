@@ -82,8 +82,8 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 2831, chance = 2280 }, -- book
-	{ name = "gold coin", chance = 41000, maxCount = 70 },
-	{ name = "gold coin", chance = 51000, maxCount = 45 },
+	{ name = "gold coin", chance = 88645, maxCount = 70 },
+	{ name = "gold coin", chance = 88645, maxCount = 45 },
 	{ name = "small emerald", chance = 2960, maxCount = 4 },
 	{ name = "mystic turban", chance = 140 },
 	{ id = 3607, chance = 23500 }, -- cheese

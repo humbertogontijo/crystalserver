@@ -82,16 +82,16 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 137 },
 	{ name = "platinum coin", chance = 24470 },
-	{ name = "yellow gem", chance = 800 },
+	{ name = "yellow gem", chance = 1538 },
 	{ name = "wand of inferno", chance = 5590 },
-	{ name = "sudden death rune", chance = 7300 },
+	{ name = "sudden death rune", chance = 3077 },
 	{ name = "skull staff", chance = 130 },
 	{ name = "mysterious voodoo skull", chance = 100 },
 	{ id = 6299, chance = 800 }, -- death ring
-	{ name = "strong health potion", chance = 2260, maxCount = 2 },
+	{ name = "strong health potion", chance = 1538, maxCount = 2 },
 	{ name = "strong mana potion", chance = 3600, maxCount = 2 },
 	{ name = "unholy bone", chance = 9570 },
-	{ name = "pile of grave earth", chance = 6650 },
+	{ name = "pile of grave earth", chance = 9538 },
 	{ name = "safety pin", chance = 6000 },
 }
 

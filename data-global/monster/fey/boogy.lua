@@ -87,12 +87,12 @@ monster.loot = {
 	{ id = 24962, chance = 2500, maxCount = 2 }, -- prismatic quartz
 	{ id = 16126, chance = 3600, maxCount = 2 }, -- red crystal fragment
 	{ id = 3738, chance = 3200 }, -- sling herb
-	{ id = 677, chance = 3000, maxCount = 3 }, -- small enchanted emerald
+	{ id = 677, chance = 2110, maxCount = 3 }, -- small enchanted emerald
 	{ id = 236, chance = 15000 }, -- strong health potion
 	{ id = 814, chance = 3200 }, -- terra amulet
 	{ name = "fairy wings", chance = 15000 },
-	{ name = "wooden spellbook", chance = 3440 },
-	{ name = "leaf star", chance = 3440, maxCount = 7 },
+	{ name = "wooden spellbook", chance = 605 },
+	{ name = "leaf star", chance = 7882, maxCount = 7 },
 	{ id = 3727, chance = 4500 }, -- wood mushroom
 }
 

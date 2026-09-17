@@ -87,12 +87,12 @@ monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "platinum coin", chance = 100000, maxCount = 7 },
 	{ name = "banana skin", chance = 9500 },
-	{ name = "piece of iron", chance = 10400 },
+	{ name = "piece of iron", chance = 7735 },
 	{ name = "fishbone", chance = 10000 },
 	{ id = 3114, chance = 12680 }, -- skull
 	{ id = 3115, chance = 10000 }, -- bone
-	{ id = 3116, chance = 5500 }, -- big bone
-	{ name = "two handed sword", chance = 3200 },
+	{ id = 3116, chance = 3793 }, -- big bone
+	{ name = "two handed sword", chance = 2224 },
 	{ id = 3578, chance = 6750, maxCount = 3 }, -- fish
 	{ name = "ham", chance = 6000, maxCount = 2 },
 	{ name = "iron ore", chance = 3000 },
@@ -100,19 +100,20 @@ monster.loot = {
 	{ name = "hardened bone", chance = 5000 },
 	{ id = 5951, chance = 10800 }, -- fish tail
 	{ name = "assassin dagger", chance = 1000 },
-	{ name = "haunted blade", chance = 2240 },
+	{ name = "haunted blade", chance = 1569 },
 	{ name = "nightmare blade", chance = 1100 },
 	{ id = 238, chance = 15000, maxCount = 3 }, -- great mana potion
 	{ name = "great health potion", chance = 15000, maxCount = 2 },
 	{ name = "gold ingot", chance = 2300 },
-	{ name = "traditional sai", chance = 1460 },
+	{ name = "traditional sai", chance = 470 },
 	{ name = "violet crystal shard", chance = 3000 },
-	{ name = "brown crystal splinter", chance = 16000 },
-	{ name = "red crystal fragment", chance = 7600 },
+	{ name = "brown crystal splinter", chance = 11936 },
+	{ name = "red crystal fragment", chance = 4251 },
 	{ id = 16279, chance = 10000 }, -- crystal rubbish
-	{ name = "cluster of solace", chance = 4450 },
+	{ name = "cluster of solace", chance = 383 },
 	{ name = "frazzle tongue", chance = 18760 },
 	{ name = "frazzle skin", chance = 16000 },
+	{ name = "remains of a fish", chance = 8106 },
 }
 
 monster.attacks = {

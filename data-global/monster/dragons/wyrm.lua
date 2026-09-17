@@ -84,13 +84,13 @@ monster.loot = {
 	{ name = "strong health potion", chance = 19910 },
 	{ name = "wyrm scale", chance = 17540 },
 	{ name = "strong mana potion", chance = 15170 },
-	{ id = 3449, chance = 5690, maxCount = 10 }, -- burst arrow
+	{ id = 3449, chance = 7975, maxCount = 10 }, -- burst arrow
 	{ name = "crossbow", chance = 5690 },
-	{ name = "focus cape", chance = 2370 },
-	{ name = "small diamond", chance = 1420, maxCount = 3 },
-	{ name = "wand of starstorm", chance = 1420 },
+	{ name = "focus cape", chance = 1231 },
+	{ name = "small diamond", chance = 914, maxCount = 3 },
+	{ name = "wand of starstorm", chance = 447 },
 	{ name = "wand of draconia", chance = 1420 },
-	{ name = "composite hornbow", chance = 950 },
+	{ name = "composite hornbow", chance = 103 },
 	{ name = "dragonbone staff", chance = 470 },
 	{ name = "lightning pendant", chance = 470 },
 	{ name = "shockwave amulet", chance = 470 },

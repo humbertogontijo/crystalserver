@@ -84,12 +84,12 @@ monster.loot = {
 	{ name = "gold coin", chance = 99110, maxCount = 207 },
 	{ name = "dragon ham", chance = 83040, maxCount = 2 },
 	{ name = "green mushroom", chance = 10710 },
-	{ id = 7441, chance = 6250 }, -- ice cube
+	{ id = 7441, chance = 4046 }, -- ice cube
 	{ id = 2842, chance = 8500 }, -- book
 	{ name = "power bolt", chance = 5360, maxCount = 6 },
-	{ name = "golden mug", chance = 5360 },
-	{ id = 3051, chance = 2680 }, -- energy ring
-	{ name = "small sapphire", chance = 1790 },
+	{ name = "golden mug", chance = 3054 },
+	{ id = 3051, chance = 4948 }, -- energy ring
+	{ name = "small sapphire", chance = 5099 },
 	{ name = "strange helmet", chance = 890 },
 	{ name = "life crystal", chance = 890 },
 	{ name = "shard", chance = 520 },

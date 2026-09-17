@@ -86,6 +86,7 @@ monster.loot = {
 	{ name = "tribal mask", chance = 510 },
 	{ name = "bast skirt", chance = 100 },
 	{ name = "seeds", chance = 200 },
+	{ name = "throwing knife", chance = 7944, maxCount = 2 },
 }
 
 monster.attacks = {

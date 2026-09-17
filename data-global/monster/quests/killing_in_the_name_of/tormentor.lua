@@ -79,7 +79,7 @@ monster.loot = {
 	{ id = 6525, chance = 28000 }, -- skeleton decoration
 	{ id = 3342, chance = 14000 }, -- war axe
 	{ id = 7418, chance = 10000 }, -- nightmare blade
-	{ id = 3079, chance = 8000 }, -- boots of haste
+	{ id = 3079, chance = 12500 }, -- boots of haste
 }
 
 monster.attacks = {

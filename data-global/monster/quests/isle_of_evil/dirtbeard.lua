@@ -77,7 +77,10 @@ monster.voices = {
 	{ text = "Yarr, death to all landlubbers!", yell = false },
 }
 
-monster.loot = {}
+monster.loot = {
+	{ name = "helmet of nature", chance = 60000 },
+	{ name = "pointed rabbitslayer", chance = 40000 },
+}
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -125 },

@@ -83,7 +83,7 @@ monster.loot = {
 	{ name = "Dream Blossom Staff", chance = 1090 },
 	{ name = "Coral Brooch", chance = 1030 },
 	{ name = "Lightning Boots", chance = 1000 },
-	{ name = "Wand of Cosmic Energy", chance = 860 },
+	{ name = "Wand of Cosmic Energy", chance = 1732 },
 	{ name = "Gemmed Figurine", chance = 830 },
 	{ name = "Butterfly Ring", chance = 800 },
 }

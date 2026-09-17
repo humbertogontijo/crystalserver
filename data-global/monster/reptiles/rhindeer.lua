@@ -81,11 +81,11 @@ monster.loot = {
 	{ name = "rhindeer antlers", chance = 6020 },
 	{ name = "rainbow quartz", chance = 4940, maxCount = 2 },
 	{ id = 238, chance = 2670, maxCount = 4 }, -- great mana potion
-	{ name = "titan axe", chance = 2470 },
+	{ name = "titan axe", chance = 1452 },
 	{ name = "yellow gem", chance = 1880 },
 	{ name = "knight armor", chance = 1380 },
-	{ name = "violet gem", chance = 1200 },
-	{ id = 23543, chance = 890 }, -- collar of green plasma
+	{ name = "violet gem", chance = 4979 },
+	{ id = 23543, chance = 207 }, -- collar of green plasma
 	{ name = "heavy mace", chance = 300 },
 	{ name = "mastermind shield", chance = 400 },
 	{ id = 3053, chance = 690 }, -- time ring

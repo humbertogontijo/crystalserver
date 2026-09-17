@@ -78,21 +78,21 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 5 },
-	{ name = "brown crystal splinter", chance = 900 },
+	{ name = "platinum coin", chance = 74305, maxCount = 5 },
+	{ name = "brown crystal splinter", chance = 10276 },
 	{ name = "red crystal fragment", chance = 8500 },
-	{ name = "small enchanted ruby", chance = 7500 },
-	{ name = "small diamond", chance = 6000 },
-	{ name = "small sapphire", chance = 5000 },
-	{ id = 3039, chance = 4000 }, -- red gem
-	{ name = "yellow gem", chance = 3000 },
-	{ id = 29299, chance = 1100 }, -- golden idol of tukh
+	{ name = "small enchanted ruby", chance = 5277 },
+	{ name = "small diamond", chance = 12785 },
+	{ name = "small sapphire", chance = 10805 },
+	{ id = 3039, chance = 9392 }, -- red gem
+	{ name = "yellow gem", chance = 4143 },
+	{ id = 29299, chance = 4979 }, -- golden idol of tukh
 	{ name = "wand of draconia", chance = 3500 },
-	{ name = "wand of inferno", chance = 1100 },
-	{ id = 30084, chance = 700 }, -- red ectoplasm
-	{ name = "magma coat", chance = 900 },
+	{ name = "wand of inferno", chance = 2211 },
+	{ id = 30084, chance = 1826 }, -- red ectoplasm
+	{ name = "magma coat", chance = 1605 },
 	{ name = "prismatic quartz", chance = 1500 },
-	{ name = "small enchanted emerald", chance = 800 },
+	{ name = "small enchanted emerald", chance = 1452 },
 	{ name = "onyx chip", chance = 770 },
 	{ name = "hexagonal ruby", chance = 500 },
 }

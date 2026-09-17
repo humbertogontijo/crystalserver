@@ -85,7 +85,7 @@ monster.loot = {
 	{ name = "green crystal shard", chance = 2490 },
 	{ name = "cyan crystal fragment", chance = 2390 },
 	{ name = "blue gem", chance = 1970 },
-	{ name = "small diamond", chance = 1350, maxCount = 3 },
+	{ name = "small diamond", chance = 1962, maxCount = 3 },
 	{ name = "sea horse figurine", chance = 520 },
 }
 

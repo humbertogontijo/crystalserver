@@ -71,7 +71,7 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "Ceremonial Bowl", chance = 9000 },
+	{ name = "Ceremonial Bowl", chance = 5556 },
 	{ name = "Cloud Familiar", chance = 900 },
 	{ name = "Lunar Ascension Orb", chance = 150 },
 	{ name = "devoted radiant templar soul core", chance = 100 },

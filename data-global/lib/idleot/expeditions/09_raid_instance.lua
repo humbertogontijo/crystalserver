@@ -688,6 +688,16 @@ function RaidInstance.join(player, raidName, loadout, options)
 	end
 	local stopOpts = ExpeditionConfig.normalizeStopOptions(options)
 	local contentRole = session.role or ExpeditionConfig.raidRole(raidName)
+	local raceId = session.bossRaceId
+		or (ExpeditionConfig.RaidLevels and ExpeditionConfig.RaidLevels[raidName] and ExpeditionConfig.RaidLevels[raidName].creatureId)
+		or nil
+	-- MonsterType / boss cooldown need the real monster name ("The Evil Eye"),
+	-- not the raid display label ("Abdendriel Theevileye"). raceId alone is enough
+	-- when CreatureInfo indexes that id (fallbackName intentionally omitted).
+	local bossName = nil
+	if ExpeditionConfig.monsterNameByCreatureId and raceId then
+		bossName = ExpeditionConfig.monsterNameByCreatureId(raceId)
+	end
 	local key = "raid:" .. raidName .. ":p" .. player:getGuid()
 	local member = {
 		key = key,
@@ -701,12 +711,10 @@ function RaidInstance.join(player, raidName, loadout, options)
 		bossRaceId = session.bossRaceId,
 		catalog = {
 			id = raidName,
-			name = session.displayName,
+			name = bossName or session.displayName,
 			kind = "raid",
 			role = contentRole,
-			creatureId = session.bossRaceId
-				or (ExpeditionConfig.RaidLevels and ExpeditionConfig.RaidLevels[raidName] and ExpeditionConfig.RaidLevels[raidName].creatureId)
-				or nil,
+			creatureId = raceId,
 		},
 		instance = session.instance,
 		wave = session.raid and session.raid.currentStage or 0,

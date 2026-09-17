@@ -71,16 +71,16 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 9000, maxCount = 1 },
-	{ name = "organic acid", chance = 7678, maxCount = 1 },
-	{ name = "terra boots", chance = 12369, maxCount = 1 },
-	{ name = "small amethyst", chance = 12859, maxCount = 1 },
-	{ name = "rotten roots", chance = 13133, maxCount = 1 },
-	{ name = "blue gem", chance = 9808, maxCount = 1 },
-	{ name = "dragonbone staff", chance = 6964, maxCount = 1 },
-	{ name = "worm sponge", chance = 7270, maxCount = 1 },
-	{ name = "violet gem", chance = 5084, maxCount = 1 },
-	{ name = "jade hammer", chance = 3073, maxCount = 1 },
+	{ name = "crystal coin", chance = 60498, maxCount = 1 },
+	{ name = "organic acid", chance = 15669, maxCount = 1 },
+	{ name = "terra boots", chance = 1645, maxCount = 1 },
+	{ name = "small amethyst", chance = 5059, maxCount = 1 },
+	{ name = "rotten roots", chance = 4154, maxCount = 1 },
+	{ name = "blue gem", chance = 2303, maxCount = 1 },
+	{ name = "dragonbone staff", chance = 4997, maxCount = 1 },
+	{ name = "worm sponge", chance = 2714, maxCount = 1 },
+	{ name = "violet gem", chance = 555, maxCount = 1 },
+	{ name = "jade hammer", chance = 514, maxCount = 1 },
 }
 
 monster.attacks = {

@@ -78,7 +78,7 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 80320, maxCount = 222 }, -- gold coin
-	{ id = 3035, chance = 50320, maxCount = 4 }, -- platinum coin
+	{ id = 3035, chance = 74510, maxCount = 4 }, -- platinum coin
 	{ id = 3725, chance = 5000, maxCount = 2 }, -- brown mushroom
 	{ id = 3577, chance = 10000, maxCount = 2 }, -- meat
 	{ id = 24383, chance = 20000, maxCount = 2 }, -- cave turnip
@@ -92,7 +92,7 @@ monster.loot = {
 	{ id = 3055, chance = 370 }, -- platinum amulet
 	{ id = 24384, chance = 17000 }, -- ancient belt buckle
 	{ id = 24385, chance = 20000 }, -- cracked alabaster vase
-	{ id = 24390, chance = 4000 }, -- ancient coin
+	{ id = 24390, chance = 5554 }, -- ancient coin
 }
 
 monster.attacks = {

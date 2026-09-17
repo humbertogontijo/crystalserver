@@ -77,7 +77,10 @@ monster.voices = {
 	{ text = "WHARR! MUST ... KIDNAP WOMEN!", yell = true },
 }
 
-monster.loot = {}
+monster.loot = {
+	{ name = "helmet of ultimate terror", chance = 80000 },
+	{ name = "incredible mumpiz slayer", chance = 20000 },
+}
 
 monster.attacks = {
 	{ name = "melee", interval = 1200, chance = 100, minDamage = 0, maxDamage = -167 },

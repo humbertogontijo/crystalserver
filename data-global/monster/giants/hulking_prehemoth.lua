@@ -78,12 +78,12 @@ monster.loot = {
 	{ name = "Prehemoth Horns", chance = 19870 },
 	{ name = "Prehemoth Claw", chance = 16149, minCount = 1, maxCount = 2 },
 	{ name = "Ultimate Health Potion", chance = 16120 },
-	{ name = "Furry Club", chance = 7050 },
+	{ name = "Furry Club", chance = 5172 },
 	{ name = "War Hammer", chance = 4660 },
-	{ name = "War Axe", chance = 3040 },
+	{ name = "War Axe", chance = 1149 },
 	{ name = "Doublet", chance = 2880 },
 	{ name = "Silver Brooch", chance = 1160 },
-	{ name = "Emerald Bangle", chance = 780 },
+	{ name = "Emerald Bangle", chance = 2874 },
 }
 
 monster.attacks = {

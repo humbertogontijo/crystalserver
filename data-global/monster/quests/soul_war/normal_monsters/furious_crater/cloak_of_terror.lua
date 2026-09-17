@@ -89,15 +89,15 @@ monster.loot = {
 	{ name = "gold ingot", chance = 12380 },
 	{ name = "wand of starstorm", chance = 5450 },
 	{ name = "telescope eye", chance = 5450 },
-	{ id = 33935, chance = 4460 }, --  crown (terror)
+	{ id = 33935, chance = 2961 }, --  crown (terror)
 	{ name = "violet gem", chance = 3960 },
 	{ name = "wand of inferno", chance = 3960 },
-	{ name = "lightning headband", chance = 3960 },
-	{ name = "green gem", chance = 3960 },
-	{ name = "wand of voodoo", chance = 3960 },
-	{ name = "blue gem", chance = 1490 },
-	{ name = "brooch of embracement", chance = 1490 },
-	{ name = "wand of defiance", chance = 990 },
+	{ name = "lightning headband", chance = 1549 },
+	{ name = "green gem", chance = 2887 },
+	{ name = "wand of voodoo", chance = 2693 },
+	{ name = "blue gem", chance = 2505 },
+	{ name = "brooch of embracement", chance = 780 },
+	{ name = "wand of defiance", chance = 3188 },
 	{ name = "bag you desire", chance = 15 },
 }
 

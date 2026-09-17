@@ -218,14 +218,27 @@ end
 local function buildSellPriceMap()
 	local prices = {}
 	local catalog = (HirelingShopItems and HirelingShopItems["buy loot"]) or HirelingBuyLootItems
-	if type(catalog) ~= "table" then
-		return prices
+	if type(catalog) == "table" then
+		for _, entry in ipairs(catalog) do
+			local sell = math.floor(tonumber(entry.sell) or 0)
+			local clientId = tonumber(entry.clientId)
+			if clientId and clientId > 0 and sell > 0 then
+				prices[clientId] = sell
+			end
+		end
 	end
-	for _, entry in ipairs(catalog) do
-		local sell = math.floor(tonumber(entry.sell) or 0)
-		local clientId = tonumber(entry.clientId)
-		if clientId and clientId > 0 and sell > 0 then
-			prices[clientId] = sell
+	-- Prefer live ItemType.sellPrice (CIP denorm + NPC shops) when higher / present.
+	if ItemType then
+		for clientId, catalogSell in pairs(prices) do
+			local ok, it = pcall(ItemType, clientId)
+			if ok and it and it.getSellPrice then
+				local typed = math.floor(tonumber(it:getSellPrice()) or 0)
+				if typed > catalogSell then
+					prices[clientId] = typed
+				elseif typed > 0 and catalogSell <= 0 then
+					prices[clientId] = typed
+				end
+			end
 		end
 	end
 	return prices
@@ -262,7 +275,29 @@ local function resolvePrice(prices, typeId)
 		return prices[typeId]
 	end
 	local cid = clientIdOf(typeId)
-	return prices[cid] or 0
+	if prices[cid] then
+		return prices[cid]
+	end
+	-- Fall back to ItemType even for items not in the hireling catalog.
+	if ItemType then
+		local ok, it = pcall(ItemType, typeId)
+		if ok and it and it.getSellPrice then
+			local typed = math.floor(tonumber(it:getSellPrice()) or 0)
+			if typed > 0 then
+				return typed
+			end
+		end
+		if cid ~= typeId then
+			ok, it = pcall(ItemType, cid)
+			if ok and it and it.getSellPrice then
+				local typed = math.floor(tonumber(it:getSellPrice()) or 0)
+				if typed > 0 then
+					return typed
+				end
+			end
+		end
+	end
+	return 0
 end
 
 local function isEquippedNonContainer(player, item)

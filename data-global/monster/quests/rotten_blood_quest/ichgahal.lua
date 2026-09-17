@@ -79,23 +79,27 @@ monster.voices = {
 monster.loot = {
 	{ id = 43895, chance = 360, unique = true }, ---bag you covet
 	{ name = "crystal coin", chance = 100000, maxCount = 91 },
-	{ name = "ultimate spirit potion", chance = 7169, maxCount = 153 },
+	{ name = "ultimate spirit potion", chance = 55172, maxCount = 153 },
 	{ name = "mastermind potion", chance = 22000, maxCount = 34 },
-	{ name = "yellow gem", chance = 22000, maxCount = 4 },
-	{ name = "amber with a bug", chance = 50000, maxCount = 1 },
-	{ name = "ultimate mana potion", chance = 13137, maxCount = 179 },
+	{ name = "yellow gem", chance = 31034, maxCount = 4 },
+	{ name = "amber with a bug", chance = 13793, maxCount = 1 },
+	{ name = "ultimate mana potion", chance = 48276, maxCount = 179 },
 	{ name = "violet gem", chance = 11100, maxCount = 4 },
-	{ name = "raw watermelon tourmaline", chance = 26788, maxCount = 1 },
-	{ id = 3039, chance = 29047, maxCount = 25 }, -- red gem
+	{ name = "raw watermelon tourmaline", chance = 41379, maxCount = 1 },
+	{ id = 3039, chance = 44828, maxCount = 25 }, -- red gem
 	{ name = "supreme health potion", chance = 50635, maxCount = 163 },
 	{ name = "berserk potion", chance = 24973, maxCount = 30 },
-	{ name = "amber with a dragonfly", chance = 16470, maxCount = 1 },
-	{ name = "gold ingot", chance = 1670, maxCount = 1 },
+	{ name = "amber with a dragonfly", chance = 51724, maxCount = 1 },
+	{ name = "gold ingot", chance = 17241, maxCount = 1 },
 	{ name = "blue gem", chance = 28394, maxCount = 1 },
-	{ name = "bullseye potion", chance = 16700, maxCount = 34 },
-	{ name = "putrefactive figurine", chance = 5600, maxCount = 1 },
+	{ name = "bullseye potion", chance = 24138, maxCount = 34 },
+	{ name = "putrefactive figurine", chance = 3448, maxCount = 1 },
 	{ name = "ichgahal's fungal infestation", chance = 17902, maxCount = 1 },
-	{ name = "white gem", chance = 11110, maxCount = 3 },
+	{ name = "white gem", chance = 6897, maxCount = 3 },
+	{ name = "green gem", chance = 31034, maxCount = 4 },
+	{ name = "transcendence potion", chance = 31034, maxCount = 44 },
+	{ name = "the essence of Ichgahal", chance = 10345 },
+	{ name = "dragon figurine", chance = 6897 },
 }
 
 monster.attacks = {

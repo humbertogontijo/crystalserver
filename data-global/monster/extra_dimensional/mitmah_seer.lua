@@ -80,7 +80,7 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 15 },
+	{ name = "platinum coin", chance = 54710, maxCount = 15 },
 	{ id = 238, chance = 11880 }, -- great mana potion
 	{ name = "crystal of the mitmah", chance = 11410 }, -- 280gp yasir
 	{ name = "strong health potion", chance = 5810, maxCount = 3 },

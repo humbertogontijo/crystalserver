@@ -83,7 +83,7 @@ monster.loot = {
 	{ name = "lion cloak patch", chance = 8444 },
 	{ name = "lion crest", chance = 8222 },
 	{ name = "black pearl", chance = 5778 },
-	{ id = 281, chance = 5556 }, -- giant shimmering pearl (green)
+	{ id = 281, chance = 3940 }, -- giant shimmering pearl (green)
 	{ name = "terra hood", chance = 4667 },
 	{ name = "lightning headband", chance = 3778 },
 	{ name = "green gem", chance = 3556 },
@@ -92,8 +92,8 @@ monster.loot = {
 	{ name = "magma monocle", chance = 1778 },
 	{ name = "wand of cosmic energy", chance = 1778 },
 	{ name = "underworld rod", chance = 1333 },
-	{ name = "knight legs", chance = 1111 },
-	{ name = "wand of starstorm", chance = 667 },
+	{ name = "knight legs", chance = 2513 },
+	{ name = "wand of starstorm", chance = 1320 },
 }
 
 monster.attacks = {

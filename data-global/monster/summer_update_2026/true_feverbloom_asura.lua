@@ -71,17 +71,17 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 20000, maxCount = 8 },
+	{ name = "Platinum Coin", chance = 87320, maxCount = 8 },
 	{ name = "Seeds", chance = 9000 },
-	{ name = "Demonic Essence", chance = 9000 },
-	{ name = "Flask of Demonic Blood", chance = 9000 },
-	{ name = "Golden Lotus Brooch", chance = 9000 },
-	{ name = "Peacock Feather Fan", chance = 9000 },
+	{ name = "Demonic Essence", chance = 13833 },
+	{ name = "Flask of Demonic Blood", chance = 20173 },
+	{ name = "Golden Lotus Brooch", chance = 18444 },
+	{ name = "Peacock Feather Fan", chance = 19789 },
 	{ name = "Wild Flowers", chance = 9000 },
 	{ name = "Pyrophyte Seed Pod", chance = 9000 },
-	{ name = "Crystal Coin", chance = 4000 },
-	{ name = "Muck Rod", chance = 4000 },
-	{ name = "Oriental Shoes", chance = 4000 },
+	{ name = "Crystal Coin", chance = 5764 },
+	{ name = "Muck Rod", chance = 1249 },
+	{ name = "Oriental Shoes", chance = 1249 },
 	{ name = "true feverbloom asura soul core", chance = 100 },
 }
 

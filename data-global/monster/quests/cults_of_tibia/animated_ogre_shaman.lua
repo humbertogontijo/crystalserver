@@ -76,16 +76,16 @@ monster.loot = {
 	{ id = 22185, chance = 6200, maxCount = 2 }, -- prickly pear
 	{ id = 3030, chance = 2200, maxCount = 2 }, -- small ruby
 	{ id = 3027, chance = 1200, maxCount = 2 }, -- black pearl
-	{ id = 17831, chance = 3200 }, -- bone fetish
-	{ id = 11452, chance = 1200 }, -- broken shamanic staff
+	{ id = 17831, chance = 5882 }, -- bone fetish
+	{ id = 11452, chance = 5882 }, -- broken shamanic staff
 	{ id = 3598, chance = 2200, maxCount = 7 }, -- cookie
-	{ id = 3069, chance = 800 }, -- necrotic rod
-	{ id = 22188, chance = 3200 }, -- ogre ear stud
-	{ id = 22189, chance = 2200 }, -- ogre nose ring
-	{ id = 22184, chance = 1200 }, -- shamanic talisman
+	{ id = 3069, chance = 5882 }, -- necrotic rod
+	{ id = 22188, chance = 23529 }, -- ogre ear stud
+	{ id = 22189, chance = 11765 }, -- ogre nose ring
+	{ id = 22184, chance = 5882 }, -- shamanic talisman
 	{ id = 3114, chance = 1200 }, -- skull
-	{ id = 22191, chance = 1200 }, -- skull fetish
-	{ id = 237, chance = 1000, maxCount = 3 }, -- strong mana potion
+	{ id = 22191, chance = 11765 }, -- skull fetish
+	{ id = 237, chance = 5882, maxCount = 3 }, -- strong mana potion
 	{ id = 3072, chance = 600 }, -- wand of decay
 	{ id = 2901, chance = 500 }, -- waterskin
 	{ id = 22183, chance = 300 }, -- ogre scepta

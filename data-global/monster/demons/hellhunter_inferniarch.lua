@@ -80,18 +80,18 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 26500, maxCount = 40 },
-	{ name = "Onyx Arrow", chance = 24500, maxCount = 25 },
-	{ name = "Sniper Arrow", chance = 24500, maxCount = 15 },
-	{ name = "Assassin Star", chance = 24500, maxCount = 25 },
-	{ name = "Small Amethyst", chance = 24500, maxCount = 5 },
-	{ name = "Dark Helmet", chance = 12500, maxCount = 1 },
-	{ id = 6299, chance = 3500, maxCount = 1 },
-	{ name = "Demonic Core Essence", chance = 1500, maxCount = 1 },
-	{ name = "Cyan Crystal Fragment", chance = 14500, maxCount = 5 },
-	{ name = "Mummified Demon Finger", chance = 1500, maxCount = 1 },
-	{ name = "Hellhunter Eye", chance = 2500, maxCount = 1 },
-	{ name = "Demonic Matter", chance = 1500, maxCount = 1 },
+	{ name = "Platinum Coin", chance = 100000, maxCount = 40 },
+	{ name = "Onyx Arrow", chance = 10202, maxCount = 25 },
+	{ name = "Sniper Arrow", chance = 3028, maxCount = 15 },
+	{ name = "Assassin Star", chance = 8320, maxCount = 25 },
+	{ name = "Small Amethyst", chance = 7056, maxCount = 5 },
+	{ name = "Dark Helmet", chance = 1909, maxCount = 1 },
+	{ id = 6299, chance = 1218, maxCount = 1 },
+	{ name = "Demonic Core Essence", chance = 3101, maxCount = 1 },
+	{ name = "Cyan Crystal Fragment", chance = 3837, maxCount = 5 },
+	{ name = "Mummified Demon Finger", chance = 991, maxCount = 1 },
+	{ name = "Hellhunter Eye", chance = 473, maxCount = 1 },
+	{ name = "Demonic Matter", chance = 782, maxCount = 1 },
 }
 
 monster.attacks = {

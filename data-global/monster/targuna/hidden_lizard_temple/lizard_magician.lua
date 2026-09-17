@@ -77,9 +77,9 @@ monster.loot = {
 	{ name = "mana potion", chance = 30000 },
 	{ name = "gold coin", chance = 50000, maxCount = 15 },
 	{ name = "cape", chance = 9000 },
-	{ name = "lizard tail", chance = 2500 },
-	{ name = "lizard leather", chance = 700 },
-	{ name = "lizard scale", chance = 700 },
+	{ name = "lizard tail", chance = 4331 },
+	{ name = "lizard leather", chance = 1205 },
+	{ name = "lizard scale", chance = 1270 },
 	{ name = "charmer's tiara", chance = 700 },
 }
 

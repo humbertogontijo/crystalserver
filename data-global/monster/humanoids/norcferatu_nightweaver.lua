@@ -79,15 +79,15 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 60000, minCount = 1, maxCount = 25 },
-	{ name = "strong mana potion", chance = 2800, minCount = 1, maxCount = 3 },
+	{ name = "platinum coin", chance = 80609, minCount = 1, maxCount = 25 },
+	{ name = "strong mana potion", chance = 6420, minCount = 1, maxCount = 3 },
 	{ name = "piece of frozen night", chance = 2500 }, -- new item
-	{ name = "blood hood", chance = 2200 }, -- new item
+	{ name = "blood hood", chance = 6089 }, -- new item
 	{ name = "magma amulet", chance = 2000 },
-	{ name = "rainbow quartz", chance = 1800, minCount = 1, maxCount = 2 },
+	{ name = "rainbow quartz", chance = 4699, minCount = 1, maxCount = 2 },
 	{ id = 6299, chance = 1400 }, -- death ring
-	{ name = "wand of defiance", chance = 1200 },
-	{ name = "greater garlic necklace", chance = 1200 }, -- new item
+	{ name = "wand of defiance", chance = 596 },
+	{ name = "greater garlic necklace", chance = 662 }, -- new item
 	{ id = 51487, chance = 1000 }, -- new item // norcferatu talisman
 }
 

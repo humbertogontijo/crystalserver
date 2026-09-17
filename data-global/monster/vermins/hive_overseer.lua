@@ -87,8 +87,8 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "small ruby", chance = 16000, maxCount = 2 },
-	{ name = "gold coin", chance = 40000, maxCount = 100 },
-	{ name = "gold coin", chance = 58000, maxCount = 98 },
+	{ name = "gold coin", chance = 98362, maxCount = 100 },
+	{ name = "gold coin", chance = 98362, maxCount = 98 },
 	{ name = "platinum coin", chance = 84000, maxCount = 6 },
 	{ name = "steel boots", chance = 550 },
 	{ id = 238, chance = 18000 }, -- great mana potion
@@ -97,7 +97,7 @@ monster.loot = {
 	{ name = "gold ingot", chance = 29000 },
 	{ name = "kollos shell", chance = 28000 },
 	{ name = "compound eye", chance = 16000 },
-	{ name = "calopteryx cape", chance = 830 },
+	{ name = "calopteryx cape", chance = 1526 },
 	{ name = "carapace shield", chance = 920 },
 	{ name = "hive scythe", chance = 1650 },
 	{ name = "gooey mass", chance = 13000, maxCount = 2 },

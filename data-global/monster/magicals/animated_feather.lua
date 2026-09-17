@@ -73,21 +73,22 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "small sapphire", chance = 8700, maxCount = 5 },
+	{ name = "small sapphire", chance = 39868, maxCount = 5 },
 	{ name = "platinum coin", chance = 87000, maxCount = 50 },
-	{ id = 28570, chance = 500, maxCount = 10 }, -- glowing rune
-	{ id = 3051, chance = 8700 }, -- energy ring
-	{ id = 7441, chance = 4000 }, -- ice cube
+	{ id = 28570, chance = 77729, maxCount = 10 }, -- glowing rune
+	{ id = 3051, chance = 13740 }, -- energy ring
+	{ id = 7441, chance = 14178 }, -- ice cube
 	{ name = "shard", chance = 250, maxCount = 3 },
-	{ name = "glacier mask", chance = 250 },
-	{ name = "hailstorm rod", chance = 250 },
-	{ name = "life crystal", chance = 8700 },
+	{ name = "glacier mask", chance = 7523 },
+	{ name = "hailstorm rod", chance = 2525 },
+	{ name = "life crystal", chance = 3639 },
 	{ id = 238, chance = 900, maxCount = 6 }, -- great mana potion
-	{ name = "golden mug", chance = 500 },
-	{ name = "glowing rune", chance = 500, maxCount = 10 },
-	{ id = 3051, chance = 8700 }, -- energy ring
-	{ name = "quill", chance = 250 },
-	{ name = "small diamond", chance = 500, maxCount = 5 },
+	{ name = "golden mug", chance = 2622 },
+	{ name = "glowing rune", chance = 77729, maxCount = 10 },
+	{ id = 3051, chance = 13740 }, -- energy ring
+	{ name = "quill", chance = 13529 },
+	{ name = "small diamond", chance = 4752, maxCount = 5 },
+	{ name = "ultimate mana potion", chance = 17448, maxCount = 2 },
 }
 
 monster.attacks = {

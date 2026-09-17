@@ -78,11 +78,11 @@ monster.loot = {
 	{ name = "weretiger tooth", chance = 13400 },
 	{ name = "beastslayer axe", chance = 3970 },
 	{ name = "ham", chance = 5500, maxCount = 2 },
-	{ name = "moonlight crystals", chance = 7000 },
+	{ name = "moonlight crystals", chance = 16282 },
 	{ name = "white gem", chance = 1650 },
 	{ name = "silver moon coin", chance = 2000 },
 	{ name = "blue robe", chance = 1160 },
-	{ name = "moon pin", chance = 660 },
+	{ name = "moon pin", chance = 1681 },
 	{ name = "crystal mace", chance = 500 },
 	{ id = 43915, chance = 610 }, -- weretiger trophy
 }

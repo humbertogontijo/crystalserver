@@ -75,32 +75,32 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "violet crystal shard", chance = 900, maxCount = 4 },
+	{ name = "violet crystal shard", chance = 32258, maxCount = 4 },
 	{ name = "platinum coin", chance = 100000, maxCount = 12 },
-	{ name = "glowing rune", chance = 900, maxCount = 4 },
-	{ name = "instable proto matter", chance = 1200, maxCount = 4 },
-	{ name = "energy ball", chance = 1200, maxCount = 4 },
-	{ name = "energy bar", chance = 1200, maxCount = 4 },
-	{ name = "energy drink", chance = 1200, maxCount = 4 },
-	{ name = "odd organ", chance = 1200, maxCount = 4 },
-	{ name = "frozen lightning", chance = 1200, maxCount = 4 },
-	{ id = 28568, chance = 1200, maxCount = 3 }, -- inkwell
-	{ name = "small ruby", chance = 1200, maxCount = 4 },
-	{ name = "violet gem", chance = 1200, maxCount = 4 },
+	{ name = "glowing rune", chance = 19355, maxCount = 4 },
+	{ name = "instable proto matter", chance = 9677, maxCount = 4 },
+	{ name = "energy ball", chance = 16129, maxCount = 4 },
+	{ name = "energy bar", chance = 3226, maxCount = 4 },
+	{ name = "energy drink", chance = 22581, maxCount = 4 },
+	{ name = "odd organ", chance = 19355, maxCount = 4 },
+	{ name = "frozen lightning", chance = 22581, maxCount = 4 },
+	{ id = 28568, chance = 3226, maxCount = 3 }, -- inkwell
+	{ name = "small ruby", chance = 9677, maxCount = 4 },
+	{ name = "violet gem", chance = 6452, maxCount = 4 },
 	{ name = "blue crystal splinter", chance = 1200, maxCount = 4 },
 	{ name = "cyan crystal fragment", chance = 1200, maxCount = 4 },
-	{ name = "ultimate mana potion", chance = 1200, maxCount = 4 },
-	{ name = "piece of dead brain", chance = 1200, maxCount = 4 },
+	{ name = "ultimate mana potion", chance = 6452, maxCount = 4 },
+	{ name = "piece of dead brain", chance = 6452, maxCount = 4 },
 	{ name = "wand of defiance", chance = 800 },
-	{ name = "lightning headband", chance = 950 },
-	{ name = "lightning pendant", chance = 850 },
+	{ name = "lightning headband", chance = 3226 },
+	{ name = "lightning pendant", chance = 3226 },
 	{ name = "might ring", chance = 1300 },
-	{ name = "slime heart", chance = 1200, maxCount = 4 },
+	{ name = "slime heart", chance = 6452, maxCount = 4 },
 	{ id = 23544, chance = 560 }, -- collar of red plasma
-	{ id = 23542, chance = 560 }, -- collar of blue plasma
+	{ id = 23542, chance = 3226 }, -- collar of blue plasma
 	{ id = 23543, chance = 560 }, -- collar of green plasma
 	{ id = 23533, chance = 560 }, -- ring of red plasma
-	{ id = 23529, chance = 560 }, -- ring of blue plasma
+	{ id = 23529, chance = 6452 }, -- ring of blue plasma
 	{ id = 23531, chance = 560 }, -- ring of green plasma
 }
 

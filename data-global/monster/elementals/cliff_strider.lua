@@ -85,7 +85,7 @@ monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 10 },
 	{ id = 3039, chance = 6110 }, -- red gem
 	{ name = "blue gem", chance = 830 },
-	{ name = "giant sword", chance = 620 },
+	{ name = "giant sword", chance = 1200 },
 	{ name = "hammer of wrath", chance = 70 },
 	{ name = "knight legs", chance = 830 },
 	{ name = "crown armor", chance = 310 },
@@ -95,11 +95,11 @@ monster.loot = {
 	{ name = "magic sulphur", chance = 1450 },
 	{ name = "soul orb", chance = 17080 },
 	{ name = "sapphire hammer", chance = 1350 },
-	{ name = "spiked squelcher", chance = 1040 },
+	{ name = "spiked squelcher", chance = 1575 },
 	{ id = 238, chance = 30950, maxCount = 4 }, -- great mana potion
 	{ name = "ultimate health potion", chance = 25260, maxCount = 2 },
 	{ name = "crystal of balance", chance = 2690 },
-	{ name = "crystal of power", chance = 720 },
+	{ name = "crystal of power", chance = 1350 },
 	{ name = "shiny stone", chance = 11280 },
 	{ name = "wand of defiance", chance = 2000 },
 	{ name = "glacial rod", chance = 1240 },

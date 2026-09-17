@@ -88,6 +88,8 @@ monster.loot = {
 	{ id = 10319, chance = 140 }, -- ranger's cloak (0.14%)
 	{ id = 3375, chance = 140 }, -- soldier helmet (0.14%)
 	{ id = 3081, chance = 70 }, -- stone skin amulet (0.07%)
+	{ name = "health potion", chance = 20798 },
+	{ name = "mana potion", chance = 19687 },
 }
 
 monster.attacks = {

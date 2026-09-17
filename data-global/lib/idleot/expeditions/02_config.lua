@@ -700,25 +700,44 @@ function ExpeditionConfig.raidRole(raidId)
 end
 
 --- Monster type name for Game.createMonster from race id / bossRaceId.
---- MonsterType(number) only resolves bestiary race ids. Boss entries store bosstiary
---- race ids (bossRaceId), which fail that lookup - pass catalog name as fallbackName.
+--- Resolution order (fallbackName is optional — raceId-only callers are valid):
+---   1) CreatureInfo by creatureId (silent; preferred for raids)
+---   2) MonsterType(creatureId) when the id is a bestiary race id
+---   3) CreatureInfo / MonsterType via fallbackName (skipped when fallback is a
+---      raid display label and a numeric race id was already tried)
 function ExpeditionConfig.monsterNameByCreatureId(creatureId, fallbackName)
-	local info = CreatureInfo and CreatureInfo.getByCreatureId and CreatureInfo.getByCreatureId(creatureId)
+	local id = tonumber(creatureId)
+
+	local info = CreatureInfo and CreatureInfo.getByCreatureId and CreatureInfo.getByCreatureId(id or creatureId)
 	if info and type(info.name) == "string" and info.name ~= "" then
 		return info.name
 	end
-	local id = tonumber(creatureId)
+
 	if id and id > 0 then
 		local mType = MonsterType(id)
 		if mType then
 			return mType:name()
 		end
 	end
-	if type(fallbackName) == "string" and fallbackName ~= "" then
-		local mType = MonsterType(fallbackName)
-		if mType then
-			return mType:name()
-		end
+
+	if type(fallbackName) ~= "string" or fallbackName == "" then
+		return nil
+	end
+
+	local byName = CreatureInfo and CreatureInfo.get and CreatureInfo.get(fallbackName)
+	if byName and type(byName.name) == "string" and byName.name ~= "" then
+		return byName.name
+	end
+
+	-- With a race id, skip engine name lookup — fallback is often a raid label
+	-- ("Abdendriel Theevileye"), not a MonsterType name.
+	if id and id > 0 then
+		return nil
+	end
+
+	local mType = MonsterType(fallbackName)
+	if mType then
+		return mType:name()
 	end
 	return nil
 end

@@ -76,21 +76,21 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 13600000, maxCount = 100 },
-	{ name = "gold coin", chance = 13600000, maxCount = 100 },
-	{ name = "platinum coin", chance = 13600000, maxCount = 10 },
-	{ name = "berserk potion", chance = 13600000, maxCount = 3 },
-	{ name = "black pearl", chance = 13600000, maxCount = 3 },
-	{ name = "onyx chip", chance = 13600000, maxCount = 5 },
-	{ name = "small enchanted sapphire", chance = 13600000, maxCount = 10 },
-	{ name = "ultimate health potion", chance = 13600000, maxCount = 5 },
+	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "platinum coin", chance = 100000, maxCount = 10 },
+	{ name = "berserk potion", chance = 100000, maxCount = 3 },
+	{ name = "black pearl", chance = 100000, maxCount = 3 },
+	{ name = "onyx chip", chance = 50000, maxCount = 5 },
+	{ name = "small enchanted sapphire", chance = 100000, maxCount = 10 },
+	{ name = "ultimate health potion", chance = 100000, maxCount = 5 },
 	{ name = "platinum amulet", chance = 13600000 },
 	{ name = "stone skin amulet", chance = 13600000 },
 	{ id = 3053, chance = 13600000 }, -- time ring
 	{ name = "troll green", chance = 13600000, maxCount = 2 },
-	{ name = "werewolf fur", chance = 13600000, maxCount = 2 },
-	{ name = "wolf paw", chance = 13600000, maxCount = 2 },
-	{ name = "bonebreaker", chance = 400 },
+	{ name = "werewolf fur", chance = 100000, maxCount = 2 },
+	{ name = "wolf paw", chance = 100000, maxCount = 2 },
+	{ name = "bonebreaker", chance = 50000 },
 	{ name = "dreaded cleaver", chance = 400 },
 	{ name = "werewolf amulet", chance = 400 },
 	{ name = "traditional sai", chance = 250 },
@@ -98,6 +98,7 @@ monster.loot = {
 	{ name = "silver token", chance = 3520 },
 	{ name = "foxtail amulet", chance = 100 },
 	{ name = "wolf backpack", chance = 100 },
+	{ name = "werewolf fangs", chance = 100000 },
 }
 
 monster.attacks = {

@@ -80,7 +80,7 @@ monster.loot = {
 	{ id = 3031, chance = 95000, maxCount = 243 }, -- gold coin
 	{ id = 3035, chance = 36000, maxCount = 5 }, -- platinum coin
 	{ id = 12483, chance = 17000 }, -- pharaoh banner
-	{ id = 3042, chance = 14000, maxCount = 5 }, -- scarab coin
+	{ id = 3042, chance = 20000, maxCount = 5 }, -- scarab coin
 	{ id = 12482, chance = 12000 }, -- hieroglyph banner
 	{ id = 3017, chance = 12000 }, -- silver brooch
 	{ id = 238, chance = 10000, maxCount = 3 }, -- great mana potion

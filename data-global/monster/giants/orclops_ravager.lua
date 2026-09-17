@@ -78,22 +78,22 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 3031, chance = 50320, maxCount = 120 }, -- gold coin
+	{ id = 3031, chance = 100000, maxCount = 120 }, -- gold coin
 	{ id = 3035, chance = 50320 }, -- platinum coin
-	{ id = 236, chance = 50320 }, -- strong health potion
-	{ id = 3078, chance = 50320 }, -- mysterious fetish
-	{ id = 3316, chance = 20000 }, -- orcish axe
-	{ id = 3724, chance = 50320, maxCount = 3 }, -- red mushroom
-	{ id = 23811, chance = 6000 }, -- reinvigorating seeds
-	{ id = 24380, chance = 4900 }, -- bone toothpick
-	{ id = 24381, chance = 1800 }, -- beetle carapace
-	{ id = 24382, chance = 12750 }, -- bug meat
+	{ id = 236, chance = 16252 }, -- strong health potion
+	{ id = 3078, chance = 6343 }, -- mysterious fetish
+	{ id = 3316, chance = 8116 }, -- orcish axe
+	{ id = 3724, chance = 7986, maxCount = 3 }, -- red mushroom
+	{ id = 23811, chance = 10187 }, -- reinvigorating seeds
+	{ id = 24380, chance = 18044 }, -- bone toothpick
+	{ id = 24381, chance = 18512 }, -- beetle carapace
+	{ id = 24382, chance = 19289 }, -- bug meat
 	{ id = 3027, chance = 2510, maxCount = 2 }, -- black pearl
-	{ id = 3030, chance = 1940, maxCount = 2 }, -- small ruby
-	{ id = 7452, chance = 1000 }, -- spiked squelcher
-	{ id = 8015, chance = 8870 }, -- onion
-	{ id = 9057, chance = 9700 }, -- small topaz
-	{ id = 16123, chance = 15290, maxCount = 3 }, -- brown crystal splinter
+	{ id = 3030, chance = 3137, maxCount = 2 }, -- small ruby
+	{ id = 7452, chance = 1544 }, -- spiked squelcher
+	{ id = 8015, chance = 3187 }, -- onion
+	{ id = 9057, chance = 3784 }, -- small topaz
+	{ id = 16123, chance = 2669, maxCount = 3 }, -- brown crystal splinter
 	{ id = 17828, chance = 1300 }, -- pair of iron fists
 	{ id = 2966, chance = 910 }, -- war drum
 	{ id = 7439, chance = 910 }, -- berserk potion

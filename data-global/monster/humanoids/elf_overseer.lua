@@ -81,7 +81,7 @@ monster.voices = {
 monster.loot = {
 	{ id = 2815, chance = 31000 }, -- scroll
 	{ name = "candlestick", chance = 2100 },
-	{ name = "gold coin", chance = 37000, maxCount = 47 },
+	{ name = "gold coin", chance = 56098, maxCount = 47 },
 	{ name = "yellow gem", chance = 50 },
 	{ name = "life crystal", chance = 970 },
 	{ name = "wand of cosmic energy", chance = 1160 },
@@ -95,11 +95,13 @@ monster.loot = {
 	{ name = "bread", chance = 14000 },
 	{ name = "grave flower", chance = 880 },
 	{ name = "sling herb", chance = 5000 },
-	{ name = "holy orchid", chance = 2100 },
+	{ name = "holy orchid", chance = 7317 },
 	{ name = "strong mana potion", chance = 3000 },
-	{ name = "health potion", chance = 4000 },
-	{ name = "elvish talisman", chance = 10000 },
+	{ name = "health potion", chance = 12195 },
+	{ name = "elvish talisman", chance = 17073 },
 	{ name = "elven astral observer", chance = 7710 },
+	{ name = "battle shield", chance = 17073 },
+	{ name = "mana potion", chance = 7317 },
 }
 
 monster.attacks = {

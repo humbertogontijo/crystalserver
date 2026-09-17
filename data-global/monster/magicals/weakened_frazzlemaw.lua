@@ -98,10 +98,11 @@ monster.loot = {
 	{ id = 238, chance = 10000, maxCount = 3 }, -- great mana potion
 	{ id = 239, chance = 10000, maxCount = 2 }, -- great health potion
 	{ id = 10389, chance = 300 }, -- sai
-	{ id = 20062, chance = 1200 }, -- cluster of solace
+	{ id = 20062, chance = 157 }, -- cluster of solace
 	{ id = 20198, chance = 12000 }, -- frazzle tongue
 	{ id = 20199, chance = 10500 }, -- frazzle skin
 	{ name = "fairy wings", chance = 15000 },
+	{ name = "remains of a fish", chance = 9743 },
 }
 
 monster.attacks = {

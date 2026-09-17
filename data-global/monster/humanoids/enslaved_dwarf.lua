@@ -79,8 +79,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 50000, maxCount = 99 },
-	{ name = "gold coin", chance = 50000, maxCount = 50 },
+	{ name = "gold coin", chance = 100000, maxCount = 99 },
+	{ name = "gold coin", chance = 100000, maxCount = 50 },
 	{ name = "small emerald", chance = 10290, maxCount = 2 },
 	{ name = "small amethyst", chance = 10680, maxCount = 2 },
 	{ name = "platinum coin", chance = 100000, maxCount = 6 },
@@ -97,14 +97,14 @@ monster.loot = {
 	{ name = "spiked squelcher", chance = 80 },
 	{ name = "glorious axe", chance = 1940 },
 	{ id = 238, chance = 6660, maxCount = 2 }, -- great mana potion
-	{ name = "great health potion", chance = 7960 },
+	{ name = "great health potion", chance = 5890 },
 	{ name = "shiny stone", chance = 4660 },
 	{ id = 12600, chance = 780 }, -- coal
 	{ name = "green crystal shard", chance = 1750 },
 	{ name = "green crystal splinter", chance = 3110 },
 	{ name = "brown crystal splinter", chance = 5630, maxCount = 2 },
 	{ name = "red crystal fragment", chance = 3690 },
-	{ name = "drill bolt", chance = 3690, maxCount = 5 },
+	{ name = "drill bolt", chance = 5122, maxCount = 5 },
 }
 
 monster.attacks = {

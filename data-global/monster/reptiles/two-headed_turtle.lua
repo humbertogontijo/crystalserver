@@ -71,18 +71,18 @@ monster.loot = {
 	{ name = "strong mana potion", chance = 13373 },
 	{ name = "hydrophytes", chance = 11000 },
 	{ id = 3115, chance = 6388 }, -- bone
-	{ name = "glacier shoes", chance = 4650 },
+	{ name = "glacier shoes", chance = 3354 },
 	{ id = 281, chance = 3582 }, -- giant shimmering pearl (green)
 	{ name = "small tropical fish", chance = 3582 },
 	{ name = "coral brooch", chance = 2600 },
 	{ name = "silver brooch", chance = 2507 },
 	{ name = "lightning headband", chance = 2110 },
 	{ name = "knight legs", chance = 2000 },
-	{ name = "gemmed figurine", chance = 2090 },
+	{ name = "gemmed figurine", chance = 1530 },
 	{ name = "emerald bangle", chance = 1373 },
 	{ name = "terra amulet", chance = 1373 },
-	{ id = 3040, chance = 1313 }, -- "gold nugget"
-	{ name = "spellbook of enlightenment", chance = 1300 },
+	{ id = 3040, chance = 651 }, -- "gold nugget"
+	{ name = "spellbook of enlightenment", chance = 619 },
 	{ id = 3565, chance = 1015 }, -- "cape"
 	{ id = 10422, chance = 657 }, -- "clay lump"
 	{ name = "white gem", chance = 418 },

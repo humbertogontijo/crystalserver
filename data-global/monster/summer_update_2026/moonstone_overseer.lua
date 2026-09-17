@@ -79,12 +79,12 @@ monster.voices = {
 -- Loot da wiki (paste do usuario): Comum, Incomum, Raro. Sem taxas oficiais - as chances abaixo
 -- seguem a mesma escala usada no Moonstone Excavator para as mesmas raridades.
 monster.loot = {
-	{ name = "Platinum Coin", chance = 20000, maxCount = 5 },
-	{ name = "Yellow Gem", chance = 9000 },
-	{ name = "Green Gem", chance = 9000 },
-	{ id = 3039, chance = 9000 }, -- red gem (nome ambiguo: 3039 e 36706)
-	{ name = "Blue Gem", chance = 9000 },
-	{ name = "Plate Armor", chance = 9000 },
+	{ name = "Platinum Coin", chance = 61949, maxCount = 5 },
+	{ name = "Yellow Gem", chance = 3480 },
+	{ name = "Green Gem", chance = 4176 },
+	{ id = 3039, chance = 4640 }, -- red gem (nome ambiguo: 3039 e 36706)
+	{ name = "Blue Gem", chance = 3480 },
+	{ name = "Plate Armor", chance = 928 },
 	{ name = "Spike Sword", chance = 9000 },
 	{ name = "Iron Ore", chance = 900 },
 	{ name = "Diamond", chance = 900 },

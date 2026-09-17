@@ -90,7 +90,7 @@ monster.loot = {
 	{ name = "epee", chance = 560 },
 	{ name = "plate shield", chance = 10340 },
 	{ name = "brown mushroom", chance = 6940 },
-	{ name = "troll green", chance = 1900 },
+	{ name = "troll green", chance = 4889 },
 	{ name = "wolf paw", chance = 5200 },
 	{ name = "relic sword", chance = 480 },
 	{ name = "dreaded cleaver", chance = 160 },
@@ -98,7 +98,7 @@ monster.loot = {
 	{ name = "berserk potion", chance = 1200 },
 	{ name = "strong health potion", chance = 5000 },
 	{ name = "ultimate health potion", chance = 2400 },
-	{ id = 8895, chance = 210 }, -- rusted armor
+	{ id = 8895, chance = 8416 }, -- rusted armor
 	{ id = 22052, chance = 15000 }, -- werewolf fangs
 	{ name = "werewolf fur", chance = 10650 },
 }
