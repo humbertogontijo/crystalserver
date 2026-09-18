@@ -1184,6 +1184,7 @@ function ExpeditionConfig.catalogForClient(player)
 			end
 			-- Slim creature mix for client hunt-detail looks (id + spawn percent + name).
 			-- Names come from CreatureInfo so OTC HuntFinder never falls back to the place title.
+			-- Do not copy enrichCreatureMix combat stats; the client uses the hunt-level fields.
 			local creatures = entry.creatures
 			if type(creatures) == "table" and #creatures > 0 then
 				local slimCreatures = {}
@@ -1207,15 +1208,6 @@ function ExpeditionConfig.catalogForClient(player)
 						end
 						if cname and cname ~= "" then
 							crow.name = cname
-						end
-						if c.combatPower then
-							crow.combatPower = tonumber(c.combatPower)
-						end
-						if c.recommendedLevel then
-							crow.recommendedLevel = tonumber(c.recommendedLevel)
-						end
-						if c.levelMin then
-							crow.levelMin = tonumber(c.levelMin)
 						end
 						slimCreatures[#slimCreatures + 1] = crow
 					end
