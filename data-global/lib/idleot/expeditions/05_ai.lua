@@ -152,6 +152,9 @@ local function clearPlayerCombat(session, player)
 		CombatAutomationMovement.clearDirective(player)
 		CombatAutomationMovement.clearWalkDedupe(player)
 	end
+	if player.clearPathLeash then
+		player:clearPathLeash()
+	end
 	-- Think pipeline stops when idleCombat clears; do not re-arm combat here.
 end
 
@@ -325,6 +328,30 @@ function ExpeditionAI.stopPlayer(session, player)
 	clearPlayerCombat(session, player)
 end
 
+function ExpeditionAI.syncPathLeash(session)
+	if not session then
+		return
+	end
+	local radius = ExpeditionConfig.anchorPathBiasRadius and ExpeditionConfig.anchorPathBiasRadius() or 0
+	local anchor = nil
+	if radius > 0 and ExpeditionConfig.getAnchorPlayer then
+		anchor = ExpeditionConfig.getAnchorPlayer(session)
+	end
+	local anchorId = anchor and anchor:getId() or 0
+	local anchorPos = anchor and anchor.getPosition and anchor:getPosition() or nil
+	for _, id in ipairs(memberIds(session)) do
+		local player = Player(id)
+		if player and player.clearPathLeash then
+			local god = PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player)
+			if not anchorPos or god or id == anchorId or radius <= 0 then
+				player:clearPathLeash()
+			else
+				player:setPathLeash(anchorPos, radius)
+			end
+		end
+	end
+end
+
 --- Push hold/follow/anchorStance directives and drive anchor walk to hold during relocate.
 function ExpeditionAI.syncDirectives(session)
 	if not session or not CombatAutomationMovement then
@@ -418,6 +445,7 @@ function ExpeditionAI.startRelocateWalk(session)
 	end
 	session._relocateFollowReady = nil
 	ExpeditionAI.syncDirectives(session)
+	ExpeditionAI.syncPathLeash(session)
 
 	local key = session.key
 	local POLL_MS = ExpeditionConfig.AI_TICK_MS or 250
@@ -431,6 +459,7 @@ function ExpeditionAI.startRelocateWalk(session)
 			return
 		end
 		ExpeditionAI.syncDirectives(s)
+		ExpeditionAI.syncPathLeash(s)
 		local hold = s.holdPos
 		local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(s)
 		if not hold or not anchor then
@@ -526,6 +555,7 @@ function ExpeditionAI.tick(session)
 	end
 
 	ExpeditionAI.syncDirectives(session)
+	ExpeditionAI.syncPathLeash(session)
 
 	-- Keep instance monsters near the live party anchor (hunts, raids, bosses, …).
 	if session.state == "hunting" and ExpeditionWaves and ExpeditionWaves.pullMonstersToAnchor then
@@ -596,6 +626,7 @@ function ExpeditionAI.start(session)
 		end
 	end
 	ExpeditionAI.syncDirectives(session)
+	ExpeditionAI.syncPathLeash(session)
 end
 
 function ExpeditionAI.stop(session)

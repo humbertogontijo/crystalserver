@@ -19,6 +19,7 @@
 
 #include "creatures/combat/combat.hpp"
 #include "creatures/monsters/monster.hpp"
+#include "creatures/players/player.hpp"
 #include "items/tile.hpp"
 
 AStarNodes::AStarNodes(uint32_t x, uint32_t y, int_fast32_t extraCost) :
@@ -296,6 +297,24 @@ int_fast32_t AStarNodes::getTileWalkCost(const std::shared_ptr<Creature> &creatu
 			const CombatType_t combatType = field->getCombatType();
 			if (combatType != COMBAT_NONE && !creature->isImmune(combatType) && !creature->hasCondition(Combat::DamageToConditionType(combatType)) && (creature->getMonster() && !creature->getMonster()->canWalkOnFieldType(combatType))) {
 				cost += MAP_NORMALWALKCOST * 18;
+			}
+		}
+		// Expedition leash: past the radius, a tile farther from the anchor than
+		// the player is now costs about three normal steps. Finite, so the only
+		// route out still wins; the next search prefers a way back.
+		if (const auto &player = creature->getPlayer()) {
+			const int32_t radius = player->getPathLeashRadius();
+			if (radius > 0) {
+				const Position &anchor = player->getPathLeashAnchor();
+				const Position &tilePos = tile->getPosition();
+				const Position &myPos = player->getPosition();
+				if (tilePos.z == myPos.z && tilePos.z == anchor.z) {
+					const auto tileDist = std::max(Position::getDistanceX(tilePos, anchor), Position::getDistanceY(tilePos, anchor));
+					const auto myDist = std::max(Position::getDistanceX(myPos, anchor), Position::getDistanceY(myPos, anchor));
+					if (tileDist > radius && tileDist > myDist) {
+						cost += MAP_NORMALWALKCOST * 3;
+					}
+				}
 			}
 		}
 	}

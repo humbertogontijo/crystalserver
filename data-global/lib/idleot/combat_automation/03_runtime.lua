@@ -1108,6 +1108,11 @@ local function visibleMonsters(player)
 	return computeVisibleMonsters(player)
 end
 
+--- Per-tick monster list for stance / other modules (avoids a second spectator scan).
+function CombatAutomation.getVisibleMonsters(player)
+	return visibleMonsters(player)
+end
+
 local function partyBuffConditionType(kind)
 	if kind == "attributes" and type(CONDITION_ATTRIBUTES) == "number" then
 		return CONDITION_ATTRIBUTES
@@ -1551,6 +1556,56 @@ function CombatAutomation.pickMonsterBySort(player, monsters, sortMode)
 	return pool[1]
 end
 
+--- True when candidate is strictly better than current for this mode (ties keep current).
+local function isStrictlyBetterTarget(player, mode, candidate, current)
+	if not candidate then
+		return false
+	end
+	if not current then
+		return true
+	end
+	if candidate:getId() == current:getId() then
+		return false
+	end
+	local bossNew = monsterIsFocusBoss(player, candidate)
+	local bossCur = monsterIsFocusBoss(player, current)
+	if bossNew ~= bossCur then
+		return bossNew
+	end
+	local playerPos = player and player:getPosition() or nil
+	local da = sortDistanceSquared(playerPos, candidate:getPosition())
+	local db = sortDistanceSquared(playerPos, current:getPosition())
+	local ha = monsterHpPercent(candidate)
+	local hb = monsterHpPercent(current)
+	if mode == "B" then
+		return da > db
+	elseif mode == "C" then
+		return ha < hb or (ha == hb and da < db)
+	elseif mode == "D" then
+		return ha > hb or (ha == hb and da < db)
+	elseif mode == "E" then
+		local radius = CombatAutomationConfig.AOE_BEST_RADIUS or 1
+		local monsters = visibleMonsters(player)
+		local ca = countMonstersNear(monsters, candidate:getPosition(), radius)
+		local cb = countMonstersNear(monsters, current:getPosition(), radius)
+		return ca > cb or (ca == cb and da < db)
+	elseif mode == "F" then
+		return da < db or (da == db and ha < hb)
+	elseif mode == "G" then
+		return da < db or (da == db and ha > hb)
+	elseif mode == "H" then
+		return da > db or (da == db and ha < hb)
+	elseif mode == "I" then
+		return da > db or (da == db and ha > hb)
+	end
+	local ara = CombatAutomation.isInWeaponRange(player, candidate)
+	local arb = CombatAutomation.isInWeaponRange(player, current)
+	if ara ~= arb then
+		return ara
+	end
+	return da < db
+end
+
 local function isOnScreen(player, creature)
 	if not CombatAutomationMovement or not CombatAutomationMovement.isInViewport then
 		local playerPos = player:getPosition()
@@ -1606,24 +1661,9 @@ local function autoTarget(player, config, state)
 		return nil
 	end
 	local mode = CombatAutomationConfig.normalizeAutoTargetMode(options.mode or options.sortMode)
-	local aggressive = mode == "E" or mode == "C" or mode == "D"
 
 	local current = player:getTarget()
 	if current and CombatAutomation.isValidAttackTarget(player, current) and isOnScreen(player, current) then
-		if not aggressive then
-			-- Sticky trash yields when a boss is in range — but never steal a live PvP player target.
-			if not current:isPlayer() and not monsterIsFocusBoss(player, current) then
-				local preferred = CombatAutomation.pickMonsterBySort(player, visibleMonsters(player), mode)
-				if preferred and monsterIsFocusBoss(player, preferred) and preferred:getId() ~= current:getId() then
-					player:setTarget(preferred)
-					syncAutoAttackTarget(player, state, preferred)
-					return preferred
-				end
-			end
-			syncAutoAttackTarget(player, state, current)
-			return current
-		end
-		-- Aggressive modes: keep sticky target unless a clearly better pick exists.
 		-- Live player targets stay sticky (pickMonsterBySort is monsters-only).
 		if current:isPlayer() then
 			syncAutoAttackTarget(player, state, current)
@@ -1634,20 +1674,13 @@ local function autoTarget(player, config, state)
 		current = nil
 	end
 
+	-- Retarget only when the pick is strictly better. Equal scores stay sticky so
+	-- stance does not thrash between same-distance monsters every tick.
 	local monsters = visibleMonsters(player)
 	local target = CombatAutomation.pickMonsterBySort(player, monsters, mode)
-	if aggressive and current and target and current:getId() == target:getId() then
-		syncAutoAttackTarget(player, state, current)
-		return current
-	end
-	if aggressive and current and target and current:getId() ~= target:getId() then
-		-- Mode E/C/D: retarget when a better focus is found.
+	if target and isStrictlyBetterTarget(player, mode, target, current) then
 		player:setTarget(target)
 	elseif target and not current then
-		player:setTarget(target)
-	elseif target and current and not aggressive then
-		-- sticky already returned
-	elseif target then
 		player:setTarget(target)
 	end
 
@@ -1695,11 +1728,11 @@ local function playerHasWodArea(player, wod)
 	return false
 end
 
-local function directionTilesForArea(player, area)
+local function directionTilesForArea(player, area, face)
 	if type(area) ~= "table" then
 		return nil
 	end
-	local direction = player:getDirection()
+	local direction = face or (player and player.getDirection and player:getDirection())
 	if type(area.gradeByDir) == "table" and type(area.wod) == "table" and area.wod.check == "upgradeGrade" then
 		local grade = 0
 		if player.upgradeSpellsWOD then
@@ -1729,18 +1762,18 @@ local function selfTilesForArea(player, area)
 	return area.tiles
 end
 
-local function isInsideSpellArea(player, target, monster, area)
+local function isInsideSpellArea(player, target, monster, area, origin, face)
 	if type(area) ~= "table" then
 		return monster == target
 	end
-	local origin = player:getPosition()
+	origin = origin or player:getPosition()
 	local monsterPos = monster:getPosition()
 	if origin.z ~= monsterPos.z then
 		return false
 	end
 
 	-- Directional AREA_* matrices (base / WoD / upgrade-grade variants).
-	local dirTiles = directionTilesForArea(player, area)
+	local dirTiles = directionTilesForArea(player, area, face)
 	if dirTiles ~= nil then
 		return tileListContains(dirTiles, monsterPos.x - origin.x, monsterPos.y - origin.y)
 	end
@@ -1786,7 +1819,7 @@ local function isInsideSpellArea(player, target, monster, area)
 		local dy = monsterPos.y - origin.y
 		local forward
 		local lateral
-		local direction = player:getDirection()
+		local direction = face or player:getDirection()
 		if direction == DIRECTION_NORTH then
 			forward, lateral = -dy, math.abs(dx)
 		elseif direction == DIRECTION_EAST then
@@ -1950,6 +1983,264 @@ local function slotReady(state, slotId, t, exhaustMs)
 	return t >= slotExhaustUntil(state, slotId, t, exhaustMs)
 end
 
+local AREA_STEP_MS = 1000
+
+local function chebyshevPos(a, b)
+	if not a or not b then
+		return -1
+	end
+	return math.max(math.abs((a.x or 0) - (b.x or 0)), math.abs((a.y or 0) - (b.y or 0)))
+end
+
+--- Multi-tile attack area, or nil for single-target / non-attacks.
+local function areaAttackOf(slot)
+	if not slot or slot.enabled == false then
+		return nil
+	end
+	if slot.kind == "rune" then
+		local range = RuneAreaRangeByTypeId[slot.runeTypeId]
+		if not range or range <= 0 then
+			return nil
+		end
+		return { kind = "target", shape = "circle", radius = range }
+	end
+	if slot.kind ~= "spell" then
+		return nil
+	end
+	local area = CombatAutomationConfig.SpellAreaById and CombatAutomationConfig.SpellAreaById[slot.spellId]
+	if type(area) ~= "table" then
+		return nil
+	end
+	if type(area.tiles) == "table" and #area.tiles > 1 then
+		return area
+	end
+	if type(area.wodTiles) == "table" and #area.wodTiles > 1 then
+		return area
+	end
+	if type(area.byDir) == "table" or type(area.wodByDir) == "table" or type(area.gradeByDir) == "table" then
+		return area
+	end
+	local radius = math.max(tonumber(area.radius) or 0, tonumber(area.wodRadius) or 0)
+	if radius > 0 and area.shape ~= "single" then
+		return area
+	end
+	if area.kind == "direction" and (tonumber(area.length) or 0) > 0 then
+		return area
+	end
+	return nil
+end
+
+local function tileFreeForStep(player, pos)
+	if not player or not pos then
+		return false
+	end
+	local tile = Tile(pos)
+	if not tile or not tile.getGround or not tile:getGround() then
+		return false
+	end
+	if tile.hasProperty and CONST_PROP_BLOCKSOLID and tile:hasProperty(CONST_PROP_BLOCKSOLID) then
+		return false
+	end
+	local top = tile.getTopCreature and tile:getTopCreature()
+	if top and top.getId and top:getId() ~= player:getId() then
+		return false
+	end
+	return true
+end
+
+--- Live path-leash anchor (O(1) C++ fields). Nil when unset / not leashed.
+local function pathLeashAnchor(player)
+	if not player or not player.getPathLeashRadius or not player.getPathLeashAnchor then
+		return nil
+	end
+	local radius = player:getPathLeashRadius()
+	if type(radius) ~= "number" or radius <= 0 then
+		return nil
+	end
+	return player:getPathLeashAnchor()
+end
+
+--- True when a step would go farther from the anchor while already past the bias radius.
+local function stepFartherThanAnchor(player, dest)
+	local radius = ExpeditionConfig and ExpeditionConfig.anchorPathBiasRadius and ExpeditionConfig.anchorPathBiasRadius() or 0
+	if radius <= 0 then
+		return false
+	end
+	local anchorPos = pathLeashAnchor(player)
+	local ppos = player:getPosition()
+	if not anchorPos or not ppos or not dest or ppos.z ~= anchorPos.z or dest.z ~= ppos.z then
+		return false
+	end
+	local myDist = chebyshevPos(ppos, anchorPos)
+	if myDist <= radius then
+		return false
+	end
+	return chebyshevPos(dest, anchorPos) > myDist
+end
+
+local function countAreaHits(player, slot, area, origin, face)
+	local target = player:getTarget()
+	local count = 0
+	local monsters = visibleMonsters(player)
+	for i = 1, #monsters do
+		if isInsideSpellArea(player, target, monsters[i], area, origin, face) then
+			count = count + 1
+		end
+	end
+	return count
+end
+
+local function combatSlotsOf(config)
+	local slots = config and config.slots
+	local combatSlots = {}
+	if type(slots) ~= "table" then
+		return combatSlots
+	end
+	for _, slot in ipairs(slots) do
+		if slot.kind == "rune" or (slot.kind == "spell" and spellRank(slot) >= 2) then
+			combatSlots[#combatSlots + 1] = slot
+		end
+	end
+	table.sort(combatSlots, function(a, b)
+		if a.priority ~= b.priority then
+			return a.priority < b.priority
+		end
+		return tostring(a.id) < tostring(b.id)
+	end)
+	return combatSlots
+end
+
+local function walkTaskActive(player)
+	return player and player.hasWalkTask and player:hasWalkTask()
+end
+
+--- The step walk must be finished before the cast tick. The first idle tick
+--- only records that; the next tick faces and casts.
+local function resolveAreaStep(player, state, t)
+	state.skipStanceForAreaCast = nil
+	state.areaCastSlotId = nil
+	state.areaFace = nil
+	local pending = state.pendingAreaCast
+	if not pending then
+		return
+	end
+	local ppos = player:getPosition()
+	local onTile = ppos and ppos.x == pending.x and ppos.y == pending.y and ppos.z == pending.z
+	local timedOut = t >= (pending.untilMs or 0)
+	if walkTaskActive(player) or not (onTile or timedOut) then
+		return
+	end
+	if not pending.idle then
+		pending.idle = true
+		state.skipStanceForAreaCast = true
+		return
+	end
+	state.pendingAreaCast = nil
+	state.skipStanceForAreaCast = true
+	state.areaCastSlotId = pending.slotId
+	if onTile then
+		state.areaFace = pending.dir
+	end
+end
+
+--- True when this combat slot is the one the rotation would cast next.
+--- Lua exhaust of 0 is not enough: spells wait on the engine cooldown.
+local function combatSlotWillCast(player, state, slot, t)
+	if not slot or not slotReady(state, slot.id, t, 0) then
+		return false
+	end
+	if slot.kind == "spell" then
+		local words = slot.words or ""
+		if words == "" or not (CombatAutomationConfig.AllowedSpellWords and CombatAutomationConfig.AllowedSpellWords[words]) then
+			return false
+		end
+		if player.canCastSpell and not player:canCastSpell(words) then
+			return false
+		end
+		return true
+	end
+	if slot.kind == "rune" then
+		if not player:getTarget() then
+			return false
+		end
+		local spell = getRuneSpell(slot.runeTypeId)
+		if spell and player.hasCondition then
+			local spellId = spell.id and spell:id()
+			if type(spellId) == "number" and spellId > 0 and player:hasCondition(CONDITION_SPELLCOOLDOWN, spellId) then
+				return false
+			end
+			if spell.group then
+				local group, secondary = spell:group()
+				if type(group) == "number" and group > 0 and player:hasCondition(CONDITION_SPELLGROUPCOOLDOWN, group) then
+					return false
+				end
+				if type(secondary) == "number" and secondary > 0 and player:hasCondition(CONDITION_SPELLGROUPCOOLDOWN, secondary) then
+					return false
+				end
+			end
+		end
+		return true
+	end
+	return false
+end
+
+--- Before the next ready area attack, step one adjacent tile if that hits strictly more.
+local function considerAreaStep(player, state, config, hpPercent, manaPercent, t)
+	if state.pendingAreaCast or state.skipStanceForAreaCast or state.suppressAreaStep then
+		return
+	end
+	if player.hasWalkTask and player:hasWalkTask() then
+		return
+	end
+	local ppos = player:getPosition()
+	if not ppos then
+		return
+	end
+	local combatSlots = combatSlotsOf(config)
+	for i = 1, #combatSlots do
+		local slot = combatSlots[i]
+		if
+			slotShouldFire(slot, hpPercent, manaPercent, player)
+			and slotHasEnoughMonsters(player, slot)
+			and slotPassesSituationalGates(player, slot)
+		then
+			-- Skip higher-priority slots still on CD; score the first that will fire.
+			if combatSlotWillCast(player, state, slot, t) then
+				local area = areaAttackOf(slot)
+				if not area then
+					return
+				end
+				local face = player:getDirection()
+				local hereCount = countAreaHits(player, slot, area, ppos, face)
+				local bestPos, bestCount = nil, hereCount
+				local offsets = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } }
+				for o = 1, #offsets do
+					local off = offsets[o]
+					local dest = Position(ppos.x + off[1], ppos.y + off[2], ppos.z)
+					if tileFreeForStep(player, dest) and not stepFartherThanAnchor(player, dest) then
+						local n = countAreaHits(player, slot, area, dest, face)
+						if n > bestCount then
+							bestCount = n
+							bestPos = dest
+						end
+					end
+				end
+				if bestPos then
+					state.pendingAreaCast = {
+						x = bestPos.x,
+						y = bestPos.y,
+						z = bestPos.z,
+						dir = face,
+						slotId = slot.id,
+						untilMs = t + AREA_STEP_MS,
+					}
+				end
+				return
+			end
+		end
+	end
+end
+
 local function markExhaust(state, slotId, t, durationMs)
 	state.exhaust = state.exhaust or {}
 	state.exhaustUntil = state.exhaustUntil or {}
@@ -2045,6 +2336,16 @@ function CombatAutomation.tick(player)
 		autoTarget(player, config, state)
 	end
 
+	local stepHp = percentOf(player:getHealth(), player:getMaxHealth())
+	local stepMana = percentOf(player:getMana(), player:getMaxMana())
+	local stepT = nowMs()
+	state.exhaust = state.exhaust or {}
+	state.exhaustUntil = state.exhaustUntil or {}
+	resolveAreaStep(player, state, stepT)
+	if autoEnabled and not state.pendingAreaCast and not state.skipStanceForAreaCast then
+		considerAreaStep(player, state, config, stepHp, stepMana, stepT)
+	end
+
 	-- Positioning after target pick (hold / follow / stance).
 	if CombatAutomationMovement and CombatAutomationMovement.tick then
 		CombatAutomationMovement.tick(player, config)
@@ -2138,6 +2439,9 @@ function CombatAutomation.tick(player)
 			end
 		end
 	end
+	if state.areaFace ~= nil and player:getDirection() ~= state.areaFace then
+		player:setDirection(state.areaFace)
+	end
 
 	local preferredStances = preferredStanceWordsByChannel(supportSlots)
 
@@ -2176,9 +2480,12 @@ function CombatAutomation.tick(player)
 	end
 
 	local forceSkillOrder = config.forceSkillOrder ~= false
-	if autoEnabled then
+	if autoEnabled and not state.pendingAreaCast then
+		local onlySlot = state.areaCastSlotId
 		for _, slot in ipairs(combatSlots) do
-			if
+			if onlySlot and slot.id ~= onlySlot then
+				-- Stepped for a specific area attack; do not fire a different one.
+			elseif
 				slotShouldFire(slot, hpPercent, manaPercent, player)
 				and slotHasEnoughMonsters(player, slot)
 				and slotPassesSituationalGates(player, slot)
@@ -2210,12 +2517,18 @@ function CombatAutomation.tick(player)
 					end
 				end
 				-- forceSkillOrder: only one successful combat cast per tick; otherwise keep trying.
-				if castOk and forceSkillOrder then
+				if onlySlot or (castOk and forceSkillOrder) then
 					break
 				end
+			elseif onlySlot then
+				break
 			end
 		end
 	end
+	state.skipStanceForAreaCast = nil
+	state.areaCastSlotId = nil
+	state.areaFace = nil
+	state.suppressAreaStep = nil
 
 	tickVisibleMonsters = nil
 end

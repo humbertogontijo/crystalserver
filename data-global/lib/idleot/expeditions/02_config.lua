@@ -21,6 +21,22 @@ ExpeditionConfig.HUNT_RESTORE_TTL_SEC = 7 * 24 * 3600
 -- MAP_MAX_CLIENT_VIEW_PORT_* (visible-sqm 12 @ 21:9 → aware radius 15).
 ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_X = 15
 ExpeditionConfig.MAP_MAX_CLIENT_VIEW_PORT_Y = 15
+-- Soft A* bias for non-anchors. Past this many classic viewports (Chebyshev
+-- half-extent 8, matching combat automation VIEWPORT_X), tiles farther from
+-- the anchor than the player is now cost extra. 0 disables.
+ExpeditionConfig.ANCHOR_PATH_BIAS_VIEWPORTS = 1
+ExpeditionConfig.ANCHOR_PATH_BIAS_VIEWPORT = 8
+
+--- Chebyshev radius of the non-anchor path bias. 0 disables.
+function ExpeditionConfig.anchorPathBiasRadius()
+	local viewports = math.floor(tonumber(ExpeditionConfig.ANCHOR_PATH_BIAS_VIEWPORTS) or 1)
+	local viewport = math.floor(tonumber(ExpeditionConfig.ANCHOR_PATH_BIAS_VIEWPORT) or 8)
+	if viewports <= 0 or viewport <= 0 then
+		return 0
+	end
+	return viewports * viewport
+end
+
 ExpeditionConfig.SUBAREA_DIR = "tibia/subareas"
 ExpeditionConfig.AI_TICK_MS = 250
 -- Chebyshev distance: hunt monsters farther than this from the party anchor walk toward it

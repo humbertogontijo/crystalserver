@@ -1866,6 +1866,25 @@ public:
 	static uint16_t getStanceSpellId(Stance_t stance);
 	static bool isElementalStance(Stance_t stance);
 
+	/// Soft A* bias while this non-anchor is in an expedition. radius <= 0 clears it.
+	void setPathLeash(const Position &anchor, int32_t radius) {
+		if (radius <= 0) {
+			clearPathLeash();
+			return;
+		}
+		pathLeashAnchor = anchor;
+		pathLeashRadius = radius;
+	}
+	void clearPathLeash() {
+		pathLeashRadius = 0;
+	}
+	int32_t getPathLeashRadius() const {
+		return pathLeashRadius;
+	}
+	const Position &getPathLeashAnchor() const {
+		return pathLeashAnchor;
+	}
+
 	std::unordered_map<uint16_t, uint8_t> spellActivedAimMap;
 
 	using ManagedContainerMap = std::map<ObjectCategory_t, std::pair<std::shared_ptr<Container>, std::shared_ptr<Container>>>;
@@ -2331,4 +2350,8 @@ private:
 
 	void addWeaponProficiencyExperience(const std::shared_ptr<MonsterType> &mType, const ForgeClassifications_t classification, const bool bossSoulpit);
 	EquippedWeaponProficiencyBonuses equippedWeaponProficiency;
+
+	// Expedition path bias. radius 0 = off. Not persisted.
+	Position pathLeashAnchor {};
+	int32_t pathLeashRadius = 0;
 };

@@ -563,6 +563,10 @@ void PlayerFunctions::init(lua_State* L) {
 	// OTCR Features
 	Lua::registerMethod(L, "Player", "getMapShader", PlayerFunctions::luaPlayerGetMapShader);
 	Lua::registerMethod(L, "Player", "setMapShader", PlayerFunctions::luaPlayerSetMapShader);
+	Lua::registerMethod(L, "Player", "setPathLeash", PlayerFunctions::luaPlayerSetPathLeash);
+	Lua::registerMethod(L, "Player", "clearPathLeash", PlayerFunctions::luaPlayerClearPathLeash);
+	Lua::registerMethod(L, "Player", "getPathLeashAnchor", PlayerFunctions::luaPlayerGetPathLeashAnchor);
+	Lua::registerMethod(L, "Player", "getPathLeashRadius", PlayerFunctions::luaPlayerGetPathLeashRadius);
 	Lua::registerMethod(L, "Player", "removeCustomOutfit", PlayerFunctions::luaPlayerRemoveCustomOutfit);
 	Lua::registerMethod(L, "Player", "addCustomOutfit", PlayerFunctions::luaPlayerAddCustomOutfit);
 
@@ -6732,6 +6736,60 @@ int PlayerFunctions::luaPlayerSetMapShader(lua_State* L) {
 	player->attachedEffects().setMapShader(shaderName);
 	player->attachedEffects().sendMapShader(shaderName);
 	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetPathLeash(lua_State* L) {
+	// player:setPathLeash(position, radius)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	const Position &anchor = Lua::getPosition(L, 2);
+	const auto radius = Lua::getNumber<int32_t>(L, 3, 0);
+	player->setPathLeash(anchor, radius);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerClearPathLeash(lua_State* L) {
+	// player:clearPathLeash()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	player->clearPathLeash();
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGetPathLeashAnchor(lua_State* L) {
+	// player:getPathLeashAnchor()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	if (player->getPathLeashRadius() <= 0) {
+		lua_pushnil(L);
+		return 1;
+	}
+	Lua::pushPosition(L, player->getPathLeashAnchor());
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGetPathLeashRadius(lua_State* L) {
+	// player:getPathLeashRadius()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_pushnumber(L, player->getPathLeashRadius());
 	return 1;
 }
 

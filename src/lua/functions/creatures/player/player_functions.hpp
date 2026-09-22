@@ -536,6 +536,10 @@ class PlayerFunctions {
 
 	static int luaPlayerGetMapShader(lua_State* L);
 	static int luaPlayerSetMapShader(lua_State* L);
+	static int luaPlayerSetPathLeash(lua_State* L);
+	static int luaPlayerClearPathLeash(lua_State* L);
+	static int luaPlayerGetPathLeashAnchor(lua_State* L);
+	static int luaPlayerGetPathLeashRadius(lua_State* L);
 	static int luaPlayerAddCustomOutfit(lua_State* L);
 	static int luaPlayerRemoveCustomOutfit(lua_State* L);
 
