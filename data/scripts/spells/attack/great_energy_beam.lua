@@ -14,6 +14,8 @@ end
 
 -- Vocation Adjustment: Beam Mastery fires two identical beams parallel to the main one (left + right),
 -- each dealing 40/60/80% of the beam damage at Beam Mastery stage 1/2/3 (length matches the combatWOD beam).
+-- Directional combat anchors the area matrix on the sqm in front of the caster, so the center row must
+-- be {1, 3, 1} (not {0, 3, 0}) or the first beam tile has no parallels.
 function onGetFormulaValuesBeamFlank(player, level, maglevel)
 	local stage = player:revelationStageWOD("Beam Mastery")
 	local factor = (stage >= 3 and 0.80) or (stage >= 2 and 0.60) or (stage >= 1 and 0.40) or 0
@@ -22,7 +24,7 @@ function onGetFormulaValuesBeamFlank(player, level, maglevel)
 	return -min, -max
 end
 
-local FLANK_AREA = { { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 0, 3, 0 } }
+local FLANK_AREA = { { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 3, 1 } }
 
 local function createCombat(area, combatFunc)
 	local initCombat = Combat()

@@ -1300,6 +1300,44 @@ void Game::syncCreatureInstance(const std::shared_ptr<Creature> &creature) {
 	callInstanceWorld("syncCreatureInstance", creature, creature->getPosition(), false);
 }
 
+bool Game::tryCaptureLoginPosition(const std::shared_ptr<Player> &player) {
+	if (!player) {
+		return false;
+	}
+	auto &scriptInterface = g_scripts().getScriptInterface();
+	lua_State* L = scriptInterface.getLuaState();
+	if (!L) {
+		return false;
+	}
+	if (g_dispatcher().context().isAsync()) {
+		return false;
+	}
+	if (!Lua::reserveScriptEnv()) {
+		g_logger().error("[Game::tryCaptureLoginPosition] Lua call stack overflow");
+		return false;
+	}
+
+	ScriptEnvironment* env = Lua::getScriptEnv();
+	env->setScriptId(EVENT_ID_USER, &scriptInterface);
+
+	lua_getglobal(L, "InstanceWorld");
+	if (lua_type(L, -1) != LUA_TTABLE) {
+		lua_pop(L, 1);
+		Lua::resetScriptEnv();
+		return false;
+	}
+	lua_getfield(L, -1, "captureLoginPosition");
+	lua_remove(L, -2);
+	if (lua_type(L, -1) != LUA_TFUNCTION) {
+		lua_pop(L, 1);
+		Lua::resetScriptEnv();
+		return false;
+	}
+	Lua::pushUserdata<Player>(L, player);
+	Lua::setMetatable(L, -1, "Player");
+	return scriptInterface.callFunction(1);
+}
+
 bool Game::consumeInstanceFenceMessage() {
 	const bool pending = pendingInstanceFenceMessage;
 	pendingInstanceFenceMessage = false;

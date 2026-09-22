@@ -104,15 +104,6 @@ function echoWardenTrigger.onDeath(creature, corpse, killer, mostDamageKiller, l
 	local kindName = creature:getName()
 	local pos = creature:getPosition()
 	local instanceId = EchoWarden.creatureInstanceId(creature)
-	logger.info(
-		"[EchoWarden] portal armed kind={} stars={} instance={} at {},{},{}",
-		kindName,
-		stars,
-		instanceId,
-		pos.x,
-		pos.y,
-		pos.z
-	)
 	EchoWarden.spawnPortal(pos.x, pos.y, pos.z, kindName, instanceId)
 
 	return true
@@ -124,19 +115,16 @@ echoWardenTrigger:register()
 local echoWardenStartup = GlobalEvent("EchoWardenTriggerStartup")
 
 function echoWardenStartup.onStartup()
-	local count = 0
 	for stars = 1, 5 do
 		local monsters = Game.getMonstersByBestiaryStars(stars)
 		if monsters then
 			for _, mType in ipairs(monsters) do
 				if mType:name() then
 					mType:registerEvent("EchoWardenTrigger")
-					count = count + 1
 				end
 			end
 		end
 	end
-	logger.info("[EchoWarden] Registered death trigger to {} monsters (bestiary 1-5★)", count)
 	return true
 end
 

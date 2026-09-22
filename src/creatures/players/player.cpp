@@ -7413,6 +7413,19 @@ bool Player::isInSafeInstance() const {
 	return getInstanceId() < Game::INSTANCE_PRIVATE_BASE;
 }
 
+void Player::captureLoginPosition() {
+	// Product Lua (InstanceWorld.captureLoginPosition) may rewrite loginPosition for
+	// hunt-footprint / home tiles. Always keep a C++ hard floor for private instances.
+	if (g_game().tryCaptureLoginPosition(static_self_cast<Player>())) {
+		return;
+	}
+	if (!isInSafeInstance()) {
+		loginPosition = getTemplePosition();
+		return;
+	}
+	loginPosition = getPosition();
+}
+
 bool Player::canLogout() {
 	if (isConnecting) {
 		return false;
@@ -12272,7 +12285,7 @@ void Player::onRemoveCreature(const std::shared_ptr<Creature> &creature, bool is
 				guild->removeMember(player);
 			}
 
-			loginPosition = getPosition();
+			captureLoginPosition();
 			lastLogout = time(nullptr);
 			g_logger().info("{} has logged out", getName());
 			g_chat().removeUserFromAllChannels(player);

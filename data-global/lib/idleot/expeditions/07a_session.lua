@@ -586,6 +586,10 @@ function EM_PRIV.isSessionCompanion(session, player)
 	if not player then
 		return false
 	end
+	-- Attached UI clients are human viewers for hunt UX (death modal, accept prompts).
+	if EM_PRIV.hasUiClient(player) then
+		return false
+	end
 	if session and session.companionIds and session.companionIds[player:getId()] then
 		return true
 	end

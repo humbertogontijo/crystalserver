@@ -37,10 +37,12 @@ end
 
 local MAIN_AREAS = { AREA_BEAM6, AREA_BEAM7, AREA_BEAM8 }
 local MAIN_CB = { "onGetFormulaValuesGrade1", "onGetFormulaValuesGrade2", "onGetFormulaValuesGrade3" }
+-- Center row is {1, 3, 1}: directional areas anchor on the sqm in front of the caster, so the
+-- first beam tile must include left/right parallels to match the full main-beam length.
 local FLANK_AREAS = {
-	{ { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 0, 3, 0 } },
-	{ { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 0, 3, 0 } },
-	{ { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 0, 3, 0 } },
+	{ { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 3, 1 } },
+	{ { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 3, 1 } },
+	{ { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 3, 1 } },
 }
 local FLANK_CB = { "onGetFormulaValuesBeamFlank1", "onGetFormulaValuesBeamFlank2", "onGetFormulaValuesBeamFlank3" }
 

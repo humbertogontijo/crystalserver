@@ -161,15 +161,44 @@ end
 
 function EM_PRIV.collectHumanViewers(session, deadMember)
 	local humans = {}
+	local seen = {}
 	local deadId = deadMember and deadMember:getId() or nil
 	if not deadId and session and session.pendingHuntDeath then
 		deadId = session.pendingHuntDeath.id
 	end
+
+	-- Anyone with a live UI needs the hunt-death modal. Do not use isSessionCompanion:
+	-- sticky companionIds after client attach would skip the player and leave them
+	-- stranded in a swept instance with no modal.
+	local function consider(p)
+		if not p then
+			return
+		end
+		local id = p:getId()
+		if deadId and id == deadId then
+			return
+		end
+		if seen[id] then
+			return
+		end
+		if not EM_PRIV.hasUiClient(p) then
+			return
+		end
+		seen[id] = true
+		humans[#humans + 1] = p
+	end
+
 	for _, id in ipairs(EM_PRIV.sessionMemberIds(session)) do
-		if not deadId or id ~= deadId then
-			local p = Player(id)
-			if p and not EM_PRIV.isSessionCompanion(session, p) then
-				humans[#humans + 1] = p
+		consider(Player(id))
+	end
+
+	-- Fallback: UI clients still inside the private instance (stale playerIds).
+	local instance = session and session.instance
+	local instanceId = instance and (instance.instanceId or instance.slot)
+	if instanceId and Game.getPlayers then
+		for _, p in ipairs(Game.getPlayers()) do
+			if p and p.getInstanceId and p:getInstanceId() == instanceId then
+				consider(p)
 			end
 		end
 	end
@@ -195,6 +224,15 @@ function EM_PRIV.logoutExpeditionCompanions(session)
 		if TeamManager and TeamManager.safeLogoutCompanion then
 			TeamManager.safeLogoutCompanion(companion, 0)
 		elseif Game.headlessLogout then
+			-- Fallback: park to open-world return before save+logout (loginPosition).
+			local returnPos = EM_PRIV.loadReturn(companion)
+			if InstanceWorld and InstanceWorld.exitToOpenWorld then
+				pcall(InstanceWorld.exitToOpenWorld, companion, returnPos)
+			elseif returnPos then
+				pcall(function()
+					companion:teleportTo(returnPos)
+				end)
+			end
 			pcall(Game.headlessLogout, companion)
 		end
 	end

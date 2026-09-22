@@ -39,7 +39,7 @@ void SaveManager::saveAll() {
 	const auto &players = game.getPlayers();
 
 	for (const auto &[_, player] : players) {
-		player->loginPosition = player->getPosition();
+		player->captureLoginPosition();
 		doSavePlayer(player);
 	}
 
@@ -58,7 +58,7 @@ void SaveManager::saveAll(const std::vector<std::shared_ptr<Player>> &players, c
 	logger.info("Saving server...");
 
 	for (const auto &player : players) {
-		player->loginPosition = player->getPosition();
+		player->captureLoginPosition();
 		doSavePlayer(player);
 	}
 

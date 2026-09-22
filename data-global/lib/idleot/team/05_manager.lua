@@ -564,6 +564,40 @@ local COMPANION_LOGOUT_POLL_MS = 100
 -- playerId → generation; bumping cancels an in-flight deferred logout (switch redeploy).
 local pendingCompanionLogoutGen = {}
 
+local function parkCompanionBeforeLogout(companion)
+	if not companion then
+		return
+	end
+	local privateBase = (InstanceWorld and InstanceWorld.PRIVATE_BASE) or 3000000
+	local iid = companion.getInstanceId and companion:getInstanceId() or 0
+	local pos = companion.getPosition and companion:getPosition() or nil
+	local needPark = iid >= privateBase
+	if not needPark and ExpeditionConfig and companion.getStorageValue
+		and companion:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1
+	then
+		needPark = true
+	end
+	if not needPark and pos and InstanceWorld and InstanceWorld.classify then
+		local kind = InstanceWorld.classify(pos).kind
+		if kind == "hunt" or kind == "blocked" then
+			needPark = true
+		end
+	end
+	if not needPark then
+		return
+	end
+	-- Persist open-world loginPosition: C++ logout saves getPosition().
+	local returnPos = ExpeditionManager and ExpeditionManager.loadReturnPos and ExpeditionManager.loadReturnPos(companion)
+		or nil
+	if InstanceWorld and InstanceWorld.exitToOpenWorld then
+		pcall(InstanceWorld.exitToOpenWorld, companion, returnPos)
+	elseif returnPos and companion.teleportTo then
+		pcall(function()
+			companion:teleportTo(returnPos)
+		end)
+	end
+end
+
 local function safeLogoutCompanion(companion, deferMs)
 	if not companion or not isHeadlessCompanion(companion) then
 		return
@@ -578,6 +612,7 @@ local function safeLogoutCompanion(companion, deferMs)
 		if not c or not isHeadlessCompanion(c) then
 			return
 		end
+		parkCompanionBeforeLogout(c)
 		clearCompanionMark(c)
 		if type(Game.headlessLogout) == "function" then
 			Game.headlessLogout(c)
@@ -853,6 +888,14 @@ function TeamManager.onAttachedClient(player)
 	end
 	if isHeadlessCompanion(player) then
 		clearCompanionMark(player)
+	end
+	-- Drop sticky expedition companion flag so hunt-death / accept UX treats this
+	-- client as a human viewer (storage mark alone is not enough).
+	if ExpeditionManager and ExpeditionManager.getSessionByPlayer then
+		local session = ExpeditionManager.getSessionByPlayer(player)
+		if session and session.companionIds then
+			session.companionIds[player:getId()] = nil
+		end
 	end
 end
 

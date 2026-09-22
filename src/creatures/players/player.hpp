@@ -716,6 +716,11 @@ public:
 	const Position &getLoginPosition() const {
 		return loginPosition;
 	}
+	void setLoginPosition(const Position &pos) {
+		loginPosition = pos;
+	}
+	/// Snapshot a persistable open-world login tile (never private hunt/raid/home XY).
+	void captureLoginPosition();
 
 	// Spell crosshair/cursor aim tile (sent by the 15.25 client in the say packet tail).
 	void setSpellAimPosition(const Position &pos) {

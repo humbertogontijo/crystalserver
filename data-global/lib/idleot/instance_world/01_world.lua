@@ -1170,13 +1170,8 @@ function InstanceWorld.isStrandedExpedition(player, pos)
 		if target.kind == "hunt" or target.kind == "blocked" then
 			return true
 		end
-		-- Misclassified leave: still on a hunt footprint (city/settlement wins classify)
-		-- with Play-expedition UI and no PZ - rescue to temple on login.
-		local tile = player.getTile and player:getTile() or nil
-		local inPz = tile and tile.hasFlag and tile:hasFlag(TILESTATE_PROTECTIONZONE)
-		if not inPz and onHuntFootprint(pos) then
-			return true
-		end
+		-- City/settlement tiles may overlap hunt occupancy masks. Do not temple on
+		-- every re-login — only when leftover expedition markers remain above.
 	end
 	return false
 end
@@ -1251,6 +1246,40 @@ function InstanceWorld.rescueIfStranded(player)
 	return ok
 end
 
+--- Snapshot a DB-safe login tile. Returns true when loginPosition was rewritten
+--- (private hunt/raid/home, hunt footprint, blocked). False → C++ keeps map XY
+--- when already on a town-only open-world tile.
+function InstanceWorld.captureLoginPosition(player)
+	if not player or not player.setLoginPosition then
+		return false
+	end
+	local pos = player.getPosition and player:getPosition() or nil
+	local iid = player.getInstanceId and player:getInstanceId() or 0
+	local privateBase = InstanceWorld.PRIVATE_BASE or 3000000
+	local unsafe = iid >= privateBase or isHomePosition(pos)
+	if not unsafe and pos then
+		local kind = InstanceWorld.classify(pos).kind
+		if kind == "hunt" or kind == "blocked" then
+			unsafe = true
+		elseif kind ~= "hub" and onHuntFootprint(pos) then
+			-- City may win classify on shared XY; never persist hunt footprint.
+			unsafe = true
+		elseif kind ~= "city" and kind ~= "settlement" and kind ~= "hub" then
+			-- stay / unknown open world is OK to persist as-is.
+			unsafe = false
+		end
+	end
+	if not unsafe then
+		return false
+	end
+	local dest = InstanceWorld.rescuePos(player)
+	if not dest then
+		return false
+	end
+	player:setLoginPosition(dest)
+	return true
+end
+
 function InstanceWorld.bindLogin(player, loginPos)
 	if not player or not player.setInstanceId then
 		return
@@ -1275,9 +1304,10 @@ function InstanceWorld.bindLogin(player, loginPos)
 		end
 	end
 	local pos = asWorldPos(loginPos) or (player.getPosition and player:getPosition() or nil)
-	-- Town bind only when XY is town-only. Never bindCreature(townId) on a hunt footprint.
-	if InstanceWorld.isTownOnlyPos(pos) then
-		local target = InstanceWorld.classify(pos)
+	-- Bind city/settlement/hub in place. Hunt-footprint overlap is fine for login —
+	-- the player is already standing there. Temple yank belongs to rescueIfStranded.
+	local target = pos and InstanceWorld.classify(pos) or nil
+	if target and (target.kind == "city" or target.kind == "settlement" or target.kind == "hub") then
 		local bindId, persistKey = instanceIdForTarget(target)
 		if bindId then
 			bindCreature(player, bindId)
@@ -1287,12 +1317,8 @@ function InstanceWorld.bindLogin(player, loginPos)
 			return
 		end
 	end
-	-- Hunt footprint / blocked / stay / unknown: atomic move to temple/town center.
-	if player.getTile and player:getTile() then
-		InstanceWorld.bindOpenWorld(player, nil)
-		return
-	end
-	-- No tile yet: refuse open-world bind at non-town-only XY (avoid town-at-hunt).
+	-- Non-city open world / hunt / stay: leave position alone.
+	-- InstanceWorld.rescueIfStranded (login) owns temple return when actually stranded.
 end
 
 function InstanceWorld.tagCityNpcs()

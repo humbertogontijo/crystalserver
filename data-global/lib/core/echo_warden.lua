@@ -161,7 +161,6 @@ function EchoWarden.scheduleRaidDespawn(raidToken, instanceId)
 				EchoWarden.activeEmpowered[cid] = nil
 			end
 		end
-		logger.info("[EchoWarden] raid TTL despawn token={} instance={}", token, iid)
 	end, EchoWarden.RAID_TTL_MS, raidToken, EchoWarden.normalizeInstanceId(instanceId))
 end
 
@@ -482,8 +481,6 @@ function EchoWarden.runRaid(kindName, center, instanceId, player)
 	local id = EchoWarden.normalizeInstanceId(instanceId)
 	local outcome = EchoWarden.rollOutcome(player, kindName)
 	local raidToken = string.format("%d:%d:%d:%d:%d", id, cx, cy, cz, os.time())
-	logger.info("[EchoWarden] runRaid kind={} outcome={} instance={} at {},{},{}", kindName, outcome, id, cx, cy, cz)
-
 	if outcome == "warden" then
 		local w = EchoWarden.createRaidMonster(kindName, Position(cx, cy, cz), id)
 		if w then
@@ -529,7 +526,6 @@ function EchoWarden.spawnPortal(px, py, pz, kindName, instanceId, shared)
 	if shared or id == 0 then
 		portal:setCustomAttribute(EchoWarden.PORTAL_ATTR_SHARED, "1")
 	end
-	logger.info("[EchoWarden] portal spawned kind={} instance={} shared={} at {},{},{}", kindName, id, tostring(shared or id == 0), px, py, pz)
 	EchoWarden.sendEffect(pos, CONST_ME_TELEPORT, id)
 	local ttl = (shared or id == 0) and EchoWarden.SUBAREA_ARM_TTL_MS or EchoWarden.PORTAL_TTL_MS
 	addEvent(function(qx, qy, qz, expectedInstanceId)
@@ -608,7 +604,6 @@ function EchoWarden.armSubareaEcho(placeId, reschedule)
 	end
 	if EchoWarden.spawnPortal(pos.x, pos.y, pos.z, kind, 0, true) then
 		EchoWarden._subareaArmed[placeId] = { x = pos.x, y = pos.y, z = pos.z, kind = kind }
-		logger.info("[EchoWarden] subarea arm place={} kind={} at {},{},{}", placeId, kind, pos.x, pos.y, pos.z)
 	end
 	if reschedule then
 		EchoWarden.scheduleNextSubareaArm(placeId)
@@ -638,7 +633,6 @@ function EchoWarden.startSubareaScheduler()
 			n = n + 1
 		end
 	end
-	logger.info("[EchoWarden] scheduled subarea echo arms for {} hunt places", n)
 end
 
 function EchoWarden.onServerSave()
@@ -654,7 +648,6 @@ function EchoWarden.onServerSave()
 			end
 		end
 	end
-	logger.info("[EchoWarden] server-save nudged {} subarea arms", math.min(n, 40))
 end
 
 --- Discovery: arm a nearby hunt place echo early.
@@ -682,7 +675,6 @@ function EchoWarden.onViewpointDiscovered(player)
 		end
 		if best then
 			addEvent(EchoWarden.armSubareaEcho, 1000, tostring(best.id), false)
-			logger.info("[EchoWarden] discovery arm queued for place={} player={}", best.id, player:getName())
 		end
 	end
 end

@@ -253,6 +253,9 @@ void PlayerFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Player", "getTown", PlayerFunctions::luaPlayerGetTown);
 	Lua::registerMethod(L, "Player", "setTown", PlayerFunctions::luaPlayerSetTown);
+	Lua::registerMethod(L, "Player", "getLoginPosition", PlayerFunctions::luaPlayerGetLoginPosition);
+	Lua::registerMethod(L, "Player", "setLoginPosition", PlayerFunctions::luaPlayerSetLoginPosition);
+	Lua::registerMethod(L, "Player", "captureLoginPosition", PlayerFunctions::luaPlayerCaptureLoginPosition);
 
 	Lua::registerMethod(L, "Player", "getGuild", PlayerFunctions::luaPlayerGetGuild);
 	Lua::registerMethod(L, "Player", "setGuild", PlayerFunctions::luaPlayerSetGuild);
@@ -2847,6 +2850,41 @@ int PlayerFunctions::luaPlayerSetTown(lua_State* L) {
 	return 1;
 }
 
+int PlayerFunctions::luaPlayerGetLoginPosition(lua_State* L) {
+	// player:getLoginPosition()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (player) {
+		Lua::pushPosition(L, player->getLoginPosition());
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetLoginPosition(lua_State* L) {
+	// player:setLoginPosition(position)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	player->setLoginPosition(Lua::getPosition(L, 2));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerCaptureLoginPosition(lua_State* L) {
+	// player:captureLoginPosition()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	player->captureLoginPosition();
+	Lua::pushPosition(L, player->getLoginPosition());
+	return 1;
+}
+
 int PlayerFunctions::luaPlayerGetGuild(lua_State* L) {
 	// player:getGuild()
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
@@ -4416,7 +4454,7 @@ int PlayerFunctions::luaPlayerSave(lua_State* L) {
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (player) {
 		if (!player->isOffline()) {
-			player->loginPosition = player->getPosition();
+			player->captureLoginPosition();
 		}
 		Lua::pushBoolean(L, g_saveManager().savePlayer(player));
 	} else {

@@ -339,9 +339,78 @@ local function adjacentThreatCount(player, pos, monsters)
 	return count
 end
 
---- Free formation cardinal: prefer low adjacent threat, then combat stance, then short walk.
+-- Formation cardinals around the anchor, clockwise looking down (+y south):
+-- 0=N, 1=E, 2=S, 3=W. A 180° opposite tile is two steps in the same sense.
+local function cardinalOrbitIndex(anchorPos, pos)
+	if not anchorPos or not pos or anchorPos.z ~= pos.z then
+		return nil
+	end
+	local dx = pos.x - anchorPos.x
+	local dy = pos.y - anchorPos.y
+	if dx == 0 and dy == 0 then
+		return nil
+	end
+	if math.abs(dx) >= math.abs(dy) then
+		return dx > 0 and 1 or 3
+	end
+	return dy > 0 and 2 or 0
+end
+
+--- Signed 90° steps from `fromIdx` to `toIdx`: +1 CW, -1 CCW, +2 / -2 for 180°, 0 same.
+local function orbitStep(fromIdx, toIdx)
+	if fromIdx == nil or toIdx == nil then
+		return 0
+	end
+	local raw = (toIdx - fromIdx) % 4
+	if raw == 0 then
+		return 0
+	end
+	if raw == 1 then
+		return 1
+	end
+	if raw == 3 then
+		return -1
+	end
+	-- 180°: keep the active sense when set, else treat as CW two-steps.
+	return 2
+end
+
+--- Cost of leaving `fromIdx` for `toIdx` given sticky orbit sense (+1 CW / -1 CCW / nil).
+--- Prefer continuing the sense; 180° is fine (two steps same way); reverse is last.
+local function orbitCost(fromIdx, toIdx, sense)
+	local step = orbitStep(fromIdx, toIdx)
+	if step == 0 then
+		return 0
+	end
+	if sense ~= 1 and sense ~= -1 then
+		-- No sense yet: either 90° is fine; 180° is still same-orbit progress.
+		return math.abs(step) == 2 and 1 or 0
+	end
+	if step == sense then
+		return 0
+	end
+	if math.abs(step) == 2 then
+		return 1
+	end
+	-- Opposite 90° would flip the orbit sense.
+	return 3
+end
+
+local function rememberOrbitSense(state, fromIdx, toIdx)
+	if not state then
+		return
+	end
+	local step = orbitStep(fromIdx, toIdx)
+	if step == 1 or step == -1 then
+		state.orbitSense = step
+	elseif math.abs(step) == 2 and state.orbitSense ~= 1 and state.orbitSense ~= -1 then
+		state.orbitSense = 1
+	end
+end
+
+--- Free formation cardinal: threat first, then sticky orbit sense, then stance / walk.
 --- Returns dest, threat (or nil).
-local function pickPreferredStanceTile(player, targetPos, combatD, preferred, monsters)
+local function pickPreferredStanceTile(player, targetPos, combatD, preferred, monsters, anchorPos, sense)
 	if not player or not targetPos or type(preferred) ~= "table" then
 		return nil
 	end
@@ -350,22 +419,26 @@ local function pickPreferredStanceTile(player, targetPos, combatD, preferred, mo
 		return nil
 	end
 	monsters = monsters or {}
-	local best, bestOver, bestThreat, bestSd, bestPd = nil, nil, nil, nil, nil
+	local fromIdx = cardinalOrbitIndex(anchorPos, ppos)
+	local best, bestOver, bestOrbit, bestThreat, bestSd, bestPd = nil, nil, nil, nil, nil, nil
 	for i = 1, #preferred do
 		local dest = preferred[i]
 		if dest and dest.z == targetPos.z and tileFreeForPlayer(player, dest) then
 			local threat = adjacentThreatCount(player, dest, monsters)
 			local over = math.max(0, threat - THREAT_ADJACENT_MAX)
+			local toIdx = cardinalOrbitIndex(anchorPos, dest)
+			local orbit = orbitCost(fromIdx, toIdx, sense)
 			local sd = stanceDelta(dest, targetPos, combatD)
 			local pd = chebyshev(ppos, dest)
 			if
 				not best
 				or over < bestOver
-				or (over == bestOver and threat < bestThreat)
-				or (over == bestOver and threat == bestThreat and sd < bestSd)
-				or (over == bestOver and threat == bestThreat and sd == bestSd and pd < bestPd)
+				or (over == bestOver and orbit < bestOrbit)
+				or (over == bestOver and orbit == bestOrbit and threat < bestThreat)
+				or (over == bestOver and orbit == bestOrbit and threat == bestThreat and sd < bestSd)
+				or (over == bestOver and orbit == bestOrbit and threat == bestThreat and sd == bestSd and pd < bestPd)
 			then
-				best, bestOver, bestThreat, bestSd, bestPd = dest, over, threat, sd, pd
+				best, bestOver, bestOrbit, bestThreat, bestSd, bestPd = dest, over, orbit, threat, sd, pd
 			end
 		end
 	end
@@ -399,8 +472,9 @@ local function holdStanceDistance(player, focus, d, cardinal, config)
 	end
 
 	local preferred = nil
+	local anchorPos = nil
 	if not cardinal then
-		local anchorPos = pathLeashAnchor(player)
+		anchorPos = pathLeashAnchor(player)
 		if anchorPos then
 			preferred = cardinalTilesAtDistance(anchorPos, stanceDistanceForFocus(config, true))
 		end
@@ -408,7 +482,10 @@ local function holdStanceDistance(player, focus, d, cardinal, config)
 
 	-- Leashed: stay on a preferred cardinal once combat range is close enough
 	-- and adjacent monsters targeting the player are under the threat cap.
+	-- Relocations stick to one orbit sense (CW/CCW); 180° is two steps that way.
 	if preferred then
+		local state = CombatAutomation.getState and CombatAutomation.getState(player) or nil
+		local sense = state and state.orbitSense or nil
 		local monsters = CombatAutomation.getVisibleMonsters and CombatAutomation.getVisibleMonsters(player) or {}
 		local hereThreat = adjacentThreatCount(player, ppos, monsters)
 		if
@@ -420,11 +497,12 @@ local function holdStanceDistance(player, focus, d, cardinal, config)
 			faceToward(player, fpos)
 			return
 		end
-		local best, bestThreat = pickPreferredStanceTile(player, fpos, d, preferred, monsters)
+		local best, bestThreat = pickPreferredStanceTile(player, fpos, d, preferred, monsters, anchorPos, sense)
 		if best and not sameTile(ppos, best) then
 			local mustMove = hereThreat > THREAT_ADJACENT_MAX and (bestThreat or 0) < hereThreat
 			local notSettled = not onPreferredTile(ppos, preferred) or stanceDelta(ppos, fpos, d) > STANCE_BAND
 			if mustMove or notSettled then
+				rememberOrbitSense(state, cardinalOrbitIndex(anchorPos, ppos), cardinalOrbitIndex(anchorPos, best))
 				CombatAutomationMovement.queueWalkToward(player, best, false)
 				return
 			end
@@ -806,5 +884,6 @@ function CombatAutomationMovement.onAutoResumed(player)
 		state.areaCastSlotId = nil
 		state.areaFace = nil
 		state.suppressAreaStep = nil
+		state.orbitSense = nil
 	end
 end

@@ -27,6 +27,8 @@ local combatWOD = createCombat(AREA_BEAM7, AREADIAGONAL_BEAM7, "onGetFormulaValu
 -- Vocation Adjustment: Beam Mastery fires two identical beams parallel to the main one (left + right),
 -- each dealing 40/60/80% of the beam damage at Beam Mastery stage 1/2/3. Flank length matches the
 -- Beam-Mastery (combatWOD) beam length; orthogonal flank, diagonal casts approximate.
+-- Directional combat anchors on the sqm in front of the caster — center row must be {1, 3, 1}
+-- so the first beam tile also gets left/right parallels.
 function onGetFormulaValuesBeamFlank(player, level, maglevel)
 	local stage = player:revelationStageWOD("Beam Mastery")
 	local factor = (stage >= 3 and 0.80) or (stage >= 2 and 0.60) or (stage >= 1 and 0.40) or 0
@@ -39,7 +41,7 @@ local flankCombat = Combat()
 flankCombat:setCallback(CALLBACK_PARAM_LEVELMAGICVALUE, "onGetFormulaValuesBeamFlank")
 flankCombat:setParameter(COMBAT_PARAM_TYPE, COMBAT_ENERGYDAMAGE)
 flankCombat:setParameter(COMBAT_PARAM_EFFECT, CONST_ME_ENERGYHIT)
-flankCombat:setArea(createCombatArea({ { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 0, 3, 0 } }))
+flankCombat:setArea(createCombatArea({ { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 3, 1 } }))
 
 -- Vocation Adjustment: a Master Sorcerer's elemental stance reshapes the beam (element + impact effect).
 -- Master of Flames -> fire (eff 329), Master of Decay -> death (eff 330), Thunder/none -> base energy.
