@@ -303,6 +303,35 @@ def expand_direction_tiles(
     return by_dir
 
 
+def parse_flank_matrix(src: str) -> list[list[int]] | None:
+    """Parallel beams: `FLANK_AREA = {…}` or `flankCombat:setArea(createCombatArea({…}))`."""
+    match = re.search(r"\bFLANK_AREA\s*=\s*\{", src) or re.search(
+        r"\w*[Ff]lank\w*:setArea\(\s*createCombatArea\(\s*\{", src
+    )
+    if not match:
+        return None
+    start = match.end() - 1
+    rows = parse_matrix_body(src[start : matching_brace_end(src, start) + 1])
+    return rows or None
+
+
+def add_flank_tiles(
+    by_dir: dict[int, list[tuple[int, int]]], flank: list[list[int]]
+) -> dict[int, list[tuple[int, int]]]:
+    """Cardinal facings use the flank matrix; diagonal facings shift each beam tile sideways."""
+    cardinal = expand_direction_tiles(flank, None)
+    lateral = sorted({dx for dx, _ in matrix_offsets_from_center(flank) if dx})
+    out: dict[int, list[tuple[int, int]]] = {}
+    for direction, tiles in by_dir.items():
+        if direction in cardinal:
+            out[direction] = unique_sorted(tiles + cardinal[direction])
+        else:
+            step_x, step_y = DIR_STEP[direction]
+            side = [(dx - step_y * lat, dy + step_x * lat) for dx, dy in tiles for lat in lateral]
+            out[direction] = unique_sorted(tiles + side)
+    return out
+
+
 def collect_area_pairs(src: str) -> list[tuple[str, str]]:
     """Ordered unique (AREA_*, AREADIAGONAL_*|"") from createCombat(Area) calls."""
     pairs: list[tuple[str, str]] = []
@@ -500,7 +529,15 @@ def parse_spell_area(src: str, target_mode: str) -> dict:
         if ortho:
             area["byDir"] = expand_direction_tiles(ortho, diagonal)
         if wod_gate and wod_ortho:
-            area["wodByDir"] = expand_direction_tiles(wod_ortho, wod_diagonal)
+            wod_by_dir = expand_direction_tiles(wod_ortho, wod_diagonal)
+            flank = parse_flank_matrix(src)
+            if flank:
+                wod_by_dir = add_flank_tiles(wod_by_dir, flank)
+                area["wodNote"] = (
+                    f"{wod_gate['name']}: {wod_pair[0]} center + full-length "
+                    "left/right flanks (incl. first sqm)."
+                )
+            area["wodByDir"] = wod_by_dir
             area["wod"] = wod_gate
         return area
 
@@ -740,7 +777,8 @@ def lua_area(area: dict) -> str:
     if area.get("byDir"):
         parts.append(f"byDir = {lua_dir_map(area['byDir'])}")
     if area.get("wodByDir"):
-        parts.append(f"wodByDir = {lua_dir_map(area['wodByDir'])}")
+        note = f"-- {area['wodNote']}\n\t\t" if area.get("wodNote") else ""
+        parts.append(f"{note}wodByDir = {lua_dir_map(area['wodByDir'])}")
     if area.get("gradeByDir"):
         grade_lines = []
         for grade, by_dir in sorted(area["gradeByDir"].items()):
