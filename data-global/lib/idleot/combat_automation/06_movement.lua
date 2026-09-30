@@ -8,6 +8,8 @@ CombatAutomationMovement = CombatAutomationMovement or {}
 
 local lastQueuedWalkById = {}
 local lastPathFailLogById = {}
+--- Last getPathTo failure per creature: { key = dest key, at = ms }.
+local lastPathFailById = {}
 -- Temporary exclusive destinations (discovery POI FAB). Blocks stance/hold from
 -- stealing the path under idle combat without unlocking general client autoWalk.
 local exclusiveWalkById = {}
@@ -18,6 +20,7 @@ local PATH_MAX_SEARCH = 128
 local WALK_DEDUPE_MS = 2500
 local STALL_REPATH_MS = 400
 local EXCLUSIVE_WALK_TTL_MS = 20000
+local PATH_FAIL_FRESH_MS = 1500
 
 local function nowMs()
 	return os.mtime and os.mtime() or (os.time() * 1000)
@@ -99,10 +102,21 @@ local function logWalkFail(creature, dest, reason, extra)
 	)
 end
 
+--- True when the last path search toward `dest` found nothing, just now.
+function CombatAutomationMovement.walkBlocked(creature, dest)
+	if not creature or not dest then
+		return false
+	end
+	local fail = lastPathFailById[creature:getId()]
+	return fail ~= nil and fail.key == walkDestKey(dest) and (nowMs() - fail.at) <= PATH_FAIL_FRESH_MS
+end
+
 --- Regular engine path only (flags = 0). Soft creature cost + hard PvP blocks apply.
 --- `force` = skip dedupe and clear stuck walkTask (stall repath).
 --- `ignoreConditions` = autoWalk despite rooted/feared (hold-to-hold relocate).
-function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreConditions)
+--- `reach` = Chebyshev distance from `dest` that counts as there (default 0:
+--- the exact tile), so a creature standing on a waypoint does not block it.
+function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreConditions, reach)
 	if not creature or not dest or not creature.autoWalk then
 		return false
 	end
@@ -110,7 +124,8 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 	if not ppos then
 		return false
 	end
-	if sameTile(ppos, dest) then
+	reach = math.max(0, math.floor(tonumber(reach) or 0))
+	if sameTile(ppos, dest) or (reach > 0 and ppos.z == dest.z and chebyshev(ppos, dest) <= reach) then
 		clearQueuedWalk(creature)
 		return true
 	end
@@ -144,7 +159,7 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 	if maxSearch < 1 then
 		maxSearch = PATH_MAX_SEARCH
 	end
-	local minDist, maxDist = 0, 0
+	local minDist, maxDist = 0, reach
 	local excl = exclusiveWalkById[id]
 	if force and excl and excl.x == dest.x and excl.y == dest.y and excl.z == dest.z then
 		minDist = math.max(0, math.floor(tonumber(excl.minDist) or 0))
@@ -152,6 +167,7 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 	end
 	local path = dirsForAutoWalkFromGetPathTo(creature:getPathTo(dest, minDist, maxDist, true, false, maxSearch))
 	if type(path) ~= "table" or #path == 0 then
+		lastPathFailById[id] = { key = key, at = now }
 		-- Stance / follow retries (exact tile occupied, BLOCKPATH, etc.) are
 		-- expected every tick. Only hold-to-hold relocate is worth a warning.
 		if ignoreConditions then
@@ -165,6 +181,7 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 		clearQueuedWalk(creature)
 		return false
 	end
+	lastPathFailById[id] = nil
 
 	local skipConds = (force or stuck or ignoreConditions) and true or false
 	if creature:autoWalk(path, 0, skipConds) == true then
@@ -848,7 +865,7 @@ function CombatAutomationMovement.tick(player, config)
 					-- Do not force-repath every tick: autoWalk waits a stepDuration
 					-- before the first tile, so a 250ms force restart never moves.
 					-- Stuck detection inside queueWalkToward retries after ~400ms.
-					CombatAutomationMovement.queueWalkToward(player, hold, false, relocatePriority)
+					CombatAutomationMovement.queueWalkToward(player, hold, false, relocatePriority, directive.reach)
 				else
 					clearQueuedWalk(player)
 				end

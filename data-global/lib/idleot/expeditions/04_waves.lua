@@ -459,10 +459,17 @@ local function tickRelocate(session, anchorPos, engaged)
 		return
 	end
 	local target = ExpeditionWaves.walkTarget(session)
-	if target and target ~= session.holdPos and chebyshev(anchorPos, target) <= 1 then
-		session.routeIdx = (session.routeIdx or 1) + 1
-		session._relocateProgress = { dist = math.huge, at = nowMs() }
-		return
+	if target and target ~= session.holdPos then
+		local anchor = anchorOf(session)
+		local blocked = anchor
+			and CombatAutomationMovement
+			and CombatAutomationMovement.walkBlocked
+			and CombatAutomationMovement.walkBlocked(anchor, target)
+		if blocked or chebyshev(anchorPos, target) <= 1 then
+			session.routeIdx = (session.routeIdx or 1) + 1
+			session._relocateProgress = { dist = math.huge, at = nowMs() }
+			return
+		end
 	end
 	if session.lureHalt or engaged > 0 then
 		-- Fighting on the way is progress; stalls only count while walking alone.

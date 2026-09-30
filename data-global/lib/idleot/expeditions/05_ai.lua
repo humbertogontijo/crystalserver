@@ -378,7 +378,14 @@ function ExpeditionAI.syncDirectives(session)
 			return { kind = "hold", pos = Position(here.x, here.y, here.z), priority = "soft" }
 		end
 		local target = ExpeditionWaves and ExpeditionWaves.walkTarget and ExpeditionWaves.walkTarget(session) or hold
-		return { kind = "hold", pos = Position(target.x, target.y, target.z), priority = "relocate" }
+		local waypoint = target.x ~= hold.x or target.y ~= hold.y or target.z ~= hold.z
+		return {
+			kind = "hold",
+			pos = Position(target.x, target.y, target.z),
+			priority = "relocate",
+			-- A companion or monster may stand on a waypoint; beside it will do.
+			reach = waypoint and 1 or 0,
+		}
 	end
 
 	for _, id in ipairs(memberIds(session)) do
