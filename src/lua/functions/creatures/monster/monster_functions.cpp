@@ -198,10 +198,11 @@ int MonsterFunctions::luaMonsterSetType(lua_State* L) {
 }
 
 int MonsterFunctions::luaMonsterGetSpawnPosition(lua_State* L) {
-	// monster:getSpawnPosition()
+	// monster:getSpawnPosition() — spawn-block tile; falls back to the home tile for script spawns.
 	const auto &monster = Lua::getUserdataShared<Monster>(L, 1);
 	if (monster) {
-		Lua::pushPosition(L, monster->getMasterPos());
+		const Position &spawnPos = monster->getSpawnPosition();
+		Lua::pushPosition(L, spawnPos.x != 0 ? spawnPos : monster->getMasterPos());
 	} else {
 		lua_pushnil(L);
 	}
@@ -484,8 +485,9 @@ int MonsterFunctions::luaMonsterSetSpawnPosition(lua_State* L) {
 
 	const Position &pos = monster->getPosition();
 	monster->setMasterPos(pos);
+	monster->setSpawnPosition(pos);
 
-	const auto &spawnMonster = g_game().map.spawnsMonster.getspawnMonsterList().emplace_back(std::make_shared<SpawnMonster>(pos, 5));
+	const auto &spawnMonster = g_game().map.spawnsMonster.getspawnMonsterList().emplace_back(std::make_shared<SpawnMonster>(pos, 5, monster->getInstanceId()));
 	uint32_t interval = Lua::getNumber<uint32_t>(L, 2, 90) * 1000 * 100 / std::max((uint32_t)1, (g_configManager().getNumber(RATE_SPAWN) * eventschedule));
 	spawnMonster->addMonster(monster->mType->typeName, pos, DIRECTION_NORTH, static_cast<uint32_t>(interval));
 	spawnMonster->startSpawnMonsterCheck();

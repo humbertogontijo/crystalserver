@@ -24,7 +24,7 @@ class Player;
 
 class BedItem final : public Item {
 public:
-	explicit BedItem(uint16_t id);
+	BedItem(uint16_t id, uint32_t instanceId);
 
 	std::shared_ptr<BedItem> getBed() override {
 		return static_self_cast<BedItem>();

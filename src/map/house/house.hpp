@@ -49,7 +49,7 @@ private:
 
 class Door final : public Item {
 public:
-	explicit Door(uint16_t type);
+	Door(uint16_t type, uint32_t instanceId);
 
 	// non-copyable
 	Door(const Door &) = delete;
@@ -94,10 +94,10 @@ using HouseBedItemList = std::list<std::shared_ptr<BedItem>>;
 
 class HouseTransferItem final : public Item {
 public:
-	static std::shared_ptr<HouseTransferItem> createHouseTransferItem(const std::shared_ptr<House> &house);
+	static std::shared_ptr<HouseTransferItem> createHouseTransferItem(const std::shared_ptr<House> &house, uint32_t instanceId);
 
-	explicit HouseTransferItem(std::shared_ptr<House> newHouse) :
-		Item(0), house(std::move(newHouse)) { }
+	HouseTransferItem(std::shared_ptr<House> newHouse, uint32_t instanceId) :
+		Item(0, 0, instanceId), house(std::move(newHouse)) { }
 
 	void onTradeEvent(TradeEvents_t event, const std::shared_ptr<Player> &owner) override;
 	bool canTransform() const override {
@@ -350,7 +350,7 @@ private:
 	AccessList guestList;
 	AccessList subOwnerList;
 
-	std::shared_ptr<Container> transfer_container = std::make_shared<Container>(ITEM_LOCKER);
+	std::shared_ptr<Container> transfer_container = std::make_shared<Container>(ITEM_LOCKER, 0);
 
 	HouseTileList houseTiles;
 	std::list<std::shared_ptr<Door>> doorList;

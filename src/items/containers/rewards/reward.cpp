@@ -17,8 +17,8 @@
 
 #include "items/containers/rewards/reward.hpp"
 
-Reward::Reward() :
-	Container(ITEM_REWARD_CONTAINER) {
+Reward::Reward(uint32_t instanceId) :
+	Container(ITEM_REWARD_CONTAINER, instanceId) {
 	maxSize = 32;
 	unlocked = false;
 	pagination = true;

@@ -690,7 +690,7 @@ void ProtocolGame::login(const std::string &name, uint32_t accountId, OperatingS
 	// dispatcher thread
 	std::shared_ptr<Player> foundPlayer = g_game().getPlayerByName(name);
 	if (!foundPlayer) {
-		player = std::make_shared<Player>(getThis());
+		player = std::make_shared<Player>(getThis(), 0);
 		player->setName(name);
 
 		player->setID();
@@ -6152,7 +6152,7 @@ void ProtocolGame::sendLootStats(const std::shared_ptr<Item> &item, uint8_t coun
 	// Build a detached stack for the analyser packet. Auto-bank removes corpse
 	// coins before this runs; cloning an orphaned/partial stack is unreliable.
 	const uint16_t stackCount = count > 0 ? count : std::max<uint16_t>(1, item->getItemCount());
-	const auto &lootedItem = Item::CreateItem(item->getID(), stackCount);
+	const auto &lootedItem = Item::CreateItem(item->getID(), stackCount, player->getInstanceId());
 	if (!lootedItem) {
 		return;
 	}
@@ -11945,7 +11945,7 @@ void ProtocolGame::parseImbuementWindow(NetworkMessage &msg) {
 		player->openImbuementWindow(type, item);
 
 	} else if (type == IMBUEMENT_WINDOW_SCROLL) {
-		const std::shared_ptr<Item> &blankImbuementScroll = Item::CreateItem(ITEM_BLANK_IMBUEMENT_SCROLL, 1);
+		const std::shared_ptr<Item> &blankImbuementScroll = Item::CreateItem(ITEM_BLANK_IMBUEMENT_SCROLL, 1, player->getInstanceId());
 		if (!blankImbuementScroll) {
 			return;
 		}

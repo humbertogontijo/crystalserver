@@ -43,6 +43,8 @@ private:
 	static int luaGameSetInstanceAreaFence(lua_State* L);
 	static int luaGameSetInstancePrivateFence(lua_State* L);
 	static int luaGameClearInstancePrivateFence(lua_State* L);
+	static int luaGameCreateInstanceSpawns(lua_State* L);
+	static int luaGameClearInstanceSpawns(lua_State* L);
 	static int luaGameSetInstanceFloors(lua_State* L);
 	static int luaGameCanWalkInstance(lua_State* L);
 	static int luaGameComputeCombatPowerFromTraits(lua_State* L);

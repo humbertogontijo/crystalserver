@@ -43,12 +43,12 @@
 
 Items Item::items;
 
-std::shared_ptr<Item> Item::createItemBatch(uint16_t itemId, uint32_t count, bool wrappable /* = false*/) {
-	const auto &item = Item::CreateItem(itemId, count, nullptr, wrappable, true);
+std::shared_ptr<Item> Item::createItemBatch(uint16_t itemId, uint32_t count, uint32_t instanceId, bool wrappable /* = false*/) {
+	const auto &item = Item::CreateItem(itemId, count, instanceId, nullptr, wrappable, true);
 	return item;
 };
 
-std::shared_ptr<Item> Item::CreateItem(const uint16_t type, uint16_t count /*= 0*/, Position* itemPosition /*= nullptr*/, bool createWrappableItem /* false*/, bool customCharges /* false */) {
+std::shared_ptr<Item> Item::CreateItem(const uint16_t type, uint16_t count, uint32_t instanceId, Position* itemPosition /*= nullptr*/, bool createWrappableItem /* false*/, bool customCharges /* false */) {
 	// A map which contains items that, when on creating, should be transformed to the default type.
 	static const phmap::flat_hash_map<ItemID_t, ItemID_t> ItemTransformationMap = {
 		{ ITEM_SWORD_RING_ACTIVATED, ITEM_SWORD_RING },
@@ -68,7 +68,7 @@ std::shared_ptr<Item> Item::CreateItem(const uint16_t type, uint16_t count /*= 0
 	const ItemType &it = Item::items[type];
 	if (createWrappableItem && it.wrapable && it.wrapableTo > 0) {
 		uint16_t wrapId = it.wrapableTo;
-		auto wrappedItem = std::make_shared<Item>(wrapId, 1);
+		auto wrappedItem = std::make_shared<Item>(wrapId, 1, instanceId);
 		wrappedItem->setCustomAttribute("unWrapId", static_cast<int64_t>(type));
 		wrappedItem->setAttribute(ItemAttribute_t::DESCRIPTION, "Unwrap it in your own house to create a <" + it.name + ">.");
 		return wrappedItem;
@@ -86,29 +86,29 @@ std::shared_ptr<Item> Item::CreateItem(const uint16_t type, uint16_t count /*= 0
 
 	if (it.id != 0) {
 		if (it.isDepot()) {
-			newItem = std::make_shared<DepotLocker>(type, 4);
+			newItem = std::make_shared<DepotLocker>(type, 4, instanceId);
 		} else if (it.isRewardChest()) {
-			newItem = std::make_shared<RewardChest>(type);
+			newItem = std::make_shared<RewardChest>(type, instanceId);
 		} else if (it.isContainer()) {
-			newItem = std::make_shared<Container>(type);
+			newItem = std::make_shared<Container>(type, instanceId);
 		} else if (it.isTeleport()) {
-			newItem = std::make_shared<Teleport>(type);
+			newItem = std::make_shared<Teleport>(type, instanceId);
 		} else if (it.isMagicField()) {
-			newItem = std::make_shared<MagicField>(type);
+			newItem = std::make_shared<MagicField>(type, instanceId);
 		} else if (it.isDoor()) {
-			newItem = std::make_shared<Door>(type);
+			newItem = std::make_shared<Door>(type, instanceId);
 		} else if (it.isTrashHolder()) {
-			newItem = std::make_shared<TrashHolder>(type, it.magicEffect);
+			newItem = std::make_shared<TrashHolder>(type, instanceId, it.magicEffect);
 		} else if (it.isMailbox()) {
-			newItem = std::make_shared<Mailbox>(type);
+			newItem = std::make_shared<Mailbox>(type, instanceId);
 		} else if (it.isBed()) {
-			newItem = std::make_shared<BedItem>(type);
+			newItem = std::make_shared<BedItem>(type, instanceId);
 		} else {
 			const auto itemMap = ItemTransformationMap.find(static_cast<ItemID_t>(it.id));
 			if (itemMap != ItemTransformationMap.end()) {
-				newItem = std::make_shared<Item>(itemMap->second, count);
+				newItem = std::make_shared<Item>(itemMap->second, count, instanceId);
 			} else {
-				newItem = std::make_shared<Item>(type, count);
+				newItem = std::make_shared<Item>(type, count, instanceId);
 			}
 		}
 	} else if (type > 0 && itemPosition) {
@@ -267,7 +267,7 @@ void Item::setTier(uint8_t tier) {
 	}
 }
 
-std::shared_ptr<Container> Item::CreateItemAsContainer(const uint16_t type, uint16_t size) {
+std::shared_ptr<Container> Item::CreateItemAsContainer(const uint16_t type, uint16_t size, uint32_t instanceId) {
 	if (const ItemType &it = Item::items[type];
 	    it.id == 0
 	    || it.stackable
@@ -280,7 +280,7 @@ std::shared_ptr<Container> Item::CreateItemAsContainer(const uint16_t type, uint
 		return nullptr;
 	}
 
-	auto newItem = std::make_shared<Container>(type, size);
+	auto newItem = std::make_shared<Container>(type, size, instanceId);
 	return newItem;
 }
 
@@ -318,11 +318,11 @@ std::shared_ptr<Item> Item::CreateItem(uint16_t itemId, Position &itemPosition) 
 			break;
 	}
 
-	return Item::CreateItem(itemId, 0, &itemPosition);
+	return Item::CreateItem(itemId, 0, 0, &itemPosition);
 }
 
-Item::Item(const uint16_t itemId, uint16_t itemCount /*= 0*/) :
-	id(itemId) {
+Item::Item(const uint16_t itemId, uint16_t itemCount, uint32_t initialInstanceId) :
+	id(itemId), instanceId(initialInstanceId) {
 	const ItemType &it = items[id];
 	const auto itemCharges = it.charges;
 	if (it.isFluidContainer() || it.isSplash()) {
@@ -346,14 +346,14 @@ Item::Item(const uint16_t itemId, uint16_t itemCount /*= 0*/) :
 }
 
 Item::Item(const std::shared_ptr<Item> &i) :
-	Thing(), id(i->id), count(i->count), loadedFromMap(i->loadedFromMap) {
+	Thing(), id(i->id), count(i->count), loadedFromMap(i->loadedFromMap), instanceId(i->instanceId) {
 	if (i->attributePtr) {
 		attributePtr = std::make_unique<ItemAttribute>(*i->attributePtr);
 	}
 }
 
-std::shared_ptr<Item> Item::clone() const {
-	const auto &item = Item::CreateItem(id, count);
+std::shared_ptr<Item> Item::clone(uint32_t targetInstanceId) const {
+	const auto &item = Item::CreateItem(id, count, targetInstanceId);
 	if (item == nullptr) {
 		g_logger().error("[{}] item is nullptr", __FUNCTION__);
 		return nullptr;
@@ -362,8 +362,6 @@ std::shared_ptr<Item> Item::clone() const {
 	if (attributePtr) {
 		item->attributePtr = std::make_unique<ItemAttribute>(*attributePtr);
 	}
-	item->setInstanceId(instanceId);
-
 	return item;
 }
 
@@ -3543,9 +3541,9 @@ std::shared_ptr<Item> Item::transform(uint16_t itemId, uint16_t itemCount /*= -1
 
 	std::shared_ptr<Item> newItem;
 	if (itemCount == 0) {
-		newItem = Item::CreateItem(itemId, 1);
+		newItem = Item::CreateItem(itemId, 1, getInstanceId());
 	} else {
-		newItem = Item::CreateItem(itemId, itemCount);
+		newItem = Item::CreateItem(itemId, itemCount, getInstanceId());
 	}
 
 	if (!newItem) {
@@ -3558,7 +3556,6 @@ std::shared_ptr<Item> Item::transform(uint16_t itemId, uint16_t itemCount /*= -1
 	if (duration > 0) {
 		newItem->setDuration(duration);
 	}
-	newItem->setInstanceId(getInstanceId());
 	if (attributePtr) {
 		newItem->attributePtr = std::make_unique<ItemAttribute>(*attributePtr);
 	}

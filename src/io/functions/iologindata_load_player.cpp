@@ -62,7 +62,7 @@ void IOLoginDataLoad::loadItems(ItemsMap &itemsMap, const DBResult_ptr &result, 
 			propStream.init(attr, attrSize);
 
 			try {
-				const auto &item = Item::CreateItem(type, count);
+				const auto &item = Item::CreateItem(type, count, player->getInstanceId());
 				if (item) {
 					if (!item->unserializeAttr(propStream)) {
 						g_logger().warn("[{}] - Failed to deserialize item attributes {}, from player {}, from account id {}", __FUNCTION__, item->getID(), player->getName(), player->getAccountId());
@@ -673,7 +673,7 @@ void IOLoginDataLoad::loadPlayerStoreInbox(const std::shared_ptr<Player> &player
 	}
 
 	if (!player->inventory[CONST_SLOT_STORE_INBOX]) {
-		player->internalAddThing(CONST_SLOT_STORE_INBOX, Item::CreateItem(ITEM_STORE_INBOX));
+		player->internalAddThing(CONST_SLOT_STORE_INBOX, Item::CreateItem(ITEM_STORE_INBOX, 0, player->getInstanceId()));
 	}
 }
 
@@ -765,7 +765,7 @@ void IOLoginDataLoad::loadAccountLootPouch(const std::shared_ptr<Player> &player
 	}
 
 	auto state = std::make_shared<AccountLootPouchState>();
-	const auto &created = Item::CreateItem(ITEM_GOLD_POUCH, 1);
+	const auto &created = Item::CreateItem(ITEM_GOLD_POUCH, 1, player->getInstanceId());
 	state->view = created ? created->getContainer() : nullptr;
 	if (!state->view) {
 		g_logger().error("[{}] - Failed to create account loot pouch for account {}", __FUNCTION__, accountId);

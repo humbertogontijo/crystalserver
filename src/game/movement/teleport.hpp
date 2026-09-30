@@ -24,8 +24,8 @@ class Tile;
 
 class Teleport final : public Item, public Cylinder {
 public:
-	explicit Teleport(uint16_t type) :
-		Item(type) {};
+	Teleport(uint16_t type, uint32_t instanceId) :
+		Item(type, 0, instanceId) {};
 
 	std::shared_ptr<Teleport> getTeleport() override {
 		return static_self_cast<Teleport>();

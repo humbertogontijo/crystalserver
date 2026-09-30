@@ -19,8 +19,8 @@
 
 #include "utils/tools.hpp"
 
-DepotChest::DepotChest(uint16_t type) :
-	Container(type) {
+DepotChest::DepotChest(uint16_t type, uint32_t instanceId) :
+	Container(type, instanceId) {
 	maxDepotItems = 2000;
 	maxSize = 32;
 	pagination = true;

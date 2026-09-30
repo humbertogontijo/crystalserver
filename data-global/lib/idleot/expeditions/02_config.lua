@@ -55,12 +55,26 @@ ExpeditionConfig.RuneWordsByTypeId = CombatAutomationConfig and CombatAutomation
 ExpeditionConfig.LEAVE_COUNTDOWN_SEC = 5
 -- Shared team-accept ready check (host + invitees). Expiry cancels the waiting lobby.
 ExpeditionConfig.TEAM_ACCEPT_TIMEOUT_SEC = 45
-ExpeditionConfig.WAVE_RESPAWN_MS = 8000
--- Hunt wave lifetime: despawn unreachable monsters so the party is not stuck.
--- Long enough for normal multi-lure fights; short enough to recover from bad spawns.
-ExpeditionConfig.HUNT_DESPAWN_MS = 5 * 60 * 1000
--- Max time to walk to the next catalog hold before spawning anyway.
-ExpeditionConfig.RELOCATE_TIMEOUT_MS = 45 * 1000
+-- Map-spawn lure hunts (ExpeditionWaves.tickLure). Instance spawns come from the
+-- world spawn XML; the anchor pulls monsters within PULL_RING whose path to it is
+-- at most PULL_STEPS. Keep PULL_RING / PULL_STEPS in sync with the asset pipeline
+-- (hunt_types.py) so presumed hold lure matches what the runtime pulls.
+ExpeditionConfig.PULL_RING = 8
+ExpeditionConfig.PULL_STEPS = 8
+-- A* checks per tick for new pull candidates (hot path cap).
+ExpeditionConfig.PULL_PATHS_PER_TICK = 6
+-- Engaged monsters farther than this from the anchor go back to their spawn.
+ExpeditionConfig.RELEASE_RADIUS = 18
+-- Engaged monsters that make no progress toward the party for this long are released.
+ExpeditionConfig.PULL_STALL_MS = 8000
+-- Anchor within this Chebyshev distance of the hold counts as arrived.
+ExpeditionConfig.HOLD_ARRIVE_RADIUS = 1
+-- After the pack dies, linger this long for monsters still walking in.
+ExpeditionConfig.HOLD_DWELL_MS = 6000
+-- Anchor stops walking while engaged >= lure * OVERWHELM_FACTOR; resumes at <= lure.
+ExpeditionConfig.OVERWHELM_FACTOR = 2
+-- No progress toward the current route waypoint / hold for this long skips it.
+ExpeditionConfig.RELOCATE_STALL_MS = 12000
 -- Familiar-style catch-up (Creature::checkSummonMove): match anchor speed + soft surplus when behind,
 -- teleport at 15 SQM. Surplus ramps with lag (not a flat haste); this is the max at near-teleport range.
 -- Teleport yank when companions fall too far behind (no speed overrides).
@@ -770,18 +784,6 @@ function ExpeditionConfig.bossCooldownDurationSec()
 	return duration
 end
 
---- Hunt wave despawn (unreachable spawn unstuck).
-function ExpeditionConfig.huntDespawnMs()
-	local ms = tonumber(ExpeditionConfig.HUNT_DESPAWN_MS) or (5 * 60 * 1000)
-	return math.max(1000, math.floor(ms))
-end
-
---- Max relocate walk time before the next wave spawns at the target hold anyway.
-function ExpeditionConfig.relocateTimeoutMs()
-	local ms = tonumber(ExpeditionConfig.RELOCATE_TIMEOUT_MS) or (45 * 1000)
-	return math.max(1000, math.floor(ms))
-end
-
 --- Predefined lure for a hold: catalog `lure`, else floor(creatureDensity), else hunt lureMax.
 --- Lure is the density count directly (no 1/2/4/6/8/12/16 snap).
 function ExpeditionConfig.lureFromDensity(density)
@@ -811,7 +813,8 @@ function ExpeditionConfig.holdLure(hold, catalog)
 end
 
 --- Catalog hold list for monster hunts (team-fit positions). Falls back to center.
---- Each hold keeps `{x,y,z,lure}` (lure derived from catalog when missing).
+--- Each hold keeps `{x,y,z,lure,route}` (lure derived from catalog when missing;
+--- `route` = waypoints of the incoming leg from the previous hold, may be nil).
 function ExpeditionConfig.catalogPositions(catalog)
 	if not catalog then
 		return {}
@@ -821,11 +824,21 @@ function ExpeditionConfig.catalogPositions(catalog)
 		local out = {}
 		for _, p in ipairs(positions) do
 			if p and p.x and p.y and p.z then
+				local route = nil
+				if type(p.route) == "table" and #p.route > 0 then
+					route = {}
+					for _, wp in ipairs(p.route) do
+						if wp.x and wp.y and wp.z then
+							route[#route + 1] = { x = wp.x, y = wp.y, z = wp.z }
+						end
+					end
+				end
 				out[#out + 1] = {
 					x = p.x,
 					y = p.y,
 					z = p.z,
 					lure = ExpeditionConfig.holdLure(p, catalog),
+					route = route,
 				}
 			end
 		end

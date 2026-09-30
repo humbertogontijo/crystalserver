@@ -23,8 +23,8 @@
 #include "game/scheduling/dispatcher.hpp"
 #include "map/spectators.hpp"
 
-Container::Container(uint16_t type) :
-	Container(type, items[type].maxItems) {
+Container::Container(uint16_t type, uint32_t instanceId) :
+	Container(type, items[type].maxItems, instanceId) {
 	m_maxItems = static_cast<uint32_t>(g_configManager().getNumber(MAX_CONTAINER_ITEM));
 	if (getID() == ITEM_GOLD_POUCH) {
 		pagination = true;
@@ -39,22 +39,22 @@ Container::Container(uint16_t type) :
 	}
 }
 
-Container::Container(uint16_t initType, uint16_t initSize, bool initUnlocked /*= true*/, bool initPagination /*= false*/) :
-	Item(initType),
+Container::Container(uint16_t initType, uint16_t initSize, uint32_t instanceId, bool initUnlocked /*= true*/, bool initPagination /*= false*/) :
+	Item(initType, 0, instanceId),
 	maxSize(initSize),
 	unlocked(initUnlocked),
 	pagination(initPagination) { }
 
-std::shared_ptr<Container> Container::create(uint16_t type) {
-	return std::make_shared<Container>(type);
+std::shared_ptr<Container> Container::create(uint16_t type, uint32_t instanceId) {
+	return std::make_shared<Container>(type, instanceId);
 }
 
-std::shared_ptr<Container> Container::create(uint16_t type, uint16_t size, bool unlocked /*= true*/, bool pagination /*= false*/) {
-	return std::make_shared<Container>(type, size, unlocked, pagination);
+std::shared_ptr<Container> Container::create(uint16_t type, uint16_t size, uint32_t instanceId, bool unlocked /*= true*/, bool pagination /*= false*/) {
+	return std::make_shared<Container>(type, size, instanceId, unlocked, pagination);
 }
 
-std::shared_ptr<Container> Container::createBrowseField(const std::shared_ptr<Tile> &tile) {
-	const auto &newContainer = create(ITEM_BROWSEFIELD, 30, false, true);
+std::shared_ptr<Container> Container::createBrowseField(const std::shared_ptr<Tile> &tile, uint32_t instanceId) {
+	const auto &newContainer = create(ITEM_BROWSEFIELD, 30, instanceId, false, true);
 	if (!newContainer || !tile) {
 		return nullptr;
 	}
@@ -106,10 +106,10 @@ Container::~Container() {
 	}
 }
 
-std::shared_ptr<Item> Container::clone() const {
-	const std::shared_ptr<Container> &clone = std::static_pointer_cast<Container>(Item::clone());
+std::shared_ptr<Item> Container::clone(uint32_t targetInstanceId) const {
+	const std::shared_ptr<Container> &clone = std::static_pointer_cast<Container>(Item::clone(targetInstanceId));
 	for (const std::shared_ptr<Item> &item : itemlist) {
-		clone->addItem(item->clone());
+		clone->addItem(item->clone(targetInstanceId));
 	}
 	clone->totalWeight = totalWeight;
 	return clone;

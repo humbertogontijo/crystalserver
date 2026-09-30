@@ -19,8 +19,8 @@
 
 #include "utils/tools.hpp"
 
-Inbox::Inbox(uint16_t type) :
-	Container(type, 30, false, true) {
+Inbox::Inbox(uint16_t type, uint32_t instanceId) :
+	Container(type, 30, instanceId, false, true) {
 	maxInboxItems = std::numeric_limits<uint16_t>::max();
 }
 

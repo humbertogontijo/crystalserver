@@ -299,15 +299,9 @@ function PlayerHomeInstance.stampStarterFurniture(instance, player)
 			elseif not Tile(pos) then
 				Game.createTile(pos, true)
 			end
-			local item = Game.createItem(spec.id, 1)
+			local item = Game.createItem(spec.id, 1, nil, instance.instanceId)
 			if item then
-				if item.setInstanceId then
-					item:setInstanceId(instance.instanceId)
-				end
 				item:moveTo(pos)
-				if item.setInstanceId then
-					item:setInstanceId(instance.instanceId)
-				end
 				if player then
 					PlayerHome.bindStoreItem(item, player)
 				end

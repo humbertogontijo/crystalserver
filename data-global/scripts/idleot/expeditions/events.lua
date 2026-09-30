@@ -103,6 +103,20 @@ end
 
 monsterDeath:register()
 
+-- Instance copies of world spawns (Game.createInstanceSpawns) → lure-hunt tracking.
+local monsterSpawnCallback = EventCallback("ExpeditionMonsterOnSpawn")
+
+function monsterSpawnCallback.monsterOnSpawn(monster, position)
+	if ExpeditionWaves and ExpeditionWaves.onInstanceMonsterSpawn then
+		local ok, err = pcall(ExpeditionWaves.onInstanceMonsterSpawn, monster, position)
+		if not ok then
+			logger.error("[Expedition] monsterOnSpawn failed: {}", err)
+		end
+	end
+end
+
+monsterSpawnCallback:register()
+
 local thinkCallback = EventCallback("CombatAutomationPlayerOnThink")
 
 function thinkCallback.playerOnThink(player, interval)

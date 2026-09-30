@@ -1,10 +1,46 @@
+-- Map-spawn lure hunts. The instance runs native copies of the world spawn XML
+-- (Game.createInstanceSpawns); the anchor walks hold to hold along the catalog
+-- route and pulls monsters inside the pull ring onto itself while everyone
+-- attacks, then fights the gathered pack at each hold.
+--
+-- Session fields kept for protocol / persistence: state (relocating | hunting |
+-- waiting), wave (holds visited), alive (live instance-spawn monsters), kills.
+
 ExpeditionWaves = ExpeditionWaves or {}
 
--- monsterId -> session key
+-- monsterId -> session key (instance-spawn monsters of monster-role hunts)
 local monsterOwners = {}
+ExpeditionWaves.monsterOwners = monsterOwners
+
+local FORGE_FIENDISH = 2
 
 local function huntEnded(session)
 	return not session or session.state == "ended"
+end
+
+local function nowMs()
+	return os.mtime and os.mtime() or (os.time() * 1000)
+end
+
+local function cfg(name, default)
+	local v = tonumber(ExpeditionConfig and ExpeditionConfig[name])
+	if v == nil then
+		return default
+	end
+	return v
+end
+
+local function isLureHunt(session)
+	if not session or not session.instance or not session.catalog then
+		return false
+	end
+	if session.kind == "soulpit" or session.kind == "raid" or session.kind == "arena" then
+		return false
+	end
+	if session.catalog.id == "soul-pit" then
+		return false
+	end
+	return session.role ~= "arena" and session.role ~= "boss"
 end
 
 local function waveLimitReached(session)
@@ -15,184 +51,23 @@ local function waveLimitReached(session)
 	return (tonumber(session.wave) or 0) >= maxWaves
 end
 
-local FORGE_FIENDISH = 2
-
---- Mark exactly one wave monster as Fiendish when session.forceFiendishCreatureId is set.
-function ExpeditionWaves.applyForcedFiendish(session)
-	if not session then
-		return
+local function chebyshev(a, b)
+	if not a or not b or a.z ~= b.z then
+		return math.huge
 	end
-	local targetRace = tonumber(session.forceFiendishCreatureId)
-	if not targetRace or targetRace <= 0 then
-		return
-	end
-	local instanceId = session.instance and session.instance.instanceId
-	if not instanceId or not Game.getMonsters then
-		return
-	end
-	local preferred = nil
-	local fallback = nil
-	for _, monster in ipairs(Game.getMonsters()) do
-		if monster and monster.getHealth and monster:getHealth() > 0
-			and monster.getInstanceId and monster:getInstanceId() == instanceId then
-			local forgeable = not monster.isForgeable or monster:isForgeable()
-			if forgeable then
-				local raceId = 0
-				local mType = monster.getType and monster:getType() or nil
-				if mType and mType.raceId then
-					raceId = tonumber(mType:raceId()) or 0
-				end
-				if raceId == targetRace then
-					preferred = monster
-					break
-				end
-				if not fallback then
-					fallback = monster
-				end
-			end
-		end
-	end
-	local monster = preferred or fallback
-	if not monster or not monster.setMonsterForgeClassification then
-		return
-	end
-	monster:setMonsterForgeClassification(FORGE_FIENDISH)
-	if monster.configureForgeSystem then
-		monster:configureForgeSystem()
-	end
+	return math.max(math.abs(a.x - b.x), math.abs(a.y - b.y))
 end
 
---- Any living monster on this session's instance (wave + echo raids + strays).
---- `exceptCreatureId` skips the dying creature (still present during onDeath).
-function ExpeditionWaves.sessionHasLiveMonsters(session, exceptCreatureId)
-	if not session then
-		return false
-	end
-	local instanceId = session.instance and session.instance.instanceId
-	if not instanceId or not Game.getMonsters then
-		return false
-	end
-	local exceptId = exceptCreatureId and math.floor(tonumber(exceptCreatureId) or 0) or 0
-	for _, monster in ipairs(Game.getMonsters()) do
-		if monster and monster.getHealth and monster:getHealth() > 0
-			and monster.getInstanceId and monster:getInstanceId() == instanceId then
-			if exceptId == 0 or monster:getId() ~= exceptId then
-				return true
-			end
-		end
-	end
-	return false
+local function anchorOf(session)
+	return ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session) or nil
 end
 
---- Keep instance monsters' home on the live party anchor so C++ walk-back / idle-at-home works.
---- Only pulls when a living anchor player exists — never toward entry/hold with nobody present.
-function ExpeditionWaves.pullMonstersToAnchor(session)
-	if not session or session.state ~= "hunting" then
-		return
+local function memberSet(session)
+	local set = {}
+	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session) or {}) do
+		set[id] = true
 	end
-	local instanceId = session.instance and session.instance.instanceId
-	if not instanceId or not Game.getMonsters then
-		return
-	end
-	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
-	local anchorPos = anchor and anchor:getPosition() or nil
-	if not anchorPos then
-		return
-	end
-	local dest = Position(anchorPos.x, anchorPos.y, anchorPos.z)
-	for _, monster in ipairs(Game.getMonsters()) do
-		if monster and monster.getHealth and monster:getHealth() > 0
-			and monster.getInstanceId and monster:getInstanceId() == instanceId
-			and monster.setMasterPos then
-			monster:setMasterPos(dest)
-		end
-	end
-end
-
-local function catalogCreatureIds(catalog)
-	if not catalog then
-		return {}
-	end
-	if type(catalog.creatureIds) == "table" and #catalog.creatureIds > 0 then
-		return catalog.creatureIds
-	end
-	if catalog.creatureId and catalog.creatureId > 0 then
-		return { catalog.creatureId }
-	end
-	return {}
-end
-
---- Weighted pick from catalog.creatures percents (sum 100). Falls back to equal creatureIds.
-local function pickCreatureId(catalog)
-	local creatures = catalog and catalog.creatures
-	if type(creatures) == "table" and #creatures > 0 then
-		local total = 0
-		for _, entry in ipairs(creatures) do
-			local pct = math.floor(tonumber(entry.percent) or 0)
-			if pct > 0 and entry.creatureId and entry.creatureId > 0 then
-				total = total + pct
-			end
-		end
-		if total > 0 then
-			local roll = math.random(1, total)
-			local acc = 0
-			for _, entry in ipairs(creatures) do
-				local pct = math.floor(tonumber(entry.percent) or 0)
-				if pct > 0 and entry.creatureId and entry.creatureId > 0 then
-					acc = acc + pct
-					if roll <= acc then
-						return entry.creatureId
-					end
-				end
-			end
-			local last = creatures[#creatures]
-			if last and last.creatureId and last.creatureId > 0 then
-				return last.creatureId
-			end
-		end
-	end
-	local ids = catalogCreatureIds(catalog)
-	if #ids == 0 then
-		return nil
-	end
-	return ids[math.random(1, #ids)]
-end
-
---- Always spawn on the live anchor so waves appear where the party actually is.
---- Catalog holdPos is only for walking between waves, never for monster placement.
-local function spawnCenter(session)
-	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
-	if anchor then
-		return anchor:getPosition()
-	end
-	local player = session.playerId and Player(session.playerId) or nil
-	if player then
-		return player:getPosition()
-	end
-	if session and session.holdPos then
-		return session.holdPos
-	end
-	return session.instance and session.instance.entry or nil
-end
-
---- True when the anchor stands on the hold tile (exact).
-local function anchorAtHold(session)
-	local hold = session and session.holdPos
-	if not hold then
-		return true
-	end
-	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
-	if not anchor then
-		return false
-	end
-	local p = anchor:getPosition()
-	return p and p.x == hold.x and p.y == hold.y and p.z == hold.z
-end
-
-local function preSpawnDurationMs()
-	local flashes = ExpeditionConfig.PRE_SPAWN_FLASHES or 3
-	local interval = ExpeditionConfig.PRE_SPAWN_INTERVAL_MS or 1400
-	return flashes * interval, flashes, interval
+	return set
 end
 
 local function lureCount(session)
@@ -200,245 +75,190 @@ local function lureCount(session)
 	if n < 1 then
 		n = math.floor(tonumber(ExpeditionConfig.sessionHoldLure(session)) or 0)
 	end
-	if n < 1 then
-		return ExpeditionConfig.LURE_DEFAULT or 1
-	end
-	return n
+	return math.max(1, n)
 end
 
-local function clearWaiting(session)
-	if session and session.waitingEvent then
-		stopEvent(session.waitingEvent)
-		session.waitingEvent = nil
+local function stopEvents(session)
+	if not session then
+		return
 	end
-end
-
-local function clearRelocate(session)
-	if session and session.relocateEvent then
-		stopEvent(session.relocateEvent)
-		session.relocateEvent = nil
-	end
-	if session and session.relocateTimeoutEvent then
-		stopEvent(session.relocateTimeoutEvent)
-		session.relocateTimeoutEvent = nil
-	end
-	if session and session.relocateReadyEvent then
-		stopEvent(session.relocateReadyEvent)
-		session.relocateReadyEvent = nil
-	end
-	if session and session.relocateWalkEvent then
-		stopEvent(session.relocateWalkEvent)
-		session.relocateWalkEvent = nil
-	end
-	if session then
-		session.relocateSpawnScheduled = nil
-		session.relocateCanSpawn = nil
-		session.relocateDelayMs = nil
-		session._relocateAutoQueued = nil
-		session._relocateLastPos = nil
-		session._relocateStall = nil
-		session._relocateStallMs = nil
-		session._relocateMember = nil
-		session._relocateDestsAssigned = nil
-		session._relocateFollowReady = nil
-	end
-end
-
---- Skip an unusable hold: next wave (and its hold) then retry spawn.
-local function skipHoldAndRespawn(session, delayMs)
-	ExpeditionConfig.advanceWave(session)
-	local key = session.key
-	session.waitingEvent = addEvent(function()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if s and not huntEnded(s) then
-			ExpeditionWaves.spawn(s)
+	for _, field in ipairs({ "waitingEvent", "relocateEvent", "relocateTimeoutEvent", "relocateReadyEvent", "relocateWalkEvent", "despawnEvent" }) do
+		if session[field] then
+			stopEvent(session[field])
+			session[field] = nil
 		end
-	end, delayMs or 250)
+	end
+end
+
+local function resetLure(session)
+	session.tracked = session.tracked or {}
+	session.engaged = {}
+	session.releasedUntil = {}
+	session.lureHalt = nil
+	session.alive = 0
+	for _ in pairs(session.tracked) do
+		session.alive = session.alive + 1
+	end
+end
+
+-- ---------------------------------------------------------------------------
+-- Forced Fiendish (activity boost): one live tracked monster carries it.
+-- ---------------------------------------------------------------------------
+
+local function raceOf(monster)
+	local mType = monster.getType and monster:getType() or nil
+	return mType and mType.raceId and (tonumber(mType:raceId()) or 0) or 0
+end
+
+local function makeFiendish(session, monster)
+	if not monster or not monster.setMonsterForgeClassification then
+		return false
+	end
+	if monster.isForgeable and not monster:isForgeable() then
+		return false
+	end
+	monster:setMonsterForgeClassification(FORGE_FIENDISH)
+	if monster.configureForgeSystem then
+		monster:configureForgeSystem()
+	end
+	session.forcedFiendishId = monster:getId()
+	return true
+end
+
+function ExpeditionWaves.applyForcedFiendish(session)
+	if not session or session.forcedFiendishId then
+		return
+	end
+	local targetRace = tonumber(session.forceFiendishCreatureId)
+	if not targetRace or targetRace <= 0 then
+		return
+	end
+	local fallback = nil
+	for mid in pairs(session.tracked or {}) do
+		local monster = Monster(mid)
+		if monster and monster:getHealth() > 0 then
+			if raceOf(monster) == targetRace and makeFiendish(session, monster) then
+				return
+			end
+			fallback = fallback or monster
+		end
+	end
+	if fallback then
+		makeFiendish(session, fallback)
+	end
+end
+
+-- ---------------------------------------------------------------------------
+-- Spawn hook (EventCallback monsterOnSpawn → events.lua)
+-- ---------------------------------------------------------------------------
+
+function ExpeditionWaves.onInstanceMonsterSpawn(monster, _position)
+	if not monster or not monster.getInstanceId then
+		return
+	end
+	local instanceId = monster:getInstanceId()
+	if instanceId < (InstanceWorld and InstanceWorld.PRIVATE_BASE or 3000000) then
+		return
+	end
+	local session = ExpeditionManager.getSessionByInstanceId and ExpeditionManager.getSessionByInstanceId(instanceId)
+	if not session or huntEnded(session) or not session.spawnsCreated or not isLureHunt(session) then
+		return
+	end
+
+	monster:runHealth(0)
+	if ExpeditionDifficulty and ExpeditionDifficulty.flagMonster then
+		ExpeditionDifficulty.flagMonster(monster, session)
+	end
+	if session.skipOpenWorldForge ~= true and InstanceWorld and InstanceWorld.applyOpenWorldForge then
+		InstanceWorld.applyOpenWorldForge(monster)
+	end
+	monster:registerEvent("ExpeditionMonsterDeath")
+
+	local mid = monster:getId()
+	monsterOwners[mid] = session.key
+	session.tracked = session.tracked or {}
+	if not session.tracked[mid] then
+		session.tracked[mid] = true
+		session.alive = (session.alive or 0) + 1
+	end
+	if session.populated then
+		ExpeditionWaves.applyForcedFiendish(session)
+	end
+end
+
+--- Extra monsters that belong to the fight (echo raids): pinned to the anchor, never released.
+function ExpeditionWaves.adoptMonster(session, monster)
+	if not session or not monster or huntEnded(session) then
+		return
+	end
+	session.engaged = session.engaged or {}
+	session.engaged[monster:getId()] = { since = nowMs(), pinned = true }
+	local anchor = anchorOf(session)
+	local home = anchor and anchor:getPosition() or session.holdPos
+	if home and monster.setMasterPos then
+		monster:setMasterPos(Position(home.x, home.y, home.z))
+	end
+end
+
+-- ---------------------------------------------------------------------------
+-- Holds and route
+-- ---------------------------------------------------------------------------
+
+--- Next point the anchor walks to: pending route waypoint of the incoming leg, else the hold.
+function ExpeditionWaves.walkTarget(session)
+	if not session or not session.holdPos then
+		return nil
+	end
+	local route = session.route
+	local idx = session.routeIdx or 1
+	if type(route) == "table" and idx <= #route then
+		local wp = route[idx]
+		return Position(wp.x, wp.y, wp.z)
+	end
+	return session.holdPos
+end
+
+local function pullRing(session)
+	return tonumber(session.catalog and session.catalog.pullRing) or cfg("PULL_RING", 8)
+end
+
+local function pullSteps(session)
+	return tonumber(session.catalog and session.catalog.pullSteps) or cfg("PULL_STEPS", 8)
+end
+
+local function anchorArrived(session, anchorPos)
+	local hold = session.holdPos
+	if not hold then
+		return true
+	end
+	return chebyshev(anchorPos, hold) <= cfg("HOLD_ARRIVE_RADIUS", 1)
+end
+ExpeditionWaves.anchorArrived = function(session)
+	local anchor = anchorOf(session)
+	return anchor ~= nil and anchorArrived(session, anchor:getPosition())
+end
+
+local function beginRelocate(session)
+	session.state = "relocating"
+	local hold = ExpeditionConfig.holdForWave(session.catalog, math.max(1, tonumber(session.wave) or 1))
+	session.route = hold and hold.route or nil
+	session.routeIdx = 1
+	session._relocateProgress = { dist = math.huge, at = nowMs() }
+	session.holdArrivedAt = nil
+	if ExpeditionAI and ExpeditionAI.startRelocateWalk then
+		ExpeditionAI.startRelocateWalk(session)
+	end
 	ExpeditionManager.broadcastStatus(session)
 end
 
---- Teleport session members for a timed-out relocate.
---- Anchor lands on holdPos (wave gate). Companions land on free adjacent tiles —
---- stacking everyone on hold blocked the anchor when only catch-up had fired.
-local function forceArriveAtHold(session)
-	local hold = session and session.holdPos
-	if not hold or not ExpeditionManager or not ExpeditionManager.sessionMemberIds then
-		return
-	end
-	local instanceId = session.instance and session.instance.instanceId
-	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
-	local anchorId = anchor and anchor:getId() or nil
-	local offsets = {
-		{ 0, 0 }, -- anchor only
-		{ 1, 0 },
-		{ -1, 0 },
-		{ 0, 1 },
-		{ 0, -1 },
-		{ 1, 1 },
-		{ 1, -1 },
-		{ -1, 1 },
-		{ -1, -1 },
-		{ 2, 0 },
-		{ -2, 0 },
-		{ 0, 2 },
-		{ 0, -2 },
-	}
-	local used = {}
-	local function key(pos)
-		return string.format("%d,%d,%d", pos.x, pos.y, pos.z)
-	end
-
-	local function teleportMember(p, dest)
-		p:setFollowCreature(nil)
-		local ok = false
-		if not instanceId then
-			ok = p:teleportTo(dest) and true or false
-		elseif InstanceWorld and InstanceWorld.enterInstance then
-			ok = InstanceWorld.enterInstance(p, instanceId, dest) and true or false
-		else
-			logger.warn("[Expedition] InstanceWorld.enterInstance missing — forceArrive refused for {}", p:getName())
-			ok = false
-		end
-		if not ok then
-			logger.warn(
-				"[Expedition] forceArrive teleport failed for {} → {}",
-				p:getName(),
-				string.format("%d,%d,%d", dest.x, dest.y, dest.z)
-			)
-		end
-		return ok
-	end
-
-	-- Anchor first — must occupy hold exactly.
-	if anchor then
-		teleportMember(anchor, hold)
-		used[key(hold)] = true
-	end
-
-	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		if mid ~= anchorId then
-			local p = Player(mid)
-			if p then
-				local dest = nil
-				for _, off in ipairs(offsets) do
-					if not (off[1] == 0 and off[2] == 0) then
-						local cand = Position(hold.x + off[1], hold.y + off[2], hold.z)
-						local k = key(cand)
-						if not used[k] then
-							dest = cand
-							used[k] = true
-							break
-						end
-					end
-				end
-				teleportMember(p, dest or Position(hold.x, hold.y - 1, hold.z))
-			end
-		end
-	end
-end
-
-local function planWave(session, count)
-	local center = spawnCenter(session)
-	if not center then
-		return {}
-	end
-	local planned = {}
-	local reserved = {}
-	for _ = 1, count do
-		local creatureId = pickCreatureId(session.catalog)
-		if not creatureId then
-			break
-		end
-		local name = ExpeditionConfig.monsterNameByCreatureId(creatureId)
-		if name then
-			-- Adjacent to the hold/anchor, including ranged (targetDistance is combat-only).
-			-- Full-hunt occupancy is the walkable map; lure waves still spawn on the party.
-			local pos = ExpeditionInstance.randomAttackRangeWalkable(session.instance, center, 1, reserved)
-			if pos then
-				ExpeditionInstance.reservePos(reserved, pos)
-				planned[#planned + 1] = {
-					creatureId = creatureId,
-					name = name,
-					pos = Position(pos.x, pos.y, pos.z),
-				}
-			end
-		end
-	end
-	return planned
-end
-
-local function materialize(session, planned)
-	if huntEnded(session) then
-		return
-	end
-	session.waitingEvent = nil
-	session.alive = 0
-	session.state = "hunting"
-
-	for _, entry in ipairs(planned) do
-		local monster = ExpeditionInstance.createMonsterExclusive
-				and ExpeditionInstance.createMonsterExclusive(entry.name, entry.pos, session.instance)
-			or Game.createMonster(entry.name, entry.pos, false, false)
-		if monster then
-			-- Never flee (runAwayHealth); ranged targetDistance / distance attacking is unchanged.
-			monster:runHealth(0)
-			-- Home = hold/anchor so idle/walk-back matches open-world spawn behavior.
-			local home = session.holdPos or (session.instance and session.instance.entry) or entry.pos
-			if monster.setMasterPos and home then
-				monster:setMasterPos(Position(home.x, home.y, home.z))
-			end
-			monster:registerEvent("ExpeditionMonsterDeath")
-			monsterOwners[monster:getId()] = session.key
-			session.alive = session.alive + 1
-			if ExpeditionDifficulty and ExpeditionDifficulty.flagMonster then
-				ExpeditionDifficulty.flagMonster(monster, session)
-			end
-		else
-			logger.warn(
-				"[Expedition] failed to create monster race {} ('{}') at {}",
-				entry.creatureId,
-				entry.name,
-				entry.pos
-			)
-		end
-	end
-
-	if session.alive == 0 then
-		-- Retry shortly if spawn failed (tiles not ready yet).
-		session.state = "waiting"
-		session.waitingEvent = addEvent(function()
-			local s = ExpeditionManager.getSessionByKey(session.key)
-			if s and not huntEnded(s) then
-				ExpeditionWaves.spawn(s)
-			end
-		end, 1500)
-	else
-		ExpeditionWaves.applyForcedFiendish(session)
-		-- Final wave of a finite hunt must be cleared by kills (no auto-despawn victory).
-		local maxWaves = tonumber(session.maxWaves)
-		if not maxWaves or maxWaves <= 0 or (tonumber(session.wave) or 0) < maxWaves then
-			ExpeditionWaves.scheduleDespawn(session)
-		end
-		ExpeditionManager.broadcastStatus(session)
-	end
-end
-
-local function clearDespawn(session)
-	if session and session.despawnEvent then
-		stopEvent(session.despawnEvent)
-		session.despawnEvent = nil
-	end
-end
-
---- Finite hunt: maxWaves reached after a clear — credit hooks, then leave like a boss clear.
+--- Finite hunt: maxWaves holds cleared — credit hooks, then leave like a boss clear.
 function ExpeditionWaves.finishWaveLimitedHunt(session)
-	if not session or huntEnded(session) then
+	if not session or huntEnded(session) or session.lureFinished then
 		return
 	end
+	session.lureFinished = true
 	session.state = "waiting"
-	clearWaiting(session)
-	clearRelocate(session)
-	clearDespawn(session)
+	stopEvents(session)
 	ExpeditionManager.broadcastStatus(session)
 
 	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session) or {}) do
@@ -460,307 +280,326 @@ function ExpeditionWaves.finishWaveLimitedHunt(session)
 	})
 end
 
--- Mirror SpawnMonster::scheduleSpawn: flash CONST_ME_TELEPORT at each tile, then place.
-local function schedulePreSpawn(sessionKey, planned, remainingMs, intervalMs)
-	local session = ExpeditionManager.getSessionByKey(sessionKey)
-	if huntEnded(session) then
-		return
-	end
-	if not session or (session.state ~= "waiting" and session.state ~= "relocating") then
-		return
-	end
-
-	if remainingMs <= 0 then
-		materialize(session, planned)
-		return
-	end
-
-	session.state = "waiting"
-	for _, entry in ipairs(planned) do
-		if ExpeditionInstance.sendMagicEffect then
-			ExpeditionInstance.sendMagicEffect(session.instance, entry.pos, CONST_ME_TELEPORT)
-		else
-			entry.pos:sendMagicEffect(CONST_ME_TELEPORT)
-		end
-	end
-
-	session.waitingEvent = addEvent(function()
-		schedulePreSpawn(sessionKey, planned, remainingMs - intervalMs, intervalMs)
-	end, intervalMs)
-end
-
--- Forward declarations (scheduleSpawnAfterArrival / poll / beginSpawn call each other).
-local pollRelocateThenSpawn
-local beginSpawnOnceSettled
-
---- After the party is settled on the hold: wait the respawn delay, then spawn.
---- State may already be "waiting" (hunt formation) while this countdown runs.
-local function scheduleSpawnAfterArrival(session)
-	if not session then
-		return
-	end
-	if session.state ~= "relocating" and session.state ~= "waiting" then
-		return
-	end
-	if session.relocateSpawnScheduled then
-		return
-	end
-	session.relocateSpawnScheduled = true
-	local key = session.key
-	local delay = math.max(0, tonumber(session.relocateDelayMs) or 0)
-	if delay <= 0 then
-		beginSpawnOnceSettled(session)
-		return
-	end
-	session.relocateReadyEvent = addEvent(function()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s or (s.state ~= "relocating" and s.state ~= "waiting") then
-			return
-		end
-		if not anchorAtHold(s) then
-			-- Left the hold before the delay finished - wait to arrive again.
-			s.relocateSpawnScheduled = nil
-			s._relocateFollowReady = nil
-			s.state = "relocating"
-			s.relocateEvent = addEvent(function()
-				pollRelocateThenSpawn(key)
-			end, ExpeditionConfig.AI_TICK_MS or 250)
-			return
-		end
-		beginSpawnOnceSettled(s)
-	end, delay)
-end
-
---- Party / anchor finished relocate to hold: enter waiting (hunt formation) immediately,
---- then start the spawn delay. Monsters still wait relocateDelayMs / pre-spawn flashes.
-function ExpeditionWaves.onRelocatePartySettled(session)
-	if not session then
-		return
-	end
-	if session.state ~= "relocating" and session.state ~= "waiting" then
-		return
-	end
-	if session.state == "relocating" then
-		session.state = "waiting"
-		ExpeditionManager.broadcastStatus(session)
-	end
-	-- Stop the relocate walk loop so companions switch to formation AI this tick.
-	if session.relocateWalkEvent then
-		stopEvent(session.relocateWalkEvent)
-		session.relocateWalkEvent = nil
-	end
-	scheduleSpawnAfterArrival(session)
-end
-
---- Poll until the anchor is on holdPos, then switch to waiting + spawn delay.
---- Companions catch up via hunt formation after state leaves relocating (do not
---- block the wave on exact stance tiles - collision can soft-lock that forever).
-pollRelocateThenSpawn = function(sessionKey)
-	local session = ExpeditionManager.getSessionByKey(sessionKey)
-	if not session or session.state ~= "relocating" then
-		return
-	end
-
-	if anchorAtHold(session) then
-		session._relocateFollowReady = true
-		ExpeditionWaves.onRelocatePartySettled(session)
-		return
-	end
-
-	session.relocateEvent = addEvent(function()
-		pollRelocateThenSpawn(sessionKey)
-	end, ExpeditionConfig.AI_TICK_MS or 250)
-end
-
-beginSpawnOnceSettled = function(session)
-	if huntEnded(session) then
-		return
-	end
-	-- First spawn: wave 0 → 1 (hold 1). Later spawns already advanced in scheduleNextWave.
-	if (tonumber(session.wave) or 0) < 1 then
-		ExpeditionConfig.advanceWave(session)
-	end
-	-- Hard gate: never start a wave while still walking to the hold.
-	if session.holdPos and not anchorAtHold(session) then
-		logger.warn("[Expedition] spawn blocked - anchor not at hold yet")
-		session.relocateSpawnScheduled = nil
-		session._relocateFollowReady = nil
-		session.state = "relocating"
-		-- Ensure a walk is running (first-wave / resume paths may only poll otherwise).
-		if ExpeditionAI and ExpeditionAI.startRelocateWalk then
-			ExpeditionAI.startRelocateWalk(session)
-		end
-		if not session.relocateEvent then
-			session.relocateEvent = addEvent(function()
-				pollRelocateThenSpawn(session.key)
-			end, ExpeditionConfig.AI_TICK_MS or 250)
-		end
-		return
-	end
-	clearWaiting(session)
-	clearRelocate(session)
-
-	local count = lureCount(session)
-	session.waveLure = count
-	session.state = "waiting"
-	session.alive = 0
-
-	-- Reject catalog holds that cannot host a lure ring; skip to the next hold.
-	local anchor = spawnCenter(session)
-	if anchor and ExpeditionInstance and ExpeditionInstance.hasLureSpawnRing then
-		if not ExpeditionInstance.hasLureSpawnRing(session.instance, anchor) then
-			logger.warn("[Expedition] hold lacks lure spawn ring; advancing hold")
-			skipHoldAndRespawn(session, 250)
-			return
-		end
-	end
-
-	local planned = planWave(session, count)
-	if #planned == 0 then
-		logger.warn("[Expedition] wave plan empty at anchor; advancing hold")
-		skipHoldAndRespawn(session, ExpeditionConfig.canRelocateHolds(session.catalog) and 250 or 1500)
-		return
-	end
-
-	ExpeditionManager.broadcastStatus(session)
-
-	local durationMs, _, intervalMs = preSpawnDurationMs()
-	schedulePreSpawn(session.key, planned, durationMs, intervalMs)
-end
-
---- After a cleared/despawned wave: optionally walk to the next hold, then spawn.
-local function scheduleNextWave(session)
-	if huntEnded(session) then
-		return
-	end
-	clearWaiting(session)
-	clearRelocate(session)
-
-	-- Reusable finite hunts: stop after N cleared waves (session.wave set when the wave starts).
+local function nextHold(session)
+	session.packFought = nil
 	if waveLimitReached(session) then
 		ExpeditionWaves.finishWaveLimitedHunt(session)
 		return
 	end
-
-	local key = session.key
-	local totalDelay = session.catalog and session.catalog.spawnIntervalMs or ExpeditionConfig.WAVE_RESPAWN_MS
-	local preMs = preSpawnDurationMs()
-	local delay = math.max(0, totalDelay - preMs)
-
 	local shouldWalk = ExpeditionConfig.advanceWave(session)
 	if shouldWalk then
-		session.state = "relocating"
-		session.relocateDelayMs = delay
-		session.relocateSpawnScheduled = nil
-		local timeout = ExpeditionConfig.relocateTimeoutMs and ExpeditionConfig.relocateTimeoutMs()
-			or ExpeditionConfig.RELOCATE_TIMEOUT_MS
-			or 45000
+		beginRelocate(session)
+	else
+		-- Single-hold hunt: stay and keep pulling what respawns.
+		session.state = "waiting"
+		session.holdArrivedAt = nowMs()
 		ExpeditionManager.broadcastStatus(session)
-		-- Walk first; only after the anchor stands on the hold do we start the respawn delay.
-		if ExpeditionAI and ExpeditionAI.startRelocateWalk then
-			ExpeditionAI.startRelocateWalk(session)
-		end
-		session.relocateEvent = addEvent(function()
-			pollRelocateThenSpawn(key)
-		end, ExpeditionConfig.AI_TICK_MS or 250)
-		session.relocateTimeoutEvent = addEvent(function()
-			local s = ExpeditionManager.getSessionByKey(key)
-			if not s or s.state ~= "relocating" then
-				return
-			end
-			if anchorAtHold(s) then
-				return
-			end
-			local hold = s.holdPos
-			logger.warn(
-				"[Expedition] relocate timeout - forcing spawn at hold {}",
-				hold and string.format("%d,%d,%d", hold.x, hold.y, hold.z) or "?"
-			)
-			s.relocateTimeoutEvent = nil
-			forceArriveAtHold(s)
-			ExpeditionWaves.onRelocatePartySettled(s)
-		end, timeout)
+	end
+end
+
+--- Relocate walk reached the hold (called from ExpeditionAI.startRelocateWalk).
+function ExpeditionWaves.onRelocatePartySettled(session)
+	if not session or session.state ~= "relocating" then
 		return
 	end
-
-	session.state = "waiting"
-	session.waitingEvent = addEvent(function()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if s and s.state == "waiting" and not huntEnded(s) then
-			ExpeditionWaves.spawn(s)
-		end
-	end, delay)
+	if session.relocateWalkEvent then
+		stopEvent(session.relocateWalkEvent)
+		session.relocateWalkEvent = nil
+	end
+	session.state = "hunting"
+	session.holdArrivedAt = nowMs()
+	session._relocateProgress = nil
 	ExpeditionManager.broadcastStatus(session)
 end
 
---- Advance only when the instance has no living monsters (wave + echo raids).
---- When extras remain, set awaitingInstanceClear; their onDeath calls this again.
-function ExpeditionWaves.tryScheduleNextWave(session, exceptCreatureId)
-	if huntEnded(session) then
-		return
+-- ---------------------------------------------------------------------------
+-- Lure tick (ExpeditionAI.tick, every AI_TICK_MS)
+-- ---------------------------------------------------------------------------
+
+local function engagedCount(session)
+	local n = 0
+	for _ in pairs(session.engaged or {}) do
+		n = n + 1
 	end
-	if session.state ~= "hunting" then
-		session.awaitingInstanceClear = nil
-		return
-	end
-	if (session.alive or 0) > 0 then
-		session.awaitingInstanceClear = nil
-		return
-	end
-	if ExpeditionWaves.sessionHasLiveMonsters(session, exceptCreatureId) then
-		session.awaitingInstanceClear = true
-		return
-	end
-	session.awaitingInstanceClear = nil
-	scheduleNextWave(session)
+	return n
 end
 
---- Despawn remaining wave monsters and start a fresh wave (unreachable-spawn unstuck).
-function ExpeditionWaves.scheduleDespawn(session)
-	if not session then
-		return
-	end
-	clearDespawn(session)
-	local key = session.key
-	local ms = ExpeditionConfig.huntDespawnMs and ExpeditionConfig.huntDespawnMs() or ExpeditionConfig.HUNT_DESPAWN_MS
-	session.despawnEvent = addEvent(function()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s or s.state ~= "hunting" then
-			return
+local function release(session, mid, monster)
+	session.engaged[mid] = nil
+	session.releasedUntil[mid] = nowMs() + 2 * cfg("PULL_STALL_MS", 8000)
+	if monster and monster.setMasterPos and monster.getSpawnPosition then
+		local home = monster:getSpawnPosition()
+		if home then
+			monster:setMasterPos(home)
 		end
-		s.despawnEvent = nil
-		-- Drop ownership before remove so death handlers do not double-count / re-schedule.
-		for mid, ownerKey in pairs(monsterOwners) do
-			if ownerKey == key then
-				monsterOwners[mid] = nil
-				local monster = Monster(mid)
-				if monster then
-					monster:remove()
+	end
+end
+
+local function targetsMember(monster, members)
+	local target = monster.getTarget and monster:getTarget() or nil
+	return target ~= nil and members[target:getId()] == true
+end
+
+local function pullPath(session, monster, anchorPos)
+	local path = monster:getPathTo(anchorPos, 0, 1, true, false, pullRing(session) + 1)
+	return type(path) == "table" and #path <= pullSteps(session)
+end
+
+--- Engage one monster: home on the anchor so C++ walk-back leads it into the party.
+local function engage(session, mid, monster, anchor, anchorPos)
+	session.engaged[mid] = { since = nowMs(), dist = chebyshev(monster:getPosition(), anchorPos), progressAt = nowMs() }
+	monster:setMasterPos(Position(anchorPos.x, anchorPos.y, anchorPos.z))
+	if monster.selectTarget and anchor then
+		monster:selectTarget(anchor)
+	end
+end
+
+--- Keep engaged monsters homed on the anchor, drop stalled / far ones, pull new ones
+--- inside the ring (path ≤ PULL_STEPS), and halt the anchor when overwhelmed.
+local function tickPack(session, anchor, anchorPos)
+	local now = nowMs()
+	local members = memberSet(session)
+	local releaseRadius = cfg("RELEASE_RADIUS", 18)
+	local stallMs = cfg("PULL_STALL_MS", 8000)
+	local home = Position(anchorPos.x, anchorPos.y, anchorPos.z)
+
+	for mid in pairs(session.tracked) do
+		local monster = Monster(mid)
+		if not monster or monster:getHealth() <= 0 then
+			session.tracked[mid] = nil
+			session.engaged[mid] = nil
+		end
+	end
+
+	for mid, state in pairs(session.engaged) do
+		local monster = Monster(mid)
+		if not monster or monster:getHealth() <= 0 then
+			session.engaged[mid] = nil
+		else
+			local dist = chebyshev(monster:getPosition(), anchorPos)
+			if state.pinned then
+				monster:setMasterPos(home)
+			elseif dist > releaseRadius then
+				release(session, mid, monster)
+			else
+				if dist < (state.dist or math.huge) or dist <= 1 or targetsMember(monster, members) then
+					state.progressAt = now
+				end
+				state.dist = dist
+				if now - (state.progressAt or now) > stallMs then
+					release(session, mid, monster)
+				else
+					monster:setMasterPos(home)
 				end
 			end
 		end
-		s.alive = 0
-		ExpeditionWaves.tryScheduleNextWave(s)
-	end, ms)
+	end
+
+	-- Adopt tracked monsters that already fight the party (aggro from a member).
+	for mid in pairs(session.tracked) do
+		if not session.engaged[mid] then
+			local monster = Monster(mid)
+			if monster and targetsMember(monster, members) then
+				engage(session, mid, monster, anchor, anchorPos)
+			end
+		end
+	end
+
+	local lure = lureCount(session)
+	local cap = lure * cfg("OVERWHELM_FACTOR", 2)
+	local count = engagedCount(session)
+	if session.lureHalt then
+		if count <= lure then
+			session.lureHalt = nil
+		end
+	elseif count >= cap then
+		session.lureHalt = true
+	end
+
+	-- Pull the nearest idle monsters in the ring while the pack is below the hold's lure.
+	local pullable = 0
+	if not session.lureHalt and count < lure then
+		local ring = pullRing(session)
+		local candidates = {}
+		for mid in pairs(session.tracked) do
+			if not session.engaged[mid] and (session.releasedUntil[mid] or 0) <= now then
+				local monster = Monster(mid)
+				local dist = monster and chebyshev(monster:getPosition(), anchorPos) or math.huge
+				if dist <= ring then
+					candidates[#candidates + 1] = { mid = mid, monster = monster, dist = dist }
+				end
+			end
+		end
+		table.sort(candidates, function(a, b)
+			return a.dist < b.dist
+		end)
+		local budget = cfg("PULL_PATHS_PER_TICK", 6)
+		for _, c in ipairs(candidates) do
+			if count >= lure or budget <= 0 then
+				break
+			end
+			budget = budget - 1
+			if pullPath(session, c.monster, anchorPos) then
+				engage(session, c.mid, c.monster, anchor, anchorPos)
+				count = count + 1
+				pullable = pullable + 1
+			end
+		end
+		-- Unchecked candidates left in the ring still count as pullable for the hold-cleared rule.
+		if budget <= 0 then
+			pullable = pullable + math.max(0, #candidates - cfg("PULL_PATHS_PER_TICK", 6))
+		end
+	end
+	return count, pullable
 end
 
+local function tickRelocate(session, anchorPos, engaged)
+	if anchorArrived(session, anchorPos) then
+		ExpeditionWaves.onRelocatePartySettled(session)
+		return
+	end
+	local target = ExpeditionWaves.walkTarget(session)
+	if target and target ~= session.holdPos and chebyshev(anchorPos, target) <= 1 then
+		session.routeIdx = (session.routeIdx or 1) + 1
+		session._relocateProgress = { dist = math.huge, at = nowMs() }
+		return
+	end
+	if session.lureHalt or engaged > 0 then
+		-- Fighting on the way is progress; stalls only count while walking alone.
+		local progress = session._relocateProgress
+		if progress then
+			progress.at = nowMs()
+		end
+		if session.lureHalt then
+			return
+		end
+	end
+	local progress = session._relocateProgress or { dist = math.huge, at = nowMs() }
+	session._relocateProgress = progress
+	local dist = chebyshev(anchorPos, target or session.holdPos)
+	if dist < progress.dist then
+		progress.dist = dist
+		progress.at = nowMs()
+		return
+	end
+	if nowMs() - progress.at > cfg("RELOCATE_STALL_MS", 12000) then
+		local route = session.route
+		if type(route) == "table" and (session.routeIdx or 1) <= #route then
+			-- Unreachable waypoint: head straight for the hold.
+			session.routeIdx = #route + 1
+			session._relocateProgress = { dist = math.huge, at = nowMs() }
+			return
+		end
+		logger.warn(
+			"[Expedition] relocate stalled toward hold {}; skipping to the next hold",
+			session.holdPos and string.format("%d,%d,%d", session.holdPos.x, session.holdPos.y, session.holdPos.z) or "?"
+		)
+		nextHold(session)
+	end
+end
+
+--- Boss / raid instances: keep every live instance monster homed on the anchor.
+function ExpeditionWaves.pullMonstersToAnchor(session)
+	if not session or session.state ~= "hunting" then
+		return
+	end
+	local instanceId = session.instance and session.instance.instanceId
+	local anchor = anchorOf(session)
+	local anchorPos = anchor and anchor:getPosition() or nil
+	if not instanceId or not anchorPos or not Game.getMonsters then
+		return
+	end
+	local dest = Position(anchorPos.x, anchorPos.y, anchorPos.z)
+	for _, monster in ipairs(Game.getMonsters()) do
+		if monster:getHealth() > 0 and monster:getInstanceId() == instanceId then
+			monster:setMasterPos(dest)
+		end
+	end
+end
+
+function ExpeditionWaves.tickLure(session)
+	if huntEnded(session) or session.lureFinished then
+		return
+	end
+	if not isLureHunt(session) then
+		ExpeditionWaves.pullMonstersToAnchor(session)
+		return
+	end
+	if not session.spawnsCreated then
+		return
+	end
+	local anchor = anchorOf(session)
+	local anchorPos = anchor and anchor:getPosition() or nil
+	if not anchorPos then
+		return
+	end
+	session.tracked = session.tracked or {}
+	session.engaged = session.engaged or {}
+	session.releasedUntil = session.releasedUntil or {}
+
+	local count, pullable = tickPack(session, anchor, anchorPos)
+
+	if session.state == "relocating" then
+		tickRelocate(session, anchorPos, count)
+		return
+	end
+
+	-- At the hold: fight the pack; move on once it is dead and nothing else comes in.
+	-- A stationary hunt stays put and counts a hold clear per pack fought.
+	local previous = session.state
+	session.state = count > 0 and "hunting" or "waiting"
+	if count > 0 then
+		session.packFought = true
+	else
+		local arrivedAt = session.holdArrivedAt or nowMs()
+		session.holdArrivedAt = arrivedAt
+		local cleared = pullable == 0 or nowMs() - arrivedAt >= cfg("HOLD_DWELL_MS", 6000)
+		local canWalk = ExpeditionConfig.canRelocateHolds(session.catalog)
+		if cleared and (canWalk or session.packFought) then
+			nextHold(session)
+			return
+		end
+	end
+	if previous ~= session.state then
+		ExpeditionManager.broadcastStatus(session)
+	end
+end
+
+-- ---------------------------------------------------------------------------
+-- Session lifecycle
+-- ---------------------------------------------------------------------------
+
 function ExpeditionWaves.spawn(session)
-	if huntEnded(session) then
+	if huntEnded(session) or not isLureHunt(session) then
 		return
 	end
-	if not session or not session.instance or not session.catalog then
-		return
-	end
-	-- Soul Pit drives its own wave table.
-	if session.kind == "soulpit" or (session.catalog and session.catalog.id == "soul-pit") then
-		return
-	end
+	stopEvents(session)
 
-	clearWaiting(session)
-	clearRelocate(session)
-	clearDespawn(session)
+	local instanceId = session.instance.instanceId
+	if not session.spawnsCreated then
+		session.tracked = {}
+		session.alive = 0
+		session.spawnsCreated = true
+		session.populated = nil
+		session.forcedFiendishId = nil
+		local blocks = Game.createInstanceSpawns and Game.createInstanceSpawns(instanceId) or 0
+		session.spawnBlocks = blocks
+		session.populated = true
+		if blocks <= 0 then
+			logger.error("[Expedition] hunt '{}' has no world spawns inside its fence", tostring(session.catalog.id))
+		end
+		ExpeditionWaves.applyForcedFiendish(session)
+	end
+	resetLure(session)
 
-	beginSpawnOnceSettled(session)
+	-- Resume keeps session.wave; a fresh hunt starts at hold 1.
+	if (tonumber(session.wave) or 0) < 1 then
+		ExpeditionConfig.advanceWave(session)
+	else
+		ExpeditionConfig.syncHoldFromWave(session)
+	end
+	session.waveLure = lureCount(session)
+	beginRelocate(session)
 end
 
 function ExpeditionWaves.onMonsterDeath(creature, corpse)
@@ -779,55 +618,63 @@ function ExpeditionWaves.onMonsterDeath(creature, corpse)
 	local key = monsterOwners[monsterId]
 	monsterOwners[monsterId] = nil
 
-	if key then
-		local session = ExpeditionManager.getSessionByKey(key)
-		if not session or session.state == "ended" then
-			return
-		end
+	local session = key and ExpeditionManager.getSessionByKey(key)
+	if not session and creature.getInstanceId and ExpeditionManager.getSessionByInstanceId then
+		session = ExpeditionManager.getSessionByInstanceId(creature:getInstanceId())
+	end
+	if not session or huntEnded(session) then
+		return
+	end
+	if session.engaged then
+		session.engaged[monsterId] = nil
+	end
+	if session.forcedFiendishId == monsterId then
+		session.forcedFiendishId = nil
+	end
+	if key and session.tracked and session.tracked[monsterId] then
+		session.tracked[monsterId] = nil
 		session.alive = math.max(0, (session.alive or 1) - 1)
 		session.kills = (session.kills or 0) + 1
 		ExpeditionManager.broadcastStatus(session)
-		if session.alive <= 0 and session.state == "hunting" then
-			clearDespawn(session)
-			ExpeditionWaves.tryScheduleNextWave(session, monsterId)
-		end
-		return
 	end
-
-	-- Unowned instance monster (echo raid, etc.): resume next-hold when awaiting clear.
-	if not creature.getInstanceId or not ExpeditionManager.getSessionByInstanceId then
-		return
-	end
-	local session = ExpeditionManager.getSessionByInstanceId(creature:getInstanceId())
-	if not session or not session.awaitingInstanceClear then
-		return
-	end
-	if session.state == "ended" then
-		return
-	end
-	ExpeditionWaves.tryScheduleNextWave(session, monsterId)
 end
 
 function ExpeditionWaves.clear(session)
 	if not session then
 		return
 	end
-	session.awaitingInstanceClear = nil
-	clearWaiting(session)
-	clearRelocate(session)
-	clearDespawn(session)
+	stopEvents(session)
+	if session.spawnsCreated and session.startedAt then
+		local minutes = math.max(1, os.time() - session.startedAt) / 60
+		logger.info(
+			"[Expedition] lure hunt '{}' ended: {} kills, {} holds, {} blocks, {} kills/min",
+			tostring(session.catalog and session.catalog.id),
+			session.kills or 0,
+			session.wave or 0,
+			session.spawnBlocks or 0,
+			string.format("%.1f", (session.kills or 0) / minutes)
+		)
+	end
+	local instanceId = session.instance and session.instance.instanceId
+	if instanceId and Game.clearInstanceSpawns then
+		Game.clearInstanceSpawns(instanceId)
+	end
 	if session.instance and session.instance.zone then
 		session.instance.zone:removeMonsters()
 	end
-	-- Hunt instances often have no Zone; drop live monsters by ownership (same as despawn).
 	for mid, key in pairs(monsterOwners) do
 		if key == session.key then
 			monsterOwners[mid] = nil
-			local monster = Monster(mid)
-			if monster then
-				monster:remove()
-			end
 		end
 	end
+	session.tracked = {}
+	session.engaged = {}
+	session.releasedUntil = {}
+	session.spawnsCreated = nil
+	session.populated = nil
+	session.forcedFiendishId = nil
+	session.lureHalt = nil
+	session.lureFinished = nil
+	session.packFought = nil
 	session.alive = 0
 end

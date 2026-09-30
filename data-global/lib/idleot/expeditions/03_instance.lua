@@ -25,6 +25,9 @@ function ExpeditionInstance.free(instanceId)
 	if id < 3000000 then
 		return
 	end
+	if Game.clearInstanceSpawns then
+		Game.clearInstanceSpawns(id)
+	end
 	if Game.releaseInstance then
 		Game.releaseInstance(id)
 	end
@@ -355,11 +358,8 @@ function ExpeditionInstance.openDoors(instance)
 						for _, entry in ipairs(toOpen) do
 							local fork = findInstanceDoorFork(tile, instanceId)
 							if not fork then
-								fork = entry.item.clone and entry.item:clone() or nil
+								fork = entry.item.clone and entry.item:clone(instanceId) or nil
 								if fork then
-									if fork.setInstanceId then
-										fork:setInstanceId(instanceId)
-									end
 									local ret = tile:addItemEx(fork, flags)
 									if ret ~= 0 then
 										fork = nil
@@ -421,6 +421,10 @@ function ExpeditionInstance.sweep(instance)
 		return
 	end
 	local instanceId = instance.instanceId
+	-- Stop instance respawns before sweeping so nothing reappears mid-teardown.
+	if Game.clearInstanceSpawns then
+		Game.clearInstanceSpawns(instanceId)
+	end
 	if Game.getMonsters then
 		for _, monster in ipairs(Game.getMonsters()) do
 			if monster and monster.getInstanceId and monster:getInstanceId() == instanceId then
@@ -682,16 +686,6 @@ function ExpeditionInstance.randomAttackRangeWalkable(instance, center, radius, 
 	end
 
 	return ExpeditionInstance.randomWalkable(instance, center, reserved)
-end
-
---- True when at least one Chebyshev-1 tile around `center` can spawn a monster
---- (walkable, in occupancy, not blocked). Used to reject bad catalog holds at runtime.
-function ExpeditionInstance.hasLureSpawnRing(instance, center)
-	if not instance or not center then
-		return false
-	end
-	local candidates = collectRingWalkable(center, 1, instance, nil)
-	return #candidates > 0
 end
 
 --- Broadcast a magic effect only to players in this instance (shared hunt tiles).

@@ -1206,10 +1206,6 @@ void Tile::addThing(int32_t, const std::shared_ptr<Thing> &thing) {
 			return /*RETURNVALUE_NOTPOSSIBLE*/;
 		}
 
-		if (item->isMapTemplateItem()) {
-			item->setInstanceId(0);
-		}
-
 		TileItemVector* items = getItemList();
 		if (items && items->size() >= 0xFFFF) {
 			return /*RETURNVALUE_NOTPOSSIBLE*/;

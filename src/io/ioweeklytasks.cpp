@@ -592,9 +592,9 @@ void IOWeeklyTasks::buyShopOffer(const std::shared_ptr<Player> &player, uint8_t 
 	player->useTaskHuntingPoints(actualPrice);
 
 	// Helper: create an item suitable for the inbox (decoration kit if not pickupable)
-	auto createItemForInbox = [](uint16_t itemId) -> std::shared_ptr<Item> {
+	auto createItemForInbox = [instanceId = player->getInstanceId()](uint16_t itemId) -> std::shared_ptr<Item> {
 		// First try with createWrappableItem=true (handles wrapable items automatically)
-		auto item = Item::CreateItem(itemId, 1, nullptr, true);
+		auto item = Item::CreateItem(itemId, 1, instanceId, nullptr, true);
 		if (!item) {
 			return nullptr;
 		}
@@ -604,7 +604,7 @@ void IOWeeklyTasks::buyShopOffer(const std::shared_ptr<Player> &player, uint8_t 
 		}
 		// Not pickupable (e.g. bed parts) — create a decoration kit manually
 		const ItemType &it = Item::items[itemId];
-		auto kit = std::make_shared<Item>(ITEM_DECORATION_KIT, 1);
+		auto kit = std::make_shared<Item>(ITEM_DECORATION_KIT, 1, instanceId);
 		kit->setCustomAttribute("unWrapId", static_cast<int64_t>(itemId));
 		kit->setAttribute(ItemAttribute_t::DESCRIPTION, "Unwrap it in your own house to create a <" + it.name + ">.");
 		return kit;

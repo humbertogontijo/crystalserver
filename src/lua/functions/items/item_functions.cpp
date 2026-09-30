@@ -38,7 +38,6 @@ void ItemFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Item", "getId", ItemFunctions::luaItemGetId);
 	Lua::registerMethod(L, "Item", "getInstanceId", ItemFunctions::luaItemGetInstanceId);
-	Lua::registerMethod(L, "Item", "setInstanceId", ItemFunctions::luaItemSetInstanceId);
 
 	Lua::registerMethod(L, "Item", "clone", ItemFunctions::luaItemClone);
 	Lua::registerMethod(L, "Item", "split", ItemFunctions::luaItemSplit);
@@ -214,27 +213,15 @@ int ItemFunctions::luaItemGetInstanceId(lua_State* L) {
 	return 1;
 }
 
-int ItemFunctions::luaItemSetInstanceId(lua_State* L) {
-	// item:setInstanceId(id)
-	const auto &item = Lua::getUserdataShared<Item>(L, 1);
-	if (!item) {
-		Lua::pushBoolean(L, false);
-		return 1;
-	}
-	item->setInstanceId(Lua::getNumber<uint32_t>(L, 2));
-	Lua::pushBoolean(L, true);
-	return 1;
-}
-
 int ItemFunctions::luaItemClone(lua_State* L) {
-	// item:clone()
+	// item:clone([instanceId = item's instance])
 	const auto &item = Lua::getUserdataShared<Item>(L, 1);
 	if (!item) {
 		lua_pushnil(L);
 		return 1;
 	}
 
-	const auto &clone = item->clone();
+	const auto &clone = item->clone(Lua::getNumber<uint32_t>(L, 2, item->getInstanceId()));
 	if (!clone) {
 		lua_pushnil(L);
 		return 1;

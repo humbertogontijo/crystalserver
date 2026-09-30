@@ -192,3 +192,48 @@ bool InstanceFenceRegistry::canWalk(const std::shared_ptr<Creature> &creature, c
 
 	return true;
 }
+
+uint32_t InstanceFenceRegistry::instanceForPosition(const Position &pos) const {
+	if (hubCenterX && hubCenterY) {
+		const int32_t dx = std::abs(static_cast<int32_t>(pos.x) - *hubCenterX);
+		const int32_t dy = std::abs(static_cast<int32_t>(pos.y) - *hubCenterY);
+		if (dx <= hubRadius && dy <= hubRadius) {
+			return HUB_ADVENTURERS;
+		}
+	}
+
+	std::optional<uint32_t> areaId;
+	for (const auto &[id, fence] : areaById) {
+		if ((!fence.occupancy && !fence.aabb) || !fence.containsXY(pos.x, pos.y)) {
+			continue;
+		}
+		if (!areaId || id < *areaId) {
+			areaId = id;
+		}
+	}
+	return areaId ? CITY_BASE + *areaId : 0;
+}
+
+bool InstanceFenceRegistry::containsPos(uint32_t instanceId, const Position &pos) const {
+	if (instanceId == HUB_ADVENTURERS) {
+		if (!hubCenterX || !hubCenterY || !hubFence.allowsFloor(pos.z)) {
+			return false;
+		}
+		const int32_t dx = std::abs(static_cast<int32_t>(pos.x) - *hubCenterX);
+		const int32_t dy = std::abs(static_cast<int32_t>(pos.y) - *hubCenterY);
+		return dx <= hubRadius && dy <= hubRadius;
+	}
+
+	const Fence* fence = fenceFor(instanceId);
+	if (!fence || (!fence->occupancy && !fence->aabb)) {
+		return false;
+	}
+	if (const auto floorsIt = floorsByInstanceId.find(instanceId); floorsIt != floorsByInstanceId.end() && !floorsIt->second.empty()) {
+		if (std::find(floorsIt->second.begin(), floorsIt->second.end(), pos.z) == floorsIt->second.end()) {
+			return false;
+		}
+	} else if (!fence->allowsFloor(pos.z)) {
+		return false;
+	}
+	return fence->containsXY(pos.x, pos.y);
+}

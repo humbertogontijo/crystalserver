@@ -180,7 +180,7 @@ int ContainerFunctions::luaContainerAddItem(lua_State* L) {
 		count = std::min<uint16_t>(count, it.stackSize);
 	}
 
-	const auto &item = Item::CreateItem(itemId, count);
+	const auto &item = Item::CreateItem(itemId, count, container->getInstanceId());
 	if (!item) {
 		lua_pushnil(L);
 		Lua::reportErrorFunc("Item is nullptr");
@@ -309,7 +309,7 @@ int ContainerFunctions::luaContainerRegisterReward(lua_State* L) {
 	}
 
 	const int64_t rewardId = getTimeMsNow();
-	const auto &rewardContainer = Item::CreateItem(ITEM_REWARD_CONTAINER);
+	const auto &rewardContainer = Item::CreateItem(ITEM_REWARD_CONTAINER, 0, container->getInstanceId());
 	rewardContainer->setAttribute(ItemAttribute_t::DATE, rewardId);
 	container->setAttribute(ItemAttribute_t::DATE, rewardId);
 	container->internalAddThing(rewardContainer);

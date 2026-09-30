@@ -226,6 +226,37 @@ uint32_t Game::getInstanceActorId() {
 	return g_instanceActor ? g_instanceActor->getInstanceId() : 0;
 }
 
+uint32_t Game::getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder) {
+	if (cylinder) {
+		if (const auto &creature = cylinder->getCreature()) {
+			return creature->getInstanceId();
+		}
+		if (const auto &item = cylinder->getItem()) {
+			return item->getInstanceId();
+		}
+	}
+	return getInstanceActorId();
+}
+
+uint32_t Game::resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position) {
+	if (explicitId != 0) {
+		return explicitId;
+	}
+	if (master) {
+		return master->getInstanceId();
+	}
+	if (const uint32_t actorId = getInstanceActorId(); actorId != 0) {
+		return actorId;
+	}
+	return position ? g_instanceFences().instanceForPosition(*position) : 0;
+}
+
+void Game::adoptItemInstance(const std::shared_ptr<Item> &item, uint32_t instanceId) {
+	if (item && item->getInstanceId() != instanceId && !item->isMapTemplateItem()) {
+		item->adoptInstance(instanceId);
+	}
+}
+
 namespace InternalGame {
 	void sendBlockEffect(BlockType_t blockType, CombatType_t combatType, const Position &targetPos, const std::shared_ptr<Creature> &source) {
 		if (blockType == BLOCK_DEFENSE) {
@@ -1093,7 +1124,7 @@ uint32_t Game::copyMapRegion(const Position &sourceFrom, const Position &sourceT
 				}
 
 				const uint16_t count = it.isGroundTile() ? 1 : srcItem->getItemCount();
-				const auto &fresh = Item::CreateItem(srcItem->getID(), count);
+				const auto &fresh = Item::CreateItem(srcItem->getID(), count, 0);
 				if (!fresh) {
 					return;
 				}
@@ -1271,9 +1302,18 @@ bool Game::canWalkInstance(const std::shared_ptr<Creature> &creature, const Posi
 }
 
 void Game::disableWorldSpawns() {
-	map.spawnsMonster.clear();
+	// Keep the loaded blocks: InstanceSpawns clones them into private instances.
+	const auto stopAll = [](SpawnsMonster &spawns) {
+		for (const auto &spawn : spawns.getspawnMonsterList()) {
+			if (spawn) {
+				spawn->stopEvent();
+				spawn->removeSpawnedCreatures();
+			}
+		}
+	};
+	stopAll(map.spawnsMonster);
 	for (auto &custom : map.spawnsMonsterCustomMaps) {
-		custom.clear();
+		stopAll(custom);
 	}
 
 	std::vector<std::shared_ptr<Monster>> leftover;
@@ -1294,7 +1334,7 @@ void Game::bindPlayerInstance(const std::shared_ptr<Player> &player) {
 }
 
 void Game::syncCreatureInstance(const std::shared_ptr<Creature> &creature) {
-	if (!creature || creature->getInstanceId() != 0) {
+	if (!creature || !creature->getPlayer() || creature->getInstanceId() != 0) {
 		return;
 	}
 	callInstanceWorld("syncCreatureInstance", creature, creature->getPosition(), false);
@@ -1579,7 +1619,7 @@ std::shared_ptr<Player> Game::getPlayerByID(uint32_t id, bool allowOffline /* = 
 	if (!allowOffline) {
 		return nullptr;
 	}
-	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr);
+	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
 	if (!IOLoginData::loadPlayerById(tmpPlayer, id)) {
 		return nullptr;
 	}
@@ -1601,7 +1641,7 @@ std::shared_ptr<Player> Game::getMarketPlayerByGUID(uint32_t &guid) {
 		}
 	}
 
-	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr);
+	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
 	if (!IOLoginData::loadPlayerById(tmpPlayer, guid, false)) {
 		return nullptr;
 	}
@@ -1659,7 +1699,7 @@ std::shared_ptr<Player> Game::getPlayerByName(const std::string &s, bool allowOf
 		if (!allowOffline) {
 			return nullptr;
 		}
-		std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr);
+		std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
 		if (!IOLoginData::loadPlayerByName(tmpPlayer, s)) {
 			if (!isNewName) {
 				g_logger().error("Failed to load player {} from database", s);
@@ -1687,7 +1727,7 @@ std::shared_ptr<Player> Game::getPlayerByGUID(const uint32_t &guid, bool allowOf
 	if (!allowOffline) {
 		return nullptr;
 	}
-	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr);
+	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
 	if (!IOLoginData::loadPlayerById(tmpPlayer, guid)) {
 		return nullptr;
 	}
@@ -2900,8 +2940,8 @@ ReturnValue Game::internalMoveItem(std::shared_ptr<Cylinder> fromCylinder, std::
 
 	// add item
 	if (moveItem /*m - n > 0*/) {
-		if (actor && actor->getInstanceId() != 0 && toCylinder->getTile() && moveItem->getInstanceId() == 0 && !moveItem->isMapTemplateItem()) {
-			moveItem->setInstanceId(actor->getInstanceId());
+		if (actor && toCylinder->getTile()) {
+			adoptItemInstance(moveItem, actor->getInstanceId());
 		}
 		toCylinder->addThing(index, moveItem);
 	}
@@ -3006,17 +3046,6 @@ ReturnValue Game::internalAddItem(std::shared_ptr<Cylinder> toCylinder, const st
 	if (item == nullptr) {
 		g_logger().error("[{}] item is nullptr", __FUNCTION__);
 		return RETURNVALUE_NOTPOSSIBLE;
-	}
-
-	if (item->getInstanceId() == 0 && !item->isMapTemplateItem() && g_instanceActor) {
-		uint32_t actorInstanceId = g_instanceActor->getInstanceId();
-		if (actorInstanceId == 0) {
-			syncCreatureInstance(g_instanceActor);
-			actorInstanceId = g_instanceActor->getInstanceId();
-		}
-		if (actorInstanceId != 0) {
-			item->setInstanceId(actorInstanceId);
-		}
 	}
 
 	auto addedItem = toCylinder->getItem();
@@ -3184,7 +3213,7 @@ std::tuple<ReturnValue, uint32_t, uint32_t> Game::addItemBatch(const std::shared
 		if (autoContainerId == 0) {
 			return toCylinder;
 		}
-		auto autoContainer = Item::CreateItem(autoContainerId);
+		auto autoContainer = Item::CreateItem(autoContainerId, 0, getCylinderInstanceId(toCylinder));
 		if (!autoContainer) {
 			g_logger().error("[{}] Failed to create auto container", __FUNCTION__);
 			return toCylinder;
@@ -3230,7 +3259,7 @@ std::tuple<ReturnValue, uint32_t, uint32_t> Game::addItemBatch(const std::shared
 			}
 
 			if (remainderCount != 0) {
-				std::shared_ptr<Item> remainderItem = Item::CreateItem(item->getID(), remainderCount);
+				std::shared_ptr<Item> remainderItem = Item::CreateItem(item->getID(), remainderCount, item->getInstanceId());
 				ReturnValue remaindRet = internalAddItem(destination->getTile(), remainderItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
 				if (player && remaindRet != RETURNVALUE_NOERROR) {
 					player->sendLootStats(item, static_cast<uint8_t>(item->getItemCount()));
@@ -3272,11 +3301,11 @@ std::tuple<ReturnValue, uint32_t, uint32_t> Game::createItemBatch(const std::sha
 			std::shared_ptr<Item> item;
 			if (itemType.isWrappable()) {
 				countPerItem = 1;
-				item = Item::CreateItem(ITEM_DECORATION_KIT, subType);
+				item = Item::CreateItem(ITEM_DECORATION_KIT, subType, getCylinderInstanceId(toCylinder));
 				item->setAttribute(ItemAttribute_t::DESCRIPTION, "Unwrap this item in your own house to create a <" + itemType.name + ">.");
 				item->setCustomAttribute("unWrapId", static_cast<int64_t>(itemId));
 			} else {
-				item = Item::CreateItem(itemId, itemType.stackable ? std::min<uint32_t>(countPerItem, count - i) : subType);
+				item = Item::CreateItem(itemId, itemType.stackable ? std::min<uint32_t>(countPerItem, count - i) : subType, getCylinderInstanceId(toCylinder));
 			}
 			items.push_back(item);
 			i += countPerItem - 1;
@@ -3304,7 +3333,7 @@ ReturnValue Game::internalPlayerAddItem(const std::shared_ptr<Player> &player, c
 		ret = internalAddItem(player, item, slot, 0, false, remainderCount);
 	}
 	if (remainderCount != 0) {
-		std::shared_ptr<Item> remainderItem = Item::CreateItem(item->getID(), remainderCount);
+		std::shared_ptr<Item> remainderItem = Item::CreateItem(item->getID(), remainderCount, item->getInstanceId());
 		ReturnValue remaindRet = internalAddItem(player->getTile(), remainderItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
 		if (remaindRet != RETURNVALUE_NOERROR) {
 			player->sendLootStats(item, static_cast<uint8_t>(item->getItemCount()));
@@ -3519,7 +3548,7 @@ void Game::addMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money, u
 		}
 		while (count > 0) {
 			const uint16_t createCount = std::min<uint32_t>(100, count);
-			const std::shared_ptr<Item> &remaindItem = Item::CreateItem(itemId, createCount);
+			const std::shared_ptr<Item> &remaindItem = Item::CreateItem(itemId, createCount, getCylinderInstanceId(cylinder));
 
 			ReturnValue ret = RETURNVALUE_NOTPOSSIBLE;
 			bool triedManaged = false;
@@ -3598,12 +3627,11 @@ std::shared_ptr<Item> Game::resolveInstancedMapItem(const std::shared_ptr<Player
 		return fork;
 	}
 
-	const auto &fork = item->clone();
+	const auto &fork = item->clone(player->getInstanceId());
 	if (!fork) {
 		return item;
 	}
 
-	fork->setInstanceId(player->getInstanceId());
 	if (internalAddItem(tile, fork, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
 		return item;
 	}
@@ -3864,7 +3892,7 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 			if (success) {
 				// Auto-bank removes coins from the corpse before analysers run.
 				// Always report via a fresh stack so hunt/loot/party still count gold.
-				if (const auto &statsItem = Item::CreateItem(itemId, baseCount)) {
+				if (const auto &statsItem = Item::CreateItem(itemId, baseCount, player->getInstanceId())) {
 					player->sendLootStats(statsItem, static_cast<uint8_t>(baseCount));
 				}
 				totalLootedGold += worth;
@@ -5196,7 +5224,7 @@ void Game::playerMoveUpContainer(uint32_t playerId, uint8_t cid) {
 
 		auto it = browseFields.find(tile);
 		if (it == browseFields.end() || it->second.expired()) {
-			parentContainer = Container::createBrowseField(tile);
+			parentContainer = Container::createBrowseField(tile, player->getInstanceId());
 			browseFields[tile] = parentContainer;
 		} else {
 			parentContainer = it->second.lock();
@@ -5795,7 +5823,7 @@ void Game::playerBrowseField(uint32_t playerId, const Position &pos) {
 
 	auto it = browseFields.find(tile);
 	if (it == browseFields.end() || it->second.expired()) {
-		container = Container::createBrowseField(tile);
+		container = Container::createBrowseField(tile, player->getInstanceId());
 		browseFields[tile] = container;
 	} else {
 		container = it->second.lock();
@@ -6831,7 +6859,7 @@ void Game::handleDirectLoot(const std::shared_ptr<Player> &player, const std::sh
 	if (result == RETURNVALUE_NOERROR) {
 		// Gold may already be auto-banked (item gone); non-gold still uses the live
 		// stack, but CreateItem keeps one path for analyser packets either way.
-		if (const auto &statsItem = Item::CreateItem(itemId, baseCount)) {
+		if (const auto &statsItem = Item::CreateItem(itemId, baseCount, player->getInstanceId())) {
 			player->sendLootStats(statsItem, static_cast<uint8_t>(baseCount));
 		}
 		msg << "You looted " << (worth ? std::to_string(worth) + " gold." : "1 item.");
@@ -8413,31 +8441,31 @@ void Game::combatGetTypeInfo(CombatType_t combatType, const std::shared_ptr<Crea
 				case RACE_VENOM:
 					color = TEXTCOLOR_LIGHTGREEN;
 					effect = CONST_ME_HITBYPOISON;
-					splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_SLIME);
+					splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_SLIME, target->getInstanceId());
 					break;
 				case RACE_BLOOD:
 					color = TEXTCOLOR_RED;
 					effect = CONST_ME_DRAWBLOOD;
 					if (std::shared_ptr<Tile> tile = target->getTile()) {
 						if (!tile->hasFlag(TILESTATE_PROTECTIONZONE)) {
-							splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_BLOOD);
+							splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_BLOOD, target->getInstanceId());
 						}
 					}
 					break;
 				case RACE_CHOCOLATE:
 					color = TEXTCOLOR_LIGHTGREY;
 					effect = CONST_ME_CACAO;
-					splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_CHOCOLATE);
+					splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_CHOCOLATE, target->getInstanceId());
 					break;
 				case RACE_CANDY:
 					color = TEXTCOLOR_DARKRED;
 					effect = CONST_ME_SIURP;
-					splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_CANDY);
+					splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_CANDY, target->getInstanceId());
 					break;
 				case RACE_INK:
 					color = TEXTCOLOR_LIGHTGREY;
 					effect = CONST_ME_HITAREA;
-					splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_INK);
+					splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_INK, target->getInstanceId());
 					break;
 				case RACE_UNDEAD:
 					color = TEXTCOLOR_LIGHTGREY;
@@ -8458,7 +8486,6 @@ void Game::combatGetTypeInfo(CombatType_t combatType, const std::shared_ptr<Crea
 			}
 
 			if (splash) {
-				splash->setInstanceId(target->getInstanceId());
 				internalAddItem(target->getTile(), splash, INDEX_WHEREEVER, FLAG_NOLIMIT);
 				splash->startDecaying();
 			}
@@ -11460,7 +11487,7 @@ namespace {
 			uint16_t tmpAmount = amount;
 			while (tmpAmount > 0) {
 				const uint16_t stackCount = std::min<uint16_t>(it.stackSize, tmpAmount);
-				const auto &item = Item::CreateItem(it.id, stackCount);
+				const auto &item = Item::CreateItem(it.id, stackCount, Game::getCylinderInstanceId(inbox));
 				if (tier > 0) {
 					item->setAttribute(ItemAttribute_t::TIER, tier);
 				}
@@ -11477,7 +11504,7 @@ namespace {
 
 		const int32_t subType = it.charges != 0 ? it.charges : -1;
 		for (uint16_t i = 0; i < amount; ++i) {
-			const auto &item = Item::CreateItem(it.id, subType);
+			const auto &item = Item::CreateItem(it.id, subType, Game::getCylinderInstanceId(inbox));
 			if (tier > 0) {
 				item->setAttribute(ItemAttribute_t::TIER, tier);
 			}
@@ -11509,7 +11536,7 @@ namespace {
 			uint16_t tmpAmount = amount;
 			while (tmpAmount > 0) {
 				const uint16_t stackCount = std::min<uint16_t>(it.stackSize, tmpAmount);
-				const auto &item = Item::CreateItem(it.id, stackCount);
+				const auto &item = Item::CreateItem(it.id, stackCount, Game::getCylinderInstanceId(inbox));
 				if (tier > 0) {
 					item->setAttribute(ItemAttribute_t::TIER, tier);
 				}
@@ -11527,7 +11554,7 @@ namespace {
 
 		const int32_t subType = it.charges != 0 ? it.charges : -1;
 		for (uint16_t i = 0; i < amount; ++i) {
-			const auto &item = Item::CreateItem(it.id, subType);
+			const auto &item = Item::CreateItem(it.id, subType, Game::getCylinderInstanceId(inbox));
 			if (tier > 0) {
 				item->setAttribute(ItemAttribute_t::TIER, tier);
 			}
@@ -11764,7 +11791,7 @@ void Game::playerCancelMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 
 			while (tmpAmount > 0) {
 				int32_t stackCount = std::min<int32_t>(it.stackSize, tmpAmount);
-				const auto &item = Item::CreateItem(it.id, stackCount);
+				const auto &item = Item::CreateItem(it.id, stackCount, player->getInstanceId());
 				if (internalAddItem(playerInbox, item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
 					break;
 				}
@@ -11784,7 +11811,7 @@ void Game::playerCancelMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 			}
 
 			for (uint16_t i = 0; i < offer.amount; ++i) {
-				const auto &item = Item::CreateItem(it.id, subType);
+				const auto &item = Item::CreateItem(it.id, subType, player->getInstanceId());
 				if (internalAddItem(playerInbox, item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
 					break;
 				}
@@ -12922,7 +12949,7 @@ void Game::createLuaItemsOnMap() {
 			continue;
 		}
 
-		const auto &item = Item::CreateItem(itemId, 1);
+		const auto &item = Item::CreateItem(itemId, 1, 0);
 		if (!item) {
 			positionStr = position.toString();
 			g_logger().warn("[Game::createLuaItemsOnMap] - Cannot create item with id {} on position {}", itemId, positionStr);
@@ -13338,7 +13365,7 @@ void Game::scheduleInfluencedMonstersUpdate() {
 }
 
 bool Game::addItemStoreInbox(const std::shared_ptr<Player> &player, uint32_t itemId) {
-	const auto &decoKit = Item::CreateItem(ITEM_DECORATION_KIT, 1);
+	const auto &decoKit = Item::CreateItem(ITEM_DECORATION_KIT, 1, player->getInstanceId());
 	if (!decoKit) {
 		return false;
 	}
@@ -13490,7 +13517,7 @@ void Game::transferHouseItemsToDepot() {
 	for (const auto &[houseId, playerGuid] : transferHouseItemsToPlayer) {
 		auto house = map.houses.getHouse(houseId);
 		if (house) {
-			auto offlinePlayer = std::make_shared<Player>(nullptr);
+			auto offlinePlayer = std::make_shared<Player>(nullptr, 0);
 			if (!IOLoginData::loadPlayerById(offlinePlayer, playerGuid)) {
 				continue;
 			}

@@ -113,7 +113,7 @@ int GlobalFunctions::luaDoPlayerAddItem(lua_State* L) {
 			stackCount = it.stackSize;
 		}
 
-		const auto &newItem = Item::CreateItem(itemId, stackCount);
+		const auto &newItem = Item::CreateItem(itemId, stackCount, player->getInstanceId());
 		if (!newItem) {
 			Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_ITEM_NOT_FOUND));
 			Lua::pushBoolean(L, false);
@@ -199,7 +199,7 @@ int GlobalFunctions::luaDoAddContainerItem(lua_State* L) {
 
 	while (itemCount > 0) {
 		const int32_t stackCount = std::min<int32_t>(it.stackSize, subType);
-		const auto &newItem = Item::CreateItem(itemId, stackCount);
+		const auto &newItem = Item::CreateItem(itemId, stackCount, container->getInstanceId());
 		if (!newItem) {
 			Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_ITEM_NOT_FOUND));
 			Lua::pushBoolean(L, false);

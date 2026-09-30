@@ -79,12 +79,9 @@ function SoftDeath.beginDowned(player, opts)
 	end
 
 	local corpseUid = nil
-	local corpse = Game.createItem(corpseItemId(player), 1)
+	local corpse = Game.createItem(corpseItemId(player), 1, nil, instanceId)
 	if corpse then
 		corpse:moveTo(Position(pos.x, pos.y, pos.z))
-		if corpse.setInstanceId then
-			corpse:setInstanceId(instanceId)
-		end
 		corpseUid = corpse.getUniqueId and corpse:getUniqueId() or nil
 	end
 

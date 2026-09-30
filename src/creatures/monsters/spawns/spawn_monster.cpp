@@ -22,6 +22,7 @@
 #include "creatures/monsters/monsters.hpp"
 #include "creatures/players/player.hpp"
 #include "game/game.hpp"
+#include "game/instance_fence.hpp"
 #include "game/movement/position.hpp"
 #include "game/scheduling/dispatcher.hpp"
 #include "game/scheduling/events_scheduler.hpp"
@@ -80,7 +81,7 @@ bool SpawnsMonster::loadFromXML(const std::string &filemonstername) {
 			continue;
 		}
 
-		const auto &spawnMonster = spawnMonsterList.emplace_back(std::make_shared<SpawnMonster>(centerPos, radius));
+		const auto &spawnMonster = spawnMonsterList.emplace_back(std::make_shared<SpawnMonster>(centerPos, radius, g_instanceFences().instanceForPosition(centerPos)));
 		for (const auto &childMonsterNode : spawnMonsterNode.children()) {
 			if (strcasecmp(childMonsterNode.name(), "monster") == 0) {
 				pugi::xml_attribute nameAttribute = childMonsterNode.attribute("name");
@@ -224,8 +225,18 @@ void SpawnMonster::startSpawnMonsterCheck() {
 		g_dispatcher().stopEvent(checkSpawnMonsterEvent);
 		checkSpawnMonsterEvent = 0;
 	}
+	scheduleCheck(getNextCheckDelay());
+}
+
+void SpawnMonster::scheduleCheck(uint32_t delay) {
+	std::weak_ptr<SpawnMonster> weakSelf = static_self_cast<SpawnMonster>();
 	checkSpawnMonsterEvent = g_dispatcher().scheduleEvent(
-		getNextCheckDelay(), [this] { checkSpawnMonster(); }, "SpawnMonster::checkSpawnMonster"
+		delay, [weakSelf] {
+			if (const auto self = weakSelf.lock()) {
+				self->checkSpawnMonster();
+			}
+		},
+		"SpawnMonster::checkSpawnMonster"
 	);
 }
 
@@ -241,6 +252,7 @@ SpawnMonster::SpawnMonster(SpawnMonster &&rhs) noexcept :
 	spawnMonsterMap(std::move(rhs.spawnMonsterMap)),
 	centerPos(rhs.centerPos),
 	radius(rhs.radius),
+	instanceId(rhs.instanceId),
 	interval(rhs.interval),
 	checkSpawnMonsterEvent(rhs.checkSpawnMonsterEvent) { }
 
@@ -252,13 +264,14 @@ SpawnMonster &SpawnMonster::operator=(SpawnMonster &&rhs) noexcept {
 		checkSpawnMonsterEvent = rhs.checkSpawnMonsterEvent;
 		centerPos = rhs.centerPos;
 		radius = rhs.radius;
+		instanceId = rhs.instanceId;
 		interval = rhs.interval;
 	}
 	return *this;
 }
 
-bool SpawnMonster::findPlayer(const Position &pos) {
-	auto spectators = Spectators().find<Player>(pos);
+bool SpawnMonster::findPlayer(const Position &pos) const {
+	auto spectators = Spectators().find<Player>(pos, false, 0, 0, 0, 0, true, instanceId);
 	return std::ranges::any_of(spectators, [](const auto &spectator) {
 		return !spectator->getPlayer()->hasFlag(PlayerFlags_t::IgnoredByMonsters);
 	});
@@ -272,7 +285,7 @@ bool SpawnMonster::spawnMonster(uint32_t spawnMonsterId, spawnBlock_t &sb, const
 	if (spawnedMonsterMap.contains(spawnMonsterId)) {
 		return false;
 	}
-	auto monster = std::make_shared<Monster>(monsterType);
+	auto monster = std::make_shared<Monster>(monsterType, instanceId);
 	if (startup) {
 		// No need to send out events to the surrounding since there is no one out there to listen!
 		if (!g_game().internalPlaceCreature(monster, sb.pos, true)) {
@@ -288,6 +301,7 @@ bool SpawnMonster::spawnMonster(uint32_t spawnMonsterId, spawnBlock_t &sb, const
 	monster->setDirection(sb.direction);
 	monster->setSpawnMonster(static_self_cast<SpawnMonster>());
 	monster->setMasterPos(sb.pos);
+	monster->setSpawnPosition(sb.pos);
 
 	if (respawnDbgBox(sb.pos)) {
 		g_logger().debug("[RespawnDBG] SPAWNED block {} {} at {} ({} ms after death-stamp)", spawnMonsterId, monsterType->name, sb.pos.toString(), OTSYS_TIME() - sb.lastSpawn);
@@ -295,6 +309,7 @@ bool SpawnMonster::spawnMonster(uint32_t spawnMonsterId, spawnBlock_t &sb, const
 	spawnedMonsterMap[spawnMonsterId] = monster;
 	sb.lastSpawn = OTSYS_TIME();
 	monster->onSpawn(sb.pos);
+	g_callbacks().executeCallback(EventCallback_t::monsterOnSpawn, &EventCallback::monsterOnSpawn, monster, sb.pos);
 	return true;
 }
 
@@ -329,7 +344,17 @@ void SpawnMonster::startup(bool delayed) {
 			continue;
 		}
 		if (delayed) {
-			g_dispatcher().addEvent([this, spawnMonsterId, &sb, mType] { scheduleSpawn(spawnMonsterId, sb, mType, 0, true); }, __FUNCTION__);
+			std::weak_ptr<SpawnMonster> weakSelf = static_self_cast<SpawnMonster>();
+			g_dispatcher().addEvent([weakSelf, spawnMonsterId, mType] {
+				const auto self = weakSelf.lock();
+				if (!self) {
+					return;
+				}
+				if (const auto it = self->spawnMonsterMap.find(spawnMonsterId); it != self->spawnMonsterMap.end()) {
+					self->scheduleSpawn(spawnMonsterId, it->second, mType, 0, true);
+				}
+			},
+			                        __FUNCTION__);
 		} else {
 			scheduleSpawn(spawnMonsterId, sb, mType, 0, true);
 		}
@@ -384,9 +409,7 @@ void SpawnMonster::checkSpawnMonster() {
 	}
 
 	if (spawnedMonsterMap.size() < spawnMonsterMap.size()) {
-		checkSpawnMonsterEvent = g_dispatcher().scheduleEvent(
-			getNextCheckDelay(), [this] { checkSpawnMonster(); }, "SpawnMonster::checkSpawnMonster"
-		);
+		scheduleCheck(getNextCheckDelay());
 	}
 }
 
@@ -394,9 +417,19 @@ void SpawnMonster::scheduleSpawn(uint32_t spawnMonsterId, spawnBlock_t &sb, cons
 	if (interval <= 0) {
 		spawnMonster(spawnMonsterId, sb, mType, startup);
 	} else {
-		g_game().addMagicEffect(sb.pos, CONST_ME_TELEPORT);
+		Game::addMagicEffect(Spectators::around<Player>(sb.pos, instanceId).data(), sb.pos, CONST_ME_TELEPORT);
+		std::weak_ptr<SpawnMonster> weakSelf = static_self_cast<SpawnMonster>();
 		g_dispatcher().scheduleEvent(
-			NONBLOCKABLE_SPAWN_MONSTER_INTERVAL, [=, this, &sb] { scheduleSpawn(spawnMonsterId, sb, mType, interval - NONBLOCKABLE_SPAWN_MONSTER_INTERVAL, startup); }, "SpawnMonster::scheduleSpawn"
+			NONBLOCKABLE_SPAWN_MONSTER_INTERVAL, [weakSelf, spawnMonsterId, mType, interval, startup] {
+				const auto self = weakSelf.lock();
+				if (!self) {
+					return;
+				}
+				if (const auto it = self->spawnMonsterMap.find(spawnMonsterId); it != self->spawnMonsterMap.end()) {
+					self->scheduleSpawn(spawnMonsterId, it->second, mType, interval - NONBLOCKABLE_SPAWN_MONSTER_INTERVAL, startup);
+				}
+			},
+			"SpawnMonster::scheduleSpawn"
 		);
 	}
 }
@@ -525,6 +558,39 @@ void SpawnMonster::removeMonsters() {
 	}
 	spawnMonsterMap.clear();
 	spawnedMonsterMap.clear();
+}
+
+uint32_t SpawnMonster::cloneBlocksInto(SpawnMonster &dst, const std::function<bool(const spawnBlock_t &)> &predicate) const {
+	uint32_t copied = 0;
+	for (const auto &[id, sb] : spawnMonsterMap) {
+		if (!predicate(sb)) {
+			continue;
+		}
+		spawnBlock_t copy;
+		copy.pos = sb.pos;
+		copy.monsterTypes = sb.monsterTypes;
+		copy.interval = sb.interval;
+		copy.direction = sb.direction;
+		copy.lastSpawn = 0;
+		dst.spawnMonsterMap.emplace(static_cast<uint32_t>(dst.spawnMonsterMap.size() + 1), std::move(copy));
+		dst.interval = std::gcd(dst.interval, sb.interval);
+		++copied;
+	}
+	return copied;
+}
+
+void SpawnMonster::removeSpawnedCreatures() {
+	const auto spawned = std::move(spawnedMonsterMap);
+	spawnedMonsterMap.clear();
+	for (const auto &[id, monster] : spawned) {
+		if (!monster) {
+			continue;
+		}
+		monster->setSpawnMonster(nullptr);
+		if (!monster->isRemoved()) {
+			g_game().removeCreature(monster, true);
+		}
+	}
 }
 
 void SpawnMonster::setMonsterVariant(const std::string &variant) {

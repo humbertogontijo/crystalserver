@@ -87,11 +87,12 @@
 
 MuteCountMap Player::muteCountMap;
 
-Player::Player(std::shared_ptr<ProtocolGame> p) :
+Player::Player(std::shared_ptr<ProtocolGame> p, uint32_t instanceId) :
+	Creature(instanceId),
 	lastPing(OTSYS_TIME()),
 	lastPong(lastPing),
 	lastLoad(OTSYS_TIME()),
-	inbox(std::make_shared<Inbox>(ITEM_INBOX)),
+	inbox(std::make_shared<Inbox>(ITEM_INBOX, instanceId)),
 	client(std::move(p)),
 	m_animusMastery(*this),
 	m_playerAttachedEffects(*this) {
@@ -1822,7 +1823,7 @@ void Player::sendLootStats(const std::shared_ptr<Item> &item, uint8_t count) {
 	if (m_party) {
 		// Party hunt analyser reads item->getItemCount(); use a detached stack so
 		// auto-banked coins (already removed from the corpse) still count.
-		if (const auto &partyItem = Item::CreateItem(item->getID(), count)) {
+		if (const auto &partyItem = Item::CreateItem(item->getID(), count, getInstanceId())) {
 			m_party->addPlayerLoot(getPlayer(), partyItem);
 		}
 	}
@@ -2063,13 +2064,13 @@ std::shared_ptr<DepotChest> Player::getDepotChest(uint32_t depotId, bool autoCre
 
 	std::shared_ptr<DepotChest> depotChest;
 	if (depotId > 0 && depotId < 18) {
-		depotChest = std::make_shared<DepotChest>(ITEM_DEPOT_NULL + depotId);
+		depotChest = std::make_shared<DepotChest>(ITEM_DEPOT_NULL + depotId, getInstanceId());
 	} else if (depotId == 18) {
-		depotChest = std::make_shared<DepotChest>(ITEM_DEPOT_XVIII);
+		depotChest = std::make_shared<DepotChest>(ITEM_DEPOT_XVIII, getInstanceId());
 	} else if (depotId == 19) {
-		depotChest = std::make_shared<DepotChest>(ITEM_DEPOT_XIX);
+		depotChest = std::make_shared<DepotChest>(ITEM_DEPOT_XIX, getInstanceId());
 	} else {
-		depotChest = std::make_shared<DepotChest>(ITEM_DEPOT_XX);
+		depotChest = std::make_shared<DepotChest>(ITEM_DEPOT_XX, getInstanceId());
 	}
 
 	depotChests[depotId] = depotChest;
@@ -2091,16 +2092,16 @@ std::shared_ptr<DepotLocker> Player::getDepotLocker(uint32_t depotId) {
 	// We need to make room for supply stash on 12+ protocol versions and remove it for 10x.
 	const bool createStash = !client->oldProtocol;
 
-	auto depotLocker = std::make_shared<DepotLocker>(ITEM_LOCKER, createStash ? 4 : 3);
+	auto depotLocker = std::make_shared<DepotLocker>(ITEM_LOCKER, createStash ? 4 : 3, getInstanceId());
 	depotLocker->setDepotId(depotId);
-	const auto &marketItem = Item::CreateItem(ITEM_MARKET);
+	const auto &marketItem = Item::CreateItem(ITEM_MARKET, 0, getInstanceId());
 	depotLocker->internalAddThing(marketItem);
 	depotLocker->internalAddThing(inbox);
 	if (createStash) {
-		const auto &stashPtr = Item::CreateItem(ITEM_STASH);
+		const auto &stashPtr = Item::CreateItem(ITEM_STASH, 0, getInstanceId());
 		depotLocker->internalAddThing(stashPtr);
 	}
-	const auto &depotChest = Item::CreateItemAsContainer(ITEM_DEPOT, static_cast<uint16_t>(g_configManager().getNumber(DEPOT_BOXES)));
+	const auto &depotChest = Item::CreateItemAsContainer(ITEM_DEPOT, static_cast<uint16_t>(g_configManager().getNumber(DEPOT_BOXES)), getInstanceId());
 	for (uint32_t i = g_configManager().getNumber(DEPOT_BOXES); i > 0; i--) {
 		const auto &depotBox = getDepotChest(i, true);
 		depotChest->internalAddThing(depotBox);
@@ -2116,7 +2117,7 @@ std::shared_ptr<RewardChest> Player::getRewardChest() {
 		return rewardChest;
 	}
 
-	rewardChest = std::make_shared<RewardChest>(ITEM_REWARD_CHEST);
+	rewardChest = std::make_shared<RewardChest>(ITEM_REWARD_CHEST, getInstanceId());
 	return rewardChest;
 }
 
@@ -2192,7 +2193,7 @@ std::shared_ptr<Reward> Player::getReward(const uint64_t rewardId, const bool au
 		return nullptr;
 	}
 
-	auto reward = std::make_shared<Reward>();
+	auto reward = std::make_shared<Reward>(getInstanceId());
 	reward->setAttribute(ItemAttribute_t::DATE, rewardId);
 	rewardMap[rewardId] = reward;
 	g_game().internalAddItem(getRewardChest(), reward, INDEX_WHEREEVER, FLAG_NOLIMIT);
@@ -2915,7 +2916,7 @@ void Player::onApplyImbuementOnScroll(const Imbuement* imbuement) {
 	}
 
 	if (removeItemOfType(ITEM_BLANK_IMBUEMENT_SCROLL, 1, -1, false)) {
-		const auto &newImbuementScrollItem = Item::CreateItem(newScrollId, 1);
+		const auto &newImbuementScrollItem = Item::CreateItem(newScrollId, 1, getInstanceId());
 		auto returnValue = g_game().internalPlayerAddItem(static_self_cast<Player>(), newImbuementScrollItem, false, CONST_SLOT_WHEREEVER);
 		if (returnValue != RETURNVALUE_NOERROR) {
 			g_logger().error("[{}] - An error occurred while player with name {} try to apply imbuement, item already contains imbuement", __FUNCTION__, this->getName());
@@ -9878,7 +9879,7 @@ ReturnValue Player::addItemFromStash(uint16_t itemId, uint32_t itemCount) {
 						break;
 					}
 
-					const auto &newItem = Item::createItemBatch(itemId, toCreate);
+					const auto &newItem = Item::createItemBatch(itemId, toCreate, getInstanceId());
 					if (!newItem) {
 						g_logger().warn("[addItemFromStash] Failed to create new stackable itemId: {} for player {}", itemId, getName());
 						break;
@@ -9913,7 +9914,7 @@ ReturnValue Player::addItemFromStash(uint16_t itemId, uint32_t itemCount) {
 			}
 
 			if (targetContainer->capacity() > targetContainer->size()) {
-				const auto &newItem = Item::createItemBatch(itemId, 1);
+				const auto &newItem = Item::createItemBatch(itemId, 1, getInstanceId());
 				if (!newItem) {
 					g_logger().warn("[addItemFromStash] Failed to create new itemId: {} for player {}", itemId, getName());
 					break;
@@ -11251,7 +11252,7 @@ void Player::forgeFuseItems(ForgeAction_t actionType, uint16_t firstItemId, uint
 		return;
 	}
 
-	const auto &exaltationChest = Item::CreateItem(ITEM_EXALTATION_CHEST, 1);
+	const auto &exaltationChest = Item::CreateItem(ITEM_EXALTATION_CHEST, 1, getInstanceId());
 	if (!exaltationChest) {
 		g_logger().error("Failed to create exaltation chest");
 		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
@@ -11264,7 +11265,7 @@ void Player::forgeFuseItems(ForgeAction_t actionType, uint16_t firstItemId, uint
 		return;
 	}
 
-	const auto &firstForgedItem = Item::CreateItem(firstItemId, 1);
+	const auto &firstForgedItem = Item::CreateItem(firstItemId, 1, getInstanceId());
 	if (!firstForgedItem) {
 		g_logger().error("[Log 3] Player with name {} failed to fuse item with id {}", getName(), firstItemId);
 		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
@@ -11306,7 +11307,7 @@ void Player::forgeFuseItems(ForgeAction_t actionType, uint16_t firstItemId, uint
 		history.cost = cost;
 	} else {
 		firstForgedItem->setTier(tier);
-		const auto &secondForgedItem = Item::CreateItem(secondItemId, 1);
+		const auto &secondForgedItem = Item::CreateItem(secondItemId, 1, getInstanceId());
 		if (!secondForgedItem) {
 			g_logger().error("[Log 4] Player with name {} failed to fuse item with id {}", getName(), secondItemId);
 			sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
@@ -11522,7 +11523,7 @@ void Player::forgeTransferItemTier(ForgeAction_t actionType, uint16_t donorItemI
 		return;
 	}
 
-	const auto &exaltationChest = Item::CreateItem(ITEM_EXALTATION_CHEST, 1);
+	const auto &exaltationChest = Item::CreateItem(ITEM_EXALTATION_CHEST, 1, getInstanceId());
 	if (!exaltationChest) {
 		g_logger().error("Exaltation chest is nullptr");
 		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
@@ -11535,7 +11536,7 @@ void Player::forgeTransferItemTier(ForgeAction_t actionType, uint16_t donorItemI
 		return;
 	}
 
-	const auto &newReceiveItem = Item::CreateItem(receiveItemId, 1);
+	const auto &newReceiveItem = Item::CreateItem(receiveItemId, 1, getInstanceId());
 	if (!newReceiveItem) {
 		g_logger().error("[Log 6] Player with name {} failed to fuse item with id {}", getName(), receiveItemId);
 		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
@@ -11604,7 +11605,7 @@ void Player::forgeResourceConversion(ForgeAction_t actionType) {
 		}
 
 		auto itemCount = static_cast<uint16_t>(g_configManager().getNumber(FORGE_SLIVER_AMOUNT));
-		const auto &item = Item::CreateItem(ITEM_FORGE_SLIVER, itemCount);
+		const auto &item = Item::CreateItem(ITEM_FORGE_SLIVER, itemCount, getInstanceId());
 		returnValue = g_game().internalPlayerAddItem(static_self_cast<Player>(), item);
 		if (returnValue != RETURNVALUE_NOERROR) {
 			g_logger().error("Failed to add {} slivers to player with name {}", itemCount, getName());
@@ -11630,7 +11631,7 @@ void Player::forgeResourceConversion(ForgeAction_t actionType) {
 			return;
 		}
 
-		if (const auto &item = Item::CreateItem(ITEM_FORGE_CORE, 1);
+		if (const auto &item = Item::CreateItem(ITEM_FORGE_CORE, 1, getInstanceId());
 		    item) {
 			returnValue = g_game().internalPlayerAddItem(static_self_cast<Player>(), item);
 		}
@@ -12823,7 +12824,7 @@ void Player::ensureAccountLootPouchState() {
 	} else {
 		accountLootPouchState = std::make_shared<AccountLootPouchState>();
 	}
-	const auto &created = Item::CreateItem(ITEM_GOLD_POUCH, 1);
+	const auto &created = Item::CreateItem(ITEM_GOLD_POUCH, 1, getInstanceId());
 	accountLootPouchState->view = created ? created->getContainer() : nullptr;
 	applyAccountLootPouchViewName(accountLootPouchState->view);
 	installAccountLootPouchSlot();
@@ -12838,7 +12839,7 @@ void Player::installAccountLootPouchSlot() {
 		return;
 	}
 
-	const auto &handle = Item::CreateItem(ITEM_GOLD_POUCH, 1);
+	const auto &handle = Item::CreateItem(ITEM_GOLD_POUCH, 1, getInstanceId());
 	if (!handle) {
 		return;
 	}
@@ -13089,7 +13090,7 @@ void Player::materializeAccountLootPouchView() {
 		const uint32_t maxPerSlot = accountLootPouchMaxPerSlot(itemId);
 		while (amount > 0) {
 			const uint32_t chunk = std::min<uint32_t>(amount, maxPerSlot);
-			const auto &created = Item::CreateItem(itemId, it.stackable ? static_cast<uint16_t>(chunk) : 1);
+			const auto &created = Item::CreateItem(itemId, it.stackable ? static_cast<uint16_t>(chunk) : 1, getInstanceId());
 			if (!created) {
 				break;
 			}
@@ -13136,7 +13137,7 @@ void Player::patchAccountLootPouchViewAdd(uint16_t itemId, uint32_t amount) {
 
 	while (remaining > 0) {
 		const uint32_t chunk = std::min<uint32_t>(remaining, maxPerSlot);
-		const auto &created = Item::CreateItem(itemId, it.stackable ? static_cast<uint16_t>(chunk) : 1);
+		const auto &created = Item::CreateItem(itemId, it.stackable ? static_cast<uint16_t>(chunk) : 1, getInstanceId());
 		if (!created) {
 			break;
 		}

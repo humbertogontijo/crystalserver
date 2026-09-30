@@ -3231,7 +3231,7 @@ int PlayerFunctions::luaPlayerAddItem(lua_State* L) {
 			subType -= stackCount;
 		}
 
-		const auto &item = Item::CreateItem(itemId, stackCount);
+		const auto &item = Item::CreateItem(itemId, stackCount, player->getInstanceId());
 		if (!item) {
 			if (!hasTable) {
 				lua_pushnil(L);
@@ -3473,9 +3473,9 @@ int PlayerFunctions::luaPlayerShowTextDialog(lua_State* L) {
 
 	std::shared_ptr<Item> item;
 	if (Lua::isNumber(L, 2)) {
-		item = Item::CreateItem(Lua::getNumber<uint16_t>(L, 2));
+		item = Item::CreateItem(Lua::getNumber<uint16_t>(L, 2), 0, player->getInstanceId());
 	} else if (Lua::isString(L, 2)) {
-		item = Item::CreateItem(Item::items.getItemIdByName(Lua::getString(L, 2)));
+		item = Item::CreateItem(Item::items.getItemIdByName(Lua::getString(L, 2)), 0, player->getInstanceId());
 	} else if (Lua::isUserdata(L, 2)) {
 		if (Lua::getUserdataType(L, 2) != LuaData_t::Item) {
 			Lua::pushBoolean(L, false);
@@ -4876,7 +4876,7 @@ int PlayerFunctions::luaPlayerCastRune(lua_State* L) {
 		return 1;
 	}
 
-	const auto item = Item::CreateItem(rune->getRuneItemId(), 1);
+	const auto item = Item::CreateItem(rune->getRuneItemId(), 1, player->getInstanceId());
 	if (!item) {
 		Lua::pushBoolean(L, false);
 		return 1;

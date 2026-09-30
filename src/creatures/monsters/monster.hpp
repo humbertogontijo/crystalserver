@@ -30,11 +30,11 @@ using CreatureVector = std::vector<std::shared_ptr<Creature>>;
 
 class Monster final : public Creature {
 public:
-	static std::shared_ptr<Monster> createMonster(const std::string &name);
+	static std::shared_ptr<Monster> createMonster(const std::string &name, uint32_t instanceId);
 	static int32_t despawnRange;
 	static int32_t despawnRadius;
 
-	explicit Monster(const std::shared_ptr<MonsterType> &mType);
+	Monster(const std::shared_ptr<MonsterType> &mType, uint32_t instanceId);
 
 	// non-copyable
 	Monster(const Monster &) = delete;
@@ -61,6 +61,13 @@ public:
 
 	const Position &getMasterPos() const;
 	void setMasterPos(Position pos);
+	/** Spawn-block tile this monster was born on (unchanged by lure/master moves). */
+	const Position &getSpawnPosition() const {
+		return spawnPosition;
+	}
+	void setSpawnPosition(const Position &pos) {
+		spawnPosition = pos;
+	}
 
 	RaceType_t getRace() const override;
 	float getMitigation() const override;
@@ -310,6 +317,7 @@ private:
 	std::vector<spellBlock_t> defenseSpells;
 
 	Position masterPos;
+	Position spawnPosition;
 
 	bool isWalkingBack = false;
 	bool isIdle = true;

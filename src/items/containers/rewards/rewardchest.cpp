@@ -17,8 +17,8 @@
 
 #include "items/containers/rewards/rewardchest.hpp"
 
-RewardChest::RewardChest(uint16_t type) :
-	Container(type) {
+RewardChest::RewardChest(uint16_t type, uint32_t instanceId) :
+	Container(type, instanceId) {
 	maxSize = 32;
 	unlocked = false;
 	pagination = true;

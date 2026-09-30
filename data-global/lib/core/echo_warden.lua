@@ -103,9 +103,6 @@ function EchoWarden.createRaidMonster(kindName, pos, instanceId)
 	else
 		monster = Game.createMonster(kindName, pos, false, true)
 	end
-	if monster and id > 0 and monster.setInstanceId then
-		monster:setInstanceId(id)
-	end
 	return monster
 end
 
@@ -122,7 +119,8 @@ function EchoWarden.trackRaidCreature(m, raidToken)
 	EchoWarden.applyExpeditionMonsterBind(m)
 end
 
---- Match ExpeditionWaves.materialize: never flee + hazard flags + home on hold/anchor.
+--- Match ExpeditionWaves.onInstanceMonsterSpawn: never flee + hazard flags; the lure
+--- hunt pins the raid monster on the anchor (never released like map spawns).
 function EchoWarden.applyExpeditionMonsterBind(m)
 	if not m then
 		return
@@ -140,6 +138,10 @@ function EchoWarden.applyExpeditionMonsterBind(m)
 	end
 	if ExpeditionDifficulty and ExpeditionDifficulty.flagMonster then
 		ExpeditionDifficulty.flagMonster(m, session)
+	end
+	if ExpeditionWaves and ExpeditionWaves.adoptMonster and session.spawnsCreated then
+		ExpeditionWaves.adoptMonster(session, m)
+		return
 	end
 	local anchor = ExpeditionConfig and ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
 	local home = (anchor and anchor:getPosition()) or session.holdPos or (session.instance and session.instance.entry)
@@ -215,17 +217,11 @@ function EchoWarden.claimSharedPortal(pos, playerInstance, liveItem)
 		liveItem:transform(EchoWarden.PORTAL_SPENT_ITEM_ID)
 		return
 	end
-	local spent = Game.createItem(EchoWarden.PORTAL_SPENT_ITEM_ID, 1)
+	local spent = Game.createItem(EchoWarden.PORTAL_SPENT_ITEM_ID, 1, nil, iid)
 	if not spent then
 		return
 	end
-	if spent.setInstanceId then
-		spent:setInstanceId(iid)
-	end
 	spent:moveTo(pos)
-	if spent.setInstanceId then
-		spent:setInstanceId(iid)
-	end
 end
 
 --- Activate an echo portal (Use or step-in). Raids always bind to the player's instance.
@@ -510,18 +506,12 @@ function EchoWarden.spawnPortal(px, py, pz, kindName, instanceId, shared)
 	if existing then
 		existing:remove()
 	end
-	local portal = Game.createItem(EchoWarden.PORTAL_ITEM_ID, 1)
+	local portal = Game.createItem(EchoWarden.PORTAL_ITEM_ID, 1, nil, id)
 	if not portal then
 		logger.warn("[EchoWarden] spawnPortal aborted: createItem failed kind={} instance={}", kindName, id)
 		return false
 	end
-	if id > 0 and portal.setInstanceId then
-		portal:setInstanceId(id)
-	end
 	portal:moveTo(pos)
-	if id > 0 and portal.setInstanceId then
-		portal:setInstanceId(id)
-	end
 	portal:setCustomAttribute(EchoWarden.PORTAL_ATTR_KIND, kindName)
 	if shared or id == 0 then
 		portal:setCustomAttribute(EchoWarden.PORTAL_ATTR_SHARED, "1")

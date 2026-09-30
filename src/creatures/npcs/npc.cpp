@@ -33,16 +33,16 @@ int32_t Npc::despawnRadius;
 
 uint32_t Npc::npcAutoID = 0x80000000;
 
-std::shared_ptr<Npc> Npc::createNpc(const std::string &name) {
+std::shared_ptr<Npc> Npc::createNpc(const std::string &name, uint32_t instanceId) {
 	const auto &npcType = g_npcs().getNpcType(name);
 	if (!npcType) {
 		return nullptr;
 	}
-	return std::make_shared<Npc>(npcType);
+	return std::make_shared<Npc>(npcType, instanceId);
 }
 
-Npc::Npc(const std::shared_ptr<NpcType> &npcType) :
-	Creature(),
+Npc::Npc(const std::shared_ptr<NpcType> &npcType, uint32_t instanceId) :
+	Creature(instanceId),
 	strDescription(npcType->nameDescription),
 	npcType(npcType) {
 	defaultOutfit = npcType->info.outfit;
@@ -61,6 +61,9 @@ Npc::Npc(const std::shared_ptr<NpcType> &npcType) :
 		}
 	}
 }
+
+Npc::Npc() :
+	Creature(0) { }
 
 Npc &Npc::getInstance() {
 	return inject<Npc>();
@@ -709,7 +712,7 @@ void Npc::onPlayerSellItem(const std::shared_ptr<Player> &player, uint16_t itemI
 			g_game().addMoney(player, totalCost);
 			g_metrics().addCounter("balance_increase", totalCost, { { "player", player->getName() }, { "context", "npc_sale" } });
 		} else {
-			const auto &newItem = Item::CreateItem(getCurrency(), totalCost);
+			const auto &newItem = Item::CreateItem(getCurrency(), totalCost, player->getInstanceId());
 			if (newItem) {
 				g_game().internalPlayerAddItem(player, newItem, true);
 			}

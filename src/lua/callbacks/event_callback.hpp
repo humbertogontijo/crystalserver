@@ -169,6 +169,7 @@ public:
 	// Monster
 	void monsterOnDropLoot(const std::shared_ptr<Monster> &monster, const std::shared_ptr<Container> &corpse) const;
 	void monsterPostDropLoot(const std::shared_ptr<Monster> &monster, const std::shared_ptr<Container> &corpse) const;
+	void monsterOnSpawn(const std::shared_ptr<Monster> &monster, const Position &position) const;
 
 	// Zone
 	bool zoneBeforeCreatureEnter(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Creature> &creature) const;

@@ -37,8 +37,8 @@ struct spawnBlock_t {
 
 class SpawnMonster : public SharedObject {
 public:
-	SpawnMonster(Position initPos, int32_t initRadius) :
-		centerPos(initPos), radius(initRadius) { }
+	SpawnMonster(Position initPos, int32_t initRadius, uint32_t initInstanceId) :
+		centerPos(initPos), radius(initRadius), instanceId(initInstanceId) { }
 	~SpawnMonster();
 
 	// non-copyable
@@ -69,6 +69,17 @@ public:
 	void cleanup();
 
 	const Position &getCenterPos() const;
+	int32_t getRadius() const {
+		return radius;
+	}
+	uint32_t getInstanceId() const {
+		return instanceId;
+	}
+
+	/** Copies the blocks accepted by `predicate` into `dst` (fresh timers). Returns the copied count. */
+	uint32_t cloneBlocksInto(SpawnMonster &dst, const std::function<bool(const spawnBlock_t &)> &predicate) const;
+	/** Unlinks and removes every live monster this spawn produced. */
+	void removeSpawnedCreatures();
 
 	void setMonsterVariant(const std::string &variant);
 
@@ -79,10 +90,12 @@ private:
 	std::map<uint32_t, spawnBlock_t> spawnMonsterMap;
 	Position centerPos;
 	int32_t radius;
+	uint32_t instanceId = 0;
 	uint32_t interval = 30000;
 	uint32_t checkSpawnMonsterEvent = 0;
 
-	static bool findPlayer(const Position &pos);
+	bool findPlayer(const Position &pos) const;
+	void scheduleCheck(uint32_t delay);
 	bool spawnMonster(uint32_t spawnMonsterId, spawnBlock_t &sb, const std::shared_ptr<MonsterType> &monsterType, bool startup = false);
 	void checkSpawnMonster();
 	void scheduleSpawn(uint32_t spawnMonsterId, spawnBlock_t &sb, const std::shared_ptr<MonsterType> &monsterType, uint16_t interval, bool startup = false);

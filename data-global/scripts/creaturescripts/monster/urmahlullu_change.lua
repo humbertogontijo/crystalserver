@@ -25,9 +25,6 @@ local function spawnPhaseMonster(name, position, instanceId)
 	local monster = nil
 	if instanceId > 0 then
 		monster = Game.createMonster(name, position, true, true, nil, instanceId)
-		if monster and monster.setInstanceId then
-			monster:setInstanceId(instanceId)
-		end
 	else
 		monster = Game.createMonster(name, position, true, true)
 	end

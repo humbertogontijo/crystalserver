@@ -236,12 +236,9 @@ function PlayerHomePersist.loadPlayer(player, instance)
 	-- Create items first (no parent yet). Shared locker fixtures stay on the template.
 	for _, row in ipairs(rows) do
 		if not (PlayerHomeConfig.isSharedLockerId and PlayerHomeConfig.isSharedLockerId(row.itemtype)) then
-			local item = Game.createItem(row.itemtype, math.max(1, row.count or 1))
+			local item = Game.createItem(row.itemtype, math.max(1, row.count or 1), nil, instance.instanceId)
 			if item then
 				applyAttributes(item, row.attributes)
-				if instance.instanceId and item.setInstanceId then
-					item:setInstanceId(instance.instanceId)
-				end
 				bySid[row.sid] = { item = item, row = row }
 			end
 		end
@@ -264,9 +261,6 @@ function PlayerHomePersist.loadPlayer(player, instance)
 					Game.createTile(pos, true)
 				end
 				entry.item:moveTo(pos)
-				if instance.instanceId and entry.item.setInstanceId then
-					entry.item:setInstanceId(instance.instanceId)
-				end
 				placed = placed + 1
 			end
 		end

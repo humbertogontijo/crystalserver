@@ -218,17 +218,24 @@ private:
 class Item : virtual public Thing, public ItemProperties, public SharedObject {
 public:
 	// Create a new item batch, it can use custom charges/count and wrappable
-	static std::shared_ptr<Item> createItemBatch(uint16_t itemId, uint32_t count, bool wrappable = false);
-	// Factory member to create item of right type based on type
-	static std::shared_ptr<Item> CreateItem(uint16_t type, uint16_t count = 0, Position* itemPosition = nullptr, bool createWrappableItem = false, bool customCharges = false);
-	static std::shared_ptr<Container> CreateItemAsContainer(uint16_t type, uint16_t size);
+	static std::shared_ptr<Item> createItemBatch(uint16_t itemId, uint32_t count, uint32_t instanceId, bool wrappable = false);
+	// Factory member to create item of right type based on type. Every item is born
+	// in an instance (0 = open world / shared map layer); there is no setter.
+	static std::shared_ptr<Item> CreateItem(uint16_t type, uint16_t count, uint32_t instanceId, Position* itemPosition = nullptr, bool createWrappableItem = false, bool customCharges = false);
+	static std::shared_ptr<Container> CreateItemAsContainer(uint16_t type, uint16_t size, uint32_t instanceId);
+	// OTBM map loader: shared map layer (instance 0).
 	static std::shared_ptr<Item> CreateItem(uint16_t itemId, Position &itemPosition);
 	static Items items;
 
 	// Constructor for items
-	explicit Item(uint16_t type, uint16_t count = 0);
+	Item(uint16_t type, uint16_t count, uint32_t initialInstanceId);
 	explicit Item(const std::shared_ptr<Item> &i);
-	virtual std::shared_ptr<Item> clone() const;
+	// Deep copy born in `instanceId`.
+	virtual std::shared_ptr<Item> clone(uint32_t targetInstanceId) const;
+	// Deep copy in the same instance.
+	std::shared_ptr<Item> clone() const {
+		return clone(instanceId);
+	}
 
 	~Item() override = default;
 
@@ -663,9 +670,6 @@ public:
 	uint32_t getInstanceId() const {
 		return instanceId;
 	}
-	void setInstanceId(uint32_t id) {
-		instanceId = id;
-	}
 	bool isVisibleInInstance(uint32_t viewerInstanceId) const;
 	/** Same filter as ProtocolGame::GetTileDescription / skipMapTileItem (instance + non-zero client id). */
 	bool countsTowardClientMapStack(uint32_t viewerInstanceId) const;
@@ -794,8 +798,14 @@ private:
 	// Don't add variables here, use the ItemAttribute class.
 	std::string getWeightDescription(uint32_t weight) const;
 
+	// Game::adoptItemInstance: off-map items (inventory/depot/stash) dropped on a tile.
+	void adoptInstance(uint32_t id) {
+		instanceId = id;
+	}
+
 	friend class Decay;
 	friend class MapCache;
+	friend class Game;
 };
 
 using ItemList = std::list<std::shared_ptr<Item>>;

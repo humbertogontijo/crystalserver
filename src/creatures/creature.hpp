@@ -80,7 +80,7 @@ private:
 
 class Creature : virtual public Thing, public SharedObject {
 protected:
-	Creature();
+	explicit Creature(uint32_t initialInstanceId);
 
 public:
 	static constexpr double speedA = 857.36;
@@ -150,7 +150,6 @@ public:
 	uint32_t getInstanceId() const {
 		return instanceId;
 	}
-	void setInstanceId(uint32_t id);
 
 	virtual RaceType_t getRace() const {
 		return RACE_NONE;
@@ -744,6 +743,10 @@ public:
 	CombatDamage getCombatDamage() const;
 
 protected:
+	/** Moves an existing creature (and its summons) between instances. Only
+	 *  Player::moveToInstance calls this; everything else is born with its id. */
+	void setInstanceId(uint32_t id);
+
 	enum FlagAsyncClass_t : uint8_t {
 		AsyncTaskRunning = 1 << 0,
 		UpdateTargetList = 1 << 1,

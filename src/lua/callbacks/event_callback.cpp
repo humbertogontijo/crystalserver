@@ -17,6 +17,7 @@
 
 #include "lua/callbacks/event_callback.hpp"
 
+#include "creatures/monsters/monster.hpp"
 #include "creatures/players/grouping/party.hpp"
 #include "creatures/players/player.hpp"
 #include "game/zones/zone.hpp"
@@ -1239,6 +1240,29 @@ void EventCallback::monsterPostDropLoot(const std::shared_ptr<Monster> &monster,
 
 	LuaScriptInterface::pushUserdata<Container>(L, corpse);
 	LuaScriptInterface::setMetatable(L, -1, "Container");
+
+	return getScriptInterface()->callVoidFunction(2);
+}
+
+void EventCallback::monsterOnSpawn(const std::shared_ptr<Monster> &monster, const Position &position) const {
+	if (!LuaScriptInterface::reserveScriptEnv()) {
+		g_logger().error("[EventCallback::monsterOnSpawn - "
+		                 "Monster {}] "
+		                 "Call stack overflow. Too many lua script calls being nested.",
+		                 monster->getName());
+		return;
+	}
+
+	ScriptEnvironment* scriptEnvironment = LuaScriptInterface::getScriptEnv();
+	scriptEnvironment->setScriptId(getScriptId(), getScriptInterface());
+
+	lua_State* L = getScriptInterface()->getLuaState();
+	getScriptInterface()->pushFunction(getScriptId());
+
+	LuaScriptInterface::pushUserdata<Monster>(L, monster);
+	LuaScriptInterface::setMetatable(L, -1, "Monster");
+
+	LuaScriptInterface::pushPosition(L, position);
 
 	return getScriptInterface()->callVoidFunction(2);
 }

@@ -422,28 +422,18 @@ function InstanceWorld.scheduleSendBounds(player)
 	end, 50, pid)
 end
 
+--- Only players change instance; C++ moves their summons along. Monsters/NPCs are
+--- born in their instance and never rebound.
 local function bindCreature(creature, instanceId)
 	if not creature or not instanceId then
 		return
 	end
-	if creature.setInstanceId then
-		creature:setInstanceId(instanceId)
-	end
-	-- If the creature already had this id, C++ early-returns without cascading —
-	-- still push straggling summons onto the same instance.
-	if creature.getSummons then
-		for _, summon in ipairs(creature:getSummons() or {}) do
-			if summon and summon.setInstanceId
-				and (not summon.getInstanceId or summon:getInstanceId() ~= instanceId)
-			then
-				summon:setInstanceId(instanceId)
-			end
-		end
-	end
 	local player = asPlayer(creature)
-	if player then
-		InstanceWorld.scheduleSendBounds(player)
+	if not player then
+		return
 	end
+	player:setInstanceId(instanceId)
+	InstanceWorld.scheduleSendBounds(player)
 end
 
 local function afterAtomicBind(creature)
@@ -709,7 +699,7 @@ function InstanceWorld.travel(creature, destPos)
 
 	InstanceWorld._skipEngineTravel = true
 	local teleported
-	if bindId then
+	if bindId and player then
 		teleported = creature:teleportTo(destPos, false, bindId) and true or false
 	else
 		teleported = creature:teleportTo(destPos) and true or false
@@ -1321,28 +1311,23 @@ function InstanceWorld.bindLogin(player, loginPos)
 	-- InstanceWorld.rescueIfStranded (login) owns temple return when actually stranded.
 end
 
-function InstanceWorld.tagCityNpcs()
+--- NPC spawns resolve their city/settlement/hub instance at creation (C++ area fences);
+--- this only reports the split so a missing fence shows up in the startup log.
+function InstanceWorld.logNpcInstances()
 	if not Game.getNpcs then
 		return
 	end
-	local tagged = 0
+	local area, open = 0, 0
 	for _, npc in ipairs(Game.getNpcs()) do
-		if npc and npc.getPosition then
-			local pos = npc:getPosition()
-			local target = InstanceWorld.classify(pos)
-			if target.kind == "city" and target.cityId then
-				npc:setInstanceId(InstanceWorld.cityInstanceId(target.cityId))
-				tagged = tagged + 1
-			elseif target.kind == "settlement" and target.settlementId then
-				npc:setInstanceId(InstanceWorld.cityInstanceId(target.settlementId))
-				tagged = tagged + 1
-			elseif target.kind == "hub" then
-				npc:setInstanceId(InstanceWorld.HUB_ADVENTURERS)
-				tagged = tagged + 1
+		if npc and npc.getInstanceId then
+			if npc:getInstanceId() ~= 0 then
+				area = area + 1
+			else
+				open = open + 1
 			end
 		end
 	end
-	logger.info("[InstanceWorld] tagged {} city/settlement/hub NPCs", tagged)
+	logger.info("[InstanceWorld] NPCs born in city/settlement/hub instances: {} (open world: {})", area, open)
 end
 
 local FORGE_FIENDISH = 2
@@ -1422,5 +1407,5 @@ function InstanceWorld.onStartup()
 		Game.disableWorldSpawns()
 		logger.info("[InstanceWorld] world spawn.xml activity disabled")
 	end
-	InstanceWorld.tagCityNpcs()
+	InstanceWorld.logNpcInstances()
 end

@@ -37,15 +37,16 @@ int32_t Monster::despawnRadius;
 
 uint32_t Monster::monsterAutoID = 0x50000001;
 
-std::shared_ptr<Monster> Monster::createMonster(const std::string &name) {
+std::shared_ptr<Monster> Monster::createMonster(const std::string &name, uint32_t instanceId) {
 	const auto &mType = g_monsters().getMonsterType(name);
 	if (!mType) {
 		return nullptr;
 	}
-	return std::make_shared<Monster>(mType);
+	return std::make_shared<Monster>(mType, instanceId);
 }
 
-Monster::Monster(const std::shared_ptr<MonsterType> &mType) :
+Monster::Monster(const std::shared_ptr<MonsterType> &mType, uint32_t instanceId) :
+	Creature(instanceId),
 	nameDescription(asLowerCaseString(mType->nameDescription)),
 	mType(mType) {
 	defaultOutfit = mType->info.outfit;
@@ -1438,7 +1439,7 @@ void Monster::onThinkDefense(uint32_t interval) {
 				continue;
 			}
 
-			if (const auto &summon = Monster::createMonster(summonName)) {
+			if (const auto &summon = Monster::createMonster(summonName, getInstanceId())) {
 				if (g_game().placeCreature(summon, getPosition(), false, summonForce)) {
 					if (getSoulPit()) {
 						const auto stack = getForgeStack();
@@ -2587,10 +2588,7 @@ void Monster::dropLoot(const std::shared_ptr<Container> &corpse, const std::shar
 
 			auto sliverCount = static_cast<uint16_t>(uniform_random(minSlivers, maxSlivers));
 
-			const auto &sliver = Item::CreateItem(ITEM_FORGE_SLIVER, sliverCount);
-			if (sliver) {
-				sliver->setInstanceId(getInstanceId());
-			}
+			const auto &sliver = Item::CreateItem(ITEM_FORGE_SLIVER, sliverCount, getInstanceId());
 			if (g_game().internalAddItem(corpse, sliver) != RETURNVALUE_NOERROR) {
 				corpse->internalAddThing(sliver);
 			}
@@ -2605,15 +2603,14 @@ void Monster::dropLoot(const std::shared_ptr<Container> &corpse, const std::shar
 
 				std::shared_ptr<Item> newItem;
 				if (drop.count > 1) {
-					newItem = Item::CreateItem(drop.itemId, drop.count);
+					newItem = Item::CreateItem(drop.itemId, drop.count, getInstanceId());
 				} else {
-					newItem = Item::CreateItem(drop.itemId, 1);
+					newItem = Item::CreateItem(drop.itemId, 1, getInstanceId());
 				}
 
 				if (!newItem) {
 					continue;
 				}
-				newItem->setInstanceId(getInstanceId());
 
 				if (g_game().internalAddItem(corpse, newItem) != RETURNVALUE_NOERROR) {
 					corpse->internalAddThing(newItem);

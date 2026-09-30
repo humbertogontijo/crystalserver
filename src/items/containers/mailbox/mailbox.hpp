@@ -22,8 +22,8 @@
 
 class Mailbox final : public Item, public Cylinder {
 public:
-	explicit Mailbox(uint16_t itemId) :
-		Item(itemId) { }
+	Mailbox(uint16_t itemId, uint32_t instanceId) :
+		Item(itemId, 0, instanceId) { }
 
 	std::shared_ptr<Mailbox> getMailbox() override {
 		return static_self_cast<Mailbox>();

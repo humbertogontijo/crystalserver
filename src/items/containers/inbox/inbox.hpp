@@ -21,7 +21,7 @@
 
 class Inbox final : public Container {
 public:
-	explicit Inbox(uint16_t type);
+	Inbox(uint16_t type, uint32_t instanceId);
 
 	void setMaxInboxItems(uint32_t maxitems) {
 		maxInboxItems = maxitems;

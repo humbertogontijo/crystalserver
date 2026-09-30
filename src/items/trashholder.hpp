@@ -23,8 +23,8 @@
 
 class TrashHolder final : public Item, public Cylinder {
 public:
-	explicit TrashHolder(uint16_t itemId, MagicEffectClasses _effect = CONST_ME_NONE) :
-		Item(itemId), effect(_effect) { }
+	TrashHolder(uint16_t itemId, uint32_t instanceId, MagicEffectClasses _effect = CONST_ME_NONE) :
+		Item(itemId, 0, instanceId), effect(_effect) { }
 
 	std::shared_ptr<TrashHolder> shared_from_this() {
 		return std::static_pointer_cast<TrashHolder>(Item::shared_from_this());

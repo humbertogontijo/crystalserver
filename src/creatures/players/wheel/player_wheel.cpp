@@ -1317,7 +1317,7 @@ void PlayerWheel::destroyGem(uint16_t index) {
 	}
 
 	if (lesserFragments > 0) {
-		const auto &fragmentsItem = Item::CreateItem(ITEM_LESSER_FRAGMENT, lesserFragments);
+		const auto &fragmentsItem = Item::CreateItem(ITEM_LESSER_FRAGMENT, lesserFragments, m_player.getInstanceId());
 		auto returnValue = g_game().internalPlayerAddItem(m_player.getPlayer(), fragmentsItem, false, CONST_SLOT_WHEREEVER);
 		if (returnValue != RETURNVALUE_NOERROR) {
 			g_logger().error("Failed to add {} lesser fragments to player with name {}", lesserFragments, m_player.getName());
@@ -1328,7 +1328,7 @@ void PlayerWheel::destroyGem(uint16_t index) {
 	}
 
 	if (greaterFragments > 0) {
-		const auto &fragmentsItem = Item::CreateItem(ITEM_GREATER_FRAGMENT, greaterFragments);
+		const auto &fragmentsItem = Item::CreateItem(ITEM_GREATER_FRAGMENT, greaterFragments, m_player.getInstanceId());
 		auto returnValue = g_game().internalPlayerAddItem(m_player.getPlayer(), fragmentsItem, false, CONST_SLOT_WHEREEVER);
 		if (returnValue != RETURNVALUE_NOERROR) {
 			g_logger().error("Failed to add {} greater fragments to player with name {}", greaterFragments, m_player.getName());

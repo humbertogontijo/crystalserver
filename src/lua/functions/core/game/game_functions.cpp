@@ -28,6 +28,7 @@
 #include "game/functions/game_reload.hpp"
 #include "game/game.hpp"
 #include "game/instance_fence.hpp"
+#include "game/instance_spawns.hpp"
 #include "game/scheduling/dispatcher.hpp"
 #include "creatures/monsters/monsters.hpp"
 #ifdef IDLEOT_HAS_OCCUPANCY
@@ -65,7 +66,7 @@ bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position positio
 	// Bind before placeCreature (same pattern as Game.createMonster) so login hooks and
 	// spectators see the private hunt/raid id immediately — no post-place enterInstance race.
 	if (instanceId != 0) {
-		player->setInstanceId(instanceId);
+		player->moveToInstance(instanceId);
 	}
 	// Forced place so headless players can stack near the controller / temple.
 	// onPlacedCreature → playerLogin must see the DB lastLoginSaved — same order as ProtocolGame.
@@ -92,16 +93,16 @@ void reclaimHeadlessPlayer(const std::shared_ptr<Player> &player, Position posit
 	const bool onMap = tile && !player->isRemoved();
 	if (hasPosition && onMap && player->getPosition() != position) {
 		if (instanceId != 0) {
-			player->setInstanceId(instanceId);
+			player->moveToInstance(instanceId);
 		}
 		g_game().internalTeleport(player, position, true);
 	} else if (hasPosition && !onMap) {
 		if (instanceId != 0) {
-			player->setInstanceId(instanceId);
+			player->moveToInstance(instanceId);
 		}
 		g_game().internalTeleport(player, position, true);
 	} else if (instanceId != 0 && (!onMap || player->getInstanceId() == 0)) {
-		player->setInstanceId(instanceId);
+		player->moveToInstance(instanceId);
 	} else if (instanceId != 0 && onMap && player->getInstanceId() != instanceId) {
 		g_logger().warn(
 			"[Game.headlessLogin] refusing same-tile instance rebind for '{}' ({} → {}); pass a distinct position",
@@ -154,6 +155,8 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "setInstanceAreaFence", GameFunctions::luaGameSetInstanceAreaFence);
 	Lua::registerMethod(L, "Game", "setInstancePrivateFence", GameFunctions::luaGameSetInstancePrivateFence);
 	Lua::registerMethod(L, "Game", "clearInstancePrivateFence", GameFunctions::luaGameClearInstancePrivateFence);
+	Lua::registerMethod(L, "Game", "createInstanceSpawns", GameFunctions::luaGameCreateInstanceSpawns);
+	Lua::registerMethod(L, "Game", "clearInstanceSpawns", GameFunctions::luaGameClearInstanceSpawns);
 	Lua::registerMethod(L, "Game", "setInstanceFloors", GameFunctions::luaGameSetInstanceFloors);
 	Lua::registerMethod(L, "Game", "canWalkInstance", GameFunctions::luaGameCanWalkInstance);
 	Lua::registerMethod(L, "Game", "computeCombatPowerFromTraits", GameFunctions::luaGameComputeCombatPowerFromTraits);
@@ -401,24 +404,23 @@ int GameFunctions::luaGameGetBestiaryList(lua_State* L) {
 
 int GameFunctions::luaGameCreateSoulPitMonster(lua_State* L) {
 	// Game.createSoulPitMonster(monsterName, position, [stack = 1, [, extended = false[, force = false[, master = nil[, instanceId = 0]]]]])
-	const auto &monster = Monster::createMonster(Lua::getString(L, 1));
+	const Position &position = Lua::getPosition(L, 2);
+	std::shared_ptr<Creature> master;
+	if (lua_gettop(L) >= 6 && lua_type(L, 6) != LUA_TNIL) {
+		master = Lua::getCreature(L, 6);
+	}
+	const uint32_t explicitId = lua_gettop(L) >= 7 ? Lua::getNumber<uint32_t>(L, 7, 0) : 0;
+	const auto &monster = Monster::createMonster(Lua::getString(L, 1), Game::resolveBirthInstance(explicitId, master, &position));
 	if (!monster) {
 		lua_pushnil(L);
 		return 1;
 	}
 
 	bool isSummon = false;
-	if (lua_gettop(L) >= 6 && lua_type(L, 6) != LUA_TNIL) {
-		if (const auto &master = Lua::getCreature(L, 6)) {
-			monster->setMaster(master, true);
-			isSummon = true;
-		}
-	}
-	if (lua_gettop(L) >= 7) {
-		monster->setInstanceId(Lua::getNumber<uint32_t>(L, 7, 0));
+	if (master && monster->setMaster(master, true)) {
+		isSummon = true;
 	}
 
-	const Position &position = Lua::getPosition(L, 2);
 	const uint8_t stack = Lua::getNumber<uint8_t>(L, 3, 1);
 	const bool extended = Lua::getBoolean(L, 4, false);
 	const bool force = Lua::getBoolean(L, 5, false);
@@ -725,6 +727,18 @@ int GameFunctions::luaGameClearInstancePrivateFence(lua_State* L) {
 	return 1;
 }
 
+int GameFunctions::luaGameCreateInstanceSpawns(lua_State* L) {
+	// Game.createInstanceSpawns(instanceId) -> spawn block count
+	lua_pushnumber(L, g_instanceSpawns().create(Lua::getNumber<uint32_t>(L, 1)));
+	return 1;
+}
+
+int GameFunctions::luaGameClearInstanceSpawns(lua_State* L) {
+	// Game.clearInstanceSpawns(instanceId)
+	g_instanceSpawns().clear(Lua::getNumber<uint32_t>(L, 1));
+	return 0;
+}
+
 int GameFunctions::luaGameSetInstanceFloors(lua_State* L) {
 	// Game.setInstanceFloors(instanceId, floorsTable|nil)
 	const auto instanceId = Lua::getNumber<uint32_t>(L, 1);
@@ -921,7 +935,7 @@ int GameFunctions::luaGameGetReturnMessage(lua_State* L) {
 }
 
 int GameFunctions::luaGameCreateItem(lua_State* L) {
-	// Game.createItem(itemId or name[, count[, position]])
+	// Game.createItem(itemId or name[, count[, position[, instanceId]]])
 	uint16_t itemId;
 	if (Lua::isNumber(L, 1)) {
 		itemId = Lua::getNumber<uint16_t>(L, 1);
@@ -949,9 +963,13 @@ int GameFunctions::luaGameCreateItem(lua_State* L) {
 	}
 
 	Position position;
-	if (lua_gettop(L) >= 3) {
+	if (lua_gettop(L) >= 3 && !lua_isnil(L, 3)) {
 		position = Lua::getPosition(L, 3);
 	}
+	// An explicit instanceId (0 included) wins; otherwise inherit from the acting creature / area.
+	const uint32_t instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
+		? Lua::getNumber<uint32_t>(L, 4)
+		: Game::resolveBirthInstance(0, nullptr, position.x != 0 ? &position : nullptr);
 
 	const bool hasTable = itemCount > 1;
 	if (hasTable) {
@@ -968,7 +986,7 @@ int GameFunctions::luaGameCreateItem(lua_State* L) {
 			subType -= stackCount;
 		}
 
-		const auto &item = Item::CreateItem(itemId, stackCount);
+		const auto &item = Item::CreateItem(itemId, stackCount, instanceId);
 		if (!item) {
 			if (!hasTable) {
 				lua_pushnil(L);
@@ -1012,7 +1030,7 @@ int GameFunctions::luaGameCreateItem(lua_State* L) {
 }
 
 int GameFunctions::luaGameCreateContainer(lua_State* L) {
-	// Game.createContainer(itemId, size[, position])
+	// Game.createContainer(itemId, size[, position[, instanceId]])
 	const uint16_t size = Lua::getNumber<uint16_t>(L, 2);
 	uint16_t id;
 	if (Lua::isNumber(L, 1)) {
@@ -1025,14 +1043,18 @@ int GameFunctions::luaGameCreateContainer(lua_State* L) {
 		}
 	}
 
-	const auto &container = Item::CreateItemAsContainer(id, size);
+	const bool hasPosition = lua_gettop(L) >= 3 && lua_type(L, 3) != LUA_TNIL;
+	const Position position = hasPosition ? Lua::getPosition(L, 3) : Position();
+	const uint32_t instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
+		? Lua::getNumber<uint32_t>(L, 4)
+		: Game::resolveBirthInstance(0, nullptr, hasPosition ? &position : nullptr);
+	const auto &container = Item::CreateItemAsContainer(id, size, instanceId);
 	if (!container) {
 		lua_pushnil(L);
 		return 1;
 	}
 
-	if (lua_gettop(L) >= 3) {
-		const Position &position = Lua::getPosition(L, 3);
+	if (hasPosition) {
 		const auto &tile = g_game().map.getTile(position);
 		if (!tile) {
 			lua_pushnil(L);
@@ -1052,34 +1074,23 @@ int GameFunctions::luaGameCreateContainer(lua_State* L) {
 
 int GameFunctions::luaGameCreateMonster(lua_State* L) {
 	// Game.createMonster(monsterName, position[, extended = false[, force = false[, master = nil[, instanceId = 0]]]])
-	const auto &monster = Monster::createMonster(Lua::getString(L, 1));
+	const Position &position = Lua::getPosition(L, 2);
+	std::shared_ptr<Creature> master;
+	if (lua_gettop(L) >= 5 && lua_type(L, 5) != LUA_TNIL) {
+		master = Lua::getCreature(L, 5);
+	}
+	const uint32_t explicitId = lua_gettop(L) >= 6 ? Lua::getNumber<uint32_t>(L, 6, 0) : 0;
+	const auto &monster = Monster::createMonster(Lua::getString(L, 1), Game::resolveBirthInstance(explicitId, master, &position));
 	if (!monster) {
 		lua_pushnil(L);
 		return 1;
 	}
 
 	bool isSummon = false;
-	if (lua_gettop(L) >= 5 && lua_type(L, 5) != LUA_TNIL) {
-		if (const auto &master = Lua::getCreature(L, 5)) {
-			monster->setMaster(master, true);
-			isSummon = true;
-		}
-	}
-	if (lua_gettop(L) >= 6) {
-		const auto explicitId = Lua::getNumber<uint32_t>(L, 6, 0);
-		if (explicitId != 0) {
-			monster->setInstanceId(explicitId);
-		}
-	}
-	// Faceless-style script summons omit instanceId; inherit from thinking boss.
-	if (monster->getInstanceId() == 0) {
-		const auto actorId = Game::getInstanceActorId();
-		if (actorId != 0) {
-			monster->setInstanceId(actorId);
-		}
+	if (master && monster->setMaster(master, true)) {
+		isSummon = true;
 	}
 
-	const Position &position = Lua::getPosition(L, 2);
 	const bool extended = Lua::getBoolean(L, 3, false);
 	const bool force = Lua::getBoolean(L, 4, false);
 	if (g_game().placeCreature(monster, position, extended, force)) {
@@ -1108,8 +1119,8 @@ int GameFunctions::luaGameCreateMonster(lua_State* L) {
 }
 
 int GameFunctions::luaGameGenerateNpc(lua_State* L) {
-	// Game.generateNpc(npcName)
-	const auto &npc = Npc::createNpc(Lua::getString(L, 1));
+	// Game.generateNpc(npcName[, instanceId])
+	const auto &npc = Npc::createNpc(Lua::getString(L, 1), Game::resolveBirthInstance(Lua::getNumber<uint32_t>(L, 2, 0), nullptr, nullptr));
 	if (!npc) {
 		lua_pushnil(L);
 		return 1;
@@ -1122,19 +1133,15 @@ int GameFunctions::luaGameGenerateNpc(lua_State* L) {
 
 int GameFunctions::luaGameCreateNpc(lua_State* L) {
 	// Game.createNpc(npcName, position[, extended = false[, force = false[, instanceId = 0]]])
-	const auto &npc = Npc::createNpc(Lua::getString(L, 1));
+	const Position &position = Lua::getPosition(L, 2);
+	const auto &npc = Npc::createNpc(Lua::getString(L, 1), Game::resolveBirthInstance(Lua::getNumber<uint32_t>(L, 5, 0), nullptr, &position));
 	if (!npc) {
 		lua_pushnil(L);
 		return 1;
 	}
 
-	const Position &position = Lua::getPosition(L, 2);
 	const bool extended = Lua::getBoolean(L, 3, false);
 	const bool force = Lua::getBoolean(L, 4, false);
-	const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 5, 0);
-	if (instanceId != 0) {
-		npc->setInstanceId(instanceId);
-	}
 	if (g_game().placeCreature(npc, position, extended, force)) {
 		Lua::pushUserdata<Npc>(L, npc);
 		Lua::setMetatable(L, -1, "Npc");
@@ -1359,7 +1366,7 @@ int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
 		return 1;
 	}
 
-	auto player = std::make_shared<Player>(nullptr);
+	auto player = std::make_shared<Player>(nullptr, 0);
 	const bool loaded = guid != 0
 		? IOLoginData::loadPlayerById(player, guid, false)
 		: IOLoginData::loadPlayerByName(player, name, false);
@@ -1598,7 +1605,7 @@ int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
 		ThreadPool::getInstance().detach_task([results, remaining, r, slot, slotIndex, finishOnDispatcher]() {
 			HeadlessBatchLoadResult out;
 			out.index = slotIndex;
-			auto player = std::make_shared<Player>(nullptr);
+			auto player = std::make_shared<Player>(nullptr, 0);
 			const bool loaded = slot.kind == HeadlessBatchSlot::Kind::Guid && slot.guid != 0
 				? IOLoginData::loadPlayerById(player, slot.guid, false)
 				: IOLoginData::loadPlayerByName(player, slot.name, false);

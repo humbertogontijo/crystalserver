@@ -68,6 +68,11 @@ public:
 	void setFloors(uint32_t instanceId, const std::vector<uint8_t> &floors, bool allFloors);
 
 	[[nodiscard]] bool canWalk(const std::shared_ptr<Creature> &creature, const Position &toPos) const;
+	/** Instance a creature/item born at `pos` belongs to: hub, else a city/settlement
+	 *  area fence (CITY_BASE + areaId), else 0 (open world). Private ids are never inferred. */
+	[[nodiscard]] uint32_t instanceForPosition(const Position &pos) const;
+	/** True when `pos` lies inside the registered fence geometry and floors of `instanceId`. */
+	[[nodiscard]] bool containsPos(uint32_t instanceId, const Position &pos) const;
 
 private:
 	[[nodiscard]] const Fence *fenceFor(uint32_t instanceId) const;

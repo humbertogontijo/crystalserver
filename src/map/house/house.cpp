@@ -330,7 +330,7 @@ bool House::transferToDepot() const {
 	if (player) {
 		transferToDepot(player);
 	} else {
-		const auto tmpPlayer = std::make_shared<Player>(nullptr);
+		const auto tmpPlayer = std::make_shared<Player>(nullptr, 0);
 		if (!IOLoginData::loadPlayerById(tmpPlayer, owner)) {
 			return false;
 		}
@@ -580,7 +580,7 @@ std::shared_ptr<HouseTransferItem> House::getTransferItem() {
 	}
 
 	transfer_container->resetParent();
-	transferItem = HouseTransferItem::createHouseTransferItem(static_self_cast<House>());
+	transferItem = HouseTransferItem::createHouseTransferItem(static_self_cast<House>(), 0);
 	transfer_container->addThing(transferItem);
 	return transferItem;
 }
@@ -631,8 +631,8 @@ void House::calculateBidEndDate(uint8_t daysToEnd) {
 	this->m_bidEndDate = bidEndDate;
 }
 
-std::shared_ptr<HouseTransferItem> HouseTransferItem::createHouseTransferItem(const std::shared_ptr<House> &house) {
-	auto transferItem = std::make_shared<HouseTransferItem>(house);
+std::shared_ptr<HouseTransferItem> HouseTransferItem::createHouseTransferItem(const std::shared_ptr<House> &house, uint32_t instanceId) {
+	auto transferItem = std::make_shared<HouseTransferItem>(house, instanceId);
 	transferItem->setID(ITEM_DOCUMENT_RO);
 	transferItem->setSubType(1);
 	std::ostringstream ss;
@@ -804,8 +804,8 @@ void AccessList::getList(std::string &retList) const {
 	retList = this->list;
 }
 
-Door::Door(uint16_t type) :
-	Item(type) { }
+Door::Door(uint16_t type, uint32_t instanceId) :
+	Item(type, 0, instanceId) { }
 
 Attr_ReadValue Door::readAttr(AttrTypes_t attr, PropStream &propStream) {
 	if (attr == ATTR_HOUSEDOORID) {
@@ -1053,7 +1053,7 @@ void Houses::payHouses(RentPeriod_t rentPeriod) const {
 			if (house->getPayRentWarnings() < 7) {
 				const int32_t daysLeft = 7 - house->getPayRentWarnings();
 
-				const std::shared_ptr<Item> &letter = Item::CreateItem(ITEM_LETTER_STAMPED);
+				const std::shared_ptr<Item> &letter = Item::CreateItem(ITEM_LETTER_STAMPED, 0, 0);
 				std::string period;
 
 				switch (rentPeriod) {

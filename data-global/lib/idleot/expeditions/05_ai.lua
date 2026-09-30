@@ -370,6 +370,17 @@ function ExpeditionAI.syncDirectives(session)
 		return Position(hold.x, hold.y, hold.z)
 	end
 
+	-- Anchor walks the incoming route leg toward the hold; halts (soft hold in place)
+	-- while the pulled pack is too big.
+	local function anchorWalkDirective()
+		if session.lureHalt and anchor then
+			local here = anchor:getPosition()
+			return { kind = "hold", pos = Position(here.x, here.y, here.z), priority = "soft" }
+		end
+		local target = ExpeditionWaves and ExpeditionWaves.walkTarget and ExpeditionWaves.walkTarget(session) or hold
+		return { kind = "hold", pos = Position(target.x, target.y, target.z), priority = "relocate" }
+	end
+
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)
 		if player and not (PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player)) then
@@ -381,11 +392,7 @@ function ExpeditionAI.syncDirectives(session)
 				if id == anchorId then
 					CombatAutomationMovement.clearDirective(player, "follow")
 					CombatAutomationMovement.clearDirective(player, "anchorStance")
-					CombatAutomationMovement.setDirective(player, {
-						kind = "hold",
-						pos = copyHold(),
-						priority = "relocate",
-					})
+					CombatAutomationMovement.setDirective(player, anchorWalkDirective())
 				elseif anchorId then
 					local followDir = {
 						kind = "follow",
@@ -491,7 +498,11 @@ function ExpeditionAI.startRelocateWalk(session)
 			end
 		end
 
-		if sameTile(anchor:getPosition(), hold) then
+		local arrived = ExpeditionWaves and ExpeditionWaves.anchorArrived and ExpeditionWaves.anchorArrived(s)
+		if arrived == nil then
+			arrived = sameTile(anchor:getPosition(), hold)
+		end
+		if arrived then
 			s._relocateFollowReady = true
 			s.relocateWalkEvent = nil
 			if ExpeditionWaves and ExpeditionWaves.onRelocatePartySettled then
@@ -557,9 +568,12 @@ function ExpeditionAI.tick(session)
 	ExpeditionAI.syncDirectives(session)
 	ExpeditionAI.syncPathLeash(session)
 
-	-- Keep instance monsters near the live party anchor (hunts, raids, bosses, …).
-	if session.state == "hunting" and ExpeditionWaves and ExpeditionWaves.pullMonstersToAnchor then
-		ExpeditionWaves.pullMonstersToAnchor(session)
+	-- Map-spawn hunts: pull ring, hold arrival / dwell, next hold (no-op for other roles).
+	if ExpeditionWaves and ExpeditionWaves.tickLure then
+		ExpeditionWaves.tickLure(session)
+		if session.state == "ended" then
+			return
+		end
 	end
 
 	local kind = session.kind or (session.catalog and session.catalog.kind) or "hunt"

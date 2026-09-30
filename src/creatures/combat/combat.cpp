@@ -1304,7 +1304,7 @@ void Combat::combatTileEffects(const CreatureVector &spectators, const std::shar
 			}
 		}
 
-		const auto &item = Item::CreateItem(itemId);
+		const auto &item = Item::CreateItem(itemId, 0, caster ? caster->getInstanceId() : Game::getInstanceActorId());
 		if (caster) {
 			item->setOwner(caster);
 		}
@@ -2982,8 +2982,8 @@ void Combat::applyExtensions(const std::shared_ptr<Creature> &caster, const std:
 	}
 }
 
-MagicField::MagicField(uint16_t type) :
-	Item(type), createTime(OTSYS_TIME()) { }
+MagicField::MagicField(uint16_t type, uint32_t instanceId) :
+	Item(type, 0, instanceId), createTime(OTSYS_TIME()) { }
 
 std::shared_ptr<MagicField> MagicField::getMagicField() {
 	return static_self_cast<MagicField>();

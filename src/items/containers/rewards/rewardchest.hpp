@@ -21,7 +21,7 @@
 
 class RewardChest final : public Container {
 public:
-	explicit RewardChest(uint16_t type);
+	RewardChest(uint16_t type, uint32_t instanceId);
 
 	std::shared_ptr<RewardChest> getRewardChest() override {
 		return static_self_cast<RewardChest>();

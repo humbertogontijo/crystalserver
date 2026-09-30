@@ -33,7 +33,8 @@
 #include "creatures/players/player.hpp"
 #include "server/network/protocol/protocolgame.hpp"
 
-Creature::Creature() {
+Creature::Creature(uint32_t initialInstanceId) :
+	instanceId(initialInstanceId) {
 	Creature::onIdleStatus();
 }
 
@@ -818,23 +819,23 @@ bool Creature::dropCorpse(const std::shared_ptr<Creature> &lastHitCreature, cons
 		std::shared_ptr<Item> splash;
 		switch (getRace()) {
 			case RACE_VENOM:
-				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_SLIME);
+				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_SLIME, getInstanceId());
 				break;
 
 			case RACE_BLOOD:
-				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_BLOOD);
+				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_BLOOD, getInstanceId());
 				break;
 
 			case RACE_INK:
-				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_INK);
+				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_INK, getInstanceId());
 				break;
 
 			case RACE_CHOCOLATE:
-				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_CHOCOLATE);
+				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_CHOCOLATE, getInstanceId());
 				break;
 
 			case RACE_CANDY:
-				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_CANDY);
+				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_CANDY, getInstanceId());
 				break;
 
 			default:
@@ -844,7 +845,6 @@ bool Creature::dropCorpse(const std::shared_ptr<Creature> &lastHitCreature, cons
 
 		const auto &tile = getTile();
 		if (tile && splash) {
-			splash->setInstanceId(getInstanceId());
 			g_game().internalAddItem(tile, splash, INDEX_WHEREEVER, FLAG_NOLIMIT);
 			splash->startDecaying();
 		}
@@ -914,11 +914,7 @@ bool Creature::hasBeenAttacked(uint32_t attackerId) const {
 
 std::shared_ptr<Item> Creature::getCorpse(const std::shared_ptr<Creature> &, const std::shared_ptr<Creature> &) {
 	if (getLookCorpse() != 0) {
-		const auto &corpse = Item::CreateItem(getLookCorpse());
-		if (corpse) {
-			corpse->setInstanceId(getInstanceId());
-		}
-		return corpse;
+		return Item::CreateItem(getLookCorpse(), 0, getInstanceId());
 	}
 	return nullptr;
 }
@@ -1414,6 +1410,10 @@ bool Creature::setMaster(const std::shared_ptr<Creature> &newMaster, bool reload
 	if (!newMaster && !oldMaster) {
 		return false;
 	}
+	if (newMaster && newMaster->getInstanceId() != getInstanceId()) {
+		g_logger().warn("[Creature::setMaster] refusing cross-instance master {} ({}) for {} ({})", newMaster->getName(), newMaster->getInstanceId(), getName(), getInstanceId());
+		return false;
+	}
 	const auto &self = getCreature();
 
 	// Reloading summon icon/knownCreature and reset informations (follow/dropLoot/skillLoss)
@@ -1425,7 +1425,6 @@ bool Creature::setMaster(const std::shared_ptr<Creature> &newMaster, bool reload
 	}
 	if (newMaster) {
 		newMaster->m_summons.emplace_back(self);
-		setInstanceId(newMaster->getInstanceId());
 	}
 
 	m_master = newMaster;
