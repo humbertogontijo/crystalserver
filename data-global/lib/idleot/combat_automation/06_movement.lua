@@ -21,6 +21,7 @@ local WALK_DEDUPE_MS = 2500
 local STALL_REPATH_MS = 400
 local EXCLUSIVE_WALK_TTL_MS = 20000
 local PATH_FAIL_FRESH_MS = 1500
+local FOCUS_GRACE_MS = 1000
 
 local function nowMs()
 	return os.mtime and os.mtime() or (os.time() * 1000)
@@ -291,15 +292,6 @@ local function tileFreeForPlayer(player, pos)
 	return true
 end
 
-local function isCardinalFrom(focusPos, pos)
-	if not focusPos or not pos or focusPos.z ~= pos.z then
-		return false
-	end
-	local dx = pos.x - focusPos.x
-	local dy = pos.y - focusPos.y
-	return (dx == 0 and dy ~= 0) or (dy == 0 and dx ~= 0)
-end
-
 --- Cardinal tiles at exact Chebyshev distance `d` (N/S/E/W), nearest first.
 local function cardinalTilesAtDistance(focusPos, d)
 	d = math.max(1, math.floor(tonumber(d) or 1))
@@ -314,167 +306,14 @@ local function cardinalTilesAtDistance(focusPos, d)
 	}
 end
 
+-- Ranged stance settles anywhere within this many tiles of the stance distance.
 local STANCE_BAND = 1
--- Relocate when more than this many adjacent monsters are targeting the player.
-local THREAT_ADJACENT_MAX = 3
-
---- Live path-leash anchor (O(1) C++ fields). Nil when unset / not leashed.
-local function pathLeashAnchor(player)
-	if not player or not player.getPathLeashRadius or not player.getPathLeashAnchor then
-		return nil
-	end
-	local radius = player:getPathLeashRadius()
-	if type(radius) ~= "number" or radius <= 0 then
-		return nil
-	end
-	return player:getPathLeashAnchor()
-end
-
-local function stanceDelta(pos, targetPos, combatD)
-	return math.abs(chebyshev(pos, targetPos) - combatD)
-end
-
---- Monsters adjacent to `pos` that have this player as their attack target.
-local function adjacentThreatCount(player, pos, monsters)
-	if not player or not pos or type(monsters) ~= "table" then
-		return 0
-	end
-	local playerId = player:getId()
-	local count = 0
-	for i = 1, #monsters do
-		local m = monsters[i]
-		if m and m.getPosition and m.getTarget then
-			local mpos = m:getPosition()
-			if mpos and mpos.z == pos.z and chebyshev(mpos, pos) <= 1 then
-				local t = m:getTarget()
-				if t and t.getId and t:getId() == playerId then
-					count = count + 1
-				end
-			end
-		end
-	end
-	return count
-end
-
--- Formation cardinals around the anchor, clockwise looking down (+y south):
--- 0=N, 1=E, 2=S, 3=W. A 180° opposite tile is two steps in the same sense.
-local function cardinalOrbitIndex(anchorPos, pos)
-	if not anchorPos or not pos or anchorPos.z ~= pos.z then
-		return nil
-	end
-	local dx = pos.x - anchorPos.x
-	local dy = pos.y - anchorPos.y
-	if dx == 0 and dy == 0 then
-		return nil
-	end
-	if math.abs(dx) >= math.abs(dy) then
-		return dx > 0 and 1 or 3
-	end
-	return dy > 0 and 2 or 0
-end
-
---- Signed 90° steps from `fromIdx` to `toIdx`: +1 CW, -1 CCW, +2 / -2 for 180°, 0 same.
-local function orbitStep(fromIdx, toIdx)
-	if fromIdx == nil or toIdx == nil then
-		return 0
-	end
-	local raw = (toIdx - fromIdx) % 4
-	if raw == 0 then
-		return 0
-	end
-	if raw == 1 then
-		return 1
-	end
-	if raw == 3 then
-		return -1
-	end
-	-- 180°: keep the active sense when set, else treat as CW two-steps.
-	return 2
-end
-
---- Cost of leaving `fromIdx` for `toIdx` given sticky orbit sense (+1 CW / -1 CCW / nil).
---- Prefer continuing the sense; 180° is fine (two steps same way); reverse is last.
-local function orbitCost(fromIdx, toIdx, sense)
-	local step = orbitStep(fromIdx, toIdx)
-	if step == 0 then
-		return 0
-	end
-	if sense ~= 1 and sense ~= -1 then
-		-- No sense yet: either 90° is fine; 180° is still same-orbit progress.
-		return math.abs(step) == 2 and 1 or 0
-	end
-	if step == sense then
-		return 0
-	end
-	if math.abs(step) == 2 then
-		return 1
-	end
-	-- Opposite 90° would flip the orbit sense.
-	return 3
-end
-
-local function rememberOrbitSense(state, fromIdx, toIdx)
-	if not state then
-		return
-	end
-	local step = orbitStep(fromIdx, toIdx)
-	if step == 1 or step == -1 then
-		state.orbitSense = step
-	elseif math.abs(step) == 2 and state.orbitSense ~= 1 and state.orbitSense ~= -1 then
-		state.orbitSense = 1
-	end
-end
-
---- Free formation cardinal: threat first, then sticky orbit sense, then stance / walk.
---- Returns dest, threat (or nil).
-local function pickPreferredStanceTile(player, targetPos, combatD, preferred, monsters, anchorPos, sense)
-	if not player or not targetPos or type(preferred) ~= "table" then
-		return nil
-	end
-	local ppos = player:getPosition()
-	if not ppos or ppos.z ~= targetPos.z then
-		return nil
-	end
-	monsters = monsters or {}
-	local fromIdx = cardinalOrbitIndex(anchorPos, ppos)
-	local best, bestOver, bestOrbit, bestThreat, bestSd, bestPd = nil, nil, nil, nil, nil, nil
-	for i = 1, #preferred do
-		local dest = preferred[i]
-		if dest and dest.z == targetPos.z and tileFreeForPlayer(player, dest) then
-			local threat = adjacentThreatCount(player, dest, monsters)
-			local over = math.max(0, threat - THREAT_ADJACENT_MAX)
-			local toIdx = cardinalOrbitIndex(anchorPos, dest)
-			local orbit = orbitCost(fromIdx, toIdx, sense)
-			local sd = stanceDelta(dest, targetPos, combatD)
-			local pd = chebyshev(ppos, dest)
-			if
-				not best
-				or over < bestOver
-				or (over == bestOver and orbit < bestOrbit)
-				or (over == bestOver and orbit == bestOrbit and threat < bestThreat)
-				or (over == bestOver and orbit == bestOrbit and threat == bestThreat and sd < bestSd)
-				or (over == bestOver and orbit == bestOrbit and threat == bestThreat and sd == bestSd and pd < bestPd)
-			then
-				best, bestOver, bestOrbit, bestThreat, bestSd, bestPd = dest, over, orbit, threat, sd, pd
-			end
-		end
-	end
-	return best, bestThreat
-end
-
-local function onPreferredTile(ppos, preferred)
-	for i = 1, #preferred do
-		if sameTile(ppos, preferred[i]) then
-			return true
-		end
-	end
-	return false
-end
 
 --- Hold Chebyshev distance `d` from focus.
---- `cardinal` (anchor formation): N/S/E/W only. Creature stance for leashed
---- non-anchors prefers the four formation cardinals around the anchor.
-local function holdStanceDistance(player, focus, d, cardinal, config)
+--- `cardinal` (anchor formation, no combat focus): nearest free N/S/E/W tile. The
+--- player keeps facing its last target instead of turning toward the anchor.
+--- Combat focus: settle anywhere within STANCE_BAND inside `d` of the target, facing it.
+local function holdStanceDistance(player, focus, d, cardinal)
 	if not player or not focus then
 		return
 	end
@@ -488,70 +327,30 @@ local function holdStanceDistance(player, focus, d, cardinal, config)
 		return
 	end
 
-	local preferred = nil
-	local anchorPos = nil
-	if not cardinal then
-		anchorPos = pathLeashAnchor(player)
-		if anchorPos then
-			preferred = cardinalTilesAtDistance(anchorPos, stanceDistanceForFocus(config, true))
-		end
-	end
-
-	-- Leashed: stay on a preferred cardinal once combat range is close enough
-	-- and adjacent monsters targeting the player are under the threat cap.
-	-- Relocations stick to one orbit sense (CW/CCW); 180° is two steps that way.
-	if preferred then
-		local state = CombatAutomation.getState and CombatAutomation.getState(player) or nil
-		local sense = state and state.orbitSense or nil
-		local monsters = CombatAutomation.getVisibleMonsters and CombatAutomation.getVisibleMonsters(player) or {}
-		local hereThreat = adjacentThreatCount(player, ppos, monsters)
-		if
-			onPreferredTile(ppos, preferred)
-			and stanceDelta(ppos, fpos, d) <= STANCE_BAND
-			and hereThreat <= THREAT_ADJACENT_MAX
-		then
-			clearQueuedWalk(player)
-			faceToward(player, fpos)
-			return
-		end
-		local best, bestThreat = pickPreferredStanceTile(player, fpos, d, preferred, monsters, anchorPos, sense)
-		if best and not sameTile(ppos, best) then
-			local mustMove = hereThreat > THREAT_ADJACENT_MAX and (bestThreat or 0) < hereThreat
-			local notSettled = not onPreferredTile(ppos, preferred) or stanceDelta(ppos, fpos, d) > STANCE_BAND
-			if mustMove or notSettled then
-				rememberOrbitSense(state, cardinalOrbitIndex(anchorPos, ppos), cardinalOrbitIndex(anchorPos, best))
-				CombatAutomationMovement.queueWalkToward(player, best, false)
-				return
-			end
-		end
-		clearQueuedWalk(player)
-		faceToward(player, fpos)
-		return
-	end
-
+	local dist = chebyshev(ppos, fpos)
 	if cardinal then
 		local best, bestDist = nil, nil
 		for _, dest in ipairs(cardinalTilesAtDistance(fpos, d)) do
 			if tileFreeForPlayer(player, dest) then
-				local dist = ppos:getDistance(dest)
-				if not bestDist or dist < bestDist then
-					best, bestDist = dest, dist
+				local destDist = chebyshev(ppos, dest)
+				if not bestDist or destDist < bestDist then
+					best, bestDist = dest, destDist
 				end
 			end
 		end
 		if best then
 			if sameTile(ppos, best) then
 				clearQueuedWalk(player)
-				faceToward(player, fpos)
 				return
 			end
 			CombatAutomationMovement.queueWalkToward(player, best, false)
 			return
 		end
-	end
-
-	-- Unleashed creature stance: engine ring around the focus.
-	if ppos:getDistance(fpos) == d then
+		if dist == d then
+			clearQueuedWalk(player)
+			return
+		end
+	elseif dist <= d and dist >= d - STANCE_BAND then
 		clearQueuedWalk(player)
 		faceToward(player, fpos)
 		return
@@ -598,7 +397,7 @@ function CombatAutomationMovement.applyCreatureStance(player, target, config)
 		end
 	else
 		clearFollowIfAny(player)
-		holdStanceDistance(player, target, d, false, config)
+		holdStanceDistance(player, target, d, false)
 	end
 end
 
@@ -739,7 +538,7 @@ local function driveFollow(player, anchor, config)
 		return
 	end
 	clearFollowIfAny(player)
-	holdStanceDistance(player, anchor, d, true, config)
+	holdStanceDistance(player, anchor, d, true)
 end
 
 --- Promote finished follow into cardinal stance vs the parked anchor until combat focus.
@@ -839,16 +638,24 @@ function CombatAutomationMovement.tick(player, config)
 		and CombatAutomation.isValidAttackTarget
 		and CombatAutomation.isValidAttackTarget(player, target)
 		and CombatAutomationMovement.isInViewport(player:getPosition(), target:getPosition())
+	if hasFocus and state then
+		state.focusAt = nowMs()
+	end
+	-- Between kills: stay put rather than stepping back to formation for one tick.
+	local betweenTargets = not hasFocus and state and nowMs() - (state.focusAt or 0) < FOCUS_GRACE_MS
 
 	if directive and directive.kind == "anchorStance" then
 		if hasFocus and autoOn then
 			CombatAutomationMovement.applyCreatureStance(player, target, config)
 			return
 		end
+		if betweenTargets and autoOn then
+			return
+		end
 		local anchor = Player(tonumber(directive.targetId) or 0)
 		if anchor and autoOn then
 			clearFollowIfAny(player)
-			holdStanceDistance(player, anchor, stanceDistanceForFocus(config, true), true, config)
+			holdStanceDistance(player, anchor, stanceDistanceForFocus(config, true), true)
 		elseif not autoOn then
 			clearFollowIfAny(player)
 		end
@@ -858,6 +665,9 @@ function CombatAutomationMovement.tick(player, config)
 	if directive and directive.kind == "hold" then
 		local hold = directive.pos or directive.holdPos
 		local relocatePriority = directive.priority == "relocate"
+		if betweenTargets and autoOn and not relocatePriority then
+			return
+		end
 		if hold and (relocatePriority or not hasFocus or not autoOn) then
 			clearFollowIfAny(player)
 			if autoOn or relocatePriority then
@@ -901,6 +711,5 @@ function CombatAutomationMovement.onAutoResumed(player)
 		state.areaCastSlotId = nil
 		state.areaFace = nil
 		state.suppressAreaStep = nil
-		state.orbitSense = nil
 	end
 end
