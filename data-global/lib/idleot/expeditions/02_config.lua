@@ -69,8 +69,9 @@ ExpeditionConfig.RELEASE_RADIUS = 18
 ExpeditionConfig.PULL_STALL_MS = 8000
 -- Anchor within this Chebyshev distance of the hold counts as arrived.
 ExpeditionConfig.HOLD_ARRIVE_RADIUS = 1
--- Anchor stops walking while engaged >= lure * OVERWHELM_FACTOR; resumes at <= lure.
-ExpeditionConfig.OVERWHELM_FACTOR = 2
+-- Walking a leg, the anchor stops luring and fights once engaged >= lure * LURE_STOP_FACTOR;
+-- it walks on when nothing attackable is in view. Holds pull once and never top up mid-fight.
+ExpeditionConfig.LURE_STOP_FACTOR = 1
 -- No progress toward the current route waypoint / hold for this long skips it.
 ExpeditionConfig.RELOCATE_STALL_MS = 12000
 -- Familiar-style catch-up (Creature::checkSummonMove): match anchor speed + soft surplus when behind,

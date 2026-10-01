@@ -351,8 +351,8 @@ local function engage(session, mid, monster, anchor, anchorPos)
 	end
 end
 
---- Keep engaged monsters homed on the anchor, drop stalled / far ones, pull new ones
---- inside the ring (path ≤ PULL_STEPS), and halt the anchor when overwhelmed.
+--- Keep engaged monsters homed on the anchor, drop stalled / far ones, and adopt
+--- monsters already fighting the party.
 local function tickPack(session, anchor, anchorPos)
 	local now = nowMs()
 	local members = memberSet(session)
@@ -401,47 +401,41 @@ local function tickPack(session, anchor, anchorPos)
 			end
 		end
 	end
+end
 
+--- Pull the nearest idle monsters in the ring (path ≤ PULL_STEPS) up to the hold's lure.
+local function pullPack(session, anchor, anchorPos)
+	local now = nowMs()
 	local lure = lureCount(session)
-	local cap = lure * cfg("OVERWHELM_FACTOR", 2)
 	local count = engagedCount(session)
-	if session.lureHalt then
-		if count <= lure then
-			session.lureHalt = nil
-		end
-	elseif count >= cap then
-		session.lureHalt = true
+	if count >= lure then
+		return
 	end
-
-	-- Pull the nearest idle monsters in the ring while the pack is below the hold's lure.
-	if not session.lureHalt and count < lure then
-		local ring = pullRing(session)
-		local candidates = {}
-		for mid in pairs(session.tracked) do
-			if not session.engaged[mid] and (session.releasedUntil[mid] or 0) <= now then
-				local monster = Monster(mid)
-				local dist = monster and chebyshev(monster:getPosition(), anchorPos) or math.huge
-				if dist <= ring then
-					candidates[#candidates + 1] = { mid = mid, monster = monster, dist = dist }
-				end
-			end
-		end
-		table.sort(candidates, function(a, b)
-			return a.dist < b.dist
-		end)
-		local budget = cfg("PULL_PATHS_PER_TICK", 6)
-		for _, c in ipairs(candidates) do
-			if count >= lure or budget <= 0 then
-				break
-			end
-			budget = budget - 1
-			if pullPath(session, c.monster, anchorPos) then
-				engage(session, c.mid, c.monster, anchor, anchorPos)
-				count = count + 1
+	local ring = pullRing(session)
+	local candidates = {}
+	for mid in pairs(session.tracked) do
+		if not session.engaged[mid] and (session.releasedUntil[mid] or 0) <= now then
+			local monster = Monster(mid)
+			local dist = monster and chebyshev(monster:getPosition(), anchorPos) or math.huge
+			if dist <= ring then
+				candidates[#candidates + 1] = { mid = mid, monster = monster, dist = dist }
 			end
 		end
 	end
-	return count
+	table.sort(candidates, function(a, b)
+		return a.dist < b.dist
+	end)
+	local budget = cfg("PULL_PATHS_PER_TICK", 6)
+	for _, c in ipairs(candidates) do
+		if count >= lure or budget <= 0 then
+			break
+		end
+		budget = budget - 1
+		if pullPath(session, c.monster, anchorPos) then
+			engage(session, c.mid, c.monster, anchor, anchorPos)
+			count = count + 1
+		end
+	end
 end
 
 --- Engaged monsters the anchor can see and attack: what a player waits on at a hold.
@@ -460,6 +454,18 @@ local function visibleEngagedCount(session, anchor)
 		end
 	end
 	return n
+end
+
+--- Walking a leg the anchor lures until the pack reaches lure × LURE_STOP_FACTOR, then
+--- stops and fights it there; it walks on once nothing attackable is in view.
+local function updateLureHalt(session, anchor)
+	local cap = lureCount(session) * cfg("LURE_STOP_FACTOR", 1)
+	local count = engagedCount(session)
+	if not session.lureHalt then
+		session.lureHalt = count >= cap or nil
+	elseif count < cap and visibleEngagedCount(session, anchor) == 0 then
+		session.lureHalt = nil
+	end
 end
 
 local function tickRelocate(session, anchorPos, engaged)
@@ -553,16 +559,25 @@ function ExpeditionWaves.tickLure(session)
 	session.engaged = session.engaged or {}
 	session.releasedUntil = session.releasedUntil or {}
 
-	local count = tickPack(session, anchor, anchorPos)
+	tickPack(session, anchor, anchorPos)
 
 	if session.state == "relocating" then
-		tickRelocate(session, anchorPos, count)
+		updateLureHalt(session, anchor)
+		if not session.lureHalt then
+			pullPack(session, anchor, anchorPos)
+		end
+		tickRelocate(session, anchorPos, engagedCount(session))
 		return
 	end
+	session.lureHalt = nil
 
-	-- At the hold: fight what is on screen; move on once nothing attackable is in view.
-	-- A stationary hunt stays put and counts a hold clear per pack fought.
+	-- At the hold: one pull, never a top-up mid-fight (respawns wait for the next lap);
+	-- move on once nothing attackable is in view.
+	-- A stationary hunt stays put, counts a hold clear per pack and pulls again.
 	local previous = session.state
+	if not session.packFought then
+		pullPack(session, anchor, anchorPos)
+	end
 	local visible = visibleEngagedCount(session, anchor)
 	session.state = visible > 0 and "hunting" or "waiting"
 	if visible > 0 then

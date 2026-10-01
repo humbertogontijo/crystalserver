@@ -371,7 +371,7 @@ function ExpeditionAI.syncDirectives(session)
 	end
 
 	-- Anchor walks the incoming route leg toward the hold; halts (soft hold in place)
-	-- while the pulled pack is too big.
+	-- to fight a full pack lured on the way.
 	local function anchorWalkDirective()
 		if session.lureHalt and anchor then
 			local here = anchor:getPosition()
