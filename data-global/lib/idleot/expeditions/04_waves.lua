@@ -244,7 +244,6 @@ local function beginRelocate(session)
 	session.route = hold and hold.route or nil
 	session.routeIdx = 1
 	session._relocateProgress = { dist = math.huge, at = nowMs() }
-	session.holdArrivedAt = nil
 	if ExpeditionAI and ExpeditionAI.startRelocateWalk then
 		ExpeditionAI.startRelocateWalk(session)
 	end
@@ -292,7 +291,6 @@ local function nextHold(session)
 	else
 		-- Single-hold hunt: stay and keep pulling what respawns.
 		session.state = "waiting"
-		session.holdArrivedAt = nowMs()
 		ExpeditionManager.broadcastStatus(session)
 	end
 end
@@ -307,7 +305,6 @@ function ExpeditionWaves.onRelocatePartySettled(session)
 		session.relocateWalkEvent = nil
 	end
 	session.state = "hunting"
-	session.holdArrivedAt = nowMs()
 	session._relocateProgress = nil
 	ExpeditionManager.broadcastStatus(session)
 end
@@ -417,7 +414,6 @@ local function tickPack(session, anchor, anchorPos)
 	end
 
 	-- Pull the nearest idle monsters in the ring while the pack is below the hold's lure.
-	local pullable = 0
 	if not session.lureHalt and count < lure then
 		local ring = pullRing(session)
 		local candidates = {}
@@ -442,15 +438,28 @@ local function tickPack(session, anchor, anchorPos)
 			if pullPath(session, c.monster, anchorPos) then
 				engage(session, c.mid, c.monster, anchor, anchorPos)
 				count = count + 1
-				pullable = pullable + 1
 			end
 		end
-		-- Unchecked candidates left in the ring still count as pullable for the hold-cleared rule.
-		if budget <= 0 then
-			pullable = pullable + math.max(0, #candidates - cfg("PULL_PATHS_PER_TICK", 6))
+	end
+	return count
+end
+
+--- Engaged monsters the anchor can see and attack: what a player waits on at a hold.
+--- The rest keep following the anchor (homed on it) to the next hold.
+local function visibleEngagedCount(session, anchor)
+	local anchorPos = anchor:getPosition()
+	local n = 0
+	for mid in pairs(session.engaged) do
+		local monster = Monster(mid)
+		if
+			monster
+			and CombatAutomationMovement.isInViewport(anchorPos, monster:getPosition())
+			and CombatAutomation.isValidAttackTarget(anchor, monster)
+		then
+			n = n + 1
 		end
 	end
-	return count, pullable
+	return n
 end
 
 local function tickRelocate(session, anchorPos, engaged)
@@ -544,28 +553,23 @@ function ExpeditionWaves.tickLure(session)
 	session.engaged = session.engaged or {}
 	session.releasedUntil = session.releasedUntil or {}
 
-	local count, pullable = tickPack(session, anchor, anchorPos)
+	local count = tickPack(session, anchor, anchorPos)
 
 	if session.state == "relocating" then
 		tickRelocate(session, anchorPos, count)
 		return
 	end
 
-	-- At the hold: fight the pack; move on once it is dead and nothing else comes in.
+	-- At the hold: fight what is on screen; move on once nothing attackable is in view.
 	-- A stationary hunt stays put and counts a hold clear per pack fought.
 	local previous = session.state
-	session.state = count > 0 and "hunting" or "waiting"
-	if count > 0 then
+	local visible = visibleEngagedCount(session, anchor)
+	session.state = visible > 0 and "hunting" or "waiting"
+	if visible > 0 then
 		session.packFought = true
-	else
-		local arrivedAt = session.holdArrivedAt or nowMs()
-		session.holdArrivedAt = arrivedAt
-		local cleared = pullable == 0 or nowMs() - arrivedAt >= cfg("HOLD_DWELL_MS", 6000)
-		local canWalk = ExpeditionConfig.canRelocateHolds(session.catalog)
-		if cleared and (canWalk or session.packFought) then
-			nextHold(session)
-			return
-		end
+	elseif ExpeditionConfig.canRelocateHolds(session.catalog) or session.packFought then
+		nextHold(session)
+		return
 	end
 	if previous ~= session.state then
 		ExpeditionManager.broadcastStatus(session)

@@ -69,8 +69,6 @@ ExpeditionConfig.RELEASE_RADIUS = 18
 ExpeditionConfig.PULL_STALL_MS = 8000
 -- Anchor within this Chebyshev distance of the hold counts as arrived.
 ExpeditionConfig.HOLD_ARRIVE_RADIUS = 1
--- After the pack dies, linger this long for monsters still walking in.
-ExpeditionConfig.HOLD_DWELL_MS = 6000
 -- Anchor stops walking while engaged >= lure * OVERWHELM_FACTOR; resumes at <= lure.
 ExpeditionConfig.OVERWHELM_FACTOR = 2
 -- No progress toward the current route waypoint / hold for this long skips it.
