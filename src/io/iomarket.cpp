@@ -405,7 +405,7 @@ void IOMarket::processWebOrders(const DBResult_ptr &result, bool) {
 			uint16_t tmpAmount = amount;
 			while (tmpAmount > 0) {
 				uint16_t stackCount = std::min<uint16_t>(100, tmpAmount);
-				const auto &item = Item::CreateItem(it.id, stackCount);
+				const auto &item = Item::CreateItem(it.id, stackCount, buyer->getInstanceId());
 				if (!item) {
 					deliverySuccess = false;
 					break;
@@ -422,7 +422,7 @@ void IOMarket::processWebOrders(const DBResult_ptr &result, bool) {
 		} else {
 			int32_t subType = (it.charges != 0) ? it.charges : -1;
 			for (uint16_t i = 0; i < amount; ++i) {
-				const auto &item = Item::CreateItem(it.id, subType);
+				const auto &item = Item::CreateItem(it.id, subType, buyer->getInstanceId());
 				if (!item) {
 					deliverySuccess = false;
 					break;
