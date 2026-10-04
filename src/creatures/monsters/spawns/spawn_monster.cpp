@@ -285,7 +285,7 @@ bool SpawnMonster::spawnMonster(uint32_t spawnMonsterId, spawnBlock_t &sb, const
 	if (spawnedMonsterMap.contains(spawnMonsterId)) {
 		return false;
 	}
-	auto monster = std::make_shared<Monster>(monsterType, instanceId);
+	auto monster = std::make_shared<Monster>(monsterType, InstanceId(instanceId));
 	if (startup && instanceId == 0) {
 		// No need to send out events to the surrounding since there is no one out there to listen!
 		// Private instances start with their party already inside, so they take the normal path.

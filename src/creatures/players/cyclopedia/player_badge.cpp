@@ -145,7 +145,7 @@ std::vector<std::shared_ptr<Player>> PlayerBadge::getPlayersInfoByAccount(const 
 	DBResult_ptr result = g_database().storeQuery(query);
 	if (result) {
 		do {
-			auto player = std::make_shared<Player>(nullptr, 0);
+			auto player = std::make_shared<Player>(nullptr, InstanceId::World);
 			player->setName(result->getString("name"));
 			player->setLevel(result->getNumber<uint32_t>("level"));
 			player->setVocation(result->getNumber<uint16_t>("vocation"));

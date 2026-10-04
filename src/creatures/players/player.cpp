@@ -87,7 +87,7 @@
 
 MuteCountMap Player::muteCountMap;
 
-Player::Player(std::shared_ptr<ProtocolGame> p, uint32_t instanceId) :
+Player::Player(std::shared_ptr<ProtocolGame> p, InstanceId instanceId) :
 	Creature(instanceId),
 	lastPing(OTSYS_TIME()),
 	lastPong(lastPing),

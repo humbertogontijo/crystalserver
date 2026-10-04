@@ -33,12 +33,12 @@
 #include "creatures/players/player.hpp"
 #include "server/network/protocol/protocolgame.hpp"
 
-Creature::Creature(uint32_t initialInstanceId) :
+Creature::Creature(InstanceId initialInstanceId) :
 	instanceId(initialInstanceId) {
 	Creature::onIdleStatus();
 }
 
-void Creature::setInstanceId(uint32_t id) {
+void Creature::setInstanceId(InstanceId id) {
 	if (instanceId == id) {
 		return;
 	}

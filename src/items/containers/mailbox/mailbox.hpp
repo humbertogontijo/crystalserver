@@ -22,7 +22,7 @@
 
 class Mailbox final : public Item, public Cylinder {
 public:
-	Mailbox(uint16_t itemId, uint32_t instanceId) :
+	Mailbox(uint16_t itemId, InstanceId instanceId) :
 		Item(itemId, 0, instanceId) { }
 
 	std::shared_ptr<Mailbox> getMailbox() override {

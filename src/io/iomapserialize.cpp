@@ -154,7 +154,7 @@ bool IOMapSerialize::loadItem(PropStream &propStream, const std::shared_ptr<Cyli
 	const ItemType &iType = Item::items[id];
 	if (iType.isBed() || iType.movable || !tile || iType.isCarpet() || iType.isTrashHolder()) {
 		// create a new item
-		auto item = Item::CreateItem(id, 0, 0);
+		auto item = Item::CreateItem(id, 0, InstanceId::World);
 		if (item) {
 			if (item->unserializeAttr(propStream)) {
 				// Remove only not movable and not sleeper bed
@@ -209,7 +209,7 @@ bool IOMapSerialize::loadItem(PropStream &propStream, const std::shared_ptr<Cyli
 			}
 		} else {
 			// The map changed since the last save, just read the attributes
-			auto dummy = Item::CreateItem(id, 0, 0);
+			auto dummy = Item::CreateItem(id, 0, InstanceId::World);
 			if (dummy) {
 				dummy->unserializeAttr(propStream);
 				std::shared_ptr<Container> container = dummy->getContainer();
@@ -258,7 +258,7 @@ void IOMapSerialize::saveTile(PropWriteStream &stream, const std::shared_ptr<Til
 	uint16_t count = 0;
 	for (auto &item : *tileItems) {
 		if (item->getID() == ITEM_BATHTUB_FILLED_NOTMOVABLE) {
-			std::shared_ptr<Item> tub = Item::CreateItem(ITEM_BATHTUB_FILLED, 0, 0);
+			std::shared_ptr<Item> tub = Item::CreateItem(ITEM_BATHTUB_FILLED, 0, InstanceId::World);
 			items.push_front(tub);
 			++count;
 			continue;

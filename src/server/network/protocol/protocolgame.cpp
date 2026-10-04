@@ -735,7 +735,7 @@ void ProtocolGame::login(const std::string &name, uint32_t accountId, OperatingS
 	// dispatcher thread
 	std::shared_ptr<Player> foundPlayer = g_game().getPlayerByName(name);
 	if (!foundPlayer) {
-		player = std::make_shared<Player>(getThis(), 0);
+		player = std::make_shared<Player>(getThis(), InstanceId::World);
 		player->setName(name);
 
 		player->setID();

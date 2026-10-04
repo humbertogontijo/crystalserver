@@ -43,12 +43,12 @@
 
 Items Item::items;
 
-std::shared_ptr<Item> Item::createItemBatch(uint16_t itemId, uint32_t count, uint32_t instanceId, bool wrappable /* = false*/) {
+std::shared_ptr<Item> Item::createItemBatch(uint16_t itemId, uint32_t count, InstanceId instanceId, bool wrappable /* = false*/) {
 	const auto &item = Item::CreateItem(itemId, count, instanceId, nullptr, wrappable, true);
 	return item;
 };
 
-std::shared_ptr<Item> Item::CreateItem(const uint16_t type, uint16_t count, uint32_t instanceId, Position* itemPosition /*= nullptr*/, bool createWrappableItem /* false*/, bool customCharges /* false */) {
+std::shared_ptr<Item> Item::CreateItem(const uint16_t type, uint16_t count, InstanceId instanceId, Position* itemPosition /*= nullptr*/, bool createWrappableItem /* false*/, bool customCharges /* false */) {
 	// A map which contains items that, when on creating, should be transformed to the default type.
 	static const phmap::flat_hash_map<ItemID_t, ItemID_t> ItemTransformationMap = {
 		{ ITEM_SWORD_RING_ACTIVATED, ITEM_SWORD_RING },
@@ -267,7 +267,7 @@ void Item::setTier(uint8_t tier) {
 	}
 }
 
-std::shared_ptr<Container> Item::CreateItemAsContainer(const uint16_t type, uint16_t size, uint32_t instanceId) {
+std::shared_ptr<Container> Item::CreateItemAsContainer(const uint16_t type, uint16_t size, InstanceId instanceId) {
 	if (const ItemType &it = Item::items[type];
 	    it.id == 0
 	    || it.stackable
@@ -318,10 +318,10 @@ std::shared_ptr<Item> Item::CreateItem(uint16_t itemId, Position &itemPosition) 
 			break;
 	}
 
-	return Item::CreateItem(itemId, 0, 0, &itemPosition);
+	return Item::CreateItem(itemId, 0, InstanceId::World, &itemPosition);
 }
 
-Item::Item(const uint16_t itemId, uint16_t itemCount, uint32_t initialInstanceId) :
+Item::Item(const uint16_t itemId, uint16_t itemCount, InstanceId initialInstanceId) :
 	id(itemId), instanceId(initialInstanceId) {
 	const ItemType &it = items[id];
 	const auto itemCharges = it.charges;
@@ -352,7 +352,7 @@ Item::Item(const std::shared_ptr<Item> &i) :
 	}
 }
 
-std::shared_ptr<Item> Item::clone(uint32_t targetInstanceId) const {
+std::shared_ptr<Item> Item::clone(InstanceId targetInstanceId) const {
 	const auto &item = Item::CreateItem(id, count, targetInstanceId);
 	if (item == nullptr) {
 		g_logger().error("[{}] item is nullptr", __FUNCTION__);

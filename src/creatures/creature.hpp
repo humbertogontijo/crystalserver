@@ -19,6 +19,7 @@
 
 #include "creatures/creatures_definitions.hpp"
 #include "game/game_definitions.hpp"
+#include "game/instance_id.hpp"
 #include "game/movement/position.hpp"
 #include "items/thing.hpp"
 #include "map/map_const.hpp"
@@ -80,7 +81,7 @@ private:
 
 class Creature : virtual public Thing, public SharedObject {
 protected:
-	explicit Creature(uint32_t initialInstanceId);
+	explicit Creature(InstanceId initialInstanceId);
 
 public:
 	static constexpr double speedA = 857.36;
@@ -151,7 +152,7 @@ public:
 		return canSee(pos);
 	}
 
-	uint32_t getInstanceId() const {
+	InstanceId getInstanceId() const {
 		return instanceId;
 	}
 
@@ -749,7 +750,7 @@ public:
 protected:
 	/** Moves an existing creature (and its summons) between instances. Only
 	 *  Player::moveToInstance calls this; everything else is born with its id. */
-	void setInstanceId(uint32_t id);
+	void setInstanceId(InstanceId id);
 
 	enum FlagAsyncClass_t : uint8_t {
 		AsyncTaskRunning = 1 << 0,
@@ -790,7 +791,7 @@ protected:
 
 	uint64_t lastStep = 0;
 	uint32_t id = 0;
-	uint32_t instanceId = 0;
+	InstanceId instanceId;
 	uint32_t scriptEventsBitField = 0;
 	uint32_t eventWalk = 0;
 	uint32_t walkUpdateTicks = 0;

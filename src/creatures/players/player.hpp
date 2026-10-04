@@ -287,7 +287,7 @@ public:
 		const std::shared_ptr<Player> &player;
 	};
 
-	Player(std::shared_ptr<ProtocolGame> p, uint32_t instanceId);
+	Player(std::shared_ptr<ProtocolGame> p, InstanceId instanceId);
 	~Player() override;
 
 	// non-copyable
@@ -303,7 +303,7 @@ public:
 
 	/** The only way a creature changes instance; summons follow. Carried items keep
 	 *  their id until dropped, where Game adopts them into the mover's instance. */
-	void moveToInstance(uint32_t id) {
+	void moveToInstance(InstanceId id) {
 		setInstanceId(id);
 	}
 

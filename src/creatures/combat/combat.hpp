@@ -344,7 +344,7 @@ private:
 
 class MagicField final : public Item {
 public:
-	MagicField(uint16_t type, uint32_t instanceId);
+	MagicField(uint16_t type, InstanceId instanceId);
 
 	std::shared_ptr<MagicField> getMagicField() override;
 

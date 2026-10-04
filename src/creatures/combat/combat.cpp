@@ -2983,7 +2983,7 @@ void Combat::applyExtensions(const std::shared_ptr<Creature> &caster, const std:
 	}
 }
 
-MagicField::MagicField(uint16_t type, uint32_t instanceId) :
+MagicField::MagicField(uint16_t type, InstanceId instanceId) :
 	Item(type, 0, instanceId), createTime(OTSYS_TIME()) { }
 
 std::shared_ptr<MagicField> MagicField::getMagicField() {

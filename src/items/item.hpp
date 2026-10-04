@@ -22,6 +22,7 @@
 #include "items/functions/item/attribute.hpp"
 #include "items/items.hpp"
 #include "items/thing.hpp"
+#include "game/instance_id.hpp"
 
 class Creature;
 class Player;
@@ -218,20 +219,20 @@ private:
 class Item : virtual public Thing, public ItemProperties, public SharedObject {
 public:
 	// Create a new item batch, it can use custom charges/count and wrappable
-	static std::shared_ptr<Item> createItemBatch(uint16_t itemId, uint32_t count, uint32_t instanceId, bool wrappable = false);
+	static std::shared_ptr<Item> createItemBatch(uint16_t itemId, uint32_t count, InstanceId instanceId, bool wrappable = false);
 	// Factory member to create item of right type based on type. Every item is born
-	// in an instance (0 = open world / shared map layer); there is no setter.
-	static std::shared_ptr<Item> CreateItem(uint16_t type, uint16_t count, uint32_t instanceId, Position* itemPosition = nullptr, bool createWrappableItem = false, bool customCharges = false);
-	static std::shared_ptr<Container> CreateItemAsContainer(uint16_t type, uint16_t size, uint32_t instanceId);
+	// in an instance (InstanceId::World = shared map layer); there is no setter.
+	static std::shared_ptr<Item> CreateItem(uint16_t type, uint16_t count, InstanceId instanceId, Position* itemPosition = nullptr, bool createWrappableItem = false, bool customCharges = false);
+	static std::shared_ptr<Container> CreateItemAsContainer(uint16_t type, uint16_t size, InstanceId instanceId);
 	// OTBM map loader: shared map layer (instance 0).
 	static std::shared_ptr<Item> CreateItem(uint16_t itemId, Position &itemPosition);
 	static Items items;
 
 	// Constructor for items
-	Item(uint16_t type, uint16_t count, uint32_t initialInstanceId);
+	Item(uint16_t type, uint16_t count, InstanceId initialInstanceId);
 	explicit Item(const std::shared_ptr<Item> &i);
 	// Deep copy born in `instanceId`.
-	virtual std::shared_ptr<Item> clone(uint32_t targetInstanceId) const;
+	virtual std::shared_ptr<Item> clone(InstanceId targetInstanceId) const;
 	// Deep copy in the same instance.
 	std::shared_ptr<Item> clone() const {
 		return clone(instanceId);
@@ -667,7 +668,7 @@ public:
 		loadedFromMap = value;
 	}
 
-	uint32_t getInstanceId() const {
+	InstanceId getInstanceId() const {
 		return instanceId;
 	}
 	bool isVisibleInInstance(uint32_t viewerInstanceId) const;
@@ -789,7 +790,7 @@ protected:
 	uint8_t count = 1; // number of stacked items
 
 	bool loadedFromMap = false;
-	uint32_t instanceId = 0;
+	InstanceId instanceId;
 	bool isLootTrackeable = false;
 	bool decayDisabled = false;
 	bool m_hasActor = false;
@@ -799,7 +800,7 @@ private:
 	std::string getWeightDescription(uint32_t weight) const;
 
 	// Game::adoptItemInstance: off-map items (inventory/depot/stash) dropped on a tile.
-	void adoptInstance(uint32_t id) {
+	void adoptInstance(InstanceId id) {
 		instanceId = id;
 	}
 

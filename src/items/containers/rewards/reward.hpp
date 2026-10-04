@@ -21,7 +21,7 @@
 
 class Reward final : public Container {
 public:
-	explicit Reward(uint32_t instanceId);
+	explicit Reward(InstanceId instanceId);
 
 	std::shared_ptr<Reward> getReward() override {
 		return static_self_cast<Reward>();

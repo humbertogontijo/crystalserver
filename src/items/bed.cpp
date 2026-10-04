@@ -26,7 +26,7 @@
 #include "server/network/protocol/protocolgame.hpp"
 #include "creatures/players/player.hpp"
 
-BedItem::BedItem(uint16_t id, uint32_t instanceId) :
+BedItem::BedItem(uint16_t id, InstanceId instanceId) :
 	Item(id, 0, instanceId) {
 	internalRemoveSleeper();
 }
@@ -131,7 +131,7 @@ bool BedItem::canUse(const std::shared_ptr<Player> &player) {
 		return true;
 	}
 
-	const auto sleeper = std::make_shared<Player>(nullptr, 0);
+	const auto sleeper = std::make_shared<Player>(nullptr, InstanceId::World);
 	if (!IOLoginData::loadPlayerById(sleeper, sleeperGUID)) {
 		return false;
 	}
@@ -228,7 +228,7 @@ void BedItem::wakeUp(const std::shared_ptr<Player> &player) {
 
 	if (sleeperGUID != 0) {
 		if (player == nullptr) {
-			auto regenPlayer = std::make_shared<Player>(nullptr, 0);
+			auto regenPlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 			if (IOLoginData::loadPlayerById(regenPlayer, sleeperGUID)) {
 				regeneratePlayer(regenPlayer);
 				g_saveManager().savePlayer(regenPlayer);

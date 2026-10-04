@@ -37,7 +37,7 @@ int32_t Monster::despawnRadius;
 
 uint32_t Monster::monsterAutoID = 0x50000001;
 
-std::shared_ptr<Monster> Monster::createMonster(const std::string &name, uint32_t instanceId) {
+std::shared_ptr<Monster> Monster::createMonster(const std::string &name, InstanceId instanceId) {
 	const auto &mType = g_monsters().getMonsterType(name);
 	if (!mType) {
 		return nullptr;
@@ -45,7 +45,7 @@ std::shared_ptr<Monster> Monster::createMonster(const std::string &name, uint32_
 	return std::make_shared<Monster>(mType, instanceId);
 }
 
-Monster::Monster(const std::shared_ptr<MonsterType> &mType, uint32_t instanceId) :
+Monster::Monster(const std::shared_ptr<MonsterType> &mType, InstanceId instanceId) :
 	Creature(instanceId),
 	nameDescription(asLowerCaseString(mType->nameDescription)),
 	mType(mType) {

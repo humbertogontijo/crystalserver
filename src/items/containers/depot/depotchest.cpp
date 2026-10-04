@@ -19,7 +19,7 @@
 
 #include "utils/tools.hpp"
 
-DepotChest::DepotChest(uint16_t type, uint32_t instanceId) :
+DepotChest::DepotChest(uint16_t type, InstanceId instanceId) :
 	Container(type, instanceId) {
 	maxDepotItems = 2000;
 	maxSize = 32;

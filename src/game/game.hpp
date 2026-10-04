@@ -172,13 +172,13 @@ public:
 	/** Lua InstanceWorld.captureLoginPosition(player) — true if loginPosition was set. */
 	bool tryCaptureLoginPosition(const std::shared_ptr<Player> &player);
 	bool consumeInstanceFenceMessage();
-	/** Instance id of the creature currently in InstanceActorScope (0 if none). */
-	static uint32_t getInstanceActorId();
+	/** Instance of the creature currently in InstanceActorScope (World if none). */
+	static InstanceId getInstanceActorId();
 	/** Instance a new item inside `cylinder` is born in: holder creature/item, else the scoped actor. */
-	static uint32_t getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder);
+	static InstanceId getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder);
 	/** Birth instance for script-created creatures/items: explicit id, else the master /
 	 *  holder, else the creature whose action is running, else the area under `position`. */
-	static uint32_t resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position);
+	static InstanceId resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position);
 
 	uint64_t getLastMapLoadTime() const {
 		return lastMapLoadTime;
@@ -873,7 +873,7 @@ public:
 
 private:
 	/** Off-map items (inventory/depot/stash) landing on a map tile join the mover's instance. */
-	static void adoptItemInstance(const std::shared_ptr<Item> &item, uint32_t instanceId);
+	static void adoptItemInstance(const std::shared_ptr<Item> &item, InstanceId instanceId);
 	bool callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult);
 	std::unordered_map<uint8_t, std::string> m_worldTypesNames;
 

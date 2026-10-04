@@ -242,11 +242,11 @@ InstanceActorScope::~InstanceActorScope() {
 	g_instanceActor = previous;
 }
 
-uint32_t Game::getInstanceActorId() {
-	return g_instanceActor ? g_instanceActor->getInstanceId() : 0;
+InstanceId Game::getInstanceActorId() {
+	return g_instanceActor ? g_instanceActor->getInstanceId() : InstanceId::World;
 }
 
-uint32_t Game::getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder) {
+InstanceId Game::getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder) {
 	if (cylinder) {
 		if (const auto &creature = cylinder->getCreature()) {
 			return creature->getInstanceId();
@@ -258,20 +258,20 @@ uint32_t Game::getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder) 
 	return getInstanceActorId();
 }
 
-uint32_t Game::resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position) {
+InstanceId Game::resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position) {
 	if (explicitId != 0) {
-		return explicitId;
+		return InstanceId(explicitId);
 	}
 	if (master) {
 		return master->getInstanceId();
 	}
-	if (const uint32_t actorId = getInstanceActorId(); actorId != 0) {
+	if (const InstanceId actorId = getInstanceActorId(); !actorId.isWorld()) {
 		return actorId;
 	}
-	return position ? g_instanceFences().instanceForPosition(*position) : 0;
+	return position ? InstanceId(g_instanceFences().instanceForPosition(*position)) : InstanceId::World;
 }
 
-void Game::adoptItemInstance(const std::shared_ptr<Item> &item, uint32_t instanceId) {
+void Game::adoptItemInstance(const std::shared_ptr<Item> &item, InstanceId instanceId) {
 	if (item && item->getInstanceId() != instanceId && !item->isMapTemplateItem()) {
 		item->adoptInstance(instanceId);
 	}
@@ -1503,7 +1503,7 @@ std::shared_ptr<Player> Game::getPlayerByID(uint32_t id, bool allowOffline /* = 
 	if (!allowOffline) {
 		return nullptr;
 	}
-	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
+	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 	if (!IOLoginData::loadPlayerById(tmpPlayer, id)) {
 		return nullptr;
 	}
@@ -1525,7 +1525,7 @@ std::shared_ptr<Player> Game::getMarketPlayerByGUID(uint32_t &guid) {
 		}
 	}
 
-	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
+	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 	if (!IOLoginData::loadPlayerById(tmpPlayer, guid, false)) {
 		return nullptr;
 	}
@@ -1583,7 +1583,7 @@ std::shared_ptr<Player> Game::getPlayerByName(const std::string &s, bool allowOf
 		if (!allowOffline) {
 			return nullptr;
 		}
-		std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
+		std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 		if (!IOLoginData::loadPlayerByName(tmpPlayer, s)) {
 			if (!isNewName) {
 				g_logger().error("Failed to load player {} from database", s);
@@ -1611,7 +1611,7 @@ std::shared_ptr<Player> Game::getPlayerByGUID(const uint32_t &guid, bool allowOf
 	if (!allowOffline) {
 		return nullptr;
 	}
-	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
+	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 	if (!IOLoginData::loadPlayerById(tmpPlayer, guid)) {
 		return nullptr;
 	}
@@ -12638,7 +12638,7 @@ void Game::createLuaItemsOnMap() {
 			continue;
 		}
 
-		const auto &item = Item::CreateItem(itemId, 1, 0);
+		const auto &item = Item::CreateItem(itemId, 1, InstanceId::World);
 		if (!item) {
 			positionStr = position.toString();
 			g_logger().warn("[Game::createLuaItemsOnMap] - Cannot create item with id {} on position {}", itemId, positionStr);
@@ -13206,7 +13206,7 @@ void Game::transferHouseItemsToDepot() {
 	for (const auto &[houseId, playerGuid] : transferHouseItemsToPlayer) {
 		auto house = map.houses.getHouse(houseId);
 		if (house) {
-			auto offlinePlayer = std::make_shared<Player>(nullptr, 0);
+			auto offlinePlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 			if (!IOLoginData::loadPlayerById(offlinePlayer, playerGuid)) {
 				continue;
 			}

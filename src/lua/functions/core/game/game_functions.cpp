@@ -66,7 +66,7 @@ bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position positio
 	// Bind before placeCreature (same pattern as Game.createMonster) so login hooks and
 	// spectators see the private hunt/raid id immediately — no post-place enterInstance race.
 	if (instanceId != 0) {
-		player->moveToInstance(instanceId);
+		player->moveToInstance(InstanceId(instanceId));
 	}
 	// Forced place so headless players can stack near the controller / temple.
 	// onPlacedCreature → playerLogin must see the DB lastLoginSaved — same order as ProtocolGame.
@@ -93,16 +93,16 @@ void reclaimHeadlessPlayer(const std::shared_ptr<Player> &player, Position posit
 	const bool onMap = tile && !player->isRemoved();
 	if (hasPosition && onMap && player->getPosition() != position) {
 		if (instanceId != 0) {
-			player->moveToInstance(instanceId);
+			player->moveToInstance(InstanceId(instanceId));
 		}
 		g_game().internalTeleport(player, position, true);
 	} else if (hasPosition && !onMap) {
 		if (instanceId != 0) {
-			player->moveToInstance(instanceId);
+			player->moveToInstance(InstanceId(instanceId));
 		}
 		g_game().internalTeleport(player, position, true);
 	} else if (instanceId != 0 && (!onMap || player->getInstanceId() == 0)) {
-		player->moveToInstance(instanceId);
+		player->moveToInstance(InstanceId(instanceId));
 	} else if (instanceId != 0 && onMap && player->getInstanceId() != instanceId) {
 		g_logger().warn(
 			"[Game.headlessLogin] refusing same-tile instance rebind for '{}' ({} → {}); pass a distinct position",
@@ -965,8 +965,8 @@ int GameFunctions::luaGameCreateItem(lua_State* L) {
 		position = Lua::getPosition(L, 3);
 	}
 	// An explicit instanceId (0 included) wins; otherwise inherit from the acting creature / area.
-	const uint32_t instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
-		? Lua::getNumber<uint32_t>(L, 4)
+	const InstanceId instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
+		? InstanceId(Lua::getNumber<uint32_t>(L, 4))
 		: Game::resolveBirthInstance(0, nullptr, position.x != 0 ? &position : nullptr);
 
 	const bool hasTable = itemCount > 1;
@@ -1043,8 +1043,8 @@ int GameFunctions::luaGameCreateContainer(lua_State* L) {
 
 	const bool hasPosition = lua_gettop(L) >= 3 && lua_type(L, 3) != LUA_TNIL;
 	const Position position = hasPosition ? Lua::getPosition(L, 3) : Position();
-	const uint32_t instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
-		? Lua::getNumber<uint32_t>(L, 4)
+	const InstanceId instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
+		? InstanceId(Lua::getNumber<uint32_t>(L, 4))
 		: Game::resolveBirthInstance(0, nullptr, hasPosition ? &position : nullptr);
 	const auto &container = Item::CreateItemAsContainer(id, size, instanceId);
 	if (!container) {
@@ -1364,7 +1364,7 @@ int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
 		return 1;
 	}
 
-	auto player = std::make_shared<Player>(nullptr, 0);
+	auto player = std::make_shared<Player>(nullptr, InstanceId::World);
 	const bool loaded = guid != 0
 		? IOLoginData::loadPlayerById(player, guid, false)
 		: IOLoginData::loadPlayerByName(player, name, false);
@@ -1603,7 +1603,7 @@ int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
 		ThreadPool::getInstance().detach_task([results, remaining, r, slot, slotIndex, finishOnDispatcher]() {
 			HeadlessBatchLoadResult out;
 			out.index = slotIndex;
-			auto player = std::make_shared<Player>(nullptr, 0);
+			auto player = std::make_shared<Player>(nullptr, InstanceId::World);
 			const bool loaded = slot.kind == HeadlessBatchSlot::Kind::Guid && slot.guid != 0
 				? IOLoginData::loadPlayerById(player, slot.guid, false)
 				: IOLoginData::loadPlayerByName(player, slot.name, false);
