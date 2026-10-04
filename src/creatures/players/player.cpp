@@ -20,7 +20,6 @@
 #include "account/account.hpp"
 #include "config/configmanager.hpp"
 #include "io/iobountytasks.hpp"
-#include "io/iodailyactivities.hpp"
 #include "io/ioweeklytasks.hpp"
 #include "core.hpp"
 #include "creatures/appearance/mounts/mounts.hpp"
@@ -7049,7 +7048,7 @@ bool Player::onKilledMonster(const std::shared_ptr<Monster> &monster) {
 
 		g_iobountytasks().onCreatureKill(getPlayer(), mType->info.raceid);
 		g_ioweeklytasks().onCreatureKill(getPlayer(), mType->info.raceid);
-		g_iodailyactivities().onCreatureKill(getPlayer(), mType->info.raceid);
+		g_callbacks().executeCallback(EventCallback_t::playerOnKilledMonster, &EventCallback::playerOnKilledMonster, getPlayer(), monster);
 	} else if (monster->getForgeStack() == 40) {
 		addWeaponProficiencyExperience(mType, monster->getMonsterForgeClassification(), true);
 	}
@@ -10647,22 +10646,6 @@ WeeklyTaskData &Player::getWeeklyTaskData() {
 
 const WeeklyTaskData &Player::getWeeklyTaskData() const {
 	return weeklyTaskData;
-}
-
-DailyActivityData &Player::getDailyActivityData() {
-	return dailyActivityData;
-}
-
-const DailyActivityData &Player::getDailyActivityData() const {
-	return dailyActivityData;
-}
-
-uint32_t Player::getDailyActivityStat(const std::string &activityId) {
-	return g_iodailyactivities().getStat(getPlayer(), activityId);
-}
-
-uint32_t Player::addDailyActivityStat(const std::string &activityId, uint32_t delta) {
-	return g_iodailyactivities().addStat(getPlayer(), activityId, delta);
 }
 
 bool Player::hasWeeklyTaskExpansion() const {

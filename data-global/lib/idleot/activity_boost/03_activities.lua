@@ -20,7 +20,7 @@ local function encodeMap(map)
 	return JsonParser.encode(map or {})
 end
 
---- Boost bookkeeping day rollover (XP bank). Counts live in C++ DailyActivityData.
+--- Day rollover for counters, credits and the XP bank.
 local function ensureBoostDay(player)
 	local store = kv(player)
 	if not store then
@@ -31,6 +31,10 @@ local function ensureBoostDay(player)
 	if saved ~= today then
 		store:set("activityDay", today)
 		store:set("credited", "{}")
+		local counts = store:scoped("counts")
+		for _, def in ipairs(ActivityBoostConfig.ACTIVITIES or {}) do
+			counts:remove(def.id)
+		end
 		-- Drop legacy keys from the previous boolean-completion design.
 		store:remove("completed")
 		store:remove("worldBossFragged")
@@ -51,10 +55,23 @@ local function findDef(activityId)
 end
 
 local function getCurrent(player, activityId)
-	if not player or not player.getDailyActivityStat then
+	local store = ensureBoostDay(player)
+	if not store then
 		return 0
 	end
-	return tonumber(player:getDailyActivityStat(tostring(activityId))) or 0
+	return tonumber(store:scoped("counts"):get(tostring(activityId))) or 0
+end
+
+local function addCount(player, activityId, delta)
+	local store = ensureBoostDay(player)
+	if not store then
+		return 0
+	end
+	local counts = store:scoped("counts")
+	local key = tostring(activityId)
+	local current = (tonumber(counts:get(key)) or 0) + delta
+	counts:set(key, current)
+	return current
 end
 
 local function isCredited(player, activityId)
@@ -167,24 +184,51 @@ function ActivityBoostActivities.addProgress(player, activityId, delta)
 	if not player or not activityId or delta <= 0 then
 		return 0
 	end
-	if not player.addDailyActivityStat then
-		return 0
-	end
-	ensureBoostDay(player)
-	local current = player:addDailyActivityStat(tostring(activityId), delta)
+	local current = addCount(player, activityId, delta)
 	ActivityBoostActivities.evaluateCredit(player, activityId)
 	ActivityBoostProtocol.sendState(player)
 	return current
 end
 
---- Called from C++ after daily_hunt kill increments (throttled).
-function ActivityBoostActivities.onStatChanged(player, activityId)
-	if not player then
+local bestiaryRaces
+local lastProgressNotify = {}
+local PROGRESS_NOTIFY_THROTTLE_MS = 1500
+
+-- Same filter as the weekly task "any creature" kill.
+local function countsForDailyHunt(monster)
+	local mType = monster:getType()
+	if not mType or mType:experience() <= 0 or not mType:isPreyable() or mType:isPreyExclusive() then
+		return false
+	end
+	if not bestiaryRaces then
+		bestiaryRaces = {}
+		for _, raceId in ipairs(Game.getBestiaryList()) do
+			bestiaryRaces[raceId] = true
+		end
+	end
+	return bestiaryRaces[mType:raceId()] == true
+end
+
+--- playerOnKilledMonster: credited bestiary kill (not summoned, not soul pit).
+function ActivityBoostActivities.onKilledMonster(player, monster)
+	if not player or not monster or not countsForDailyHunt(monster) then
 		return
 	end
-	ensureBoostDay(player)
-	ActivityBoostActivities.evaluateCredit(player, activityId)
+	local def = findDef("daily_hunt")
+	local current = addCount(player, "daily_hunt", 1)
+	local now = systemTime()
+	local playerId = player:getId()
+	local reachedGoal = def and current == (tonumber(def.goal) or 1)
+	if not reachedGoal and now - (lastProgressNotify[playerId] or 0) < PROGRESS_NOTIFY_THROTTLE_MS then
+		return
+	end
+	lastProgressNotify[playerId] = now
+	ActivityBoostActivities.evaluateCredit(player, "daily_hunt")
 	ActivityBoostProtocol.sendProgress(player)
+end
+
+function ActivityBoostActivities.onLogout(player)
+	lastProgressNotify[player:getId()] = nil
 end
 
 function ActivityBoostActivities.onServerSave()

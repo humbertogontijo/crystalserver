@@ -404,7 +404,9 @@ bool ConfigManager::load() {
 	loadIntConfig(L, SQL_PORT, "mysqlPort", 3306);
 	loadIntConfig(L, STAIRHOP_DELAY, "stairJumpExhaustion", 2000);
 	loadIntConfig(L, STAMINA_GREEN_DELAY, "staminaGreenDelay", 5);
+	loadIntConfig(L, STAMINA_GREEN_THRESHOLD, "staminaGreenThreshold", 2340);
 	loadIntConfig(L, STAMINA_ORANGE_DELAY, "staminaOrangeDelay", 1);
+	loadIntConfig(L, STAMINA_PENALTY_THRESHOLD, "staminaPenaltyThreshold", 840);
 	loadIntConfig(L, STAMINA_PZ_GAIN, "staminaPzGain", 1);
 	loadIntConfig(L, STAMINA_REGEN_MINUTE, "timeToRegenMinuteStamina", 3 * 60);
 	loadIntConfig(L, STAMINA_REGEN_PREMIUM, "timeToRegenMinutePremiumStamina", 6 * 60);

@@ -109,8 +109,6 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "getSoulsealsPoints", PlayerFunctions::luaPlayerGetSoulsealsPoints);
 	Lua::registerMethod(L, "Player", "addSoulsealsPoints", PlayerFunctions::luaPlayerAddSoulsealsPoints);
 	Lua::registerMethod(L, "Player", "removeSoulsealsPoints", PlayerFunctions::luaPlayerRemoveSoulsealsPoints);
-	Lua::registerMethod(L, "Player", "getDailyActivityStat", PlayerFunctions::luaPlayerGetDailyActivityStat);
-	Lua::registerMethod(L, "Player", "addDailyActivityStat", PlayerFunctions::luaPlayerAddDailyActivityStat);
 
 	// Task Board send functions
 	Lua::registerMethod(L, "Player", "sendBountyTaskData", PlayerFunctions::luaPlayersendBountyTaskData);
@@ -1305,33 +1303,6 @@ int PlayerFunctions::luaPlayerRemoveSoulsealsPoints(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerGetDailyActivityStat(lua_State* L) {
-	// player:getDailyActivityStat(activityId)
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (player == nullptr) {
-		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
-		lua_pushnil(L);
-		return 1;
-	}
-	const auto activityId = Lua::getString(L, 2);
-	lua_pushnumber(L, static_cast<lua_Number>(player->getDailyActivityStat(activityId)));
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerAddDailyActivityStat(lua_State* L) {
-	// player:addDailyActivityStat(activityId[, delta = 1])
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (player == nullptr) {
-		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
-		lua_pushnil(L);
-		return 1;
-	}
-	const auto activityId = Lua::getString(L, 2);
-	const auto delta = Lua::getNumber<uint32_t>(L, 3, 1);
-	lua_pushnumber(L, static_cast<lua_Number>(player->addDailyActivityStat(activityId, delta)));
 	return 1;
 }
 

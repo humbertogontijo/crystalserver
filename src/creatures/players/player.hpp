@@ -31,7 +31,6 @@
 #include "creatures/players/attached_effects/player_attached_effects.hpp"
 
 #include "io/iobountytasks.hpp"
-#include "io/iodailyactivities.hpp"
 #include "io/ioweeklytasks.hpp"
 
 class AnimusMastery;
@@ -1566,12 +1565,6 @@ public:
 	WeeklyTaskData &getWeeklyTaskData();
 	const WeeklyTaskData &getWeeklyTaskData() const;
 
-	DailyActivityData &getDailyActivityData();
-	const DailyActivityData &getDailyActivityData() const;
-
-	uint32_t getDailyActivityStat(const std::string &activityId);
-	uint32_t addDailyActivityStat(const std::string &activityId, uint32_t delta);
-
 	bool hasWeeklyTaskExpansion() const;
 	void setWeeklyTaskExpansion(bool onOff);
 
@@ -1985,7 +1978,6 @@ private:
 
 	BountyTaskData bountyTaskData;
 	WeeklyTaskData weeklyTaskData;
-	DailyActivityData dailyActivityData;
 	bool weeklyTaskExpansion = false;
 
 	GuildWarVector guildWarVector;

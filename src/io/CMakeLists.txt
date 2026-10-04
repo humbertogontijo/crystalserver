@@ -5,7 +5,6 @@ target_sources(${PROJECT_NAME}_lib PRIVATE
     iobestiary.cpp
     io_bosstiary.cpp
     iobountytasks.cpp
-    iodailyactivities.cpp
     ioguild.cpp
     iologindata.cpp
     functions/iologindata_load_player.cpp

@@ -6,6 +6,7 @@ local loginEvent = CreatureEvent("ActivityBoostLogin")
 
 function loginEvent.onLogin(player)
 	player:registerEvent("ActivityBoostOpcode")
+	player:registerEvent("ActivityBoostLogout")
 	pcall(ActivityBoostActivities.onLogin, player)
 	addEvent(function()
 		local p = Player(player:getId())
@@ -17,6 +18,23 @@ function loginEvent.onLogin(player)
 end
 
 loginEvent:register()
+
+local logoutEvent = CreatureEvent("ActivityBoostLogout")
+
+function logoutEvent.onLogout(player)
+	ActivityBoostActivities.onLogout(player)
+	return true
+end
+
+logoutEvent:register()
+
+local killCallback = EventCallback("ActivityBoostDailyHuntKill")
+
+function killCallback.playerOnKilledMonster(player, monster)
+	ActivityBoostActivities.onKilledMonster(player, monster)
+end
+
+killCallback:register()
 
 local opcodeEvent = CreatureEvent("ActivityBoostOpcode")
 

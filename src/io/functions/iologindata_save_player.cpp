@@ -24,7 +24,6 @@
 #include "game/game.hpp"
 #include "game/scheduling/save_manager.hpp"
 #include "io/ioprey.hpp"
-#include "io/iodailyactivities.hpp"
 #include "io/ioweeklytasks.hpp"
 #include "items/containers/depot/depotchest.hpp"
 #include "items/containers/inbox/inbox.hpp"
@@ -1016,10 +1015,6 @@ bool IOLoginDataSave::savePlayerWeeklyTasks(const std::shared_ptr<Player> &playe
 	}
 
 	return true;
-}
-
-bool IOLoginDataSave::savePlayerDailyActivities(const std::shared_ptr<Player> &player) {
-	return g_iodailyactivities().save(player);
 }
 
 bool IOLoginDataSave::savePlayerForgeHistory(const std::shared_ptr<Player> &player) {

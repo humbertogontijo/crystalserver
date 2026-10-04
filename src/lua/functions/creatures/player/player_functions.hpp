@@ -83,8 +83,6 @@ class PlayerFunctions {
 	static int luaPlayerGetSoulsealsPoints(lua_State* L);
 	static int luaPlayerAddSoulsealsPoints(lua_State* L);
 	static int luaPlayerRemoveSoulsealsPoints(lua_State* L);
-	static int luaPlayerGetDailyActivityStat(lua_State* L);
-	static int luaPlayerAddDailyActivityStat(lua_State* L);
 
 	// Task Board send functions (Lua → protocol)
 	static int luaPlayersendBountyTaskData(lua_State* L);

@@ -38,7 +38,6 @@ public:
 	static bool savePlayerTaskHuntingClass(const std::shared_ptr<Player> &player);
 	static bool savePlayerBountyTasks(const std::shared_ptr<Player> &player);
 	static bool savePlayerWeeklyTasks(const std::shared_ptr<Player> &player);
-	static bool savePlayerDailyActivities(const std::shared_ptr<Player> &player);
 	static bool savePlayerForgeHistory(const std::shared_ptr<Player> &player);
 	static bool savePlayerBosstiary(const std::shared_ptr<Player> &player);
 	static bool savePlayerStorage(const std::shared_ptr<Player> &player);
