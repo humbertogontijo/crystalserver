@@ -1889,6 +1889,22 @@
       "meanElementPercent": 0,
       "speed": 280
     },
+    "Enusat the Onyx Wing": {
+      "creatureId": 2106,
+      "hp": 25000,
+      "exp": 21500,
+      "combatPower": 2954.37,
+      "levelMin": 110,
+      "recommendedLevel": 180,
+      "isBoss": true,
+      "expectedDps": 325,
+      "expectedHealDps": 0,
+      "armor": 78,
+      "defense": 78,
+      "mitigation": 2.16,
+      "meanElementPercent": 0,
+      "speed": 150
+    },
     "Parrot": {
       "creatureId": 217,
       "hp": 25,
@@ -43890,6 +43906,22 @@
       "mitigation": 0,
       "meanElementPercent": 1.4285714285714286,
       "speed": 115
+    },
+    "2106": {
+      "creatureId": 2106,
+      "hp": 25000,
+      "exp": 21500,
+      "combatPower": 2954.37,
+      "levelMin": 110,
+      "recommendedLevel": 180,
+      "isBoss": true,
+      "expectedDps": 325,
+      "expectedHealDps": 0,
+      "armor": 78,
+      "defense": 78,
+      "mitigation": 2.16,
+      "meanElementPercent": 0,
+      "speed": 150
     },
     "2107": {
       "creatureId": 2107,
