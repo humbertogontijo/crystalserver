@@ -17,7 +17,7 @@ EchoWarden.SUBAREA_ARM_TTL_MS = 120000 -- how long an instance-0 arm stays on th
 EchoWarden.SUBAREA_INTERVAL_MIN_MS = 25 * 60 * 1000
 EchoWarden.SUBAREA_INTERVAL_MAX_MS = 35 * 60 * 1000
 
--- Corpse portal chance (prod CIP-ish rare arm). Testing previously used 10000.
+-- Corpse portal chance (prod CIP-ish rare arm).
 EchoWarden.SPAWN_CHANCE_NUM = 100
 EchoWarden.SPAWN_CHANCE_DEN = 200000
 
@@ -115,12 +115,12 @@ function EchoWarden.trackRaidCreature(m, raidToken)
 	if m.registerEvent then
 		m:registerEvent("EchoWardenEmpowerDodge")
 	end
-	-- Same bind as expedition wave spawns when inside a private hunt shard.
+	-- Same bind as ExpeditionPack instance spawns when inside a private hunt shard.
 	EchoWarden.applyExpeditionMonsterBind(m)
 end
 
---- Match ExpeditionWaves.onInstanceMonsterSpawn: never flee + hazard flags; the lure
---- hunt pins the raid monster on the anchor (never released like map spawns).
+--- Match ExpeditionPack.onInstanceMonsterSpawn: never flee + hazard flags; the raid
+--- monster has no spawn, so its home is where the anchor stands when it appears.
 function EchoWarden.applyExpeditionMonsterBind(m)
 	if not m then
 		return
@@ -138,10 +138,6 @@ function EchoWarden.applyExpeditionMonsterBind(m)
 	end
 	if ExpeditionDifficulty and ExpeditionDifficulty.flagMonster then
 		ExpeditionDifficulty.flagMonster(m, session)
-	end
-	if ExpeditionWaves and ExpeditionWaves.adoptMonster and session.spawnsCreated then
-		ExpeditionWaves.adoptMonster(session, m)
-		return
 	end
 	local anchor = ExpeditionConfig and ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
 	local home = (anchor and anchor:getPosition()) or session.holdPos or (session.instance and session.instance.entry)

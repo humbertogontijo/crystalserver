@@ -758,40 +758,53 @@ void IOLoginDataLoad::loadAccountLootPouch(const std::shared_ptr<Player> &player
 		if (!other || other.get() == player.get() || other->getAccountId() != accountId) {
 			continue;
 		}
-		if (const auto &shared = other->getAccountLootPouchState()) {
-			player->setAccountLootPouchState(shared);
+		if (const auto &shared = other->getAccountLootPouch()) {
+			player->setAccountLootPouch(shared);
 			return;
 		}
 	}
 
-	auto state = std::make_shared<AccountLootPouchState>();
-	const auto &created = Item::CreateItem(ITEM_GOLD_POUCH, 1, player->getInstanceId());
-	state->view = created ? created->getContainer() : nullptr;
-	if (!state->view) {
+	const auto &pouch = player->getLootPouch();
+	if (!pouch) {
 		g_logger().error("[{}] - Failed to create account loot pouch for account {}", __FUNCTION__, accountId);
 		return;
 	}
-	// Distinct from leftover character "gold pouch" (same client id) for OTC exact counts.
-	state->view->setAttribute(ItemAttribute_t::NAME, "Loot Pouch");
-	player->setAccountLootPouchState(state);
 
-	auto query = fmt::format(
-		"SELECT `item_id`, `item_count` FROM `account_loot_pouch_items` WHERE `account_id` = {}",
-		accountId
-	);
+	// pid 0 = direct pouch child; otherwise the sid of the parent container (same layout as player_items).
+	auto query = fmt::format("SELECT pid, sid, itemtype, count, attributes FROM account_loot_pouch_items WHERE account_id = {} ORDER BY sid DESC", accountId);
 	DBResult_ptr result = g_database().storeQuery(query);
-	if (result) {
-		do {
-			const auto itemId = result->getNumber<uint16_t>("item_id");
-			const auto itemCount = result->getNumber<uint32_t>("item_count");
-			if (itemId != 0 && itemCount != 0) {
-				state->items[itemId] += itemCount;
-			}
-		} while (result->next());
+	if (!result) {
+		return;
 	}
 
-	player->materializeAccountLootPouchView();
-	player->installAccountLootPouchSlot();
+	ItemsMap pouchItems;
+	std::vector<std::shared_ptr<Item>> itemsToStartDecaying;
+	loadItems(pouchItems, result, player);
+	for (auto it = pouchItems.rbegin(), end = pouchItems.rend(); it != end; ++it) {
+		const auto &[item, pid] = it->second;
+		if (!item) {
+			continue;
+		}
+
+		if (pid == 0) {
+			pouch->internalAddThing(item);
+		} else {
+			const auto parentIt = pouchItems.find(pid);
+			if (parentIt == pouchItems.end()) {
+				continue;
+			}
+			const auto &container = parentIt->second.first->getContainer();
+			if (!container) {
+				continue;
+			}
+			container->internalAddThing(item);
+		}
+		itemsToStartDecaying.emplace_back(item);
+	}
+
+	for (const auto &item : itemsToStartDecaying) {
+		item->startDecaying();
+	}
 }
 
 void IOLoginDataLoad::loadPlayerInboxItems(const std::shared_ptr<Player> &player, DBResult_ptr result) {

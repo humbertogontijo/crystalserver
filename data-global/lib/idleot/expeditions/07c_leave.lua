@@ -29,7 +29,7 @@ function ExpeditionManager.leaveAll(session, opts)
 	end
 end
 
---- Delayed leaveAll after victory/failure messaging (boss clear, wave-limited hunts).
+--- Delayed leaveAll after victory/failure messaging (boss clear, Fiendish Hunt).
 --- opts: victory, endMsg, delayMs (defaults to ExpeditionConfig.LOOT_GRACE_MS)
 function ExpeditionManager.scheduleSessionExit(session, opts)
 	opts = opts or {}
@@ -433,7 +433,7 @@ function ExpeditionManager.notifyHuntMemberDeath(deadRef, reason)
 		if not session.pendingHuntDeath then
 			session.pendingHuntDeath = {
 				id = deadRef,
-				name = "Companion",
+				name = "Alt",
 			}
 		end
 	end
@@ -528,7 +528,7 @@ function ExpeditionManager.setHazardLevel(player, hazard)
 		return
 	end
 	-- Host-only (match party control expectations for lure-like knobs).
-	if session.playerId and session.playerId ~= player:getId() and not EM_PRIV.isGodPlayer(player) then
+	if session.playerId and session.playerId ~= player:getId() and not PzTeleport.isGod(player) then
 		ExpeditionProtocol.sendError(player, "Only the expedition host can change hazard level.")
 		return
 	end
@@ -832,8 +832,8 @@ function EM_PRIV.completeLeaveCountdown(sessionKey, initiatorId, initiatorName, 
 		return
 	end
 
-	-- Do not use state=="waiting": waves/boss AI reuse that for post-entry
-	-- intermission. Pre-entry lobby is handled immediately in requestLeave.
+	-- Team stop is decided by human count, not session state ("waiting" also covers
+	-- the boss intermission after entry); the pre-entry lobby is handled in requestLeave.
 	local humanCount = EM_PRIV.countHumanMembers(s)
 	local teamStop = s.kind ~= "raid" and humanCount >= 2
 	local name = initiatorName or "A teammate"
@@ -983,28 +983,24 @@ function ExpeditionManager.requestLeave(player, opts)
 	end
 
 	local sec = math.max(0, math.floor(tonumber(ExpeditionConfig.LEAVE_COUNTDOWN_SEC) or 5))
-	local switchToLegacy = opts.switchTo
-	local goHometownLegacy = goHometown
-
 	if sec <= 0 then
-		EM_PRIV.completeLeaveCountdown(sessionKey, playerId, leaverName, switchToLegacy, { goHometown = goHometownLegacy })
+		EM_PRIV.completeLeaveCountdown(sessionKey, playerId, leaverName, switchTo, { goHometown = goHometown })
 		return
 	end
 
-	-- Team-wide stop only with 2+ humans. state=="waiting" is also wave/boss
-	-- intermission after entry — conflating it made solo stop call
-	-- cancelWaitingSession (no-op when entered) and never eject.
+	-- Team-wide stop only with 2+ humans (not by state: "waiting" also covers the
+	-- boss intermission after entry).
 	local humanCount = EM_PRIV.countHumanMembers(session)
 	local teamStop = session.kind ~= "raid" and humanCount >= 2
 	if teamStop then
 		if EM_PRIV.leavePendingBySessionKey[sessionKey] then
 			-- Allow a newer switch target to replace the pending one.
-			if switchToLegacy then
-				EM_PRIV.leavePendingBySessionKey[sessionKey].switchTo = switchToLegacy
+			if switchTo then
+				EM_PRIV.leavePendingBySessionKey[sessionKey].switchTo = switchTo
 				EM_PRIV.leavePendingBySessionKey[sessionKey].initiatorId = playerId
 				EM_PRIV.leavePendingBySessionKey[sessionKey].initiatorName = leaverName
 			end
-			if goHometownLegacy then
+			if goHometown then
 				EM_PRIV.leavePendingBySessionKey[sessionKey].goHometown = true
 				EM_PRIV.leavePendingBySessionKey[sessionKey].reason = opts.reason
 			end
@@ -1016,11 +1012,11 @@ function ExpeditionManager.requestLeave(player, opts)
 			startedAt = os.time(),
 			sessionKey = sessionKey,
 			team = true,
-			switchTo = switchToLegacy,
+			switchTo = switchTo,
 			initiatorId = playerId,
 			initiatorName = leaverName,
 			reason = opts.reason,
-			goHometown = goHometownLegacy,
+			goHometown = goHometown,
 		}
 		local event = addEvent(function(key, pid)
 			local pending = EM_PRIV.leavePendingBySessionKey[key]
@@ -1050,11 +1046,11 @@ function ExpeditionManager.requestLeave(player, opts)
 
 	EM_PRIV.leavePendingByPlayerId[playerId] = {
 		startedAt = os.time(),
-		switchTo = switchToLegacy,
+		switchTo = switchTo,
 		sessionKey = sessionKey,
 		initiatorName = leaverName,
 		reason = opts.reason,
-		goHometown = goHometownLegacy,
+		goHometown = goHometown,
 	}
 	local event = addEvent(function(pid)
 		local pending = EM_PRIV.leavePendingByPlayerId[pid]

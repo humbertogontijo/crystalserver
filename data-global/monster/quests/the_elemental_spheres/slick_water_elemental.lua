@@ -65,8 +65,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 75938, maxCount = 70 },
-	{ name = "gold coin", chance = 75938, maxCount = 60 },
+	{ name = "gold coin", chance = 22500, maxCount = 70 },
+	{ name = "gold coin", chance = 22500, maxCount = 60 },
 	{ name = "shiver arrow", chance = 3946, maxCount = 3 },
 	{ name = "iced soil", chance = 6000 },
 }
@@ -80,7 +80,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 30,
-	armor = 0,
+	armor = 30,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_HEALING, minDamage = 90, maxDamage = 150, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

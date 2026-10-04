@@ -43,14 +43,14 @@ flankCombat:setParameter(COMBAT_PARAM_TYPE, COMBAT_ENERGYDAMAGE)
 flankCombat:setParameter(COMBAT_PARAM_EFFECT, CONST_ME_ENERGYHIT)
 flankCombat:setArea(createCombatArea({ { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 3, 1 } }))
 
--- Vocation Adjustment: a Master Sorcerer's elemental stance reshapes the beam (element + impact effect).
+-- Vocation Adjustment: a Master Sorcerer's stance conversion reshapes the beam (element + impact effect).
 -- Master of Flames -> fire (eff 329), Master of Decay -> death (eff 330), Thunder/none -> base energy.
 local function applyStanceElement(player)
 	local combatType, effect = COMBAT_ENERGYDAMAGE, CONST_ME_ENERGYHIT
-	local stance = player:getElementalStance()
-	if stance == STANCE_MASTER_OF_FLAMES then
+	local element = player:resolveElementConversion(COMBAT_ENERGYDAMAGE)
+	if element == COMBAT_FIREDAMAGE then
 		combatType, effect = COMBAT_FIREDAMAGE, 329
-	elseif stance == STANCE_MASTER_OF_DECAY then
+	elseif element == COMBAT_DEATHDAMAGE then
 		combatType, effect = COMBAT_DEATHDAMAGE, 330
 	end
 	for _, c in ipairs({ combat, combatWOD, flankCombat }) do

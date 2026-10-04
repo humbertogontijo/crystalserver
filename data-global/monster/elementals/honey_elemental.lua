@@ -94,10 +94,10 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -252 },
-	{ name = "combat", interval = 2000, chance = 17, type = COMBAT_FIREDAMAGE, minDamage = 100, maxDamage = -253, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = false },
-	{ name = "combat", interval = 2000, chance = 17, type = COMBAT_EARTHDAMAGE, minDamage = 100, maxDamage = -175, radius = 4, effect = CONST_ME_YELLOW_RINGS, target = false },
-	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_PHYSICALDAMAGE, minDamage = 100, maxDamage = -300, radius = 4, effect = CONST_ME_POFF, target = false },
-	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_EARTHDAMAGE, minDamage = 100, maxDamage = -275, radius = 3, effect = CONST_ME_STONES, shootEffect = CONST_ANI_LARGEROCK, target = true },
+	{ name = "combat", interval = 2000, chance = 17, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -253, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 17, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -175, radius = 4, effect = CONST_ME_YELLOW_RINGS, target = false },
+	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -300, radius = 4, effect = CONST_ME_POFF, target = false },
+	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -275, radius = 3, effect = CONST_ME_STONES, shootEffect = CONST_ANI_LARGEROCK, target = true },
 }
 
 monster.defenses = {

@@ -81,8 +81,8 @@ monster.loot = {
 	{ id = 239, chance = 17391, maxCount = 4 }, -- great health potion
 	{ id = 6299, chance = 8696 }, -- death ring
 	{ id = 3383, chance = 29000 }, -- dark armor
-	{ id = 3031, chance = 100000, maxCount = 100 }, -- gold coin
-	{ id = 3031, chance = 100000, maxCount = 100 }, -- gold coin
+	{ id = 3031, chance = 29000, maxCount = 100 }, -- gold coin
+	{ id = 3031, chance = 29000, maxCount = 100 }, -- gold coin
 	{ id = 3035, chance = 43478, maxCount = 8 }, -- platinum coin
 	{ id = 6499, chance = 95652, maxCount = 4 }, -- demonic essence
 	{ id = 6546, chance = 100000 }, -- dracola's eye
@@ -103,7 +103,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 39,
-	armor = 0,
+	armor = 40,
 	--	mitigation = ???,
 	{ name = "combat", interval = 4000, chance = 10, type = COMBAT_HEALING, minDamage = 500, maxDamage = 1000, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

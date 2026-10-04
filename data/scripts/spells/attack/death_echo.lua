@@ -3,7 +3,7 @@
 -- delay the SAME area is struck again for 50% of the initial damage.
 -- Crosshair / target mode: needPosition(true) + setArea, the server resolves the
 -- target position (modeled on divine_grenade.lua's position-variant recast).
--- A Master Sorcerer's elemental stance reshapes it: Master of Flames -> fire (eff 323),
+-- A Master Sorcerer's stance conversion reshapes it: Master of Flames -> fire (eff 323),
 -- Master of Thunder -> energy (eff 322), Decay/none -> base death (eff 321). The echo
 -- keeps the element chosen at cast time (passed through addEvent).
 
@@ -45,12 +45,12 @@ combatEcho:setParameter(COMBAT_PARAM_EFFECT, 321)
 combatEcho:setArea(createCombatArea(DEATH_ECHO_AREA))
 combatEcho:setCallback(CALLBACK_PARAM_LEVELMAGICVALUE, "onGetDeathEchoEchoValues")
 
--- Vocation Adjustment: pick element (type + impact effect) from the caster's active elemental stance.
+-- Vocation Adjustment: pick element (type + impact effect) from the caster's stance conversion.
 local function elementForStance(player)
-	local stance = player:getElementalStance()
-	if stance == STANCE_MASTER_OF_FLAMES then
+	local element = player:resolveElementConversion(COMBAT_DEATHDAMAGE)
+	if element == COMBAT_FIREDAMAGE then
 		return COMBAT_FIREDAMAGE, 323
-	elseif stance == STANCE_MASTER_OF_THUNDER then
+	elseif element == COMBAT_ENERGYDAMAGE then
 		return COMBAT_ENERGYDAMAGE, 322
 	end
 	return COMBAT_DEATHDAMAGE, 321

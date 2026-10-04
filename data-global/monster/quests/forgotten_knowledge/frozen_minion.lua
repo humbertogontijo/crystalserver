@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Frozen Minion")
 local monster = {}
 
 monster.description = "a frozen minion"
-monster.experience = 0
+monster.experience = 230
 monster.outfit = {
 	lookType = 53,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 2200
+monster.maxHealth = 2200
 monster.race = "blood"
 monster.corpse = 5998
 monster.speed = 100
@@ -70,7 +70,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 9,
-	armor = 0,
+	armor = 7,
 	mitigation = 0.30,
 	{ name = "frozen minion heal", interval = 2000, chance = 15, target = false },
 }

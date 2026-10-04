@@ -78,8 +78,8 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "small sapphire", chance = 9654, maxCount = 3 },
-	{ name = "gold coin", chance = 90952, maxCount = 80 },
-	{ name = "gold coin", chance = 90952, maxCount = 80 },
+	{ name = "gold coin", chance = 50000, maxCount = 80 },
+	{ name = "gold coin", chance = 50000, maxCount = 80 },
 	{ name = "blue gem", chance = 866 },
 	{ id = 3051, chance = 4762 }, -- energy ring
 	{ name = "mind stone", chance = 1500 },
@@ -101,7 +101,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 25,
-	armor = 0,
+	armor = 25,
 	{ name = "combat", interval = 1000, chance = 25, type = COMBAT_HEALING, minDamage = 100, maxDamage = 200, effect = CONST_ME_MAGIC_BLUE, target = false },
 }
 

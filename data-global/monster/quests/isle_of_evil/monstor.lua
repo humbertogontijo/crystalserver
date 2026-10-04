@@ -89,7 +89,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 15,
-	armor = 0,
+	armor = 15,
 	mitigation = 0.50,
 	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_HEALING, minDamage = 90, maxDamage = 200, effect = CONST_ME_HITBYFIRE, target = false },
 }

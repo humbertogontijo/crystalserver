@@ -146,6 +146,10 @@ public:
 
 	virtual bool canSee(const Position &pos);
 	virtual bool canSeeCreature(const std::shared_ptr<Creature> &creature) const;
+	/// Whether a creature already targeted / followed at pos is still kept (default: canSee).
+	virtual bool canKeepTarget(const Position &pos) {
+		return canSee(pos);
+	}
 
 	uint32_t getInstanceId() const {
 		return instanceId;

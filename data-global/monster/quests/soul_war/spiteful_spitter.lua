@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Spiteful Spitter")
 local monster = {}
 
 monster.description = "a spiteful spitter"
-monster.experience = 0
+monster.experience = 24960
 monster.outfit = {
 	lookType = 1295,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 28000
+monster.maxHealth = 28000
 monster.race = "undead"
 monster.corpse = 0
 monster.speed = 125
@@ -75,7 +75,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 90,
-	armor = 0,
+	armor = 107,
 	--	mitigation = ???,
 }
 

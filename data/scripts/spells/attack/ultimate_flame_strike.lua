@@ -50,10 +50,10 @@ local spell = Spell("instant")
 function spell.onCastSpell(creature, var)
 	local player = creature:getPlayer()
 	if player then
-		local stance = player:getElementalStance()
-		if stance == STANCE_MASTER_OF_THUNDER then
+		local element = player:resolveElementConversion(COMBAT_FIREDAMAGE)
+		if element == COMBAT_ENERGYDAMAGE then
 			return combatThunder:execute(creature, var)
-		elseif stance == STANCE_MASTER_OF_DECAY then
+		elseif element == COMBAT_DEATHDAMAGE then
 			return combatDecay:execute(creature, var)
 		end
 	end

@@ -64,14 +64,19 @@ function ExpeditionPersist.snapshotFromSession(session)
 	end
 
 	local hostGuid = session.guid or 0
-	if hostGuid <= 0 and session.playerId then
-		local host = Player(session.playerId)
-		if host then
-			hostGuid = host:getGuid()
-		end
+	local host = session.playerId and Player(session.playerId) or nil
+	if hostGuid <= 0 and host then
+		hostGuid = host:getGuid()
 	end
 	if hostGuid <= 0 then
 		return nil
+	end
+	local accountId = 0
+	if host and host:getGuid() == hostGuid then
+		accountId = host:getAccountId()
+	else
+		local offline = Game.getOfflinePlayer and Game.getOfflinePlayer(hostGuid)
+		accountId = offline and offline:getAccountId() or 0
 	end
 
 	local humanGuids = {}
@@ -93,12 +98,15 @@ function ExpeditionPersist.snapshotFromSession(session)
 	end
 
 	return {
-		sessionKey = ExpeditionPersist.sessionKeyFromHostGuid(hostGuid),
+		-- session.key is fixed at creation; the host (session.guid) changes when the leader leaves.
+		sessionKey = session.key or ExpeditionPersist.sessionKeyFromHostGuid(hostGuid),
+		accountId = accountId,
 		catalogId = catalog.id,
 		catalogRole = catalog.role or "monster",
 		lure = session.lure,
 		lureMax = session.lureMax,
-		wave = tonumber(session.wave) or 0,
+		forceFiendishCreatureId = session.forceFiendishCreatureId,
+		skipOpenWorldForge = session.skipOpenWorldForge == true,
 		hazardLevel = session.hazardLevel,
 		hazardMax = session.hazardMax,
 		stopOnInsufficientGold = session.stopOnInsufficientGold == true,
@@ -161,6 +169,69 @@ local function unindexSnapshot(snapshot)
 	end
 end
 
+local function snapshotGuidSet(snapshot)
+	local set = {}
+	local host = math.floor(tonumber(snapshot.hostGuid) or 0)
+	if host > 0 then
+		set[host] = true
+	end
+	for _, guid in ipairs(snapshot.humanGuids or {}) do
+		local g = math.floor(tonumber(guid) or 0)
+		if g > 0 then
+			set[g] = true
+		end
+	end
+	return set
+end
+
+local function snapshotAccountId(snapshot)
+	local accountId = math.floor(tonumber(snapshot.accountId) or 0)
+	if accountId > 0 then
+		return accountId
+	end
+	local offline = Game.getOfflinePlayer and Game.getOfflinePlayer(math.floor(tonumber(snapshot.hostGuid) or 0))
+	accountId = offline and offline:getAccountId() or 0
+	snapshot.accountId = accountId
+	return accountId
+end
+
+--- Restoring deploys the whole account team, so two snapshots for one account (or sharing
+--- a member) would fight over the same characters on boot.
+local function snapshotsConflict(a, b)
+	local accountA = snapshotAccountId(a)
+	if accountA > 0 and accountA == snapshotAccountId(b) then
+		return true
+	end
+	local guidsA = snapshotGuidSet(a)
+	for guid in pairs(snapshotGuidSet(b)) do
+		if guidsA[guid] then
+			return true
+		end
+	end
+	return false
+end
+
+local function discardSnapshot(store, stale, keeper)
+	if store and stale.sessionKey then
+		store:remove(stale.sessionKey)
+	end
+	local keep = keeper and snapshotGuidSet(keeper) or {}
+	for _, guid in ipairs(stale.humanGuids or {}) do
+		if not keep[math.floor(tonumber(guid) or 0)] then
+			setMemberPointer(guid, nil)
+		end
+	end
+	unindexSnapshot(stale)
+	if keeper then
+		indexSnapshot(keeper)
+	end
+	logger.info(
+		"[ExpeditionPersist] dropped stale hunt {} (superseded by {})",
+		tostring(stale.sessionKey),
+		tostring(keeper and keeper.sessionKey or "-")
+	)
+end
+
 function ExpeditionPersist.writeSession(session)
 	local snapshot = ExpeditionPersist.snapshotFromSession(session)
 	if not snapshot then
@@ -175,6 +246,12 @@ function ExpeditionPersist.writeSession(session)
 	local encoded = JsonParser.encode(snapshot)
 	if not encoded then
 		return false
+	end
+
+	for key, other in pairs(pendingByKey) do
+		if key ~= snapshot.sessionKey and not ExpeditionManager.getSessionByKey(key) and snapshotsConflict(snapshot, other) then
+			discardSnapshot(store, other, nil)
+		end
 	end
 
 	store:set(snapshot.sessionKey, encoded)
@@ -236,12 +313,12 @@ function ExpeditionPersist.loadAll()
 
 	local ttl = ExpeditionConfig.HUNT_RESTORE_TTL_SEC or (7 * 24 * 3600)
 	local now = os.time()
-	local loaded = 0
 	local keys = store:keys("")
 	if type(keys) ~= "table" then
 		return 0
 	end
 
+	local candidates = {}
 	for _, key in ipairs(keys) do
 		local raw = store:get(key)
 		if type(raw) == "string" and raw ~= "" then
@@ -252,14 +329,44 @@ function ExpeditionPersist.loadAll()
 				if ttl > 0 and savedAt > 0 and now - savedAt > ttl then
 					store:remove(key)
 				else
-					indexSnapshot(snapshot)
-					loaded = loaded + 1
+					candidates[#candidates + 1] = snapshot
 				end
 			else
 				store:remove(key)
 			end
 		end
 	end
+
+	-- Newest first so the hunt that was live at shutdown wins over stale duplicates.
+	table.sort(candidates, function(a, b)
+		local sa, sb = tonumber(a.savedAt) or 0, tonumber(b.savedAt) or 0
+		if sa ~= sb then
+			return sa > sb
+		end
+		local na, nb = #(a.humanGuids or {}), #(b.humanGuids or {})
+		if na ~= nb then
+			return na > nb
+		end
+		return tostring(a.sessionKey) < tostring(b.sessionKey)
+	end)
+
+	local kept = {}
+	for _, snapshot in ipairs(candidates) do
+		local keeper = nil
+		for _, k in ipairs(kept) do
+			if snapshotsConflict(k, snapshot) then
+				keeper = k
+				break
+			end
+		end
+		if keeper then
+			discardSnapshot(store, snapshot, keeper)
+		else
+			kept[#kept + 1] = snapshot
+			indexSnapshot(snapshot)
+		end
+	end
+	local loaded = #kept
 
 	logger.info("[ExpeditionPersist] loaded {} pending hunt(s)", loaded)
 	return loaded

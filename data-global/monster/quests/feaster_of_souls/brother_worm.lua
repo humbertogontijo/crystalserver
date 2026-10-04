@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Brother Worm")
 local monster = {}
 
 monster.description = "Brother Worm"
-monster.experience = 0
+monster.experience = 30000
 monster.outfit = {
 	lookType = 295,
 	lookHead = 0,
@@ -74,13 +74,13 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 600, maxDamage = -800, condition = { type = CONDITION_POISON, totalDamage = 4, interval = 4000 } },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -600, maxDamage = -800, condition = { type = CONDITION_POISON, totalDamage = 4, interval = 4000 } },
 	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_EARTHDAMAGE, minDamage = -1125, maxDamage = -2250, radius = 6, effect = CONST_ME_CARNIPHILA, target = false },
 }
 
 monster.defenses = {
 	defense = 15,
-	armor = 0,
+	armor = 10,
 	--	mitigation = ???,
 	{ name = "speed", interval = 10000, chance = 40, speedChange = 510, effect = CONST_ME_MAGIC_GREEN, target = false, duration = 20000 },
 	{ name = "combat", interval = 2000, chance = 60, type = COMBAT_HEALING, minDamage = 350, maxDamage = 600, effect = CONST_ME_MAGIC_BLUE, target = false },

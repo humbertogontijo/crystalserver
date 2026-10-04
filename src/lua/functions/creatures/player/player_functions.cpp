@@ -160,6 +160,7 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "clearWalkTask", PlayerFunctions::luaPlayerClearWalkTask);
 	Lua::registerMethod(L, "Player", "isHeadless", PlayerFunctions::luaPlayerIsHeadless);
 	Lua::registerMethod(L, "Player", "setHeadless", PlayerFunctions::luaPlayerSetHeadless);
+	Lua::registerMethod(L, "Player", "switchClientTo", PlayerFunctions::luaPlayerSwitchClientTo);
 	Lua::registerMethod(L, "Player", "isInSafeInstance", PlayerFunctions::luaPlayerIsInSafeInstance);
 
 	Lua::registerMethod(L, "Player", "getFreeCapacity", PlayerFunctions::luaPlayerGetFreeCapacity);
@@ -550,6 +551,7 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "setStance", PlayerFunctions::luaPlayerSetStance);
 	Lua::registerMethod(L, "Player", "getElementalStance", PlayerFunctions::luaPlayerGetElementalStance);
 	Lua::registerMethod(L, "Player", "setElementalStance", PlayerFunctions::luaPlayerSetElementalStance);
+	Lua::registerMethod(L, "Player", "resolveElementConversion", PlayerFunctions::luaPlayerResolveElementConversion);
 
 	Lua::registerMethod(L, "Player", "applyImbuementScrollToItem", PlayerFunctions::luaPlayerApplyImbuementScrollToItem);
 	Lua::registerMethod(L, "Player", "onClearAllImbuementsOnEtcher", PlayerFunctions::luaPlayerOnClearAllImbuementsOnEtcher);
@@ -1637,6 +1639,19 @@ int PlayerFunctions::luaPlayerSetHeadless(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSwitchClientTo(lua_State* L) {
+	// player:switchClientTo(target)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	const auto &target = Lua::getUserdataShared<Player>(L, 2);
+	if (!player || !target) {
+		Lua::pushBoolean(L, false);
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		return 1;
+	}
+	Lua::pushBoolean(L, player->switchClientTo(target));
 	return 1;
 }
 
@@ -4844,8 +4859,9 @@ int PlayerFunctions::luaPlayerCanCastSpell(lua_State* L) {
 }
 
 int PlayerFunctions::luaPlayerCastRune(lua_State* L) {
-	// player:castRune(runeItemId[, target])
+	// player:castRune(runeItemId[, target | position])
 	// Runs the registered rune script on the target (real Combat area/effects/cooldowns).
+	// A position aims area runes at that tile (range / sight still checked by the rune).
 	// Does not consume an inventory rune — callers charge supplies separately.
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (!player) {
@@ -4866,14 +4882,24 @@ int PlayerFunctions::luaPlayerCastRune(lua_State* L) {
 	}
 
 	std::shared_ptr<Creature> targetCreature;
-	if (lua_gettop(L) >= 3 && !Lua::isNil(L, 3)) {
-		targetCreature = Lua::getCreature(L, 3);
+	Position toPos;
+	if (lua_gettop(L) >= 3 && Lua::isTable(L, 3)) {
+		toPos = Lua::getPosition(L, 3);
+		if (toPos.z != player->getPosition().z) {
+			Lua::pushBoolean(L, false);
+			return 1;
+		}
 	} else {
-		targetCreature = player->getAttackedCreature();
-	}
-	if (!targetCreature || targetCreature->isRemoved() || targetCreature->getHealth() <= 0) {
-		Lua::pushBoolean(L, false);
-		return 1;
+		if (lua_gettop(L) >= 3 && !Lua::isNil(L, 3)) {
+			targetCreature = Lua::getCreature(L, 3);
+		} else {
+			targetCreature = player->getAttackedCreature();
+		}
+		if (!targetCreature || targetCreature->isRemoved() || targetCreature->getHealth() <= 0) {
+			Lua::pushBoolean(L, false);
+			return 1;
+		}
+		toPos = targetCreature->getPosition();
 	}
 
 	const auto item = Item::CreateItem(rune->getRuneItemId(), 1, player->getInstanceId());
@@ -4883,7 +4909,6 @@ int PlayerFunctions::luaPlayerCastRune(lua_State* L) {
 	}
 
 	const Position &fromPos = player->getPosition();
-	const Position &toPos = targetCreature->getPosition();
 	// Unbound item: charge decrement in executeUse no-ops (no parent cylinder).
 	InstanceActorScope instanceActorScope(player);
 	Lua::pushBoolean(L, rune->executeUse(player, item, fromPos, targetCreature, toPos, false));
@@ -6609,6 +6634,19 @@ int PlayerFunctions::luaPlayerSetElementalStance(lua_State* L) {
 	const bool result = player->setElementalStance(stance);
 	player->persistStances(); // Vocation Adjustment: persist active stances across sessions
 	lua_pushboolean(L, result);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerResolveElementConversion(lua_State* L) {
+	// player:resolveElementConversion(nativeCombatType)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto nativeType = Lua::getNumber<CombatType_t>(L, 2);
+	lua_pushnumber(L, static_cast<lua_Number>(player->resolveElementCast(nativeType)));
 	return 1;
 }
 

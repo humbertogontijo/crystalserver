@@ -95,7 +95,6 @@ private:
 	// Async batch: DB load off ThreadPool, place on dispatcher, then Lua callback(players|nil, err|nil).
 	static int luaGameHeadlessLoginBatch(lua_State* L);
 	static int luaGameHeadlessLogout(lua_State* L);
-	static int luaGameDeliverCompanionFeatureUI(lua_State* L);
 	static int luaGameGetNormalizedPlayerName(lua_State* L);
 	static int luaGameGetNormalizedGuildName(lua_State* L);
 	static int luaGameHasEffect(lua_State* L);

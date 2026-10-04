@@ -104,15 +104,6 @@ enum VirtueMonk_t : uint8_t;
 
 using GuildWarVector = std::vector<uint32_t>;
 using StashContainerList = std::vector<std::pair<std::shared_ptr<Item>, uint32_t>>;
-
-/** Shared account loot pouch: stash map is source of truth; view is a live projection. */
-struct AccountLootPouchState {
-	StashItemList items;
-	std::shared_ptr<Container> view;
-	bool syncing = false;
-	/** Suppress container add/update/remove packets (materialize + full refresh). */
-	bool silent = false;
-};
 using ItemVector = std::vector<std::shared_ptr<Item>>;
 using UsersMap = std::map<uint32_t, std::shared_ptr<Player>>;
 using InvitedMap = std::map<uint32_t, std::shared_ptr<Player>>;
@@ -625,6 +616,8 @@ public:
 	bool keepsDisconnectedCombat() const {
 		return idleCombat || exerciseTraining;
 	}
+	/** Body stays (as headless) when its client lets go: idle combat, exercise or VIP stay-online. */
+	bool staysOnlineWithoutClient() const;
 	/** Online without a ProtocolGame client (companions, battle detach, hunt persist). */
 	bool isHeadless() const {
 		return m_headless;
@@ -632,6 +625,8 @@ public:
 	void setHeadless(bool enabled) {
 		m_headless = enabled;
 	}
+	/** Move this player's live client onto a same-account body (alt switch). */
+	bool switchClientTo(const std::shared_ptr<Player> &target);
 	/** City/settlement/hub (instance id < private base). Private hunt/raid = unsafe. */
 	bool isInSafeInstance() const;
 	void setLastDepotId(int16_t newId) {
@@ -1771,31 +1766,17 @@ public:
 
 	void sendLootMessage(const std::string &message) const;
 
+	/** Account loot pouch (created on demand), re-parented to this player unless another alt has it open. */
 	std::shared_ptr<Container> getLootPouch();
-	/** Shared account pouch view (peek; no ensure / parent link). */
+	/** Account loot pouch (peek; no create / parent link). */
 	std::shared_ptr<Container> getAccountLootPouch() const;
-	/** Shared stash-map state for the account loot pouch. */
-	const std::shared_ptr<AccountLootPouchState> &getAccountLootPouchState() const {
-		return accountLootPouchState;
-	}
-	void setAccountLootPouchState(const std::shared_ptr<AccountLootPouchState> &state);
-	const StashItemList &getAccountLootPouchItems() const;
-	/** Toggle-open the account loot pouch view (slot-12 handle use).
+	/** Share one pouch container across online characters of the same account. */
+	void setAccountLootPouch(const std::shared_ptr<Container> &pouch);
+	/** Toggle-open the account loot pouch (slot-12 handle use).
 	 *  preferredContainerId is the OTC container window cid from useItem (0xFF = first free). */
 	ReturnValue openAccountLootPouch(uint8_t preferredContainerId = 0xFF);
-	bool isAccountLootPouchSyncing() const;
-	bool isAccountLootPouchSilent() const;
-	/** True when this container is the account loot pouch view. */
+	/** True when this container is the account loot pouch. */
 	bool isAccountLootPouchContainer(const std::shared_ptr<Container> &container) const;
-	bool canAbsorbIntoAccountLootPouch(const std::shared_ptr<Item> &item) const;
-	ReturnValue queryAccountLootPouchAdd(const std::shared_ptr<Item> &item, uint32_t count) const;
-	/** Map += amount and patch the live view (source of truth is the stash map). */
-	void addAccountLootPouchItem(uint16_t itemId, uint32_t amount);
-	bool withdrawAccountLootPouchItem(uint16_t itemId, uint32_t amount);
-	/** Called from Container hooks when the view is mutated outside sync. */
-	void onAccountLootPouchViewCountDelta(uint16_t itemId, int32_t delta);
-	/** Rebuild the openable view container from the stash map (load / repair). */
-	void materializeAccountLootPouchView();
 
 	bool hasPermittedConditionInPZ() const;
 
@@ -1861,12 +1842,12 @@ public:
 	Stance_t getElementalStance() const {
 		return m_stanceElemental;
 	}
-	CombatType_t getPendingElementConversion() const {
-		return m_pendingElementConversion;
-	}
-	void setPendingElementConversion(CombatType_t type) {
-		m_pendingElementConversion = type;
-	}
+	// Master-of-* conversion is decided once per spell cast: every combat of that cast (beam
+	// flanks, chain targets, the Lua-picked variant) shares the decision. Outside a cast scope
+	// (delayed addEvent hits, conditions) nothing is armed or consumed.
+	void beginElementCast();
+	void endElementCast();
+	CombatType_t resolveElementCast(CombatType_t nativeType);
 	uint8_t getMonkAuraVocMask() const;
 	void setMonkAuraVocMask(uint8_t mask);
 	uint8_t getMonkShrineCount() const;
@@ -2093,18 +2074,12 @@ private:
 	std::shared_ptr<Vocation> vocation = nullptr;
 	std::shared_ptr<RewardChest> rewardChest = nullptr;
 	/** Shared across online characters on the same account (one pouch per account/world). */
-	std::shared_ptr<AccountLootPouchState> accountLootPouchState;
-	bool accountLootPouchNotifyScheduled = false;
+	std::shared_ptr<Container> accountLootPouch;
 
-	void ensureAccountLootPouchState();
+	void ensureAccountLootPouch();
 	/** Install empty pouch handle into CONST_SLOT_LOOT_POUCH (appearance / use target). */
 	void installAccountLootPouchSlot();
-	void patchAccountLootPouchViewAdd(uint16_t itemId, uint32_t amount);
-	void notifyAccountLootPouchChanged();
-	void scheduleAccountLootPouchNotify();
-	void flushAccountLootPouchNotify();
-	uint32_t getAccountLootPouchIdealSlots() const;
-	uint32_t getAccountLootPouchIdealSlotsAfter(uint16_t itemId, uint32_t addAmount) const;
+	void handOffAccountLootPouch();
 
 	uint32_t inventoryWeight = 0;
 	uint32_t capacity = 60000;
@@ -2283,6 +2258,9 @@ private:
 	Stance_t m_stancePrimary = STANCE_NONE; // single stance for non-sorc; crippling stance for sorc
 	Stance_t m_stanceElemental = STANCE_NONE; // sorcerer-only (Master of Flames/Thunder/Decay)
 	CombatType_t m_pendingElementConversion = COMBAT_NONE; // Master-of-*: convert the NEXT off-element spell
+	uint8_t m_elementCastDepth = 0;
+	bool m_elementCastResolved = false;
+	CombatType_t m_elementCastConvertTo = COMBAT_NONE;
 	uint8_t m_monkAuraVocMask = 0; // monk virtue aura: bitmask (1<<baseId) of vocation bonuses active here
 	int64_t m_monkAuraExpiry = 0; // OTSYS_TIME() until which m_monkAuraVocMask is valid
 

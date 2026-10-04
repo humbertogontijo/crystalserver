@@ -66,8 +66,8 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "small sapphire", chance = 4125, maxCount = 2 },
-	{ name = "gold coin", chance = 86731, maxCount = 90 },
-	{ name = "gold coin", chance = 86731, maxCount = 87 },
+	{ name = "gold coin", chance = 27000, maxCount = 90 },
+	{ name = "gold coin", chance = 27000, maxCount = 87 },
 	{ name = "iced soil", chance = 9000 },
 	{ name = "northwind rod", chance = 750 },
 }
@@ -79,7 +79,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 30,
-	armor = 0,
+	armor = 30,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_HEALING, minDamage = 90, maxDamage = 150, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

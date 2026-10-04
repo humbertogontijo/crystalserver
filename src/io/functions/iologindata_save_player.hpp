@@ -54,5 +54,6 @@ protected:
 	using ItemRewardList = std::list<std::pair<int32_t, std::shared_ptr<Item>>>;
 	using ItemInboxList = std::list<std::pair<int32_t, std::shared_ptr<Item>>>;
 
-	static bool saveItems(const std::shared_ptr<Player> &player, const ItemBlockList &itemList, DBInsert &query_insert, PropWriteStream &stream);
+	/** ownerId is the first column of each row (defaults to the player GUID). */
+	static bool saveItems(const std::shared_ptr<Player> &player, const ItemBlockList &itemList, DBInsert &query_insert, PropWriteStream &stream, uint32_t ownerId = 0);
 };

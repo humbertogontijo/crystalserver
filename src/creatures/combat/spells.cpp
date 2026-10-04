@@ -34,6 +34,29 @@
 #include "lua/scripts/scripts.hpp"
 #include "lib/di/container.hpp"
 
+namespace {
+	// Brackets one spell script call so every combat it triggers shares the Master-of-* decision.
+	class ElementCastScope {
+	public:
+		explicit ElementCastScope(std::shared_ptr<Player> player) :
+			m_player(std::move(player)) {
+			if (m_player) {
+				m_player->beginElementCast();
+			}
+		}
+		~ElementCastScope() {
+			if (m_player) {
+				m_player->endElementCast();
+			}
+		}
+		ElementCastScope(const ElementCastScope &) = delete;
+		ElementCastScope &operator=(const ElementCastScope &) = delete;
+
+	private:
+		std::shared_ptr<Player> m_player;
+	};
+}
+
 Spells::Spells() {
 	instants.reserve(1000);
 }
@@ -1383,6 +1406,7 @@ bool InstantSpell::executeCastSpell(const std::shared_ptr<Creature> &creature, c
 
 	LuaScriptInterface::pushVariant(L, var);
 
+	const ElementCastScope castScope(creature->getPlayer());
 	return getScriptInterface()->callFunction(2);
 }
 
@@ -1627,6 +1651,7 @@ bool RuneSpell::executeCastSpell(const std::shared_ptr<Creature> &creature, cons
 
 	LuaScriptInterface::pushBoolean(L, isHotkey);
 
+	const ElementCastScope castScope(creature->getPlayer());
 	return getRuneSpellScriptInterface()->callFunction(3);
 }
 

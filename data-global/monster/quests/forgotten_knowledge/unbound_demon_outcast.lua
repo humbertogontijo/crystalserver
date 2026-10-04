@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Unbound Demon Outcast")
 local monster = {}
 
 monster.description = "an unbound demon outcast"
-monster.experience = 0
+monster.experience = 6200
 monster.outfit = {
 	lookType = 590,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 6900
+monster.maxHealth = 6900
 monster.race = "fire"
 monster.corpse = 20215
 monster.speed = 150
@@ -79,22 +79,22 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 40,
-	armor = 0,
+	armor = 49,
 	mitigation = 1.60,
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_HEALING, minDamage = 250, maxDamage = 425, effect = CONST_ME_MAGIC_BLUE, target = false },
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 0 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 15 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = -8 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 40 },
+	{ type = COMBAT_FIREDAMAGE, percent = 100 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
+	{ type = COMBAT_ICEDAMAGE, percent = 5 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -6 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 30 },
 }
 
 monster.immunities = {

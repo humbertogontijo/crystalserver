@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Mushroom")
 local monster = {}
 
 monster.description = "a mushroom"
-monster.experience = 0
+monster.experience = 20600
 monster.outfit = {
 	lookTypeEx = 43587,
 	lookHead = 0,
@@ -73,22 +73,22 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 60,
-	armor = 0,
+	armor = 104,
 	mitigation = 3.16,
 	--{ name = "combat", interval = 6000, chance = 100, type = COMBAT_HEALING, minDamage = 1, maxDamage = 1, radius = 1, effect = CONST_ME_GREEN_RINGS, target = false },
 	--{ name = "combat", interval = 7000, chance = 100, type = COMBAT_LIFEDRAIN, minDamage = -2500, maxDamage = -3000, radius = 4, effect = CONST_ME_HITBYPOISON, target = false },
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 0 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -30 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 25 },
+	{ type = COMBAT_EARTHDAMAGE, percent = -40 },
+	{ type = COMBAT_FIREDAMAGE, percent = -25 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
+	{ type = COMBAT_ICEDAMAGE, percent = 10 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 10 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }
 

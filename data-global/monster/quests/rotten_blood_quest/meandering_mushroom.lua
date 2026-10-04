@@ -88,9 +88,9 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -950 },
-	{ name = "combat", interval = 2500, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -900, maxDamage = -1400, radius = 5, effect = CONST_ME_MORTAREA, target = true },
-	{ name = "combat", interval = 2500, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -900, maxDamage = -1500, radius = 5, effect = CONST_ME_INSECTS, target = true },
-	{ name = "combat", interval = 2500, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -900, maxDamage = -1700, length = 8, spread = 5, effect = CONST_ME_BLACKSMOKE, target = false },
+	{ name = "combat", interval = 2500, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -840, maxDamage = -1400, radius = 5, effect = CONST_ME_MORTAREA, target = true },
+	{ name = "combat", interval = 2500, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -840, maxDamage = -1500, radius = 5, effect = CONST_ME_INSECTS, target = true },
+	{ name = "combat", interval = 2500, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -880, maxDamage = -1700, length = 8, spread = 5, effect = CONST_ME_BLACKSMOKE, target = false },
 	{ name = "largeblackring", interval = 2000, chance = 10, minDamage = -1100, maxDamage = -1500, target = false },
 }
 

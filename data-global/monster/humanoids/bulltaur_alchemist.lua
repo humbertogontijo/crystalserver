@@ -79,8 +79,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 51618, maxCount = 6 },
-	{ name = "platinum coin", chance = 51618, maxCount = 7 },
+	{ name = "platinum coin", chance = 5000, maxCount = 6 },
+	{ name = "platinum coin", chance = 3533, maxCount = 7 },
 	{ id = 44736, chance = 14990 }, -- stealth ring
 	{ id = 44737, chance = 4545 }, -- stealth ring
 	{ id = 44738, chance = 4545 }, -- stealth ring
@@ -99,7 +99,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 90, maxDamage = -390 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -90, maxDamage = -390 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -150, maxDamage = -450, range = 3, radius = 4, effect = CONST_ME_ICEAREA, target = true },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -150, maxDamage = -440, range = 3, radius = 4, effect = 170, target = true },
 }

@@ -17,8 +17,8 @@ monster.events = {
 	"OrganicMatterDeath",
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 10000
+monster.maxHealth = 10000
 monster.race = "venom"
 monster.corpse = 0
 monster.speed = 0
@@ -70,7 +70,7 @@ monster.loot = {}
 
 monster.defenses = {
 	defense = 55,
-	armor = 0,
+	armor = 55,
 	--	mitigation = ???,
 }
 

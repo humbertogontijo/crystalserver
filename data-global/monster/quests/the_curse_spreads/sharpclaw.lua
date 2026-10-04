@@ -76,8 +76,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
-	{ name = "gold coin", chance = 50000, maxCount = 100 },
+	{ name = "gold coin", chance = 13600000, maxCount = 100 },
+	{ name = "gold coin", chance = 13600000, maxCount = 100 },
 	{ name = "platinum coin", chance = 100000, maxCount = 10 },
 	{ name = "brown mushroom", chance = 13600000, maxCount = 9 },
 	{ name = "onyx chip", chance = 50000, maxCount = 9 },
@@ -109,7 +109,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 45,
-	armor = 0,
+	armor = 40,
 	--	mitigation = ???,
 	{ name = "combat", interval = 4000, chance = 15, type = COMBAT_HEALING, minDamage = 150, maxDamage = 345, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "invisible", interval = 2000, chance = 15, effect = CONST_ME_MAGIC_BLUE },

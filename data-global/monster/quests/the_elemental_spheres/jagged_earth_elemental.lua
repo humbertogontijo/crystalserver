@@ -64,9 +64,9 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 87087, maxCount = 90 },
-	{ name = "gold coin", chance = 87087, maxCount = 90 },
-	{ name = "gold coin", chance = 87087, maxCount = 10 },
+	{ name = "gold coin", chance = 27000, maxCount = 90 },
+	{ name = "gold coin", chance = 27000, maxCount = 90 },
+	{ name = "gold coin", chance = 1500, maxCount = 10 },
 	{ name = "small emerald", chance = 5480, maxCount = 2 },
 	{ id = 3130, chance = 18000 }, -- twigs
 	{ name = "iron ore", chance = 800, maxCount = 2 },
@@ -84,7 +84,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 25,
-	armor = 0,
+	armor = 25,
 	--	mitigation = ???,
 }
 

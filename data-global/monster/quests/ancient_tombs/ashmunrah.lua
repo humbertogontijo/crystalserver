@@ -83,8 +83,8 @@ monster.voices = {
 monster.loot = {
 	{ name = "silver brooch", chance = 4323 },
 	{ name = "holy scarab", chance = 400 },
-	{ name = "gold coin", chance = 93880, maxCount = 80 },
-	{ name = "gold coin", chance = 93880, maxCount = 60 },
+	{ name = "gold coin", chance = 50000, maxCount = 80 },
+	{ name = "gold coin", chance = 50000, maxCount = 60 },
 	{ name = "might ring", chance = 4773 },
 	{ name = "crown armor", chance = 449 },
 	{ id = 238, chance = 11960 }, -- great mana potion
@@ -101,7 +101,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 30,
-	armor = 0,
+	armor = 25,
 	--	mitigation = ???,
 	{ name = "combat", interval = 1000, chance = 20, type = COMBAT_HEALING, minDamage = 200, maxDamage = 400, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "invisible", interval = 1000, chance = 7, effect = CONST_ME_MAGIC_BLUE },

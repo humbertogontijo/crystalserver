@@ -88,7 +88,7 @@ monster.loot = {
 	{ id = 2863, chance = 3430 }, -- golden bag
 	{ name = "golden backpack", chance = 3190 },
 	{ name = "gold ingot", chance = 1360 },
-	{ id = 3031, chance = 48569, maxCount = 10 }, -- platinum coin
+	{ id = 3031, chance = 1200, maxCount = 10 }, -- platinum coin
 	{ id = 3040, chance = 80 },
 }
 

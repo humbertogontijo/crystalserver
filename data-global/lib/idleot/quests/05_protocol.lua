@@ -18,7 +18,7 @@ local function resolveQuestTarget(controller, nameOrGuid, requireOnline)
 		return controller
 	end
 	if not TeamStore or not TeamStore.resolveAccountMember then
-		return nil, "Companion quests require team support."
+		return nil, "Alt quests require team support."
 	end
 	if TeamStore.isFriend and TeamStore.isFriend(controller, nameOrGuid) then
 		return nil, "Friends have view-only quest access."

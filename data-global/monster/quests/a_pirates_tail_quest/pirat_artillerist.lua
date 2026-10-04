@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Pirat Artillerist")
 local monster = {}
 
 monster.description = "a pirat artillerist"
-monster.experience = 0
+monster.experience = 2800
 monster.outfit = {
 	lookType = 1346,
 	lookHead = 126,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 2700
+monster.maxHealth = 2700
 monster.race = "blood"
 monster.corpse = 35372
 monster.speed = 100
@@ -65,14 +65,14 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 450, maxDamage = -140 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -450, maxDamage = -140 },
 	{ name = "corym vanguard wave", interval = 2000, chance = 10, minDamage = -50, maxDamage = -100, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -40, maxDamage = -70, radius = 4, effect = CONST_ME_MORTAREA, target = true },
 }
 
 monster.defenses = {
 	defense = 65,
-	armor = 0,
+	armor = 65,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_HEALING, minDamage = 30, maxDamage = 60, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

@@ -1155,7 +1155,7 @@ int CreatureFunctions::luaCreatureMove(lua_State* L) {
 }
 
 int CreatureFunctions::luaCreatureAutoWalk(lua_State* L) {
-	// creature:autoWalk({dir1, dir2, ...}[, flags = 0[, ignoreConditions = false]])
+	// creature:autoWalk({dir1, dir2, ...}[, flags = 0[, ignoreConditions = false[, immediate = false]]])
 	// dirs[1] is the first step. Engine pops from the back, so we reverse.
 	// ignoreConditions=false (default): rooted / feared abort the walk — same as
 	// normal locomotion. Pass true only for scripts that must force a path.
@@ -1190,10 +1190,12 @@ int CreatureFunctions::luaCreatureAutoWalk(lua_State* L) {
 	std::reverse(dirList.begin(), dirList.end());
 	const auto flags = Lua::getNumber<uint32_t>(L, 3, 0);
 	const bool ignoreConditions = Lua::getBoolean(L, 4, false);
-	// immediate=false: wait a normal stepDuration before the first tile so OTC
-	// can play walk frames. (immediate=true used ticks==1 and looked like a slide.)
-	// Single-step paths still get firstStep via startAutoWalk (size == 1).
-	const bool started = creature->startAutoWalk(dirList, ignoreConditions, false, flags);
+	// immediate=false (default): a walk started from rest waits a full stepDuration
+	// (x lastStepCost) before the first tile. immediate=true steps as soon as the
+	// previous step's delay has elapsed, like client input; it never steps early.
+	// Single-step paths always start that way (startAutoWalk, size == 1).
+	const bool immediate = Lua::getBoolean(L, 5, false);
+	const bool started = creature->startAutoWalk(dirList, ignoreConditions, immediate, flags);
 	Lua::pushBoolean(L, started);
 	return 1;
 }

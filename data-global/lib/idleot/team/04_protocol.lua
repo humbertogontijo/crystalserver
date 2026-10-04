@@ -35,6 +35,8 @@ function TeamProtocol.sendTeam(player)
 		pendingRosterInvites = info.pendingRosterInvites or {},
 		bonuses = bonuses,
 		partyXp = partyXp,
+		alts = TeamManager.getAccountAlts(player),
+		altSwitch = true,
 	})
 end
 
@@ -90,29 +92,6 @@ function TeamProtocol.sendTeamToRoster(player)
 	return true
 end
 
-function TeamProtocol.sendInventory(player, targetName, inventory)
-	return TeamProtocol.send(player, {
-		type = "inventory",
-		name = targetName,
-		inventory = inventory or {},
-	})
-end
-
-local function refreshInventories(player, fromName, toName)
-	if fromName then
-		local inv = TeamManager.getInventorySnapshot(player, fromName)
-		if inv then
-			TeamProtocol.sendInventory(player, inv.name, inv)
-		end
-	end
-	if toName and toName ~= fromName then
-		local inv = TeamManager.getInventorySnapshot(player, toName)
-		if inv then
-			TeamProtocol.sendInventory(player, inv.name, inv)
-		end
-	end
-end
-
 function TeamProtocol.handle(player, buffer)
 	local msg = JsonParser.decode(buffer)
 	if not msg or type(msg) ~= "table" then
@@ -129,9 +108,14 @@ function TeamProtocol.handle(player, buffer)
 		end
 		TeamProtocol.sendTeam(player)
 	elseif action == "formTeam" then
-		-- Companions may only deploy during expeditions; never via Manage Team.
-		TeamProtocol.sendError(player, "Companions can only log in during expeditions.")
+		-- Alts may only deploy during expeditions; never via Manage Team.
+		TeamProtocol.sendError(player, "Alts can only join you during expeditions.")
 		return
+	elseif action == "switchAlt" then
+		local ok, err = TeamManager.switchAlt(player, msg.name)
+		if not ok then
+			TeamProtocol.sendError(player, err or "Failed to switch alt.")
+		end
 	elseif action == "inviteRosterFriend" or action == "inviteFriendToTeam" then
 		local ok, result = TeamManager.inviteRosterFriend(player, msg.name or msg.friendName)
 		if not ok then
@@ -176,279 +160,6 @@ function TeamProtocol.handle(player, buffer)
 			skipped = result.skipped or {},
 		})
 		TeamProtocol.sendTeam(player)
-	elseif action == "inventory" then
-		local inv, err = TeamManager.getInventorySnapshot(player, msg.name or msg.guid)
-		if not inv then
-			TeamProtocol.sendError(player, err or "Failed to list inventory.")
-			return
-		end
-		TeamProtocol.sendInventory(player, inv.name, inv)
-	elseif action == "openContainer" then
-		local cont, err = TeamManager.openContainer(player, msg)
-		if not cont then
-			TeamProtocol.sendError(player, err or "Failed to open container.")
-			return
-		end
-		TeamProtocol.send(player, {
-			type = "container",
-			name = cont.name,
-			path = cont.path,
-			itemId = cont.itemId,
-			label = cont.label,
-			capacity = cont.capacity or cont.slots or 0,
-			slots = cont.slots or cont.capacity or 0,
-			items = cont.items or {},
-		})
-	elseif action == "openLootPouch" then
-		local cont, err = TeamManager.openLootPouch(player, msg.name or msg.guid)
-		if not cont then
-			TeamProtocol.sendError(player, err or "Failed to open loot pouch.")
-			return
-		end
-		TeamProtocol.send(player, {
-			type = "container",
-			name = cont.name,
-			path = cont.path,
-			itemId = cont.itemId,
-			label = cont.label,
-			capacity = cont.capacity or cont.slots or 0,
-			slots = cont.slots or cont.capacity or 0,
-			items = cont.items or {},
-		})
-	elseif action == "openRewardChest" then
-		local cont, err = TeamManager.openRewardChest(player, msg.name or msg.guid)
-		if not cont then
-			TeamProtocol.sendError(player, err or "Failed to open reward chest.")
-			return
-		end
-		-- Always forward the payload (including empty) so the client can close
-		-- stale reward windows instead of error-spamming "Reward chest is empty".
-		TeamProtocol.send(player, {
-			type = "container",
-			name = cont.name,
-			path = cont.path,
-			itemId = cont.itemId,
-			label = cont.label,
-			capacity = cont.capacity or cont.slots or 0,
-			slots = cont.slots or cont.capacity or 0,
-			items = cont.items or {},
-		})
-	elseif action == "collectRewardChest" then
-		local result, err = TeamManager.collectRewardChest(player, msg.name or msg.guid)
-		if not result then
-			TeamProtocol.sendError(player, err or "Failed to collect reward chest.")
-			return
-		end
-		local message
-		if (result.moved or 0) <= 0 and (result.failed or 0) <= 0 then
-			message = "Reward chest is empty."
-		elseif (result.moved or 0) <= 0 then
-			message = string.format(
-				"Could not collect rewards from %s (%d items blocked).",
-				result.name or "companion",
-				result.failed or 0
-			)
-		elseif (result.failed or 0) > 0 then
-			message = string.format(
-				"Collected %d items from %s; %d could not be moved.",
-				result.moved or 0,
-				result.name or "companion",
-				result.failed or 0
-			)
-		else
-			message = string.format(
-				"Collected %d items from %s into your loot pouch.",
-				result.moved or 0,
-				result.name or "companion"
-			)
-		end
-		TeamProtocol.send(player, {
-			type = "rewardCollected",
-			ok = true,
-			moved = result.moved or 0,
-			failed = result.failed or 0,
-			name = result.name,
-			message = message,
-		})
-		refreshInventories(player, player:getName(), result.name)
-	elseif action == "moveItem" then
-		local ok, err = TeamManager.moveItem(player, msg)
-		if not ok then
-			TeamProtocol.sendError(player, err or "Move failed.")
-			return
-		end
-		local fromName = msg.fromName or msg.from
-		local toName = msg.toName or msg.to
-		refreshInventories(player, fromName, toName)
-
-		-- Re-send open containers so client dolls/bags update without reselecting a member.
-		local function sendOpen(contName, path)
-			if not contName or type(path) ~= "table" then
-				return
-			end
-			local cont = TeamManager.openContainer(player, {
-				name = contName,
-				path = path,
-			})
-			if cont then
-				TeamProtocol.send(player, {
-					type = "container",
-					name = cont.name,
-					path = cont.path,
-					itemId = cont.itemId,
-					label = cont.label,
-					capacity = cont.capacity or cont.slots or 0,
-					slots = cont.slots or cont.capacity or 0,
-					items = cont.items or {},
-				})
-			end
-		end
-		if TeamManager.containerPathsToRefresh then
-			for _, path in ipairs(TeamManager.containerPathsToRefresh(msg)) do
-				-- Prefer source owner for bag that held the item; toName for dest bags.
-				sendOpen(fromName, path)
-				if toName and toName ~= fromName then
-					sendOpen(toName, path)
-				end
-			end
-		elseif msg.containerPath and fromName then
-			sendOpen(fromName, msg.containerPath)
-		end
-		TeamProtocol.send(player, {
-			type = "moved",
-			ok = true,
-			fromName = fromName,
-			toName = toName,
-		})
-	elseif action == "equip" then
-		local ok, err = TeamManager.equipItem(player, msg)
-		if not ok then
-			TeamProtocol.sendError(player, err or "Equip failed.")
-			return
-		end
-		local inv = TeamManager.getInventorySnapshot(player, msg.name or msg.toName)
-		if inv then
-			TeamProtocol.sendInventory(player, inv.name, inv)
-		end
-		TeamProtocol.send(player, { type = "equipped", ok = true })
-	elseif action == "getAutomation" then
-		local data, err = TeamManager.getAutomation(player, msg.name or msg.guid)
-		if not data then
-			TeamProtocol.sendError(player, err or "Failed to load automation.")
-			return
-		end
-		TeamProtocol.send(player, {
-			type = "automationConfig",
-			name = data.name,
-			guid = data.guid,
-			level = data.level,
-			vocation = data.vocation,
-			autoTarget = data.autoTarget,
-			ammoTypeId = data.ammoTypeId,
-			attackPresets = data.attackPresets,
-			loadout = data.loadout,
-		})
-	elseif action == "setAutomation" then
-		local data, err = TeamManager.setAutomation(player, msg)
-		if not data then
-			TeamProtocol.sendError(player, err or "Failed to save automation.")
-			return
-		end
-		-- Persist presets server-side but do not echo them (avoids client re-import logout).
-		TeamProtocol.send(player, {
-			type = "automationConfig",
-			name = data.name,
-			guid = data.guid,
-			level = data.level,
-			vocation = data.vocation,
-			autoTarget = data.autoTarget,
-			ammoTypeId = data.ammoTypeId,
-			loadout = data.loadout,
-		})
-	elseif action == "setAttackPresets" then
-		local data, err = TeamManager.setAttackPresets(player, msg)
-		if not data then
-			TeamProtocol.sendError(player, err or "Failed to save attack presets.")
-			return
-		end
-		TeamProtocol.send(player, {
-			type = "attackPresetsSaved",
-			ok = true,
-			name = data.name,
-			guid = data.guid,
-		})
-	elseif action == "openWheel" then
-		local data, err = TeamManager.openWheel(player, msg.name or msg.guid)
-		if not data then
-			TeamProtocol.sendError(player, err or "Failed to open Wheel of Destiny.")
-			return
-		end
-		TeamProtocol.send(player, {
-			type = "wheelOpen",
-			name = data.name,
-			guid = data.guid,
-			creatureId = data.creatureId,
-		})
-	elseif action == "openPrey" then
-		local data, err = TeamManager.openPrey(player, msg.name or msg.guid)
-		if not data then
-			TeamProtocol.sendError(player, err or "Failed to open Prey.")
-			return
-		end
-		TeamProtocol.send(player, {
-			type = "featureOpen",
-			feature = "prey",
-			name = data.name,
-			guid = data.guid,
-		})
-	elseif action == "openForge" then
-		local data, err = TeamManager.openForge(player, msg.name or msg.guid)
-		if not data then
-			TeamProtocol.sendError(player, err or "Failed to open Exaltation Forge.")
-			return
-		end
-		TeamProtocol.send(player, {
-			type = "featureOpen",
-			feature = "forge",
-			name = data.name,
-			guid = data.guid,
-		})
-	elseif action == "openProficiency" then
-		local data, err = TeamManager.openProficiency(player, msg.name or msg.guid)
-		if not data then
-			TeamProtocol.sendError(player, err or "Failed to open Weapon Proficiency.")
-			return
-		end
-		TeamProtocol.send(player, {
-			type = "featureOpen",
-			feature = "proficiency",
-			name = data.name,
-			guid = data.guid,
-		})
-	elseif action == "openRewardWall" then
-		local data, err = TeamManager.openRewardWall(player, msg.name or msg.guid)
-		if not data then
-			TeamProtocol.sendError(player, err or "Failed to open Reward Wall.")
-			return
-		end
-		TeamProtocol.send(player, {
-			type = "featureOpen",
-			feature = "rewardWall",
-			name = data.name,
-			guid = data.guid,
-		})
-	elseif action == "openTaskBoard" then
-		local data, err = TeamManager.openTaskBoard(player, msg.name or msg.guid)
-		if not data then
-			TeamProtocol.sendError(player, err or "Failed to open Task Board.")
-			return
-		end
-		TeamProtocol.send(player, {
-			type = "featureOpen",
-			feature = "taskBoard",
-			name = data.name,
-			guid = data.guid,
-		})
 	elseif action == "buyTeamXpBoost" then
 		if not TeamBonus then
 			TeamProtocol.sendError(player, "Team bonuses unavailable.")

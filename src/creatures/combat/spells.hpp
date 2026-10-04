@@ -118,6 +118,9 @@ public:
 	bool executeCastSpell(const std::shared_ptr<Creature> &creature, const LuaVariant &var) const;
 
 	std::shared_ptr<Combat> getCombat() const;
+	[[nodiscard]] bool getNeedDirection() const {
+		return needDirection;
+	}
 
 private:
 	std::shared_ptr<Combat> m_combat;

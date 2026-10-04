@@ -447,6 +447,10 @@ void Monster::onCreatureMove(const std::shared_ptr<Creature> &creature, const st
 			if (canSeeNewPos && !canSeeOldPos) {
 				onCreatureEnter(creature);
 			} else if (!canSeeNewPos && canSeeOldPos) {
+				if (!isOpponent(creature) || !canKeepTarget(newPos)) {
+					onCreatureLeave(creature);
+				}
+			} else if (!canSeeNewPos && isOpponent(creature) && canKeepTarget(oldPos) && !canKeepTarget(newPos)) {
 				onCreatureLeave(creature);
 			}
 
@@ -669,7 +673,7 @@ void Monster::updateTargetList() {
 
 	std::erase_if(targetList, [this](const std::weak_ptr<Creature> &ref) {
 		const auto &target = ref.lock();
-		return !target || target->getHealth() <= 0 || !canSee(target->getPosition());
+		return !target || target->getHealth() <= 0 || !canKeepTarget(target->getPosition());
 	});
 
 	for (const auto &spectator : Spectators().find<Creature>(position, true, 0, 0, 0, 0, false, getInstanceId())) {
@@ -1015,6 +1019,10 @@ void Monster::setRunAwayHealth(int32_t value) {
 	runAwayHealth = value;
 }
 
+bool Monster::canKeepTarget(const Position &pos) {
+	return Creature::canSee(getPosition(), pos, MAP_MAX_VIEW_PORT_X + targetKeepRange, MAP_MAX_VIEW_PORT_Y + targetKeepRange);
+}
+
 bool Monster::isFleeing() const {
 	return !isSummon() && getHealth() <= runAwayHealth && challengeFocusDuration <= 0 && challengeMeleeDuration <= 0 && fatalHoldDuration <= 0;
 }
@@ -1077,9 +1085,9 @@ void Monster::updateIdleStatus() {
 			} else {
 				isWalkingBack = true;
 			}
-		} else if (!isSummon() && !isInSpawnLocation() && !hasFollowPath) {
-			// Keep walking home when we still "see" a target we cannot path to
-			// (canSee is wider than follow A*, or the path is blocked).
+		} else if (!spawnMonster && !isSummon() && !isInSpawnLocation() && !hasFollowPath) {
+			// Script spawns homed on a moving tile (boss/raid anchor): keep walking home when
+			// we still "see" a target we cannot path to (canSee is wider than follow A*).
 			isWalkingBack = true;
 		} else if (const auto &master = getMaster()) {
 			if (((!isSummon() && totalPlayersOnScreen == 0) || (isSummon() && master->getMonster() && master->getMonster()->totalPlayersOnScreen == 0)) && getFaction() != FACTION_DEFAULT) {
@@ -1591,7 +1599,7 @@ bool Monster::getNextStep(Direction &nextDirection, uint32_t &flags) {
 
 	if (getFollowCreature() && hasFollowPath) {
 		doFollowCreature(flags, nextDirection, result);
-		if (!result && !isSummon() && !isInSpawnLocation()) {
+		if (!result && !spawnMonster && !isSummon() && !isInSpawnLocation()) {
 			const auto &followCreature = getFollowCreature();
 			if (followCreature) {
 				const int32_t followDist = std::max(
@@ -1652,8 +1660,13 @@ void Monster::walkTo(const Position &walkToPosition) {
 }
 
 void Monster::doWalkBack(uint32_t &flags, Direction &nextDirection, bool &result) {
-	// Walk home even with players nearby (e.g. expedition anchor / lure). Combat takes over
-	// once someone enters targetList; updateIdleStatus clears isWalkingBack then.
+	// Script spawns (boss/raid pulls) walk home even with players nearby; combat takes over
+	// once someone enters targetList. Map-spawn monsters keep the stock rule.
+	if (spawnMonster && totalPlayersOnScreen > 0) {
+		isWalkingBack = false;
+		return;
+	}
+
 	result = Creature::getNextStep(nextDirection, flags);
 	if (result) {
 		flags |= FLAG_PATHFINDING;
@@ -1669,11 +1682,12 @@ void Monster::doWalkBack(uint32_t &flags, Direction &nextDirection, bool &result
 		}
 
 		std::vector<Direction> listDir;
-		const int32_t searchDist = std::max(distance, std::max(MAP_MAX_VIEW_PORT_X, MAP_MAX_VIEW_PORT_Y));
-		if (!getPathTo(masterPos, listDir, 0, std::max<int32_t>(0, distance - 5), true, false, searchDist)) {
+		const bool scriptSpawn = !spawnMonster;
+		const int32_t searchDist = scriptSpawn ? std::max(distance, std::max(MAP_MAX_VIEW_PORT_X, MAP_MAX_VIEW_PORT_Y)) : distance;
+		if (!getPathTo(masterPos, listDir, 0, std::max<int32_t>(0, distance - 5), true, !scriptSpawn, searchDist)) {
 			// Script/expedition spawns have no SpawnMonster, so isInSpawnRange never
 			// teleports them home. Yank back when walk-back A* cannot reach the tile.
-			if (!spawnMonster && masterPos != Position() && distance > MAP_MAX_CLIENT_VIEW_PORT_X) {
+			if (scriptSpawn && masterPos != Position() && distance > MAP_MAX_CLIENT_VIEW_PORT_X) {
 				g_game().internalTeleport(static_self_cast<Monster>(), masterPos);
 			}
 			isWalkingBack = false;
@@ -2853,7 +2867,7 @@ void Monster::getPathSearchParams(const std::shared_ptr<Creature> &creature, Fin
 
 	// Follow A* must cover server canSee. Classic TFS used 12 for viewport 11;
 	// widescreen canSee is MAP_MAX_VIEW_PORT_* (18×20) and catch-up teleport is 15.
-	fpp.maxSearchDist = std::max(MAP_MAX_VIEW_PORT_X, MAP_MAX_VIEW_PORT_Y);
+	fpp.maxSearchDist = std::max(MAP_MAX_VIEW_PORT_X, MAP_MAX_VIEW_PORT_Y) + targetKeepRange;
 	fpp.minTargetDist = 1;
 	fpp.maxTargetDist = targetDistance;
 

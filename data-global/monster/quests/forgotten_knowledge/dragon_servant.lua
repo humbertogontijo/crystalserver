@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Dragon Servant")
 local monster = {}
 
 monster.description = "a dragon servant"
-monster.experience = 0
+monster.experience = 2100
 monster.outfit = {
 	lookType = 39,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 1900
+monster.maxHealth = 1900
 monster.race = "blood"
 monster.corpse = 5984
 monster.speed = 100
@@ -73,7 +73,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 48,
-	armor = 0,
+	armor = 32,
 	mitigation = 1.29,
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_HEALING, minDamage = 55, maxDamage = 95, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

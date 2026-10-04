@@ -4921,7 +4921,7 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 		return;
 	}
 
-	// Account loot pouch slot handle → open shared stash view (not the empty handle container).
+	// Account loot pouch slot handle → open the shared account pouch (not the empty handle container).
 	if (player->getInventoryItem(CONST_SLOT_LOOT_POUCH) == item) {
 		player->resetIdleTime();
 		player->setNextActionTask(nullptr);
@@ -10100,14 +10100,11 @@ void Game::checkImbuementsAndSereneStatus() {
 			continue;
 		}
 
-		const auto &party = mapPlayer->getParty();
-		bool hasNearbyPartyMembers = party ? hasPartyMembersNearby(mapPlayer) : false;
-		bool hasLessThanSixMonsters = isPlayerNoBoxed(mapPlayer);
+		// Serene is lost only when party members are nearby AND 6+ monsters are adjacent; solo monks stay serene.
+		const bool hasNearbyPartyMembers = mapPlayer->getParty() && hasPartyMembersNearby(mapPlayer);
+		const bool losesSerene = hasNearbyPartyMembers && !isPlayerNoBoxed(mapPlayer);
 
-		bool condition1 = !party || !hasNearbyPartyMembers;
-		bool condition2 = hasLessThanSixMonsters;
-
-		mapPlayer->setSerene(condition1 && condition2);
+		mapPlayer->setSerene(!losesSerene);
 		projectMonkVirtueAura(mapPlayer);
 	}
 }
@@ -12603,40 +12600,6 @@ std::shared_ptr<Player> Game::resolveSameAccountCompanionOwner(const std::shared
 		return nullptr;
 	}
 	return owner;
-}
-
-bool Game::deliverCompanionFeatureUI(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &owner, std::string_view feature) {
-	if (!viewer || !owner) {
-		return false;
-	}
-	if (viewer->getAccountId() == 0 || owner->getAccountId() == 0 || viewer->getAccountId() != owner->getAccountId()) {
-		return false;
-	}
-	if (feature == "prey") {
-		owner->deliverPreyUiTo(viewer);
-		return true;
-	}
-	if (feature == "forge") {
-		owner->deliverForgeUiTo(viewer);
-		return true;
-	}
-	if (feature == "proficiency") {
-		owner->deliverProficiencyUiTo(viewer);
-		return true;
-	}
-	if (feature == "rewardWall") {
-		viewer->setFeatureEditOwnerId(companionEditOwnerKey(owner));
-		return true;
-	}
-	if (feature == "taskBoard") {
-		owner->deliverTaskBoardUiTo(viewer);
-		return true;
-	}
-	if (feature == "wheel") {
-		deliverOpenWheelToViewer(viewer, owner);
-		return true;
-	}
-	return false;
 }
 
 void Game::playerOpenWheel(uint32_t playerId, uint32_t ownerId) {

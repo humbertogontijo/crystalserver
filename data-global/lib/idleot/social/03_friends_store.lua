@@ -342,7 +342,7 @@ function FriendsStore.requestFriend(player, targetName)
 
 	local accountId = player:getAccountId()
 	if accountId and accountId > 0 and target:getAccountId() == accountId then
-		return false, "Same-account characters are companions, not friends."
+		return false, "Same-account characters are alts, not friends."
 	end
 
 	local targetGuid = target:getGuid()

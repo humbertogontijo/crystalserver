@@ -10,92 +10,91 @@ CombatAutomationConfig.POTION_EXHAUST_MS = 1000
 CombatAutomationConfig.RUNE_EXHAUST_MS = 2000
 CombatAutomationConfig.SPELL_EXHAUST_MS = 2000
 
--- Helper-style auto-target modes A–I (no Mode J / name lists).
-CombatAutomationConfig.AUTO_TARGET_MODES = {
-	A = "closest",
-	B = "farthest",
-	C = "lowestHp",
-	D = "highestHp",
-	E = "bestAoe",
-	F = "closestLowestHp",
-	G = "closestHighestHp",
-	H = "farthestLowestHp",
-	I = "farthestHighestHp",
-}
-CombatAutomationConfig.AUTO_TARGET_MODE_DEFAULT = "A"
--- Chebyshev radius used for Mode E cluster scoring when no slot area is available.
-CombatAutomationConfig.AOE_BEST_RADIUS = 1
+-- Auto-target score (one system for every member; highest wins, ties nearest). The
+-- anchor box is the expedition anchor's 3x3 (the player itself for the anchor / solo).
+-- Area value counts extra monsters hit by the member's best target-centred (runes,
+-- diamond arrows) or directional (waves) attack aimed at the candidate.
+CombatAutomationConfig.TARGET_BOSS_BONUS = 100
+CombatAutomationConfig.TARGET_BLOCKER_BONUS = 20
+CombatAutomationConfig.TARGET_ROUTE_AHEAD_BONUS = 3
+CombatAutomationConfig.TARGET_BOX_BONUS = 12
+CombatAutomationConfig.TARGET_BOX_NEAR_BONUS = 4
+CombatAutomationConfig.TARGET_AREA_PER_HIT = 4
+CombatAutomationConfig.TARGET_AREA_CAP = 16
+CombatAutomationConfig.TARGET_MELEE_ADJACENT_BONUS = 6
+CombatAutomationConfig.TARGET_MELEE_NEAR_BONUS = 3
+CombatAutomationConfig.TARGET_RANGED_IN_RANGE_BONUS = 3
+CombatAutomationConfig.TARGET_ATTACKING_ME_BONUS = 3
+CombatAutomationConfig.TARGET_FINISH_HP_PERCENT = 25
+CombatAutomationConfig.TARGET_FINISH_BONUS = 5
+CombatAutomationConfig.TARGET_WOUNDED_HP_PERCENT = 50
+CombatAutomationConfig.TARGET_WOUNDED_BONUS = 2
+-- Current-target bonus a rival must beat.
+CombatAutomationConfig.TARGET_STICKY_BONUS = 2
+-- Keep a live on-screen target this long after it leaves line of sight.
+CombatAutomationConfig.TARGET_SIGHT_GRACE_MS = 1000
 
-CombatAutomationConfig.STANCE_DISTANCE = { melee = 1, close = 1, ranged = 3 }
+-- Stance roles: Chebyshev distance kept from the focus (close / ranged) or adjacent
+-- (melee). Knights are melee-locked; monks close; paladins close or ranged; mages ranged.
 CombatAutomationConfig.RANGED_DISTANCE_DEFAULT = 3
+CombatAutomationConfig.STANCE_DISTANCE = { melee = 1, close = 1, ranged = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT }
 
-function CombatAutomationConfig.normalizeRangedDistance(value)
-	local default = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT or 3
-	local n = math.floor(tonumber(value) or 0)
-	if n > 0 then
-		return n
+local function vocationKey(player)
+	if player and CombatAutomationCatalog and CombatAutomationCatalog.baseVocationKey then
+		return CombatAutomationCatalog.baseVocationKey(player) or ""
 	end
-	return default
+	return ""
 end
 
-function CombatAutomationConfig.normalizeAutoTargetMode(raw)
-	local key = tostring(raw or CombatAutomationConfig.AUTO_TARGET_MODE_DEFAULT):upper()
-	if CombatAutomationConfig.AUTO_TARGET_MODES[key] then
-		return key
-	end
-	-- Accept numeric 1–9 (helper IDs) mapped to A–I.
-	local n = math.floor(tonumber(raw) or 0)
-	local byIndex = { "A", "B", "C", "D", "E", "F", "G", "H", "I" }
-	if n >= 1 and n <= 9 then
-		return byIndex[n]
-	end
-	return CombatAutomationConfig.AUTO_TARGET_MODE_DEFAULT
-end
-
+--- Default stance for the player's vocation.
 function CombatAutomationConfig.stanceForPlayer(player)
-	if ExpeditionConfig and ExpeditionConfig.stanceForPlayer then
-		return ExpeditionConfig.stanceForPlayer(player)
+	local key = vocationKey(player)
+	if key == "sorcerer" or key == "druid" then
+		return "ranged"
 	end
-	if not player then
-		return "melee"
-	end
-	if CombatAutomationCatalog and CombatAutomationCatalog.baseVocationKey then
-		local key = CombatAutomationCatalog.baseVocationKey(player)
-		if key == "paladin" or key == "monk" then
-			return "close"
-		end
-		if key == "sorcerer" or key == "druid" then
-			return "ranged"
-		end
+	if key == "paladin" or key == "monk" then
+		return "close"
 	end
 	return "melee"
 end
 
-function CombatAutomationConfig.normalizeStanceForPlayer(player, stance, rangedDistance)
-	if ExpeditionConfig and ExpeditionConfig.normalizeStanceForPlayer then
-		return ExpeditionConfig.normalizeStanceForPlayer(player, stance, rangedDistance)
+--- Stance roles a vocation may pick in the AUTO stance modal.
+function CombatAutomationConfig.allowedStancesForPlayer(player)
+	local key = vocationKey(player)
+	if key == "monk" then
+		return { "close" }
 	end
-	local default = CombatAutomationConfig.stanceForPlayer(player)
-	local role = tostring(stance or default)
-	if role ~= "melee" and role ~= "close" and role ~= "ranged" then
-		role = default
+	if key == "paladin" then
+		return { "close", "ranged" }
 	end
-	local rd = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT
-	if role == "ranged" then
-		rd = CombatAutomationConfig.normalizeRangedDistance(rangedDistance)
-	end
-	return role, rd
+	return { CombatAutomationConfig.stanceForPlayer(player) }
 end
 
-function CombatAutomationConfig.stanceDistanceFor(role, rangedDistance)
-	if ExpeditionConfig and ExpeditionConfig.stanceDistanceFor then
-		return ExpeditionConfig.stanceDistanceFor(role, rangedDistance)
+--- Validate the stance against the vocation (else its default); returns role, rangedDistance.
+function CombatAutomationConfig.normalizeStanceForPlayer(player, stance)
+	local role = tostring(stance)
+	for _, entry in ipairs(CombatAutomationConfig.allowedStancesForPlayer(player)) do
+		if entry == role then
+			return role, CombatAutomationConfig.RANGED_DISTANCE_DEFAULT
+		end
 	end
-	local map = CombatAutomationConfig.STANCE_DISTANCE
-	if role == "ranged" then
-		return CombatAutomationConfig.normalizeRangedDistance(rangedDistance or map.ranged)
+	return CombatAutomationConfig.stanceForPlayer(player), CombatAutomationConfig.RANGED_DISTANCE_DEFAULT
+end
+
+--- Persisted automation stance for a player (vocation-validated): role, rangedDistance.
+function CombatAutomationConfig.configuredStanceForPlayer(player)
+	local at = nil
+	if CombatAutomationStore and CombatAutomationStore.getConfig then
+		local cfg = CombatAutomationStore.getConfig(player)
+		at = cfg and cfg.autoTarget
 	end
-	return map[role] or 1
+	return CombatAutomationConfig.normalizeStanceForPlayer(player, at and at.stance)
+end
+
+--- Chebyshev distance the member's stance keeps from its focus.
+function CombatAutomationConfig.stanceDistanceOf(config)
+	local role = config and config.autoTarget and config.autoTarget.stance or "melee"
+	return CombatAutomationConfig.STANCE_DISTANCE[role] or 1
 end
 
 CombatAutomationConfig.RuneWordsByTypeId = {
@@ -269,6 +268,23 @@ CombatAutomationConfig.AllowedAmmo = {
 	[16142] = { kind = "bolt", minLevel = 70 }, -- drill bolt
 	[16141] = { kind = "bolt", minLevel = 90 }, -- prismatic bolt
 	[35902] = { kind = "bolt", minLevel = 150 }, -- spectral bolt
+}
+
+-- Ammo that hits an area around the target (data/scripts/weapons/scripts/*.lua),
+-- as offsets from the target tile.
+local DIAMOND_ARROW_AREA = {
+	kind = "target",
+	tiles = {
+		{ -1, -2 }, { 0, -2 }, { 1, -2 },
+		{ -2, -1 }, { -1, -1 }, { 0, -1 }, { 1, -1 }, { 2, -1 },
+		{ -2, 0 }, { -1, 0 }, { 0, 0 }, { 1, 0 }, { 2, 0 },
+		{ -2, 1 }, { -1, 1 }, { 0, 1 }, { 1, 1 }, { 2, 1 },
+		{ -1, 2 }, { 0, 2 }, { 1, 2 },
+	},
+}
+CombatAutomationConfig.AmmoAreaByTypeId = {
+	[25757] = DIAMOND_ARROW_AREA,
+	[35901] = DIAMOND_ARROW_AREA,
 }
 
 CombatAutomationConfig.DefaultAmmoByKind = {
@@ -1241,7 +1257,7 @@ CombatAutomationConfig.SpellAreaById = {
 		[7] = { {1, -1}, {2, -6}, {2, -5}, {2, -4}, {2, -3}, {2, -2}, {3, -5}, {3, -4}, {3, -3}, {3, -2}, {4, -4}, {4, -3}, {4, -2}, {5, -3}, {5, -2}, {6, -2} },
 	},
 	},
-	exeta_amp_res = { kind = "target", shape = "chain", radius = 7 },
+	exeta_amp_res = { kind = "target", shape = "single", radius = 0 },
 	utevo_res_ina = { kind = "self", shape = "single", radius = 0 },
 	exana_kor = { kind = "self", shape = "single", radius = 0 },
 	exana_flam = { kind = "self", shape = "single", radius = 0 },
@@ -1397,51 +1413,22 @@ CombatAutomationConfig.SpellAreaById = {
 		kind = "direction",
 		shape = "beam",
 		radius = 0,
-		wod = { check = "upgradeGrade", name = "Great Death Beam" },
-		byDir = {
-		[0] = { {0, -6}, {0, -5}, {0, -4}, {0, -3}, {0, -2}, {0, -1} },
-		[1] = { {1, 0}, {2, 0}, {3, 0}, {4, 0}, {5, 0}, {6, 0} },
-		[2] = { {0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 5}, {0, 6} },
-		[3] = { {-6, 0}, {-5, 0}, {-4, 0}, {-3, 0}, {-2, 0}, {-1, 0} },
-	},
-		gradeByDir = {
-		[1] = {
-			[0] = { {0, -6}, {0, -5}, {0, -4}, {0, -3}, {0, -2}, {0, -1} },
-			[1] = { {1, 0}, {2, 0}, {3, 0}, {4, 0}, {5, 0}, {6, 0} },
-			[2] = { {0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 5}, {0, 6} },
-			[3] = { {-6, 0}, {-5, 0}, {-4, 0}, {-3, 0}, {-2, 0}, {-1, 0} },
-		},
-		[2] = {
-			[0] = { {0, -7}, {0, -6}, {0, -5}, {0, -4}, {0, -3}, {0, -2}, {0, -1} },
-			[1] = { {1, 0}, {2, 0}, {3, 0}, {4, 0}, {5, 0}, {6, 0}, {7, 0} },
-			[2] = { {0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 5}, {0, 6}, {0, 7} },
-			[3] = { {-7, 0}, {-6, 0}, {-5, 0}, {-4, 0}, {-3, 0}, {-2, 0}, {-1, 0} },
-		},
-		[3] = {
-			[0] = { {0, -8}, {0, -7}, {0, -6}, {0, -5}, {0, -4}, {0, -3}, {0, -2}, {0, -1} },
-			[1] = { {1, 0}, {2, 0}, {3, 0}, {4, 0}, {5, 0}, {6, 0}, {7, 0}, {8, 0} },
-			[2] = { {0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 5}, {0, 6}, {0, 7}, {0, 8} },
-			[3] = { {-8, 0}, {-7, 0}, {-6, 0}, {-5, 0}, {-4, 0}, {-3, 0}, {-2, 0}, {-1, 0} },
-		},
-	},
-	},
-	exevo_gran_vis_lux = {
-		kind = "direction",
-		shape = "beam",
-		radius = 0,
-		wod = { check = "instantSkill", name = "Beam Mastery" },
 		byDir = {
 		[0] = { {0, -8}, {0, -7}, {0, -6}, {0, -5}, {0, -4}, {0, -3}, {0, -2}, {0, -1} },
 		[1] = { {1, 0}, {2, 0}, {3, 0}, {4, 0}, {5, 0}, {6, 0}, {7, 0}, {8, 0} },
 		[2] = { {0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 5}, {0, 6}, {0, 7}, {0, 8} },
 		[3] = { {-8, 0}, {-7, 0}, {-6, 0}, {-5, 0}, {-4, 0}, {-3, 0}, {-2, 0}, {-1, 0} },
 	},
-		-- Beam Mastery: AREA_BEAM10 center + full-length left/right flanks (incl. first sqm).
-		wodByDir = {
-		[0] = { {-1, -10}, {-1, -9}, {-1, -8}, {-1, -7}, {-1, -6}, {-1, -5}, {-1, -4}, {-1, -3}, {-1, -2}, {-1, -1}, {0, -10}, {0, -9}, {0, -8}, {0, -7}, {0, -6}, {0, -5}, {0, -4}, {0, -3}, {0, -2}, {0, -1}, {1, -10}, {1, -9}, {1, -8}, {1, -7}, {1, -6}, {1, -5}, {1, -4}, {1, -3}, {1, -2}, {1, -1} },
-		[1] = { {1, -1}, {1, 0}, {1, 1}, {2, -1}, {2, 0}, {2, 1}, {3, -1}, {3, 0}, {3, 1}, {4, -1}, {4, 0}, {4, 1}, {5, -1}, {5, 0}, {5, 1}, {6, -1}, {6, 0}, {6, 1}, {7, -1}, {7, 0}, {7, 1}, {8, -1}, {8, 0}, {8, 1}, {9, -1}, {9, 0}, {9, 1}, {10, -1}, {10, 0}, {10, 1} },
-		[2] = { {-1, 1}, {-1, 2}, {-1, 3}, {-1, 4}, {-1, 5}, {-1, 6}, {-1, 7}, {-1, 8}, {-1, 9}, {-1, 10}, {0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 5}, {0, 6}, {0, 7}, {0, 8}, {0, 9}, {0, 10}, {1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {1, 7}, {1, 8}, {1, 9}, {1, 10} },
-		[3] = { {-10, -1}, {-10, 0}, {-10, 1}, {-9, -1}, {-9, 0}, {-9, 1}, {-8, -1}, {-8, 0}, {-8, 1}, {-7, -1}, {-7, 0}, {-7, 1}, {-6, -1}, {-6, 0}, {-6, 1}, {-5, -1}, {-5, 0}, {-5, 1}, {-4, -1}, {-4, 0}, {-4, 1}, {-3, -1}, {-3, 0}, {-3, 1}, {-2, -1}, {-2, 0}, {-2, 1}, {-1, -1}, {-1, 0}, {-1, 1} },
+	},
+	exevo_gran_vis_lux = {
+		kind = "direction",
+		shape = "beam",
+		radius = 0,
+		byDir = {
+		[0] = { {0, -8}, {0, -7}, {0, -6}, {0, -5}, {0, -4}, {0, -3}, {0, -2}, {0, -1} },
+		[1] = { {1, 0}, {2, 0}, {3, 0}, {4, 0}, {5, 0}, {6, 0}, {7, 0}, {8, 0} },
+		[2] = { {0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 5}, {0, 6}, {0, 7}, {0, 8} },
+		[3] = { {-8, 0}, {-7, 0}, {-6, 0}, {-5, 0}, {-4, 0}, {-3, 0}, {-2, 0}, {-1, 0} },
 	},
 	},
 	exevo_gran_flam_hur = {

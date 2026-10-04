@@ -1,4 +1,4 @@
--- Vocation Adjustment: a Master Sorcerer's elemental stance reshapes Electrify (element + impact EFFECT
+-- Vocation Adjustment: a Master Sorcerer's stance conversion reshapes Electrify (element + impact EFFECT
 -- + missile DISTANCEEFFECT):
 --   Master of Flames -> fire,  effect 329, missile 4
 --   Master of Decay  -> death, effect 330, missile 11
@@ -29,10 +29,10 @@ local spell = Spell("instant")
 function spell.onCastSpell(creature, var)
 	local player = creature:getPlayer()
 	if player then
-		local stance = player:getElementalStance()
-		if stance == STANCE_MASTER_OF_FLAMES then
+		local element = player:resolveElementConversion(COMBAT_ENERGYDAMAGE)
+		if element == COMBAT_FIREDAMAGE then
 			return combatFlames:execute(creature, var)
-		elseif stance == STANCE_MASTER_OF_DECAY then
+		elseif element == COMBAT_DEATHDAMAGE then
 			return combatDecay:execute(creature, var)
 		end
 	end

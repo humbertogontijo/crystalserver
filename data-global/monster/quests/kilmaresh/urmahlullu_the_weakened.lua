@@ -97,20 +97,20 @@ monster.loot = {
 	{ name = "tagralt blade", chance = 1850 },
 	{ name = "giant sapphire", chance = 2151 },
 	{ id = 31263, chance = 10215 }, -- ring of secret thoughts
-	{ name = "sunray emblem", chance = 538 },
+	{ name = "sunray emblem", chance = 3850 },
 	{ name = "urmahlullu's mane", chance = 1075 },
 	{ name = "winged boots", chance = 538 },
 	{ name = "urmahlullu's tail", chance = 6980 },
 	{ name = "lightning legs", chance = 6400 },
 	{ name = "giant emerald", chance = 2151 },
 	{ name = "giant ruby", chance = 3490 },
-	{ id = 30403, chance = 538 }, -- enchanted theurgic amulet
-	{ name = "sun medal", chance = 2151 },
+	{ id = 30403, chance = 1740 }, -- enchanted theurgic amulet
+	{ name = "sun medal", chance = 580 },
 	{ name = "golden bijou", chance = 580 },
 	{ name = "winged backpack", chance = 250 },
 	{ name = "rainbow necklace", chance = 1160 },
 	{ id = 30403, chance = 160 }, -- enchanted theurgic amulet
-	{ name = "sun medal", chance = 2151 },
+	{ name = "sun medal", chance = 160 },
 	{ name = "sunray emblem", chance = 160 },
 	{ id = 50150, chance = 4301 }, -- ring of orange plasma
 	{ name = "transcendence potion", chance = 9140, maxCount = 18 },
@@ -125,7 +125,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 84,
-	armor = 0,
+	armor = 84,
 	--	mitigation = ???,
 }
 

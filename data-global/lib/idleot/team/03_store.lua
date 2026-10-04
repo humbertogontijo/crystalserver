@@ -634,7 +634,7 @@ function TeamStore.resolveFriendMember(controller, nameOrGuid)
 	end
 	local accountId = controller:getAccountId()
 	if accountId and accountId > 0 and candidate:getAccountId() == accountId then
-		return nil, "Use companion for same-account characters."
+		return nil, "Same-account characters join as alts."
 	end
 	if not TeamStore.isFriend(controller, candidate:getGuid()) and not TeamStore.isFriend(controller, candidate:getName()) then
 		return nil, "Only friends can join your team."

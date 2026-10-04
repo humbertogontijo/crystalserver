@@ -71,7 +71,7 @@ local function collectOwnedItemIds(player)
 		scan(player:getSlotItem(slot))
 	end
 
-	-- Account-scoped loot pouch view (slot 12 is only an empty handle).
+	-- Account-scoped loot pouch (slot 12 is only an empty handle).
 	if player.getLootPouch then
 		scan(player:getLootPouch())
 	end

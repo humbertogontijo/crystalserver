@@ -1,7 +1,10 @@
--- Expedition session AI: persistence, directives, relocate settle, teleport catch-up.
--- Targeting / stance / casting live in CombatAutomation (per player).
+-- Expedition session AI: the single session tick (AI_TICK_MS), persistence,
+-- movement directives and catch-up. Targeting / stance / casting live in
+-- CombatAutomation (per player, playerOnThink).
 
 ExpeditionAI = ExpeditionAI or {}
+
+local geo = CombatGeo
 
 local function memberIds(session)
 	if ExpeditionManager and ExpeditionManager.sessionMemberIds then
@@ -13,55 +16,10 @@ local function memberIds(session)
 	return {}
 end
 
-local function sameTile(a, b)
-	return a and b and a.x == b.x and a.y == b.y and a.z == b.z
+function ExpeditionAI.sessionKind(session)
+	return session.kind or (session.catalog and session.catalog.kind) or "hunt"
 end
-
-local function syncAttackTarget(session, player, target, force)
-	if not session or not player then
-		return
-	end
-	local creatureId = 0
-	if target then
-		creatureId = target:getId()
-	end
-	session.lastSyncedAttackByPlayer = session.lastSyncedAttackByPlayer or {}
-	local pid = player:getId()
-	if not force and session.lastSyncedAttackByPlayer[pid] == creatureId then
-		return
-	end
-	session.lastSyncedAttackByPlayer[pid] = creatureId
-	session.lastSyncedAttackCreatureId = creatureId
-	if ExpeditionProtocol and ExpeditionProtocol.sendAttackTarget then
-		ExpeditionProtocol.sendAttackTarget(player, creatureId)
-	end
-end
-
-function ExpeditionAI.resyncAttackTarget(session, player)
-	if not session or not player then
-		return
-	end
-	session.lastSyncedAttackByPlayer = session.lastSyncedAttackByPlayer or {}
-	session.lastSyncedAttackByPlayer[player:getId()] = nil
-	session.lastSyncedAttackCreatureId = nil
-	syncAttackTarget(session, player, player:getTarget(), true)
-end
-
-function ExpeditionAI.syncAttackTargetIfChanged(session, player)
-	if not session or not player then
-		return
-	end
-	local target = player:getTarget()
-	local creatureId = 0
-	if target then
-		creatureId = target:getId()
-	end
-	session.lastSyncedAttackByPlayer = session.lastSyncedAttackByPlayer or {}
-	if session.lastSyncedAttackByPlayer[player:getId()] == creatureId then
-		return
-	end
-	syncAttackTarget(session, player, target)
-end
+local sessionKind = ExpeditionAI.sessionKind
 
 function ExpeditionAI.enablePersistence(player)
 	if not player then
@@ -73,7 +31,7 @@ function ExpeditionAI.enablePersistence(player)
 			return
 		end
 	end
-	if PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) then
+	if PzTeleport.isGod(player) then
 		if player.isIdleCombat and player:isIdleCombat() then
 			player:setIdleCombat(false)
 		end
@@ -85,9 +43,11 @@ function ExpeditionAI.enablePersistence(player)
 	if player.kv then
 		player:kv():remove("combat-protection")
 	end
-	local condition = Condition(CONDITION_INFIGHT)
-	condition:setParameter(CONDITION_PARAM_TICKS, 60000)
-	player:addCondition(condition)
+	if not player:getCondition(CONDITION_INFIGHT) then
+		local condition = Condition(CONDITION_INFIGHT)
+		condition:setParameter(CONDITION_PARAM_TICKS, 60000)
+		player:addCondition(condition)
+	end
 end
 
 function ExpeditionAI.onAutoResumed(player)
@@ -98,11 +58,6 @@ function ExpeditionAI.onAutoResumed(player)
 		CombatAutomationMovement.onAutoResumed(player)
 	elseif player.clearWalkTask then
 		player:clearWalkTask()
-	end
-	if player.setIdleCombat then
-		if player:isIdleCombat() then
-			player:setIdleCombat(false)
-		end
 	end
 	ExpeditionAI.enablePersistence(player)
 end
@@ -116,9 +71,8 @@ local function suggestAutoOn(player)
 	config.autoTarget = config.autoTarget
 		or {
 			enabled = false,
-			stance = (ExpeditionConfig and ExpeditionConfig.stanceForPlayer and ExpeditionConfig.stanceForPlayer(player))
-				or "melee",
-			rangedDistance = (ExpeditionConfig and ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 3,
+			stance = CombatAutomationConfig.stanceForPlayer(player),
+			rangedDistance = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT,
 			mode = "A",
 		}
 	if config.autoTarget.enabled ~= true then
@@ -131,7 +85,7 @@ local function suggestAutoOn(player)
 	end
 end
 
-local function clearPlayerCombat(session, player)
+local function clearPlayerCombat(player)
 	if not player then
 		return
 	end
@@ -139,12 +93,8 @@ local function clearPlayerCombat(session, player)
 		player:setFollowCreature(nil)
 	end
 	player:setTarget(nil)
-	if session then
-		session.lastSyncedAttackByPlayer = session.lastSyncedAttackByPlayer or {}
-		session.lastSyncedAttackByPlayer[player:getId()] = nil
-	end
-	if ExpeditionProtocol and ExpeditionProtocol.sendAttackTarget then
-		ExpeditionProtocol.sendAttackTarget(player, 0)
+	if CombatAutomation and CombatAutomation.resyncAttackTarget then
+		CombatAutomation.resyncAttackTarget(player)
 	end
 	player:setIdleCombat(false)
 	player:removeCondition(CONDITION_INFIGHT)
@@ -158,66 +108,42 @@ local function clearPlayerCombat(session, player)
 	-- Think pipeline stops when idleCombat clears; do not re-arm combat here.
 end
 
---- Teleport lagging non-anchors near the anchor — never onto holdPos (that blocks the wave gate).
-local function tileFreeFor(player, pos)
-	if not pos or not player then
-		return false
-	end
-	local tile = Tile(pos)
-	if not tile or not tile.getGround or not tile:getGround() then
-		return false
-	end
-	if tile.hasProperty and CONST_PROP_BLOCKSOLID and tile:hasProperty(CONST_PROP_BLOCKSOLID) then
-		return false
-	end
-	local top = tile.getTopCreature and tile:getTopCreature()
-	if top and top.getId and top:getId() ~= player:getId() then
-		return false
-	end
-	return true
+-- ---------------------------------------------------------------------------
+-- Catch-up (teleport last resort; walking back is CombatAutomationMovement's)
+-- ---------------------------------------------------------------------------
+
+local CATCH_UP_OFFSETS = { { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 } }
+for i, off in ipairs(geo.NEIGHBOUR_OFFSETS) do
+	table.insert(CATCH_UP_OFFSETS, i, off)
 end
 
-local function findCatchUpTile(session, player, anchor)
+local function findCatchUpTile(player, anchor)
 	local apos = anchor:getPosition()
-	if not apos then
-		return nil
-	end
-	local hold = session.holdPos
-	local offsets = {
-		{ 1, 0 },
-		{ -1, 0 },
-		{ 0, 1 },
-		{ 0, -1 },
-		{ 1, 1 },
-		{ 1, -1 },
-		{ -1, 1 },
-		{ -1, -1 },
-		{ 2, 0 },
-		{ -2, 0 },
-		{ 0, 2 },
-		{ 0, -2 },
-	}
-	for _, off in ipairs(offsets) do
+	for _, off in ipairs(CATCH_UP_OFFSETS) do
 		local pos = Position(apos.x + off[1], apos.y + off[2], apos.z)
-		if not (hold and sameTile(pos, hold)) and tileFreeFor(player, pos) then
+		if geo.tileFree(pos, player) then
 			return pos
 		end
 	end
-	local fallback = Position(apos.x, apos.y - 1, apos.z)
-	if hold and sameTile(fallback, hold) then
-		fallback = Position(apos.x, apos.y + 1, apos.z)
-	end
-	return fallback
+	return apos
 end
 
-local function teleportCatchUp(session, player, anchor)
-	if not session or not player or not anchor then
+local function teleportNearAnchor(session, player, anchor)
+	if not player.teleportTo then
 		return
 	end
+	player:teleportTo(findCatchUpTile(player, anchor))
+	if CombatAutomationMovement then
+		CombatAutomationMovement.clearWalkDedupe(player)
+	end
+	session.catchUpTeleports = (session.catchUpTeleports or 0) + 1
+end
+
+--- Lagging companions walk back (CombatAutomationMovement catch-up). Teleport is the
+--- last resort: another floor, or beyond CATCH_UP_TELEPORT_SQM without closing in
+--- for CATCH_UP_STALL_MS.
+local function catchUpMember(session, player, anchor)
 	if player:getId() == anchor:getId() then
-		return
-	end
-	if PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) then
 		return
 	end
 	local ppos = player:getPosition()
@@ -225,107 +151,35 @@ local function teleportCatchUp(session, player, anchor)
 	if not ppos or not apos then
 		return
 	end
-	local teleportAt = tonumber(ExpeditionConfig.CATCH_UP_TELEPORT_SQM) or 15
-	local dist = (ppos.z ~= apos.z) and (teleportAt + 1) or ppos:getDistance(apos)
-	if dist > teleportAt and player.teleportTo then
-		local dest = findCatchUpTile(session, player, anchor) or apos
-		player:teleportTo(dest)
-		if CombatAutomationMovement then
-			CombatAutomationMovement.clearWalkDedupe(player)
-		end
-	end
-end
-
---- If a party member (or any creature we can shove) occupies holdPos, step them aside
---- so the anchor can land for the wave gate.
-local function clearHoldOccupants(session, hold, anchor)
-	if not session or not hold then
+	session._catchUp = session._catchUp or {}
+	local pid = player:getId()
+	if ppos.z ~= apos.z then
+		session._catchUp[pid] = nil
+		teleportNearAnchor(session, player, anchor)
 		return
 	end
-	local tile = Tile(hold)
-	if not tile then
+	local dist = geo.chebyshev(ppos, apos)
+	if dist <= (tonumber(ExpeditionConfig.CATCH_UP_TELEPORT_SQM) or 15) then
+		session._catchUp[pid] = nil
 		return
 	end
-	local creatures = tile.getCreatures and tile:getCreatures() or nil
-	local top = nil
-	if type(creatures) ~= "table" or #creatures == 0 then
-		top = tile.getTopCreature and tile:getTopCreature()
-		if not top then
-			return
-		end
-		creatures = { top }
-	end
-	local anchorId = anchor and anchor:getId() or 0
-	local memberSet = {}
-	for _, id in ipairs(memberIds(session)) do
-		memberSet[id] = true
-	end
-	for _, creature in ipairs(creatures) do
-		if creature and creature.getId and creature:getId() ~= anchorId then
-			local cid = creature:getId()
-			if memberSet[cid] and creature.teleportTo then
-				local dest = findCatchUpTile(session, creature, anchor or creature)
-				if dest and not sameTile(dest, hold) then
-					creature:teleportTo(dest)
-					if CombatAutomationMovement then
-						CombatAutomationMovement.clearWalkDedupe(creature)
-					end
-				end
-			end
-		end
-	end
-end
-
-local function tickCatchUp(session)
-	if not session then
+	local now = geo.nowMs()
+	local track = session._catchUp[pid]
+	if not track or dist < track.dist then
+		session._catchUp[pid] = { dist = dist, at = now }
 		return
 	end
-	local kind = session.kind or (session.catalog and session.catalog.kind) or "hunt"
-	if kind == "raid" then
-		return
+	if now - track.at > (tonumber(ExpeditionConfig.CATCH_UP_STALL_MS) or 10000) then
+		session._catchUp[pid] = nil
+		teleportNearAnchor(session, player, anchor)
 	end
-	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
-	if not anchor then
-		return
-	end
-	for _, id in ipairs(memberIds(session)) do
-		local player = Player(id)
-		if player and not (PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player)) then
-			teleportCatchUp(session, player, anchor)
-		end
-	end
-end
-
-function ExpeditionAI.onPlayerWalk(player)
-	if not player or not ExpeditionConfig then
-		return
-	end
-	if player:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) ~= 1 then
-		return
-	end
-	if not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
-		return
-	end
-	local session = ExpeditionManager.getSessionByPlayer(player)
-	if not session or session.state == "ended" then
-		return
-	end
-	local kind = session.kind or (session.catalog and session.catalog.kind) or "hunt"
-	if kind == "raid" then
-		return
-	end
-	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
-	if not anchor or player:getId() ~= anchor:getId() then
-		return
-	end
-	tickCatchUp(session)
 end
 
 function ExpeditionAI.stopPlayer(session, player)
 	if not session or not player then
 		return
 	end
-	clearPlayerCombat(session, player)
+	clearPlayerCombat(player)
 end
 
 function ExpeditionAI.syncPathLeash(session)
@@ -342,8 +196,7 @@ function ExpeditionAI.syncPathLeash(session)
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)
 		if player and player.clearPathLeash then
-			local god = PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player)
-			if not anchorPos or god or id == anchorId or radius <= 0 then
+			if not anchorPos or PzTeleport.isGod(player) or id == anchorId or radius <= 0 then
 				player:clearPathLeash()
 			else
 				player:setPathLeash(anchorPos, radius)
@@ -352,178 +205,50 @@ function ExpeditionAI.syncPathLeash(session)
 	end
 end
 
---- Push hold/follow/anchorStance directives and drive anchor walk to hold during relocate.
+--- Movement directives: the anchor walks the cave route (ExpeditionCavebot) or holds
+--- the session holdPos (boss / arena / before the walk starts); the others trail the
+--- anchor in line while it walks and take formation around it while it fights.
 function ExpeditionAI.syncDirectives(session)
 	if not session or not CombatAutomationMovement then
 		return
 	end
-	local hold = session.holdPos
+	local move = CombatAutomationMovement
 	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
 	local anchorId = anchor and anchor:getId() or session.anchorPlayerId
-	local relocating = session.state == "relocating"
-	local kind = session.kind or (session.catalog and session.catalog.kind) or "hunt"
+	local raid = sessionKind(session) == "raid"
 
-	local function copyHold()
-		if not hold then
-			return nil
+	local anchorDirective, walking = nil, false
+	if not raid and anchor then
+		if session.cave and ExpeditionCavebot then
+			anchorDirective, walking = ExpeditionCavebot.anchorDirective(session, anchor)
+		elseif session.holdPos then
+			local hold = session.holdPos
+			anchorDirective = { kind = "hold", pos = Position(hold.x, hold.y, hold.z), priority = "soft" }
 		end
-		return Position(hold.x, hold.y, hold.z)
-	end
-
-	-- Anchor walks the incoming route leg toward the hold; halts (soft hold in place)
-	-- to fight a full pack lured on the way.
-	local function anchorWalkDirective()
-		if session.lureHalt and anchor then
-			local here = anchor:getPosition()
-			return { kind = "hold", pos = Position(here.x, here.y, here.z), priority = "soft" }
-		end
-		local target = ExpeditionWaves and ExpeditionWaves.walkTarget and ExpeditionWaves.walkTarget(session) or hold
-		local waypoint = target.x ~= hold.x or target.y ~= hold.y or target.z ~= hold.z
-		return {
-			kind = "hold",
-			pos = Position(target.x, target.y, target.z),
-			priority = "relocate",
-			-- A companion or monster may stand on a waypoint; beside it will do.
-			reach = waypoint and 1 or 0,
-		}
 	end
 
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)
-		if player and not (PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player)) then
-			if kind == "raid" then
-				CombatAutomationMovement.clearDirective(player, "hold")
-				CombatAutomationMovement.clearDirective(player, "follow")
-				CombatAutomationMovement.clearDirective(player, "anchorStance")
-			elseif relocating and hold then
-				if id == anchorId then
-					CombatAutomationMovement.clearDirective(player, "follow")
-					CombatAutomationMovement.clearDirective(player, "anchorStance")
-					CombatAutomationMovement.setDirective(player, anchorWalkDirective())
-				elseif anchorId then
-					local followDir = {
-						kind = "follow",
-						targetId = anchorId,
-						holdPos = copyHold(),
-						untilGate = "anchorHoldInViewport",
-					}
-					-- Gate met: stop engine-follow and switch to cardinal stance vs parked anchor.
-					if CombatAutomationMovement.isFollowComplete and CombatAutomationMovement.isFollowComplete(player, followDir) then
-						CombatAutomationMovement.clearDirective(player, "hold")
-						CombatAutomationMovement.clearDirective(player, "follow")
-						CombatAutomationMovement.setDirective(player, {
-							kind = "anchorStance",
-							targetId = anchorId,
-							holdPos = copyHold(),
-						})
-					else
-						CombatAutomationMovement.clearDirective(player, "hold")
-						CombatAutomationMovement.clearDirective(player, "anchorStance")
-						CombatAutomationMovement.setDirective(player, followDir)
-					end
-				end
-			elseif hold and id == anchorId then
-				-- Soft hold when idle/waiting with no focus: CombatAutomationMovement demotes when fighting.
-				CombatAutomationMovement.setDirective(player, {
-					kind = "hold",
-					pos = copyHold(),
-					priority = "soft",
-				})
-				CombatAutomationMovement.clearDirective(player, "follow")
-				CombatAutomationMovement.clearDirective(player, "anchorStance")
-			else
-				-- Settled non-anchor: cardinal stance vs parked anchor until they take a combat focus.
-				CombatAutomationMovement.clearDirective(player, "hold")
-				CombatAutomationMovement.clearDirective(player, "follow")
-				if hold and anchorId then
-					CombatAutomationMovement.setDirective(player, {
-						kind = "anchorStance",
-						targetId = anchorId,
-						holdPos = copyHold(),
-					})
+		if player and not PzTeleport.isGod(player) then
+			if raid then
+				move.clearDirective(player)
+			elseif id == anchorId then
+				if anchorDirective then
+					move.setDirective(player, anchorDirective)
 				else
-					CombatAutomationMovement.clearDirective(player, "anchorStance")
+					move.clearDirective(player)
 				end
-			end
-		end
-	end
-end
-
-function ExpeditionAI.startRelocateWalk(session)
-	if not session then
-		return
-	end
-	if session.relocateWalkEvent then
-		stopEvent(session.relocateWalkEvent)
-		session.relocateWalkEvent = nil
-	end
-	session._relocateFollowReady = nil
-	ExpeditionAI.syncDirectives(session)
-	ExpeditionAI.syncPathLeash(session)
-
-	local key = session.key
-	local POLL_MS = ExpeditionConfig.AI_TICK_MS or 250
-
-	local function loop()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s or s.state ~= "relocating" then
-			if s then
-				s.relocateWalkEvent = nil
-			end
-			return
-		end
-		ExpeditionAI.syncDirectives(s)
-		ExpeditionAI.syncPathLeash(s)
-		local hold = s.holdPos
-		local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(s)
-		if not hold or not anchor then
-			s.relocateWalkEvent = addEvent(loop, POLL_MS)
-			return
-		end
-
-		if anchor:getFollowCreature() then
-			anchor:setFollowCreature(nil)
-		end
-
-		-- Keep hold free so getPathTo(exact tile) can succeed for the wave gate.
-		clearHoldOccupants(s, hold, anchor)
-
-		-- Drive hold walk via CombatAutomation movement (regular pathfinding).
-		if CombatAutomationMovement then
-			local cfg = CombatAutomationStore and CombatAutomationStore.getConfig(anchor) or {}
-			CombatAutomationMovement.tick(anchor, cfg)
-			-- Also tick non-anchors so follow runs even if their combat loop stalled.
-			local aid = anchor:getId()
-			for _, mid in ipairs(memberIds(s)) do
-				if mid ~= aid then
-					local member = Player(mid)
-					if member and not (PzTeleport and PzTeleport.isGod and PzTeleport.isGod(member)) then
-						local mcfg = CombatAutomationStore and CombatAutomationStore.getConfig(member) or {}
-						CombatAutomationMovement.tick(member, mcfg)
-					end
+			elseif anchorId and anchorDirective then
+				if walking then
+					move.setDirective(player, { kind = "follow", targetId = anchorId })
+				else
+					move.setDirective(player, { kind = "anchorStance", targetId = anchorId, front = anchorDirective.front })
 				end
+			else
+				move.clearDirective(player)
 			end
 		end
-
-		local arrived = ExpeditionWaves and ExpeditionWaves.anchorArrived and ExpeditionWaves.anchorArrived(s)
-		if arrived == nil then
-			arrived = sameTile(anchor:getPosition(), hold)
-		end
-		if arrived then
-			s._relocateFollowReady = true
-			s.relocateWalkEvent = nil
-			if ExpeditionWaves and ExpeditionWaves.onRelocatePartySettled then
-				ExpeditionWaves.onRelocatePartySettled(s)
-			end
-			-- Session tick stays on aiEvent (ExpeditionAI.start); do not double-tick here.
-			return
-		end
-
-		tickCatchUp(s)
-		s.relocateWalkEvent = addEvent(loop, POLL_MS)
 	end
-
-	session.relocateWalkEvent = addEvent(loop, 0)
 end
 
 function ExpeditionAI.tick(session)
@@ -543,13 +268,6 @@ function ExpeditionAI.tick(session)
 		end
 	end
 	local ids = memberIds(session)
-	if #ids == 0 then
-		if ExpeditionManager.endIfNoPlayers then
-			ExpeditionManager.endIfNoPlayers(session, { immediate = true })
-		end
-		return
-	end
-
 	local anyOnline = false
 	for _, id in ipairs(ids) do
 		if Player(id) then
@@ -572,20 +290,19 @@ function ExpeditionAI.tick(session)
 		ExpeditionBoss.ensureKillableSession(session)
 	end
 
-	ExpeditionAI.syncDirectives(session)
-	ExpeditionAI.syncPathLeash(session)
-
-	-- Map-spawn hunts: pull ring, hold arrival / dwell, next hold (no-op for other roles).
-	if ExpeditionWaves and ExpeditionWaves.tickLure then
-		ExpeditionWaves.tickLure(session)
+	-- Map-spawn hunts: pack tracking + cave walker (boss / raid: pull to anchor).
+	if ExpeditionPack and ExpeditionPack.tickLure then
+		ExpeditionPack.tickLure(session)
 		if session.state == "ended" then
 			return
 		end
 	end
 
-	local kind = session.kind or (session.catalog and session.catalog.kind) or "hunt"
+	ExpeditionAI.syncDirectives(session)
+	ExpeditionAI.syncPathLeash(session)
+
 	local anchor = nil
-	if kind ~= "raid" then
+	if sessionKind(session) ~= "raid" then
 		anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
 	end
 
@@ -594,14 +311,13 @@ function ExpeditionAI.tick(session)
 		if player then
 			if ExpeditionManager.reconcilePresence and not ExpeditionManager.reconcilePresence(player) then
 				-- left area
-			elseif PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) then
+			elseif PzTeleport.isGod(player) then
 				-- spectate
 			else
 				ExpeditionAI.enablePersistence(player)
-				if anchor and kind ~= "raid" then
-					teleportCatchUp(session, player, anchor)
+				if anchor then
+					catchUpMember(session, player, anchor)
 				end
-				ExpeditionAI.syncAttackTargetIfChanged(session, player)
 			end
 		end
 	end
@@ -642,7 +358,7 @@ function ExpeditionAI.start(session)
 
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)
-		if player and not (PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player)) then
+		if player and not PzTeleport.isGod(player) then
 			suggestAutoOn(player)
 		end
 	end
@@ -658,18 +374,11 @@ function ExpeditionAI.stop(session)
 		stopEvent(session.aiEvent)
 		session.aiEvent = nil
 	end
-	if session.relocateWalkEvent then
-		stopEvent(session.relocateWalkEvent)
-		session.relocateWalkEvent = nil
-	end
-	session._relocateMember = nil
-	session._relocateDestsAssigned = nil
-	session._relocateFollowReady = nil
-	session._catchUpBoost = nil
+	session._catchUp = nil
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)
 		if player then
-			clearPlayerCombat(session, player)
+			clearPlayerCombat(player)
 		end
 	end
 end

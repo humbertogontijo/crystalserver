@@ -2,13 +2,8 @@ CombatAutomation = CombatAutomation or {}
 
 local statesByPlayerId = {}
 
-local function nowMs()
-	-- Wall-clock ms (OTSYS_TIME). os.clock() is CPU-time and stalls exhaust under load.
-	if type(systemTime) == "function" then
-		return math.floor(systemTime())
-	end
-	return math.floor(os.time() * 1000)
-end
+local nowMs = CombatGeo.nowMs
+local tileDistance = CombatGeo.chebyshev
 
 local function percentOf(current, maximum)
 	maximum = math.max(1, maximum or 1)
@@ -63,8 +58,8 @@ local FAMILIAR_WORDS = {
 }
 
 local CHALLENGE_WORDS = {
-	["exeta res"] = "challenge", -- Challenge (adjacent)
-	["exeta amp res"] = "amp_challenge", -- Chivalrous: ranged or not adjacent
+	["exeta res"] = "challenge", -- Challenge: adjacent area + chain to distant monsters
+	["exeta amp res"] = "amp_challenge", -- Chivalrous: chain to monsters still keeping range
 	["exana amp res"] = "ranged_chain", -- Divine Dazzle
 	["exori mas res"] = "brawl", -- Balanced Brawl
 }
@@ -394,6 +389,22 @@ local function expeditionSession(player)
 		return nil
 	end
 	return ExpeditionManager.getSessionByPlayer(player)
+end
+
+--- True when consumeSupply would succeed without the shortage handler.
+local function supplyAvailable(player, typeId)
+	if player:getItemById(typeId, true) then
+		return true
+	end
+	local price = CombatAutomationConfig.NpcBuyPriceByTypeId and CombatAutomationConfig.NpcBuyPriceByTypeId[typeId]
+	if price ~= 0 and NpcPriceChecker and NpcPriceChecker[typeId] and NpcPriceChecker[typeId].buy then
+		price = NpcPriceChecker[typeId].buy
+	end
+	if price == nil then
+		return false
+	end
+	price = math.floor(tonumber(price) or 0)
+	return price <= 0 or price <= (player:getMoney() or 0) + (player:getBankBalance() or 0)
 end
 
 --- Prefer consuming an inventory stack; otherwise charge NPC buy price from this character.
@@ -733,6 +744,22 @@ local function runeExhaustMs(typeId)
 	return CombatAutomationConfig.RUNE_EXHAUST_MS or 2000
 end
 
+-- words -> catalog spell id, rebuilt when CombatAutomationConfig.SpellWordsById is replaced.
+local spellIdByWords, spellIdByWordsSource = {}, nil
+
+local function catalogSpellIdForWords(words)
+	local source = CombatAutomationConfig.SpellWordsById
+	if source ~= spellIdByWordsSource then
+		spellIdByWords, spellIdByWordsSource = {}, source
+		for id, mapped in pairs(source or {}) do
+			if spellIdByWords[mapped] == nil then
+				spellIdByWords[mapped] = id
+			end
+		end
+	end
+	return spellIdByWords[words]
+end
+
 --- Returns: "cast" | "skip" | "fail"
 --- skip = not ready / gated (no attempt). fail = engine/script rejected (silent).
 --- param: optional player-name for friend/party heals (exura sio).
@@ -744,13 +771,7 @@ local function tryCastSpellWords(player, words, param)
 		return "skip"
 	end
 	-- Fail closed on vocation/level even if a stale slot slipped into KV.
-	local catalogId = nil
-	for id, mapped in pairs(CombatAutomationConfig.SpellWordsById or {}) do
-		if mapped == words then
-			catalogId = id
-			break
-		end
-	end
+	local catalogId = catalogSpellIdForWords(words)
 	if catalogId and CombatAutomationCatalog and CombatAutomationCatalog.spellAllowedForPlayer then
 		if not CombatAutomationCatalog.spellAllowedForPlayer(catalogId, player) then
 			return "skip"
@@ -806,13 +827,8 @@ local function notifyAutomationCast(player, slot, words, label, exhaustMs)
 		caster = player and player:getName() or "",
 	}
 	local function sendCast(target)
-		if not target then
-			return
-		end
-		if CombatAutomationProtocol and CombatAutomationProtocol.sendCast then
+		if target then
 			CombatAutomationProtocol.sendCast(target, payload)
-		elseif ExpeditionProtocol and ExpeditionProtocol.sendAutomationCast then
-			ExpeditionProtocol.sendAutomationCast(target, payload)
 		end
 	end
 	sendCast(player)
@@ -825,7 +841,8 @@ local function notifyAutomationCast(player, slot, words, label, exhaustMs)
 	end
 end
 
-local function useRune(player, typeId)
+--- aim: optional Position for area runes (best tile); defaults to the current target.
+local function useRune(player, typeId, aim)
 	if not CombatAutomationConfig.AllowedRunes or not CombatAutomationConfig.AllowedRunes[typeId] then
 		return false
 	end
@@ -841,19 +858,28 @@ local function useRune(player, typeId)
 	if not player.castRune then
 		return false
 	end
-	if not consumeSupply(player, typeId) then
-		return false
+	-- Charge after a successful cast; only a shortage (handler may stop the hunt) pays up front.
+	local prepaid = false
+	if not supplyAvailable(player, typeId) then
+		if not consumeSupply(player, typeId) then
+			return false
+		end
+		prepaid = true
 	end
-	-- Real rune script on the current target (correct area / distance / impact FX).
+	-- Real rune script (correct area / distance / impact FX).
 	local ok, result = pcall(function()
-		return player:castRune(typeId, target)
+		return player:castRune(typeId, aim or target)
 	end)
-	return ok and result == true
+	local cast = ok and result == true
+	if cast and not prepaid then
+		consumeSupply(player, typeId)
+	end
+	return cast
 end
 
 --- Returns: "cast" | "skip" | "fail"
 --- skip = not ready / gated (no attempt). fail = engine/script rejected (silent).
-local function tryUseRune(player, typeId)
+local function tryUseRune(player, typeId, aim)
 	if not CombatAutomationConfig.AllowedRunes or not CombatAutomationConfig.AllowedRunes[typeId] then
 		return "skip"
 	end
@@ -868,7 +894,7 @@ local function tryUseRune(player, typeId)
 	if not player.castRune then
 		return "skip"
 	end
-	if useRune(player, typeId) then
+	if useRune(player, typeId, aim) then
 		return "cast"
 	end
 	return "fail"
@@ -921,6 +947,58 @@ local STANCE_BY_WORDS = {
 
 local function stanceInfoForWords(words)
 	return STANCE_BY_WORDS[tostring(words or ""):lower()]
+end
+
+-- Master of Flames / Thunder / Decay: a native stance-element cast arms the next-spell
+-- conversion (Player::resolveElementCast), so stance-element attack slots lead the rotation.
+local ELEMENT_BY_WORD = { flam = "fire", vis = "energy", mort = "death" }
+local ELEMENT_BY_STANCE = {
+	[STANCE_MASTER_OF_FLAMES or 7] = "fire",
+	[STANCE_MASTER_OF_THUNDER or 8] = "energy",
+	[STANCE_MASTER_OF_DECAY or 9] = "death",
+}
+
+local function slotElement(slot)
+	local words = slot.kind == "rune" and runeWords(slot.runeTypeId) or slot.words
+	for token in tostring(words or ""):lower():gmatch("%a+") do
+		local element = ELEMENT_BY_WORD[token]
+		if element then
+			return element
+		end
+	end
+	return nil
+end
+
+--- Priority-ordered combat slots split into tiers: the elemental stance's element first,
+--- then everything else. One tier when no elemental stance is active.
+local function stanceElementTiers(player, slots)
+	local element = player and player.getElementalStance and ELEMENT_BY_STANCE[player:getElementalStance()]
+	if not element then
+		return { slots }
+	end
+	local stanceTier, rest = {}, {}
+	for _, slot in ipairs(slots) do
+		if slotElement(slot) == element then
+			stanceTier[#stanceTier + 1] = slot
+		else
+			rest[#rest + 1] = slot
+		end
+	end
+	return { stanceTier, rest }
+end
+
+local function stanceElementOrder(player, slots)
+	local tiers = stanceElementTiers(player, slots)
+	if #tiers == 1 then
+		return slots
+	end
+	local ordered = {}
+	for _, tier in ipairs(tiers) do
+		for _, slot in ipairs(tier) do
+			ordered[#ordered + 1] = slot
+		end
+	end
+	return ordered
 end
 
 local function currentStanceValue(player, info)
@@ -989,13 +1067,6 @@ local function preferredStanceWordsByChannel(slots)
 		end
 	end
 	return preferred
-end
-
-local function tileDistance(a, b)
-	if not a or not b or a.z ~= b.z then
-		return math.huge
-	end
-	return math.max(math.abs(a.x - b.x), math.abs(a.y - b.y))
 end
 
 -- Squared Euclidean tile distance for auto-target sorting.
@@ -1085,13 +1156,13 @@ function CombatAutomation.isValidAttackTarget(player, creature)
 	return true
 end
 
--- Per-tick cache: monster-count + challenge checks used to rescan spectators per slot.
+-- Spectator scan shared by every check in the running tick.
 local tickVisibleMonsters = nil
 
 local function computeVisibleMonsters(player)
 	local result = {}
 	local playerPos = player:getPosition()
-	local spectators = Game.getSpectators(playerPos, false, false, 8, 8, 6, 6, player.getInstanceId and player:getInstanceId() or nil)
+	local spectators = Game.getSpectators(playerPos, false, false, CombatGeo.VIEWPORT_X, CombatGeo.VIEWPORT_X, CombatGeo.VIEWPORT_Y, CombatGeo.VIEWPORT_Y, player.getInstanceId and player:getInstanceId() or nil)
 	for _, creature in ipairs(spectators) do
 		-- Pick pool is monsters only; rival players are sticky via getTarget(), never auto-picked.
 		if creature and creature:isMonster() and CombatAutomation.isValidAttackTarget(player, creature) then
@@ -1107,11 +1178,7 @@ local function visibleMonsters(player)
 	end
 	return computeVisibleMonsters(player)
 end
-
---- Per-tick monster list for stance / other modules (avoids a second spectator scan).
-function CombatAutomation.getVisibleMonsters(player)
-	return visibleMonsters(player)
-end
+CombatAutomation.visibleMonsters = visibleMonsters
 
 local function partyBuffConditionType(kind)
 	if kind == "attributes" and type(CONDITION_ATTRIBUTES) == "number" then
@@ -1194,17 +1261,17 @@ local function monsterIsRewardBoss(monster)
 end
 
 --- Prefer reward bosses and the active expedition/world-boss target over trash.
-local function monsterIsFocusBoss(player, monster)
+--- `session` (optional): the player's expedition session, when the caller already has it.
+local function monsterIsFocusBoss(player, monster, session)
 	if not monster then
 		return false
 	end
 	if monsterIsRewardBoss(monster) then
 		return true
 	end
-	if not player or not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
-		return false
+	if not session and player and ExpeditionManager and ExpeditionManager.getSessionByPlayer then
+		session = ExpeditionManager.getSessionByPlayer(player)
 	end
-	local session = ExpeditionManager.getSessionByPlayer(player)
 	if not session then
 		return false
 	end
@@ -1233,10 +1300,8 @@ local function hasRewardBossNearby(player)
 	if not player then
 		return false
 	end
-	local playerPos = player:getPosition()
-	local spectators = Game.getSpectators(playerPos, false, false, 8, 8, 6, 6, player.getInstanceId and player:getInstanceId() or nil)
-	for _, creature in ipairs(spectators) do
-		if creature and creature:isMonster() and monsterIsRewardBoss(creature) then
+	for _, monster in ipairs(visibleMonsters(player)) do
+		if monsterIsRewardBoss(monster) then
 			return true
 		end
 	end
@@ -1292,6 +1357,19 @@ local function isInBalancedBrawlArea(player, monster)
 	return lateral <= maxLat
 end
 
+--- First chain hop from the caster: same picker rules as the spell, in jump range and in sight.
+local function knightChainCanStart(player, origin, monster, opts)
+	if KnightChallenge.chainPriority(player, monster, opts) <= 0 then
+		return false
+	end
+	local mp = monster:getPosition()
+	if not mp or mp.z ~= origin.z or tileDistance(origin, mp) > KnightChallenge.CHAIN_DISTANCE then
+		return false
+	end
+	local instanceId = player.getInstanceId and player:getInstanceId() or 0
+	return not origin.isSightClear or origin:isSightClear(mp, true, instanceId)
+end
+
 local function challengeCanAffectCreature(player, words)
 	local mode = CHALLENGE_WORDS[words]
 	if not mode or not player then
@@ -1304,22 +1382,24 @@ local function challengeCanAffectCreature(player, words)
 	if not origin then
 		return false
 	end
+	-- Exeta res chain (challenge.lua) only runs with a free tile around the knight.
+	local challengeChain = mode == "challenge" and KnightChallenge.hasRoomAround(player)
 	for _, monster in ipairs(visibleMonsters(player)) do
 		if mode == "challenge" then
 			local mp = monster:getPosition()
-			if mp and mp.z == origin.z and math.max(math.abs(mp.x - origin.x), math.abs(mp.y - origin.y)) <= 1 then
+			if tileDistance(mp, origin) <= 1 then
+				return true
+			end
+			if challengeChain and knightChainCanStart(player, origin, monster, { skipAdjacent = true }) then
 				return true
 			end
 		elseif mode == "amp_challenge" then
-			-- Mirrors product chivalrous_challenge.lua: ranged types or not adjacent.
-			if not monsterHasMaster(monster) then
-				local mp = monster:getPosition()
-				if mp and mp.z == origin.z then
-					local cheb = tileDistance(origin, mp)
-					if cheb <= 7 and (monsterIsRanged(monster) or cheb > 1) then
-						return true
-					end
-				end
+			-- Only turns ranged monsters melee; exeta res owns keeping the pack challenged.
+			if
+				KnightChallenge.isCurrentlyRanged(monster)
+				and knightChainCanStart(player, origin, monster, { rangedOnly = true })
+			then
+				return true
 			end
 		elseif mode == "ranged_chain" then
 			if monsterIsRanged(monster) and not monsterHasMaster(monster) then
@@ -1402,300 +1482,6 @@ function CombatAutomation.weaponShootRange(player)
 	return 1
 end
 
---- True when creature is within Chebyshev weapon range (and existing LOS/validity).
-function CombatAutomation.isInWeaponRange(player, creature)
-	if not player or not creature then
-		return false
-	end
-	if CombatAutomation.isValidAttackTarget and not CombatAutomation.isValidAttackTarget(player, creature) then
-		return false
-	end
-	local fromPos = player:getPosition()
-	local toPos = creature:getPosition()
-	if not fromPos or not toPos or fromPos.z ~= toPos.z then
-		return false
-	end
-	local dist = math.max(math.abs(fromPos.x - toPos.x), math.abs(fromPos.y - toPos.y))
-	return dist <= CombatAutomation.weaponShootRange(player)
-end
-
---- Count living monsters within Chebyshev radius of `center` (Mode E scoring).
-local function countMonstersNear(monsters, center, radius)
-	if not center then
-		return 0
-	end
-	radius = math.max(0, math.floor(tonumber(radius) or 1))
-	local n = 0
-	for i = 1, #monsters do
-		local m = monsters[i]
-		local mp = m and m.getPosition and m:getPosition()
-		if mp and mp.z == center.z and tileDistance(center, mp) <= radius then
-			n = n + 1
-		end
-	end
-	return n
-end
-
-local function monsterHpPercent(monster)
-	if not monster then
-		return 100
-	end
-	local hp = monster.getHealth and monster:getHealth() or 0
-	local maxHp = monster.getMaxHealth and monster:getMaxHealth() or 1
-	if maxHp <= 0 then
-		return 100
-	end
-	return (hp / maxHp) * 100
-end
-
---- Pick monster by auto-target mode A–I.
-function CombatAutomation.pickMonsterBySort(player, monsters, sortMode)
-	if type(monsters) ~= "table" or #monsters == 0 then
-		return nil
-	end
-	local mode = CombatAutomationConfig.normalizeAutoTargetMode(sortMode)
-	local playerPos = player and player:getPosition() or nil
-	local pool = {}
-	for i = 1, #monsters do
-		local monster = monsters[i]
-		if CombatAutomation.isValidAttackTarget(player, monster) then
-			pool[#pool + 1] = monster
-		end
-	end
-	if #pool == 0 then
-		return nil
-	end
-
-	local aoeRadius = CombatAutomationConfig.AOE_BEST_RADIUS or 1
-	local function distSq(m)
-		if not playerPos then
-			return 0
-		end
-		return sortDistanceSquared(playerPos, m:getPosition())
-	end
-
-	table.sort(pool, function(a, b)
-		-- Always prefer bosses over trash, regardless of auto-target mode.
-		local ba, bb = monsterIsFocusBoss(player, a), monsterIsFocusBoss(player, b)
-		if ba ~= bb then
-			return ba
-		end
-
-		local da, db = distSq(a), distSq(b)
-		local ha, hb = monsterHpPercent(a), monsterHpPercent(b)
-		local ida, idb = a:getId(), b:getId()
-
-		if mode == "B" then
-			if da ~= db then
-				return da > db
-			end
-		elseif mode == "C" then
-			if ha ~= hb then
-				return ha < hb
-			end
-			if da ~= db then
-				return da < db
-			end
-		elseif mode == "D" then
-			if ha ~= hb then
-				return ha > hb
-			end
-			if da ~= db then
-				return da < db
-			end
-		elseif mode == "E" then
-			local ca = countMonstersNear(pool, a:getPosition(), aoeRadius)
-			local cb = countMonstersNear(pool, b:getPosition(), aoeRadius)
-			if ca ~= cb then
-				return ca > cb
-			end
-			if da ~= db then
-				return da < db
-			end
-		elseif mode == "F" then
-			if da ~= db then
-				return da < db
-			end
-			if ha ~= hb then
-				return ha < hb
-			end
-		elseif mode == "G" then
-			if da ~= db then
-				return da < db
-			end
-			if ha ~= hb then
-				return ha > hb
-			end
-		elseif mode == "H" then
-			if da ~= db then
-				return da > db
-			end
-			if ha ~= hb then
-				return ha < hb
-			end
-		elseif mode == "I" then
-			if da ~= db then
-				return da > db
-			end
-			if ha ~= hb then
-				return ha > hb
-			end
-		else
-			-- A closest (prefer already in weapon range)
-			local ara = CombatAutomation.isInWeaponRange(player, a)
-			local arb = CombatAutomation.isInWeaponRange(player, b)
-			if ara ~= arb then
-				return ara
-			end
-			if da ~= db then
-				return da < db
-			end
-		end
-		return ida < idb
-	end)
-	return pool[1]
-end
-
---- True when candidate is strictly better than current for this mode (ties keep current).
-local function isStrictlyBetterTarget(player, mode, candidate, current)
-	if not candidate then
-		return false
-	end
-	if not current then
-		return true
-	end
-	if candidate:getId() == current:getId() then
-		return false
-	end
-	local bossNew = monsterIsFocusBoss(player, candidate)
-	local bossCur = monsterIsFocusBoss(player, current)
-	if bossNew ~= bossCur then
-		return bossNew
-	end
-	local playerPos = player and player:getPosition() or nil
-	local da = sortDistanceSquared(playerPos, candidate:getPosition())
-	local db = sortDistanceSquared(playerPos, current:getPosition())
-	local ha = monsterHpPercent(candidate)
-	local hb = monsterHpPercent(current)
-	if mode == "B" then
-		return da > db
-	elseif mode == "C" then
-		return ha < hb or (ha == hb and da < db)
-	elseif mode == "D" then
-		return ha > hb or (ha == hb and da < db)
-	elseif mode == "E" then
-		local radius = CombatAutomationConfig.AOE_BEST_RADIUS or 1
-		local monsters = visibleMonsters(player)
-		local ca = countMonstersNear(monsters, candidate:getPosition(), radius)
-		local cb = countMonstersNear(monsters, current:getPosition(), radius)
-		return ca > cb or (ca == cb and da < db)
-	elseif mode == "F" then
-		return da < db or (da == db and ha < hb)
-	elseif mode == "G" then
-		return da < db or (da == db and ha > hb)
-	elseif mode == "H" then
-		return da > db or (da == db and ha < hb)
-	elseif mode == "I" then
-		return da > db or (da == db and ha > hb)
-	end
-	local ara = CombatAutomation.isInWeaponRange(player, candidate)
-	local arb = CombatAutomation.isInWeaponRange(player, current)
-	if ara ~= arb then
-		return ara
-	end
-	return da < db
-end
-
-local function isOnScreen(player, creature)
-	if not CombatAutomationMovement or not CombatAutomationMovement.isInViewport then
-		local playerPos = player:getPosition()
-		local creaturePos = creature:getPosition()
-		return playerPos.z == creaturePos.z
-			and math.abs(playerPos.x - creaturePos.x) <= 8
-			and math.abs(playerPos.y - creaturePos.y) <= 6
-	end
-	return CombatAutomationMovement.isInViewport(player:getPosition(), creature:getPosition())
-end
-
-local function syncAutoAttackTarget(player, state, target, force)
-	if not player or not state then
-		return
-	end
-	local creatureId = 0
-	if target then
-		creatureId = target:getId() or 0
-	end
-	if not force and state.lastSyncedAttackCreatureId == creatureId then
-		return
-	end
-	state.lastSyncedAttackCreatureId = creatureId
-	if CombatAutomationProtocol and CombatAutomationProtocol.sendAttackTarget then
-		CombatAutomationProtocol.sendAttackTarget(player, creatureId)
-	end
-end
-
---- Re-send the current attack target to the client (login / getAutomation).
-function CombatAutomation.resyncAttackTarget(player)
-	if not player then
-		return
-	end
-	local state = CombatAutomation.getState(player)
-	local target = player:getTarget()
-	if target and CombatAutomation.isValidAttackTarget(player, target) and isOnScreen(player, target) then
-		syncAutoAttackTarget(player, state, target, true)
-		return
-	end
-	syncAutoAttackTarget(player, state, nil, true)
-end
-
-local function autoTarget(player, config, state)
-	local options = config and config.autoTarget
-	if type(options) ~= "table" or options.enabled ~= true then
-		return player:getTarget()
-	end
-	if isSoftDespawnedPlayer(player) then
-		if player:getTarget() then
-			player:setTarget(nil)
-		end
-		syncAutoAttackTarget(player, state, nil)
-		return nil
-	end
-	local mode = CombatAutomationConfig.normalizeAutoTargetMode(options.mode or options.sortMode)
-
-	local current = player:getTarget()
-	if current and CombatAutomation.isValidAttackTarget(player, current) and isOnScreen(player, current) then
-		-- Live player targets stay sticky (pickMonsterBySort is monsters-only).
-		if current:isPlayer() then
-			syncAutoAttackTarget(player, state, current)
-			return current
-		end
-	elseif current then
-		player:setTarget(nil)
-		current = nil
-	end
-
-	-- Retarget only when the pick is strictly better. Equal scores stay sticky so
-	-- stance does not thrash between same-distance monsters every tick.
-	local monsters = visibleMonsters(player)
-	local target = CombatAutomation.pickMonsterBySort(player, monsters, mode)
-	if target and isStrictlyBetterTarget(player, mode, target, current) then
-		player:setTarget(target)
-	elseif target and not current then
-		player:setTarget(target)
-	end
-
-	local resolved = player:getTarget() or target
-	if resolved and CombatAutomation.isValidAttackTarget(player, resolved) and isOnScreen(player, resolved) then
-		syncAutoAttackTarget(player, state, resolved)
-		return resolved
-	end
-	if resolved then
-		player:setTarget(nil)
-	end
-	syncAutoAttackTarget(player, state, nil)
-	return nil
-end
-
 local function tileListContains(tiles, dx, dy)
 	if type(tiles) ~= "table" then
 		return false
@@ -1733,16 +1519,6 @@ local function directionTilesForArea(player, area, face)
 		return nil
 	end
 	local direction = face or (player and player.getDirection and player:getDirection())
-	if type(area.gradeByDir) == "table" and type(area.wod) == "table" and area.wod.check == "upgradeGrade" then
-		local grade = 0
-		if player.upgradeSpellsWOD then
-			grade = tonumber(player:upgradeSpellsWOD(area.wod.name)) or 0
-		end
-		local none = (type(WHEEL_GRADE_NONE) == "number" and WHEEL_GRADE_NONE) or 0
-		local index = (grade == none) and 1 or grade
-		local byDir = area.gradeByDir[index] or area.gradeByDir[1] or area.byDir
-		return byDir and byDir[direction] or nil
-	end
 	if type(area.wodByDir) == "table" and playerHasWodArea(player, area.wod) then
 		return area.wodByDir[direction]
 	end
@@ -1814,45 +1590,7 @@ local function isInsideSpellArea(player, target, monster, area, origin, face)
 		return tileDistance(center, monsterPos) <= radius
 	end
 	if area.kind == "direction" then
-		-- Fallback for spells without a named AREA_* matrix.
-		local dx = monsterPos.x - origin.x
-		local dy = monsterPos.y - origin.y
-		local forward
-		local lateral
-		local direction = face or player:getDirection()
-		if direction == DIRECTION_NORTH then
-			forward, lateral = -dy, math.abs(dx)
-		elseif direction == DIRECTION_EAST then
-			forward, lateral = dx, math.abs(dy)
-		elseif direction == DIRECTION_SOUTH then
-			forward, lateral = dy, math.abs(dx)
-		elseif direction == DIRECTION_WEST then
-			forward, lateral = -dx, math.abs(dy)
-		elseif direction == DIRECTION_NORTHEAST then
-			forward, lateral = math.max(dx, -dy), math.abs(dx + dy)
-			if dx < 0 or dy > 0 then
-				forward = -1
-			end
-		elseif direction == DIRECTION_SOUTHEAST then
-			forward, lateral = math.max(dx, dy), math.abs(dx - dy)
-			if dx < 0 or dy < 0 then
-				forward = -1
-			end
-		elseif direction == DIRECTION_SOUTHWEST then
-			forward, lateral = math.max(-dx, dy), math.abs(dx + dy)
-			if dx > 0 or dy < 0 then
-				forward = -1
-			end
-		else
-			forward, lateral = math.max(-dx, -dy), math.abs(dx - dy)
-			if dx > 0 or dy > 0 then
-				forward = -1
-			end
-		end
-		local length = math.max(1, tonumber(area.length) or 1)
-		local spread = math.max(0, tonumber(area.spread) or 0)
-		local allowedLateral = spread == 0 and 0 or math.min(spread, math.max(1, math.floor((forward + 1) / 2)))
-		return forward >= 1 and forward <= length and lateral <= allowedLateral
+		return false
 	end
 	local radius = math.max(0, tonumber(area.radius) or 0)
 	if area.kind == "self" and type(area.wod) == "table" and playerHasWodArea(player, area.wod) then
@@ -1894,39 +1632,7 @@ local function areaHealShouldFire(player, slot, casterHpPercent, casterManaPerce
 	return false
 end
 
-local function countMonstersForSlot(player, slot)
-	local target = player:getTarget()
-	local area
-	if slot.kind == "rune" then
-		local range = RuneAreaRangeByTypeId[slot.runeTypeId]
-		area = {
-			kind = "target",
-			shape = range and "circle" or "single",
-			radius = range or 0,
-		}
-	else
-		area = CombatAutomationConfig.SpellAreaById and CombatAutomationConfig.SpellAreaById[slot.spellId]
-	end
-	local count = 0
-	for _, monster in ipairs(visibleMonsters(player)) do
-		if isInsideSpellArea(player, target, monster, area) then
-			count = count + 1
-		end
-	end
-	return count
-end
-
-local function slotHasEnoughMonsters(player, slot)
-	if slot.kind ~= "spell" and slot.kind ~= "rune" then
-		return true
-	end
-	local required = math.max(1, math.min(9, math.floor(tonumber(slot.monsterCount) or 1)))
-	local count = countMonstersForSlot(player, slot)
-	if slot.monsterCountMode == "exact" then
-		return count == required
-	end
-	return count >= required
-end
+local CARDINAL_DIRS = { DIRECTION_NORTH, DIRECTION_EAST, DIRECTION_SOUTH, DIRECTION_WEST }
 
 local function playerIsTrapped(player)
 	if not player then
@@ -1936,13 +1642,7 @@ local function playerIsTrapped(player)
 	if not pos then
 		return false
 	end
-	local dirs = {
-		{ 0, -1 },
-		{ 1, 0 },
-		{ 0, 1 },
-		{ -1, 0 },
-	}
-	for _, d in ipairs(dirs) do
+	for _, d in ipairs(CombatGeo.CARDINAL_OFFSETS) do
 		local npos = Position(pos.x + d[1], pos.y + d[2], pos.z)
 		local tile = Tile(npos)
 		if tile and tile.queryAdd then
@@ -1970,7 +1670,7 @@ local function slotPassesSituationalGates(player, slot)
 	return true
 end
 
-local function slotExhaustUntil(state, slotId, t, exhaustMs)
+local function slotExhaustUntil(state, slotId, exhaustMs)
 	local untilMs = state.exhaustUntil and state.exhaustUntil[slotId]
 	if type(untilMs) == "number" then
 		return untilMs
@@ -1980,17 +1680,10 @@ local function slotExhaustUntil(state, slotId, t, exhaustMs)
 end
 
 local function slotReady(state, slotId, t, exhaustMs)
-	return t >= slotExhaustUntil(state, slotId, t, exhaustMs)
+	return t >= slotExhaustUntil(state, slotId, exhaustMs)
 end
 
 local AREA_STEP_MS = 1000
-
-local function chebyshevPos(a, b)
-	if not a or not b then
-		return -1
-	end
-	return math.max(math.abs((a.x or 0) - (b.x or 0)), math.abs((a.y or 0) - (b.y or 0)))
-end
 
 --- Multi-tile attack area, or nil for single-target / non-attacks.
 local function areaAttackOf(slot)
@@ -2017,68 +1710,76 @@ local function areaAttackOf(slot)
 	if type(area.wodTiles) == "table" and #area.wodTiles > 1 then
 		return area
 	end
-	if type(area.byDir) == "table" or type(area.wodByDir) == "table" or type(area.gradeByDir) == "table" then
+	if type(area.byDir) == "table" or type(area.wodByDir) == "table" then
 		return area
 	end
 	local radius = math.max(tonumber(area.radius) or 0, tonumber(area.wodRadius) or 0)
 	if radius > 0 and area.shape ~= "single" then
 		return area
 	end
-	if area.kind == "direction" and (tonumber(area.length) or 0) > 0 then
-		return area
-	end
 	return nil
 end
 
-local function tileFreeForStep(player, pos)
-	if not player or not pos then
-		return false
-	end
-	local tile = Tile(pos)
-	if not tile or not tile.getGround or not tile:getGround() then
-		return false
-	end
-	if tile.hasProperty and CONST_PROP_BLOCKSOLID and tile:hasProperty(CONST_PROP_BLOCKSOLID) then
-		return false
-	end
-	local top = tile.getTopCreature and tile:getTopCreature()
-	if top and top.getId and top:getId() ~= player:getId() then
-		return false
-	end
-	return true
-end
+local RUNE_AIM_RADIUS = 3
+local RUNE_AIM_RANGE = 7
 
---- Live path-leash anchor (O(1) C++ fields). Nil when unset / not leashed.
-local function pathLeashAnchor(player)
-	if not player or not player.getPathLeashRadius or not player.getPathLeashAnchor then
+--- Best area-rune centre: a visible monster tile within RUNE_AIM_RADIUS of the target,
+--- in range and shootable, that hits strictly more than centring on the target.
+--- Nil = cast on the target.
+local function runeAimPosition(player, typeId)
+	local radius = RuneAreaRangeByTypeId[typeId]
+	local target = player:getTarget()
+	if not radius or radius <= 0 or not target then
 		return nil
 	end
-	local radius = player:getPathLeashRadius()
-	if type(radius) ~= "number" or radius <= 0 then
-		return nil
-	end
-	return player:getPathLeashAnchor()
-end
-
---- True when a step would go farther from the anchor while already past the bias radius.
-local function stepFartherThanAnchor(player, dest)
-	local radius = ExpeditionConfig and ExpeditionConfig.anchorPathBiasRadius and ExpeditionConfig.anchorPathBiasRadius() or 0
-	if radius <= 0 then
-		return false
-	end
-	local anchorPos = pathLeashAnchor(player)
 	local ppos = player:getPosition()
-	if not anchorPos or not ppos or not dest or ppos.z ~= anchorPos.z or dest.z ~= ppos.z then
-		return false
+	local tpos = target:getPosition()
+	if not ppos or not tpos or ppos.z ~= tpos.z then
+		return nil
 	end
-	local myDist = chebyshevPos(ppos, anchorPos)
-	if myDist <= radius then
-		return false
+	local monsters = visibleMonsters(player)
+	local r2 = radius * radius
+	local function hitsAt(center)
+		local n = 0
+		for _, monster in ipairs(monsters) do
+			local mpos = monster:getPosition()
+			local dx, dy = mpos.x - center.x, mpos.y - center.y
+			if mpos.z == center.z and dx * dx + dy * dy <= r2 then
+				n = n + 1
+			end
+		end
+		return n
 	end
-	return chebyshevPos(dest, anchorPos) > myDist
+	local best, bestCount = nil, hitsAt(tpos)
+	local instanceId = player.getInstanceId and player:getInstanceId() or 0
+	for _, monster in ipairs(monsters) do
+		local mpos = monster:getPosition()
+		if mpos.z == tpos.z and tileDistance(mpos, tpos) <= RUNE_AIM_RADIUS and tileDistance(ppos, mpos) <= RUNE_AIM_RANGE then
+			local n = hitsAt(mpos)
+			if n > bestCount and (not ppos.isSightClear or ppos:isSightClear(mpos, true, instanceId)) then
+				best, bestCount = mpos, n
+			end
+		end
+	end
+	return best
 end
 
-local function countAreaHits(player, slot, area, origin, face)
+local function isDirectionalArea(area)
+	return type(area) == "table"
+		and (type(area.byDir) == "table" or type(area.wodByDir) == "table")
+end
+
+--- Any enabled attack spell slot with a directional area (waves, beams, front sweeps).
+function CombatAutomation.hasDirectionalAttackSlot(config)
+	for _, slot in ipairs(config and config.slots or {}) do
+		if slot.enabled ~= false and slot.kind == "spell" and spellRank(slot) >= 2 and isDirectionalArea(areaAttackOf(slot)) then
+			return true
+		end
+	end
+	return false
+end
+
+local function countAreaHits(player, area, origin, face)
 	local target = player:getTarget()
 	local count = 0
 	local monsters = visibleMonsters(player)
@@ -2090,7 +1791,42 @@ local function countAreaHits(player, slot, area, origin, face)
 	return count
 end
 
+--- Monsters the slot hits from here (single-target slots: just the target).
+local function countMonstersForSlot(player, slot, face)
+	local area = areaAttackOf(slot) or (slot.kind == "spell" and CombatAutomationConfig.SpellAreaById[slot.spellId]) or nil
+	return countAreaHits(player, area, nil, face)
+end
+
+local function monsterCountPasses(slot, count)
+	local required = math.max(1, math.min(9, math.floor(tonumber(slot.monsterCount) or 1)))
+	if slot.monsterCountMode == "exact" then
+		return count == required
+	end
+	return count >= required
+end
+
+local function slotHasEnoughMonsters(player, slot, face)
+	if slot.kind ~= "spell" and slot.kind ~= "rune" then
+		return true
+	end
+	return monsterCountPasses(slot, countMonstersForSlot(player, slot, face))
+end
+
+local function byPriority(a, b)
+	if a.priority ~= b.priority then
+		return a.priority < b.priority
+	end
+	return tostring(a.id) < tostring(b.id)
+end
+
+--- { config, slots } built once at the start of a tick (targeting, area steps and casts share it).
+local tickCombatSlots = nil
+
+--- Runes and attack spells (rank >= 2), by slot priority.
 local function combatSlotsOf(config)
+	if tickCombatSlots and tickCombatSlots.config == config then
+		return tickCombatSlots.slots
+	end
 	local slots = config and config.slots
 	local combatSlots = {}
 	if type(slots) ~= "table" then
@@ -2101,12 +1837,7 @@ local function combatSlotsOf(config)
 			combatSlots[#combatSlots + 1] = slot
 		end
 	end
-	table.sort(combatSlots, function(a, b)
-		if a.priority ~= b.priority then
-			return a.priority < b.priority
-		end
-		return tostring(a.id) < tostring(b.id)
-	end)
+	table.sort(combatSlots, byPriority)
 	return combatSlots
 end
 
@@ -2184,60 +1915,490 @@ local function combatSlotWillCast(player, state, slot, t)
 	return false
 end
 
---- Before the next ready area attack, step one adjacent tile if that hits strictly more.
-local function considerAreaStep(player, state, config, hpPercent, manaPercent, t)
-	if state.pendingAreaCast or state.skipStanceForAreaCast or state.suppressAreaStep then
+--- Hits from `origin`; directional areas try all 4 facings. Ties keep
+--- the current facing. Returns hits, facing.
+local function bestAreaHits(player, area, origin)
+	local face = player:getDirection()
+	local best = countAreaHits(player, area, origin, face)
+	if not isDirectionalArea(area) then
+		return best, face
+	end
+	local bestDir = face
+	for _, dir in ipairs(CARDINAL_DIRS) do
+		if dir ~= face then
+			local n = countAreaHits(player, area, origin, dir)
+			if n > best then
+				best, bestDir = n, dir
+			end
+		end
+	end
+	return best, bestDir
+end
+
+--- Lead slot among `slots` (ready, gated). Strict order: the first by priority. Smart
+--- (default): the area slot with the most hits (rotation-aware) when it hits 2+, else
+--- the first by priority. Returns slot, area, hits, facing.
+local function pickLeadSlotIn(player, state, slots, strict, hpPercent, manaPercent, t)
+	local first = nil
+	local lead, leadArea, leadHits, leadDir = nil, nil, 1, nil
+	local ppos = player:getPosition()
+	for _, slot in ipairs(slots) do
+		if slotShouldFire(slot, hpPercent, manaPercent, player) and slotPassesSituationalGates(player, slot) and combatSlotWillCast(player, state, slot, t) then
+			local area = areaAttackOf(slot)
+			local hits, dir = 1, nil
+			local gated
+			if area and isDirectionalArea(area) then
+				hits, dir = bestAreaHits(player, area, ppos)
+				gated = monsterCountPasses(slot, hits)
+			else
+				gated = slotHasEnoughMonsters(player, slot)
+				if area then
+					hits = countAreaHits(player, area, ppos, player:getDirection())
+				end
+			end
+			if gated then
+				if not first then
+					first = { slot, area, hits, dir }
+					if strict then
+						break
+					end
+				end
+				if area and hits >= 2 and hits > leadHits then
+					lead, leadArea, leadHits, leadDir = slot, area, hits, dir
+				end
+			end
+		end
+	end
+	if not strict and lead then
+		return lead, leadArea, leadHits, leadDir
+	end
+	if first then
+		return first[1], first[2], first[3], first[4]
+	end
+	return nil
+end
+
+--- Combat slot the rotation leads with this tick. A sorcerer's elemental-stance tier is
+--- searched first; other elements only lead when no stance-element slot can cast.
+local function pickLeadSlot(player, state, config, hpPercent, manaPercent, t)
+	local strict = config and config.strictSkillOrder == true
+	for _, tier in ipairs(stanceElementTiers(player, combatSlotsOf(config))) do
+		local slot, area, hits, dir = pickLeadSlotIn(player, state, tier, strict, hpPercent, manaPercent, t)
+		if slot then
+			return slot, area, hits, dir
+		end
+	end
+	return nil
+end
+
+--- Highest-priority ready area spell whose monster-count gate fails from `pos` with
+--- every facing: it waits on the caster's position, not on cooldown or mana.
+--- Target-centred areas do not depend on the caster tile.
+local function positionBlockedAreaSlot(player, state, config, hpPercent, manaPercent, t, pos)
+	for _, slot in ipairs(stanceElementOrder(player, combatSlotsOf(config))) do
+		if slot.kind == "spell" then
+			local area = areaAttackOf(slot)
+			if
+				area
+				and area.kind ~= "target"
+				and slotShouldFire(slot, hpPercent, manaPercent, player)
+				and slotPassesSituationalGates(player, slot)
+				and combatSlotWillCast(player, state, slot, t)
+				and not monsterCountPasses(slot, (bestAreaHits(player, area, pos)))
+			then
+				return slot
+			end
+		end
+	end
+	return nil
+end
+
+--- Best-facing hits for `slot` cast from `pos`, and whether its monster-count gate passes.
+function CombatAutomation.areaSlotHitsAt(player, slot, pos)
+	local area = areaAttackOf(slot)
+	if not area then
+		return 0, false
+	end
+	local hits = bestAreaHits(player, area, pos)
+	return hits, monsterCountPasses(slot, hits)
+end
+
+--- Position of the expedition anchor this companion forms on (nil for the anchor itself).
+local function anchorPosOf(state)
+	local anchor = CombatAutomationMovement.directiveAnchor(state)
+	return anchor and anchor:getPosition() or nil
+end
+
+--- Cave-walk targeting context for an expedition member, nil outside a cave walk:
+--- `{ walking, range, ahead = tile one step along the route, blockerId }`.
+local function luringContext(player)
+	local session = expeditionSession(player)
+	if not session or not session.cave or not ExpeditionCavebot then
+		return nil
+	end
+	local walking = ExpeditionCavebot.isWalking(session)
+	local blockerId = ExpeditionCavebot.blockerId(session)
+	if not walking and not blockerId then
+		return nil
+	end
+	local ctx = { walking = walking, blockerId = blockerId }
+	if walking then
+		local ppos = player:getPosition()
+		local front = ExpeditionCavebot.travelFront(session, ppos)
+		ctx.range = CombatAutomation.weaponShootRange(player)
+		ctx.ahead = front and Position(ppos.x + front[1], ppos.y + front[2], ppos.z) or nil
+	end
+	return ctx
+end
+
+--- Target-centred (runes, diamond arrows, target AoE spells) and directional (waves,
+--- beams) attacks the member can aim by picking its target. Caster-centred areas do
+--- not depend on the target and are left out.
+local function targetAreaAttacks(config)
+	local out = {}
+	for _, slot in ipairs(combatSlotsOf(config)) do
+		local area = slot.enabled ~= false and areaAttackOf(slot) or nil
+		if area and (area.kind == "target" or isDirectionalArea(area)) then
+			out[#out + 1] = area
+		end
+	end
+	local ammoArea = CombatAutomationConfig.AmmoAreaByTypeId and CombatAutomationConfig.AmmoAreaByTypeId[preferredAmmoTypeId(config)]
+	if ammoArea then
+		out[#out + 1] = ammoArea
+	end
+	return out
+end
+
+local function countHitsAimedAt(ctx, candidate, area, face)
+	local n = 0
+	for _, monster in ipairs(ctx.pool) do
+		if isInsideSpellArea(ctx.player, candidate, monster, area, ctx.ppos, face) then
+			n = n + 1
+		end
+	end
+	return n
+end
+
+--- Most monsters any of the member's aimable area attacks hits with `candidate` as
+--- the target (directional: facing it; on a diagonal, the better of both facings).
+local function bestHitsAimedAt(ctx, candidate, mpos)
+	local best = 0
+	for _, area in ipairs(ctx.areas) do
+		local hits
+		if isDirectionalArea(area) then
+			local dx, dy = mpos.x - ctx.ppos.x, mpos.y - ctx.ppos.y
+			local horizontal = dx > 0 and DIRECTION_EAST or DIRECTION_WEST
+			local vertical = dy > 0 and DIRECTION_SOUTH or DIRECTION_NORTH
+			if math.abs(dx) > math.abs(dy) then
+				hits = countHitsAimedAt(ctx, candidate, area, horizontal)
+			elseif math.abs(dy) > math.abs(dx) then
+				hits = countHitsAimedAt(ctx, candidate, area, vertical)
+			else
+				hits = math.max(countHitsAimedAt(ctx, candidate, area, horizontal), countHitsAimedAt(ctx, candidate, area, vertical))
+			end
+		else
+			hits = countHitsAimedAt(ctx, candidate, area)
+		end
+		best = math.max(best, hits)
+	end
+	return best
+end
+
+--- Auto-target score (TARGET_* in 01_config): focus boss, lure blocker / beside the
+--- route ahead, the anchor's 3x3 (the box the party kills in), extra monsters the
+--- member's area attacks hit when aimed at it, reach for the stance, attacking me,
+--- wounded, and the current target's stickiness. Chebyshev stands in for path length
+--- so the per-tick pick needs no A*.
+local function targetScore(monster, ctx)
+	local cfg = CombatAutomationConfig
+	local score = 0
+	if ctx.current and ctx.current:getId() == monster:getId() then
+		score = score + cfg.TARGET_STICKY_BONUS
+	end
+	local ppos = ctx.ppos
+	local mpos = monster:getPosition()
+	if not mpos or mpos.z ~= ppos.z then
+		return score
+	end
+	local dist = tileDistance(ppos, mpos)
+	if monsterIsFocusBoss(ctx.player, monster, ctx.session) then
+		score = score + cfg.TARGET_BOSS_BONUS
+	end
+	local lure = ctx.lure
+	if lure then
+		if lure.blockerId == monster:getId() then
+			score = score + cfg.TARGET_BLOCKER_BONUS
+		elseif lure.ahead and tileDistance(mpos, lure.ahead) <= 1 then
+			score = score + cfg.TARGET_ROUTE_AHEAD_BONUS
+		end
+	end
+	local boxDist = tileDistance(ctx.anchorPos, mpos)
+	if boxDist <= 1 then
+		score = score + cfg.TARGET_BOX_BONUS
+	elseif boxDist == 2 then
+		score = score + cfg.TARGET_BOX_NEAR_BONUS
+	end
+	if #ctx.areas > 0 then
+		local hits = bestHitsAimedAt(ctx, monster, mpos)
+		if hits > 1 then
+			score = score + math.min((hits - 1) * cfg.TARGET_AREA_PER_HIT, cfg.TARGET_AREA_CAP)
+		end
+	end
+	if ctx.melee then
+		if dist <= 1 then
+			score = score + cfg.TARGET_MELEE_ADJACENT_BONUS
+		elseif dist <= 3 then
+			score = score + cfg.TARGET_MELEE_NEAR_BONUS
+		end
+	elseif dist <= ctx.shootRange then
+		score = score + cfg.TARGET_RANGED_IN_RANGE_BONUS
+	end
+	local itsTarget = monster.getTarget and monster:getTarget()
+	if itsTarget and itsTarget:getId() == ctx.player:getId() then
+		score = score + cfg.TARGET_ATTACKING_ME_BONUS
+	end
+	local hp = percentOf(monster:getHealth(), monster:getMaxHealth())
+	if hp < cfg.TARGET_FINISH_HP_PERCENT then
+		score = score + cfg.TARGET_FINISH_BONUS
+	elseif hp < cfg.TARGET_WOUNDED_HP_PERCENT then
+		score = score + cfg.TARGET_WOUNDED_BONUS
+	end
+	return score
+end
+
+--- Best monster by targetScore (ties: nearest, then lowest id). While walking the
+--- route only what is in weapon range counts, so stragglers behind do not pull the
+--- target. Returns best, its score, and the scoring context (to score the current).
+local function pickTarget(player, monsters, config, state)
+	local ppos = player:getPosition()
+	if type(monsters) ~= "table" or #monsters == 0 or not ppos then
+		return nil
+	end
+	local lure = luringContext(player)
+	local maxDist = lure and lure.walking and lure.range or nil
+	local pool = {}
+	for _, monster in ipairs(monsters) do
+		if CombatAutomation.isValidAttackTarget(player, monster) and (not maxDist or tileDistance(ppos, monster:getPosition()) <= maxDist) then
+			pool[#pool + 1] = monster
+		end
+	end
+	if #pool == 0 then
+		return nil
+	end
+	local ctx = {
+		player = player,
+		ppos = ppos,
+		pool = pool,
+		current = player:getTarget(),
+		lure = lure,
+		anchorPos = anchorPosOf(state) or ppos,
+		melee = CombatAutomationConfig.stanceDistanceOf(config) <= 1,
+		shootRange = CombatAutomation.weaponShootRange(player),
+		areas = targetAreaAttacks(config),
+		session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) or nil,
+		scores = {},
+	}
+	local best, bestScore, bestDist = nil, nil, nil
+	for _, monster in ipairs(pool) do
+		local score = targetScore(monster, ctx)
+		ctx.scores[monster:getId()] = score
+		local d = sortDistanceSquared(ppos, monster:getPosition())
+		if not best or score > bestScore or (score == bestScore and (d < bestDist or (d == bestDist and monster:getId() < best:getId()))) then
+			best, bestScore, bestDist = monster, score, d
+		end
+	end
+	return best, bestScore, ctx
+end
+
+--- True when `candidate` (scored `candidateScore`) should replace `current`: the
+--- current carries the sticky bonus, so a switch must beat it by more than that.
+local function isBetterTarget(ctx, candidate, candidateScore, current)
+	if not candidate then
+		return false
+	end
+	if not current then
+		return true
+	end
+	if candidate:getId() == current:getId() then
+		return false
+	end
+	return candidateScore > (ctx.scores[current:getId()] or targetScore(current, ctx))
+end
+
+local function isOnScreen(player, creature)
+	return CombatGeo.isInViewport(player:getPosition(), creature:getPosition())
+end
+
+local function syncAutoAttackTarget(player, state, target, force)
+	if not player or not state then
 		return
 	end
-	if player.hasWalkTask and player:hasWalkTask() then
+	local creatureId = 0
+	if target then
+		creatureId = target:getId() or 0
+	end
+	if not force and state.lastSyncedAttackCreatureId == creatureId then
+		return
+	end
+	state.lastSyncedAttackCreatureId = creatureId
+	if CombatAutomationProtocol and CombatAutomationProtocol.sendAttackTarget then
+		CombatAutomationProtocol.sendAttackTarget(player, creatureId)
+	end
+end
+
+--- Re-send the current attack target to the client (login / getAutomation).
+function CombatAutomation.resyncAttackTarget(player)
+	if not player then
+		return
+	end
+	local state = CombatAutomation.getState(player)
+	local target = player:getTarget()
+	if target and CombatAutomation.isValidAttackTarget(player, target) and isOnScreen(player, target) then
+		syncAutoAttackTarget(player, state, target, true)
+		return
+	end
+	syncAutoAttackTarget(player, state, nil, true)
+end
+
+--- Live on-screen monster that only lost line of sight, for at most TARGET_SIGHT_GRACE_MS.
+local function keepThroughSightLoss(player, current, state)
+	if not state or not current:isMonster() or current:isRemoved() or current:getHealth() <= 0 or not isOnScreen(player, current) then
+		return false
+	end
+	if player.getInstanceId and current.getInstanceId and player:getInstanceId() ~= current:getInstanceId() then
+		return false
+	end
+	local now = nowMs()
+	local lost = state.targetSightLost
+	if not lost or lost.id ~= current:getId() then
+		state.targetSightLost = { id = current:getId(), at = now }
+		return true
+	end
+	return now - lost.at < (CombatAutomationConfig.TARGET_SIGHT_GRACE_MS or 1000)
+end
+
+--- `replacing`: a previous target is dropped (counted as a switch in the metrics).
+local function switchTarget(player, state, pick, replacing)
+	if replacing and ExpeditionMetrics and ExpeditionMetrics.onTargetSwitch then
+		ExpeditionMetrics.onTargetSwitch(player)
+	end
+	player:setTarget(pick)
+	syncAutoAttackTarget(player, state, pick)
+end
+
+local function autoTarget(player, config, state)
+	local options = config and config.autoTarget
+	if type(options) ~= "table" or options.enabled ~= true then
+		return player:getTarget()
+	end
+	if isSoftDespawnedPlayer(player) then
+		if player:getTarget() then
+			player:setTarget(nil)
+		end
+		syncAutoAttackTarget(player, state, nil)
+		return nil
+	end
+	local current = player:getTarget()
+	if current and CombatAutomation.isValidAttackTarget(player, current) and isOnScreen(player, current) then
+		if state then
+			state.targetSightLost = nil
+		end
+		-- Live player targets stay sticky (pickTarget is monsters-only).
+		if current:isPlayer() then
+			syncAutoAttackTarget(player, state, current)
+			return current
+		end
+	elseif current and keepThroughSightLoss(player, current, state) then
+		-- Brief line-of-sight break (pillar, corner): keep the target unless a
+		-- visible monster is strictly better.
+		local pick, pickScore, ctx = pickTarget(player, visibleMonsters(player), config, state)
+		if pick and isBetterTarget(ctx, pick, pickScore, current) then
+			state.targetSightLost = nil
+			switchTarget(player, state, pick, true)
+			return pick
+		end
+		return current
+	elseif current then
+		if state then
+			state.targetSightLost = nil
+		end
+		player:setTarget(nil)
+		current = nil
+	end
+
+	-- Retarget only when the pick is strictly better. Equal scores stay sticky so
+	-- stance does not thrash between same-distance monsters every tick.
+	local pick, pickScore, ctx = pickTarget(player, visibleMonsters(player), config, state)
+	if pick and isBetterTarget(ctx, pick, pickScore, current) then
+		switchTarget(player, state, pick, current ~= nil)
+		return pick
+	end
+	syncAutoAttackTarget(player, state, current)
+	return current
+end
+
+--- Before the lead area attack: step one adjacent tile (diagonals included) when that
+--- hits strictly more with its best facing, or as many with a directional area when it
+--- puts a companion onto an anchor lane (and it is not on one yet); else turn here
+--- when another facing hits more.
+local function considerAreaStep(player, state, config, hpPercent, manaPercent, t)
+	if state.pendingAreaCast or state.skipStanceForAreaCast then
 		return
 	end
 	local ppos = player:getPosition()
 	if not ppos then
 		return
 	end
-	local combatSlots = combatSlotsOf(config)
-	for i = 1, #combatSlots do
-		local slot = combatSlots[i]
-		if
-			slotShouldFire(slot, hpPercent, manaPercent, player)
-			and slotHasEnoughMonsters(player, slot)
-			and slotPassesSituationalGates(player, slot)
-		then
-			-- Skip higher-priority slots still on CD; score the first that will fire.
-			if combatSlotWillCast(player, state, slot, t) then
-				local area = areaAttackOf(slot)
-				if not area then
-					return
+	local slot, area = pickLeadSlot(player, state, config, hpPercent, manaPercent, t)
+	if not slot or not area then
+		-- No AoE goes out from here this tick: flag one that would from elsewhere
+		-- (CombatAutomationMovement scores its hits when placing ranged casters).
+		local blocked = positionBlockedAreaSlot(player, state, config, hpPercent, manaPercent, t, ppos)
+		if blocked then
+			state.areaBlockedSlotId = blocked.id
+			state.areaBlockedAt = t
+		end
+		return
+	end
+	local face = player:getDirection()
+	local hereFacing = countAreaHits(player, area, ppos, face)
+	local hereBest, hereDir = bestAreaHits(player, area, ppos)
+	local bestPos, bestCount, bestDir = nil, hereBest, hereDir
+	local walking = walkTaskActive(player)
+	-- Low HP: retreat positioning owns movement; never step into the pack for a hit.
+	local critical = ExpeditionConfig and ExpeditionConfig.isPositionCritical and ExpeditionConfig.isPositionCritical(player)
+	-- Expedition anchor walking its route or holding its halt tile: a side step
+	-- stalls the walk (step, settle, cast, repath) or leaves the halt tile.
+	local luring = state.directive and state.directive.kind == "hold" and state.directive.luring
+	if not walking and not critical and not luring then
+		local apos = isDirectionalArea(area) and anchorPosOf(state) or nil
+		local seekLane = apos ~= nil and not CombatGeo.onAnchorLane(ppos, apos)
+		local bestOnLane = false
+		for _, off in ipairs(CombatGeo.NEIGHBOUR_OFFSETS) do
+			local dest = Position(ppos.x + off[1], ppos.y + off[2], ppos.z)
+			if CombatGeo.tileFree(dest, player) and not CombatGeo.fartherFromLeash(player, ppos, dest) then
+				local n, dir = bestAreaHits(player, area, dest)
+				local onLane = seekLane and CombatGeo.onAnchorLane(dest, apos)
+				if n > bestCount or (n > 0 and n == bestCount and onLane and not bestOnLane) then
+					bestPos, bestCount, bestDir, bestOnLane = dest, n, dir, onLane
 				end
-				local face = player:getDirection()
-				local hereCount = countAreaHits(player, slot, area, ppos, face)
-				local bestPos, bestCount = nil, hereCount
-				local offsets = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } }
-				for o = 1, #offsets do
-					local off = offsets[o]
-					local dest = Position(ppos.x + off[1], ppos.y + off[2], ppos.z)
-					if tileFreeForStep(player, dest) and not stepFartherThanAnchor(player, dest) then
-						local n = countAreaHits(player, slot, area, dest, face)
-						if n > bestCount then
-							bestCount = n
-							bestPos = dest
-						end
-					end
-				end
-				if bestPos then
-					state.pendingAreaCast = {
-						x = bestPos.x,
-						y = bestPos.y,
-						z = bestPos.z,
-						dir = face,
-						slotId = slot.id,
-						untilMs = t + AREA_STEP_MS,
-					}
-				end
-				return
 			end
 		end
+	end
+	if bestPos then
+		state.pendingAreaCast = {
+			x = bestPos.x,
+			y = bestPos.y,
+			z = bestPos.z,
+			dir = bestDir,
+			slotId = slot.id,
+			untilMs = t + AREA_STEP_MS,
+		}
+	elseif (hereDir ~= face and hereBest > hereFacing) or (config.strictSkillOrder ~= true and hereBest >= 2) then
+		if isDirectionalArea(area) then
+			state.areaFace = hereDir
+		end
+		state.areaCastSlotId = slot.id
 	end
 end
 
@@ -2274,8 +2435,7 @@ function CombatAutomation.getState(player)
 			playerId = id,
 			config = {
 				slots = {},
-				autoTarget = { enabled = false, stance = "melee", rangedDistance = 3, mode = "A" },
-				forceSkillOrder = true,
+				autoTarget = { enabled = false, stance = "melee", rangedDistance = 3 },
 			},
 			exhaust = {},
 			exhaustUntil = {},
@@ -2304,13 +2464,14 @@ function CombatAutomation.tick(player)
 	end
 	local state = CombatAutomation.getState(player)
 	local config = state.config
-		or {
-			slots = {},
-			autoTarget = { enabled = false, stance = "melee", rangedDistance = 3, mode = "A" },
-			forceSkillOrder = true,
-		}
 
 	tickVisibleMonsters = computeVisibleMonsters(player)
+	tickCombatSlots = nil
+	tickCombatSlots = { config = config, slots = combatSlotsOf(config) }
+	local function endTick()
+		tickVisibleMonsters = nil
+		tickCombatSlots = nil
+	end
 
 	-- Soft-despawned: no target, move, or combat casts until respawn.
 	if isSoftDespawnedPlayer(player) then
@@ -2321,7 +2482,7 @@ function CombatAutomation.tick(player)
 			player:setFollowCreature(nil)
 		end
 		syncAutoAttackTarget(player, state, nil)
-		tickVisibleMonsters = nil
+		endTick()
 		return
 	end
 
@@ -2336,14 +2497,12 @@ function CombatAutomation.tick(player)
 		autoTarget(player, config, state)
 	end
 
-	local stepHp = percentOf(player:getHealth(), player:getMaxHealth())
-	local stepMana = percentOf(player:getMana(), player:getMaxMana())
-	local stepT = nowMs()
-	state.exhaust = state.exhaust or {}
-	state.exhaustUntil = state.exhaustUntil or {}
-	resolveAreaStep(player, state, stepT)
-	if autoEnabled and not state.pendingAreaCast and not state.skipStanceForAreaCast then
-		considerAreaStep(player, state, config, stepHp, stepMana, stepT)
+	local hpPercent = percentOf(player:getHealth(), player:getMaxHealth())
+	local manaPercent = percentOf(player:getMana(), player:getMaxMana())
+	local t = nowMs()
+	resolveAreaStep(player, state, t)
+	if autoEnabled then
+		considerAreaStep(player, state, config, hpPercent, manaPercent, t)
 	end
 
 	-- Positioning after target pick (hold / follow / stance).
@@ -2352,30 +2511,20 @@ function CombatAutomation.tick(player)
 	end
 
 	-- Paladin distance ammo: equip preferred type; charge gold when inventory is empty.
-	local ammoSlots = config.slots
-	ensureAmmo(player, {
-		slots = ammoSlots,
-		ammoTypeId = config.ammoTypeId or 0,
-	})
+	ensureAmmo(player, config)
 
 	local slots = config.slots
 	if type(slots) ~= "table" or #slots == 0 then
-		tickVisibleMonsters = nil
+		endTick()
 		return
 	end
-
-	local hpPercent = percentOf(player:getHealth(), player:getMaxHealth())
-	local manaPercent = percentOf(player:getMana(), player:getMaxMana())
-	local t = nowMs()
-	state.exhaust = state.exhaust or {}
-	state.exhaustUntil = state.exhaustUntil or {}
 
 	-- Potions: do not stop after the first success — HP and mana pots can both be
 	-- eligible in the same tick. Cap one success per restored resource so stacked
 	-- HP potions do not all fire together.
 	local usedPotionHealth, usedPotionMana = false, false
-	for _, slot in ipairs(slots) do
-		if slot.kind == "potion" and slotShouldFire(slot, hpPercent, manaPercent, player) then
+	local function tryPotionSlot(slot)
+		if slotShouldFire(slot, hpPercent, manaPercent, player) then
 			local effect = CombatAutomationConfig.PotionEffects and CombatAutomationConfig.PotionEffects[slot.potionTypeId]
 			local givesHealth = effect and effect.health ~= nil
 			local givesMana = effect and effect.mana ~= nil
@@ -2398,46 +2547,22 @@ function CombatAutomation.tick(player)
 		end
 	end
 
-	local supportSlots, combatSlots = {}, {}
+	local supportSlots, sustainSlots = {}, {}
 	for _, slot in ipairs(slots) do
-		if slot.kind == "rune" then
-			combatSlots[#combatSlots + 1] = slot
-		elseif slot.kind == "spell" then
-			if spellRank(slot) < 2 then
-				supportSlots[#supportSlots + 1] = slot
-			else
-				combatSlots[#combatSlots + 1] = slot
-			end
+		if slot.kind == "potion" then
+			sustainSlots[#sustainSlots + 1] = slot
+		elseif slot.kind == "spell" and spellRank(slot) < 2 then
+			supportSlots[#supportSlots + 1] = slot
+			sustainSlots[#sustainSlots + 1] = slot
 		end
-	end
-	local function byPriority(a, b)
-		if a.priority ~= b.priority then
-			return a.priority < b.priority
-		end
-		return tostring(a.id) < tostring(b.id)
 	end
 	table.sort(supportSlots, byPriority)
-	table.sort(combatSlots, byPriority)
+	table.sort(sustainSlots, byPriority)
+	local combatSlots = stanceElementOrder(player, combatSlotsOf(config))
 
 	local attackTarget = player:getTarget()
-	if attackTarget and attackTarget.getPosition then
-		local fromPos = player:getPosition()
-		local toPos = attackTarget:getPosition()
-		if fromPos and toPos and fromPos.z == toPos.z then
-			local dx = toPos.x - fromPos.x
-			local dy = toPos.y - fromPos.y
-			if dx ~= 0 or dy ~= 0 then
-				local dir
-				if math.abs(dx) > math.abs(dy) then
-					dir = dx > 0 and DIRECTION_EAST or DIRECTION_WEST
-				else
-					dir = dy > 0 and DIRECTION_SOUTH or DIRECTION_NORTH
-				end
-				if dir and player:getDirection() ~= dir then
-					player:setDirection(dir)
-				end
-			end
-		end
+	if attackTarget then
+		CombatGeo.faceToward(player, attackTarget:getPosition())
 	end
 	if state.areaFace ~= nil and player:getDirection() ~= state.areaFace then
 		player:setDirection(state.areaFace)
@@ -2445,11 +2570,14 @@ function CombatAutomation.tick(player)
 
 	local preferredStances = preferredStanceWordsByChannel(supportSlots)
 
-	-- Healing / support / shield always run (mana-only).
-	for _, slot in ipairs(supportSlots) do
+	-- Potions + healing / support / shield in slot priority: a higher-priority heal that
+	-- lifts HP above a potion threshold saves that potion this tick.
+	for _, slot in ipairs(sustainSlots) do
 		local partyTarget = nil
 		local shouldFire = false
-		if isPartyHealSlot(slot) then
+		if slot.kind == "potion" then
+			tryPotionSlot(slot)
+		elseif isPartyHealSlot(slot) then
 			if slot.enabled ~= false then
 				partyTarget = pickPartyHealTarget(player, slot)
 				shouldFire = partyTarget ~= nil
@@ -2479,7 +2607,6 @@ function CombatAutomation.tick(player)
 		end
 	end
 
-	local forceSkillOrder = config.forceSkillOrder ~= false
 	if autoEnabled and not state.pendingAreaCast then
 		local onlySlot = state.areaCastSlotId
 		for _, slot in ipairs(combatSlots) do
@@ -2491,6 +2618,8 @@ function CombatAutomation.tick(player)
 				and slotPassesSituationalGates(player, slot)
 			then
 				local castOk = false
+				local castArea = ExpeditionMetrics and areaAttackOf(slot)
+				local castHits = castArea and countAreaHits(player, castArea, player:getPosition(), player:getDirection())
 				if slot.kind == "spell" then
 					local words = slot.words or ""
 					local exhaust = spellExhaustMs(words)
@@ -2506,7 +2635,7 @@ function CombatAutomation.tick(player)
 				elseif slot.kind == "rune" then
 					local exhaust = runeExhaustMs(slot.runeTypeId)
 					if slotReady(state, slot.id, t, 0) then
-						local result = tryUseRune(player, slot.runeTypeId)
+						local result = tryUseRune(player, slot.runeTypeId, runeAimPosition(player, slot.runeTypeId))
 						if result == "cast" then
 							local words = runeWords(slot.runeTypeId)
 							markFired(state, player, slot, words, words, exhaust, t, false)
@@ -2516,8 +2645,11 @@ function CombatAutomation.tick(player)
 						end
 					end
 				end
-				-- forceSkillOrder: only one successful combat cast per tick; otherwise keep trying.
-				if onlySlot or (castOk and forceSkillOrder) then
+				if castOk and castHits then
+					ExpeditionMetrics.onAreaCast(player, castHits)
+				end
+				-- One successful combat cast per tick, so the slot order decides what goes out.
+				if onlySlot or castOk then
 					break
 				end
 			elseif onlySlot then
@@ -2528,16 +2660,16 @@ function CombatAutomation.tick(player)
 	state.skipStanceForAreaCast = nil
 	state.areaCastSlotId = nil
 	state.areaFace = nil
-	state.suppressAreaStep = nil
 
-	tickVisibleMonsters = nil
+	endTick()
 end
 
 local function isHuntFrozen(session)
 	return session and session.state == "ended"
 end
 
-local function expeditionSession(player)
+--- (session, frozen) for the think loop: nil once the player left the expedition area.
+local function activeExpeditionSession(player)
 	if not player or not ExpeditionManager then
 		return nil, false
 	end
@@ -2579,7 +2711,7 @@ function CombatAutomation.onThink(player, _interval)
 		return
 	end
 	local state = CombatAutomation.getState(player)
-	local session, frozen = expeditionSession(player)
+	local session, frozen = activeExpeditionSession(player)
 	if not shouldRunLoop(player, state, session, frozen) then
 		return
 	end

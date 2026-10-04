@@ -1,5 +1,7 @@
 -- Product libs (not stock Canary/Crystal). Load order matters.
 dofile(DATA_DIRECTORY .. "/lib/idleot/pz_teleport.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/custom_effects.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/knight_challenge.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/instance_teleport/load.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/01_json.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/items/load.lua")

@@ -78,18 +78,18 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Small Diamond", chance = 20000, maxCount = 2 },
-	{ name = "Platinum Coin", chance = 20000, maxCount = 5 },
-	{ name = "Small Sapphire", chance = 9000, maxCount = 2 },
-	{ name = "Small Ruby", chance = 9000, maxCount = 2 },
-	{ name = "Small Emerald", chance = 9000, maxCount = 2 },
+	{ name = "Small Diamond", chance = 32081, maxCount = 2 },
+	{ name = "Platinum Coin", chance = 79343, maxCount = 5 },
+	{ name = "Small Sapphire", chance = 18153, maxCount = 2 },
+	{ name = "Small Ruby", chance = 12989, maxCount = 2 },
+	{ name = "Small Emerald", chance = 13928, maxCount = 2 },
 	{ name = "Small Amethyst", chance = 9000, maxCount = 2 },
-	{ name = "Small Topaz", chance = 9000, maxCount = 2 },
+	{ name = "Small Topaz", chance = 12207, maxCount = 2 },
 	{ name = "Candlestick", chance = 4000 },
-	{ name = "Iron Ore", chance = 4000 },
+	{ name = "Iron Ore", chance = 2504 },
 	{ id = 3040, chance = 900 }, -- gold nugget
 	{ id = 3456, chance = 900 }, -- pick
-	{ name = "Moonstone", chance = 900 },
+	{ name = "Moonstone", chance = 1408 },
 	{ name = "moonstone excavator soul core", chance = 100 },
 }
 

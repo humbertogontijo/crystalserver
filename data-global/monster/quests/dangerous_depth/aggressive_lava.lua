@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 5000
+monster.maxHealth = 5000
 monster.race = "undead"
 monster.corpse = 9050
 monster.speed = 75
@@ -71,7 +71,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 30,
-	armor = 0,
+	armor = 30,
 	--	mitigation = ???,
 }
 

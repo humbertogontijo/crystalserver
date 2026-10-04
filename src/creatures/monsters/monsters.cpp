@@ -463,7 +463,9 @@ namespace {
 		if (!(hit > 0.0)) {
 			return 0.0;
 		}
-		const double chance = spellBlock.chance > 0 ? static_cast<double>(spellBlock.chance) : 100.0;
+		// doAttacking rolls chance >= uniform(1, 100): 0 never fires. Melee keeps the
+		// MonsterSpell default of 100 because readSpell ignores its chance.
+		const double chance = static_cast<double>(spellBlock.chance);
 		const double intervalMs = spellBlock.speed > 0 ? static_cast<double>(spellBlock.speed) : 2000.0;
 		return hit * (chance / 100.0) / (intervalMs / 1000.0);
 	}

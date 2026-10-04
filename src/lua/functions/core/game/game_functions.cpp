@@ -207,7 +207,6 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "headlessLogin", GameFunctions::luaGameHeadlessLogin);
 	Lua::registerMethod(L, "Game", "headlessLoginBatch", GameFunctions::luaGameHeadlessLoginBatch);
 	Lua::registerMethod(L, "Game", "headlessLogout", GameFunctions::luaGameHeadlessLogout);
-	Lua::registerMethod(L, "Game", "deliverCompanionFeatureUI", GameFunctions::luaGameDeliverCompanionFeatureUI);
 	Lua::registerMethod(L, "Game", "getNormalizedPlayerName", GameFunctions::luaGameGetNormalizedPlayerName);
 	Lua::registerMethod(L, "Game", "getNormalizedGuildName", GameFunctions::luaGameGetNormalizedGuildName);
 
@@ -1647,19 +1646,6 @@ int GameFunctions::luaGameHeadlessLogout(lua_State* L) {
 	g_logger().info("[Game.headlessLogout] '{}'", player->getName());
 	player->removePlayer(true, true);
 	Lua::pushBoolean(L, true);
-	return 1;
-}
-
-int GameFunctions::luaGameDeliverCompanionFeatureUI(lua_State* L) {
-	// Game.deliverCompanionFeatureUI(viewer, owner, feature)
-	const auto &viewer = Lua::getPlayer(L, 1);
-	const auto &owner = Lua::getPlayer(L, 2);
-	const auto feature = Lua::getString(L, 3);
-	if (!viewer || !owner || feature.empty()) {
-		Lua::pushBoolean(L, false);
-		return 1;
-	}
-	Lua::pushBoolean(L, g_game().deliverCompanionFeatureUI(viewer, owner, feature));
 	return 1;
 }
 

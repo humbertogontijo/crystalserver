@@ -15,7 +15,7 @@ function CombatAutomationProtocol.sendConfig(player, config, opts)
 	opts = opts or {}
 	config = config or CombatAutomationStore.getConfig(player)
 	local at = config.autoTarget
-		or { enabled = false, stance = "melee", rangedDistance = 3, mode = "A" }
+		or { enabled = false, stance = "melee", rangedDistance = 3 }
 	local payload = {
 		type = "automationConfig",
 		guid = player and player.getGuid and player:getGuid() or 0,
@@ -23,11 +23,10 @@ function CombatAutomationProtocol.sendConfig(player, config, opts)
 		autoTarget = {
 			enabled = at.enabled == true,
 			stance = at.stance or "melee",
-			rangedDistance = math.floor(tonumber(at.rangedDistance) or 4),
-			mode = CombatAutomationConfig.normalizeAutoTargetMode(at.mode or at.sortMode),
+			rangedDistance = math.floor(tonumber(at.rangedDistance) or CombatAutomationConfig.RANGED_DISTANCE_DEFAULT),
 		},
 		ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
-		forceSkillOrder = config.forceSkillOrder ~= false,
+		strictSkillOrder = config.strictSkillOrder == true,
 		loadout = {
 			slots = config.slots or {},
 			ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
@@ -72,21 +71,20 @@ local function wireLoadoutFromMsg(msg)
 	if type(msg) ~= "table" then
 		return {
 			slots = {},
-			autoTarget = { enabled = false, stance = "melee", rangedDistance = 3, mode = "A" },
+			autoTarget = { enabled = false, stance = "melee", rangedDistance = 3 },
 			ammoTypeId = 0,
-			forceSkillOrder = true,
 		}
 	end
 	local ammoTypeId = msg.ammoTypeId
 	local loadout = msg.loadout
-	local forceSkillOrder = msg.forceSkillOrder
+	local strictSkillOrder = msg.strictSkillOrder
 	local attackPresets = msg.attackPresets or msg.presets
 	if type(loadout) == "table" then
 		if ammoTypeId == nil then
 			ammoTypeId = loadout.ammoTypeId
 		end
-		if forceSkillOrder == nil then
-			forceSkillOrder = loadout.forceSkillOrder
+		if strictSkillOrder == nil then
+			strictSkillOrder = loadout.strictSkillOrder
 		end
 		if attackPresets == nil then
 			attackPresets = loadout.attackPresets or loadout.presets
@@ -95,7 +93,7 @@ local function wireLoadoutFromMsg(msg)
 			slots = loadout.slots or loadout,
 			autoTarget = msg.autoTarget,
 			ammoTypeId = ammoTypeId,
-			forceSkillOrder = forceSkillOrder,
+			strictSkillOrder = strictSkillOrder,
 			attackPresets = attackPresets,
 		}
 	end
@@ -104,7 +102,7 @@ local function wireLoadoutFromMsg(msg)
 			slots = msg.slots,
 			autoTarget = msg.autoTarget,
 			ammoTypeId = ammoTypeId,
-			forceSkillOrder = forceSkillOrder,
+			strictSkillOrder = strictSkillOrder,
 			attackPresets = attackPresets,
 		}
 	end
@@ -112,7 +110,7 @@ local function wireLoadoutFromMsg(msg)
 		slots = {},
 		autoTarget = msg.autoTarget,
 		ammoTypeId = ammoTypeId,
-		forceSkillOrder = forceSkillOrder,
+		strictSkillOrder = strictSkillOrder,
 		attackPresets = attackPresets,
 	}
 end
@@ -127,10 +125,7 @@ function CombatAutomationProtocol.handleAction(player, msg)
 		local config = CombatAutomationStore.getConfig(player)
 		CombatAutomationProtocol.sendConfig(player, config, { includePresets = true })
 		-- Client is ready (map/self loaded); force-paint the current server target.
-		local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
-		if session and ExpeditionAI and ExpeditionAI.resyncAttackTarget then
-			ExpeditionAI.resyncAttackTarget(session, player)
-		elseif CombatAutomation and CombatAutomation.resyncAttackTarget then
+		if CombatAutomation and CombatAutomation.resyncAttackTarget then
 			CombatAutomation.resyncAttackTarget(player)
 		end
 		return true

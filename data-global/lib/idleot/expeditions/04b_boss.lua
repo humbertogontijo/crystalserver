@@ -1,6 +1,6 @@
 ExpeditionBoss = ExpeditionBoss or {}
 
--- monsterId -> session key (boss fights share death event with waves)
+-- monsterId -> session key (boss fights share the instance death event with the lure pack)
 local bossOwners = {}
 
 -- Kill-gates only: immunity / cancel-death. THINK heals & summons stay (boss essence).
@@ -406,7 +406,6 @@ function ExpeditionBoss.spawn(session)
 	end
 
 	session.wave = 1
-	session.waveLure = nil
 	session.state = "waiting"
 	session.alive = 0
 	session.bossCreatureId = nil

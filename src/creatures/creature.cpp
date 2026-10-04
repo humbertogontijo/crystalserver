@@ -614,14 +614,14 @@ void Creature::onCreatureMove(const std::shared_ptr<Creature> &creature, const s
 			g_game().updateCreatureWalk(getID()); // internally uses addEventWalk.
 		}
 
-		if (newPos.z != oldPos.z || !canSee(followCreature->getPosition())) {
+		if (newPos.z != oldPos.z || !canKeepTarget(followCreature->getPosition())) {
 			onCreatureDisappear(followCreature, false);
 		}
 	}
 
 	const auto &attackedCreature = getAttackedCreature();
 	if (attackedCreature && (creature == attackedCreature || creature.get() == this)) {
-		if (newPos.z != oldPos.z || !canSee(attackedCreature->getPosition())) {
+		if (newPos.z != oldPos.z || !canKeepTarget(attackedCreature->getPosition())) {
 			onCreatureDisappear(attackedCreature, false);
 		} else {
 			if (hasExtraSwing()) {

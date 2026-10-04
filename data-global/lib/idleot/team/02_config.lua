@@ -35,16 +35,5 @@ TeamConfig.PARTY_VOCATION_BONUS = {
 }
 TeamConfig.COMPANION_PARTY_WEIGHT = 0.5
 
--- Equip / bag slots mirrored for wire UI.
-TeamConfig.EQUIP_SLOTS = {
-	{ id = CONST_SLOT_HEAD, name = "head" },
-	{ id = CONST_SLOT_NECKLACE, name = "necklace" },
-	{ id = CONST_SLOT_BACKPACK, name = "backpack" },
-	{ id = CONST_SLOT_ARMOR, name = "armor" },
-	{ id = CONST_SLOT_RIGHT, name = "right" },
-	{ id = CONST_SLOT_LEFT, name = "left" },
-	{ id = CONST_SLOT_LEGS, name = "legs" },
-	{ id = CONST_SLOT_FEET, name = "feet" },
-	{ id = CONST_SLOT_RING, name = "ring" },
-	{ id = CONST_SLOT_AMMO, name = "ammo" },
-}
+-- Alt switch (same-socket character swap) throttle.
+TeamConfig.ALT_SWITCH_COOLDOWN_MS = 2000

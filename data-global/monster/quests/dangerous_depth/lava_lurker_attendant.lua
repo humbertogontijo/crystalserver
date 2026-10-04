@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 3000
+monster.maxHealth = 3000
 monster.race = "fire"
 monster.corpse = 27586
 monster.speed = 175
@@ -63,12 +63,12 @@ monster.loot = {}
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200 },
-	{ name = "combat", interval = 1000, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = 90, maxDamage = -175, radius = 4, effect = CONST_ME_FIREAREA, target = false },
+	{ name = "combat", interval = 1000, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = -90, maxDamage = -175, radius = 4, effect = CONST_ME_FIREAREA, target = false },
 }
 
 monster.defenses = {
 	defense = 33,
-	armor = 0,
+	armor = 28,
 }
 
 monster.elements = {
@@ -79,7 +79,7 @@ monster.elements = {
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 0 },
+	{ type = COMBAT_ICEDAMAGE, percent = -1 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }

@@ -10,8 +10,8 @@ monster.outfit = {
 }
 
 -- What was left of the fanatic when it turned to stone (6000 - ~4000 damage).
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 2000
+monster.maxHealth = 2000
 monster.race = "undead"
 monster.corpse = 0
 -- A statue does not walk.

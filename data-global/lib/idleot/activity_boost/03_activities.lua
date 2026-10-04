@@ -201,8 +201,8 @@ function ActivityBoostActivities.onStatChanged(player, activityId)
 	end
 	ensureBoostDay(player)
 	ActivityBoostActivities.evaluateCredit(player, activityId)
-	if ActivityBoostProtocol and ActivityBoostProtocol.sendState then
-		ActivityBoostProtocol.sendState(player)
+	if ActivityBoostProtocol and ActivityBoostProtocol.sendProgress then
+		ActivityBoostProtocol.sendProgress(player)
 	end
 end
 

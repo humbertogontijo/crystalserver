@@ -76,7 +76,7 @@ monster.loot = {
 	{ name = "small sapphire", chance = 39868, maxCount = 5 },
 	{ name = "platinum coin", chance = 87000, maxCount = 50 },
 	{ id = 28570, chance = 77729, maxCount = 10 }, -- glowing rune
-	{ id = 3051, chance = 13740 }, -- energy ring
+	{ id = 3051, chance = 8700 }, -- energy ring
 	{ id = 7441, chance = 14178 }, -- ice cube
 	{ name = "shard", chance = 250, maxCount = 3 },
 	{ name = "glacier mask", chance = 7523 },
@@ -85,7 +85,7 @@ monster.loot = {
 	{ id = 238, chance = 900, maxCount = 6 }, -- great mana potion
 	{ name = "golden mug", chance = 2622 },
 	{ name = "glowing rune", chance = 77729, maxCount = 10 },
-	{ id = 3051, chance = 13740 }, -- energy ring
+	{ id = 3051, chance = 8700 }, -- energy ring
 	{ name = "quill", chance = 13529 },
 	{ name = "small diamond", chance = 4752, maxCount = 5 },
 	{ name = "ultimate mana potion", chance = 17448, maxCount = 2 },

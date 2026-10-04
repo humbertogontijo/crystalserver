@@ -628,12 +628,21 @@ function RaidInstance.onStarted(raid)
 	if not session then
 		return
 	end
-	local hint = ExpeditionConfig.RAID_JOIN_HINT or "Join via Expeditions → Active raids."
+	local hint = ExpeditionConfig.RAID_JOIN_HINT or "Join via Expeditions > Raids."
+	local entry = nil
+	for _, raidEntry in ipairs(RaidInstance.listActive()) do
+		if raidEntry.name == raid.name then
+			entry = raidEntry
+			break
+		end
+	end
+	local text = string.format("Raid available: %s. %s", session.displayName, hint)
 	for _, player in ipairs(Game.getPlayers()) do
-		player:sendTextMessage(
-			MESSAGE_EVENT_ADVANCE,
-			string.format("Raid available: %s. %s", session.displayName, hint)
-		)
+		-- Client shows the raid banner; keep the text out of the center screen.
+		player:sendTextMessage(MESSAGE_STATUS, text)
+		if entry then
+			ExpeditionProtocol.send(player, { type = "raidStarted", raid = entry })
+		end
 	end
 	RaidInstance.broadcastActiveRaids()
 end
@@ -651,7 +660,7 @@ function RaidInstance.join(player, raidName, loadout, options)
 		return
 	end
 	if PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(player)
-		and not (PzTeleport.isGod and PzTeleport.isGod(player))
+		and not PzTeleport.isGod(player)
 	then
 		ExpeditionProtocol.sendError(player, PzTeleport.PZ_LOCKED_MESSAGE or "You cannot teleport while PZ-locked.")
 		return
@@ -707,7 +716,7 @@ function RaidInstance.join(player, raidName, loadout, options)
 		kind = "raid",
 		raidName = raidName,
 		role = contentRole,
-		stance = contentRole == "boss" and ExpeditionConfig.stanceForPlayer(player) or nil,
+		stance = contentRole == "boss" and CombatAutomationConfig.stanceForPlayer(player) or nil,
 		bossRaceId = session.bossRaceId,
 		catalog = {
 			id = raidName,

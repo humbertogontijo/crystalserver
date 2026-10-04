@@ -295,7 +295,11 @@ int_fast32_t AStarNodes::getTileWalkCost(const std::shared_ptr<Creature> &creatu
 		}
 		if (const auto &field = tile->getFieldItem(creature->getInstanceId())) {
 			const CombatType_t combatType = field->getCombatType();
-			if (combatType != COMBAT_NONE && !creature->isImmune(combatType) && !creature->hasCondition(Combat::DamageToConditionType(combatType)) && (creature->getMonster() && !creature->getMonster()->canWalkOnFieldType(combatType))) {
+			// Automated (idle-combat) players route around harmful fields like monsters do.
+			const auto &monster = creature->getMonster();
+			const auto &walker = creature->getPlayer();
+			const bool avoidsField = (monster && !monster->canWalkOnFieldType(combatType)) || (walker && walker->isIdleCombat());
+			if (combatType != COMBAT_NONE && !creature->isImmune(combatType) && !creature->hasCondition(Combat::DamageToConditionType(combatType)) && avoidsField) {
 				cost += MAP_NORMALWALKCOST * 18;
 			}
 		}

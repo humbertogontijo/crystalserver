@@ -66,7 +66,7 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 300, maxDamage = -690 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -300, maxDamage = -690 },
 	{ name = "Life Drain Circle", interval = 2000, chance = 25, minDamage = -2000, maxDamage = -3500, target = false },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_LIFEDRAIN, minDamage = -2100, maxDamage = -2500, radius = 4, effect = CONST_ME_DRAWBLOOD, target = false },
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_LIFEDRAIN, minDamage = -1500, maxDamage = -2000, length = 6, spread = 0, effect = CONST_ME_DRAWBLOOD, target = false },
@@ -74,20 +74,20 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 100,
-	armor = 0,
+	armor = 100,
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 0 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -15 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = -10 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
+	{ type = COMBAT_FIREDAMAGE, percent = 40 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 25 },
+	{ type = COMBAT_DEATHDAMAGE, percent = -20 },
 }
 
 monster.immunities = {

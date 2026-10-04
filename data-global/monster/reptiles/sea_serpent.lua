@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Sea Serpent")
 local monster = {}
 
 monster.description = "a sea serpent"
-monster.experience = 0
+monster.experience = 2300
 monster.outfit = {
 	lookType = 275,
 	lookHead = 0,
@@ -26,8 +26,8 @@ monster.Bestiary = {
 	Locations = "Sea Serpent Area and Seacrest Grounds.",
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 1950
+monster.maxHealth = 1950
 monster.race = "blood"
 monster.corpse = 949
 monster.speed = 240
@@ -76,9 +76,9 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "small sapphire", chance = 5600, maxCount = 3 },
-	{ name = "gold coin", chance = 98348, maxCount = 100 },
-	{ name = "gold coin", chance = 98348, maxCount = 100 },
-	{ name = "gold coin", chance = 98348, maxCount = 36 },
+	{ name = "gold coin", chance = 38000, maxCount = 100 },
+	{ name = "gold coin", chance = 30000, maxCount = 100 },
+	{ name = "gold coin", chance = 30000, maxCount = 36 },
 	{ name = "platinum coin", chance = 25000, maxCount = 3 },
 	{ id = 3049, chance = 400 }, -- stealth ring
 	{ id = 3098, chance = 1100 }, -- ring of healing
@@ -106,23 +106,23 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 45,
-	armor = 0,
+	armor = 25,
 	mitigation = 1.04,
 	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_HEALING, minDamage = 70, maxDamage = 273, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = 400, effect = CONST_ME_MAGIC_RED, target = false, duration = 5000 },
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -10 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = -5 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = 30 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 100 },
-	{ type = COMBAT_ICEDAMAGE, percent = 0 },
+	{ type = COMBAT_ICEDAMAGE, percent = 100 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 10 },
 }
 
 monster.immunities = {

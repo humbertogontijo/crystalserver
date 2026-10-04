@@ -129,16 +129,15 @@ static void applyElementalStance(const std::shared_ptr<Player> &player, CombatDa
 		lod = 3;
 	}
 
-	// (A) Consume a pending conversion FIRST so the converted element also receives the bonus.
-	bool converted = false;
-	const CombatType_t pending = player->getPendingElementConversion();
-	if (pending != COMBAT_NONE && damage.primary.type != pending) {
-		damage.primary.type = pending;
+	// (A) Resolve the cast's element FIRST (consume or arm the next-spell conversion) so the converted
+	// element also receives the bonus. Lua stance-aware spells resolve it earlier through
+	// player:resolveElementConversion, in which case this returns the type they already picked.
+	const CombatType_t element = player->resolveElementCast(damage.primary.type);
+	if (element != damage.primary.type) {
+		damage.primary.type = element;
 		if (damage.secondary.type != COMBAT_NONE) {
-			damage.secondary.type = pending;
+			damage.secondary.type = element;
 		}
-		player->setPendingElementConversion(COMBAT_NONE);
-		converted = true;
 	}
 
 	// (B) Apply the active stance's bonus when the (possibly converted) spell matches its element.
@@ -157,16 +156,6 @@ static void applyElementalStance(const std::shared_ptr<Player> &player, CombatDa
 		damage.criticalChance += 400 + thunderExtra[lod]; // +4% base crit chance (+ Lord of Destruction)
 	} else if (decay && damage.primary.type == COMBAT_DEATHDAMAGE) {
 		damage.criticalDamage += 3000 + decayExtra[lod]; // +30% base crit extra (+ Lord of Destruction)
-	}
-
-	// (C) Arm a conversion for the NEXT spell, but ONLY when this spell was natively the stance's
-	// element (never off a freshly converted spell, otherwise every cast would chain-convert).
-	if (!converted) {
-		if ((flames && damage.primary.type == COMBAT_FIREDAMAGE)
-		    || (thunder && damage.primary.type == COMBAT_ENERGYDAMAGE)
-		    || (decay && damage.primary.type == COMBAT_DEATHDAMAGE)) {
-			player->setPendingElementConversion(damage.primary.type);
-		}
 	}
 }
 
@@ -1982,6 +1971,7 @@ std::vector<std::pair<Position, std::vector<uint32_t>>> Combat::pickChainTargets
 		g_logger().debug("Combat::pickChainTargets: currentTarget: {}, spectators: {}", currentTarget->getName(), spectators.size());
 
 		double closestDistance = std::numeric_limits<double>::max();
+		int32_t closestPriority = 0;
 		std::shared_ptr<Creature> closestSpectator = nullptr;
 		for (const auto &spectator : spectators) {
 			if (!spectator || visited.contains(spectator->getID())) {
@@ -2042,13 +2032,16 @@ std::vector<std::pair<Position, std::vector<uint32_t>>> Combat::pickChainTargets
 				}
 			}
 
-			if (!isValidChainTarget(caster, currentTarget, spectator, params, aggressive)) {
+			int32_t priority = 0;
+			if (!isValidChainTarget(caster, currentTarget, spectator, params, aggressive, &priority)) {
 				visited.insert(spectator->getID());
 				continue;
 			}
 
+			// Highest picker priority wins; distance breaks ties.
 			double distance = Position::getEuclideanDistance(currentTarget->getPosition(), spectator->getPosition());
-			if (distance < closestDistance) {
+			if (priority > closestPriority || (priority == closestPriority && distance < closestDistance)) {
+				closestPriority = priority;
 				closestDistance = distance;
 				closestSpectator = spectator;
 			}
@@ -2086,11 +2079,14 @@ std::vector<std::pair<Position, std::vector<uint32_t>>> Combat::pickChainTargets
 	return resultMap;
 }
 
-bool Combat::isValidChainTarget(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &currentTarget, const std::shared_ptr<Creature> &potentialTarget, const CombatParams &params, bool aggressive) {
+bool Combat::isValidChainTarget(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &currentTarget, const std::shared_ptr<Creature> &potentialTarget, const CombatParams &params, bool aggressive, int32_t* priority /* = nullptr */) {
 	bool canCombat = canDoCombat(caster, potentialTarget, aggressive) == RETURNVALUE_NOERROR;
-	bool pick = params.chainPickerCallback ? params.chainPickerCallback->onChainCombat(caster, potentialTarget) : true;
+	int32_t pick = params.chainPickerCallback ? params.chainPickerCallback->onChainCombat(caster, potentialTarget) : 1;
 	bool hasSight = g_game().isSightClear(currentTarget->getPosition(), potentialTarget->getPosition(), true, caster ? caster->getInstanceId() : 0);
-	return canCombat && pick && hasSight;
+	if (priority) {
+		*priority = pick;
+	}
+	return canCombat && pick > 0 && hasSight;
 }
 
 //**********************************************************//
@@ -2370,19 +2366,19 @@ void ChainCallback::onChainCombat(const std::shared_ptr<Creature> &creature, uin
 	LuaScriptInterface::resetScriptEnv();
 }
 
-bool ChainPickerCallback::onChainCombat(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &target) const {
-	// onChainCombat(creature, target)
+int32_t ChainPickerCallback::onChainCombat(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &target) const {
+	// onChainCombat(creature, target) -> boolean | priority (higher picked first, <= 0 rejects)
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[ChainPickerCallback::onTargetCombat - Creature {}] "
 		                 "Call stack overflow. Too many lua script calls being nested.",
 		                 creature->getName());
-		return true;
+		return 1;
 	}
 
 	ScriptEnvironment* env = LuaScriptInterface::getScriptEnv();
 	if (!env->setCallbackId(scriptId, scriptInterface)) {
 		LuaScriptInterface::resetScriptEnv();
-		return true;
+		return 1;
 	}
 
 	lua_State* L = scriptInterface->getLuaState();
@@ -2404,12 +2400,16 @@ bool ChainPickerCallback::onChainCombat(const std::shared_ptr<Creature> &creatur
 	}
 
 	int size0 = lua_gettop(L);
-	bool result = true;
+	int32_t result = 1;
 
 	if (lua_pcall(L, 2, 1 /*nReturnValues*/, 0) != 0) {
 		LuaScriptInterface::reportError(nullptr, LuaScriptInterface::popString(L));
 	}
-	result = LuaScriptInterface::getBoolean(L, -1);
+	if (lua_isnumber(L, -1)) {
+		result = LuaScriptInterface::getNumber<int32_t>(L, -1);
+	} else {
+		result = LuaScriptInterface::getBoolean(L, -1) ? 1 : 0;
+	}
 	lua_pop(L, 1);
 
 	if ((lua_gettop(L) + 2 /*nParams*/ + 1) != size0) {

@@ -1,4 +1,4 @@
--- Vocation Adjustment: a Master Sorcerer's elemental stance reshapes Hell's Core (element + the
+-- Vocation Adjustment: a Master Sorcerer's stance conversion reshapes Hell's Core (element + the
 -- AoE magic EFFECT id):
 --   Master of Thunder -> energy, effect 337
 --   Master of Decay   -> death,  effect 338
@@ -39,10 +39,10 @@ local spell = Spell("instant")
 function spell.onCastSpell(creature, variant)
 	local player = creature:getPlayer()
 	if player then
-		local stance = player:getElementalStance()
-		if stance == STANCE_MASTER_OF_THUNDER then
+		local element = player:resolveElementConversion(COMBAT_FIREDAMAGE)
+		if element == COMBAT_ENERGYDAMAGE then
 			return combatThunder:execute(creature, variant)
-		elseif stance == STANCE_MASTER_OF_DECAY then
+		elseif element == COMBAT_DEATHDAMAGE then
 			return combatDecay:execute(creature, variant)
 		end
 	end

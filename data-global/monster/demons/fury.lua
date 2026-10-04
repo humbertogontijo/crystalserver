@@ -79,9 +79,9 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3007, chance = 410 }, -- crystal ring
-	{ name = "gold coin", chance = 98862, maxCount = 100 },
-	{ name = "gold coin", chance = 98862, maxCount = 100 },
-	{ name = "gold coin", chance = 98862, maxCount = 69 },
+	{ name = "gold coin", chance = 30000, maxCount = 100 },
+	{ name = "gold coin", chance = 30000, maxCount = 100 },
+	{ name = "gold coin", chance = 38000, maxCount = 69 },
 	{ name = "platinum coin", chance = 2800, maxCount = 4 },
 	{ name = "terra rod", chance = 20000 },
 	{ name = "golden legs", chance = 130 },
@@ -89,7 +89,7 @@ monster.loot = {
 	{ name = "orichalcum pearl", chance = 1500, maxCount = 4 },
 	{ name = "red piece of cloth", chance = 4000 },
 	{ name = "soul orb", chance = 21500 },
-	{ name = "soul orb", chance = 19788 },
+	{ name = "soul orb", chance = 50 },
 	{ id = 6300, chance = 60 }, -- death ring
 	{ name = "demonic essence", chance = 22500 },
 	{ name = "flask of demonic blood", chance = 35000, maxCount = 3 },
@@ -103,7 +103,7 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -509 },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -180, maxDamage = -300, length = 8, spread = 3, effect = CONST_ME_EXPLOSIONAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -300, length = 8, spread = 3, effect = CONST_ME_EXPLOSIONAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 5, type = COMBAT_DEATHDAMAGE, minDamage = 0, maxDamage = -700, length = 8, spread = 3, effect = CONST_ME_DRAWBLOOD, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -120, maxDamage = -300, radius = 4, effect = CONST_ME_DRAWBLOOD, target = false },
 	{ name = "fury skill reducer", interval = 2000, chance = 5, target = false },

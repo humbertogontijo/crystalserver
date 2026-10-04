@@ -108,14 +108,11 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		end
 	end
 
-	-- Today's Fiendish Hunt offer: one-wave Fiendish spawn options (lure is hold-predefined).
+	-- Today's Fiendish Hunt offer: forced Fiendish of the offered race; killing it ends the hunt.
 	if contentRole == "monster" and ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.get then
 		local offer = ActivityBoostFiendishHunt.get(player)
 		if offer and not offer.complete and tostring(offer.expeditionId) == tostring(catalog.id) then
 			options = options or {}
-			if options.maxWaves == nil then
-				options.maxWaves = tonumber(ActivityBoostConfig.FIENDISH_HUNT_MAX_WAVES) or 1
-			end
 			options.skipOpenWorldForge = true
 			options.forceFiendishCreatureId = tonumber(offer.creatureId) or options.forceFiendishCreatureId
 		end
@@ -151,11 +148,9 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	local sessionHazardMax = nil
 	if contentRole ~= "boss" and contentRole ~= "arena" then
 		sessionLureMax = tonumber(catalog.lureMax) or ExpeditionConfig.LURE_MAX
-		-- Ignore client lure; use the first catalog hold's predefined lure (density).
-		local holds = ExpeditionConfig.catalogPositions and ExpeditionConfig.catalogPositions(catalog) or {}
-		local firstHold = holds[1]
-		sessionLure = firstHold and (tonumber(firstHold.lure) or ExpeditionConfig.holdLure(firstHold, catalog))
-			or ExpeditionConfig.lureFromDensity(sessionLureMax)
+		-- Ignore client lure; the cave route carries the hunt's pack size.
+		local route = ExpeditionConfig.caveRoute(catalog)
+		sessionLure = route and route.lure or ExpeditionConfig.lureFromDensity(sessionLureMax)
 		if ExpeditionDifficulty then
 			sessionHazardMax = tonumber(catalog.hazardMax) or ExpeditionDifficulty.HAZARD_MAX
 			local gatePlayers = { player }
@@ -361,7 +356,6 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		memberStance = memberStance,
 		memberRangedDistance = memberRangedDistance,
 		instance = instance,
-		wave = 0,
 		alive = 0,
 		kills = 0,
 		lure = sessionLure,
@@ -369,20 +363,15 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		hazardLevel = sessionHazard,
 		hazardMax = sessionHazardMax,
 		bossDifficulty = sessionBossDifficulty,
-		waveLure = nil,
-		maxWaves = tonumber(options.maxWaves),
 		skipOpenWorldForge = options.skipOpenWorldForge == true,
 		forceFiendishCreatureId = tonumber(options.forceFiendishCreatureId),
-		onWaveLimitReached = options.onWaveLimitReached,
 		state = (EM_PRIV.awaitingHumanCount({ awaitingHumanGuids = awaitingHumanGuids }) > 0 or #readyTeammates > 0)
-				and "waiting"
+				and "pending"
 			or "idle",
 		startedAt = os.time(),
 		holdPos = nil,
 		automation = hostAutomation or { slots = {} },
 		memberAutomation = memberAutomation,
-		lastSyncedAttackByPlayer = {},
-		prevAutoTargetByPlayer = {},
 		stopOnInsufficientGold = stopOpts.stopOnInsufficientGold,
 		stopOnInsufficientCap = stopOpts.stopOnInsufficientCap,
 		awaitingHumanGuids = awaitingHumanGuids,
@@ -401,7 +390,6 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	if instance and instance.entry then
 		session.holdPos = Position(instance.entry.x, instance.entry.y, instance.entry.z)
 	end
-	ExpeditionConfig.syncHoldFromWave(session)
 
 	ExpeditionManager.broadcastStatus(session)
 
@@ -486,9 +474,15 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 
 	local sessionKey = snapshot.sessionKey
 	local channel = EM_PRIV.allocateHuntChannel(catalog.id, sessionKey)
+	local restoredRoute = ExpeditionConfig.caveRoute(catalog)
 	local sessionLure = math.max(
 		1,
-		math.floor(tonumber(snapshot.lure) or ExpeditionConfig.lureFromDensity(snapshot.lureMax) or 1)
+		math.floor(
+			(restoredRoute and restoredRoute.lure)
+				or tonumber(snapshot.lure)
+				or ExpeditionConfig.lureFromDensity(snapshot.lureMax)
+				or 1
+		)
 	)
 	local session = {
 		key = sessionKey,
@@ -502,11 +496,12 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 		role = contentRole,
 		channel = channel,
 		instance = instance,
-		wave = math.max(0, math.floor(tonumber(snapshot.wave) or 0)),
 		alive = 0,
 		kills = 0,
 		lure = sessionLure,
 		lureMax = snapshot.lureMax,
+		skipOpenWorldForge = snapshot.skipOpenWorldForge == true,
+		forceFiendishCreatureId = tonumber(snapshot.forceFiendishCreatureId),
 		hazardLevel = ExpeditionDifficulty
 				and ExpeditionDifficulty.normalizeHazard(snapshot.hazardLevel, catalog)
 			or tonumber(snapshot.hazardLevel)
@@ -514,7 +509,6 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 		hazardMax = tonumber(snapshot.hazardMax)
 			or (ExpeditionDifficulty and ExpeditionDifficulty.HAZARD_MAX)
 			or 12,
-		waveLure = nil,
 		state = "idle",
 		startedAt = os.time(),
 		holdPos = nil,
@@ -522,8 +516,6 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 		memberAutomation = {},
 		memberStance = {},
 		memberRangedDistance = {},
-		lastSyncedAttackByPlayer = {},
-		prevAutoTargetByPlayer = {},
 		stopOnInsufficientGold = snapshot.stopOnInsufficientGold == true,
 		stopOnInsufficientCap = snapshot.stopOnInsufficientCap == true,
 		awaitingHumanGuids = nil,
@@ -532,7 +524,6 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 	if instance.entry then
 		session.holdPos = Position(instance.entry.x, instance.entry.y, instance.entry.z)
 	end
-	ExpeditionConfig.syncHoldFromWave(session)
 	logger.info(
 		"[ExpeditionPersist] restored hunt {} catalog={} instance={} channel={}",
 		sessionKey,
@@ -607,10 +598,7 @@ function ExpeditionManager.syncSessionClientIfNeeded(player)
 	local sessionKey = session.key
 	addEvent(function()
 		local p = Player(pid)
-		local s = ExpeditionManager.getSessionByKey(sessionKey)
-		if p and s and ExpeditionAI.resyncAttackTarget then
-			pcall(ExpeditionAI.resyncAttackTarget, s, p)
-		elseif p and CombatAutomation and CombatAutomation.resyncAttackTarget then
+		if p and ExpeditionManager.getSessionByKey(sessionKey) and CombatAutomation and CombatAutomation.resyncAttackTarget then
 			pcall(CombatAutomation.resyncAttackTarget, p)
 		end
 	end, ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500)
@@ -633,7 +621,7 @@ function EM_PRIV.syncRunningHuntClients(session)
 	end
 end
 
---- Deploy headless host + companions and start waves immediately after restart.
+--- Deploy headless host + companions and resume the hunt right after a restart.
 function EM_PRIV.startRestoredHuntOnStartup(session, snapshot)
 	if not session or not snapshot or session.entered or session.starting or session.state == "ended" then
 		return false
@@ -1407,7 +1395,7 @@ function ExpeditionManager.inviteTeamFriends(host, session)
 					friend:sendTextMessage(
 						MESSAGE_EVENT_ADVANCE,
 						string.format(
-							"%s invited you to expedition: %s. Accept from the expedition panel.",
+							"%s invited you to expedition: %s. Accept from the notification on the left.",
 							host:getName(),
 							expeditionName
 						)
@@ -1427,7 +1415,7 @@ function ExpeditionManager.declineTeamInvite(player)
 	ExpeditionProtocol.send(player, { type = "teamExpeditionInviteCleared" })
 	if invite and invite.sessionKey then
 		local session = ExpeditionManager.getSessionByKey(invite.sessionKey)
-		if session and session.state == "waiting" and session.awaitingHumanGuids then
+		if session and session.state == "pending" and session.awaitingHumanGuids then
 			if session.awaitingHumanGuids[player:getGuid()] then
 				ExpeditionManager.cancelWaitingSession(
 					session,
@@ -1615,7 +1603,7 @@ function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 	session.memberAutomation[friendId] = EM_PRIV.prepareMemberAutomation(friend, nil, false)
 	EM_PRIV.sessionsByPlayerId[friendId] = session
 
-	if session.state == "waiting" or not session.entered then
+	if not session.entered then
 		if session.awaitingHumanGuids then
 			session.awaitingHumanGuids[friend:getGuid()] = nil
 		end
@@ -1761,25 +1749,11 @@ function EM_PRIV.removeHuntMember(session, player, opts)
 	if session.memberAutomation then
 		session.memberAutomation[playerId] = nil
 	end
-	if session.prevAutoTargetByPlayer then
-		session.prevAutoTargetByPlayer[playerId] = nil
-	end
-	if session.lastSyncedAttackByPlayer then
-		session.lastSyncedAttackByPlayer[playerId] = nil
-	end
 	if session.deadPlayerIds and not opts.keepDeadFlag then
 		session.deadPlayerIds[playerId] = nil
 	end
 
-	if ExpeditionAI.stopPlayer then
-		ExpeditionAI.stopPlayer(session, player)
-	else
-		player:setFollowCreature(nil)
-		player:setTarget(nil)
-		player:setIdleCombat(false)
-		player:removeCondition(CONDITION_INFIGHT)
-		ExpeditionProtocol.sendAttackTarget(player, 0)
-	end
+	ExpeditionAI.stopPlayer(session, player)
 	player:unregisterEvent("ExpeditionPlayerDeath")
 	EM_PRIV.clearActive(player)
 
@@ -1857,7 +1831,7 @@ function EM_PRIV.cleanupSession(session, player, opts)
 	elseif session.role == "boss" and session.kind ~= "raid" then
 		ExpeditionBoss.clear(session)
 	elseif session.kind ~= "raid" then
-		ExpeditionWaves.clear(session)
+		ExpeditionPack.clear(session)
 	end
 	ExpeditionInstance.teardown(session.instance)
 	if session.kind ~= "raid" then

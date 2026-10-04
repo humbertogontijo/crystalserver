@@ -59,19 +59,21 @@ function CreatureInfo.packCombatPower(creatures)
 	return CreatureInfo.compositionCombatPower(creatures)
 end
 
---- Σ creatureCP_i × n_i^densityExp. n_i is viewport count when set,
---- otherwise density × share_i.
+--- (Σ share_i × creatureCP_i) × max(1, density)^densityExp.
+--- creatureDensity is the engaged pack (largest hold), not the tour; counts only
+--- weight the mix (percent otherwise). Must match Python hunt_combat_power_from_shares.
 function CreatureInfo.huntCombatPowerFromMix(creatures, creatureDensity)
 	if type(creatures) ~= "table" then
 		return 0
 	end
-	local dens = tonumber(creatureDensity) or 1
+	local givenDens = tonumber(creatureDensity)
+	local dens = givenDens or 1
 	if dens < 0 then
 		dens = 0
 	end
-	local exp = 0.5
+	local exp = 0
 	if CreatureInfo.huntDensityExp then
-		exp = tonumber(CreatureInfo.huntDensityExp()) or 0.5
+		exp = tonumber(CreatureInfo.huntDensityExp()) or 0
 	end
 	local countSum = 0
 	local parts = {}
@@ -96,36 +98,35 @@ function CreatureInfo.huntCombatPowerFromMix(creatures, creatureDensity)
 	if #parts == 0 then
 		return 0
 	end
-	local pack = 0
+	local engaged, mean = 0, 0
 	if countSum > 0 then
+		engaged = (givenDens and givenDens > 0) and givenDens or countSum
 		for _, part in ipairs(parts) do
 			if part.n and part.n > 0 then
-				pack = pack + part.power * (part.n ^ exp)
+				mean = mean + part.power * part.n / countSum
 			end
 		end
-		return pack
-	end
-	if dens <= 0 then
-		return 0
-	end
-	local weightSum = 0
-	for _, part in ipairs(parts) do
-		if part.w then
-			weightSum = weightSum + part.w
+	else
+		if dens <= 0 then
+			return 0
 		end
-	end
-	if weightSum <= 0 then
-		return 0
-	end
-	for _, part in ipairs(parts) do
-		if part.w then
-			local n = dens * (part.w / weightSum)
-			if n > 0 then
-				pack = pack + part.power * (n ^ exp)
+		local weightSum = 0
+		for _, part in ipairs(parts) do
+			if part.w then
+				weightSum = weightSum + part.w
+			end
+		end
+		if weightSum <= 0 then
+			return 0
+		end
+		engaged = dens
+		for _, part in ipairs(parts) do
+			if part.w then
+				mean = mean + part.power * part.w / weightSum
 			end
 		end
 	end
-	return pack
+	return mean * (math.max(1, engaged) ^ exp)
 end
 
 --- Attach base stats from creatures.generated.json; keeps hunt percent overlay.
@@ -168,7 +169,7 @@ function CreatureInfo.enrichCreatureMix(creatures)
 	return out
 end
 
---- Hunt levels from Σ creature combatPower × n_i^densityExp.
+--- Hunt levels from the engaged mix (huntCombatPowerFromMix).
 function CreatureInfo.levelsForHuntPack(creatures, creatureDensity)
 	local packCp = CreatureInfo.huntCombatPowerFromMix(creatures, creatureDensity)
 	if packCp <= 0 then

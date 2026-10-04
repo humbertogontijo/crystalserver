@@ -93,6 +93,8 @@ private:
 	uint32_t instanceId = 0;
 	uint32_t interval = 30000;
 	uint32_t checkSpawnMonsterEvent = 0;
+	// Bumped by stopEvent / removeMonsters; staged spawns from an older generation are dropped.
+	uint32_t spawnGeneration = 0;
 
 	bool findPlayer(const Position &pos) const;
 	void scheduleCheck(uint32_t delay);

@@ -388,18 +388,18 @@ function QuestArena.begin(session)
 	if union and session.instance then
 		applyInstanceBoundary(session.instance, union)
 	end
-	-- Cancel stock wave scheduler if join armed one.
+	-- Cancel the boss waiting timer if join armed one.
 	if session.waitingEvent then
 		stopEvent(session.waitingEvent)
 		session.waitingEvent = nil
 	end
-	if ExpeditionWaves and ExpeditionWaves.clear then
-		pcall(ExpeditionWaves.clear, session)
+	if ExpeditionPack and ExpeditionPack.clear then
+		pcall(ExpeditionPack.clear, session)
 	end
 	prepareAndSpawn(session, 1)
 end
 
---- True when this creature is a QuestArena pit spawn (not ExpeditionWaves/boss tables).
+--- True when this creature is a QuestArena pit spawn (not ExpeditionPack/boss tables).
 function QuestArena.isOwnedMonster(creature)
 	if not creature then
 		return false
@@ -677,14 +677,16 @@ function QuestArena.registerExpeditions()
 				minPlayers = 1,
 				lureMax = 1,
 				score = 2000 + arenaId,
-				positions = {},
+				cave = { lure = 1, waypoints = {} },
 			}
-			for i, pit in ipairs(spec.pits) do
+			for _, pit in ipairs(spec.pits) do
 				if pit and pit.center then
-					entry.positions[#entry.positions + 1] = {
+					local waypoints = entry.cave.waypoints
+					waypoints[#waypoints + 1] = {
 						x = pit.center.x,
 						y = pit.center.y,
 						z = pit.center.z,
+						spot = true,
 					}
 				end
 			end

@@ -45,6 +45,25 @@ function ActivityBoostProtocol.sendState(player)
 	end
 end
 
+--- Kill-counter updates: activities + boost only (world boss schedule is most of the full state).
+function ActivityBoostProtocol.sendProgress(player)
+	if not player then
+		return
+	end
+	local ok, err = pcall(function()
+		ActivityBoostLedger.reconcileWithEngine(player)
+		local fiendishHunt = ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.get(player) or nil
+		ActivityBoostProtocol.send(player, {
+			type = "progress",
+			boost = ActivityBoostLedger.getStatus(player),
+			activities = ActivityBoostActivities.list(player, { fiendishHunt = fiendishHunt }),
+		})
+	end)
+	if not ok then
+		logger.error("[ActivityBoost] sendProgress failed: {}", err)
+	end
+end
+
 function ActivityBoostProtocol.handle(player, buffer)
 	if not player then
 		return

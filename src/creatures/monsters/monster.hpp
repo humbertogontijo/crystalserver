@@ -167,6 +167,11 @@ public:
 	void setFatalHoldDuration(int32_t value);
 	int32_t getRunAwayHealth() const;
 	void setRunAwayHealth(int32_t value);
+	/// Extra sqm beyond canSee range a target is kept once acquired (0 = stock).
+	void setTargetKeepRange(int32_t range) {
+		targetKeepRange = std::max<int32_t>(0, range);
+	}
+	bool canKeepTarget(const Position &pos) override;
 	bool getDistanceStep(const Position &targetPos, Direction &direction, bool flee = false);
 	bool isTargetNearby() const;
 	bool isIgnoringFieldDamage() const;
@@ -307,6 +312,7 @@ private:
 	int32_t challengeFocusDuration = 0;
 	int32_t stepDuration = 0;
 	int32_t targetDistance = 1;
+	int32_t targetKeepRange = 0;
 	int32_t challengeMeleeDuration = 0;
 	int32_t runAwayHealth = 0;
 	int32_t m_defense = 0;

@@ -75,8 +75,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 100000, maxCount = 200 },
-	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "gold coin", chance = 13600000, maxCount = 200 },
+	{ name = "gold coin", chance = 13600000, maxCount = 100 },
 	{ name = "platinum coin", chance = 100000, maxCount = 5 },
 	{ name = "black pearl", chance = 100000, maxCount = 2 },
 	{ name = "ham", chance = 13600000, maxCount = 2 },
@@ -110,7 +110,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 30,
-	armor = 0,
+	armor = 30,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 7, type = COMBAT_HEALING, minDamage = 120, maxDamage = 310, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "speed", interval = 2000, chance = 10, speedChange = 520, effect = CONST_ME_POFF, target = false, duration = 5000 },

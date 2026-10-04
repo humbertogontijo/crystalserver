@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 8200
+monster.maxHealth = 8200
 monster.race = "undead"
 monster.corpse = 3138
 monster.speed = 0
@@ -68,7 +68,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 199,
-	armor = 0,
+	armor = 199,
 	mitigation = 0.50,
 	{ name = "icicle heal", interval = 2000, chance = 60, target = false },
 }

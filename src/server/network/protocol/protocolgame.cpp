@@ -612,6 +612,9 @@ void ProtocolGame::AddItem(NetworkMessage &msg, const std::shared_ptr<Item> &ite
 
 namespace {
 
+// OTC same-socket alt switch (Proto::GameServerCharacterSwitch).
+constexpr uint8_t SERVER_CHARACTER_SWITCH = 0x0D;
+
 void callTeamManagerPlayerMethod(const std::shared_ptr<Player> &player, const char* method) {
 	if (!player || !method) {
 		return;
@@ -647,23 +650,65 @@ void callTeamManagerPlayerMethod(const std::shared_ptr<Player> &player, const ch
 
 } // namespace
 
-void ProtocolGame::release() {
+void ProtocolGame::detachClient() {
 	// dispatcher thread
 	if (player && player->client == shared_from_this()) {
 		// Creature may stay online (idle hunt / VIP stay). Notify Lua before clearing client
 		// so protocolVersion becomes 0 and headless leadership handoff can run.
-		const bool staysOnline = !player->isRemoved()
-			&& (player->keepsDisconnectedCombat()
-				|| (player->isVip() && g_configManager().getBoolean(VIP_STAY_ONLINE)));
-		if (staysOnline) {
+		if (!player->isRemoved() && player->staysOnlineWithoutClient()) {
 			callTeamManagerPlayerMethod(player, "onClientDetached");
 		}
 		player->client.reset();
 		player = nullptr;
 	}
+}
+
+void ProtocolGame::release() {
+	// dispatcher thread
+	detachClient();
 
 	OutputMessagePool::getInstance().removeProtocolFromAutosend(shared_from_this());
 	Protocol::release();
+}
+
+void ProtocolGame::sendCharacterSwitch(const std::string &targetName) {
+	NetworkMessage msg;
+	msg.addByte(SERVER_CHARACTER_SWITCH);
+	msg.addString(targetName);
+	writeToOutputBuffer(msg);
+}
+
+bool ProtocolGame::switchToPlayer(const std::shared_ptr<Player> &target) {
+	// dispatcher thread
+	if (!isOTC || !player || !target || target == player || eventConnect != 0 || isConnectionExpired()) {
+		return false;
+	}
+	if (target->isRemoved() || target->client || target->isDead() || target->getHealth() <= 0) {
+		return false;
+	}
+	if (player->getAccountId() == 0 || player->getAccountId() != target->getAccountId()) {
+		return false;
+	}
+
+	const auto oldPlayer = player;
+	const auto operatingSystem = oldPlayer->getOperatingSystem();
+
+	sendCharacterSwitch(target->getName());
+
+	if (oldPlayer->tradePartner) {
+		g_game().internalCloseTrade(oldPlayer);
+	}
+	oldPlayer->clearModalWindows();
+	g_chat().removeUserFromAllChannels(oldPlayer);
+	detachClient();
+
+	knownCreatureSet.clear();
+	creatureOrder.clear();
+	loggedIn = false;
+	resetPlayerDeathTime();
+
+	attachToPlayer(target, operatingSystem);
+	return true;
 }
 
 void ProtocolGame::login(const std::string &name, uint32_t accountId, OperatingSystem_t operatingSystem) {
@@ -862,7 +907,11 @@ void ProtocolGame::connect(const std::string &playerName, OperatingSystem_t oper
 		return;
 	}
 
-	player = foundPlayer;
+	attachToPlayer(foundPlayer, operatingSystem);
+}
+
+void ProtocolGame::attachToPlayer(const std::shared_ptr<Player> &target, OperatingSystem_t operatingSystem) {
+	player = target;
 
 	g_chat().removeUserFromAllChannels(player);
 	player->clearModalWindows();
@@ -936,6 +985,25 @@ void ProtocolGame::logout(bool displayEffect, bool forced) {
 	sendSessionEndInformation(forced ? SESSION_END_FORCECLOSE : SESSION_END_LOGOUT);
 
 	g_game().removeCreature(player, true);
+}
+
+void ProtocolGame::requestLogout() {
+	// Logout, client exit and alt switch end the same way: the client always lets go, and a body
+	// that cannot leave yet (fight, no-logout tile, idle hunt) stays until Player::sendPing removes it.
+	if (!player || player->isRemoved()) {
+		return;
+	}
+
+	const bool dead = player->getHealth() <= 0 || player->isSoftDespawned();
+	const bool privileged = player->isAccessPlayer() || player->hasFlag(PlayerFlags_t::IsGameTester);
+	if (dead || privileged || (!player->staysOnlineWithoutClient() && player->canLogout())) {
+		logout(true, false);
+		if (!player || player->isRemoved()) {
+			return;
+		}
+	}
+
+	sendSessionEndInformation(SESSION_END_LOGOUT);
 }
 
 void ProtocolGame::onRecvFirstMessage(NetworkMessage &msg) {
@@ -1242,7 +1310,7 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 
 	switch (recvbyte) {
 		case 0x14:
-			logout(true, false);
+			requestLogout();
 			break;
 		case 0x1D:
 			g_game().playerReceivePingBack(player->getID());

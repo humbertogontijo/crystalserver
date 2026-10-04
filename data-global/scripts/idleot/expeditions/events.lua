@@ -68,10 +68,10 @@ function monsterDeath.onDeath(creature, corpse, killer, mostDamageKiller, lastHi
 	end
 	if not arenaHandled then
 		pcall(function()
-			ExpeditionWaves.onMonsterDeath(creature, corpse)
+			ExpeditionPack.onMonsterDeath(creature, corpse)
 		end)
 	end
-	-- Soul Pit expedition waves (not tracked in ExpeditionWaves.monsterOwners).
+	-- Soul Pit expedition waves (not owned by ExpeditionPack).
 	if SoulPitExpedition and SoulPitExpedition.onMonsterDeath and ExpeditionManager then
 		pcall(function()
 			local handled = false
@@ -107,8 +107,8 @@ monsterDeath:register()
 local monsterSpawnCallback = EventCallback("ExpeditionMonsterOnSpawn")
 
 function monsterSpawnCallback.monsterOnSpawn(monster, position)
-	if ExpeditionWaves and ExpeditionWaves.onInstanceMonsterSpawn then
-		local ok, err = pcall(ExpeditionWaves.onInstanceMonsterSpawn, monster, position)
+	if ExpeditionPack and ExpeditionPack.onInstanceMonsterSpawn then
+		local ok, err = pcall(ExpeditionPack.onInstanceMonsterSpawn, monster, position)
 		if not ok then
 			logger.error("[Expedition] monsterOnSpawn failed: {}", err)
 		end
@@ -125,31 +125,12 @@ function thinkCallback.playerOnThink(player, interval)
 	if CombatAutomation and CombatAutomation.onThink then
 		pcall(CombatAutomation.onThink, player, interval)
 	end
-	-- Player attack packets can change the server target between AI ticks; keep the
-	-- client red square in sync (vanilla has no S→C attack opcode).
-	if ExpeditionManager.getSessionByPlayer and ExpeditionAI and ExpeditionAI.syncAttackTargetIfChanged then
-		local session = ExpeditionManager.getSessionByPlayer(player)
-		if session and session.entered and session.state ~= "ended" then
-			pcall(ExpeditionAI.syncAttackTargetIfChanged, session, player)
-		end
-	end
 	if ExpeditionManager and ExpeditionManager.syncSessionClientIfNeeded then
 		pcall(ExpeditionManager.syncSessionClientIfNeeded, player)
 	end
 end
 
 thinkCallback:register()
-
--- Familiar-style companion catch-up: yank on the anchor's step (Player::onWalk → playerOnWalk).
-local walkCallback = EventCallback("ExpeditionPlayerOnWalk")
-
-function walkCallback.playerOnWalk(player, _dir)
-	if ExpeditionAI and ExpeditionAI.onPlayerWalk then
-		pcall(ExpeditionAI.onPlayerWalk, player)
-	end
-end
-
-walkCallback:register()
 
 -- Immediate eject when a player leaves the expedition/raid zone (e.g. GM teleport).
 local zoneLeaveCallback = EventCallback("ExpeditionZoneAfterLeave")

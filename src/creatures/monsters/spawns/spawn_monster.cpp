@@ -346,9 +346,10 @@ void SpawnMonster::startup(bool delayed) {
 		}
 		if (delayed) {
 			std::weak_ptr<SpawnMonster> weakSelf = static_self_cast<SpawnMonster>();
-			g_dispatcher().addEvent([weakSelf, spawnMonsterId, mType] {
+			const uint32_t generation = spawnGeneration;
+			g_dispatcher().addEvent([weakSelf, spawnMonsterId, mType, generation] {
 				const auto self = weakSelf.lock();
-				if (!self) {
+				if (!self || self->spawnGeneration != generation) {
 					return;
 				}
 				if (const auto it = self->spawnMonsterMap.find(spawnMonsterId); it != self->spawnMonsterMap.end()) {
@@ -420,10 +421,12 @@ void SpawnMonster::scheduleSpawn(uint32_t spawnMonsterId, spawnBlock_t &sb, cons
 	} else {
 		Game::addMagicEffect(Spectators::around<Player>(sb.pos, instanceId).data(), sb.pos, CONST_ME_TELEPORT);
 		std::weak_ptr<SpawnMonster> weakSelf = static_self_cast<SpawnMonster>();
+		const uint32_t generation = spawnGeneration;
 		g_dispatcher().scheduleEvent(
-			NONBLOCKABLE_SPAWN_MONSTER_INTERVAL, [weakSelf, spawnMonsterId, mType, interval, startup] {
+			NONBLOCKABLE_SPAWN_MONSTER_INTERVAL, [weakSelf, spawnMonsterId, mType, interval, startup, generation] {
 				const auto self = weakSelf.lock();
-				if (!self) {
+				// Stopped or cleared since staging (instance teardown / re-entry): drop it.
+				if (!self || self->spawnGeneration != generation) {
 					return;
 				}
 				if (const auto it = self->spawnMonsterMap.find(spawnMonsterId); it != self->spawnMonsterMap.end()) {
@@ -552,6 +555,7 @@ void SpawnMonster::removeMonster(const std::shared_ptr<Monster> &monster) {
 }
 
 void SpawnMonster::removeMonsters() {
+	++spawnGeneration;
 	for (auto &[id, monster] : spawnedMonsterMap) {
 		if (monster) {
 			monster->setSpawnMonster(nullptr);
@@ -616,6 +620,7 @@ void SpawnMonster::setMonsterVariant(const std::string &variant) {
 }
 
 void SpawnMonster::stopEvent() {
+	++spawnGeneration;
 	if (checkSpawnMonsterEvent != 0) {
 		g_dispatcher().stopEvent(checkSpawnMonsterEvent);
 		checkSpawnMonsterEvent = 0;

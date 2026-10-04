@@ -68,295 +68,6 @@ local function memberProfileWire(src)
 	}
 end
 
--- Inventory locations must use equip-slot paths, not Lua ScriptEnv unique ids.
--- Item:getUniqueId() assigns ephemeral script-env thing ids that change per packet
--- and cannot be looked up later (causes "Container not found.").
-local function copyPath(path)
-	if type(path) ~= "table" then
-		return nil
-	end
-	if path.rewardChest == true then
-		local out = { rewardChest = true }
-		if path.rewardId ~= nil then
-			out.rewardId = tonumber(path.rewardId) or path.rewardId
-		end
-		if type(path.indices) == "table" then
-			out.indices = {}
-			for i, idx in ipairs(path.indices) do
-				out.indices[i] = tonumber(idx) or 0
-			end
-		end
-		if path.slots ~= nil then
-			out.slots = tonumber(path.slots) or path.slots
-		end
-		return out
-	end
-	if path.lootPouch == true then
-		local out = { lootPouch = true }
-		if type(path.indices) == "table" then
-			out.indices = {}
-			for i, idx in ipairs(path.indices) do
-				out.indices[i] = tonumber(idx) or 0
-			end
-		end
-		if path.slots ~= nil then
-			out.slots = tonumber(path.slots) or path.slots
-		end
-		return out
-	end
-	local out = { slot = tonumber(path.slot) or 0 }
-	if type(path.indices) == "table" then
-		out.indices = {}
-		for i, idx in ipairs(path.indices) do
-			out.indices[i] = tonumber(idx) or 0
-		end
-	end
-	if path.slots ~= nil then
-		out.slots = tonumber(path.slots) or path.slots
-	end
-	return out
-end
-
-local function childPath(parentPath, index)
-	local path = copyPath(parentPath) or { slot = 0, indices = {} }
-	path.indices = path.indices or {}
-	path.indices[#path.indices + 1] = tonumber(index) or 0
-	-- Slot count belongs to the opened container, not each child item path.
-	path.slots = nil
-	return path
-end
-
-local function itemWire(item, path)
-	if not item then
-		return nil
-	end
-	local count = 1
-	local ok, raw = pcall(function()
-		return item:getCount()
-	end)
-	if ok and raw ~= nil then
-		local n = tonumber(raw)
-		if n and n >= 1 then
-			count = math.floor(n)
-		end
-	end
-	-- Stackables / charges that report via subtype-style getters.
-	if count <= 1 then
-		ok, raw = pcall(function()
-			if item.getCharges then
-				return item:getCharges()
-			end
-			return nil
-		end)
-		if ok and raw ~= nil then
-			local n = tonumber(raw)
-			if n and n > 1 then
-				count = math.floor(n)
-			end
-		end
-	end
-	local name = item:getName() or "?"
-	local itemId = item:getId() or 0
-	local isContainer = false
-	if item.isContainer then
-		isContainer = item:isContainer() == true
-	end
-	return {
-		path = copyPath(path),
-		itemId = itemId,
-		name = name,
-		count = count,
-		isContainer = isContainer == true,
-	}
-end
-
-local function asContainer(item)
-	if not item then
-		return nil
-	end
-	if item.getCapacity or item.getSize then
-		return item
-	end
-	if item.getContainer then
-		local ok, cont = pcall(function()
-			return item:getContainer()
-		end)
-		if ok and cont and cont ~= false then
-			return cont
-		end
-	end
-	return nil
-end
-
-local function containerCapacity(item)
-	if not item then
-		return 0
-	end
-	-- ItemType.containersize is the authoritative slot count (e.g. backpack = 20).
-	local id = 0
-	if item.getId then
-		local ok, raw = pcall(function()
-			return item:getId()
-		end)
-		if ok and raw then
-			id = tonumber(raw) or 0
-		end
-	end
-	if id > 0 and ItemType then
-		local ok, cap = pcall(function()
-			local it = ItemType(id)
-			if it and it.getCapacity then
-				return it:getCapacity()
-			end
-			return nil
-		end)
-		if ok and cap ~= nil then
-			local n = math.floor(tonumber(cap) or 0)
-			if n > 0 then
-				return n
-			end
-		end
-	end
-	local cont = asContainer(item) or item
-	if cont and cont.getCapacity then
-		local ok, n = pcall(function()
-			return cont:getCapacity()
-		end)
-		if ok and n ~= nil then
-			local cap = math.floor(tonumber(n) or 0)
-			if cap > 0 then
-				return cap
-			end
-		end
-	end
-	return 0
-end
-
-local function containerWire(container, parentPath, maxItems)
-	container = asContainer(container) or container
-	maxItems = maxItems or 40
-	local items = {}
-	if not container or not container.getSize then
-		return items
-	end
-	local size = container:getSize() or 0
-	for i = 0, size - 1 do
-		if #items >= maxItems then
-			break
-		end
-		local it = container:getItem(i)
-		if it then
-			items[#items + 1] = itemWire(it, childPath(parentPath, i))
-		end
-	end
-	return items
-end
-
---- Account-scoped loot pouch (shared across same-account characters).
-local function findLootPouch(player)
-	if not player or not player.getLootPouch then
-		return nil, nil
-	end
-	local pouch = player:getLootPouch()
-	if pouch then
-		return pouch, { lootPouch = true }
-	end
-	return nil, nil
-end
-
---- Resolve inventory item by equip slot + nested container indices.
-local function resolveItemByPath(player, path)
-	if not player or type(path) ~= "table" then
-		return nil
-	end
-	if path.rewardChest == true then
-		local rewardId = path.rewardId
-		if rewardId == nil then
-			return nil
-		end
-		if not player.getReward then
-			return nil
-		end
-		local reward = player:getReward(rewardId, false)
-		if not reward or reward == false then
-			return nil
-		end
-		local indices = path.indices
-		if type(indices) ~= "table" or #indices == 0 then
-			return reward
-		end
-		local item = reward
-		for _, rawIndex in ipairs(indices) do
-			local index = tonumber(rawIndex)
-			if index == nil or not item.getSize then
-				return nil
-			end
-			local size = item:getSize() or 0
-			if index < 0 or index >= size then
-				return nil
-			end
-			item = item:getItem(index)
-			if not item then
-				return nil
-			end
-		end
-		return item
-	end
-	if path.lootPouch == true then
-		local pouch = select(1, findLootPouch(player))
-		if not pouch then
-			return nil
-		end
-		local indices = path.indices
-		if type(indices) ~= "table" or #indices == 0 then
-			return pouch
-		end
-		local item = pouch
-		for _, rawIndex in ipairs(indices) do
-			local index = tonumber(rawIndex)
-			if index == nil or not item.getSize then
-				return nil
-			end
-			local size = item:getSize() or 0
-			if index < 0 or index >= size then
-				return nil
-			end
-			item = item:getItem(index)
-			if not item then
-				return nil
-			end
-		end
-		return item
-	end
-	local slot = tonumber(path.slot) or 0
-	if slot <= 0 then
-		return nil
-	end
-	local item = player:getSlotItem(slot)
-	if not item then
-		return nil
-	end
-	local indices = path.indices
-	if type(indices) ~= "table" or #indices == 0 then
-		return item
-	end
-	for _, rawIndex in ipairs(indices) do
-		local index = tonumber(rawIndex)
-		if index == nil or not item.getSize then
-			return nil
-		end
-		local size = item:getSize() or 0
-		if index < 0 or index >= size then
-			return nil
-		end
-		item = item:getItem(index)
-		if not item then
-			return nil
-		end
-	end
-	return item
-end
-
 --- Require controller and target share the same account (and account is non-zero).
 function TeamManager.requireSameAccount(controller, target)
 	if not controller or not target then
@@ -603,7 +314,7 @@ local function safeLogoutCompanion(companion, deferMs)
 		return
 	end
 	local playerId = companion:getId()
-	local startedMs = os.mtime and os.mtime() or (os.time() * 1000)
+	local startedMs = CombatGeo.nowMs()
 	local gen = (pendingCompanionLogoutGen[playerId] or 0) + 1
 	pendingCompanionLogoutGen[playerId] = gen
 
@@ -629,8 +340,7 @@ local function safeLogoutCompanion(companion, deferMs)
 			return
 		end
 		local hp = c.getHealth and c:getHealth() or 0
-		local nowMs = os.mtime and os.mtime() or (os.time() * 1000)
-		if hp <= 0 and (nowMs - startedMs) < COMPANION_LOGOUT_MAX_WAIT_MS then
+		if hp <= 0 and (CombatGeo.nowMs() - startedMs) < COMPANION_LOGOUT_MAX_WAIT_MS then
 			addEvent(tryLogout, COMPANION_LOGOUT_POLL_MS)
 			return
 		end
@@ -854,7 +564,7 @@ function TeamManager.passLeadership(host, targetName)
 		return false, "Target must be online."
 	end
 	if target:getAccountId() ~= host:getAccountId() then
-		return false, "Can only pass leadership to same-account companions."
+		return false, "Can only pass leadership to your own alts."
 	end
 
 	local onRoster = false
@@ -937,6 +647,10 @@ function TeamManager.onClientAttached(player)
 
 	if ExpeditionManager and ExpeditionManager.syncSessionClientIfNeeded then
 		pcall(ExpeditionManager.syncSessionClientIfNeeded, player)
+	end
+	-- Attached bodies are already bound, so the login-time instance bind never pushes identity.
+	if InstanceWorld and InstanceWorld.scheduleSendBounds then
+		pcall(InstanceWorld.scheduleSendBounds, player)
 	end
 end
 
@@ -1601,7 +1315,7 @@ local function acceptLoadedCompanions(controller, companions, loaded, accountId)
 	for _, companion in ipairs(loaded or {}) do
 		if not companion then
 			rollbackCompanions(companions)
-			return nil, "Failed to login companion."
+			return nil, "Failed to log in alt."
 		end
 		if companion:getAccountId() ~= accountId then
 			rollbackCompanions(companions)
@@ -1771,7 +1485,7 @@ function TeamManager.deploy(controller, opts)
 		end
 		if not loaded then
 			rollbackCompanions(claimed)
-			opts.onComplete(nil, loadErr or "Failed to login companions.")
+			opts.onComplete(nil, loadErr or "Failed to log in alts.")
 			return
 		end
 		local merged, mergeErr = acceptLoadedCompanions(controller, claimed, loaded, accountId)
@@ -1846,80 +1560,7 @@ function TeamManager.undeploy(controller, opts)
 	logger.info("[Team] {} undeployed companions", controller:getName())
 end
 
-function TeamManager.getInventorySnapshot(controller, nameOrGuid)
-	local target, err = TeamStore.resolveAccountMember(controller, nameOrGuid or controller:getName())
-	if not target then
-		return nil, err
-	end
-
-	local equipment = {}
-	for _, slot in ipairs(TeamConfig.EQUIP_SLOTS or {}) do
-		local it = target:getSlotItem(slot.id)
-		equipment[#equipment + 1] = {
-			slot = slot.id,
-			slotName = slot.name,
-			item = itemWire(it, { slot = slot.id }),
-		}
-	end
-
-	local backpack = target:getSlotItem(CONST_SLOT_BACKPACK)
-	local bagItems = {}
-	local backpackCapacity = 0
-	local backpackPath = { slot = CONST_SLOT_BACKPACK }
-	if backpack and backpack.getSize then
-		bagItems = containerWire(backpack, backpackPath, 60)
-		backpackCapacity = containerCapacity(backpack)
-	end
-
-	-- Offline players from getOfflinePlayer need save only when modified.
-	local wasOnline = Player(target:getName()) ~= nil
-
-	local creatureId = 0
-	local live = Player(target:getName())
-	if live then
-		creatureId = live:getId() or 0
-	end
-
-	local profile = memberProfileWire(target)
-
-	-- Match ProtocolGame::sendBlessStatus: ignore Twist of Fate (id 1).
-	-- 1 = grey (<5), 2 = gold (>=5), 3 = green (all 7 regular+enhanced).
-	local blessCount = 0
-	local blessings = {}
-	for id = 1, 8 do
-		local owned = false
-		if target.hasBlessing and target:hasBlessing(id) then
-			owned = true
-		elseif target.getBlessingCount then
-			local playerCount = tonumber(target:getBlessingCount(id)) or 0
-			local storeCount = tonumber(target:getBlessingCount(id, true)) or 0
-			owned = (playerCount + storeCount) >= 1
-		end
-		if owned then
-			blessings[#blessings + 1] = id
-			if id ~= 1 then
-				blessCount = blessCount + 1
-			end
-		end
-	end
-	local blessVisualState = (blessCount >= 7) and 3 or ((blessCount >= 5) and 2 or 1)
-
-	return {
-		name = target:getName(),
-		guid = target:getGuid(),
-		level = profile.level,
-		vocation = profile.vocation,
-		online = wasOnline,
-		creatureId = creatureId,
-		equipment = equipment,
-		backpack = bagItems,
-		backpackCapacity = backpackCapacity,
-		blessVisualState = blessVisualState,
-		blessings = blessings,
-	}
-end
-
---- Bring a same-account member online (headless companion if needed) so their wheel can be opened/edited.
+--- Online same-account member whose wheel the controller may open/edit.
 function TeamManager.ensureOnlineMember(controller, nameOrGuid)
 	if not controller then
 		return nil, "No player."
@@ -1940,879 +1581,146 @@ function TeamManager.ensureOnlineMember(controller, nameOrGuid)
 	return nil, "Character must be online for remote feature access."
 end
 
---- Ensure online and return creature id for client g_game.openWheel.
-function TeamManager.openWheel(controller, nameOrGuid)
-	local target, err = TeamStore.resolveAccountMember(controller, nameOrGuid)
-	if not target then
-		return nil, err
-	end
-	if controller:getName():lower() == target:getName():lower() then
-		return {
-			name = target:getName(),
-			guid = target:getGuid(),
-			creatureId = controller:getId(),
-		}
-	end
-	if not Game.deliverCompanionFeatureUI then
-		return nil, "Companion feature control is unavailable."
-	end
-	if not Game.deliverCompanionFeatureUI(controller, target, "wheel") then
-		return nil, "Failed to open Wheel of Destiny for that character."
-	end
-	return {
-		name = target:getName(),
-		guid = target:getGuid(),
-		creatureId = 0,
-	}
-end
+-- Alt switching: move the live client onto another same-account character.
+-- accountId -> last switch ms
+local lastAltSwitchByAccount = {}
 
-local function deliverCompanionFeatureOffline(controller, nameOrGuid, feature)
-	local target, err = TeamStore.resolveAccountMember(controller, nameOrGuid)
-	if not target then
-		return nil, err
-	end
-	if controller:getName():lower() == target:getName():lower() then
-		return nil, "Use local UI for your own character."
-	end
-	if not Game.deliverCompanionFeatureUI then
-		return nil, "Companion feature control is unavailable."
-	end
-	if not Game.deliverCompanionFeatureUI(controller, target, feature) then
-		return nil, string.format("Failed to open %s for that character.", feature)
-	end
-	return {
-		name = target:getName(),
-		guid = target:getGuid(),
-		feature = feature,
-	}
-end
-
-function TeamManager.openPrey(controller, nameOrGuid)
-	return deliverCompanionFeatureOffline(controller, nameOrGuid, "prey")
-end
-
-function TeamManager.openForge(controller, nameOrGuid)
-	return deliverCompanionFeatureOffline(controller, nameOrGuid, "forge")
-end
-
-function TeamManager.openProficiency(controller, nameOrGuid)
-	return deliverCompanionFeatureOffline(controller, nameOrGuid, "proficiency")
-end
-
-function TeamManager.openRewardWall(controller, nameOrGuid)
-	return deliverCompanionFeatureOffline(controller, nameOrGuid, "rewardWall")
-end
-
-function TeamManager.openTaskBoard(controller, nameOrGuid)
-	return deliverCompanionFeatureOffline(controller, nameOrGuid, "taskBoard")
-end
-
-local function findItemByPath(player, msg)
-	if type(msg) == "table" and msg.path then
-		local item = resolveItemByPath(player, msg.path)
-		if item then
-			return item
-		end
-	end
-	return nil
-end
-
---- Resolve an item from OTC client inventory/container coordinates (x = 0xFFFF).
-local function resolveClientPos(player, pos)
-	if not player or type(pos) ~= "table" then
-		return nil
-	end
-	local x = tonumber(pos.x) or 0
-	local y = tonumber(pos.y) or 0
-	local z = tonumber(pos.z) or 0
-	if x ~= 65535 then
-		return nil
-	end
-	-- Equipment: y is CONST_SLOT_* (1..10).
-	if y >= CONST_SLOT_HEAD and y <= CONST_SLOT_AMMO then
-		return player:getSlotItem(y)
-	end
-	-- Open container windows: y = containerId | 0x40, z = index (OTC encoding).
-	if y >= 0x40 and player.getContainerById then
-		local cid = y - 0x40
-		local cont = player:getContainerById(cid)
-		if cont and cont.getItem then
-			return cont:getItem(z)
-		end
-	end
-	return nil
-end
-
---- Destination cylinder for a client pos (equip slot or open container).
-local function resolveClientDest(player, pos)
-	if not player or type(pos) ~= "table" then
-		return nil, nil
-	end
-	local x = tonumber(pos.x) or 0
-	local y = tonumber(pos.y) or 0
-	local z = tonumber(pos.z) or 0
-	if x ~= 65535 then
-		return nil, nil
-	end
-	if y >= CONST_SLOT_HEAD and y <= CONST_SLOT_AMMO then
-		return "slot", y
-	end
-	if y >= 0x40 and player.getContainerById then
-		local cid = y - 0x40
-		local cont = player:getContainerById(cid)
-		if cont then
-			return "container", cont
-		end
-	end
-	return nil, nil
-end
-
---- Offline loads + headless companions need an explicit save after inventory changes.
---- Note: Player:isOnline() is not exposed to Lua - never call it (was crashing moves).
-local function saveIfOffline(player)
-	if not player or not player.save or not player.getName then
-		return
-	end
-	local live = Player(player:getName())
-	if not live or isHeadlessCompanion(player) or (live and isHeadlessCompanion(live)) then
-		player:save()
-	end
-end
-
---- Parent path for an open container that held an item (path without last index).
-local function parentContainerPath(path)
-	if type(path) ~= "table" then
-		return nil
-	end
-	if path.rewardChest == true then
-		local indices = path.indices
-		if type(indices) ~= "table" or #indices == 0 then
-			if path.rewardId ~= nil then
-				return { rewardChest = true }
-			end
-			return nil
-		end
-		local parent = { rewardChest = true, rewardId = path.rewardId, indices = {} }
-		for i = 1, #indices - 1 do
-			parent.indices[i] = tonumber(indices[i]) or 0
-		end
-		if #parent.indices == 0 then
-			parent.indices = nil
-		end
-		return parent
-	end
-	if path.lootPouch == true then
-		local indices = path.indices
-		if type(indices) ~= "table" or #indices == 0 then
-			return nil
-		end
-		local parent = { lootPouch = true, indices = {} }
-		for i = 1, #indices - 1 do
-			parent.indices[i] = tonumber(indices[i]) or 0
-		end
-		if #parent.indices == 0 then
-			parent.indices = nil
-		end
-		return parent
-	end
-	local slot = tonumber(path.slot) or 0
-	if slot <= 0 then
-		return nil
-	end
-	local indices = path.indices
-	if type(indices) ~= "table" or #indices == 0 then
-		-- Equipment slot alone (no bag nesting) - nothing to refresh as a container.
-		return nil
-	end
-	local parent = { slot = slot, indices = {} }
-	for i = 1, #indices - 1 do
-		parent.indices[i] = tonumber(indices[i]) or 0
-	end
-	return parent
-end
-
-local function ensureBackpack(player)
-	if not player then
-		return nil
-	end
-	local bp = player:getSlotItem(CONST_SLOT_BACKPACK)
-	if bp then
-		return bp
-	end
-	-- addItem(itemId, count, canDropOnMap, subType, slot)
-	pcall(function()
-		player:addItem(2853, 1, false, 1, CONST_SLOT_BACKPACK)
+local function vocationNameById(vocationId)
+	local ok, name = pcall(function()
+		local vocation = Vocation(tonumber(vocationId) or 0)
+		return vocation and vocation:getName() or ""
 	end)
-	return player:getSlotItem(CONST_SLOT_BACKPACK)
+	return ok and type(name) == "string" and name or ""
 end
 
---- Equip into a paperdoll slot. Occupied slots return NEEDEXCHANGE unless we free them first.
-local function moveItemToEquipSlot(item, player, slot)
-	if not item or not player or not slot then
+local function isInHunt(player)
+	if not (ExpeditionManager and ExpeditionManager.getSessionByPlayer) then
 		return false
 	end
-	slot = tonumber(slot)
-	if not slot or slot < CONST_SLOT_HEAD or slot > CONST_SLOT_AMMO then
-		return false
-	end
-
-	local existing = player:getSlotItem(slot)
-	if existing and existing ~= item then
-		if slot == CONST_SLOT_BACKPACK then
-			-- Drop into the worn backpack instead of trying to swap/equip over it.
-			if existing.getSize then
-				return item:moveTo(existing) == true
-			end
-			return false
-		end
-		local bp = ensureBackpack(player)
-		if not bp then
-			return false
-		end
-		-- moveTo uses liberal flags so dump almost always succeeds for team admin moves.
-		if not existing:moveTo(bp) then
-			return false
-		end
-	end
-
-	return item.moveToSlot and item:moveToSlot(player, slot) == true
+	local ok, session = pcall(ExpeditionManager.getSessionByPlayer, player)
+	return ok and session ~= nil
 end
 
-local function resolveSourceItem(fromPlayer, msg)
-	if type(msg.path) == "table" then
-		local item = resolveItemByPath(fromPlayer, msg.path)
-		if item then
-			return item
+local function countAccountOnline(accountId)
+	local count = 0
+	for _, online in ipairs(Game.getPlayers()) do
+		if online:getAccountId() == accountId then
+			count = count + 1
 		end
 	end
-	if type(msg.fromPos) == "table" then
-		return resolveClientPos(fromPlayer, msg.fromPos)
-	end
-	return nil
+	return count
 end
 
---- Boss-reward (and other) owned items refuse moves to another character's containers.
---- Same-account team admin moves reassign ownership to the destination player.
-local function transferOwnershipIfNeeded(item, toPlayer)
-	if not item or not toPlayer then
+--- Every character on the player's account with live status for the alt switcher.
+function TeamManager.getAccountAlts(player)
+	local alts = {}
+	local accountId = player and player:getAccountId() or 0
+	if accountId <= 0 then
+		return alts
+	end
+	local resultId = db.storeQuery(
+		"SELECT `id`, `name`, `level`, `vocation` FROM `players` WHERE `account_id` = "
+			.. tonumber(accountId)
+			.. " AND `deletion` = 0 ORDER BY `name` ASC"
+	)
+	if not resultId then
+		return alts
+	end
+	repeat
+		local name = Result.getString(resultId, "name")
+		local entry = {
+			name = name,
+			guid = Result.getNumber(resultId, "id"),
+			level = Result.getNumber(resultId, "level"),
+			vocation = vocationNameById(Result.getNumber(resultId, "vocation")),
+			online = false,
+			playing = false,
+			inHunt = false,
+		}
+		local online = Player(name)
+		if online then
+			local profile = memberProfileWire(online)
+			entry.online = true
+			entry.playing = online:getId() == player:getId()
+			entry.level = profile.level
+			entry.vocation = profile.vocation
+			entry.inHunt = isInHunt(online)
+		end
+		alts[#alts + 1] = entry
+	until not Result.next(resultId)
+	Result.free(resultId)
+	return alts
+end
+
+local function performAltSwitch(playerId, targetId)
+	local player = Player(playerId)
+	local target = Player(targetId)
+	if not player or not target then
 		return
 	end
-	if not item.hasOwner or not item:hasOwner() then
+	if not player:switchClientTo(target) then
+		TeamProtocol.sendError(player, "Could not switch to " .. target:getName() .. ".")
 		return
 	end
-	if item.isOwner and item:isOwner(toPlayer) then
-		return
-	end
-	if item.setOwner then
-		item:setOwner(toPlayer)
-	elseif item.removeAttribute and ITEM_ATTRIBUTE_OWNER then
-		item:removeAttribute(ITEM_ATTRIBUTE_OWNER)
-	end
+	logger.info("[Team] client switched {} -> {}", player:getName(), target:getName())
 end
 
-local REWARD_CONTAINER_ID = ITEM_REWARD_CONTAINER or 19202
-local REWARD_CHEST_ITEM_ID = ITEM_REWARD_CHEST or 19250
-
---- Flatten nested ITEM_REWARD_CONTAINER bags (same as Player::getRewardsFromContainer).
-local function flattenRewardItems(container, out)
-	out = out or {}
-	if not container or not container.getSize then
-		return out
-	end
-	local size = container:getSize() or 0
-	local snapshot = {}
-	for i = 0, size - 1 do
-		snapshot[#snapshot + 1] = container:getItem(i)
-	end
-	for _, it in ipairs(snapshot) do
-		if it then
-			local id = it.getId and it:getId() or 0
-			if id == REWARD_CONTAINER_ID and it.getSize then
-				flattenRewardItems(it, out)
-			else
-				out[#out + 1] = it
-			end
-		end
-	end
-	return out
-end
-
---- Ensure reward bags have a parent cylinder so Item:moveTo can remove them.
---- Links parents only - does not open a chest window on the target's client.
-local function prepareRewardChestParents(player)
+--- Validate and start an alt switch. Offline alts are loaded headless first.
+function TeamManager.switchAlt(player, targetName)
 	if not player then
-		return
+		return false, "No player."
 	end
-	if player.linkRewardChestParents then
-		pcall(function()
-			player:linkRewardChestParents()
-		end)
-		return
+	if player:getHealth() <= 0 then
+		return false, "You cannot switch while dead."
 	end
-	-- Older builds: openRewardChest also wires parents (may push UI to target).
-	if player.openRewardChest then
-		pcall(function()
-			player:openRewardChest()
-		end)
+	local name = tostring(targetName or "")
+	if name == "" then
+		return false, "Choose an alt."
 	end
-end
-
--- Inventory → map drop from the team UI (cursor tile). Cap range so crafted
--- opcodes cannot park items across the map via Item:moveTo's liberal defaults.
-local GROUND_DROP_MAX_RANGE = 7
-
-local function validateGroundDrop(controller, x, y, z)
-	if not controller then
-		return false, "Invalid destination."
+	if name:lower() == player:getName():lower() then
+		return false, "You are already playing that character."
 	end
-	local from = controller:getPosition()
-	if not from then
-		return false, "Invalid destination."
+	local target, err = TeamStore.resolveAccountMember(player, name)
+	if not target then
+		return false, err or "Unknown character."
 	end
-	local dest = Position(x, y, z)
-	local tile = Tile(dest)
-	if not tile then
-		return false, "Invalid destination."
-	end
-	if from.z ~= z then
-		return false, "Too far."
-	end
-	local dist = math.max(math.abs(from.x - x), math.abs(from.y - y))
-	if dist > GROUND_DROP_MAX_RANGE then
-		return false, "Too far."
-	end
-	local instanceId = controller.getInstanceId and controller:getInstanceId() or 0
-	if from.isSightClear and not from:isSightClear(dest, true, instanceId) then
-		return false, "Cannot reach that tile."
-	end
-	return true
-end
-
---- Move item between same-account characters (path, client pos, equip slot, bag destination).
-function TeamManager.moveItem(controller, msg)
-	msg = msg or {}
-	local fromName = msg.fromName or msg.from
-	local toName = msg.toName or msg.to
-	if not fromName or not toName then
-		return false, "fromName and toName required."
-	end
-	if not msg.path and not msg.fromPos and not msg.uid then
-		return false, "path or fromPos required."
+	local accountId = player:getAccountId()
+	local now = CombatGeo.nowMs()
+	local cooldown = TeamConfig.ALT_SWITCH_COOLDOWN_MS or 2000
+	if now - (lastAltSwitchByAccount[accountId] or 0) < cooldown then
+		return false, "Please wait a moment before switching again."
 	end
 
-	local fromPlayer, errFrom = TeamStore.resolveAccountMember(controller, fromName)
-	if not fromPlayer then
-		return false, errFrom
-	end
-	-- Offline load creates a fresh Player per call. Same-name must reuse one instance
-	-- or moveToSlot targets a different inventory object than the source item.
-	local toPlayer, errTo
-	if tostring(fromName):lower() == tostring(toName):lower() then
-		toPlayer = fromPlayer
-	else
-		toPlayer, errTo = TeamStore.resolveAccountMember(controller, toName)
-		if not toPlayer then
-			return false, errTo
+	local resolvedName = target:getName()
+	local playerId = player:getId()
+	local online = Player(resolvedName)
+	if online then
+		if online:getHealth() <= 0 then
+			return false, resolvedName .. " is dead."
 		end
-	end
-	if not sameAccount(fromPlayer, toPlayer) or not sameAccount(controller, fromPlayer) then
-		return false, "Characters must be on your account."
-	end
-
-	local item = resolveSourceItem(fromPlayer, msg)
-	if not item then
-		return false, "Item not found."
+		lastAltSwitchByAccount[accountId] = now
+		addEvent(performAltSwitch, 0, playerId, online:getId())
+		return true
 	end
 
-	local count = tonumber(msg.count)
-	if not count or count < 1 then
-		count = item:getCount() or 1
+	local maxOnline = configManager.getNumber(configKeys.MAX_PLAYERS_PER_ACCOUNT) or 0
+	if maxOnline > 0 and countAccountOnline(accountId) >= maxOnline then
+		return false, string.format("You may only have %d characters of your account online at the same time.", maxOnline)
 	end
 
-	local destSlot = tonumber(msg.toSlot)
-	local moved = false
-	local ownershipTransferred = false
-
-	local function claimOwnership()
-		if not ownershipTransferred then
-			transferOwnershipIfNeeded(item, toPlayer)
-			ownershipTransferred = true
-		end
-	end
-
-	local function restoreOwnershipOnFail()
-		if ownershipTransferred and fromPlayer ~= toPlayer then
-			transferOwnershipIfNeeded(item, fromPlayer)
-		end
-	end
-
-	if destSlot and destSlot >= CONST_SLOT_HEAD and destSlot <= CONST_SLOT_AMMO then
-		claimOwnership()
-		moved = moveItemToEquipSlot(item, toPlayer, destSlot)
-	elseif type(msg.toPath) == "table" then
-		if msg.toPath.rewardChest == true then
-			return false, "Cannot move items into a reward chest."
-		end
-		-- Drop into a worn/open bag (path points at the container itself).
-		local dest = resolveItemByPath(toPlayer, msg.toPath)
-		if not dest or not dest.getSize then
-			return false, "Destination container not found."
-		end
-		claimOwnership()
-		moved = item:moveTo(dest)
-	elseif type(msg.toPos) == "table" then
-		local x = tonumber(msg.toPos.x) or 0
-		local y = tonumber(msg.toPos.y) or 0
-		local z = tonumber(msg.toPos.z) or 0
-		if x ~= 65535 then
-			-- Ground tile under the controller's map cursor (not inventory 0xFFFF coords).
-			local okDrop, dropErr = validateGroundDrop(controller, x, y, z)
-			if not okDrop then
-				return false, dropErr or "Invalid destination."
-			end
-			-- No FLAG_NOLIMIT - engine distance/block checks still apply as a backstop.
-			claimOwnership()
-			moved = item:moveTo(Position(x, y, z), 0) == true
-		else
-			local kind, dest = resolveClientDest(toPlayer, msg.toPos)
-			if kind == "slot" then
-				claimOwnership()
-				moved = moveItemToEquipSlot(item, toPlayer, dest)
-			elseif kind == "container" then
-				claimOwnership()
-				moved = item:moveTo(dest)
-			else
-				return false, "Invalid destination."
-			end
-		end
-	else
-		local bp = ensureBackpack(toPlayer)
-		if not bp then
-			return false, "Target has no backpack."
-		end
-		claimOwnership()
-		moved = item:moveTo(bp)
-	end
-
-	if not moved then
-		restoreOwnershipOnFail()
-		return false, "Could not move item."
-	end
-
-	saveIfOffline(fromPlayer)
-	if toPlayer ~= fromPlayer then
-		saveIfOffline(toPlayer)
-	end
-	return true
-end
-
---- Paths of containers that should be re-sent after a move (source bag + dest bag).
-function TeamManager.containerPathsToRefresh(msg)
-	msg = msg or {}
-	local paths = {}
-	local function push(p)
-		if type(p) ~= "table" then
+	lastAltSwitchByAccount[accountId] = now
+	Game.headlessLoginBatch({ resolvedName }, nil, function(players, loginErr)
+		local live = Player(playerId)
+		if not live then
 			return
 		end
-		paths[#paths + 1] = copyPath(p)
-	end
-	if type(msg.containerPath) == "table" then
-		push(msg.containerPath)
-	elseif type(msg.path) == "table" then
-		push(parentContainerPath(msg.path))
-	end
-	if type(msg.toPath) == "table" then
-		push(msg.toPath)
-	end
-	return paths
+		local loaded = type(players) == "table" and players[1] or nil
+		if not loaded then
+			TeamProtocol.sendError(live, loginErr or ("Could not load " .. resolvedName .. "."))
+			return
+		end
+		performAltSwitch(playerId, loaded:getId())
+	end)
+	return true
 end
 
-function TeamManager.equipItem(controller, msg)
-	msg = msg or {}
-	msg.toSlot = tonumber(msg.slot or msg.toSlot)
-	msg.toName = msg.name or msg.toName
-	msg.fromName = msg.fromName or msg.toName
-	if not msg.toSlot then
-		return false, "slot required."
-	end
-	return TeamManager.moveItem(controller, msg)
-end
-
---- Open a container on a same-account character (returns nested items for team UI).
-function TeamManager.openContainer(controller, msg)
-	msg = msg or {}
-	local name = msg.name or msg.fromName
-	local target, err = TeamStore.resolveAccountMember(controller, name)
-	if not target then
-		return nil, err
-	end
-	local ok, accErr = TeamManager.requireSameAccount(controller, target)
-	if not ok then
-		return nil, accErr
-	end
-
-	-- Path is preferred. equipSlot alone opens worn container (e.g. backpack slot).
-	local path = copyPath(msg.path)
-	if not path and msg.equipSlot then
-		path = { slot = tonumber(msg.equipSlot) }
-	end
-	if not path and msg.slot then
-		path = { slot = tonumber(msg.slot) }
-	end
-
-	if path and path.rewardChest == true and path.rewardId == nil then
-		return TeamManager.openRewardChest(controller, name)
-	end
-
-	local item = path and resolveItemByPath(target, path) or nil
-	if not item then
-		if path and path.rewardChest == true then
-			-- Vanished reward bag after collect - let the client close the window.
-			return {
-				name = target:getName(),
-				guid = target:getGuid(),
-				path = path,
-				itemId = REWARD_CHEST_ITEM_ID,
-				label = "Reward",
-				items = {},
-			}
-		end
-		return nil, "Container not found."
-	end
-	if not item.getSize then
-		return nil, "Item is not a container."
-	end
-	local openPath = copyPath(path) or { slot = 0 }
-	local slots = containerCapacity(item)
-	-- Stash on path so clients that miss a top-level field still get slot count.
-	if slots > 0 then
-		openPath.slots = slots
-	end
-	return {
-		name = target:getName(),
-		guid = target:getGuid(),
-		path = openPath,
-		itemId = item:getId(),
-		label = item:getName() or "Container",
-		capacity = slots,
-		slots = slots,
-		items = containerWire(item, openPath, 100),
-	}
-end
-
---- Open boss reward chest for a same-account character (virtual team container).
-function TeamManager.openRewardChest(controller, nameOrGuid)
-	local target, err = TeamStore.resolveAccountMember(controller, nameOrGuid)
-	if not target then
-		return nil, err
-	end
-	local ok, accErr = TeamManager.requireSameAccount(controller, target)
-	if not ok then
-		return nil, accErr
-	end
-	if not target.getRewardList or not target.getReward then
-		return nil, "Reward chest is unavailable."
-	end
-
-	local list = target:getRewardList()
-	if type(list) ~= "table" then
-		list = {}
-	end
-
-	local path = { rewardChest = true }
-	local items = {}
-	for _, rewardId in ipairs(list) do
-		local reward = target:getReward(rewardId, false)
-		if reward and reward ~= false and reward.getSize then
-			local size = reward:getSize() or 0
-			if size > 0 then
-				local bagPath = { rewardChest = true, rewardId = rewardId }
-				items[#items + 1] = itemWire(reward, bagPath)
-			end
-		end
-	end
-
-	-- Always return a container payload (possibly empty) so the client can close
-	-- stale windows instead of showing "Reward chest is empty" error spam.
-	return {
-		name = target:getName(),
-		guid = target:getGuid(),
-		path = path,
-		itemId = REWARD_CHEST_ITEM_ID,
-		label = "Reward Chest",
-		items = items,
-	}
-end
-
---- Move all items from a companion's reward bags into the controller's loot pouch.
-function TeamManager.collectRewardChest(controller, nameOrGuid)
-	if not controller then
-		return nil, "No player."
-	end
-	local target, err = TeamStore.resolveAccountMember(controller, nameOrGuid)
-	if not target then
-		return nil, err
-	end
-	local ok, accErr = TeamManager.requireSameAccount(controller, target)
-	if not ok then
-		return nil, accErr
-	end
-	if not target.getRewardList or not target.getReward then
-		return nil, "Reward chest is unavailable."
-	end
-
-	local destPouch = select(1, findLootPouch(controller))
-	local destBp = ensureBackpack(controller)
-	local dest = destPouch or destBp
-	if not dest or not dest.getSize then
-		return nil, "You have no loot pouch or backpack."
-	end
-
-	local list = target:getRewardList()
-	if type(list) ~= "table" or #list == 0 then
-		return nil, "Reward chest is empty."
-	end
-
-	-- Reward bags start without a parent; link parents for moves (no UI open).
-	prepareRewardChestParents(target)
-
-	local toMove = {}
-	for _, rewardId in ipairs(list) do
-		local reward = target:getReward(rewardId, false)
-		if reward and reward ~= false then
-			flattenRewardItems(reward, toMove)
-		end
-	end
-	if #toMove == 0 then
-		return nil, "Reward chest is empty."
-	end
-
-	local moved = 0
-	local failed = 0
-	for _, it in ipairs(toMove) do
-		if it then
-			transferOwnershipIfNeeded(it, controller)
-			local okMove = false
-			if it.moveTo then
-				okMove = it:moveTo(dest) == true
-				if not okMove and destBp and destBp ~= dest then
-					okMove = it:moveTo(destBp) == true
-				end
-			end
-			if okMove then
-				moved = moved + 1
-			else
-				-- Leave unmoved items owned by the companion.
-				transferOwnershipIfNeeded(it, target)
-				failed = failed + 1
-			end
-		end
-	end
-
-	for _, rewardId in ipairs(list) do
-		local reward = target:getReward(rewardId, false)
-		if reward and reward ~= false and target.removeReward and reward.getSize and (reward:getSize() or 0) == 0 then
-			target:removeReward(rewardId)
-		end
-	end
-
-	saveIfOffline(target)
-	saveIfOffline(controller)
-	return {
-		name = target:getName(),
-		moved = moved,
-		failed = failed,
-	}
-end
-
---- Open the account loot pouch (shared across same-account characters).
-function TeamManager.openLootPouch(controller, nameOrGuid)
-	local target, err = TeamStore.resolveAccountMember(controller, nameOrGuid)
-	if not target then
-		return nil, err
-	end
-	local ok, accErr = TeamManager.requireSameAccount(controller, target)
-	if not ok then
-		return nil, accErr
-	end
-	-- Same-account characters share one pouch; open via the acting controller.
-	local pouch, path = findLootPouch(controller)
-	if not pouch then
-		pouch, path = findLootPouch(target)
-	end
-	if not pouch then
-		return nil, "No loot pouch found."
-	end
-	if not pouch.getSize then
-		return nil, "Loot pouch is not a container."
-	end
-	path = path or { lootPouch = true }
-	local slots = containerCapacity(pouch)
-	if slots > 0 then
-		path = copyPath(path) or path
-		path.slots = slots
-	end
-	return {
-		name = target:getName(),
-		guid = target:getGuid(),
-		path = path,
-		itemId = pouch:getId() or ITEM_GOLD_POUCH or 23721,
-		label = pouch:getName() or "Loot Pouch",
-		capacity = slots,
-		slots = slots,
-		items = containerWire(pouch, path, 100),
-	}
-end
-
---- Load automation config for a same-account team member.
-function TeamManager.getAutomation(controller, nameOrGuid)
-	local target, err = TeamStore.resolveAccountMember(controller, nameOrGuid)
-	if not target then
-		return nil, err
-	end
-	local ok, accErr = TeamManager.requireSameAccount(controller, target)
-	if not ok then
-		return nil, accErr
-	end
-	if not CombatAutomationStore or not CombatAutomationStore.getConfig then
-		return nil, "Combat automation is not available."
-	end
-	-- Prefer load for offline characters so we do not attach a runtime loop / share id=0 state.
-	local online = Player(target:getName())
-	local config
-	if online and CombatAutomationStore.getConfig then
-		config = CombatAutomationStore.getConfig(online)
-	else
-		config = CombatAutomationStore.load(target)
-	end
-	local profile = memberProfileWire(target)
-	return {
-		name = target:getName(),
-		guid = target:getGuid(),
-		level = profile.level,
-		vocation = profile.vocation,
-		autoTarget = config.autoTarget or { enabled = false, stance = "melee", rangedDistance = 3 },
-		ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
-		attackPresets = config.attackPresets,
-		loadout = {
-			slots = config.slots or {},
-			ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
-		},
-	}
-end
-
---- Persist automation config for a same-account team member (live headless gets runtime apply).
-function TeamManager.setAutomation(controller, msg)
-	msg = msg or {}
-	local name = msg.name or msg.character or msg.target
-	local target, err = TeamStore.resolveAccountMember(controller, name)
-	if not target then
-		return nil, err
-	end
-	local ok, accErr = TeamManager.requireSameAccount(controller, target)
-	if not ok then
-		return nil, accErr
-	end
-	if not CombatAutomationStore then
-		return nil, "Combat automation is not available."
-	end
-
-	local raw = {
-		loadout = msg.loadout,
-		slots = msg.slots,
-		autoTarget = msg.autoTarget,
-		ammoTypeId = msg.ammoTypeId,
-		attackPresets = msg.attackPresets or msg.presets,
-	}
-	if type(msg.loadout) == "table" then
-		if msg.loadout.slots then
-			raw.slots = msg.loadout.slots
-		end
-		if raw.ammoTypeId == nil then
-			raw.ammoTypeId = msg.loadout.ammoTypeId
-		end
-		if raw.attackPresets == nil then
-			raw.attackPresets = msg.loadout.attackPresets or msg.loadout.presets
-		end
-	end
-
-	local config
-	local online = Player(target:getName())
-	if online then
-		-- Online or headless companion: full setConfig + runtime loop.
-		config = CombatAutomationStore.setConfig(online, raw)
-		saveIfOffline(online)
-	else
-		-- Offline character: persist KV only (no combat tick loop).
-		config = CombatAutomationStore.sanitize(raw, target)
-		-- Preserve attack presets when team payloads omit them.
-		if raw.attackPresets == nil then
-			local existing = CombatAutomationStore.load(target)
-			config.attackPresets = existing and existing.attackPresets or nil
-		end
-		CombatAutomationStore.persist(target, config)
-		if target.save then
-			target:save()
-		end
-	end
-
-	local profile = memberProfileWire(target)
-	return {
-		name = target:getName(),
-		guid = target:getGuid(),
-		level = profile.level,
-		vocation = profile.vocation,
-		autoTarget = config.autoTarget or { enabled = false, stance = "melee", rangedDistance = 3 },
-		ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
-		attackPresets = config.attackPresets,
-		loadout = {
-			slots = config.slots or {},
-			ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
-		},
-	}
-end
-
---- Persist attack-preset bank only (no loadout echo / runtime slot replace).
-function TeamManager.setAttackPresets(controller, msg)
-	msg = msg or {}
-	local name = msg.name or msg.character or msg.target
-	local target, err = TeamStore.resolveAccountMember(controller, name)
-	if not target then
-		return nil, err
-	end
-	local ok, accErr = TeamManager.requireSameAccount(controller, target)
-	if not ok then
-		return nil, accErr
-	end
-	if not CombatAutomationStore or not CombatAutomationStore.sanitizeAttackPresets then
-		return nil, "Combat automation is not available."
-	end
-	local presets = CombatAutomationStore.sanitizeAttackPresets(msg.attackPresets or msg.presets, target)
-	if not presets then
-		return nil, "Invalid attack presets."
-	end
-	local online = Player(target:getName())
-	local config
-	if online and CombatAutomationStore.getConfig then
-		config = CombatAutomationStore.getConfig(online)
-		config.attackPresets = presets
-		CombatAutomationStore.persist(online, config)
-		saveIfOffline(online)
-	else
-		config = CombatAutomationStore.load(target)
-		config.attackPresets = presets
-		CombatAutomationStore.persist(target, config)
-		if target.save then
-			target:save()
-		end
-	end
-	return {
-		name = target:getName(),
-		guid = target:getGuid(),
-	}
-end
-
---- Ensure headless companion API presence (async batch + logout).
-function TeamManager.hasCompanionApi()
-	return type(Game.headlessLoginBatch) == "function" and type(Game.headlessLogout) == "function"
-end

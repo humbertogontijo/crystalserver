@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Elite Pirat")
 local monster = {}
 
 monster.description = "an elite pirat"
-monster.experience = 0
+monster.experience = 18000
 monster.outfit = {
 	lookType = 534,
 	lookHead = 79,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 20000
+monster.maxHealth = 20000
 monster.race = "blood"
 monster.corpse = 17446
 monster.speed = 100
@@ -65,13 +65,13 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 400, maxDamage = -210 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 80, maxDamage = -110, range = 7, shootEffect = CONST_ANI_WHIRLWINDCLUB, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -400, maxDamage = -210 },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -80, maxDamage = -110, range = 7, shootEffect = CONST_ANI_WHIRLWINDCLUB, target = false },
 }
 
 monster.defenses = {
 	defense = 15,
-	armor = 0,
+	armor = 15,
 	--	mitigation = ???,
 }
 

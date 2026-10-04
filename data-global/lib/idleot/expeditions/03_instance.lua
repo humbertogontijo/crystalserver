@@ -252,6 +252,14 @@ function ExpeditionInstance.build(instanceId, opts, _seed, _kind)
 		floors = floors,
 		floorSet = floorSet,
 	}
+	-- Hunts arrive on the catalog entry (flood landing / resolved pin); center is hold 1.
+	local arrival = type(opts) == "table" and opts.entry or nil
+	if type(arrival) == "table" and arrival.x and arrival.y and arrival.z then
+		local pos = Position(tonumber(arrival.x), tonumber(arrival.y), tonumber(arrival.z))
+		if ExpeditionInstance.contains(instance, pos) and ExpeditionInstance.hasGround(pos) then
+			instance.entry = pos
+		end
+	end
 	if Game.setInstancePrivateFence then
 		local aabb = {
 			x = originX,

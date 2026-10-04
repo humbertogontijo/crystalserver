@@ -88,7 +88,7 @@ private:
 
 class ChainPickerCallback final : public CallBack {
 public:
-	bool onChainCombat(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &target) const;
+	int32_t onChainCombat(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &target) const;
 };
 
 struct CombatParams {
@@ -288,7 +288,7 @@ public:
 private:
 	static void doChainEffect(const Position &origin, const Position &pos, uint16_t effect, const std::shared_ptr<Creature> &caster = nullptr);
 	static std::vector<std::pair<Position, std::vector<uint32_t>>> pickChainTargets(const std::shared_ptr<Creature> &caster, const CombatParams &params, uint8_t chainDistance, uint8_t maxTargets, bool aggressive, bool backtracking, const std::shared_ptr<Creature> &initialTarget = nullptr);
-	static bool isValidChainTarget(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &currentTarget, const std::shared_ptr<Creature> &potentialTarget, const CombatParams &params, bool aggressive);
+	static bool isValidChainTarget(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &currentTarget, const std::shared_ptr<Creature> &potentialTarget, const CombatParams &params, bool aggressive, int32_t* priority = nullptr);
 
 	static void doCombatDefault(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &target, const CombatParams &params);
 

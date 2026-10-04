@@ -553,7 +553,6 @@ public:
 	void playerSaveWheel(uint32_t playerId, NetworkMessage &msg);
 	void playerWheelGemAction(uint32_t playerId, NetworkMessage &msg);
 
-	bool deliverCompanionFeatureUI(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &owner, std::string_view feature);
 	/// Resolve companion wheel/feature owner key (runtime id or offline DB guid).
 	std::shared_ptr<Player> resolveSameAccountCompanionOwner(const std::shared_ptr<Player> &viewer, uint32_t ownerKey);
 

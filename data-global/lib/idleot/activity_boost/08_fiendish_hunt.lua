@@ -1,4 +1,5 @@
--- Daily Fiendish Hunt: roll a level-gated hunt, join with maxWaves=1 + forced Fiendish.
+-- Daily Fiendish Hunt: roll a level-gated hunt, join with a forced Fiendish; killing
+-- it ends the hunt.
 ActivityBoostFiendishHunt = ActivityBoostFiendishHunt or {}
 
 local KV_KEY = "fiendishHunt"
@@ -274,8 +275,8 @@ function ActivityBoostFiendishHunt.join(player)
 	if not ExpeditionManager or not ExpeditionManager.join then
 		return false, "Expeditions unavailable."
 	end
-	-- Options (maxWaves / forceFiendish / lure) are injected in ExpeditionManager.join
-	-- when the catalog id matches today's offer.
+	-- Forced-Fiendish options are injected in ExpeditionManager.join when the catalog
+	-- id matches today's offer.
 	ExpeditionManager.join(player, data.expeditionId, "monster")
 	local session = ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
 	local catalogId = session and session.catalog and session.catalog.id
@@ -285,22 +286,22 @@ function ActivityBoostFiendishHunt.join(player)
 	return true, data
 end
 
---- Called when a maxWaves-limited hunt finishes (per member).
+--- Called per member when the forced Fiendish of a Fiendish Hunt dies.
 function ActivityBoostFiendishHunt.onClear(player, session)
 	if not player then
 		return
 	end
-	local data = ActivityBoostFiendishHunt.get(player)
-	local catalogId = session and session.catalog and session.catalog.id
-	if data and catalogId and tostring(data.expeditionId) ~= tostring(catalogId) then
-		-- Not today's Fiendish offer (generic maxWaves hunt).
+	-- Only forced-Fiendish sessions from this activity whose Fiendish died.
+	if not (session and session.forceFiendishCreatureId and session.skipOpenWorldForge and session.fiendishKilled) then
 		return
 	end
+	local data = ActivityBoostFiendishHunt.get(player)
 	if not data or not data.expeditionId then
 		return
 	end
-	-- Only the forced-Fiendish sessions from this activity.
-	if not (session and session.forceFiendishCreatureId and session.skipOpenWorldForge) then
+	local catalogId = session.catalog and session.catalog.id
+	if catalogId and tostring(data.expeditionId) ~= tostring(catalogId) then
+		-- Not this member's offer (e.g. a teammate on another daily roll).
 		return
 	end
 	if ActivityBoostActivities and ActivityBoostActivities.addProgress then

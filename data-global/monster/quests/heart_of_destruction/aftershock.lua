@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Aftershock")
 local monster = {}
 
 monster.description = "Aftershock"
-monster.experience = 0
+monster.experience = 20000
 monster.outfit = {
 	lookType = 875,
 	lookHead = 114,
@@ -81,7 +81,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 100,
-	armor = 0,
+	armor = 100,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_HEALING, minDamage = 300, maxDamage = 600, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

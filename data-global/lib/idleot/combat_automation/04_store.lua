@@ -152,26 +152,17 @@ function CombatAutomationStore.sanitize(raw, player)
 	local autoTarget = {
 		enabled = false,
 		stance = stance,
-		rangedDistance = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT or 3,
-		mode = CombatAutomationConfig.AUTO_TARGET_MODE_DEFAULT or "A",
+		rangedDistance = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT,
 	}
 	local ammoTypeId = 0
-	local forceSkillOrder = true
+	local strictSkillOrder = false
 	local attackPresets = nil
 	if type(raw) == "table" then
-		forceSkillOrder = raw.forceSkillOrder ~= false
+		strictSkillOrder = raw.strictSkillOrder == true
 		if type(raw.autoTarget) == "table" then
 			autoTarget.enabled = raw.autoTarget.enabled == true
-			local rawStance = raw.autoTarget.stance
-			local rawRd = raw.autoTarget.rangedDistance
-			autoTarget.stance, autoTarget.rangedDistance = CombatAutomationConfig.normalizeStanceForPlayer(
-				player,
-				rawStance or stance,
-				rawRd
-			)
-			autoTarget.mode = CombatAutomationConfig.normalizeAutoTargetMode(
-				raw.autoTarget.mode or raw.autoTarget.sortMode
-			)
+			autoTarget.stance, autoTarget.rangedDistance =
+				CombatAutomationConfig.normalizeStanceForPlayer(player, raw.autoTarget.stance or stance)
 		end
 		local rawAmmo = math.floor(tonumber(raw.ammoTypeId) or 0)
 		if rawAmmo > 0 and CombatAutomationCatalog.ammoAllowedForPlayer(rawAmmo, player) then
@@ -233,7 +224,7 @@ function CombatAutomationStore.sanitize(raw, player)
 		slots = slots,
 		autoTarget = autoTarget,
 		ammoTypeId = ammoTypeId,
-		forceSkillOrder = forceSkillOrder,
+		strictSkillOrder = strictSkillOrder,
 	}
 	if attackPresets then
 		config.attackPresets = attackPresets
@@ -245,8 +236,7 @@ local function defaultAutoTarget()
 	return {
 		enabled = false,
 		stance = "melee",
-		rangedDistance = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT or 3,
-		mode = CombatAutomationConfig.AUTO_TARGET_MODE_DEFAULT or "A",
+		rangedDistance = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT,
 	}
 end
 
@@ -258,13 +248,12 @@ function CombatAutomationStore.persist(player, config)
 	if not kv then
 		return
 	end
-	local payload = config
-		or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0, forceSkillOrder = true }
+	local payload = config or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0 }
 	local encoded = {
 		slots = payload.slots or {},
 		autoTarget = payload.autoTarget or defaultAutoTarget(),
 		ammoTypeId = math.floor(tonumber(payload.ammoTypeId) or 0),
-		forceSkillOrder = payload.forceSkillOrder ~= false,
+		strictSkillOrder = payload.strictSkillOrder == true,
 	}
 	if type(payload.attackPresets) == "table" then
 		encoded.attackPresets = payload.attackPresets
@@ -278,7 +267,7 @@ function CombatAutomationStore.persist(player, config)
 end
 
 local function emptyConfig()
-	return { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0, forceSkillOrder = true }
+	return { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0 }
 end
 
 local function seedBaseLoadout(player)
@@ -319,26 +308,18 @@ function CombatAutomationStore.applyToRuntime(player, config)
 	local state = CombatAutomation.getState(player)
 	local prevCfg = state.config
 	local prevAuto = prevCfg and prevCfg.autoTarget and prevCfg.autoTarget.enabled == true
-	local nextCfg = config
-		or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0, forceSkillOrder = true }
+	local nextCfg = config or { slots = {}, autoTarget = defaultAutoTarget(), ammoTypeId = 0 }
 	local nextAuto = nextCfg.autoTarget and nextCfg.autoTarget.enabled == true
 	local autoResumed = nextAuto and not prevAuto and prevCfg ~= nil
 	state.config = nextCfg
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer then
-		local session = ExpeditionManager.getSessionByPlayer(player)
-		if session then
-			if autoResumed and ExpeditionAI and ExpeditionAI.onAutoResumed then
-				ExpeditionAI.onAutoResumed(player)
-			elseif ExpeditionAI and ExpeditionAI.enablePersistence then
-				ExpeditionAI.enablePersistence(player)
-			end
-			if CombatAutomationMovement and CombatAutomationMovement.onAutoResumed and autoResumed then
-				CombatAutomationMovement.onAutoResumed(player)
-			end
-		elseif autoResumed and CombatAutomationMovement and CombatAutomationMovement.onAutoResumed then
-			CombatAutomationMovement.onAutoResumed(player)
+	local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+	if session and ExpeditionAI then
+		if autoResumed then
+			ExpeditionAI.onAutoResumed(player)
+		else
+			ExpeditionAI.enablePersistence(player)
 		end
-	elseif autoResumed and CombatAutomationMovement and CombatAutomationMovement.onAutoResumed then
+	elseif autoResumed and CombatAutomationMovement then
 		CombatAutomationMovement.onAutoResumed(player)
 	end
 	CombatAutomation.ensureLoop(player)
@@ -365,11 +346,8 @@ function CombatAutomationStore.setConfig(player, raw)
 			config.ammoTypeId = existing.ammoTypeId or config.ammoTypeId
 		end
 	end
-	if type(raw) == "table" and raw.forceSkillOrder == nil then
-		local loadout = raw.loadout
-		if not (type(loadout) == "table" and loadout.forceSkillOrder ~= nil) then
-			config.forceSkillOrder = existing.forceSkillOrder ~= false
-		end
+	if type(raw) == "table" and raw.strictSkillOrder == nil then
+		config.strictSkillOrder = existing.strictSkillOrder == true
 	end
 	-- Preserve attack presets when payloads omit them (slot-only / legacy updates).
 	if type(raw) == "table" then

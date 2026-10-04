@@ -17,7 +17,7 @@ local DEFAULT_WEIGHTS = {
 	healRef = 100,
 	armorScale = 80,
 	speedRef = 200,
-	densityExp = 0.75,
+	densityExp = 0,
 }
 
 local function resolveWeights(weights)

@@ -84,7 +84,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -112, condition = { type = CONDITION_POISON, totalDamage = 10, interval = 4000 } }, -- poison
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -110, condition = { type = CONDITION_POISON, totalDamage = 10, interval = 4000 } }, -- poison
 	{ name = "ghoulish hyaena wave", interval = 2000, chance = 15, target = false },
 }
 

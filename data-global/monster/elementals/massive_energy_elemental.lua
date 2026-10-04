@@ -77,8 +77,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 99222, maxCount = 100 },
-	{ name = "gold coin", chance = 99222, maxCount = 91 },
+	{ name = "gold coin", chance = 50000, maxCount = 100 },
+	{ name = "gold coin", chance = 50000, maxCount = 91 },
 	{ name = "small amethyst", chance = 3270, maxCount = 3 },
 	{ name = "strong mana potion", chance = 17450 },
 	{ id = 238, chance = 5450 }, -- great mana potion
@@ -94,7 +94,7 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -220 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -175, maxDamage = -205, range = 7, radius = 2, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = true },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -170, maxDamage = -205, range = 7, shootEffect = CONST_ANI_ENERGYBALL, effect = CONST_ME_ENERGYHIT, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -175, maxDamage = -205, range = 7, shootEffect = CONST_ANI_ENERGYBALL, effect = CONST_ME_ENERGYHIT, target = true },
 	{ name = "massive energy elemental electrify", interval = 2000, chance = 20, effect = CONST_ME_BLOCKHIT, target = false },
 }
 

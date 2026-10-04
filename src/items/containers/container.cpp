@@ -20,7 +20,6 @@
 #include "config/configmanager.hpp"
 #include "creatures/players/player.hpp"
 #include "game/game.hpp"
-#include "game/scheduling/dispatcher.hpp"
 #include "map/spectators.hpp"
 
 Container::Container(uint16_t type, uint32_t instanceId) :
@@ -435,102 +434,44 @@ bool Container::isBrowseFieldAndHoldsRewardChest() {
 }
 
 void Container::onAddContainerItem(const std::shared_ptr<Item> &item) {
-	const auto notify = [&](const std::shared_ptr<Player> &player) {
-		if (!player) {
-			return;
-		}
-		player->sendAddContainerItem(getContainer(), item);
-		player->onAddContainerItem(item);
-	};
+	const auto spectators = Spectators().find<Player>(getPosition(), false, 2, 2, 2, 2);
 
-	// Account loot pouch is a virtual shared cylinder (not tile-bound); notify open viewers.
-	if (const auto &holdingPlayer = getHoldingPlayer()) {
-		if (holdingPlayer->getAccountLootPouch().get() == this) {
-			if (holdingPlayer->isAccountLootPouchSilent()) {
-				return;
-			}
-			const auto &state = holdingPlayer->getAccountLootPouchState();
-			for (const auto &[_, other] : g_game().getPlayers()) {
-				if (!other || other->getAccountLootPouchState() != state) {
-					continue;
-				}
-				if (other->getContainerID(getContainer()) != -1) {
-					notify(other);
-				}
-			}
-			return;
-		}
+	// send to client
+	for (const auto &spectator : spectators) {
+		spectator->getPlayer()->sendAddContainerItem(getContainer(), item);
 	}
 
-	const auto spectators = Spectators().find<Player>(getPosition(), false, 2, 2, 2, 2);
+	// event methods
 	for (const auto &spectator : spectators) {
-		notify(spectator->getPlayer());
+		spectator->getPlayer()->onAddContainerItem(item);
 	}
 }
 
 void Container::onUpdateContainerItem(uint32_t index, const std::shared_ptr<Item> &oldItem, const std::shared_ptr<Item> &newItem) {
-	const auto notify = [&](const std::shared_ptr<Player> &player) {
-		if (!player) {
-			return;
-		}
-		player->sendUpdateContainerItem(getContainer(), index, newItem);
-		player->onUpdateContainerItem(getContainer(), oldItem, newItem);
-	};
+	const auto spectators = Spectators().find<Player>(getPosition(), false, 2, 2, 2, 2);
 
-	if (const auto &holdingPlayer = getHoldingPlayer()) {
-		if (holdingPlayer->getAccountLootPouch().get() == this) {
-			if (holdingPlayer->isAccountLootPouchSilent()) {
-				return;
-			}
-			const auto &state = holdingPlayer->getAccountLootPouchState();
-			for (const auto &[_, other] : g_game().getPlayers()) {
-				if (!other || other->getAccountLootPouchState() != state) {
-					continue;
-				}
-				if (other->getContainerID(getContainer()) != -1) {
-					notify(other);
-				}
-			}
-			return;
-		}
+	// send to client
+	for (const auto &spectator : spectators) {
+		spectator->getPlayer()->sendUpdateContainerItem(getContainer(), index, newItem);
 	}
 
-	const auto spectators = Spectators().find<Player>(getPosition(), false, 2, 2, 2, 2);
+	// event methods
 	for (const auto &spectator : spectators) {
-		notify(spectator->getPlayer());
+		spectator->getPlayer()->onUpdateContainerItem(getContainer(), oldItem, newItem);
 	}
 }
 
 void Container::onRemoveContainerItem(uint32_t index, const std::shared_ptr<Item> &item) {
-	const auto notify = [&](const std::shared_ptr<Player> &player) {
-		if (!player) {
-			return;
-		}
-		player->sendRemoveContainerItem(getContainer(), index);
-		player->onRemoveContainerItem(getContainer(), item);
-	};
+	const auto spectators = Spectators().find<Player>(getPosition(), false, 2, 2, 2, 2);
 
-	if (const auto &holdingPlayer = getHoldingPlayer()) {
-		if (holdingPlayer->getAccountLootPouch().get() == this) {
-			if (holdingPlayer->isAccountLootPouchSilent()) {
-				return;
-			}
-			const auto &state = holdingPlayer->getAccountLootPouchState();
-			for (const auto &[_, other] : g_game().getPlayers()) {
-				if (!other || other->getAccountLootPouchState() != state) {
-					continue;
-				}
-				if (other->getContainerID(getContainer()) != -1) {
-					notify(other);
-				}
-			}
-			return;
-		}
+	// send change to client
+	for (const auto &spectator : spectators) {
+		spectator->getPlayer()->sendRemoveContainerItem(getContainer(), index);
 	}
 
-	const auto spectators = Spectators().find<Player>(getPosition(), false, 2, 2, 2, 2);
+	// event methods
 	for (const auto &spectator : spectators) {
-		notify(spectator->getPlayer());
+		spectator->getPlayer()->onRemoveContainerItem(getContainer(), item);
 	}
 }
 
@@ -553,15 +494,6 @@ ReturnValue Container::queryAdd(int32_t addIndex, const std::shared_ptr<Thing> &
 
 	if (!item->isPickupable()) {
 		return RETURNVALUE_CANNOTPICKUP;
-	}
-
-	if (const auto &holdingPlayer = getHoldingPlayer()) {
-		if (holdingPlayer->getAccountLootPouch().get() == this) {
-			if (holdingPlayer->isAccountLootPouchSyncing()) {
-				return RETURNVALUE_NOERROR;
-			}
-			return holdingPlayer->queryAccountLootPouchAdd(item, addCount);
-		}
 	}
 
 	if (item == getItem()) {
@@ -700,11 +632,6 @@ ReturnValue Container::queryRemove(const std::shared_ptr<Thing> &thing, uint32_t
 		return RETURNVALUE_NOTPOSSIBLE;
 	}
 
-	if (!item->isStackable() && count > item->getItemCount()) {
-		g_logger().debug("{} - Failed to get item count", __FUNCTION__);
-		return RETURNVALUE_NOTPOSSIBLE;
-	}
-
 	if (!item->isMovable() && !hasBitSet(FLAG_IGNORENOTMOVABLE, flags)) {
 		g_logger().debug("{} - Item is not movable", __FUNCTION__);
 		return RETURNVALUE_NOTMOVABLE;
@@ -805,15 +732,6 @@ void Container::addThing(int32_t index, const std::shared_ptr<Thing> &thing) {
 		return /*RETURNVALUE_NOTPOSSIBLE*/;
 	}
 
-	// Account loot pouch: stash map is source of truth; absorb instead of keeping the Item.
-	if (const auto &holdingPlayer = getHoldingPlayer()) {
-		if (holdingPlayer->getAccountLootPouch().get() == this && !holdingPlayer->isAccountLootPouchSyncing()) {
-			const uint32_t amount = item->isStackable() ? item->getItemCount() : std::max<uint32_t>(1, item->getItemCount());
-			holdingPlayer->addAccountLootPouchItem(item->getID(), amount);
-			return;
-		}
-	}
-
 	item->setParent(getContainer());
 	itemlist.push_front(item);
 	updateItemWeight(item->getWeight());
@@ -845,18 +763,10 @@ void Container::updateThing(const std::shared_ptr<Thing> &thing, uint16_t itemId
 		return /*RETURNVALUE_NOTPOSSIBLE*/;
 	}
 
-	const uint32_t oldAmount = item->isStackable() ? item->getItemCount() : std::max<uint32_t>(1, item->getItemCount());
 	const int32_t oldWeight = item->getWeight();
 	item->setID(itemId);
 	item->setSubType(count);
 	updateItemWeight(-oldWeight + item->getWeight());
-
-	if (const auto &holdingPlayer = getHoldingPlayer()) {
-		if (holdingPlayer->getAccountLootPouch().get() == this && !holdingPlayer->isAccountLootPouchSyncing()) {
-			const uint32_t newAmount = item->isStackable() ? item->getItemCount() : std::max<uint32_t>(1, item->getItemCount());
-			holdingPlayer->onAccountLootPouchViewCountDelta(itemId, static_cast<int32_t>(newAmount) - static_cast<int32_t>(oldAmount));
-		}
-	}
 
 	// send change to client
 	if (getParent()) {
@@ -906,15 +816,7 @@ void Container::removeThing(const std::shared_ptr<Thing> &thing, uint32_t count)
 		return /*RETURNVALUE_NOTPOSSIBLE*/;
 	}
 
-	const auto &holdingPlayer = getHoldingPlayer();
-	const bool accountLootPouch = holdingPlayer
-		&& holdingPlayer->getAccountLootPouch().get() == this
-		&& !holdingPlayer->isAccountLootPouchSyncing();
-
 	if (item->isStackable() && count < item->getItemCount()) {
-		if (accountLootPouch) {
-			holdingPlayer->onAccountLootPouchViewCountDelta(item->getID(), -static_cast<int32_t>(count));
-		}
 		const auto newCount = static_cast<uint8_t>(std::max<int32_t>(0, item->getItemCount() - count));
 		const int32_t oldWeight = item->getWeight();
 		item->setItemCount(newCount);
@@ -924,19 +826,7 @@ void Container::removeThing(const std::shared_ptr<Thing> &thing, uint32_t count)
 		if (getParent()) {
 			onUpdateContainerItem(index, item, item);
 		}
-	} else if (accountLootPouch && !item->isStackable() && count < item->getItemCount()) {
-		// Account loot pouch view may group non-stackables with count > 1.
-		holdingPlayer->onAccountLootPouchViewCountDelta(item->getID(), -static_cast<int32_t>(count));
-		const auto newCount = static_cast<uint8_t>(std::max<int32_t>(0, item->getItemCount() - count));
-		item->setItemCount(newCount);
-		if (getParent()) {
-			onUpdateContainerItem(index, item, item);
-		}
 	} else {
-		const uint32_t removedAmount = item->isStackable() ? item->getItemCount() : std::max<uint32_t>(1, item->getItemCount());
-		if (accountLootPouch) {
-			holdingPlayer->onAccountLootPouchViewCountDelta(item->getID(), -static_cast<int32_t>(removedAmount));
-		}
 		updateItemWeight(-static_cast<int32_t>(item->getWeight()));
 
 		// send change to client

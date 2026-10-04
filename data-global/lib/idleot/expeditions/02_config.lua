@@ -39,45 +39,76 @@ end
 
 ExpeditionConfig.SUBAREA_DIR = "tibia/subareas"
 ExpeditionConfig.AI_TICK_MS = 250
--- Chebyshev distance: hunt monsters farther than this from the party anchor walk toward it
--- (keeps echo raids / stray spawns in the viewport).
-ExpeditionConfig.MONSTER_ANCHOR_LEASH_SQM = 6
 -- Repath formation slots when stuck on the same tile (ms); avoids multi-second walk dedupe pauses.
 ExpeditionConfig.FORMATION_REPATH_MS = 400
--- Aliases to CombatAutomationConfig (owned by lib/idleot/combat_automation/).
-ExpeditionConfig.AUTOMATION_TICK_MS = CombatAutomationConfig and CombatAutomationConfig.TICK_MS or 250
-ExpeditionConfig.AUTOMATION_POTION_EXHAUST_MS = CombatAutomationConfig and CombatAutomationConfig.POTION_EXHAUST_MS or 1000
-ExpeditionConfig.AUTOMATION_RUNE_EXHAUST_MS = CombatAutomationConfig and CombatAutomationConfig.RUNE_EXHAUST_MS or 2000
-ExpeditionConfig.AUTOMATION_SPELL_EXHAUST_MS = CombatAutomationConfig and CombatAutomationConfig.SPELL_EXHAUST_MS or 2000
-ExpeditionConfig.SpellCooldownMsByWords = CombatAutomationConfig and CombatAutomationConfig.SpellCooldownMsByWords or {}
-ExpeditionConfig.RuneWordsByTypeId = CombatAutomationConfig and CombatAutomationConfig.RuneWordsByTypeId or {}
 -- Voluntary leave: server delays eject this many seconds (client shows the same countdown).
 ExpeditionConfig.LEAVE_COUNTDOWN_SEC = 5
 -- Shared team-accept ready check (host + invitees). Expiry cancels the waiting lobby.
 ExpeditionConfig.TEAM_ACCEPT_TIMEOUT_SEC = 45
--- Map-spawn lure hunts (ExpeditionWaves.tickLure). Instance spawns come from the
--- world spawn XML; the anchor pulls monsters within PULL_RING whose path to it is
--- at most PULL_STEPS. Keep PULL_RING / PULL_STEPS in sync with the asset pipeline
--- (hunt_types.py) so presumed hold lure matches what the runtime pulls.
-ExpeditionConfig.PULL_RING = 8
-ExpeditionConfig.PULL_STEPS = 8
--- A* checks per tick for new pull candidates (hot path cap).
-ExpeditionConfig.PULL_PATHS_PER_TICK = 6
--- Engaged monsters farther than this from the anchor go back to their spawn.
+-- Map-spawn lure hunts (ExpeditionPack + ExpeditionCavebot). Instance spawns come
+-- from the world spawn XML; monsters keep stock behaviour (engage on sight, walk back
+-- to their spawn on losing the party; homes are never moved).
+-- Engaged monsters farther than this from the anchor stop being tracked.
 ExpeditionConfig.RELEASE_RADIUS = 18
--- Engaged monsters that make no progress toward the party for this long are released.
+-- Engaged monsters that make no progress toward the party for this long stop being tracked.
 ExpeditionConfig.PULL_STALL_MS = 8000
--- Anchor within this Chebyshev distance of the hold counts as arrived.
-ExpeditionConfig.HOLD_ARRIVE_RADIUS = 1
--- Walking a leg, the anchor stops and fights once lure * LURE_STOP_FACTOR engaged monsters are
--- on screen and attackable; it walks on when none are. Holds pull once and never top up mid-fight.
-ExpeditionConfig.LURE_STOP_FACTOR = 1
--- No progress toward the current route waypoint / hold for this long skips it.
-ExpeditionConfig.RELOCATE_STALL_MS = 12000
--- Familiar-style catch-up (Creature::checkSummonMove): match anchor speed + soft surplus when behind,
--- teleport at 15 SQM. Surplus ramps with lag (not a flat haste); this is the max at near-teleport range.
--- Teleport yank when companions fall too far behind (no speed overrides).
+-- Dynamic lure: walking the cave route, the anchor halts once lure * LURE_STOP_FACTOR
+-- monsters are on its screen. `cave.lure` counts spawns seen over a whole lure walk
+-- (it also sets hunt levels); the party kills on the way, so only about half of that
+-- is ever on screen at once.
+ExpeditionConfig.LURE_STOP_FACTOR = 0.5
+-- A halt (pack or hold) walks on (still attacking) once the monsters on screen add up
+-- to at most this many full-health monsters: the sum of their health fractions, so 1
+-- can be one untouched monster or two at half health.
+ExpeditionConfig.LURE_RESUME_LOAD = 1
+-- Halted with visible monsters but no kill for this long (out of reach): walk on.
+ExpeditionConfig.HALT_STUCK_MS = 20000
+-- Lure-hunt monsters keep chasing a target they already have this many sqm past their
+-- normal sight, so trailing monsters follow the anchor to the next halt.
+ExpeditionConfig.TARGET_KEEP_SQM = 4
+-- A halt walks to the best reachable fight tile on screen; it picks again when not
+-- there within LURE_WAIT_MS * 2 plus this much per tile of distance (or the path fails).
+ExpeditionConfig.HALT_WALK_MS_PER_SQM = 400
+-- Good halt tile: at least HALT_MIN_RING standable tiles around it (room for the
+-- monster ring) and HALT_MIN_LANES lanes still linked around the filled 3x3 (the box
+-- does not seal a corridor). With none on screen the anchor keeps luring along the
+-- route for up to HALT_DEFER_MS (never with LURE_WAIT_SKIP_ADJACENT monsters adjacent).
+ExpeditionConfig.HALT_MIN_RING = 7
+ExpeditionConfig.HALT_MIN_LANES = 2
+ExpeditionConfig.HALT_DEFER_MS = 6000
+-- Halted on a poor tile: look for a reachable good one this often. A halt moves to a
+-- new tile at most HALT_REPICK_MAX times, then fights where it stands.
+ExpeditionConfig.HALT_RECHECK_MS = 1500
+ExpeditionConfig.HALT_REPICK_MAX = 4
+-- Blocker rule: the anchor stands still this long with an
+-- attackable monster in the way of its next waypoint → halt and kill it.
+ExpeditionConfig.BLOCKER_MS = 1000
+-- Pacing: walking with at least LURE_PACE_MIN engaged, wait up to LURE_WAIT_MS when a
+-- monster still chasing the party trails more than LURE_LAG_SQM behind; never while
+-- LURE_WAIT_SKIP_ADJACENT or more monsters are adjacent (anti-trap).
+ExpeditionConfig.LURE_PACE_MIN = 2
+ExpeditionConfig.LURE_WAIT_MS = 2000
+ExpeditionConfig.LURE_LAG_SQM = 4
+ExpeditionConfig.LURE_WAIT_SKIP_ADJACENT = 4
+-- Anchor within this Chebyshev distance of a waypoint counts as reached.
+ExpeditionConfig.WAYPOINT_REACH = 1
+-- Advance to the next waypoint this many steps early, so its path replaces the
+-- current one mid-walk instead of restarting from a standstill.
+ExpeditionConfig.WAYPOINT_LOOKAHEAD = 1
+-- No progress toward the current waypoint for this long (walking alone) skips it.
+ExpeditionConfig.WAYPOINT_STALL_MS = 6000
+-- Fiendish Hunt: off screen but within this Chebyshev distance of the anchor, the
+-- anchor detours off the route toward the forced Fiendish. A Fiendish the party
+-- cannot reach (stalled detour / stuck halt) is ignored for FIENDISH_IGNORE_MS.
+ExpeditionConfig.FIENDISH_DETOUR_SQM = 14
+ExpeditionConfig.FIENDISH_IGNORE_MS = 30000
+-- Companions beyond CATCH_UP_WALK_SQM walk toward the anchor (path search CATCH_UP_PATH_MAX).
+-- Teleport only when on another floor, or beyond CATCH_UP_TELEPORT_SQM with no
+-- progress for CATCH_UP_STALL_MS.
+ExpeditionConfig.CATCH_UP_WALK_SQM = 10
+ExpeditionConfig.CATCH_UP_PATH_MAX = 256
 ExpeditionConfig.CATCH_UP_TELEPORT_SQM = 15
+ExpeditionConfig.CATCH_UP_STALL_MS = 10000
 -- Path search radius (Chebyshev) for hold walks. Non-zero uses Crystal's
 -- getPathMatchingCond (no 100-node hard stop). 0 = unrestricted but capped at 100 nodes.
 ExpeditionConfig.HOLD_PATH_MAX = 128
@@ -86,84 +117,10 @@ ExpeditionConfig.PRE_SPAWN_FLASHES = 3
 ExpeditionConfig.PRE_SPAWN_INTERVAL_MS = 1400
 -- After instance teleport, wait before AI/spawn so OTC finishes map description.
 ExpeditionConfig.ENTRY_CLIENT_SYNC_MS = 500
-ExpeditionConfig.FALLBACK_GROUND_ID = 4526 -- grass
--- Player-selectable spawn intensity (creatures per wave). Discrete steps only.
-ExpeditionConfig.LURE_VALUES = { 1, 2, 4, 6, 8, 12, 16 }
-ExpeditionConfig.LURE_MIN = ExpeditionConfig.LURE_VALUES[1]
-ExpeditionConfig.LURE_MAX = ExpeditionConfig.LURE_VALUES[#ExpeditionConfig.LURE_VALUES]
+-- Lure bounds (pack size the anchor halts at). Hunts ship their own `cave.lure`
+-- (uncapped, it also sets hunt levels); the halt count is clamped to LURE_MAX.
+ExpeditionConfig.LURE_MAX = 16
 ExpeditionConfig.LURE_DEFAULT = 1
-
---- Exact match against LURE_VALUES (or legacy min..max when values missing).
---- Optional `lureMax` caps allowed values for a hunt's creature density.
-function ExpeditionConfig.isValidLure(value, lureMax)
-	local n = math.floor(tonumber(value) or 0)
-	local values = ExpeditionConfig.lureValuesUpTo(lureMax)
-	if type(values) == "table" and #values > 0 then
-		for _, v in ipairs(values) do
-			if v == n then
-				return true
-			end
-		end
-		return false
-	end
-	local lureMin = ExpeditionConfig.LURE_MIN or 1
-	local hi = math.floor(tonumber(lureMax) or ExpeditionConfig.LURE_MAX or lureMin)
-	return n >= lureMin and n <= hi
-end
-
---- Allowed lure steps not exceeding `lureMax` (defaults to global max).
-function ExpeditionConfig.lureValuesUpTo(lureMax)
-	local values = ExpeditionConfig.LURE_VALUES
-	if type(values) ~= "table" or #values == 0 then
-		return values
-	end
-	local hi = math.floor(tonumber(lureMax) or ExpeditionConfig.LURE_MAX or values[#values])
-	local out = {}
-	for _, v in ipairs(values) do
-		if v <= hi then
-			out[#out + 1] = v
-		end
-	end
-	if #out == 0 then
-		out[1] = values[1]
-	end
-	return out
-end
-
---- Snap to nearest allowed lure (for join / wave count).
---- Optional `lureMax` caps the allowed set (per-hunt creature density).
-function ExpeditionConfig.normalizeLure(value, lureMax)
-	local values = ExpeditionConfig.lureValuesUpTo(lureMax)
-	local fallback = ExpeditionConfig.LURE_DEFAULT or ExpeditionConfig.LURE_MIN or 1
-	if type(values) == "table" and #values > 0 then
-		fallback = values[1]
-	end
-	local n = math.floor(tonumber(value) or fallback)
-	if type(values) ~= "table" or #values == 0 then
-		local lureMin = ExpeditionConfig.LURE_MIN or 1
-		local hi = math.floor(tonumber(lureMax) or ExpeditionConfig.LURE_MAX or lureMin)
-		if n < lureMin then
-			return lureMin
-		elseif n > hi then
-			return hi
-		end
-		return n
-	end
-	local best = values[1]
-	local bestDist = math.abs(n - best)
-	for i = 2, #values do
-		local v = values[i]
-		if v == n then
-			return n
-		end
-		local d = math.abs(n - v)
-		if d < bestDist then
-			best = v
-			bestDist = d
-		end
-	end
-	return best
-end
 
 --- Safety options for ending an expedition when supplies cannot be paid / carried.
 --- Both default to false (explicit opt-in; new players often have 0 gold).
@@ -185,14 +142,7 @@ function ExpeditionConfig.normalizeStopOptions(opts)
 	}
 end
 
--- Expedition stance roles (auto from vocation for boss + raid; Chebyshev distance for close/ranged).
--- Melee remains for knight (locked); choosable vocations pick close and/or ranged only.
-ExpeditionConfig.STANCE_ROLES = { melee = true, close = true, ranged = true }
-ExpeditionConfig.STANCE_DISTANCE = { melee = 1, close = 1, ranged = 3 }
--- Single ranged hold distance (formation / creature-stance Chebyshev).
-ExpeditionConfig.RANGED_DISTANCE_DEFAULT = 3
-ExpeditionConfig.RANGED_DISTANCE_OPTIONS = { 3 }
--- Post-clear loot window before eject/sweep (boss, hunt wave-limit, raid).
+-- Post-clear loot window before eject/sweep (boss, Fiendish Hunt, raid).
 ExpeditionConfig.LOOT_GRACE_MS = 5000
 -- Fallback when configKeys.BOSS_DEFAULT_TIME_TO_DEFEAT is unavailable (lever timeout).
 ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC = 20 * 60
@@ -214,123 +164,6 @@ function ExpeditionConfig.isPositionCritical(player)
 	local threshold = tonumber(ExpeditionConfig.POSITION_CRITICAL_HP_PERCENT) or 30
 	local pct = (player:getHealth() / maxHp) * 100
 	return pct < threshold
-end
-
---- Stance roles a vocation may pick in the AUTO stance modal.
---- Knights stay melee-locked (no chooser). Monks: close. Paladins: close or ranged. Mages: ranged.
-function ExpeditionConfig.allowedStancesForPlayer(player)
-	local key = ""
-	if CombatAutomationCatalog and CombatAutomationCatalog.baseVocationKey then
-		key = CombatAutomationCatalog.baseVocationKey(player) or ""
-	end
-	if key == "monk" then
-		return { "close" }
-	end
-	if key == "paladin" then
-		return { "close", "ranged" }
-	end
-	return { ExpeditionConfig.stanceForPlayer(player) or "melee" }
-end
-
---- True when vocation may choose among multiple positioning stances.
-function ExpeditionConfig.stanceRoleConfigurable(player)
-	local allowed = ExpeditionConfig.allowedStancesForPlayer(player)
-	if #allowed > 1 then
-		return true
-	end
-	return allowed[1] == "ranged"
-end
-
---- Validate stance + rangedDistance against vocation; returns role, rangedDistance.
---- Legacy melee picks on monk/paladin migrate to close; legacy ranged 4 → 3.
-function ExpeditionConfig.normalizeStanceForPlayer(player, stance, rangedDistance)
-	local allowed = ExpeditionConfig.allowedStancesForPlayer(player)
-	local default = ExpeditionConfig.stanceForPlayer(player) or "melee"
-	local role = tostring(stance or default)
-	-- Choosable vocations no longer offer melee; treat legacy melee as close.
-	if role == "melee" then
-		local key = ""
-		if CombatAutomationCatalog and CombatAutomationCatalog.baseVocationKey then
-			key = CombatAutomationCatalog.baseVocationKey(player) or ""
-		end
-		if key == "monk" or key == "paladin" then
-			role = "close"
-		end
-	end
-	local ok = false
-	for _, entry in ipairs(allowed) do
-		if entry == role then
-			ok = true
-			break
-		end
-	end
-	if not ok then
-		role = default
-	end
-	local rd = tonumber(ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 3
-	if role == "ranged" then
-		rd = ExpeditionConfig.normalizeRangedDistance(rangedDistance)
-	end
-	return role, rd
-end
-
---- Persisted automation stance for a player (vocation-validated).
-function ExpeditionConfig.configuredStanceForPlayer(player)
-	if CombatAutomationStore and CombatAutomationStore.getConfig then
-		local cfg = CombatAutomationStore.getConfig(player)
-		local at = cfg and cfg.autoTarget
-		if at then
-			return ExpeditionConfig.normalizeStanceForPlayer(player, at.stance, at.rangedDistance)
-		end
-	end
-	return ExpeditionConfig.normalizeStanceForPlayer(player, nil, nil)
-end
-
---- Normalize rangedDistance to the single supported value (legacy 4 collapses to 3).
-function ExpeditionConfig.normalizeRangedDistance(value)
-	local default = tonumber(ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 3
-	local n = math.floor(tonumber(value) or 0)
-	if n == default then
-		return default
-	end
-	-- Accept any positive legacy value by collapsing to the sole option.
-	if n > 0 then
-		return default
-	end
-	return default
-end
-
---- Chebyshev hold distance for a stance role (ranged vocations may override via automation config).
-function ExpeditionConfig.stanceDistanceFor(role, rangedDistance)
-	local map = ExpeditionConfig.STANCE_DISTANCE or {}
-	if role == "ranged" then
-		return ExpeditionConfig.normalizeRangedDistance(rangedDistance or map.ranged)
-	end
-	return map[role] or 1
-end
-
---- Map player vocation → default expedition stance.
---- Druid/Sorcerer (+promoted): ranged; Paladin (+promoted): close; others: melee.
---- Monks: close only; paladins: close or ranged; knights: melee locked.
-function ExpeditionConfig.stanceForPlayer(player)
-	if not player then
-		return "melee"
-	end
-	local vocation = player:getVocation()
-	if not vocation then
-		return "melee"
-	end
-	local baseId = vocation:getBaseId()
-	if baseId == VOCATION.BASE_ID.SORCERER or baseId == VOCATION.BASE_ID.DRUID then
-		return "ranged"
-	end
-	if baseId == VOCATION.BASE_ID.PALADIN then
-		return "close"
-	end
-	if baseId == VOCATION.BASE_ID.MONK then
-		return "close"
-	end
-	return "melee"
 end
 
 -- Party anchor: lower rank wins (knight → paladin → monk → anyone else).
@@ -460,7 +293,7 @@ end
 ExpeditionConfig.RAID_CLEAR_ELIGIBLE_DELAY_MS = 5000
 ExpeditionConfig.RAID_WATCH_INTERVAL_MS = 2000
 ExpeditionConfig.RAID_ARENA_KIND = "raid"
-ExpeditionConfig.RAID_JOIN_HINT = "Join via Expeditions → Active raids."
+ExpeditionConfig.RAID_JOIN_HINT = "Join via Expeditions > Raids."
 -- How many shared raid instances may run at once (XML + Lua Raid.registry).
 ExpeditionConfig.RAID_MAX_CONCURRENT = 2
 -- XML import: first-check chance and per-row / per-raid spawn caps (17×17 arena).
@@ -783,8 +616,7 @@ function ExpeditionConfig.bossCooldownDurationSec()
 	return duration
 end
 
---- Predefined lure for a hold: catalog `lure`, else floor(creatureDensity), else hunt lureMax.
---- Lure is the density count directly (no 1/2/4/6/8/12/16 snap).
+--- Lure for a creature density count (persisted snapshots without a lure).
 function ExpeditionConfig.lureFromDensity(density)
 	local n = math.floor(tonumber(density) or 0)
 	if n < 1 then
@@ -793,139 +625,91 @@ function ExpeditionConfig.lureFromDensity(density)
 	return n
 end
 
-function ExpeditionConfig.holdLure(hold, catalog)
-	if type(hold) == "table" then
-		local lure = tonumber(hold.lure)
-		if lure and lure > 0 then
-			return math.max(1, math.floor(lure))
-		end
-		local dens = tonumber(hold.creatureDensity)
-		if dens and dens > 0 then
-			return ExpeditionConfig.lureFromDensity(dens)
-		end
+local caveRouteCache = setmetatable({}, { __mode = "k" })
+
+local function catalogPoint(p)
+	local x, y, z = tonumber(p and p.x), tonumber(p and p.y), tonumber(p and p.z)
+	if x and y and z then
+		return { x = x, y = y, z = z }
 	end
-	local huntMax = catalog and tonumber(catalog.lureMax)
-	if huntMax and huntMax > 0 then
-		return math.max(1, math.floor(huntMax))
-	end
-	return ExpeditionConfig.LURE_DEFAULT or 1
+	return nil
 end
 
---- Catalog hold list for monster hunts (team-fit positions). Falls back to center.
---- Each hold keeps `{x,y,z,lure,route}` (lure derived from catalog when missing;
---- `route` = waypoints of the incoming leg from the previous hold, may be nil).
-function ExpeditionConfig.catalogPositions(catalog)
-	if not catalog then
-		return {}
+--- Cave route of a monster hunt, parsed once per catalog entry:
+--- `{ lure, entry = {pt...}, waypoints = {pt + hold...}, stationary }`.
+--- `hold` marks generated spawn cluster stands (the walker clears the screen there).
+--- Waypoints wrap (last → first) and may repeat tiles (dead-end legs walked in and
+--- back). `entry` is walked once from the landing tile to waypoints[1]. Hunts without
+--- a cave block get a single spot on `center`.
+function ExpeditionConfig.caveRoute(catalog)
+	if type(catalog) ~= "table" then
+		return nil
 	end
-	local positions = catalog.positions
-	if type(positions) == "table" and #positions > 0 then
-		local out = {}
-		for _, p in ipairs(positions) do
-			if p and p.x and p.y and p.z then
-				local route = nil
-				if type(p.route) == "table" and #p.route > 0 then
-					route = {}
-					for _, wp in ipairs(p.route) do
-						if wp.x and wp.y and wp.z then
-							route[#route + 1] = { x = wp.x, y = wp.y, z = wp.z }
-						end
-					end
-				end
-				out[#out + 1] = {
-					x = p.x,
-					y = p.y,
-					z = p.z,
-					lure = ExpeditionConfig.holdLure(p, catalog),
-					route = route,
-				}
-			end
-		end
-		if #out > 0 then
-			return out
+	local cached = caveRouteCache[catalog]
+	if cached then
+		return cached
+	end
+	local cave = type(catalog.cave) == "table" and catalog.cave or {}
+	local waypoints = {}
+	for _, w in ipairs(cave.waypoints or {}) do
+		local p = catalogPoint(w)
+		if p then
+			p.hold = w.hold == true
+			waypoints[#waypoints + 1] = p
 		end
 	end
-	local c = catalog.center
-	if c and c.x and c.y and c.z then
-		return {
-			{
-				x = c.x,
-				y = c.y,
-				z = c.z,
-				lure = ExpeditionConfig.holdLure(nil, catalog),
-			},
-		}
+	if #waypoints == 0 then
+		local c = catalogPoint(catalog.center)
+		if not c then
+			return nil
+		end
+		c.hold = true
+		waypoints[1] = c
 	end
-	return {}
+	local entry = {}
+	for _, w in ipairs(cave.entry or {}) do
+		local p = catalogPoint(w)
+		if p then
+			entry[#entry + 1] = p
+		end
+	end
+	local lure = math.floor(tonumber(cave.lure) or tonumber(catalog.lureMax) or 0)
+	local route = {
+		lure = lure > 0 and lure or (ExpeditionConfig.LURE_DEFAULT or 1),
+		entry = entry,
+		waypoints = waypoints,
+		stationary = #waypoints <= 1,
+	}
+	caveRouteCache[catalog] = route
+	return route
 end
 
-function ExpeditionConfig.sameHoldTile(a, b)
-	if not a or not b then
-		return false
+--- Evenly sampled points of `list` (at most `cap`, first always kept).
+local function samplePoints(list, cap)
+	local out = {}
+	local n = #list
+	local step = math.max(1, n / cap)
+	local i = 1
+	while i <= n and #out < cap do
+		local p = list[math.floor(i)]
+		out[#out + 1] = { x = p.x, y = p.y, z = p.z }
+		i = i + step
 	end
-	local ax, ay, az = tonumber(a.x), tonumber(a.y), tonumber(a.z)
-	local bx, by, bz = tonumber(b.x), tonumber(b.y), tonumber(b.z)
-	return ax and bx and ax == bx and ay == by and az == bz
+	return out
 end
 
---- Hold for wave N (1-based, wraps). Wave 0 / nil uses hold 1 (upcoming first wave).
-function ExpeditionConfig.holdForWave(catalog, wave)
-	local holds = ExpeditionConfig.catalogPositions(catalog)
-	if #holds == 0 then
-		return nil, 0
+--- Client minimap preview of a cave route: hold pins and the (closed) walk.
+function ExpeditionConfig.cavePreview(route)
+	if not route then
+		return nil, nil
 	end
-	local w = math.max(1, math.floor(tonumber(wave) or 1))
-	local idx = ((w - 1) % #holds) + 1
-	return holds[idx], idx
-end
-
---- Copy hold tile + lure from session.wave onto the session (wave 0 → hold 1).
-function ExpeditionConfig.syncHoldFromWave(session)
-	if not session then
-		return nil, 0
+	local holds = {}
+	for _, w in ipairs(route.waypoints) do
+		if w.hold then
+			holds[#holds + 1] = w
+		end
 	end
-	local wave = math.floor(tonumber(session.wave) or 0)
-	local hold, idx = ExpeditionConfig.holdForWave(session.catalog, wave < 1 and 1 or wave)
-	if hold then
-		session.holdPos = Position(hold.x, hold.y, hold.z)
-		session.lure = tonumber(hold.lure) or ExpeditionConfig.holdLure(hold, session.catalog)
-	end
-	return hold, idx
-end
-
---- Commit the next wave. Hold tile and lure follow `session.wave`.
---- Returns true when the party should walk to a different hold.
-function ExpeditionConfig.advanceWave(session)
-	if not session then
-		return false
-	end
-	local prev = session.holdPos
-	session.wave = math.floor(tonumber(session.wave) or 0) + 1
-	ExpeditionConfig.syncHoldFromWave(session)
-	if session.role and session.role ~= "monster" then
-		return false
-	end
-	if not ExpeditionConfig.canRelocateHolds(session.catalog) then
-		return false
-	end
-	return not ExpeditionConfig.sameHoldTile(prev, session.holdPos)
-end
-
---- Active lure for session's current (or upcoming first) hold.
-function ExpeditionConfig.sessionHoldLure(session)
-	if not session then
-		return ExpeditionConfig.LURE_DEFAULT or 1
-	end
-	local hold = ExpeditionConfig.holdForWave(session.catalog, session.wave)
-	if hold then
-		return tonumber(hold.lure) or ExpeditionConfig.holdLure(hold, session.catalog)
-	end
-	return ExpeditionConfig.lureFromDensity(session.catalog and session.catalog.lureMax)
-end
-
---- True when this hunt has enough holds to walk between waves.
-function ExpeditionConfig.canRelocateHolds(catalog)
-	return #ExpeditionConfig.catalogPositions(catalog) >= 2
+	return samplePoints(holds, 8), samplePoints(route.waypoints, 24)
 end
 
 --- Boss lever timeToDefeat (Crystal bossDefaultTimeToDefeat), in seconds.
@@ -1012,7 +796,7 @@ function ExpeditionConfig.partyCanFightBoss(members, bossName)
 		return false, nil, 0, "No team members."
 	end
 	for _, member in ipairs(members) do
-		if member and PzTeleport and PzTeleport.isGod and PzTeleport.isGod(member) then
+		if member and PzTeleport.isGod(member) then
 			-- GOD may re-enter any boss regardless of lever cooldown.
 		elseif member and member.canFightBoss and not member:canFightBoss(bossName) then
 			local untilTs = 0
@@ -1062,7 +846,7 @@ function ExpeditionConfig.clearBossCooldown(players, bossName)
 		return false
 	end
 	for _, player in ipairs(players) do
-		if player and PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) then
+		if player and PzTeleport.isGod(player) then
 			-- GOD ignores cooldown.
 		elseif player and player.setBossCooldown then
 			player:setBossCooldown(bossName, 0)
@@ -1099,7 +883,7 @@ function ExpeditionConfig.applyBossCooldown(players, bossName)
 	local untilTs = os.time() + ExpeditionConfig.bossCooldownDurationSec()
 	local applied = 0
 	for _, player in ipairs(players) do
-		if player and PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) then
+		if player and PzTeleport.isGod(player) then
 			-- Skip cooldown so GOD can re-enter immediately.
 		elseif player and player.setBossCooldown then
 			player:setBossCooldown(bossName, untilTs)
@@ -1281,21 +1065,9 @@ function ExpeditionConfig.catalogForClient(player)
 					z = tonumber(center.z) or 7,
 				}
 			end
-			-- Team-fit walk stands for client minimap markers (detail + HUD).
-			local positions = ExpeditionConfig.catalogPositions(entry)
-			if #positions > 0 then
-				local slim = {}
-				local n = math.min(8, #positions)
-				for i = 1, n do
-					local p = positions[i]
-					slim[i] = {
-						x = tonumber(p.x) or 0,
-						y = tonumber(p.y) or 0,
-						z = tonumber(p.z) or 7,
-						lure = tonumber(p.lure) or ExpeditionConfig.holdLure(p, entry),
-					}
-				end
-				row.positions = slim
+			-- Cave route preview for client minimap markers (detail + HUD track).
+			if role ~= "boss" then
+				row.holds, row.route = ExpeditionConfig.cavePreview(ExpeditionConfig.caveRoute(entry))
 			end
 			out[#out + 1] = row
 		end
@@ -1303,5 +1075,7 @@ function ExpeditionConfig.catalogForClient(player)
 	return out
 end
 
---- Max catalog entries per extended-opcode JSON blob (keep under ~60KB).
+--- Catalog paging: at most CATALOG_PAGE_SIZE rows and CATALOG_PAGE_BYTES of encoded
+--- rows per extended-opcode JSON blob (the opcode string is capped at 64KB).
 ExpeditionConfig.CATALOG_PAGE_SIZE = ExpeditionConfig.CATALOG_PAGE_SIZE or 60
+ExpeditionConfig.CATALOG_PAGE_BYTES = ExpeditionConfig.CATALOG_PAGE_BYTES or 48000

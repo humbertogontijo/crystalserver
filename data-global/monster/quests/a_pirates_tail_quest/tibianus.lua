@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 2000
+monster.maxHealth = 2000
 monster.race = "blood"
 monster.corpse = 0
 monster.speed = 100
@@ -65,14 +65,14 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -80, maxDamage = 150 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -80, maxDamage = -150 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_LIFEDRAIN, minDamage = -200, maxDamage = -500, length = 5, effect = CONST_ME_SOUND_PURPLE, target = false },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_MANADRAIN, minDamage = -150, maxDamage = -300, radius = 4, effect = CONST_ME_SOUND_RED, target = false },
 }
 
 monster.defenses = {
 	defense = 15,
-	armor = 0,
+	armor = 15,
 	--	mitigation = ???,
 }
 

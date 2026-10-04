@@ -1,5 +1,5 @@
 -- Overlay shared creature_info stats onto expedition catalog + raid levels.
--- Hunt entries use viewport pack levels (Σ creatureCP × count^densityExp).
+-- Hunt entries use engaged-mix levels (mean creatureCP × creatureDensity^densityExp).
 
 local function catalogRole(entry)
 	if type(entry) ~= "table" then

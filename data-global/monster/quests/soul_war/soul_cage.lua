@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Soul Cage")
 local monster = {}
 
 monster.description = "a soul cage"
-monster.experience = 0
+monster.experience = 100000
 monster.outfit = {
 	lookType = 863,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 100000
+monster.maxHealth = 100000
 monster.race = "undead"
 monster.corpse = 0
 monster.speed = 0
@@ -47,7 +47,7 @@ monster.light = {
 
 monster.defenses = {
 	defense = 80,
-	armor = 0,
+	armor = 100,
 	{ name = "Heal Malice", interval = 2000, chance = 90, target = false },
 }
 

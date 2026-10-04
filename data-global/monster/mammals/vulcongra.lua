@@ -79,8 +79,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 100000, maxCount = 100 },
-	{ name = "gold coin", chance = 100000, maxCount = 7 },
+	{ name = "gold coin", chance = 50000, maxCount = 100 },
+	{ name = "gold coin", chance = 50000, maxCount = 7 },
 	{ name = "platinum coin", chance = 14780 },
 	{ name = "wand of inferno", chance = 1000 },
 	{ id = 3091, chance = 2920 }, -- sword ring
@@ -99,7 +99,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -235 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -220 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -200, length = 8, spread = 0, effect = CONST_ME_EXPLOSIONHIT, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -200, range = 7, shootEffect = CONST_ANI_FIRE, target = true },
 	{ name = "vulcongra soulfire", interval = 3000, chance = 100, target = false },

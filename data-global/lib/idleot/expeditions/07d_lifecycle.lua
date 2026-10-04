@@ -186,14 +186,6 @@ function EM_PRIV.rebindMemberId(session, oldId, newId, player)
 			session.automation = session.memberAutomation[newId]
 		end
 	end
-	if session.prevAutoTargetByPlayer and session.prevAutoTargetByPlayer[oldId] ~= nil then
-		session.prevAutoTargetByPlayer[newId] = session.prevAutoTargetByPlayer[oldId]
-		session.prevAutoTargetByPlayer[oldId] = nil
-	end
-	if session.lastSyncedAttackByPlayer and session.lastSyncedAttackByPlayer[oldId] ~= nil then
-		session.lastSyncedAttackByPlayer[newId] = session.lastSyncedAttackByPlayer[oldId]
-		session.lastSyncedAttackByPlayer[oldId] = nil
-	end
 	if session.deadPlayerIds and session.deadPlayerIds[oldId] then
 		session.deadPlayerIds[newId] = true
 		session.deadPlayerIds[oldId] = nil
@@ -308,9 +300,6 @@ function ExpeditionManager.onLogin(player)
 		end
 		player:registerEvent("ExpeditionPlayerDeath")
 		ExpeditionAI.enablePersistence(player)
-		-- Reconnect: clear dedupe so the client receives attackTarget again.
-		session.lastSyncedAttackByPlayer = session.lastSyncedAttackByPlayer or {}
-		session.lastSyncedAttackByPlayer[pid] = nil
 		if session.entered then
 			ExpeditionAI.start(session)
 		end
@@ -323,10 +312,7 @@ function ExpeditionManager.onLogin(player)
 		local sessionKey = session.key
 		addEvent(function()
 			local p = Player(playerId)
-			local s = ExpeditionManager.getSessionByKey and ExpeditionManager.getSessionByKey(sessionKey)
-			if p and s and ExpeditionAI.resyncAttackTarget then
-				ExpeditionAI.resyncAttackTarget(s, p)
-			elseif p and CombatAutomation and CombatAutomation.resyncAttackTarget then
+			if p and ExpeditionManager.getSessionByKey(sessionKey) and CombatAutomation and CombatAutomation.resyncAttackTarget then
 				CombatAutomation.resyncAttackTarget(p)
 			end
 		end, 1500)

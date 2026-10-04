@@ -120,6 +120,7 @@ public:
 
 	void login(const std::string &name, uint32_t accnumber, OperatingSystem_t operatingSystem);
 	void logout(bool displayEffect, bool forced);
+	void requestLogout();
 
 	void AddItem(NetworkMessage &msg, const std::shared_ptr<Item> &item);
 	void AddItem(NetworkMessage &msg, uint16_t id, uint8_t count, uint8_t tier) const;
@@ -133,6 +134,11 @@ private:
 		return std::static_pointer_cast<ProtocolGame>(shared_from_this());
 	}
 	void connect(const std::string &playerName, OperatingSystem_t operatingSystem);
+	void attachToPlayer(const std::shared_ptr<Player> &target, OperatingSystem_t operatingSystem);
+	void detachClient();
+	/** Same-socket alt swap: detach current body (as on client close) and attach a same-account body. */
+	bool switchToPlayer(const std::shared_ptr<Player> &target);
+	void sendCharacterSwitch(const std::string &targetName);
 	void disconnectClient(const std::string &message, DisconnectClient_t reason = DisconnectClient_t::Default) const;
 	void writeToOutputBuffer(NetworkMessage &msg);
 

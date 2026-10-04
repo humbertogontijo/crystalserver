@@ -1,5 +1,6 @@
--- Shared CP → level map for creatures, hunt packs, bosses, and raids.
--- Player formula: recommended ≈ 1.5 × CP^0.6 ; levelMin ≈ recommended × 0.6
+-- CP → level maps. Creatures, bosses, raids: recommended ≈ 1.5 × CP^0.6.
+-- Hunts: recommended ≈ 3.2 × S^0.69 with S the mix-weighted mean creature CP.
+-- levelMin ≈ recommended × 0.6 for both.
 -- Constants synced from hunt_level_fit_generated.py via `make optimize`.
 CreatureInfo = CreatureInfo or {}
 
@@ -7,8 +8,10 @@ local MONSTER_LEVEL_STEP = 5
 local MONSTER_LEVEL_COEF = 1.5
 local MONSTER_LEVEL_EXP = 0.6
 local PARTY_LEVEL_RATIO = 0.6
---- Pack: Σ CP_i × n_i^HUNT_DENSITY_EXP
-local HUNT_DENSITY_EXP = 0.75
+local HUNT_LEVEL_COEF = 3.2
+local HUNT_LEVEL_EXP = 0.69
+--- Pack: (Σ share_i × CP_i) × density^HUNT_DENSITY_EXP
+local HUNT_DENSITY_EXP = 0
 
 local function roundLevelToStep(level, step)
 	level = tonumber(level) or 1
@@ -30,50 +33,37 @@ local function monsterLevelStepForRaw(rawLevel)
 	return MONSTER_LEVEL_STEP
 end
 
-local function rawLevelFromCombatPower(combatPower)
+local function rawLevelFromCombatPower(combatPower, coef, exp)
 	combatPower = tonumber(combatPower) or 0
 	if combatPower <= 0 then
 		return 1
 	end
-	return MONSTER_LEVEL_COEF * (combatPower ^ MONSTER_LEVEL_EXP)
+	return coef * (combatPower ^ exp)
 end
 
-local function levelFromCombatPower(combatPower)
-	local raw = rawLevelFromCombatPower(combatPower)
-	return roundLevelToStep(raw, monsterLevelStepForRaw(raw))
-end
-
-local function recommendedLevelFromCombatPower(combatPower)
+local function levelsFromCurve(combatPower, coef, exp)
 	combatPower = tonumber(combatPower) or 0
 	if combatPower <= 0 then
-		return 1
+		return { levelMin = 1, recommendedLevel = 1 }
 	end
-	return levelFromCombatPower(combatPower)
-end
-
-local function levelMinFromCombatPower(combatPower)
-	combatPower = tonumber(combatPower) or 0
-	if combatPower <= 0 then
-		return 1
-	end
-	local recommended = recommendedLevelFromCombatPower(combatPower)
+	local raw = rawLevelFromCombatPower(combatPower, coef, exp)
+	local recommended = roundLevelToStep(raw, monsterLevelStepForRaw(raw))
 	local partyRaw = recommended * PARTY_LEVEL_RATIO
 	local party = roundLevelToStep(partyRaw, monsterLevelStepForRaw(partyRaw))
-	return math.max(1, math.min(recommended, party))
-end
-
---- One meaning everywhere: recommended from CP; levelMin = recommended × partyRatio.
-function CreatureInfo.levelsFromCombatPower(combatPower)
-	local recommendedLevel = recommendedLevelFromCombatPower(combatPower)
-	local levelMin = levelMinFromCombatPower(combatPower)
 	return {
-		levelMin = math.min(levelMin, recommendedLevel),
-		recommendedLevel = recommendedLevel,
+		levelMin = math.max(1, math.min(recommended, party)),
+		recommendedLevel = recommended,
 	}
 end
 
+--- Creatures, bosses, raids: recommended from CP; levelMin = recommended × partyRatio.
+function CreatureInfo.levelsFromCombatPower(combatPower)
+	return levelsFromCurve(combatPower, MONSTER_LEVEL_COEF, MONSTER_LEVEL_EXP)
+end
+
+--- Hunts: packCombatPower from huntCombatPowerFromMix (mean creature CP).
 function CreatureInfo.huntLevelsFromPackCombatPower(packCombatPower)
-	return CreatureInfo.levelsFromCombatPower(packCombatPower)
+	return levelsFromCurve(packCombatPower, HUNT_LEVEL_COEF, HUNT_LEVEL_EXP)
 end
 
 function CreatureInfo.huntDensityExp()

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Thorn Minion")
 local monster = {}
 
 monster.description = "a thorn minion"
-monster.experience = 0
+monster.experience = 1600
 monster.outfit = {
 	lookType = 717,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 3500
+monster.maxHealth = 3500
 monster.race = "venom"
 monster.corpse = 0
 monster.speed = 75
@@ -74,7 +74,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 20,
-	armor = 0,
+	armor = 20,
 	mitigation = 0.99,
 	{ name = "speed", interval = 2000, chance = 30, speedChange = 250, effect = CONST_ME_MAGIC_GREEN, target = false, duration = 4000 },
 }

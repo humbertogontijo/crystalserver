@@ -1,4 +1,4 @@
--- Vocation Adjustment: a Master Sorcerer's elemental stance reshapes Death Strike (element + impact
+-- Vocation Adjustment: a Master Sorcerer's stance conversion reshapes Death Strike (element + impact
 -- effect + missile):
 --   Master of Flames  -> fire,   effect 334, missile 4
 --   Master of Thunder -> energy, effect 335, missile 5
@@ -39,10 +39,10 @@ local spell = Spell("instant")
 function spell.onCastSpell(creature, var)
 	local player = creature:getPlayer()
 	if player then
-		local stance = player:getElementalStance()
-		if stance == STANCE_MASTER_OF_FLAMES then
+		local element = player:resolveElementConversion(COMBAT_DEATHDAMAGE)
+		if element == COMBAT_FIREDAMAGE then
 			return combatFlames:execute(creature, var)
-		elseif stance == STANCE_MASTER_OF_THUNDER then
+		elseif element == COMBAT_ENERGYDAMAGE then
 			return combatThunder:execute(creature, var)
 		end
 	end

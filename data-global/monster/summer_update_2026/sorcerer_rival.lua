@@ -16,8 +16,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 29800
+monster.maxHealth = 29800
 monster.race = "blood"
 -- Corpse levantado no cliente (corpse humano generico da base).
 monster.corpse = 6081

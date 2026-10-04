@@ -82,8 +82,8 @@ monster.voices = {
 monster.loot = {
 	{ id = 3019, chance = 500 }, -- demonbone amulet
 	{ name = "black pearl", chance = 10875 },
-	{ name = "gold coin", chance = 91645, maxCount = 80 },
-	{ name = "gold coin", chance = 91645, maxCount = 73 },
+	{ name = "gold coin", chance = 50000, maxCount = 80 },
+	{ name = "gold coin", chance = 50000, maxCount = 73 },
 	{ name = "stone skin amulet", chance = 4907 },
 	{ name = "sword hilt", chance = 100000 },
 	{ name = "knight axe", chance = 7000 },

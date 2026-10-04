@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Glooth Powered Minotaur")
 local monster = {}
 
 monster.description = "a glooth powered minotaur"
-monster.experience = 0
+monster.experience = 2600
 monster.outfit = {
 	lookType = 607,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 3200
+monster.maxHealth = 3200
 monster.race = "blood"
 monster.corpse = 20996
 monster.speed = 100
@@ -73,7 +73,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 45,
-	armor = 0,
+	armor = 40,
 	--	mitigation = ???,
 	{ name = "combat", interval = 4000, chance = 15, type = COMBAT_HEALING, minDamage = 50, maxDamage = 145, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

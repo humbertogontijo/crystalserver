@@ -134,6 +134,7 @@ class PlayerFunctions {
 	static int luaPlayerClearWalkTask(lua_State* L);
 	static int luaPlayerIsHeadless(lua_State* L);
 	static int luaPlayerSetHeadless(lua_State* L);
+	static int luaPlayerSwitchClientTo(lua_State* L);
 	static int luaPlayerIsInSafeInstance(lua_State* L);
 
 	static int luaPlayerGetKills(lua_State* L);
@@ -530,6 +531,7 @@ class PlayerFunctions {
 	static int luaPlayerSetStance(lua_State* L);
 	static int luaPlayerGetElementalStance(lua_State* L);
 	static int luaPlayerSetElementalStance(lua_State* L);
+	static int luaPlayerResolveElementConversion(lua_State* L);
 
 	static int luaPlayerApplyImbuementScrollToItem(lua_State* L);
 	static int luaPlayerOnClearAllImbuementsOnEtcher(lua_State* L);

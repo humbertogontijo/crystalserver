@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Lokathmor")
 local monster = {}
 
 monster.description = "Lokathmor"
-monster.experience = 55000
+monster.experience = 100000
 monster.outfit = {
 	lookType = 1062,
 	lookHead = 22,
@@ -124,7 +124,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 40,
-	armor = 0,
+	armor = 40,
 	--	mitigation = ???,
 }
 

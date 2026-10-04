@@ -1,5 +1,5 @@
--- Vocation Adjustment: a Master Sorcerer's elemental stance reshapes Curse (element + impact EFFECT +
--- missile). With no stance (or a non-matching stance) the BASE death version is kept unchanged:
+-- Vocation Adjustment: a Master Sorcerer's stance conversion reshapes Curse (element + impact EFFECT +
+-- missile). Without a pending conversion the BASE death version is kept unchanged:
 --   Master of Flames  -> fire,   effect 334, missile 4
 --   Master of Thunder -> energy, effect 335, missile 5
 --   no stance / other -> base death (CONST_ME_SMALLCLOUDS, CONST_ANI_DEATH)
@@ -48,10 +48,10 @@ local spell = Spell("instant")
 function spell.onCastSpell(creature, var)
 	local player = creature:getPlayer()
 	if player then
-		local stance = player:getElementalStance()
-		if stance == STANCE_MASTER_OF_FLAMES then
+		local element = player:resolveElementConversion(COMBAT_DEATHDAMAGE)
+		if element == COMBAT_FIREDAMAGE then
 			return combatFlames:execute(creature, var)
-		elseif stance == STANCE_MASTER_OF_THUNDER then
+		elseif element == COMBAT_ENERGYDAMAGE then
 			return combatThunder:execute(creature, var)
 		end
 	end

@@ -96,9 +96,9 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -450 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -380, maxDamage = -450, range = 5, shootEffect = CONST_ANI_EARTH, effect = CONST_ME_HITBYPOISON, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -380, maxDamage = -430, range = 5, shootEffect = CONST_ANI_EARTH, effect = CONST_ME_HITBYPOISON, target = true },
 	{ name = "dark blood wave", interval = 2000, chance = 12, minDamage = -400, maxDamage = -500, target = false },
-	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_LIFEDRAIN, minDamage = -450, maxDamage = -490, range = 1, effect = CONST_ME_MAGIC_RED, target = true },
+	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_LIFEDRAIN, minDamage = -440, maxDamage = -490, range = 1, effect = CONST_ME_MAGIC_RED, target = true },
 	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_MANADRAIN, minDamage = -120, maxDamage = -130, range = 5, radius = 2, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_SOUND_PURPLE, target = true },
 }
 

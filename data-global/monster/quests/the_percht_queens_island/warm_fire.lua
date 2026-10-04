@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Warm Fire")
 local monster = {}
 
 monster.description = "a warm fire"
-monster.experience = 0
+monster.experience = 220
 monster.outfit = {
 	lookType = 49,
 	lookHead = 0,
@@ -63,7 +63,7 @@ monster.loot = {}
 
 monster.defenses = {
 	defense = 15,
-	armor = 0,
+	armor = 15,
 	--	mitigation = ???,
 }
 

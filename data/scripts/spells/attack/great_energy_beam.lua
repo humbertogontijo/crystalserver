@@ -8,12 +8,8 @@ function onGetFormulaValues(player, level, maglevel, basePower)
 	return formulaFunction(player, level, maglevel)
 end
 
-function onGetFormulaValuesWOD(player, level, maglevel)
-	return formulaFunction(player, level, maglevel)
-end
-
 -- Vocation Adjustment: Beam Mastery fires two identical beams parallel to the main one (left + right),
--- each dealing 40/60/80% of the beam damage at Beam Mastery stage 1/2/3 (length matches the combatWOD beam).
+-- each dealing 40/60/80% of the beam damage at Beam Mastery stage 1/2/3 (widens only; length stays 8 sqm).
 -- Directional combat anchors the area matrix on the sqm in front of the caster, so the center row must
 -- be {1, 3, 1} (not {0, 3, 0}) or the first beam tile has no parallels.
 function onGetFormulaValuesBeamFlank(player, level, maglevel)
@@ -24,7 +20,7 @@ function onGetFormulaValuesBeamFlank(player, level, maglevel)
 	return -min, -max
 end
 
-local FLANK_AREA = { { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 3, 1 } }
+local FLANK_AREA = { { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 0, 1 }, { 1, 3, 1 } }
 
 local function createCombat(area, combatFunc)
 	local initCombat = Combat()
@@ -36,22 +32,21 @@ local function createCombat(area, combatFunc)
 end
 
 local combat = createCombat(AREA_BEAM8, "onGetFormulaValues")
-local combatWOD = createCombat(AREA_BEAM10, "onGetFormulaValuesWOD")
 local flankCombat = createCombat(FLANK_AREA, "onGetFormulaValuesBeamFlank")
 
--- Vocation Adjustment: a Master Sorcerer's elemental stance reshapes the beam (element + impact effect).
+-- Vocation Adjustment: a Master Sorcerer's stance conversion reshapes the beam (element + impact effect).
 -- Master of Flames -> fire (eff 329), Master of Decay -> death (eff 330), Thunder/none -> base energy.
 -- The formula/area are identical per element, so we keep one Combat per role and retune its element each
 -- cast (single-threaded: setParameter happens immediately before execute).
 local function applyStanceElement(player)
 	local combatType, effect = COMBAT_ENERGYDAMAGE, CONST_ME_ENERGYAREA
-	local stance = player:getElementalStance()
-	if stance == STANCE_MASTER_OF_FLAMES then
+	local element = player:resolveElementConversion(COMBAT_ENERGYDAMAGE)
+	if element == COMBAT_FIREDAMAGE then
 		combatType, effect = COMBAT_FIREDAMAGE, 329
-	elseif stance == STANCE_MASTER_OF_DECAY then
+	elseif element == COMBAT_DEATHDAMAGE then
 		combatType, effect = COMBAT_DEATHDAMAGE, 330
 	end
-	for _, c in ipairs({ combat, combatWOD, flankCombat }) do
+	for _, c in ipairs({ combat, flankCombat }) do
 		c:setParameter(COMBAT_PARAM_TYPE, combatType)
 		c:setParameter(COMBAT_PARAM_EFFECT, effect)
 	end
@@ -65,10 +60,9 @@ function spell.onCastSpell(creature, var)
 		return false
 	end
 	applyStanceElement(player)
-	local hasBeamMastery = player:instantSkillWOD("Beam Mastery")
-	local result = hasBeamMastery and combatWOD:execute(creature, var) or combat:execute(creature, var)
+	local result = combat:execute(creature, var)
 	-- Beam Mastery: fire the parallel left + right beams (scaled inside onGetFormulaValuesBeamFlank).
-	if hasBeamMastery then
+	if player:instantSkillWOD("Beam Mastery") then
 		flankCombat:execute(creature, var)
 	end
 	return result

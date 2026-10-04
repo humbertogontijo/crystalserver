@@ -78,9 +78,9 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "small stone", chance = 25280, maxCount = 10 },
-	{ name = "gold coin", chance = 93750, maxCount = 100 },
-	{ name = "gold coin", chance = 93750, maxCount = 100 },
-	{ name = "gold coin", chance = 93750, maxCount = 41 },
+	{ name = "gold coin", chance = 32000, maxCount = 100 },
+	{ name = "gold coin", chance = 32000, maxCount = 100 },
+	{ name = "gold coin", chance = 32000, maxCount = 41 },
 	{ name = "stone skin amulet", chance = 980 },
 	{ name = "protection amulet", chance = 2778 },
 	{ id = 3097, chance = 2790 }, -- dwarven ring
@@ -95,8 +95,8 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -110 },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -99, maxDamage = -145, range = 7, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_GREEN_RINGS, target = true },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = -95, maxDamage = -169, range = 7, radius = 2, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_POFF, target = true },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -96, maxDamage = -140, range = 7, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_GREEN_RINGS, target = true },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = -90, maxDamage = -169, range = 7, radius = 2, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_POFF, target = true },
 	-- poison
 	{ name = "condition", type = CONDITION_POISON, interval = 2000, chance = 15, minDamage = -300, maxDamage = -320, length = 6, spread = 0, effect = CONST_ME_BIGPLANTS, target = false },
 	-- poison

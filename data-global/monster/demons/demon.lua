@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Demon")
 local monster = {}
 
 monster.description = "a demon"
-monster.experience = 25
+monster.experience = 6000
 monster.outfit = {
 	lookType = 35,
 	lookHead = 0,
@@ -26,8 +26,8 @@ monster.Bestiary = {
 	Locations = "Hero Cave, Ferumbras' Citadel, Goroma, Ghostlands Warlock area unreachable, Liberty Bay hidden underground passage unreachable, Razachai, deep in Pits of Inferno (found in every throneroom except Verminor's), deep Formorgar Mines, Demon Forge, Alchemist Quarter, Magician Quarter, Chyllfroest, Oramond Dungeon, Abandoned Sewers, Hell Hub and Halls of Ascension.",
 }
 
-monster.health = 50
-monster.maxHealth = 50
+monster.health = 8200
+monster.maxHealth = 8200
 monster.race = "fire"
 monster.corpse = 5995
 monster.speed = 128
@@ -89,8 +89,8 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "purple tome", chance = 1180 },
-	{ name = "gold coin", chance = 100000, maxCount = 100 },
-	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "gold coin", chance = 60000, maxCount = 100 },
+	{ name = "gold coin", chance = 60000, maxCount = 100 },
 	{ name = "small emerald", chance = 9690, maxCount = 5 },
 	{ name = "small amethyst", chance = 10170, maxCount = 5 },
 	{ name = "small ruby", chance = 9907, maxCount = 5 },
@@ -122,41 +122,37 @@ monster.loot = {
 	{ id = 238, chance = 22220, maxCount = 3 }, -- great mana potion
 	{ name = "ultimate health potion", chance = 19540, maxCount = 3 },
 	{ name = "great spirit potion", chance = 24701, maxCount = 3 },
-	{ name = "small stone", chance = 31409, maxCount = 3 },
-	{ id = 3115, chance = 10970 }, -- bone
-	{ name = "mouldy cheese", chance = 7275 },
-	{ name = "leather armor", chance = 6582 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -10 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_MANADRAIN, minDamage = 0, maxDamage = -120, range = 7, target = false },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = 0, maxDamage = 0, range = 7, radius = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -150, maxDamage = -250, range = 7, radius = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
 	{ name = "firefield", interval = 2000, chance = 10, range = 7, radius = 1, shootEffect = CONST_ANI_FIRE, target = true },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -300, maxDamage = -490, length = 8, spread = 0, effect = CONST_ME_PURPLEENERGY, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = 0, maxDamage = 0, range = 1, shootEffect = CONST_ANI_ENERGY, target = true },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -300, maxDamage = -500, length = 8, spread = 0, effect = CONST_ME_PURPLEENERGY, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -210, maxDamage = -300, range = 1, shootEffect = CONST_ANI_ENERGY, target = true },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = -700, radius = 1, effect = CONST_ME_MAGIC_RED, target = true, duration = 30000 },
 }
 
 monster.defenses = {
 	defense = 55,
-	armor = 0,
+	armor = 44,
 	mitigation = 1.74,
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_HEALING, minDamage = 180, maxDamage = 250, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = 320, effect = CONST_ME_MAGIC_RED, target = false, duration = 5000 },
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 0 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 25 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 50 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 40 },
+	{ type = COMBAT_FIREDAMAGE, percent = 100 },
 	{ type = COMBAT_LIFEDRAIN, percent = 100 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 100 },
-	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
+	{ type = COMBAT_ICEDAMAGE, percent = -12 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -12 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 20 },
 }
 
 monster.immunities = {

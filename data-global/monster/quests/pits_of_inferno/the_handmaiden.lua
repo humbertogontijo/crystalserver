@@ -93,7 +93,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 35,
-	armor = 0,
+	armor = 25,
 	--	mitigation = ???,
 	{ name = "speed", interval = 3000, chance = 12, speedChange = 380, effect = CONST_ME_MAGIC_RED, target = false, duration = 8000 },
 	{ name = "invisible", interval = 4000, chance = 50, effect = CONST_ME_MAGIC_RED },

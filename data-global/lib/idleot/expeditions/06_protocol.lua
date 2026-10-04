@@ -14,37 +14,39 @@ function ExpeditionProtocol.sendGodFlags(player)
 	end
 	return ExpeditionProtocol.send(player, {
 		type = "godFlags",
-		god = PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) or false,
+		god = PzTeleport.isGod(player),
 	})
 end
 
-function ExpeditionProtocol.sendCatalog(player)
-	local catalog = ExpeditionConfig.catalogForClient(player)
-	local pageSize = ExpeditionConfig.CATALOG_PAGE_SIZE or 60
-	local total = #catalog
-	if total == 0 then
-		return ExpeditionProtocol.send(player, {
-			type = "catalog",
-			page = 1,
-			pages = 1,
-			god = PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) or false,
-			catalog = {},
-		})
-	end
-	local pages = math.ceil(total / pageSize)
-	local ok = true
-	for page = 1, pages do
-		local chunk = {}
-		local from = (page - 1) * pageSize + 1
-		local to = math.min(page * pageSize, total)
-		for i = from, to do
-			chunk[#chunk + 1] = catalog[i]
+--- Split catalog rows into pages whose encoded rows fit CATALOG_PAGE_BYTES
+--- (extended-opcode strings are capped at 64KB) and at most CATALOG_PAGE_SIZE rows.
+local function catalogPages(catalog)
+	local maxRows = ExpeditionConfig.CATALOG_PAGE_SIZE or 60
+	local maxBytes = ExpeditionConfig.CATALOG_PAGE_BYTES or 48000
+	local pages, chunk, bytes = {}, {}, 0
+	for _, row in ipairs(catalog) do
+		local size = #JsonParser.encode(row) + 1
+		if #chunk > 0 and (#chunk >= maxRows or bytes + size > maxBytes) then
+			pages[#pages + 1] = chunk
+			chunk, bytes = {}, 0
 		end
+		chunk[#chunk + 1] = row
+		bytes = bytes + size
+	end
+	pages[#pages + 1] = chunk
+	return pages
+end
+
+function ExpeditionProtocol.sendCatalog(player)
+	local god = PzTeleport.isGod(player)
+	local pages = catalogPages(ExpeditionConfig.catalogForClient(player))
+	local ok = true
+	for page, chunk in ipairs(pages) do
 		local sent = ExpeditionProtocol.send(player, {
 			type = "catalog",
 			page = page,
-			pages = pages,
-			god = PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) or false,
+			pages = #pages,
+			god = god,
 			catalog = chunk,
 		})
 		if not sent then
@@ -156,6 +158,28 @@ function ExpeditionProtocol.sendHazardInfo(player, expeditionId)
 	return ExpeditionProtocol.send(player, payload)
 end
 
+--- Cave walker progress for the HUD: phase (walking | pacing | fighting | parked |
+--- complete), waypoint i/n and laps done. Nil before the walk starts.
+local function caveStatus(session)
+	local cave = session.cave
+	local route = cave and ExpeditionConfig.caveRoute(session.catalog)
+	if not route then
+		return nil
+	end
+	local phase = ({ walk = "walking", pace = "pacing", halt = "fighting" })[cave.mode] or "walking"
+	if session.lureFinished then
+		phase = "complete"
+	elseif cave.parked then
+		phase = "parked"
+	end
+	return {
+		phase = phase,
+		waypoint = cave.entryIdx and 0 or cave.idx,
+		waypoints = #route.waypoints,
+		lap = cave.lap or 0,
+	}
+end
+
 function ExpeditionProtocol.sendStatus(player, session)
 	if not session then
 		return false
@@ -164,11 +188,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 	if session.startedAt then
 		elapsed = math.max(0, os.time() - session.startedAt)
 	end
-	local kind = session.kind or (session.catalog and session.catalog.kind) or "hunt"
-	if kind == "boss" then
-		-- Legacy sessions before kind collapse.
-		kind = "hunt"
-	end
+	local kind = ExpeditionAI.sessionKind(session)
 	local role = session.role or (session.catalog and session.catalog.role) or "monster"
 	if role ~= "boss" and role ~= "monster" then
 		role = "monster"
@@ -239,11 +259,8 @@ function ExpeditionProtocol.sendStatus(player, session)
 			or ExpeditionConfig.LURE_MAX
 			or 2
 		status.lure = session.lure or ExpeditionConfig.LURE_DEFAULT or 1
-		status.waveLure = session.waveLure or session.lure or ExpeditionConfig.LURE_DEFAULT or 1
-		status.lureMin = ExpeditionConfig.LURE_MIN or 1
 		status.lureMax = lureMax
-		-- Lure is hold-predefined (not player-selectable).
-		status.lureValues = { status.lure }
+		status.metrics = ExpeditionMetrics and ExpeditionMetrics.summary(session) or nil
 		if ExpeditionDifficulty then
 			status.hazard = tonumber(session.hazardLevel) or ExpeditionDifficulty.HAZARD_DEFAULT
 			local members = { player }
@@ -261,45 +278,13 @@ function ExpeditionProtocol.sendStatus(player, session)
 			status.hazardRequiredLevel = levels and levels.levelMin or nil
 			status.hazardCombatPower = levels and levels.combatPower or nil
 		end
-		-- Live walk target + catalog stands for HUD minimap flags.
-		local holds = ExpeditionConfig.catalogPositions and ExpeditionConfig.catalogPositions(session.catalog)
-			or {}
-		if #holds > 0 then
-			local slim = {}
-			local n = math.min(8, #holds)
-			for i = 1, n do
-				local p = holds[i]
-				slim[i] = {
-					x = tonumber(p.x) or 0,
-					y = tonumber(p.y) or 0,
-					z = tonumber(p.z) or 7,
-					lure = tonumber(p.lure) or ExpeditionConfig.holdLure(p, session.catalog),
-				}
-			end
-			status.positions = slim
-		end
-		local _, idx = ExpeditionConfig.holdForWave(session.catalog, session.wave)
-		if idx < 1 then
-			idx = 1
-		end
-		status.positionIndex = idx
-		local hold = session.holdPos
-		if hold and hold.x and hold.y then
-			status.holdPos = {
-				x = tonumber(hold.x) or 0,
-				y = tonumber(hold.y) or 0,
-				z = tonumber(hold.z) or 7,
-			}
-		elseif status.positions and status.positions[idx] then
-			status.holdPos = status.positions[idx]
-		end
+		status.cave = caveStatus(session)
 	end
 	status.stopOnInsufficientGold = session.stopOnInsufficientGold == true
 	status.stopOnInsufficientCap = session.stopOnInsufficientCap == true
 	status.entered = session.entered == true
-	-- Pre-entry teammate accepts only. Hunt/boss AI also uses state "waiting" after entry
-	-- (formation / spawn delay) — do not treat that as the accept lobby.
-	local teamAccept = session.state == "waiting"
+	-- Pre-entry teammate accepts only (boss AI uses "waiting" after entry).
+	local teamAccept = session.state == "pending"
 		and not session.entered
 		and type(session.awaitingHumanGuids) == "table"
 	if teamAccept then
@@ -418,37 +403,6 @@ function ExpeditionProtocol.sendError(player, message)
 		logger.warn("[Expedition] error: {}", tostring(message or ""))
 	end
 	return ExpeditionProtocol.send(player, { type = "error", message = message })
-end
-
---- Sync AI attack target to the client (vanilla has no S→C set-attack opcode).
-function ExpeditionProtocol.sendAttackTarget(player, creatureId)
-	local id = 0
-	if creatureId and creatureId > 0 then
-		id = creatureId
-	end
-	return ExpeditionProtocol.send(player, {
-		type = "attackTarget",
-		creatureId = id,
-	})
-end
-
---- Fired when combat automation successfully casts/uses a slot.
---- Client uses exhaustMs for per-slot cooldown overlay + words floater.
-function ExpeditionProtocol.sendAutomationCast(player, payload)
-	if CombatAutomationProtocol and CombatAutomationProtocol.sendCast then
-		return CombatAutomationProtocol.sendCast(player, payload)
-	end
-	if not player or type(payload) ~= "table" then
-		return false
-	end
-	return ExpeditionProtocol.send(player, {
-		type = "automationCast",
-		slotId = tostring(payload.slotId or ""),
-		kind = tostring(payload.kind or ""),
-		words = tostring(payload.words or ""),
-		label = tostring(payload.label or payload.words or ""),
-		exhaustMs = math.max(0, math.floor(tonumber(payload.exhaustMs) or 0)),
-	})
 end
 
 function ExpeditionProtocol.handle(player, buffer)

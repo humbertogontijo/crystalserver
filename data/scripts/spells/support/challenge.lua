@@ -8,10 +8,40 @@ end
 
 combat:setCallback(CALLBACK_PARAM_TARGETCREATURE, "onTargetCreature")
 
+-- Product: also chain-challenge distant monsters of any kind (white Chivalrous Challenge effect).
+-- They keep their range; only when the knight has a free tile around him.
+local chainCombat = Combat()
+chainCombat:setParameter(COMBAT_PARAM_CHAIN_EFFECT, CustomEffects.CHIVALROUS_CHALLENGE_WHITE)
+
+function challengeChainPicker(creature, target)
+	return KnightChallenge.chainPriority(creature, target, { skipAdjacent = true })
+end
+
+chainCombat:setCallback(CALLBACK_PARAM_CHAINPICKER, "challengeChainPicker")
+
+function challengeChainValue(creature)
+	return KnightChallenge.chainTargets(creature), KnightChallenge.CHAIN_DISTANCE, false
+end
+
+chainCombat:setCallback(CALLBACK_PARAM_CHAINVALUE, "challengeChainValue")
+
+function challengeChainTarget(creature, target)
+	if target and target:isMonster() then
+		doChallengeCreature(creature, target, KnightChallenge.CHALLENGE_DURATION_MS)
+	end
+	return true
+end
+
+chainCombat:setCallback(CALLBACK_PARAM_TARGETCREATURE, "challengeChainTarget")
+
 local spell = Spell("instant")
 
 function spell.onCastSpell(creature, variant)
-	return combat:execute(creature, variant)
+	local result = combat:execute(creature, variant)
+	if KnightChallenge.hasRoomAround(creature) then
+		chainCombat:execute(creature, variant)
+	end
+	return result
 end
 
 spell:name("Challenge")

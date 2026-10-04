@@ -78,7 +78,7 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 21178, chance = 706 }, -- glooth club
+	{ id = 21178, chance = 2010 }, -- glooth club
 	{ id = 9640, chance = 4702 }, -- poisonous slime
 	{ id = 21146, chance = 2720 }, -- glooth steak
 	{ id = 3031, chance = 100000, maxCount = 139 }, -- gold coin

@@ -77,7 +77,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 65,
-	armor = 0,
+	armor = 70,
 	--	mitigation = ???,
 	{ name = "combat", interval = 2000, chance = 9, type = COMBAT_HEALING, minDamage = 20, maxDamage = 560, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "outfit", interval = 2000, chance = 10, effect = CONST_ME_ENERGYHIT, target = false, duration = 10000, outfitMonster = "Lizard Snakecharmer" },

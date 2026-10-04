@@ -245,8 +245,8 @@ function SoulPitExpedition.start(player)
 		stopEvent(session.waitingEvent)
 		session.waitingEvent = nil
 	end
-	if ExpeditionWaves and ExpeditionWaves.clear then
-		pcall(ExpeditionWaves.clear, session)
+	if ExpeditionPack and ExpeditionPack.clear then
+		pcall(ExpeditionPack.clear, session)
 	end
 	-- First wave shortly after enter.
 	addEvent(function(pid)

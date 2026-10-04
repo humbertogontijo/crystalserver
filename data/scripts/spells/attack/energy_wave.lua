@@ -1,4 +1,4 @@
--- Vocation Adjustment: a Master Sorcerer's elemental stance reshapes Energy Wave (element + impact
+-- Vocation Adjustment: a Master Sorcerer's stance conversion reshapes Energy Wave (element + impact
 -- EFFECT id + missile):
 --   Master of Flames -> fire,  effect 329, missile 4
 --   Master of Decay  -> death, effect 330, missile 11
@@ -62,11 +62,11 @@ local spell = Spell("instant")
 function spell.onCastSpell(creature, var)
 	local player = creature:getPlayer()
 	if player then
-		local stance = player:getElementalStance()
+		local element = player:resolveElementConversion(COMBAT_ENERGYDAMAGE)
 		local wod = player:getWheelSpellAdditionalArea("Energy Wave")
-		if stance == STANCE_MASTER_OF_FLAMES then
+		if element == COMBAT_FIREDAMAGE then
 			return (wod and combatFlamesWOD or combatFlames):execute(creature, var)
-		elseif stance == STANCE_MASTER_OF_DECAY then
+		elseif element == COMBAT_DEATHDAMAGE then
 			return (wod and combatDecayWOD or combatDecay):execute(creature, var)
 		end
 		if wod then

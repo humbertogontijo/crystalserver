@@ -14,8 +14,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 6000
+monster.maxHealth = 6000
 monster.race = "blood"
 -- Nao deixa corpo: petrifica em vez de morrer, e a wiki marca "Loot: Nenhum".
 monster.corpse = 0

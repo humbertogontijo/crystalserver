@@ -11,7 +11,6 @@ ActivityBoostConfig.PURGE_TICK_MS = 60 * 1000
 
 -- Fiendish forgeStack=15 → HP × (1 + (15*15+35)/100) = 3.6× (monster.cpp applyStacks).
 ActivityBoostConfig.FIENDISH_HP_MULT = 3.6
-ActivityBoostConfig.FIENDISH_HUNT_MAX_WAVES = 1
 
 ActivityBoostConfig.ACTIVITIES = {
 	{

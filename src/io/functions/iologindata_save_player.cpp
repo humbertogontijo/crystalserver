@@ -35,7 +35,7 @@
 #include "kv/kv.hpp"
 #include "utils/tools.hpp"
 
-bool IOLoginDataSave::saveItems(const std::shared_ptr<Player> &player, const ItemBlockList &itemList, DBInsert &query_insert, PropWriteStream &propWriteStream) {
+bool IOLoginDataSave::saveItems(const std::shared_ptr<Player> &player, const ItemBlockList &itemList, DBInsert &query_insert, PropWriteStream &propWriteStream, uint32_t ownerId /*= 0*/) {
 	if (!player) {
 		g_logger().warn("[IOLoginData::savePlayer] - Player nullptr: {}", __FUNCTION__);
 		return false;
@@ -43,6 +43,7 @@ bool IOLoginDataSave::saveItems(const std::shared_ptr<Player> &player, const Ite
 
 	Database &db = Database::getInstance();
 	std::ostringstream ss;
+	const uint32_t rowOwnerId = ownerId != 0 ? ownerId : player->getGUID();
 
 	// Initialize variables
 	using ContainerBlock = std::pair<std::shared_ptr<Container>, int32_t>;
@@ -97,7 +98,7 @@ bool IOLoginDataSave::saveItems(const std::shared_ptr<Player> &player, const Ite
 		const char* attributes = propWriteStream.getStream(attributesSize);
 
 		// Build query string and add row
-		ss << player->getGUID() << ',' << pid << ',' << runningId << ',' << item->getID() << ',' << item->getSubType() << ',' << db.escapeBlob(attributes, static_cast<uint32_t>(attributesSize));
+		ss << rowOwnerId << ',' << pid << ',' << runningId << ',' << item->getID() << ',' << item->getSubType() << ',' << db.escapeBlob(attributes, static_cast<uint32_t>(attributesSize));
 		if (!query_insert.addRow(ss)) {
 			g_logger().error("Error adding row to query.");
 			return false;
@@ -151,7 +152,7 @@ bool IOLoginDataSave::saveItems(const std::shared_ptr<Player> &player, const Ite
 			const char* attributes = propWriteStream.getStream(attributesSize);
 
 			// Build query string and add row
-			ss << player->getGUID() << ',' << parentId << ',' << runningId << ',' << item->getID() << ',' << item->getSubType() << ',' << db.escapeBlob(attributes, static_cast<uint32_t>(attributesSize));
+			ss << rowOwnerId << ',' << parentId << ',' << runningId << ',' << item->getID() << ',' << item->getSubType() << ',' << db.escapeBlob(attributes, static_cast<uint32_t>(attributesSize));
 			if (!query_insert.addRow(ss)) {
 				g_logger().error("Error adding row to query for container item.");
 				return false;
@@ -638,7 +639,8 @@ bool IOLoginDataSave::saveAccountLootPouch(const std::shared_ptr<Player> &player
 		return true;
 	}
 
-	if (!player->getAccountLootPouchState()) {
+	const auto &pouch = player->getAccountLootPouch();
+	if (!pouch) {
 		return true;
 	}
 
@@ -647,24 +649,15 @@ bool IOLoginDataSave::saveAccountLootPouch(const std::shared_ptr<Player> &player
 		return false;
 	}
 
-	const auto &items = player->getAccountLootPouchItems();
-	if (items.empty()) {
-		return true;
+	// pid 0 marks direct pouch children (the pouch itself is not stored).
+	ItemBlockList itemList;
+	for (const auto &item : pouch->getItemList()) {
+		itemList.emplace_back(0, item);
 	}
 
-	DBInsert pouchQuery("INSERT INTO `account_loot_pouch_items` (`account_id`,`item_id`,`item_count`) VALUES ");
-	std::ostringstream ss;
-	for (const auto &[itemId, itemCount] : items) {
-		if (itemId == 0 || itemCount == 0) {
-			continue;
-		}
-		ss << accountId << ',' << itemId << ',' << itemCount;
-		if (!pouchQuery.addRow(ss)) {
-			return false;
-		}
-	}
-
-	return pouchQuery.execute();
+	PropWriteStream propWriteStream;
+	DBInsert pouchQuery("INSERT INTO `account_loot_pouch_items` (`account_id`, `pid`, `sid`, `itemtype`, `count`, `attributes`) VALUES ");
+	return saveItems(player, itemList, pouchQuery, propWriteStream, accountId);
 }
 
 bool IOLoginDataSave::saveRewardItems(const std::shared_ptr<Player> &player) {

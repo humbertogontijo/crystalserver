@@ -35,6 +35,7 @@ void MonsterFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Monster", "setType", MonsterFunctions::luaMonsterSetType);
 	Lua::registerMethod(L, "Monster", "getSpawnPosition", MonsterFunctions::luaMonsterGetSpawnPosition);
 	Lua::registerMethod(L, "Monster", "setMasterPos", MonsterFunctions::luaMonsterSetMasterPos);
+	Lua::registerMethod(L, "Monster", "setTargetKeepRange", MonsterFunctions::luaMonsterSetTargetKeepRange);
 	Lua::registerMethod(L, "Monster", "isInSpawnRange", MonsterFunctions::luaMonsterIsInSpawnRange);
 	Lua::registerMethod(L, "Monster", "isIdle", MonsterFunctions::luaMonsterIsIdle);
 	Lua::registerMethod(L, "Monster", "setIdle", MonsterFunctions::luaMonsterSetIdle);
@@ -50,6 +51,7 @@ void MonsterFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Monster", "getTargetList", MonsterFunctions::luaMonsterGetTargetList);
 	Lua::registerMethod(L, "Monster", "getTargetCount", MonsterFunctions::luaMonsterGetTargetCount);
 	Lua::registerMethod(L, "Monster", "changeTargetDistance", MonsterFunctions::luaMonsterChangeTargetDistance);
+	Lua::registerMethod(L, "Monster", "getTargetDistance", MonsterFunctions::luaMonsterGetTargetDistance);
 	Lua::registerMethod(L, "Monster", "isChallenged", MonsterFunctions::luaMonsterIsChallenged);
 	Lua::registerMethod(L, "Monster", "runHealth", MonsterFunctions::luaMonsterRunHealth);
 	Lua::registerMethod(L, "Monster", "selectTarget", MonsterFunctions::luaMonsterSelectTarget);
@@ -218,6 +220,18 @@ int MonsterFunctions::luaMonsterSetMasterPos(lua_State* L) {
 	}
 	const Position &pos = Lua::getPosition(L, 2);
 	monster->setMasterPos(pos);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int MonsterFunctions::luaMonsterSetTargetKeepRange(lua_State* L) {
+	// monster:setTargetKeepRange(sqm) — keep chasing an acquired target this far past sight (0 = stock)
+	const auto &monster = Lua::getUserdataShared<Monster>(L, 1);
+	if (!monster) {
+		lua_pushnil(L);
+		return 1;
+	}
+	monster->setTargetKeepRange(Lua::getNumber<int32_t>(L, 2, 0));
 	Lua::pushBoolean(L, true);
 	return 1;
 }
@@ -416,6 +430,17 @@ int MonsterFunctions::luaMonsterChangeTargetDistance(lua_State* L) {
 		const auto distance = Lua::getNumber<int32_t>(L, 2, 1);
 		const auto duration = Lua::getNumber<uint32_t>(L, 3, 12000);
 		Lua::pushBoolean(L, monster->changeTargetDistance(distance, duration));
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int MonsterFunctions::luaMonsterGetTargetDistance(lua_State* L) {
+	// monster:getTargetDistance()
+	const auto &monster = Lua::getUserdataShared<Monster>(L, 1);
+	if (monster) {
+		lua_pushnumber(L, monster->targetDistance);
 	} else {
 		lua_pushnil(L);
 	}

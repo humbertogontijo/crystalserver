@@ -35,6 +35,7 @@ private:
 
 	static int luaMonsterGetSpawnPosition(lua_State* L);
 	static int luaMonsterSetMasterPos(lua_State* L);
+	static int luaMonsterSetTargetKeepRange(lua_State* L);
 	static int luaMonsterIsInSpawnRange(lua_State* L);
 
 	static int luaMonsterIsIdle(lua_State* L);
@@ -55,6 +56,7 @@ private:
 	static int luaMonsterGetTargetCount(lua_State* L);
 
 	static int luaMonsterChangeTargetDistance(lua_State* L);
+	static int luaMonsterGetTargetDistance(lua_State* L);
 	static int luaMonsterIsChallenged(lua_State* L);
 	static int luaMonsterRunHealth(lua_State* L);
 

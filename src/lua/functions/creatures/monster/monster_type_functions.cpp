@@ -40,12 +40,14 @@ namespace {
 		Lua::setField(L, "speed", spellBlock.speed);
 
 		CombatType_t combatType = COMBAT_NONE;
+		bool needDirection = false;
 		int32_t minBurst = std::abs(spellBlock.minCombatValue);
 		int32_t maxBurst = std::abs(spellBlock.maxCombatValue);
 		int32_t conditionPackage = 0;
 
 		if (spellBlock.combatSpell) {
 			if (const auto combatSpell = std::dynamic_pointer_cast<CombatSpell>(spellBlock.spell)) {
+				needDirection = combatSpell->getNeedDirection();
 				Lua::pushUserdata<CombatSpell>(L, combatSpell);
 				lua_setfield(L, -2, "spell");
 				if (const auto &combat = combatSpell->getCombat()) {
@@ -71,6 +73,8 @@ namespace {
 		}
 
 		Lua::setField(L, "combatType", static_cast<lua_Number>(combatType));
+		lua_pushboolean(L, needDirection);
+		lua_setfield(L, -2, "needDirection");
 		Lua::setField(L, "minBurst", minBurst);
 		Lua::setField(L, "maxBurst", maxBurst);
 		Lua::setField(L, "conditionPackage", conditionPackage);

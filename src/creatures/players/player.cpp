@@ -178,6 +178,14 @@ void Player::stampLoginTimestamps() {
 	lastLoginSaved = std::max<time_t>(time(nullptr), lastLoginSaved + 1);
 }
 
+bool Player::switchClientTo(const std::shared_ptr<Player> &target) {
+	const auto protocol = client;
+	if (!protocol) {
+		return false;
+	}
+	return protocol->switchToPlayer(target);
+}
+
 std::string Player::getDescription(int32_t lookDistance) {
 	std::ostringstream s;
 	std::string subjectPronoun = getSubjectPronoun();
@@ -968,7 +976,7 @@ void Player::updateInventoryWeight() {
 	inventoryWeight = 0;
 	for (int i = CONST_SLOT_FIRST; i <= CONST_SLOT_LAST; ++i) {
 		if (i == CONST_SLOT_LOOT_POUCH) {
-			// Handle only; pouch contents weight comes from the stash map below.
+			// Handle only; the shared account pouch is counted below.
 			continue;
 		}
 		const auto &item = inventory[i];
@@ -976,12 +984,8 @@ void Player::updateInventoryWeight() {
 			inventoryWeight += item->getWeight();
 		}
 	}
-	// Account loot pouch contents (stash map is source of truth for weight).
-	if (accountLootPouchState) {
-		for (const auto &[itemId, itemCount] : accountLootPouchState->items) {
-			const ItemType &it = Item::items[itemId];
-			inventoryWeight += it.weight * itemCount;
-		}
+	if (accountLootPouch) {
+		inventoryWeight += accountLootPouch->getWeight();
 	}
 }
 
@@ -2451,27 +2455,37 @@ void Player::sendPing() {
 		return;
 	}
 
-	// Headless in a safe instance: remove as soon as battle/NOLOGOUT clears (no forever ghosts).
-	if (isHeadless() && !client && isInSafeInstance() && canLogout() && g_creatureEvents().playerLogout(static_self_cast<Player>())) {
-		g_logger().info("Player {} headless logout after leaving battle (safe instance).", getName());
+	const auto self = static_self_cast<Player>();
+	// Logout gate (battle, NOLOGOUT, onLogout scripts); passes party leadership on success.
+	const auto readyToLeave = [&]() {
+		if (!canLogout() || !g_creatureEvents().playerLogout(self)) {
+			return false;
+		}
 		if (m_party) {
 			m_party->leaveParty(getPlayer(), true);
 		}
-		g_game().removeCreature(static_self_cast<Player>(), true);
+		return true;
+	};
+
+	// Headless in a safe instance: remove as soon as battle/NOLOGOUT clears (no forever ghosts).
+	if (isHeadless() && !client && isInSafeInstance() && readyToLeave()) {
+		g_logger().info("Player {} headless logout after leaving battle (safe instance).", getName());
+		g_game().removeCreature(self, true);
 		return;
 	}
 
-	if (noPongTime >= 60000 && canLogout() && g_creatureEvents().playerLogout(static_self_cast<Player>())) {
-		g_logger().info("Player {} has been kicked due to ping timeout. (has client: {}, headless: {})", getName(), client != nullptr, isHeadless());
-		// Try to pass party leadership before logging out
-		if (m_party) {
-			m_party->leaveParty(getPlayer(), true);
-		}
+	// Client let go (logout, exit, alt switch, dropped socket) and nothing keeps the body: leave once safe.
+	if (!client && !isHeadless() && !staysOnlineWithoutClient() && readyToLeave()) {
+		g_game().removeCreature(self, true);
+		return;
+	}
 
+	if (noPongTime >= 60000 && readyToLeave()) {
+		g_logger().info("Player {} has been kicked due to ping timeout. (has client: {}, headless: {})", getName(), client != nullptr, isHeadless());
 		if (client) {
 			client->logout(true, true);
 		} else {
-			g_game().removeCreature(static_self_cast<Player>(), true);
+			g_game().removeCreature(self, true);
 		}
 	}
 }
@@ -5480,7 +5494,7 @@ uint32_t Player::getItemTypeCount(uint16_t itemId, int32_t subType /*= -1*/) con
 	uint32_t count = 0;
 	for (int32_t i = CONST_SLOT_FIRST; i <= CONST_SLOT_LAST; i++) {
 		if (i == CONST_SLOT_LOOT_POUCH) {
-			// Handle only; pouch item counts come from the stash map below.
+			// Handle only; the shared account pouch is counted below.
 			continue;
 		}
 		const auto &item = inventory[i];
@@ -5501,10 +5515,11 @@ uint32_t Player::getItemTypeCount(uint16_t itemId, int32_t subType /*= -1*/) con
 		}
 	}
 
-	if (accountLootPouchState) {
-		const auto mapIt = accountLootPouchState->items.find(itemId);
-		if (mapIt != accountLootPouchState->items.end()) {
-			count += mapIt->second;
+	if (accountLootPouch) {
+		for (ContainerIterator it = accountLootPouch->iterator(); it.hasNext(); it.advance()) {
+			if ((*it)->getID() == itemId) {
+				count += Item::countByType(*it, subType);
+			}
 		}
 	}
 	return count;
@@ -5598,8 +5613,8 @@ bool Player::removeItemOfType(uint16_t itemId, uint32_t amount, int32_t subType,
 		}
 	}
 
-	if (accountLootPouchState && accountLootPouchState->view) {
-		for (ContainerIterator it = accountLootPouchState->view->iterator(); it.hasNext(); it.advance()) {
+	if (accountLootPouch) {
+		for (ContainerIterator it = accountLootPouch->iterator(); it.hasNext(); it.advance()) {
 			const auto &containerItem = *it;
 			if (!containerItem || containerItem->getID() != itemId) {
 				continue;
@@ -6022,8 +6037,7 @@ std::vector<std::shared_ptr<Item>> Player::getInventoryItemsFromId(uint16_t item
 		}
 	}
 
-	if (accountLootPouchState && accountLootPouchState->view) {
-		const auto &pouch = accountLootPouchState->view;
+	if (const auto &pouch = accountLootPouch) {
 		if (!ignore && pouch->getID() == itemId) {
 			itemVector.emplace_back(pouch);
 		}
@@ -6160,7 +6174,7 @@ std::vector<std::shared_ptr<Item>> Player::getAllInventoryItems(bool ignoreEquip
 	std::vector<std::shared_ptr<Item>> itemVector;
 	for (int i = CONST_SLOT_FIRST; i <= CONST_SLOT_LAST; ++i) {
 		if (i == CONST_SLOT_LOOT_POUCH) {
-			// Handle only; real pouch items come from the account view below.
+			// Handle only; real pouch items come from the shared account pouch below.
 			continue;
 		}
 		const auto &item = inventory[i];
@@ -6183,9 +6197,8 @@ std::vector<std::shared_ptr<Item>> Player::getAllInventoryItems(bool ignoreEquip
 		}
 	}
 
-	// Account loot pouch: stash view (not the inventory-slot handle).
-	if (accountLootPouchState && accountLootPouchState->view) {
-		const auto &pouch = accountLootPouchState->view;
+	// Account loot pouch (not the inventory-slot handle).
+	if (const auto &pouch = accountLootPouch) {
 		if (!ignoreEquiped) {
 			itemVector.emplace_back(pouch);
 		}
@@ -7425,6 +7438,10 @@ void Player::captureLoginPosition() {
 		return;
 	}
 	loginPosition = getPosition();
+}
+
+bool Player::staysOnlineWithoutClient() const {
+	return keepsDisconnectedCombat() || (isVip() && g_configManager().getBoolean(VIP_STAY_ONLINE));
 }
 
 bool Player::canLogout() {
@@ -11936,7 +11953,7 @@ void Player::openPlayerContainers() {
 		if (itemContainer) {
 			const auto &cid = item->getAttribute<int64_t>(ItemAttribute_t::OPENCONTAINER);
 			if (cid > 0) {
-				// Slot-12 handle is ITEM_GOLD_POUCH but opens the account view via use,
+				// Slot-12 handle is ITEM_GOLD_POUCH but opens the account pouch via use,
 				// not this empty container — never restore gold-pouch OPENCONTAINER roots.
 				if (item->getID() != ITEM_GOLD_POUCH) {
 					openContainersList[cid] = itemContainer;
@@ -11955,7 +11972,7 @@ void Player::openPlayerContainers() {
 					continue;
 				}
 				// Character gold pouches share id 23721 with the account loot-pouch handle.
-				// Never auto-reopen them — OTC storage binds the pouch host to the account view only.
+				// Never auto-reopen them — OTC storage binds the pouch host to the account pouch only.
 				if (subItem->getID() == ITEM_GOLD_POUCH) {
 					subItem->removeAttribute(ItemAttribute_t::OPENCONTAINER);
 					continue;
@@ -12304,6 +12321,7 @@ void Player::onRemoveCreature(const std::shared_ptr<Creature> &creature, bool is
 		closeShopWindow();
 		IOLoginData::updateOnlineStatus(guid, false);
 		g_saveManager().savePlayer(player);
+		handOffAccountLootPouch();
 	}
 
 	if (creature == shopOwner) {
@@ -12791,50 +12809,30 @@ void Player::sendLootMessage(const std::string &message) const {
 }
 
 std::shared_ptr<Container> Player::getAccountLootPouch() const {
-	return accountLootPouchState ? accountLootPouchState->view : nullptr;
+	return accountLootPouch;
 }
 
-void Player::setAccountLootPouchState(const std::shared_ptr<AccountLootPouchState> &state) {
-	accountLootPouchState = state;
+void Player::setAccountLootPouch(const std::shared_ptr<Container> &pouch) {
+	accountLootPouch = pouch;
 	installAccountLootPouchSlot();
 }
 
-const StashItemList &Player::getAccountLootPouchItems() const {
-	static const StashItemList empty;
-	return accountLootPouchState ? accountLootPouchState->items : empty;
-}
-
-namespace {
-void applyAccountLootPouchViewName(const std::shared_ptr<Container> &view) {
-	if (!view) {
-		return;
-	}
-	// Distinct from leftover character "gold pouch" items (same client id).
-	view->setAttribute(ItemAttribute_t::NAME, "Loot Pouch");
-}
-} // namespace
-
-void Player::ensureAccountLootPouchState() {
-	if (accountLootPouchState) {
-		if (accountLootPouchState->view) {
-			applyAccountLootPouchViewName(accountLootPouchState->view);
-			installAccountLootPouchSlot();
-			return;
+void Player::ensureAccountLootPouch() {
+	if (!accountLootPouch) {
+		const auto &created = Item::CreateItem(ITEM_GOLD_POUCH, 1, getInstanceId());
+		accountLootPouch = created ? created->getContainer() : nullptr;
+		if (accountLootPouch) {
+			// Distinct from leftover character "gold pouch" items (same client id).
+			accountLootPouch->setAttribute(ItemAttribute_t::NAME, "Loot Pouch");
 		}
-	} else {
-		accountLootPouchState = std::make_shared<AccountLootPouchState>();
 	}
-	const auto &created = Item::CreateItem(ITEM_GOLD_POUCH, 1, getInstanceId());
-	accountLootPouchState->view = created ? created->getContainer() : nullptr;
-	applyAccountLootPouchViewName(accountLootPouchState->view);
 	installAccountLootPouchSlot();
 }
 
 void Player::installAccountLootPouchSlot() {
-	// Empty handle in slot 12 (not the shared view) so each alt can show the slot.
+	// Empty handle in slot 12 (not the shared pouch) so each alt can show the slot.
 	const auto &existing = inventory[CONST_SLOT_LOOT_POUCH];
-	if (existing && existing->getID() == ITEM_GOLD_POUCH
-		&& (!accountLootPouchState || existing.get() != accountLootPouchState->view.get())) {
+	if (existing && existing->getID() == ITEM_GOLD_POUCH && existing != accountLootPouch) {
 		existing->setParent(static_self_cast<Player>());
 		return;
 	}
@@ -12852,29 +12850,28 @@ void Player::installAccountLootPouchSlot() {
 }
 
 std::shared_ptr<Container> Player::getLootPouch() {
-	ensureAccountLootPouchState();
-	if (accountLootPouchState && accountLootPouchState->view) {
-		const auto &view = accountLootPouchState->view;
+	ensureAccountLootPouch();
+	if (accountLootPouch) {
 		// Keep parent on this player while open so walk-range checks pass.
 		// Do not steal parent from another alt that currently has it open.
-		const bool iHaveOpen = getContainerID(view) != -1;
+		const bool iHaveOpen = getContainerID(accountLootPouch) != -1;
 		bool otherHasOpen = false;
 		if (!iHaveOpen) {
 			for (const auto &[_, other] : g_game().getPlayers()) {
-				if (!other || other.get() == this || other->getAccountLootPouchState() != accountLootPouchState) {
+				if (!other || other.get() == this || other->getAccountLootPouch() != accountLootPouch) {
 					continue;
 				}
-				if (other->getContainerID(view) != -1) {
+				if (other->getContainerID(accountLootPouch) != -1) {
 					otherHasOpen = true;
 					break;
 				}
 			}
 		}
 		if (iHaveOpen || !otherHasOpen) {
-			view->setParent(static_self_cast<Player>());
+			accountLootPouch->setParent(static_self_cast<Player>());
 		}
 	}
-	return getAccountLootPouch();
+	return accountLootPouch;
 }
 
 ReturnValue Player::openAccountLootPouch(uint8_t preferredContainerId) {
@@ -12891,9 +12888,6 @@ ReturnValue Player::openAccountLootPouch(uint8_t preferredContainerId) {
 		return RETURNVALUE_NOERROR;
 	}
 
-	// Fresh open — rebuild view from the stash map, then show.
-	materializeAccountLootPouchView();
-	applyAccountLootPouchViewName(pouch);
 	pouch->setParent(static_self_cast<Player>());
 
 	const uint8_t limit = getOpenedContainersLimit();
@@ -12915,286 +12909,21 @@ ReturnValue Player::openAccountLootPouch(uint8_t preferredContainerId) {
 	return RETURNVALUE_NOERROR;
 }
 
-bool Player::isAccountLootPouchSyncing() const {
-	return accountLootPouchState && accountLootPouchState->syncing;
-}
-
-bool Player::isAccountLootPouchSilent() const {
-	return accountLootPouchState && accountLootPouchState->silent;
-}
-
 bool Player::isAccountLootPouchContainer(const std::shared_ptr<Container> &container) const {
-	return container && accountLootPouchState && accountLootPouchState->view
-		&& container.get() == accountLootPouchState->view.get();
+	return container && accountLootPouch && container == accountLootPouch;
 }
 
-bool Player::canAbsorbIntoAccountLootPouch(const std::shared_ptr<Item> &item) const {
-	if (!item || item->getContainer() || item->hasOwner() || item->isStoreItem()) {
-		return false;
-	}
-	if (item->getTier() > 0) {
-		return false;
-	}
-	if (item->hasAttribute(ItemAttribute_t::UNIQUEID) || item->hasAttribute(ItemAttribute_t::ACTIONID)) {
-		return false;
-	}
-	if (item->hasAttribute(ItemAttribute_t::TEXT) || item->hasAttribute(ItemAttribute_t::DESCRIPTION)) {
-		return false;
-	}
-	if (item->getImbuementSlot() > 0) {
-		for (uint8_t slot = 0; slot < item->getImbuementSlot(); ++slot) {
-			ImbuementInfo info;
-			if (item->getImbuementInfo(slot, &info) && info.imbuement) {
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-namespace {
-uint32_t accountLootPouchMaxPerSlot(uint16_t itemId) {
-	const ItemType &it = Item::items[itemId];
-	if (it.id == 0) {
-		return 1;
-	}
-	// View grouping: stackables use normal stack size; fluids stay 1/slot;
-	// other non-stackables group up to 255 (counts are server-side only for now).
-	if (it.stackable) {
-		return std::max<uint8_t>(1, it.stackSize);
-	}
-	if (it.isSplash() || it.isFluidContainer()) {
-		return 1;
-	}
-	return 255;
-}
-
-uint32_t accountLootPouchSlotsFor(uint16_t itemId, uint32_t count) {
-	if (count == 0) {
-		return 0;
-	}
-	const uint32_t maxPerSlot = accountLootPouchMaxPerSlot(itemId);
-	return (count + maxPerSlot - 1) / maxPerSlot;
-}
-} // namespace
-
-void Player::notifyAccountLootPouchChanged() {
-	updateInventoryWeight();
-	sendStats();
-	if (shopOwner) {
-		updateSaleShopList();
-	}
-	const auto accountId = getAccountId();
-	if (accountId == 0 || !accountLootPouchState) {
+void Player::handOffAccountLootPouch() {
+	// The pouch only holds a weak parent link; re-parent to a remaining alt so loot routing keeps a holder.
+	if (!accountLootPouch || accountLootPouch->getParent().get() != this) {
 		return;
 	}
 	for (const auto &[_, other] : g_game().getPlayers()) {
-		if (!other || other.get() == this || other->getAccountId() != accountId) {
-			continue;
-		}
-		if (other->getAccountLootPouchState() != accountLootPouchState) {
-			continue;
-		}
-		other->updateInventoryWeight();
-		other->sendStats();
-		if (other->getShopOwner()) {
-			other->updateSaleShopList();
-		}
-	}
-}
-
-uint32_t Player::getAccountLootPouchIdealSlots() const {
-	if (!accountLootPouchState) {
-		return 0;
-	}
-	uint32_t slots = 0;
-	for (const auto &[itemId, itemCount] : accountLootPouchState->items) {
-		slots += accountLootPouchSlotsFor(itemId, itemCount);
-	}
-	return slots;
-}
-
-uint32_t Player::getAccountLootPouchIdealSlotsAfter(uint16_t itemId, uint32_t addAmount) const {
-	if (!accountLootPouchState) {
-		return accountLootPouchSlotsFor(itemId, addAmount);
-	}
-	uint32_t slots = 0;
-	bool seen = false;
-	for (const auto &[id, count] : accountLootPouchState->items) {
-		if (id == itemId) {
-			slots += accountLootPouchSlotsFor(id, count + addAmount);
-			seen = true;
-		} else {
-			slots += accountLootPouchSlotsFor(id, count);
-		}
-	}
-	if (!seen) {
-		slots += accountLootPouchSlotsFor(itemId, addAmount);
-	}
-	return slots;
-}
-
-ReturnValue Player::queryAccountLootPouchAdd(const std::shared_ptr<Item> &item, uint32_t count) const {
-	if (!canAbsorbIntoAccountLootPouch(item)) {
-		return RETURNVALUE_NOTPOSSIBLE;
-	}
-	const uint32_t amount = item->isStackable() ? count : std::max<uint32_t>(1, count);
-	const uint32_t limit = static_cast<uint32_t>(g_configManager().getNumber(LOOTPOUCH_MAXLIMIT));
-	if (getAccountLootPouchIdealSlotsAfter(item->getID(), amount) > limit) {
-		return RETURNVALUE_CONTAINERNOTENOUGHROOM;
-	}
-	return RETURNVALUE_NOERROR;
-}
-
-void Player::scheduleAccountLootPouchNotify() {
-	if (accountLootPouchNotifyScheduled) {
-		return;
-	}
-	accountLootPouchNotifyScheduled = true;
-	const uint32_t playerId = getID();
-	g_dispatcher().addEvent([playerId] {
-		if (const auto &player = g_game().getPlayerByID(playerId)) {
-			player->flushAccountLootPouchNotify();
-		}
-	}, "Player::scheduleAccountLootPouchNotify");
-}
-
-void Player::flushAccountLootPouchNotify() {
-	accountLootPouchNotifyScheduled = false;
-	notifyAccountLootPouchChanged();
-}
-
-void Player::materializeAccountLootPouchView() {
-	ensureAccountLootPouchState();
-	if (!accountLootPouchState || !accountLootPouchState->view) {
-		return;
-	}
-
-	accountLootPouchState->syncing = true;
-	accountLootPouchState->silent = true;
-	const auto &view = accountLootPouchState->view;
-	while (!view->empty()) {
-		const auto &item = view->getItemByIndex(0);
-		if (!item) {
-			break;
-		}
-		view->removeThing(item, item->getItemCount());
-	}
-
-	for (const auto &[itemId, total] : accountLootPouchState->items) {
-		uint32_t amount = total;
-		const ItemType &it = Item::items[itemId];
-		if (it.id == 0 || amount == 0) {
-			continue;
-		}
-		const uint32_t maxPerSlot = accountLootPouchMaxPerSlot(itemId);
-		while (amount > 0) {
-			const uint32_t chunk = std::min<uint32_t>(amount, maxPerSlot);
-			const auto &created = Item::CreateItem(itemId, it.stackable ? static_cast<uint16_t>(chunk) : 1, getInstanceId());
-			if (!created) {
-				break;
-			}
-			if (!it.stackable && chunk > 1) {
-				created->setItemCount(static_cast<uint8_t>(chunk));
-			}
-			// syncing skips absorb; silent suppresses per-item packets (open sends full container).
-			view->addThing(created);
-			amount -= chunk;
-		}
-	}
-	accountLootPouchState->silent = false;
-	accountLootPouchState->syncing = false;
-}
-
-void Player::patchAccountLootPouchViewAdd(uint16_t itemId, uint32_t amount) {
-	if (!accountLootPouchState || !accountLootPouchState->view || amount == 0) {
-		return;
-	}
-
-	accountLootPouchState->syncing = true;
-	const auto &view = accountLootPouchState->view;
-	const ItemType &it = Item::items[itemId];
-	const uint32_t maxPerSlot = accountLootPouchMaxPerSlot(itemId);
-	uint32_t remaining = amount;
-
-	for (const auto &listItem : view->getItemList()) {
-		if (!listItem || listItem->getID() != itemId) {
-			continue;
-		}
-		const uint32_t have = listItem->isStackable() ? listItem->getItemCount() : std::max<uint32_t>(1, listItem->getItemCount());
-		if (have >= maxPerSlot) {
-			continue;
-		}
-		const uint32_t room = maxPerSlot - have;
-		const uint32_t n = std::min(room, remaining);
-		// syncing=true skips map delta; uses normal updateThing → onUpdateContainerItem.
-		view->updateThing(listItem, itemId, have + n);
-		remaining -= n;
-		if (remaining == 0) {
-			break;
-		}
-	}
-
-	while (remaining > 0) {
-		const uint32_t chunk = std::min<uint32_t>(remaining, maxPerSlot);
-		const auto &created = Item::CreateItem(itemId, it.stackable ? static_cast<uint16_t>(chunk) : 1, getInstanceId());
-		if (!created) {
-			break;
-		}
-		if (!it.stackable && chunk > 1) {
-			created->setItemCount(static_cast<uint8_t>(chunk));
-		}
-		view->addThing(created);
-		remaining -= chunk;
-	}
-	accountLootPouchState->syncing = false;
-}
-
-void Player::addAccountLootPouchItem(uint16_t itemId, uint32_t amount) {
-	if (amount == 0 || Item::items[itemId].id == 0) {
-		return;
-	}
-	ensureAccountLootPouchState();
-	accountLootPouchState->items[itemId] += amount;
-	patchAccountLootPouchViewAdd(itemId, amount);
-	scheduleAccountLootPouchNotify();
-}
-
-bool Player::withdrawAccountLootPouchItem(uint16_t itemId, uint32_t amount) {
-	if (!accountLootPouchState || amount == 0) {
-		return false;
-	}
-	auto it = accountLootPouchState->items.find(itemId);
-	if (it == accountLootPouchState->items.end() || it->second < amount) {
-		return false;
-	}
-	it->second -= amount;
-	if (it->second == 0) {
-		accountLootPouchState->items.erase(it);
-	}
-	return true;
-}
-
-void Player::onAccountLootPouchViewCountDelta(uint16_t itemId, int32_t delta) {
-	if (!accountLootPouchState || accountLootPouchState->syncing || delta == 0) {
-		return;
-	}
-	if (delta > 0) {
-		accountLootPouchState->items[itemId] += static_cast<uint32_t>(delta);
-	} else {
-		const uint32_t remove = static_cast<uint32_t>(-delta);
-		auto it = accountLootPouchState->items.find(itemId);
-		if (it == accountLootPouchState->items.end()) {
+		if (other && other.get() != this && !other->isRemoved() && other->getAccountLootPouch() == accountLootPouch) {
+			accountLootPouch->setParent(other);
 			return;
 		}
-		if (it->second > remove) {
-			it->second -= remove;
-		} else {
-			accountLootPouchState->items.erase(it);
-		}
 	}
-	// Weight/stats/shop only — container already got incremental add/update/remove packets.
-	scheduleAccountLootPouchNotify();
 }
 
 std::shared_ptr<Container> Player::getStoreInbox() const {
@@ -13780,6 +13509,59 @@ bool Player::setElementalStance(Stance_t stance) {
 	sendStanceProtocol(); // resend full active set (elemental + crippling)
 	sendSkills();
 	return true;
+}
+
+void Player::beginElementCast() {
+	if (m_elementCastDepth++ == 0) {
+		m_elementCastResolved = false;
+		m_elementCastConvertTo = COMBAT_NONE;
+	}
+}
+
+void Player::endElementCast() {
+	if (m_elementCastDepth > 0) {
+		--m_elementCastDepth;
+	}
+}
+
+CombatType_t Player::resolveElementCast(CombatType_t nativeType) {
+	if (m_elementCastDepth == 0) {
+		return nativeType;
+	}
+	if (nativeType == COMBAT_NONE || nativeType == COMBAT_HEALING || nativeType == COMBAT_MANADRAIN) {
+		return nativeType;
+	}
+	if (m_elementCastResolved) {
+		return m_elementCastConvertTo != COMBAT_NONE ? m_elementCastConvertTo : nativeType;
+	}
+
+	CombatType_t stanceElement = COMBAT_NONE;
+	switch (m_stanceElemental) {
+		case STANCE_MASTER_OF_FLAMES:
+			stanceElement = COMBAT_FIREDAMAGE;
+			break;
+		case STANCE_MASTER_OF_THUNDER:
+			stanceElement = COMBAT_ENERGYDAMAGE;
+			break;
+		case STANCE_MASTER_OF_DECAY:
+			stanceElement = COMBAT_DEATHDAMAGE;
+			break;
+		default:
+			return nativeType;
+	}
+
+	m_elementCastResolved = true;
+	// A spell converted by the stance never arms the next conversion; only a native stance-element
+	// spell does.
+	if (m_pendingElementConversion != COMBAT_NONE && nativeType != m_pendingElementConversion) {
+		m_elementCastConvertTo = m_pendingElementConversion;
+		m_pendingElementConversion = COMBAT_NONE;
+		return m_elementCastConvertTo;
+	}
+	if (nativeType == stanceElement) {
+		m_pendingElementConversion = stanceElement;
+	}
+	return nativeType;
 }
 
 void Player::persistStances() {

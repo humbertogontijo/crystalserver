@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 0
-monster.maxHealth = 0
+monster.health = 15
+monster.maxHealth = 15
 monster.race = "blood"
 monster.corpse = 7338
 monster.speed = 335
@@ -68,7 +68,7 @@ monster.attacks = {}
 
 monster.defenses = {
 	defense = 7,
-	armor = 0,
+	armor = 6,
 	mitigation = 0.00,
 	{ name = "speed", interval = 2000, chance = 25, speedChange = 1200, effect = CONST_ME_MAGIC_RED, target = false, duration = 4000 },
 }

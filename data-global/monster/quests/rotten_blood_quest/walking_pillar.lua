@@ -100,7 +100,7 @@ monster.attacks = {
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -1400, maxDamage = -1650, length = 8, spread = 3, effect = CONST_ME_BLUE_ENERGY_SPARK, target = false },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_HOLYDAMAGE, minDamage = -1500, maxDamage = -1800, radius = 5, effect = CONST_ME_PURPLESMOKE, target = true },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_HOLYDAMAGE, minDamage = -1200, maxDamage = -1400, radius = 5, effect = CONST_ME_GHOSTLY_BITE, target = true },
-	{ name = "extended energy chain", interval = 2000, chance = 5, minDamage = -1100, maxDamage = 1670, range = 3 },
+	{ name = "extended energy chain", interval = 2000, chance = 5, minDamage = -1100, maxDamage = -1670, range = 3 },
 	{ name = "largepinkring", interval = 3500, chance = 10, minDamage = -1100, maxDamage = -1800, target = false },
 	{ name = "agonyfield", interval = 2000, chance = 10, range = 7, radius = 2, shootEffect = CONST_ANI_POISON, target = true },
 }

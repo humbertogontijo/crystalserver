@@ -39,10 +39,6 @@ function EM_PRIV.releaseHuntChannel(placeId, channel)
 	used[math.floor(tonumber(channel) or -1)] = nil
 end
 
-function EM_PRIV.isGodPlayer(player)
-	return PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player)
-end
-
 function EM_PRIV.playerKey(player)
 	return "p" .. player:getGuid()
 end
@@ -77,7 +73,7 @@ function EM_PRIV.beginExpeditionHunt(session, contentRole)
 	elseif contentRole == "boss" then
 		ExpeditionBoss.spawn(session)
 	else
-		ExpeditionWaves.spawn(session)
+		ExpeditionPack.spawn(session)
 	end
 	ExpeditionAI.start(session)
 	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
@@ -342,7 +338,7 @@ function EM_PRIV.expeditionTeleportCombatOk(player)
 	if not player then
 		return false, "Invalid player."
 	end
-	if PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) then
+	if PzTeleport.isGod(player) then
 		return true
 	end
 	if PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(player) then
@@ -501,7 +497,7 @@ function ExpeditionManager.setAutomation(player, loadout)
 end
 
 function EM_PRIV.meetsExpeditionLevel(player, levelMin)
-	if EM_PRIV.isGodPlayer(player) then
+	if PzTeleport.isGod(player) then
 		return true
 	end
 	return player:getLevel() >= levelMin
@@ -814,7 +810,7 @@ function EM_PRIV.armAcceptTimeout(session)
 		if not live or live.entered or live.starting then
 			return
 		end
-		if live.state ~= "waiting" then
+		if live.state ~= "pending" then
 			return
 		end
 		live.acceptTimeoutEvent = nil
@@ -945,13 +941,7 @@ function EM_PRIV.collectHuntJoinParty(player, levelMin, extraPlayers, opts)
 end
 
 function EM_PRIV.memberStanceFromConfig(member)
-	if ExpeditionConfig and ExpeditionConfig.configuredStanceForPlayer then
-		return ExpeditionConfig.configuredStanceForPlayer(member)
-	end
-	local stance = (ExpeditionConfig and ExpeditionConfig.stanceForPlayer and ExpeditionConfig.stanceForPlayer(member))
-		or "melee"
-	local rangedDist = (ExpeditionConfig and ExpeditionConfig.RANGED_DISTANCE_DEFAULT) or 3
-	return stance, rangedDist
+	return CombatAutomationConfig.configuredStanceForPlayer(member)
 end
 
 function EM_PRIV.prepareMemberAutomation(member, loadout, isHost)
