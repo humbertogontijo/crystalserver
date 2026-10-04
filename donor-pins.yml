@@ -1,0 +1,34 @@
+# Last donor commit we successfully ported from.
+# pin is empty until the first real port of a src/ or datapack hunk from that
+# donor. Do NOT set pin to tip just to "baseline" — that implies work was taken
+# when features: is still empty.
+#
+# Canary history is unrelated to zimbadev/crystalserver: port per commit
+# (git show canary/<sha> | remap paths | git apply -3), never merge.
+# Remote: scripts/submodules-config.sh (fetch-only, blobless, main only).
+# Playbook: docs/engine-forks.md "Crystal donor: Canary".
+#
+# Path map (canary -> crystal):
+#   data-otservbr-global/  -> data-global/
+#   data-canary/           -> (no equivalent; skip)
+#   data/, src/, schema.sql, config.lua.dist -> same path
+# Canary numbered data/migrations never port 1:1 (numbering diverges); write
+# an equivalent in data/migrations or data-global/scripts/custom_migrations.
+
+donors:
+  canary:
+    url: https://github.com/opentibiabr/canary.git
+    remote: canary
+    pin: ""
+    updated: ""
+
+# Per-commit memory. Append one row per ported Canary commit.
+#   - donor: canary
+#     from: "<canary sha>"
+#     pr: <canary PR number>
+#     src: <canary paths>
+#     dest: <crystal paths>
+#     at: "YYYY-MM-DD"
+#     note: "<adaptations>"
+# Optional skipped: rows record triaged commits we intentionally did not take.
+features: []
