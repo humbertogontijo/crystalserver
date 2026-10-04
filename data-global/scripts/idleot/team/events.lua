@@ -5,12 +5,8 @@ local loginEvent = CreatureEvent("TeamLogin")
 function loginEvent.onLogin(player)
 	player:registerEvent("TeamOpcode")
 	player:registerEvent("TeamLogout")
-	if TeamStore and TeamStore.reconcileControllerPointer then
-		pcall(TeamStore.reconcileControllerPointer, player)
-	end
-	if TeamBonus and TeamBonus.onMemberLogin then
-		pcall(TeamBonus.onMemberLogin, player)
-	end
+	pcall(TeamStore.reconcileControllerPointer, player)
+	pcall(TeamBonus.onMemberLogin, player)
 	addEvent(function(pid)
 		local p = Player(pid)
 		if p and TeamProtocol and TeamProtocol.sendTeam then

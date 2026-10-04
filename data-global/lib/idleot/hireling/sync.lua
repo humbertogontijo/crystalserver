@@ -1,6 +1,5 @@
 -- Hireling runtime sync: load DB rows into PLAYER_HIRELINGS and recover lamps.
--- Stock HirelingsInit missing db.storeQuery is fixed in lamp_overlay.lua;
--- this overlay still repairs per-player state when login grant fails.
+-- Repairs per-player state when login grant fails.
 
 ProductHirelingSync = ProductHirelingSync or {}
 
@@ -60,7 +59,7 @@ function ProductHirelingSync.loadAllFromDatabase()
 		return
 	end
 
-	-- Another loader (fixed HirelingsInit) may have populated memory already.
+	-- Stock HirelingsInit may have populated memory already.
 	if HIRELINGS and #HIRELINGS > 0 then
 		ProductHirelingSync._loadedAll = true
 		return
@@ -170,14 +169,4 @@ function ProductHirelingSync.tryGrantHirelingLamp(player, hireling)
 	)
 	lamp:setCustomAttribute("Hireling", hireling.id)
 	return true
-end
-
-function ProductHirelingSync.ensureHirelingLamps(player)
-	if not player or not player.getHirelings then
-		return
-	end
-	local hirelings = player:getHirelings()
-	for i = 1, #hirelings do
-		ProductHirelingSync.tryGrantHirelingLamp(player, hirelings[i])
-	end
 end

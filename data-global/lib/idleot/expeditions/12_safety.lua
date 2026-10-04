@@ -79,9 +79,7 @@ function ExpeditionSafety.handleShortage(player, kind, retryFn, abortReason)
 		return false
 	end
 
-	if RemoteHirelingEconomy and RemoteHirelingEconomy.maybeSellForShortage then
-		RemoteHirelingEconomy.maybeSellForShortage(player, kind)
-	end
+	RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 
 	if retryFn() then
 		return true

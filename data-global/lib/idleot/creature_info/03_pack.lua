@@ -54,11 +54,6 @@ function CreatureInfo.compositionCombatPower(creatures)
 	return weighted / weightSum
 end
 
---- Density-free composition of generated creature combatPower.
-function CreatureInfo.packCombatPower(creatures)
-	return CreatureInfo.compositionCombatPower(creatures)
-end
-
 --- (Σ share_i × creatureCP_i) × max(1, density)^densityExp.
 --- creatureDensity is the engaged pack (largest hold), not the tour; counts only
 --- weight the mix (percent otherwise). Must match Python hunt_combat_power_from_shares.

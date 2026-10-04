@@ -12,7 +12,6 @@
 --   onClose  function(player)?
 --
 -- NPC replies use engine TALKTYPE_PRIVATE_NP (cross-instance; see Game::internalCreatureSay).
--- sayToPlayer remains for scripted dialogs that are not backed by a real NPC.
 
 RemoteDialog = RemoteDialog or {}
 
@@ -236,10 +235,6 @@ function RemoteDialog.close(player, silent)
 	if not silent then
 		reply(player, { type = "closed" })
 	end
-end
-
-function RemoteDialog.sayToPlayer(player, message)
-	reply(player, { type = "say", message = message })
 end
 
 function RemoteDialog.handleSay(player, text)

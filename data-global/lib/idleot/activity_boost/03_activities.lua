@@ -46,12 +46,8 @@ local function ensureBoostDay(player)
 		store:remove("completed")
 		store:remove("worldBossFragged")
 		ActivityBoostLedger.resetDailyEarned(player)
-		if ActivityBoostSoloBoss and ActivityBoostSoloBoss.resetForNewDay then
-			ActivityBoostSoloBoss.resetForNewDay(player)
-		end
-		if ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.resetForNewDay then
-			ActivityBoostFiendishHunt.resetForNewDay(player)
-		end
+		ActivityBoostSoloBoss.resetForNewDay(player)
+		ActivityBoostFiendishHunt.resetForNewDay(player)
 	end
 	return store
 end
@@ -188,9 +184,7 @@ function ActivityBoostActivities.addProgress(player, activityId, delta)
 	ensureBoostDay(player)
 	local current = player:addDailyActivityStat(tostring(activityId), delta)
 	ActivityBoostActivities.evaluateCredit(player, activityId)
-	if ActivityBoostProtocol and ActivityBoostProtocol.sendState then
-		ActivityBoostProtocol.sendState(player)
-	end
+	ActivityBoostProtocol.sendState(player)
 	return current
 end
 
@@ -201,9 +195,7 @@ function ActivityBoostActivities.onStatChanged(player, activityId)
 	end
 	ensureBoostDay(player)
 	ActivityBoostActivities.evaluateCredit(player, activityId)
-	if ActivityBoostProtocol and ActivityBoostProtocol.sendProgress then
-		ActivityBoostProtocol.sendProgress(player)
-	end
+	ActivityBoostProtocol.sendProgress(player)
 end
 
 function ActivityBoostActivities.onServerSave()
@@ -211,9 +203,7 @@ function ActivityBoostActivities.onServerSave()
 	for _, player in ipairs(Game.getPlayers()) do
 		ensureBoostDay(player)
 		ActivityBoostLedger.clear(player)
-		if ActivityBoostProtocol and ActivityBoostProtocol.sendState then
-			pcall(ActivityBoostProtocol.sendState, player)
-		end
+		pcall(ActivityBoostProtocol.sendState, player)
 	end
 end
 

@@ -28,18 +28,10 @@ opcodeEvent:register()
 local startup = GlobalEvent("QuestsStartup")
 
 function startup.onStartup()
-	if QuestsCatalog and QuestsCatalog.rebuild then
-		QuestsCatalog.rebuild()
-	end
-	if QuestsKitnoBoss and QuestsKitnoBoss.registerExpeditions then
-		QuestsKitnoBoss.registerExpeditions()
-	end
-	if QuestArena and QuestArena.patchStockHelpers then
-		QuestArena.patchStockHelpers()
-	end
-	if QuestArena and QuestArena.registerExpeditions then
-		QuestArena.registerExpeditions()
-	end
+	QuestsCatalog.rebuild()
+	QuestsKitnoBoss.registerExpeditions()
+	QuestArena.patchStockHelpers()
+	QuestArena.registerExpeditions()
 	logger.info("[Quests] idle Quests & Tasks ready (opcode {})", QuestsConfig and QuestsConfig.OPCODE or 118)
 	return true
 end

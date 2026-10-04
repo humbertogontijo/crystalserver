@@ -3,9 +3,7 @@
 local startup = GlobalEvent("ProductHirelingSyncStartup")
 
 function startup.onStartup()
-	if ProductHirelingSync and ProductHirelingSync.loadAllFromDatabase then
-		ProductHirelingSync.loadAllFromDatabase()
-	end
+	ProductHirelingSync.loadAllFromDatabase()
 	return true
 end
 

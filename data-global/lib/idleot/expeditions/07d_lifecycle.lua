@@ -10,9 +10,7 @@ function ExpeditionManager.onDeath(player)
 	end
 	-- World boss uses arena knockout; never tear down the band fight on death.
 	if session and session.kind == "worldboss" then
-		if ActivityBoostWorldBoss and ActivityBoostWorldBoss.onPlayerDeath then
-			ActivityBoostWorldBoss.onPlayerDeath(player)
-		end
+		ActivityBoostWorldBoss.onPlayerDeath(player)
 		return
 	end
 	ExpeditionManager.notifyHuntMemberDeath(player, nil)
@@ -212,9 +210,7 @@ function ExpeditionManager.onLogin(player)
 			end
 		end)
 	end
-	if SampleSpells and SampleSpells.ensure then
-		SampleSpells.ensure(player)
-	end
+	SampleSpells.ensure(player)
 
 	ExpeditionConfig.refundBossAttemptIfMarked(player)
 	if ExpeditionManager.attachPlayerToRunningHunt(player) then
@@ -278,9 +274,7 @@ function ExpeditionManager.onLogin(player)
 			session.entered = true
 		elseif session.entered and not ExpeditionManager.reconcilePresence(player) then
 			ExpeditionProtocol.sendCatalog(player)
-			if RaidInstance and RaidInstance.sendActiveRaids then
-				RaidInstance.sendActiveRaids(player)
-			end
+			RaidInstance.sendActiveRaids(player)
 			return
 		end
 		local pid = player:getId()
@@ -304,9 +298,7 @@ function ExpeditionManager.onLogin(player)
 			ExpeditionAI.start(session)
 		end
 		ExpeditionProtocol.sendCatalog(player)
-		if RaidInstance and RaidInstance.sendActiveRaids then
-			RaidInstance.sendActiveRaids(player)
-		end
+		RaidInstance.sendActiveRaids(player)
 		ExpeditionProtocol.sendStatus(player, session)
 		local playerId = player:getId()
 		local sessionKey = session.key
@@ -340,9 +332,7 @@ function ExpeditionManager.onLogin(player)
 	end
 
 	ExpeditionProtocol.sendCatalog(player)
-	if RaidInstance and RaidInstance.sendActiveRaids then
-		RaidInstance.sendActiveRaids(player)
-	end
+	RaidInstance.sendActiveRaids(player)
 	-- Sticky Rotten Blood / hazard icons can survive instance teleports; clear when
 	-- there is no live hunt to re-apply them.
 	ExpeditionManager.clearAreaEffects(player)
@@ -356,20 +346,12 @@ function ExpeditionManager.onStartup()
 	EM_PRIV.sessionsByPlayerId = {}
 	EM_PRIV.leavePendingByPlayerId = {}
 	EM_PRIV.huntChannelsByPlace = {}
-	if ExpeditionInstance and ExpeditionInstance.resetSlots then
-		ExpeditionInstance.resetSlots()
-	end
-	if ExpeditionPersist and ExpeditionPersist.loadAll then
-		pcall(ExpeditionPersist.loadAll)
-	end
-	if ExpeditionPersist and ExpeditionPersist.restoreAllOnStartup then
-		pcall(ExpeditionPersist.restoreAllOnStartup)
-	end
+	ExpeditionInstance.resetSlots()
+	pcall(ExpeditionPersist.loadAll)
+	pcall(ExpeditionPersist.restoreAllOnStartup)
 	logger.info("[Expedition] manager ready ({} catalog entries)", #ExpeditionConfig.Catalog)
 end
 
 function ExpeditionManager.onServerSave()
-	if ExpeditionPersist and ExpeditionPersist.saveAllLive then
-		pcall(ExpeditionPersist.saveAllLive, EM_PRIV.sessionsByKey)
-	end
+	pcall(ExpeditionPersist.saveAllLive, EM_PRIV.sessionsByKey)
 end

@@ -778,9 +778,7 @@ local function tryCastSpellWords(player, words, param)
 		end
 	end
 
-	if SampleSpells and SampleSpells.ensureWords then
-		SampleSpells.ensureWords(player, words)
-	end
+	SampleSpells.ensureWords(player, words)
 
 	local castParam = (type(param) == "string" and param ~= "") and param or nil
 	if player.canCastSpell then
@@ -2241,9 +2239,7 @@ local function syncAutoAttackTarget(player, state, target, force)
 		return
 	end
 	state.lastSyncedAttackCreatureId = creatureId
-	if CombatAutomationProtocol and CombatAutomationProtocol.sendAttackTarget then
-		CombatAutomationProtocol.sendAttackTarget(player, creatureId)
-	end
+	CombatAutomationProtocol.sendAttackTarget(player, creatureId)
 end
 
 --- Re-send the current attack target to the client (login / getAutomation).
@@ -2506,9 +2502,7 @@ function CombatAutomation.tick(player)
 	end
 
 	-- Positioning after target pick (hold / follow / stance).
-	if CombatAutomationMovement and CombatAutomationMovement.tick then
-		CombatAutomationMovement.tick(player, config)
-	end
+	CombatAutomationMovement.tick(player, config)
 
 	-- Paladin distance ammo: equip preferred type; charge gold when inventory is empty.
 	ensureAmmo(player, config)

@@ -96,17 +96,6 @@ function CombatAutomationCatalog.isPaladin(player)
 	return isPaladinVocation(CombatAutomationCatalog.playerVocationName(player))
 end
 
---- Map AllowedAmmo.kind → engine Ammo_t (AMMO_ARROW / AMMO_BOLT).
-function CombatAutomationCatalog.ammoKindToType(kind)
-	if kind == "arrow" then
-		return AMMO_ARROW
-	end
-	if kind == "bolt" then
-		return AMMO_BOLT
-	end
-	return AMMO_NONE
-end
-
 function CombatAutomationCatalog.ammoKindFromType(ammoType)
 	if ammoType == AMMO_ARROW then
 		return "arrow"

@@ -12,8 +12,6 @@ LootSplitConfig.ENABLED = true
 LootSplitConfig.RANGE_XY = 30
 LootSplitConfig.RANGE_Z = 1
 
-LootSplitConfig.WEIGHT_BY_SEATS = true
-
 LootSplitConfig.GOLD_COIN_ID = ITEM_GOLD_COIN or 3031
 LootSplitConfig.PLATINUM_COIN_ID = ITEM_PLATINUM_COIN or 3035
 LootSplitConfig.CRYSTAL_COIN_ID = ITEM_CRYSTAL_COIN or 3043

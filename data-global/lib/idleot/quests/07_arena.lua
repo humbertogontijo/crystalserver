@@ -168,9 +168,7 @@ local function scheduleKick(session)
 			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Your time ran out!")
 		end
 		QuestArena.abandon(s, "timeout")
-		if ExpeditionManager and ExpeditionManager.leaveAll then
-			ExpeditionManager.leaveAll(s, { silent = true })
-		end
+		ExpeditionManager.leaveAll(s, { silent = true })
 	end, kickSec * 1000)
 end
 
@@ -252,9 +250,7 @@ local function spawnPitMonster(session)
 	session.reconciling = nil
 	session.arenaSpawnEvent = nil
 	scheduleKick(session)
-	if ExpeditionManager and ExpeditionManager.broadcastStatus then
-		ExpeditionManager.broadcastStatus(session)
-	end
+	ExpeditionManager.broadcastStatus(session)
 	local player = session.playerId and Player(session.playerId) or nil
 	if player then
 		player:say("Fight!", TALKTYPE_MONSTER_SAY)
@@ -316,9 +312,7 @@ local function prepareAndSpawn(session, pitIndex)
 	session.arenaFlashEvent = addEvent(function()
 		flash(flashes)
 	end, 400)
-	if ExpeditionManager and ExpeditionManager.broadcastStatus then
-		ExpeditionManager.broadcastStatus(session)
-	end
+	ExpeditionManager.broadcastStatus(session)
 end
 
 --- Mark challenge complete (same storages as stock pit>10 reward-room teleport).
@@ -393,9 +387,7 @@ function QuestArena.begin(session)
 		stopEvent(session.waitingEvent)
 		session.waitingEvent = nil
 	end
-	if ExpeditionPack and ExpeditionPack.clear then
-		pcall(ExpeditionPack.clear, session)
-	end
+	pcall(ExpeditionPack.clear, session)
 	prepareAndSpawn(session, 1)
 end
 
@@ -460,9 +452,7 @@ function QuestArena.onMonsterDeath(session, creature)
 		if player then
 			QuestArena.markComplete(player, spec)
 		end
-		if ExpeditionManager and ExpeditionManager.broadcastStatus then
-			ExpeditionManager.broadcastStatus(session)
-		end
+		ExpeditionManager.broadcastStatus(session)
 		local key = session.key
 		addEvent(function()
 			local s = ExpeditionManager.getSessionByKey(key)
@@ -476,9 +466,7 @@ function QuestArena.onMonsterDeath(session, creature)
 	local key = session.key
 	local nextPit = pitIndex + 1
 	session.state = "relocating"
-	if ExpeditionManager and ExpeditionManager.broadcastStatus then
-		ExpeditionManager.broadcastStatus(session)
-	end
+	ExpeditionManager.broadcastStatus(session)
 	logger.info("[QuestArena] pit {} cleared, advancing to pit {}/{}", pitIndex, nextPit, total)
 	session.arenaSpawnEvent = addEvent(function()
 		local s = ExpeditionManager.getSessionByKey(key)

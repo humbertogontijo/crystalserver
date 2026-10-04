@@ -248,15 +248,3 @@ function SampleSpells.ensureWords(player, words)
 		player:learnSpell(name)
 	end
 end
-
---- Potion/rune/ammo uses charge gold at NPC buy price (see CombatAutomation runtime).
---- Sample characters and headless companions each pay from their own purse.
---- Inventory refill stubs kept for callers; they no longer add items.
-function SampleSpells.ensureSupplies(_player, _automation)
-	return 0
-end
-
-function SampleSpells.ensureItem(_player, _typeId)
-	return false
-end
-

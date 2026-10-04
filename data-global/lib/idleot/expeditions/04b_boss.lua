@@ -230,9 +230,7 @@ local function finishBoss(session, opts)
 			member:setFollowCreature(nil)
 			member:setTarget(nil)
 			member:sendTextMessage(MESSAGE_EVENT_ADVANCE, midMsg)
-			if ExpeditionConfig and ExpeditionConfig.clearBossAttempt then
-				ExpeditionConfig.clearBossAttempt(member)
-			end
+			ExpeditionConfig.clearBossAttempt(member)
 			if victory and ExpeditionDifficulty and ExpeditionDifficulty.unlockBossDifficulty then
 				ExpeditionDifficulty.unlockBossDifficulty(member, session.catalog, session.bossDifficulty or 0)
 			end
@@ -311,9 +309,7 @@ local function materialize(session, planned)
 		if monster then
 			monster:runHealth(0)
 			ExpeditionBoss.bindBoss(session, monster)
-			if ExpeditionDifficulty and ExpeditionDifficulty.applyBossScale then
-				ExpeditionDifficulty.applyBossScale(monster, session)
-			end
+			ExpeditionDifficulty.applyBossScale(monster, session)
 		else
 			logger.warn("[Expedition] failed to create boss '{}' at {}", entry.name, entry.pos)
 		end

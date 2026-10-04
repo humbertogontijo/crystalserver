@@ -304,9 +304,7 @@ function ActivityBoostFiendishHunt.onClear(player, session)
 		-- Not this member's offer (e.g. a teammate on another daily roll).
 		return
 	end
-	if ActivityBoostActivities and ActivityBoostActivities.addProgress then
-		ActivityBoostActivities.addProgress(player, "fiendish_hunt", 1)
-	end
+	ActivityBoostActivities.addProgress(player, "fiendish_hunt", 1)
 	if ActivityBoostActivities and ActivityBoostActivities.isComplete
 		and ActivityBoostActivities.isComplete(player, "fiendish_hunt") then
 		save(player, nil)
@@ -328,7 +326,5 @@ function ActivityBoostFiendishHunt.onClear(player, session)
 		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Fiendish Hunt cleared!")
 	end
 	-- addProgress already sendState; reroll needs a fresh push of the next offer.
-	if ActivityBoostProtocol and ActivityBoostProtocol.sendState then
-		ActivityBoostProtocol.sendState(player)
-	end
+	ActivityBoostProtocol.sendState(player)
 end

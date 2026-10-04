@@ -538,12 +538,8 @@ local function normalizeRewards(entry)
 end
 
 function QuestsManager.listForPlayer(player, filterKind)
-	if QuestsKitnoBoss and QuestsKitnoBoss.registerExpeditions then
-		QuestsKitnoBoss.registerExpeditions()
-	end
-	if QuestArena and QuestArena.registerExpeditions then
-		QuestArena.registerExpeditions()
-	end
+	QuestsKitnoBoss.registerExpeditions()
+	QuestArena.registerExpeditions()
 	local out = {}
 	for _, entry in ipairs(QuestsCatalog.all()) do
 		if not filterKind or entry.kind == filterKind then
@@ -712,9 +708,7 @@ function QuestsManager.accept(player, entryId)
 			player:setStorageValue(stor.questLog, 1)
 		end
 		-- Unlock exclusive expedition row for Hunt.
-		if ExpeditionProtocol and ExpeditionProtocol.sendCatalog then
-			ExpeditionProtocol.sendCatalog(player)
-		end
+		ExpeditionProtocol.sendCatalog(player)
 		return true, string.format("Fee paid. Use Hunt to start the %s arena.", spec.name or "arena")
 	end
 

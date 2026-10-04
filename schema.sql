@@ -352,7 +352,7 @@ CREATE TABLE IF NOT EXISTS `daily_reward_history` (
     `daystreak` smallint(2) NOT NULL DEFAULT 0,
     `player_id` int(11) NOT NULL,
     `timestamp` int(11) NOT NULL,
-    `description` text DEFAULT NULL,
+    `description` varchar(255) DEFAULT NULL,
     INDEX `player_id` (`player_id`),
     CONSTRAINT `daily_reward_history_pk` PRIMARY KEY (`id`),
     CONSTRAINT `daily_reward_history_player_fk`
@@ -845,20 +845,6 @@ CREATE TABLE IF NOT EXISTS `player_bounty_tasks` (
     `current_creatures_list` BLOB NULL,
     CONSTRAINT `player_bounty_tasks_pk` PRIMARY KEY (`player_id`),
     CONSTRAINT `player_bounty_tasks_players_fk`
-        FOREIGN KEY (`player_id`) REFERENCES `players` (`id`)
-        ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Table structure `player_daily_activities` (IdleOT product daily activities)
-CREATE TABLE IF NOT EXISTS `player_daily_activities` (
-    `player_id` int NOT NULL,
-    `activity_day` varchar(10) NOT NULL DEFAULT '',
-    `daily_hunt` int UNSIGNED NOT NULL DEFAULT 0,
-    `solo_boss` int UNSIGNED NOT NULL DEFAULT 0,
-    `world_boss` int UNSIGNED NOT NULL DEFAULT 0,
-    `bounty_hunter` int UNSIGNED NOT NULL DEFAULT 0,
-    CONSTRAINT `player_daily_activities_pk` PRIMARY KEY (`player_id`),
-    CONSTRAINT `player_daily_activities_players_fk`
         FOREIGN KEY (`player_id`) REFERENCES `players` (`id`)
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

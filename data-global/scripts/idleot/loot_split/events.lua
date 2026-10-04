@@ -4,9 +4,7 @@
 local callback = EventCallback("LootSplitPostDropLoot")
 
 function callback.monsterPostDropLoot(monster, corpse)
-	if LootSplit and LootSplit.onDropLoot then
-		LootSplit.onDropLoot(monster, corpse)
-	end
+	LootSplit.onDropLoot(monster, corpse)
 end
 
 callback:register()

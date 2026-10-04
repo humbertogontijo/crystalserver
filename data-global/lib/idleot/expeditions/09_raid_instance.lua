@@ -47,10 +47,6 @@ local function isRaidEncounter(encounter)
 	return encounter and Raid and Raid.registry and Raid.registry[encounter.name] == encounter
 end
 
-function RaidInstance.isRaid(encounter)
-	return isRaidEncounter(encounter)
-end
-
 function RaidInstance.hasInstance(encounter)
 	return encounter and encounter._raidInstance ~= nil
 end
@@ -685,9 +681,7 @@ function RaidInstance.join(player, raidName, loadout, options)
 
 	saveReturn(player)
 	ExpeditionManager.markActiveFlag(player, raidName, session.instance.slot)
-	if SampleSpells and SampleSpells.ensure then
-		SampleSpells.ensure(player)
-	end
+	SampleSpells.ensure(player)
 
 	local automation = ExpeditionManager.sanitizeAutomation(loadout, player)
 	if #(automation.slots or {}) == 0 then
@@ -739,9 +733,7 @@ function RaidInstance.join(player, raidName, loadout, options)
 	session.playerIds[#session.playerIds + 1] = player:getId()
 	session.memberKeys[player:getId()] = key
 	ExpeditionManager.bindSession(member)
-	if ExpeditionConfig and ExpeditionConfig.pickAnchor then
-		ExpeditionConfig.pickAnchor(member)
-	end
+	ExpeditionConfig.pickAnchor(member)
 
 	player:registerEvent("ExpeditionPlayerDeath")
 	ExpeditionAI.enablePersistence(player)
@@ -1185,9 +1177,7 @@ end
 function RaidInstance.onStartup()
 	RaidInstance.active = {}
 	RaidInstance.installHooks()
-	if XmlRaids and XmlRaids.register then
-		XmlRaids.register()
-	end
+	XmlRaids.register()
 	logger.info("[RaidInstance] ready (Lua + XML raids → shared expedition instances)")
 end
 

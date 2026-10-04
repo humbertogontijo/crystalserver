@@ -52,60 +52,6 @@ local function loadReturnPos(player)
 	return Position(x, y, z)
 end
 
---- Grant a free hireling + trader/banker skills (first login via SendFirstItems).
---- Home trader NPC is the play path; lamps are not required.
-function PlayerHomeManager.ensureStarterHireling(player)
-	if not player or not player:isPlayer() then
-		return
-	end
-
-	if ProductHirelingSync then
-		ProductHirelingSync.ensurePlayerHirelingsLoaded(player)
-	end
-
-	local okHas, hasHirelings = pcall(function()
-		return player:hasHirelings()
-	end)
-	if not okHas then
-		logger.warn("[PlayerHome] hasHirelings failed for {}: {}", player:getName(), hasHirelings)
-		return
-	end
-
-	local granted = false
-	if not hasHirelings then
-		local hirelingName = string.format("%s's Hireling", player:getName())
-		local okAdd, hireling = pcall(function()
-			return player:addNewHireling(hirelingName, HIRELING_SEX and HIRELING_SEX.MALE or 1)
-		end)
-		if okAdd and hireling then
-			granted = true
-		else
-			-- DB row may exist without runtime registration from a prior login.
-			if not (ProductHirelingSync and ProductHirelingSync.ensurePlayerHirelingsLoaded(player)) then
-				logger.warn(
-					"[PlayerHome] failed to grant starter hireling to {} ({})",
-					player:getName(),
-					okAdd and "nil" or tostring(hireling)
-				)
-			end
-		end
-	end
-
-	pcall(function()
-		if player.enableHirelingSkill then
-			player:enableHirelingSkill("trader")
-			player:enableHirelingSkill("banker")
-		end
-	end)
-
-	if granted then
-		player:sendTextMessage(
-			MESSAGE_EVENT_ADVANCE,
-			"A hireling waits at your home to trade and bank."
-		)
-	end
-end
-
 function PlayerHomeManager.getSession(player)
 	if not player then
 		return nil

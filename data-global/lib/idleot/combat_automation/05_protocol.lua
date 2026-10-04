@@ -125,18 +125,14 @@ function CombatAutomationProtocol.handleAction(player, msg)
 		local config = CombatAutomationStore.getConfig(player)
 		CombatAutomationProtocol.sendConfig(player, config, { includePresets = true })
 		-- Client is ready (map/self loaded); force-paint the current server target.
-		if CombatAutomation and CombatAutomation.resyncAttackTarget then
-			CombatAutomation.resyncAttackTarget(player)
-		end
+		CombatAutomation.resyncAttackTarget(player)
 		return true
 	end
 	if action == "setAutomation" or action == "setBotConfig" then
 		local config = CombatAutomationStore.setConfig(player, wireLoadoutFromMsg(msg))
 		-- Do not echo attackPresets; client already has the bank it just pushed.
 		CombatAutomationProtocol.sendConfig(player, config, { includePresets = false })
-		if CombatAutomation and CombatAutomation.resyncAttackTarget then
-			CombatAutomation.resyncAttackTarget(player)
-		end
+		CombatAutomation.resyncAttackTarget(player)
 		return true
 	end
 	if action == "setAttackPresets" then
