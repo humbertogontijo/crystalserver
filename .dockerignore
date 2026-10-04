@@ -6,13 +6,10 @@ crystalserver
 crystalserver-debug
 **/*.md
 docs
-src/tests
+tests
 **/__pycache__
 *.log
 
 # Alternate datapack tree (not used by IdleOT runtime image).
 data-crystal
 data-crystal/**
-
-# Keep full data/ + data-global/ in the image (world.otbm, monsters, stock scripts).
-# Product islands (lib/idleot, scripts/idleot, …) are part of that tree.
