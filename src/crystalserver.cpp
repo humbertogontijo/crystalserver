@@ -40,6 +40,7 @@
 #include "lua/modules/modules.hpp"
 #include "lua/scripts/lua_environment.hpp"
 #include "lua/scripts/scripts.hpp"
+#include "map/spectators.hpp"
 #include "server/network/protocol/protocollogin.hpp"
 #include "server/network/protocol/protocolstatus.hpp"
 #include "server/network/webhook/webhook.hpp"
@@ -408,5 +409,8 @@ void CrystalServer::shutdown() {
 	g_dispatcher().shutdown();
 	g_metrics().shutdown();
 	inject<ThreadPool>().shutdown();
+
+	// Cached snapshots own creatures and must release them while gameplay services are still alive.
+	Spectators::clearCache();
 	std::exit(0);
 }
