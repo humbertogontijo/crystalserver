@@ -204,6 +204,10 @@ public:
 
 	/// Self combat power from type traits only (no summons, no multi-form max).
 	double getCombatPowerSelf() const;
+	/// Same trait product with a live monster's max health and attack-multiplier DPS scale.
+	double getCombatPowerSelf(double health, double dpsScale) const;
+	/// Expected combat power contributed by this type's summons (chance × count).
+	double getSummonCombatPower() const;
 
 	/// Self CP + expected summon CP; bosses take max across raceid sibling forms.
 	double getCombatPower() const;

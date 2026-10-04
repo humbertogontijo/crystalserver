@@ -1497,7 +1497,7 @@ bool Player::canWalkthrough(const std::shared_ptr<Creature> &creature) {
 
 	const auto &player = creature->getPlayer();
 	// Soft-death bodies / soft-despawned fighters are props for pathing — walk through them.
-	if (player && (player->isCombatUnattackable() || player->isSoftDespawned())) {
+	if (player && player->isSoftDespawned()) {
 		return true;
 	}
 
@@ -1559,7 +1559,7 @@ bool Player::canWalkthroughEx(const std::shared_ptr<Creature> &creature) const {
 	const auto &player = creature->getPlayer();
 	const auto &npc = creature->getNpc();
 	if (player) {
-		if (player->isCombatUnattackable() || player->isSoftDespawned()) {
+		if (player->isSoftDespawned()) {
 			return true;
 		}
 		const auto &playerTile = player->getTile();
@@ -7085,14 +7085,14 @@ void Player::onGainSharedExperience(uint64_t gainExp, const std::shared_ptr<Crea
 }
 
 bool Player::isImmune(CombatType_t type) const {
-	if (hasFlag(PlayerFlags_t::CannotBeAttacked) || combatUnattackable || softDespawned) {
+	if (hasFlag(PlayerFlags_t::CannotBeAttacked) || softDespawned) {
 		return true;
 	}
 	return Creature::isImmune(type);
 }
 
 bool Player::isImmune(ConditionType_t type) const {
-	if (hasFlag(PlayerFlags_t::CannotBeAttacked) || combatUnattackable || softDespawned) {
+	if (hasFlag(PlayerFlags_t::CannotBeAttacked) || softDespawned) {
 		return true;
 	}
 
@@ -7100,38 +7100,7 @@ bool Player::isImmune(ConditionType_t type) const {
 }
 
 bool Player::isAttackable() const {
-	return !hasFlag(PlayerFlags_t::CannotBeAttacked) && !combatUnattackable && !softDespawned;
-}
-
-bool Player::isCombatUnattackable() const {
-	return combatUnattackable;
-}
-
-void Player::setCombatUnattackable(bool enabled) {
-	if (combatUnattackable == enabled) {
-		return;
-	}
-	combatUnattackable = enabled;
-	if (!enabled) {
-		return;
-	}
-
-	// Drop aggro immediately — same path as walking out of sight / logout.
-	const auto &self = static_self_cast<Player>();
-	for (const auto &spectator : Spectators().find<Creature>(getPosition(), true).matchingInstance(getInstanceId())) {
-		if (!spectator || spectator.get() == this) {
-			continue;
-		}
-		if (spectator->getAttackedCreature() == self || spectator->getFollowCreature() == self) {
-			// onCreatureDisappear is protected; onRemoveCreature is the public entry that clears targets.
-			spectator->onRemoveCreature(self, false);
-		}
-		if (const auto &monster = spectator->getMonster()) {
-			if (!monster->getAttackedCreature()) {
-				monster->searchTarget(TARGETSEARCH_NEAREST);
-			}
-		}
-	}
+	return !hasFlag(PlayerFlags_t::CannotBeAttacked) && !softDespawned;
 }
 
 bool Player::lastHitIsPlayer(const std::shared_ptr<Creature> &lastHitCreature) {
@@ -10406,10 +10375,6 @@ void Player::setTeamPreyBonus(uint16_t raceId, uint8_t bonusType, uint16_t perce
 		return;
 	}
 	teamPreyBonuses[raceId] = TeamPreyBonusEntry { bonusType, percentage };
-}
-
-bool Player::hasTeamPreyBonus(uint16_t raceId) const {
-	return teamPreyBonuses.contains(raceId);
 }
 
 bool Player::getTeamPreyBonus(uint16_t raceId, uint8_t &bonusType, uint16_t &percentage) const {

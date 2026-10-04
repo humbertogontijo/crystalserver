@@ -63,7 +63,6 @@ private:
 	static int luaHouseIsInvited(lua_State* L);
 
 	static int luaHouseSetEphemeral(lua_State* L);
-	static int luaHouseIsEphemeral(lua_State* L);
 	static int luaHouseSetName(lua_State* L);
 	static int luaHouseSetSize(lua_State* L);
 	static int luaHouseSetEntryPosition(lua_State* L);

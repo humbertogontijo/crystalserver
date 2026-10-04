@@ -240,15 +240,6 @@ public:
 
 	void setOrigin(CombatOrigin origin);
 
-	formulaType_t getFormulaType() const {
-		return formulaType;
-	}
-	void getFormulaValues(double &outMina, double &outMinb, double &outMaxa, double &outMaxb) const {
-		outMina = mina;
-		outMinb = minb;
-		outMaxa = maxa;
-		outMaxb = maxb;
-	}
 	CombatType_t getCombatType() const {
 		return params.combatType;
 	}

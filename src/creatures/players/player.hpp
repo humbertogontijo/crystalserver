@@ -904,9 +904,6 @@ public:
 	bool isAttackable() const override;
 	static bool lastHitIsPlayer(const std::shared_ptr<Creature> &lastHitCreature);
 
-	// Soft-death / arena knockout: per-player, not shared group flags.
-	bool isCombatUnattackable() const;
-	void setCombatUnattackable(bool enabled);
 	/// Soft-death: hide from combat (stay on tile as spectator); restore with softSpawn.
 	bool softDespawn();
 	bool softSpawn(const Position &pos);
@@ -1517,7 +1514,6 @@ public:
 
 	void clearTeamPreyBonuses();
 	void setTeamPreyBonus(uint16_t raceId, uint8_t bonusType, uint16_t percentage);
-	bool hasTeamPreyBonus(uint16_t raceId) const;
 	bool getTeamPreyBonus(uint16_t raceId, uint8_t &bonusType, uint16_t &percentage) const;
 
 	// Task hunting system
@@ -2180,7 +2176,6 @@ private:
 	bool chaseMode = false;
 	bool secureMode = true;
 	bool openPvp = false;
-	bool combatUnattackable = false;
 	bool softDespawned = false;
 	bool inMarket = false;
 	bool wasMounted = false;

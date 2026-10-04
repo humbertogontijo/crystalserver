@@ -175,9 +175,6 @@ bool Creature::canSeeCreature(const std::shared_ptr<Creature> &creature) const {
 		if (targetPlayer->isSoftDespawned()) {
 			return false;
 		}
-		if (!getPlayer() && targetPlayer->isCombatUnattackable()) {
-			return false;
-		}
 	}
 	if (!canSeeInvisibility() && creature->isInvisible()) {
 		return false;

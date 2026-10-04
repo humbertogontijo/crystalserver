@@ -362,6 +362,7 @@ std::shared_ptr<Item> Item::clone(uint32_t targetInstanceId) const {
 	if (attributePtr) {
 		item->attributePtr = std::make_unique<ItemAttribute>(*attributePtr);
 	}
+
 	return item;
 }
 
@@ -1235,7 +1236,7 @@ bool Item::isMapTemplateItem() const {
 	}
 
 	// Echo Raid portals: dynamically placed on instance 0, forked per private shard like doors.
-	if (id == 54133 || id == 54134) {
+	if (id == ITEM_ECHO_WARDEN_PORTAL || id == ITEM_ECHO_WARDEN_PORTAL_SPENT) {
 		return true;
 	}
 
@@ -1274,7 +1275,7 @@ bool Item::isStatefulMapTemplate() const {
 	}
 
 	// Echo portals must fork/claim per instance even though they are not loadedFromMap.
-	if (id == 54133 || id == 54134) {
+	if (id == ITEM_ECHO_WARDEN_PORTAL || id == ITEM_ECHO_WARDEN_PORTAL_SPENT) {
 		return true;
 	}
 

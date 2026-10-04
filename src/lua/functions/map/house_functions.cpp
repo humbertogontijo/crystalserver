@@ -69,7 +69,6 @@ void HouseFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "House", "isInvited", HouseFunctions::luaHouseIsInvited);
 
 	Lua::registerMethod(L, "House", "setEphemeral", HouseFunctions::luaHouseSetEphemeral);
-	Lua::registerMethod(L, "House", "isEphemeral", HouseFunctions::luaHouseIsEphemeral);
 	Lua::registerMethod(L, "House", "setName", HouseFunctions::luaHouseSetName);
 	Lua::registerMethod(L, "House", "setSize", HouseFunctions::luaHouseSetSize);
 	Lua::registerMethod(L, "House", "setEntryPosition", HouseFunctions::luaHouseSetEntryPosition);
@@ -602,17 +601,6 @@ int HouseFunctions::luaHouseSetEphemeral(lua_State* L) {
 	}
 	house->setEphemeral(Lua::getBoolean(L, 2));
 	Lua::pushBoolean(L, true);
-	return 1;
-}
-
-int HouseFunctions::luaHouseIsEphemeral(lua_State* L) {
-	// house:isEphemeral()
-	const auto &house = Lua::getUserdataShared<House>(L, 1);
-	if (!house) {
-		lua_pushnil(L);
-		return 1;
-	}
-	Lua::pushBoolean(L, house->isEphemeral());
 	return 1;
 }
 

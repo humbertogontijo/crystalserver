@@ -342,7 +342,6 @@ public:
 
 	void setInstanceOwner(uint32_t instanceId, uint32_t guid);
 	void clearInstanceOwner(uint32_t instanceId);
-	uint32_t getInstanceOwner(uint32_t instanceId) const;
 
 private:
 	bool transferToDepot() const;

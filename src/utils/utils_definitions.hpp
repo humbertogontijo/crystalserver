@@ -748,6 +748,10 @@ enum ItemID_t : uint16_t {
 	ITEM_BLANK_IMBUEMENT_SCROLL = 51442,
 	ITEM_ETCHER = 51443,
 
+	// Echo Warden raid portal (live) and its per-instance spent tombstone.
+	ITEM_ECHO_WARDEN_PORTAL = 54133,
+	ITEM_ECHO_WARDEN_PORTAL_SPENT = 54134,
+
 	ITEM_NONE = 0
 };
 

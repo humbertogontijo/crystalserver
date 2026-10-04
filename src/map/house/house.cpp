@@ -53,14 +53,6 @@ void House::clearInstanceOwner(const uint32_t instanceId) {
 	instanceOwners.erase(instanceId);
 }
 
-uint32_t House::getInstanceOwner(const uint32_t instanceId) const {
-	const auto it = instanceOwners.find(instanceId);
-	if (it == instanceOwners.end()) {
-		return 0;
-	}
-	return it->second;
-}
-
 void House::setNewOwnerGuid(int32_t newOwnerGuid, bool serverStartup) {
 	auto isTransferOnRestart = g_configManager().getBoolean(TOGGLE_HOUSE_TRANSFER_ON_SERVER_RESTART);
 	if (!isTransferOnRestart) {

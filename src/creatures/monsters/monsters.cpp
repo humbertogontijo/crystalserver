@@ -531,10 +531,14 @@ MonsterType::AttackRateEstimate MonsterType::estimateAttackRate() const {
 }
 
 double MonsterType::getCombatPowerSelf() const {
+	return getCombatPowerSelf(static_cast<double>(info.healthMax), 1.0);
+}
+
+double MonsterType::getCombatPowerSelf(double health, double dpsScale) const {
 	const auto rates = estimateAttackRate();
 	return computeCombatPowerFromTraits(
-		static_cast<double>(info.healthMax),
-		rates.expectedDps,
+		health,
+		rates.expectedDps * dpsScale,
 		rates.expectedHealDps,
 		static_cast<double>(info.armor),
 		static_cast<double>(info.defense),
@@ -544,25 +548,25 @@ double MonsterType::getCombatPowerSelf() const {
 	);
 }
 
-double MonsterType::getCombatPower() const {
-	const auto addSummonExpectedCp = [](const MonsterType &self) {
-		double extra = 0.0;
-		for (const auto &summon : self.info.summons) {
-			if (summon.name.empty() || summon.count <= 0) {
-				continue;
-			}
-			const auto summonType = g_monsters().getMonsterType(summon.name, true);
-			if (!summonType) {
-				continue;
-			}
-			const double chance = summon.chance > 0 ? static_cast<double>(summon.chance) : 100.0;
-			extra += summonType->getCombatPowerSelf() * (chance / 100.0) * static_cast<double>(summon.count);
+double MonsterType::getSummonCombatPower() const {
+	double extra = 0.0;
+	for (const auto &summon : info.summons) {
+		if (summon.name.empty() || summon.count <= 0) {
+			continue;
 		}
-		return extra;
-	};
+		const auto summonType = g_monsters().getMonsterType(summon.name, true);
+		if (!summonType) {
+			continue;
+		}
+		const double chance = summon.chance > 0 ? static_cast<double>(summon.chance) : 100.0;
+		extra += summonType->getCombatPowerSelf() * (chance / 100.0) * static_cast<double>(summon.count);
+	}
+	return extra;
+}
 
-	const auto formPower = [&](const MonsterType &form) {
-		return form.getCombatPowerSelf() + addSummonExpectedCp(form);
+double MonsterType::getCombatPower() const {
+	const auto formPower = [](const MonsterType &form) {
+		return form.getCombatPowerSelf() + form.getSummonCombatPower();
 	};
 
 	double power = formPower(*this);

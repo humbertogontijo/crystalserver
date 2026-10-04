@@ -160,16 +160,6 @@ public:
 	void loadCustomMaps(const std::filesystem::path &customMapPath);
 	void loadMap(const std::string &path, const Position &pos = Position());
 
-	/**
-	 * Clone tiles from the live map into `dest` (top-left of the destination AABB).
-	 * Inclusive source range [sourceFrom, sourceTo]; same-floor expeditions use equal z.
-	 * Places fresh items via Tile::internalAddThing (no moveevents). Skips creatures,
-	 * pickupables, uniques, doors/beds/teleports/depots/mailboxes/fields/containers,
-	 * and non-blocking house furniture. Strips nothing because attributes are not cloned.
-	 * \returns number of source tiles that had ground or items copied
-	 */
-	uint32_t copyMapRegion(const Position &sourceFrom, const Position &sourceTo, const Position &dest);
-
 	static constexpr uint32_t INSTANCE_PRIVATE_BASE = 3000000;
 	uint32_t allocateInstanceId();
 	void releaseInstanceId(uint32_t id);
@@ -492,8 +482,6 @@ public:
 	void playerQuickLootBlackWhitelist(uint32_t playerId, QuickLootFilter_t filter, const std::vector<uint16_t> &itemIds);
 	/** Fetch account-scoped quick loot filter into `player` RAM cache (headless-safe). */
 	void ensureAccountQuickLootFilter(const std::shared_ptr<Player> &player);
-	/** @deprecated Prefer ensureAccountQuickLootFilter — kept as alias for call-site clarity. */
-	void inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player);
 
 	/**
 	 * Collect one item into the player's managed loot/obtain container (capacity-aware).

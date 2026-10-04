@@ -677,15 +677,12 @@ staminaSystem = true
 timeToRegenMinuteStamina = 1.5 * 60
 timeToRegenMinutePremiumStamina = 3 * 60
 
--- Stamina in trainers (uses timeToRegen* above; delay keys kept for /serverinfo display)
+-- Stamina in trainers (regen rate comes from timeToRegen* above)
 staminaTrainer = true
-staminaTrainerDelay = 1.5
 staminaTrainerGain = 1
 
--- Stamina in protect zone (uses timeToRegen* above; delay keys kept for /serverinfo display)
+-- Stamina in protect zone (regen rate comes from timeToRegen* above)
 staminaPz = true
-staminaOrangeDelay = 1.5
-staminaGreenDelay = 3
 staminaPzGain = 1
 
 -- Mounts

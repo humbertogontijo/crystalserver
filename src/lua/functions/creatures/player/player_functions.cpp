@@ -171,11 +171,9 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "getReward", PlayerFunctions::luaPlayerGetReward);
 	Lua::registerMethod(L, "Player", "removeReward", PlayerFunctions::luaPlayerRemoveReward);
 	Lua::registerMethod(L, "Player", "getRewardList", PlayerFunctions::luaPlayerGetRewardList);
-	Lua::registerMethod(L, "Player", "linkRewardChestParents", PlayerFunctions::luaPlayerLinkRewardChestParents);
 	Lua::registerMethod(L, "Player", "openRewardChest", PlayerFunctions::luaPlayerOpenRewardChest);
 	Lua::registerMethod(L, "Player", "collectRewardChest", PlayerFunctions::luaPlayerCollectRewardChest);
 	Lua::registerMethod(L, "Player", "getLootPouch", PlayerFunctions::luaPlayerGetLootPouch);
-	Lua::registerMethod(L, "Player", "openLootPouch", PlayerFunctions::luaPlayerOpenLootPouch);
 
 	Lua::registerMethod(L, "Player", "setDailyReward", PlayerFunctions::luaPlayerSetDailyReward);
 
@@ -190,7 +188,6 @@ void PlayerFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Player", "getSkullTime", PlayerFunctions::luaPlayerGetSkullTime);
 	Lua::registerMethod(L, "Player", "setSkullTime", PlayerFunctions::luaPlayerSetSkullTime);
-	Lua::registerMethod(L, "Player", "getSkullClient", PlayerFunctions::luaPlayerGetSkullClient);
 	Lua::registerMethod(L, "Player", "clearAttacked", PlayerFunctions::luaPlayerClearAttacked);
 	Lua::registerMethod(L, "Player", "getDeathPenalty", PlayerFunctions::luaPlayerGetDeathPenalty);
 
@@ -254,7 +251,6 @@ void PlayerFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Player", "getTown", PlayerFunctions::luaPlayerGetTown);
 	Lua::registerMethod(L, "Player", "setTown", PlayerFunctions::luaPlayerSetTown);
-	Lua::registerMethod(L, "Player", "getLoginPosition", PlayerFunctions::luaPlayerGetLoginPosition);
 	Lua::registerMethod(L, "Player", "setLoginPosition", PlayerFunctions::luaPlayerSetLoginPosition);
 	Lua::registerMethod(L, "Player", "captureLoginPosition", PlayerFunctions::luaPlayerCaptureLoginPosition);
 
@@ -404,8 +400,6 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "setSecureMode", PlayerFunctions::luaPlayerSetSecureMode);
 	Lua::registerMethod(L, "Player", "isOpenPvp", PlayerFunctions::luaPlayerIsOpenPvp);
 	Lua::registerMethod(L, "Player", "setOpenPvp", PlayerFunctions::luaPlayerSetOpenPvp);
-	Lua::registerMethod(L, "Player", "isCombatUnattackable", PlayerFunctions::luaPlayerIsCombatUnattackable);
-	Lua::registerMethod(L, "Player", "setCombatUnattackable", PlayerFunctions::luaPlayerSetCombatUnattackable);
 	Lua::registerMethod(L, "Player", "getFightMode", PlayerFunctions::luaPlayerGetFightMode);
 
 	Lua::registerMethod(L, "Player", "getBaseXpGain", PlayerFunctions::luaPlayerGetBaseXpGain);
@@ -1944,19 +1938,6 @@ int PlayerFunctions::luaPlayerGetRewardList(lua_State* L) {
 	return 1;
 }
 
-int PlayerFunctions::luaPlayerLinkRewardChestParents(lua_State* L) {
-	// player:linkRewardChestParents()
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (!player) {
-		lua_pushnil(L);
-		return 1;
-	}
-
-	player->linkRewardChestParents();
-	Lua::pushBoolean(L, true);
-	return 1;
-}
-
 int PlayerFunctions::luaPlayerOpenRewardChest(lua_State* L) {
 	// player:openRewardChest()
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
@@ -2007,24 +1988,6 @@ int PlayerFunctions::luaPlayerGetLootPouch(lua_State* L) {
 		Lua::setMetatable(L, -1, "Container");
 	} else {
 		lua_pushnil(L);
-	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerOpenLootPouch(lua_State* L) {
-	// player:openLootPouch()
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (!player) {
-		lua_pushnil(L);
-		return 1;
-	}
-
-	const ReturnValue ret = player->openAccountLootPouch();
-	if (ret != RETURNVALUE_NOERROR) {
-		player->sendCancelMessage(ret);
-		Lua::pushBoolean(L, false);
-	} else {
-		Lua::pushBoolean(L, true);
 	}
 	return 1;
 }
@@ -2132,22 +2095,6 @@ int PlayerFunctions::luaPlayerSetSkullTime(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerGetSkullClient(lua_State* L) {
-	// player:getSkullClient(creature) — per-viewer mark (yellow/white/green/orange)
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (!player) {
-		lua_pushnil(L);
-		return 1;
-	}
-	const auto &creature = Lua::getUserdataShared<Creature>(L, 2);
-	if (!creature) {
-		lua_pushnil(L);
-		return 1;
-	}
-	lua_pushnumber(L, player->getSkullClient(creature));
 	return 1;
 }
 
@@ -2859,17 +2806,6 @@ int PlayerFunctions::luaPlayerSetTown(lua_State* L) {
 	if (player) {
 		player->setTown(town);
 		Lua::pushBoolean(L, true);
-	} else {
-		lua_pushnil(L);
-	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerGetLoginPosition(lua_State* L) {
-	// player:getLoginPosition()
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (player) {
-		Lua::pushPosition(L, player->getLoginPosition());
 	} else {
 		lua_pushnil(L);
 	}
@@ -4965,29 +4901,6 @@ int PlayerFunctions::luaPlayerSetOpenPvp(lua_State* L) {
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (player) {
 		player->setOpenPvp(Lua::getBoolean(L, 2));
-		Lua::pushBoolean(L, true);
-	} else {
-		lua_pushnil(L);
-	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerIsCombatUnattackable(lua_State* L) {
-	// player:isCombatUnattackable()
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (player) {
-		Lua::pushBoolean(L, player->isCombatUnattackable());
-	} else {
-		lua_pushnil(L);
-	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerSetCombatUnattackable(lua_State* L) {
-	// player:setCombatUnattackable(enabled)
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (player) {
-		player->setCombatUnattackable(Lua::getBoolean(L, 2));
 		Lua::pushBoolean(L, true);
 	} else {
 		lua_pushnil(L);

@@ -31,7 +31,6 @@
 #include "game/instance_fence.hpp"
 #include "game/instance_spawns.hpp"
 #include "game/scheduling/dispatcher.hpp"
-#include "creatures/monsters/monsters.hpp"
 #ifdef IDLEOT_HAS_OCCUPANCY
 #include "occupancy_mask.hpp"
 #endif
@@ -146,7 +145,6 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "getPlayers", GameFunctions::luaGameGetPlayers);
 	Lua::registerMethod(L, "Game", "loadMap", GameFunctions::luaGameLoadMap);
 	Lua::registerMethod(L, "Game", "loadMapChunk", GameFunctions::luaGameloadMapChunk);
-	Lua::registerMethod(L, "Game", "copyMapRegion", GameFunctions::luaGameCopyMapRegion);
 #ifdef IDLEOT_HAS_OCCUPANCY
 	Lua::registerMethod(L, "Game", "loadOccupancyMask", GameFunctions::luaGameLoadOccupancyMask);
 #endif
@@ -512,15 +510,6 @@ int GameFunctions::luaGameloadMapChunk(lua_State* L) {
 	const Position &position = Lua::getPosition(L, 2);
 	g_dispatcher().addEvent([path, position]() { g_game().loadMap(path, position); }, __FUNCTION__);
 	return 0;
-}
-
-int GameFunctions::luaGameCopyMapRegion(lua_State* L) {
-	// Game.copyMapRegion(sourceFrom, sourceTo, dest)
-	const Position &sourceFrom = Lua::getPosition(L, 1);
-	const Position &sourceTo = Lua::getPosition(L, 2);
-	const Position &dest = Lua::getPosition(L, 3);
-	lua_pushnumber(L, g_game().copyMapRegion(sourceFrom, sourceTo, dest));
-	return 1;
 }
 
 #ifdef IDLEOT_HAS_OCCUPANCY

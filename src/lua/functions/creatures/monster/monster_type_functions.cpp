@@ -176,9 +176,7 @@ void MonsterTypeFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "MonsterType", "maxSummons", MonsterTypeFunctions::luaMonsterTypeMaxSummons);
 
-	Lua::registerMethod(L, "MonsterType", "estimateAttackRate", MonsterTypeFunctions::luaMonsterTypeEstimateAttackRate);
 	Lua::registerMethod(L, "MonsterType", "getCombatPower", MonsterTypeFunctions::luaMonsterTypeGetCombatPower);
-	Lua::registerMethod(L, "MonsterType", "getCombatPowerSelf", MonsterTypeFunctions::luaMonsterTypeGetCombatPowerSelf);
 
 	Lua::registerMethod(L, "MonsterType", "armor", MonsterTypeFunctions::luaMonsterTypeArmor);
 	Lua::registerMethod(L, "MonsterType", "mitigation", MonsterTypeFunctions::luaMonsterTypeMitigation);
@@ -2032,20 +2030,6 @@ int MonsterTypeFunctions::luaMonsterTypeCanTarget(lua_State* L) {
 	return 1;
 }
 
-int MonsterTypeFunctions::luaMonsterTypeEstimateAttackRate(lua_State* L) {
-	// monsterType:estimateAttackRate() -> { expectedDps, expectedHealDps }
-	const auto &monsterType = Lua::getUserdataShared<MonsterType>(L, 1);
-	if (!monsterType) {
-		lua_pushnil(L);
-		return 1;
-	}
-	const auto rates = monsterType->estimateAttackRate();
-	lua_createtable(L, 0, 2);
-	Lua::setField(L, "expectedDps", rates.expectedDps);
-	Lua::setField(L, "expectedHealDps", rates.expectedHealDps);
-	return 1;
-}
-
 int MonsterTypeFunctions::luaMonsterTypeGetCombatPower(lua_State* L) {
 	// monsterType:getCombatPower()
 	const auto &monsterType = Lua::getUserdataShared<MonsterType>(L, 1);
@@ -2057,13 +2041,3 @@ int MonsterTypeFunctions::luaMonsterTypeGetCombatPower(lua_State* L) {
 	return 1;
 }
 
-int MonsterTypeFunctions::luaMonsterTypeGetCombatPowerSelf(lua_State* L) {
-	// monsterType:getCombatPowerSelf()
-	const auto &monsterType = Lua::getUserdataShared<MonsterType>(L, 1);
-	if (!monsterType) {
-		lua_pushnil(L);
-		return 1;
-	}
-	lua_pushnumber(L, monsterType->getCombatPowerSelf());
-	return 1;
-}
