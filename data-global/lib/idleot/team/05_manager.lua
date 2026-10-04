@@ -2,6 +2,8 @@ TeamManager = TeamManager or {}
 
 -- primaryGuid → { companionIds = {playerId, ...}, partyOwned = bool }
 local deployments = {}
+-- accountId → number of deploys still headless-loading companions
+local deployLoadsByAccount = {}
 -- friendGuid → { hostGuid, hostName, expires }
 local rosterInvitesByFriendGuid = {}
 
@@ -1460,7 +1462,10 @@ function TeamManager.deploy(controller, opts)
 	end
 
 	local claimed = companions
+	deployLoadsByAccount[accountId] = (deployLoadsByAccount[accountId] or 0) + 1
 	Game.headlessLoginBatch(namesToLoad, spawnPos, function(loaded, loadErr)
+		local pendingLoads = (deployLoadsByAccount[accountId] or 1) - 1
+		deployLoadsByAccount[accountId] = pendingLoads > 0 and pendingLoads or nil
 		if not controller or not Player(controller:getId()) then
 			for _, c in ipairs(loaded or {}) do
 				if c and isHeadlessCompanion(c) then
@@ -1650,6 +1655,12 @@ local function performAltSwitch(playerId, targetId)
 		return
 	end
 	logger.info("[Team] client switched {} -> {}", player:getName(), target:getName())
+	if ExpeditionManager and ExpeditionManager.onClientSwitched then
+		local ok, err = pcall(ExpeditionManager.onClientSwitched, player, target)
+		if not ok then
+			logger.error("[Team] expedition handoff failed {} -> {}: {}", player:getName(), target:getName(), err)
+		end
+	end
 end
 
 --- Validate and start an alt switch. Offline alts are loaded headless first.
@@ -1672,6 +1683,11 @@ function TeamManager.switchAlt(player, targetName)
 		return false, err or "Unknown character."
 	end
 	local accountId = player:getAccountId()
+	-- The deploy callback hands companions to the controller it started with; switching
+	-- before it lands would split the deployment from the new team host.
+	if deployLoadsByAccount[accountId] then
+		return false, "Your team is still deploying, try again in a moment."
+	end
 	local now = CombatGeo.nowMs()
 	local cooldown = TeamConfig.ALT_SWITCH_COOLDOWN_MS or 2000
 	if now - (lastAltSwitchByAccount[accountId] or 0) < cooldown then

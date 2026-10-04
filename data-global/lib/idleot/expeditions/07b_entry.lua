@@ -909,6 +909,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 		return
 	end
 	session.starting = true
+	session.startingAt = os.time()
 	local host = Player(session.playerId)
 	if not host then
 		ExpeditionManager.teardownSession(session)

@@ -17,6 +17,13 @@ local groupByPlayerId = {}
 
 local nextGroupSeq = 1
 
+local function nowMs()
+	if type(systemTime) == "function" then
+		return math.floor(systemTime())
+	end
+	return os.time() * 1000
+end
+
 local function encodePayload(payload)
 	if JsonParser and JsonParser.encode then
 		local ok, encoded = pcall(JsonParser.encode, payload)
@@ -119,28 +126,32 @@ local function clearGroup(groupKey, opts)
 	end
 end
 
-local function notifyMembers(pending, payloadBase)
-	local send = pending.send or defaultSend
-	local opcode = pending.opcode
-	for _, id in ipairs(pending.memberIds or {}) do
-		local p = Player(id)
-		if p then
-			local payload = {}
-			for k, v in pairs(payloadBase) do
-				payload[k] = v
-			end
-			payload._opcode = opcode
-			if payload.type == "channelStart" then
-				local canCancel = false
-				if pending.cancelPolicy == InstanceTeleport.CANCEL_ANY then
-					canCancel = true
-				elseif pending.cancelPolicy == InstanceTeleport.CANCEL_INITIATOR then
-					canCancel = id == pending.initiatorId
-				end
-				payload.canCancel = canCancel
-			end
-			send(p, payload)
+local function notifyMember(pending, id, payloadBase)
+	local p = Player(id)
+	if not p then
+		return
+	end
+	local payload = {}
+	for k, v in pairs(payloadBase) do
+		payload[k] = v
+	end
+	payload._opcode = pending.opcode
+	if payload.type == "channelStart" then
+		local canCancel = false
+		if pending.cancelPolicy == InstanceTeleport.CANCEL_ANY then
+			canCancel = true
+		elseif pending.cancelPolicy == InstanceTeleport.CANCEL_INITIATOR then
+			canCancel = id == pending.initiatorId
 		end
+		payload.canCancel = canCancel
+	end
+	local send = pending.send or defaultSend
+	send(p, payload)
+end
+
+local function notifyMembers(pending, payloadBase)
+	for _, id in ipairs(pending.memberIds or {}) do
+		notifyMember(pending, id, payloadBase)
 	end
 end
 
@@ -247,6 +258,7 @@ function InstanceTeleport.beginGroup(opts)
 		memberIds = memberIds,
 		cancelPolicy = cancelPolicy,
 		durationMs = durationMs,
+		startedAt = nowMs(),
 		opcode = tonumber(opts.opcode),
 		send = opts.send,
 		onComplete = opts.onComplete,
@@ -305,6 +317,46 @@ function InstanceTeleport.markReadyForPlayer(player)
 		return false
 	end
 	return InstanceTeleport.markReady(groupKey)
+end
+
+--- Alt switch: the UI moved from `fromPlayer` (a group member) to `toPlayer`. The new body
+--- joins the channel with the remaining time; `fromPlayer` stays in so it still hops.
+function InstanceTeleport.adoptMember(fromPlayer, toPlayer)
+	if not fromPlayer or not toPlayer then
+		return false
+	end
+	local groupKey = groupByPlayerId[fromPlayer:getId()]
+	local pending = groupKey and pendingByGroup[groupKey]
+	if not pending or pending.kind ~= InstanceTeleport.KIND_EXPEDITION then
+		return false
+	end
+	local toId = toPlayer:getId()
+	local existing = groupByPlayerId[toId]
+	if existing and existing ~= groupKey then
+		return false
+	end
+	if not existing then
+		pending.memberIds[#pending.memberIds + 1] = toId
+		groupByPlayerId[toId] = groupKey
+		local effectId = auraEffectFor(pending.kind)
+		if effectId then
+			toPlayer:attachEffectById(effectId)
+		end
+	end
+	if pending.initiatorId == fromPlayer:getId() then
+		pending.initiatorId = toId
+	end
+	local remaining = 0
+	if not pending.timerElapsed then
+		remaining = math.max(0, (pending.durationMs or 0) - (nowMs() - (pending.startedAt or nowMs())))
+	end
+	notifyMember(pending, toId, {
+		type = "channelStart",
+		kind = pending.kind,
+		durationMs = remaining,
+		holdUntilReady = pending.holdUntilReady and not pending.ready,
+	})
+	return true
 end
 
 function InstanceTeleport.begin(player, opts)

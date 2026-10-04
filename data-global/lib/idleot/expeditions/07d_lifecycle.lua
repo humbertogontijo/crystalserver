@@ -16,11 +16,32 @@ function ExpeditionManager.onDeath(player)
 	ExpeditionManager.notifyHuntMemberDeath(player, nil)
 end
 
+local ENTRY_HOLD_LOGOUT_SEC = 90
+
+--- An alt switch mid-channel leaves the old body headless on an open-world (safe) tile, where
+--- headless players are removed as soon as they can log out. It still has to hop with the party.
+local function holdHeadlessForEntry(player)
+	if not (player.isHeadless and player:isHeadless()) then
+		return false
+	end
+	if ExpeditionPersist and ExpeditionPersist.isServerShuttingDown() then
+		return false
+	end
+	local session = ExpeditionManager.getSessionByPlayer(player)
+	if not session or session.entered or not session.starting or session.state == "ended" then
+		return false
+	end
+	return os.time() - (session.startingAt or 0) < ENTRY_HOLD_LOGOUT_SEC
+end
+
 --- Death-screen Ok / forced logout: free the instance. Idle combat normally
 --- blocks disconnect logout while hunting, so this path is death or force-remove.
 function ExpeditionManager.onLogout(player)
 	if not player then
 		return true
+	end
+	if holdHeadlessForEntry(player) then
+		return false
 	end
 	EM_PRIV.expeditionClientSynced[player:getId()] = nil
 	ExpeditionManager.cancelLeave(player)
@@ -191,6 +212,96 @@ function EM_PRIV.rebindMemberId(session, oldId, newId, player)
 	if player and session.memberGuids then
 		session.memberGuids[player:getGuid()] = newId
 	end
+end
+
+local function isSessionMemberId(session, playerId)
+	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
+		if id == playerId then
+			return true
+		end
+	end
+	return false
+end
+
+local function promoteSessionHost(session, player)
+	local playerId = player:getId()
+	session.playerId = playerId
+	session.guid = player:getGuid()
+	EM_PRIV.sessionsByPlayerId[playerId] = session
+	if session.memberAutomation and session.memberAutomation[playerId] then
+		session.automation = session.memberAutomation[playerId]
+	end
+	if session.memberStance and session.memberStance[playerId] then
+		session.stance = session.memberStance[playerId]
+	end
+end
+
+--- Same-socket alt switch moved the UI from oldPlayer to newPlayer. Membership is unchanged:
+--- the UI body leads the session and the body it left keeps going as a headless companion,
+--- as if both had been in the party (and channel) from the start.
+function ExpeditionManager.onClientSwitched(oldPlayer, newPlayer)
+	if not oldPlayer or not newPlayer then
+		return
+	end
+	local session = ExpeditionManager.getSessionByPlayer(newPlayer) or ExpeditionManager.getSessionByPlayer(oldPlayer)
+	if not session or session.state == "ended" or not (session.starting or session.entered) then
+		return
+	end
+	local oldId = oldPlayer:getId()
+	local newId = newPlayer:getId()
+	local oldInSession = isSessionMemberId(session, oldId)
+	local newInSession = isSessionMemberId(session, newId)
+	if not oldInSession and not newInSession then
+		return
+	end
+
+	if oldInSession then
+		session.companionIds = session.companionIds or {}
+		session.companionIds[oldId] = true
+		if TeamManager and TeamManager.onBecameHeadless then
+			pcall(TeamManager.onBecameHeadless, oldPlayer)
+		elseif oldPlayer.setHeadless then
+			oldPlayer:setHeadless(true)
+		end
+	end
+
+	local previousHostId = session.playerId
+	if newInSession then
+		if session.companionIds then
+			session.companionIds[newId] = nil
+		end
+		local previousHost = previousHostId and Player(previousHostId) or nil
+		if previousHostId ~= newId
+			and (previousHostId == oldId or not previousHost or not EM_PRIV.hasUiClient(previousHost))
+		then
+			promoteSessionHost(session, newPlayer)
+		end
+	end
+
+	if not session.entered then
+		if newInSession then
+			if InstanceTeleport and InstanceTeleport.adoptMember then
+				local adopted = InstanceTeleport.adoptMember(oldPlayer, newPlayer)
+				local previousHost = previousHostId and Player(previousHostId) or nil
+				if not adopted and previousHost and previousHostId ~= oldId then
+					InstanceTeleport.adoptMember(previousHost, newPlayer)
+				end
+			end
+			-- syncSessionClientIfNeeded skips pending sessions; show "entering" on the new client.
+			ExpeditionProtocol.sendStatus(newPlayer, session)
+		end
+	else
+		EM_PRIV.syncHuntPersist(session)
+	end
+
+	logger.info(
+		"[Expedition] client switched {} -> {} key={} host={} entered={}",
+		oldPlayer:getName(),
+		newPlayer:getName(),
+		tostring(session.key),
+		tostring(session.playerId),
+		tostring(session.entered == true)
+	)
 end
 
 function ExpeditionManager.onLogin(player)
