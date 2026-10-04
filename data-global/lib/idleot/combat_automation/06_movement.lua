@@ -423,6 +423,12 @@ function CombatAutomationMovement.memberSlotDistance(player)
 	return slotDistanceOf(player and CombatAutomationStore and CombatAutomationStore.getConfig(player))
 end
 
+--- Fights from range (stance distance above melee).
+function CombatAutomationMovement.rangedStance(player)
+	local config = player and CombatAutomationStore and CombatAutomationStore.getConfig(player)
+	return CombatAutomationConfig.stanceDistanceOf(config) > 1
+end
+
 --- Inputs read once per search: monsters near the anchor, members on its floor
 --- (`team`: { { id, slotDist }, ... }, farthest slot first), the route front and hold.
 local function anchorContext(anchor, opts)
@@ -912,14 +918,15 @@ end
 --- Non-anchor member (fighting, holding its slot, trailing the anchor, aiming an
 --- area spell): walk to the best-scoring tile when it beats staying, else hold facing
 --- the target. Melee reaches its target with engine follow first. `anchor`
---- (expedition formation) and `target` are optional. Re-evaluates every
---- ADJUST_THROTTLE_MS, or at once when a monster targeting a ranged member closes in.
-local function driveMember(player, anchor, target, config, state)
+--- (expedition formation) and `target` are optional; without an anchor, `home` (a
+--- ranged expedition anchor's fight spot) stands in for its position. Re-evaluates
+--- every ADJUST_THROTTLE_MS, or at once when a monster targeting a ranged member closes in.
+local function driveMember(player, anchor, target, config, state, home)
 	local ppos = player:getPosition()
 	if not ppos then
 		return
 	end
-	local apos = anchor and anchor:getPosition()
+	local apos = anchor and anchor:getPosition() or home
 	if apos and apos.z ~= ppos.z then
 		apos = nil
 	end
@@ -1040,7 +1047,8 @@ local function applyCreatureStance(player, target, config, anchor)
 	if CombatAutomationConfig.stanceDistanceOf(config) <= 1 and isExpeditionAnchor(state) then
 		anchorMeleeStance(player, target, state)
 	else
-		driveMember(player, anchor, target, config, state)
+		local directive = not anchor and isExpeditionAnchor(state) and state.directive
+		driveMember(player, anchor, target, config, state, directive and directive.home and directive.pos or nil)
 	end
 end
 
@@ -1051,6 +1059,33 @@ function CombatAutomationMovement.directiveAnchor(state)
 		return nil
 	end
 	return Player(tonumber(directive.targetId) or 0)
+end
+
+--- Kiting room past the slot ring around a ranged anchor's fight spot.
+local HOME_LEASH_MARGIN = 2
+
+--- A ranged anchor holding a fight spot (`directive.home`) is leashed around it (path
+--- search and tile scoring), so kiting does not drag the pack away; cleared otherwise.
+local function syncHomeLeash(player, state)
+	if not player.setPathLeash then
+		return
+	end
+	local directive = state.directive
+	local home = directive and directive.kind == "hold" and directive.home and directive.pos or nil
+	if home and not CombatAutomationMovement.rangedStance(player) then
+		home = nil
+	end
+	local radius = home and CombatAutomationMovement.memberSlotDistance(player) + HOME_LEASH_MARGIN or nil
+	local key = home and (walkDestKey(home) .. ":" .. radius) or nil
+	if key == state.homeLeashKey then
+		return
+	end
+	state.homeLeashKey = key
+	if home then
+		player:setPathLeash(home, radius)
+	else
+		player:clearPathLeash()
+	end
 end
 
 function CombatAutomationMovement.setDirective(player, directive)
@@ -1064,12 +1099,13 @@ function CombatAutomationMovement.setDirective(player, directive)
 			clearFollowIfAny(player)
 		end
 		state.directive = nil
-		return
+	else
+		if prev and prev.kind == "follow" and directive.kind ~= "follow" then
+			clearFollowIfAny(player)
+		end
+		state.directive = directive
 	end
-	if prev and prev.kind == "follow" and directive.kind ~= "follow" then
-		clearFollowIfAny(player)
-	end
-	state.directive = directive
+	syncHomeLeash(player, state)
 end
 
 function CombatAutomationMovement.clearDirective(player, kind)
@@ -1082,6 +1118,7 @@ function CombatAutomationMovement.clearDirective(player, kind)
 			clearFollowIfAny(player)
 		end
 		state.directive = nil
+		syncHomeLeash(player, state)
 	end
 end
 

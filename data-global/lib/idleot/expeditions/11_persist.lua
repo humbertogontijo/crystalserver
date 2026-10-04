@@ -107,8 +107,6 @@ function ExpeditionPersist.snapshotFromSession(session)
 		lureMax = session.lureMax,
 		forceFiendishCreatureId = session.forceFiendishCreatureId,
 		skipOpenWorldForge = session.skipOpenWorldForge == true,
-		hazardLevel = session.hazardLevel,
-		hazardMax = session.hazardMax,
 		stopOnInsufficientGold = session.stopOnInsufficientGold == true,
 		stopOnInsufficientCap = session.stopOnInsufficientCap == true,
 		hostGuid = hostGuid,

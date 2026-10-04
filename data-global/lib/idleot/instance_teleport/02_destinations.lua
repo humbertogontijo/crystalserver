@@ -65,6 +65,38 @@ function InstanceTeleport.handleChannelCancel(player)
 	return InstanceTeleport.cancel(player)
 end
 
+local function arrivalEffectFor(kind)
+	local fx = CustomEffects or {}
+	if kind == InstanceTeleport.KIND_HOMETOWN then
+		return fx.IT_ARRIVAL_HOMETOWN
+	elseif kind == InstanceTeleport.KIND_HOME then
+		return fx.IT_ARRIVAL_HOME
+	elseif kind == InstanceTeleport.KIND_EXPEDITION then
+		return fx.IT_ARRIVAL_EXPEDITION
+	end
+	return nil
+end
+
+--- Kind-tinted POI beam on the player's arrival tile, shown only inside their instance.
+function InstanceTeleport.sendArrivalEffect(player, kind)
+	if not player then
+		return
+	end
+	local pos = player:getPosition()
+	if not pos then
+		return
+	end
+	local effect = arrivalEffectFor(kind) or CONST_ME_TELEPORT
+	local instanceId = player.getInstanceId and player:getInstanceId() or nil
+	if instanceId == nil or not Game.getSpectators then
+		pos:sendMagicEffect(effect)
+		return
+	end
+	for _, spectator in ipairs(Game.getSpectators(pos, true, true, 0, 0, 0, 0, instanceId) or {}) do
+		pos:sendMagicEffect(effect, spectator)
+	end
+end
+
 local function fromExpeditionSafe(player, opts)
 	if opts and opts.fromExpedition then
 		return true
@@ -109,9 +141,7 @@ function InstanceTeleport.executeHometown(player, opts)
 	if not ok then
 		return false, "Failed to recall to hometown."
 	end
-	if dest and dest.sendMagicEffect then
-		dest:sendMagicEffect(CONST_ME_TELEPORT)
-	end
+	InstanceTeleport.sendArrivalEffect(player, InstanceTeleport.KIND_HOMETOWN)
 	return true
 end
 

@@ -76,6 +76,7 @@ public:
 		return instanceId;
 	}
 
+	bool anyBlock(const std::function<bool(const spawnBlock_t &)> &predicate) const;
 	/** Copies the blocks accepted by `predicate` into `dst` (fresh timers). Returns the copied count. */
 	uint32_t cloneBlocksInto(SpawnMonster &dst, const std::function<bool(const spawnBlock_t &)> &predicate) const;
 	/** Unlinks and removes every live monster this spawn produced. */

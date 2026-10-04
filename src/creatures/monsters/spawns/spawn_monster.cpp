@@ -565,6 +565,10 @@ void SpawnMonster::removeMonsters() {
 	spawnedMonsterMap.clear();
 }
 
+bool SpawnMonster::anyBlock(const std::function<bool(const spawnBlock_t &)> &predicate) const {
+	return std::ranges::any_of(spawnMonsterMap, [&predicate](const auto &entry) { return predicate(entry.second); });
+}
+
 uint32_t SpawnMonster::cloneBlocksInto(SpawnMonster &dst, const std::function<bool(const spawnBlock_t &)> &predicate) const {
 	uint32_t copied = 0;
 	for (const auto &[id, sb] : spawnMonsterMap) {

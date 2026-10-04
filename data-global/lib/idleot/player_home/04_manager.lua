@@ -118,7 +118,9 @@ local function endSession(player, session, teleportOut)
 			else
 				player:teleportTo(ret)
 			end
-			if ret and ret.sendMagicEffect then
+			if InstanceTeleport and InstanceTeleport.sendArrivalEffect then
+				InstanceTeleport.sendArrivalEffect(player, InstanceTeleport.KIND_HOME)
+			elseif ret and ret.sendMagicEffect then
 				ret:sendMagicEffect(CONST_ME_TELEPORT)
 			end
 		end
@@ -255,7 +257,9 @@ function PlayerHomeManager.enterHome(player, opts)
 		releaseHomeChannel(channel)
 		return false, "Failed to enter home instance."
 	end
-	if instance.entry and instance.entry.sendMagicEffect then
+	if InstanceTeleport and InstanceTeleport.sendArrivalEffect then
+		InstanceTeleport.sendArrivalEffect(player, InstanceTeleport.KIND_HOME)
+	elseif instance.entry and instance.entry.sendMagicEffect then
 		instance.entry:sendMagicEffect(CONST_ME_TELEPORT)
 	end
 	if InstanceWorld and InstanceWorld.sendBounds then

@@ -17,14 +17,19 @@ uint32_t InstanceSpawns::create(uint32_t instanceId) {
 	clear(instanceId);
 
 	const auto &fences = g_instanceFences();
-	const auto inFence = [&fences, instanceId](const spawnBlock_t &sb) {
-		return !sb.hasBoss() && fences.containsPos(instanceId, sb.pos);
+	const auto bounds = fences.boundsFor(instanceId);
+	if (!bounds) {
+		g_logger().warn("[InstanceSpawns::create] instance {} has no registered fence", instanceId);
+		return 0;
+	}
+	const auto inFence = [&fences, &bounds, instanceId](const spawnBlock_t &sb) {
+		return bounds->contains(sb.pos.x, sb.pos.y) && !sb.hasBoss() && fences.containsPos(instanceId, sb.pos);
 	};
 
 	std::vector<std::shared_ptr<SpawnMonster>> spawns;
 	uint32_t blocks = 0;
 	for (const auto &worldSpawn : g_game().map.spawnsMonster.getspawnMonsterList()) {
-		if (!worldSpawn) {
+		if (!worldSpawn || !worldSpawn->anyBlock(inFence)) {
 			continue;
 		}
 		auto spawn = std::make_shared<SpawnMonster>(worldSpawn->getCenterPos(), worldSpawn->getRadius(), instanceId);

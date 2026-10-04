@@ -178,9 +178,6 @@ function ExpeditionPack.onInstanceMonsterSpawn(monster, _position)
 
 	monster:runHealth(0)
 	monster:setTargetKeepRange(ExpeditionConfig.TARGET_KEEP_SQM)
-	if ExpeditionDifficulty and ExpeditionDifficulty.flagMonster then
-		ExpeditionDifficulty.flagMonster(monster, session)
-	end
 	if session.skipOpenWorldForge ~= true and InstanceWorld and InstanceWorld.applyOpenWorldForge then
 		InstanceWorld.applyOpenWorldForge(monster)
 	end

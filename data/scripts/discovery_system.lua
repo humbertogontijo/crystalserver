@@ -739,25 +739,27 @@ local function subareaCounts(player, mainId)
 end
 
 function DiscoverySystem.sendDiscoveryData(player)
-	local mains = {}
+	local totals, dones = {}, {}
 	local discovered = {}
 	local discoverable = {}
-	for mainId, _ in pairs(MAIN_AREAS) do
-		local total, done = subareaCounts(player, mainId)
-		for _, def in ipairs(SUBAREA_LIST) do
-			if def.discoverable and def.mainArea == mainId then
-				if isCompleted(player, def.id) then
-					discovered[#discovered + 1] = def.id
-				else
-					discoverable[#discoverable + 1] = def.id
-				end
+	for _, def in ipairs(SUBAREA_LIST) do
+		local mainId = def.mainArea
+		if def.discoverable and MAIN_AREAS[mainId] then
+			totals[mainId] = (totals[mainId] or 0) + 1
+			if isCompleted(player, def.id) then
+				dones[mainId] = (dones[mainId] or 0) + 1
+				discovered[#discovered + 1] = def.id
+			else
+				discoverable[#discoverable + 1] = def.id
 			end
 		end
-		if total > 0 then
-			local progress = math.floor(done / total * 100)
-			local status = done == total and 3 or 1
-			mains[#mains + 1] = { mainId, status, progress }
-		end
+	end
+	local mains = {}
+	for mainId, total in pairs(totals) do
+		local done = dones[mainId] or 0
+		local progress = math.floor(done / total * 100)
+		local status = done == total and 3 or 1
+		mains[#mains + 1] = { mainId, status, progress }
 	end
 	player:sendDiscoveryData(mains, discovered, discoverable)
 end
@@ -1039,8 +1041,18 @@ local function checkViewpoints(player, session)
 	end
 end
 
+-- isHeadless() is only set after placement, so onLogin relies on the protocol version.
+local function hasClient(player)
+	return not player:isHeadless() and player:getClient().version > 0
+end
+
 function DiscoverySystem.tick(player)
 	local guid = player:getGuid()
+	if not hasClient(player) then
+		-- Progress is persisted per find; a reattached client must get fresh markers.
+		sessions[guid] = nil
+		return
+	end
 	local session = sessions[guid]
 	local subId, def = DiscoverySystem.findSubarea(player:getPosition())
 
@@ -1141,7 +1153,11 @@ discoveryTick:register()
 local discoveryLogin = CreatureEvent("DiscoverySystemLogin")
 discoveryLogin:type("login")
 
-function discoveryLogin.onLogin(player)
+--- Login and headless-body reclaim (TeamManager.onClientAttached) both land here.
+function DiscoverySystem.onClientAttached(player)
+	if not hasClient(player) then
+		return
+	end
 	local store = kv(player)
 	if store:get("geom-version") ~= GEOMETRY_VERSION then
 		for _, def in ipairs(SUBAREA_LIST) do
@@ -1151,6 +1167,10 @@ function discoveryLogin.onLogin(player)
 	end
 	DiscoverySystem.sendDiscoveryData(player)
 	DiscoverySystem.sendDonations(player)
+end
+
+function discoveryLogin.onLogin(player)
+	DiscoverySystem.onClientAttached(player)
 	return true
 end
 

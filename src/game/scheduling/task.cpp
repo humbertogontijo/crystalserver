@@ -68,7 +68,11 @@ bool Task::execute() const {
 		}
 	}
 
+	const auto startedAt = OTSYS_TIME();
 	func();
+	if (const auto elapsed = OTSYS_TIME() - startedAt; elapsed >= SLOW_TASK_WARN_MS) {
+		g_logger().warn("[Task] '{}' blocked its thread for {} ms", getContext(), elapsed);
+	}
 	return true;
 }
 

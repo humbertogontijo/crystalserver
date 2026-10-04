@@ -9,6 +9,7 @@ HERE := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 help:
 	@echo "CrystalServer (IdleOT)"
 	@echo "  make server-build       cmake + build (vcpkg)"
+	@echo "                          METRICS=1 compiles OpenTelemetry metrics (sticky; METRICS=0 drops it)"
 	@echo "  make server-start       run ./crystalserver (cwd = this repo)"
 
 server-build:
@@ -20,13 +21,16 @@ server-build:
 	JOBS="$$(sysctl -n hw.ncpu 2>/dev/null || nproc)"; \
 	MAP_TOOLS=""; \
 	if [ -d "$(HERE)/../../packages/map-tools" ]; then MAP_TOOLS="$(HERE)/../../packages/map-tools"; fi; \
+	METRICS_FLAG=""; \
+	case "$(METRICS)" in 1|on|ON|yes|true) METRICS_FLAG="-DFEATURE_METRICS=ON" ;; \
+		0|off|OFF|no|false) METRICS_FLAG="-DFEATURE_METRICS=OFF" ;; esac; \
 	cd "$(HERE)" && \
 		if [ -n "$$MAP_TOOLS" ]; then \
-			cmake --preset "$$PRESET" -DIDLEOT_MAP_TOOLS_DIR="$$MAP_TOOLS"; \
+			cmake --preset "$$PRESET" -DIDLEOT_MAP_TOOLS_DIR="$$MAP_TOOLS" $$METRICS_FLAG; \
 		else \
-			cmake --preset "$$PRESET"; \
+			cmake --preset "$$PRESET" $$METRICS_FLAG; \
 		fi && \
-		cmake --build --preset "$$PRESET" -j"$$JOBS"; \
+		cmake --build --preset "$$PRESET" -j"$$JOBS" || exit 1; \
 	ABS_BIN=""; \
 	for cand in \
 		"$(HERE)/build/$$PRESET/bin/crystalserver" \

@@ -45,6 +45,7 @@ void KVStore::set(const std::string &key, const ValueWrapper &value) {
 
 void KVStore::setLocked(const std::string &key, const ValueWrapper &value) {
 	logger.trace("KVStore::set({})", key);
+	missing_.erase(key);
 	const auto it = store_.find(key);
 	if (it != store_.end()) {
 		it->second.first = value;
@@ -68,9 +69,17 @@ std::optional<ValueWrapper> KVStore::get(const std::string &key, bool forceLoad 
 	logger.trace("KVStore::get({})", key);
 	std::scoped_lock lock(mutex_);
 	if (forceLoad || !store_.contains(key)) {
+		if (!forceLoad && missing_.contains(key)) {
+			return std::nullopt;
+		}
 		auto value = load(key);
 		if (value) {
 			setLocked(key, *value);
+		} else {
+			if (missing_.size() >= MAX_SIZE) {
+				missing_.clear();
+			}
+			missing_.insert(key);
 		}
 		return value;
 	}

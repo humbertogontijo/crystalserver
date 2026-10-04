@@ -223,7 +223,7 @@ function ExpeditionAI.syncDirectives(session)
 			anchorDirective, walking = ExpeditionCavebot.anchorDirective(session, anchor)
 		elseif session.holdPos then
 			local hold = session.holdPos
-			anchorDirective = { kind = "hold", pos = Position(hold.x, hold.y, hold.z), priority = "soft" }
+			anchorDirective = { kind = "hold", pos = Position(hold.x, hold.y, hold.z), priority = "soft", home = true }
 		end
 	end
 

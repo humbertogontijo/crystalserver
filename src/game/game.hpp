@@ -757,6 +757,13 @@ public:
 		return std::ranges::find(registeredMagicEffects, type) != registeredMagicEffects.end();
 	}
 
+	// Client-side virtual effects (base appearance + shader) absent from appearances.dat.
+	void registerMagicEffect(uint16_t type) {
+		if (!isMagicEffectRegistered(type)) {
+			registeredMagicEffects.push_back(type);
+		}
+	}
+
 	bool isDistanceEffectRegistered(uint16_t type) const {
 		return std::ranges::find(registeredDistanceEffects, type) != registeredDistanceEffects.end();
 	}

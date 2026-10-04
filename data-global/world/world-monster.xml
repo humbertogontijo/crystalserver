@@ -11189,7 +11189,6 @@
 		<monster name="Varg" x="4" y="3" z="5" spawntime="60" />
 	</monster>
 	<monster centerx="32914" centery="31417" centerz="5" radius="6">
-		<monster name="Crate" x="5" y="-1" z="5" spawntime="60" />
 		<monster name="Blind Monstrosity" x="-2" y="3" z="5" spawntime="60" />
 	</monster>
 	<monster centerx="32619" centery="31418" centerz="5" radius="3">

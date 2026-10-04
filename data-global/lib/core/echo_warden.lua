@@ -119,7 +119,7 @@ function EchoWarden.trackRaidCreature(m, raidToken)
 	EchoWarden.applyExpeditionMonsterBind(m)
 end
 
---- Match ExpeditionPack.onInstanceMonsterSpawn: never flee + hazard flags; the raid
+--- Match ExpeditionPack.onInstanceMonsterSpawn: never flee; the raid
 --- monster has no spawn, so its home is where the anchor stands when it appears.
 function EchoWarden.applyExpeditionMonsterBind(m)
 	if not m then
@@ -135,9 +135,6 @@ function EchoWarden.applyExpeditionMonsterBind(m)
 	local session = ExpeditionManager and ExpeditionManager.getSessionByInstanceId and ExpeditionManager.getSessionByInstanceId(instanceId)
 	if not session then
 		return
-	end
-	if ExpeditionDifficulty and ExpeditionDifficulty.flagMonster then
-		ExpeditionDifficulty.flagMonster(m, session)
 	end
 	local anchor = ExpeditionConfig and ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
 	local home = (anchor and anchor:getPosition()) or session.holdPos or (session.instance and session.instance.entry)

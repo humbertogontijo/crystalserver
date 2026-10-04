@@ -358,6 +358,9 @@ local function settleHaltPos(session, cave, anchor, here, now)
 	end
 	if sameTile(here, dest) then
 		cave.haltReached = true
+	elseif cave.haltReached and CombatAutomationMovement.rangedStance(anchor) then
+		-- A ranged anchor fights by stance around the halt tile once there.
+		return
 	elseif tileTaken(dest, anchor)
 		or CombatAutomationMovement.walkBlocked(anchor, dest)
 		or (not cave.haltReached and now > (cave.haltWalkUntil or 0))
@@ -614,7 +617,9 @@ end
 --- Directive for the anchor: walk the route (luring), wait for stragglers, or hold
 --- a halt. In a halt it walks onto the halt tile and fights from it without chasing
 --- while more than LURE_RESUME_LOAD is on screen; below that it fights with its
---- normal stance (follow / positioning). Second value: followers
+--- normal stance (follow / positioning). A ranged anchor fights with its stance
+--- (distance, kiting, area-spell steps) as soon as it reached the halt tile, or the
+--- parked hold, and returns to it between fights. Second value: followers
 --- trail in line (true) or take formation (false).
 function ExpeditionCavebot.anchorDirective(session, anchor)
 	local cave, route = session.cave, routeOf(session)
@@ -624,6 +629,9 @@ function ExpeditionCavebot.anchorDirective(session, anchor)
 	if cave.parked or cave.mode == "halt" then
 		local visible = cave.visible or 0
 		if tile and overResumeLoad(cave.load) then
+			if (cave.parked or cave.haltReached) and CombatAutomationMovement.rangedStance(anchor) then
+				return { kind = "hold", pos = toPosition(tile), priority = "soft", reach = 0, front = front, quiet = true, home = true }, false
+			end
 			local priority = sameTile(here, tile) and "soft" or "relocate"
 			return {
 				kind = "hold",
@@ -637,9 +645,10 @@ function ExpeditionCavebot.anchorDirective(session, anchor)
 			},
 				false
 		end
-		-- Parked with an empty screen: drift back onto the hold.
-		local rest = (tile and visible == 0) and tile or here
-		return { kind = "hold", pos = toPosition(rest), priority = "soft", front = front }, false
+		-- Parked with an empty screen: drift back onto the hold. A ranged anchor keeps
+		-- fighting around the tile.
+		local home = tile ~= nil and (visible == 0 or CombatAutomationMovement.rangedStance(anchor))
+		return { kind = "hold", pos = toPosition(home and tile or here), priority = "soft", front = front, home = home }, false
 	end
 	if cave.mode == "pace" then
 		return { kind = "hold", pos = toPosition(here), priority = "soft", front = front, luring = true }, true
