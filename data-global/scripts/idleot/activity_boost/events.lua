@@ -6,9 +6,8 @@ local loginEvent = CreatureEvent("ActivityBoostLogin")
 
 function loginEvent.onLogin(player)
 	player:registerEvent("ActivityBoostOpcode")
-	if ActivityBoostActivities and ActivityBoostActivities.onLogin then
-		pcall(ActivityBoostActivities.onLogin, player)
-	end
+	player:registerEvent("ActivityBoostLogout")
+	pcall(ActivityBoostActivities.onLogin, player)
 	addEvent(function()
 		local p = Player(player:getId())
 		if p and ActivityBoostProtocol and ActivityBoostProtocol.sendState then
@@ -19,6 +18,23 @@ function loginEvent.onLogin(player)
 end
 
 loginEvent:register()
+
+local logoutEvent = CreatureEvent("ActivityBoostLogout")
+
+function logoutEvent.onLogout(player)
+	ActivityBoostActivities.onLogout(player)
+	return true
+end
+
+logoutEvent:register()
+
+local killCallback = EventCallback("ActivityBoostDailyHuntKill")
+
+function killCallback.playerOnKilledMonster(player, monster)
+	ActivityBoostActivities.onKilledMonster(player, monster)
+end
+
+killCallback:register()
 
 local opcodeEvent = CreatureEvent("ActivityBoostOpcode")
 
@@ -58,9 +74,7 @@ bossHealth:register()
 local bossDeath = CreatureEvent("ActivityBoostWorldBossDeath")
 
 function bossDeath.onDeath(creature, corpse, killer, mostDamageKiller, lastHitUnjustified, mostDamageUnjustified)
-	if ActivityBoostWorldBoss and ActivityBoostWorldBoss.onBossDeath then
-		pcall(ActivityBoostWorldBoss.onBossDeath, creature)
-	end
+	pcall(ActivityBoostWorldBoss.onBossDeath, creature)
 	return true
 end
 
@@ -97,33 +111,15 @@ end
 
 prepareDeath:register()
 
-local saveEvent = GlobalEvent("ActivityBoostSave")
-
-function saveEvent.onSave()
-	if ActivityBoostActivities and ActivityBoostActivities.onServerSave then
-		pcall(ActivityBoostActivities.onServerSave)
-	end
-	if ActivityBoostWorldBoss and ActivityBoostWorldBoss.onServerSave then
-		pcall(ActivityBoostWorldBoss.onServerSave)
-	end
-	return true
-end
-
-saveEvent:register()
-
 local think = GlobalEvent("ActivityBoostThink")
 
 function think.onThink(interval)
 	for _, player in ipairs(Game.getPlayers()) do
 		pcall(function()
-			if ActivityBoostLedger and ActivityBoostLedger.reconcileWithEngine then
-				ActivityBoostLedger.reconcileWithEngine(player)
-			end
+			ActivityBoostLedger.reconcileWithEngine(player)
 		end)
 	end
-	if ActivityBoostWorldBoss and ActivityBoostWorldBoss.tick then
-		pcall(ActivityBoostWorldBoss.tick)
-	end
+	pcall(ActivityBoostWorldBoss.tick)
 	return true
 end
 
@@ -133,9 +129,7 @@ think:register()
 local startup = GlobalEvent("ActivityBoostWorldBossStartup")
 
 function startup.onStartup()
-	if ActivityBoostWorldBoss and ActivityBoostWorldBoss.ensureAllBands then
-		pcall(ActivityBoostWorldBoss.ensureAllBands)
-	end
+	pcall(ActivityBoostWorldBoss.ensureAllBands)
 	return true
 end
 
@@ -145,9 +139,7 @@ startup:register()
 local function registerWorldBossClock(index, clock)
 	local ev = GlobalEvent("ActivityBoostWorldBossSession" .. tostring(index))
 	function ev.onTime(interval)
-		if ActivityBoostWorldBoss and ActivityBoostWorldBoss.startSession then
-			ActivityBoostWorldBoss.startSession(index)
-		end
+		ActivityBoostWorldBoss.startSession(index)
 		return true
 	end
 	ev:time(clock)

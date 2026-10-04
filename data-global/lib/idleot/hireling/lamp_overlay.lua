@@ -1,6 +1,5 @@
 -- Thin overlay on stock data/libs/systems/hireling.lua (do NOT full-copy core/).
--- Product deltas: deep lamp find, no duplicate lamps, register hireling if lamp add fails,
--- and HirelingsInit db.storeQuery (stock bug — also upstream-candidate).
+-- Product deltas: deep lamp find, no duplicate lamps, register hireling if lamp add fails.
 -- Loaded after stock hireling via scripts/idleot/hireling/lamp_overlay.lua.
 
 local function lampHirelingId(item)
@@ -214,48 +213,4 @@ function Player:addNewHireling(name, sex)
 	lamp:setCustomAttribute("Hireling", hireling:getId())
 	hireling.active = 0
 	return hireling
-end
-
--- Stock HirelingsInit uses `rows` without db.storeQuery — fix here + lamp-dedup on spawn.
-function HirelingsInit()
-	local query = string.format(
-		"SELECT `ph`.* FROM `player_hirelings` AS `ph` INNER JOIN `players` as `p` ON `p`.`id` = `ph`.`player_id` WHERE `p`.`world_id` = %d",
-		configManager.getNumber(configKeys.WORLD_ID)
-	)
-	local rows = db.storeQuery(query)
-	if rows then
-		local player_id, hireling
-		repeat
-			player_id = Result.getNumber(rows, "player_id")
-			if not PLAYER_HIRELINGS[player_id] then
-				PLAYER_HIRELINGS[player_id] = {}
-			end
-
-			hireling = Hireling:new()
-			hireling.id = Result.getNumber(rows, "id")
-			hireling.player_id = player_id
-			hireling.name = Result.getString(rows, "name")
-			hireling.active = Result.getNumber(rows, "active")
-			hireling.sex = Result.getNumber(rows, "sex")
-			hireling.posx = Result.getNumber(rows, "posx")
-			hireling.posy = Result.getNumber(rows, "posy")
-			hireling.posz = Result.getNumber(rows, "posz")
-			hireling.lookbody = Result.getNumber(rows, "lookbody")
-			hireling.lookfeet = Result.getNumber(rows, "lookfeet")
-			hireling.lookhead = Result.getNumber(rows, "lookhead")
-			hireling.looklegs = Result.getNumber(rows, "looklegs")
-			hireling.looktype = Result.getNumber(rows, "looktype")
-
-			table.insert(PLAYER_HIRELINGS[player_id], hireling)
-			table.insert(HIRELINGS, hireling)
-		until not Result.next(rows)
-		Result.free(rows)
-
-		logger.info("Spawning Hirelings")
-		for i = 1, #HIRELINGS do
-			if checkHouseAccess(HIRELINGS[i]) then
-				HIRELINGS[i]:spawn()
-			end
-		end
-	end
 end

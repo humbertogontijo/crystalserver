@@ -52,60 +52,6 @@ local function loadReturnPos(player)
 	return Position(x, y, z)
 end
 
---- Grant a free hireling + trader/banker skills (first login via SendFirstItems).
---- Home trader NPC is the play path; lamps are not required.
-function PlayerHomeManager.ensureStarterHireling(player)
-	if not player or not player:isPlayer() then
-		return
-	end
-
-	if ProductHirelingSync then
-		ProductHirelingSync.ensurePlayerHirelingsLoaded(player)
-	end
-
-	local okHas, hasHirelings = pcall(function()
-		return player:hasHirelings()
-	end)
-	if not okHas then
-		logger.warn("[PlayerHome] hasHirelings failed for {}: {}", player:getName(), hasHirelings)
-		return
-	end
-
-	local granted = false
-	if not hasHirelings then
-		local hirelingName = string.format("%s's Hireling", player:getName())
-		local okAdd, hireling = pcall(function()
-			return player:addNewHireling(hirelingName, HIRELING_SEX and HIRELING_SEX.MALE or 1)
-		end)
-		if okAdd and hireling then
-			granted = true
-		else
-			-- DB row may exist without runtime registration from a prior login.
-			if not (ProductHirelingSync and ProductHirelingSync.ensurePlayerHirelingsLoaded(player)) then
-				logger.warn(
-					"[PlayerHome] failed to grant starter hireling to {} ({})",
-					player:getName(),
-					okAdd and "nil" or tostring(hireling)
-				)
-			end
-		end
-	end
-
-	pcall(function()
-		if player.enableHirelingSkill then
-			player:enableHirelingSkill("trader")
-			player:enableHirelingSkill("banker")
-		end
-	end)
-
-	if granted then
-		player:sendTextMessage(
-			MESSAGE_EVENT_ADVANCE,
-			"A hireling waits at your home to trade and bank."
-		)
-	end
-end
-
 function PlayerHomeManager.getSession(player)
 	if not player then
 		return nil
@@ -172,7 +118,9 @@ local function endSession(player, session, teleportOut)
 			else
 				player:teleportTo(ret)
 			end
-			if ret and ret.sendMagicEffect then
+			if InstanceTeleport and InstanceTeleport.sendArrivalEffect then
+				InstanceTeleport.sendArrivalEffect(player, InstanceTeleport.KIND_HOME)
+			elseif ret and ret.sendMagicEffect then
 				ret:sendMagicEffect(CONST_ME_TELEPORT)
 			end
 		end
@@ -309,7 +257,9 @@ function PlayerHomeManager.enterHome(player, opts)
 		releaseHomeChannel(channel)
 		return false, "Failed to enter home instance."
 	end
-	if instance.entry and instance.entry.sendMagicEffect then
+	if InstanceTeleport and InstanceTeleport.sendArrivalEffect then
+		InstanceTeleport.sendArrivalEffect(player, InstanceTeleport.KIND_HOME)
+	elseif instance.entry and instance.entry.sendMagicEffect then
 		instance.entry:sendMagicEffect(CONST_ME_TELEPORT)
 	end
 	if InstanceWorld and InstanceWorld.sendBounds then
@@ -372,55 +322,12 @@ function PlayerHomeManager.onServerSave()
 	end
 end
 
-local function decodeOpcode(buffer)
-	if type(buffer) ~= "string" or buffer == "" then
-		return nil
-	end
-	if JsonParser and JsonParser.decode then
-		local ok, decoded = pcall(JsonParser.decode, buffer)
-		if ok and type(decoded) == "table" then
-			return decoded
-		end
-	end
-	if SquadJson and SquadJson.decode then
-		local ok, decoded = pcall(SquadJson.decode, buffer)
-		if ok and type(decoded) == "table" then
-			return decoded
-		end
-	end
-	local action = nil
-	if buffer:find('"startTraining"', 1, true) then
-		action = "startTraining"
-	elseif buffer:find('"stopTraining"', 1, true) then
-		action = "stopTraining"
-	elseif buffer:find('"leaveHome"', 1, true) then
-		action = "leaveHome"
-	elseif buffer:find('"goHometown"', 1, true) then
-		action = "goHometown"
-	elseif buffer:find('"channelCancel"', 1, true) then
-		action = "channelCancel"
-	elseif buffer:find('"goHome"', 1, true) then
-		action = "goHome"
-	else
-		return nil
-	end
-	local msg = { action = action }
-	msg.skill = buffer:match('"skill"%s*:%s*"([^"]+)"')
-	local dx = buffer:match('"dummy"%s*:%s*{%s*"x"%s*:%s*(%-?%d+)')
-	local dy = buffer:match('"y"%s*:%s*(%-?%d+)')
-	local dz = buffer:match('"z"%s*:%s*(%-?%d+)')
-	if dx and dy and dz then
-		msg.dummy = { x = tonumber(dx), y = tonumber(dy), z = tonumber(dz) }
-	end
-	return msg
-end
-
 function PlayerHomeManager.handleOpcode(player, buffer)
 	if type(buffer) ~= "string" or buffer == "" then
 		return
 	end
 
-	local msg = decodeOpcode(buffer)
+	local msg = JsonParser.decode(buffer)
 	if type(msg) ~= "table" then
 		return
 	end

@@ -98,6 +98,7 @@ public:
 		std::scoped_lock lock(mutex_);
 		KV::flush();
 		store_.clear();
+		missing_.clear();
 	}
 
 	std::shared_ptr<KV> scoped(const std::string &scope) final;
@@ -124,6 +125,8 @@ private:
 	void setLocked(const std::string &key, const ValueWrapper &value);
 
 	phmap::parallel_flat_hash_map<std::string, std::pair<ValueWrapper, std::list<std::string>::iterator>> store_;
+	// Keys known absent in the DB. Only valid while every kv_store write goes through this store.
+	phmap::flat_hash_set<std::string> missing_;
 	std::list<std::string> lruQueue_;
 	std::mutex mutex_;
 };

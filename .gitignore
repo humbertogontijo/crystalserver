@@ -401,9 +401,6 @@ database_backup
 cmake-build-*
 /data/logs
 
-# Product Lua lives in data-global/{lib,scripts,npc}/idleot and
-# data-global/scripts/custom_migrations (committed). Full data-global checkout
-# (including world.otbm) — no sparse hide.
 out/
 
 # macOS

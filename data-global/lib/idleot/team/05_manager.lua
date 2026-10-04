@@ -652,6 +652,10 @@ function TeamManager.onClientAttached(player)
 	if InstanceWorld and InstanceWorld.scheduleSendBounds then
 		pcall(InstanceWorld.scheduleSendBounds, player)
 	end
+	-- Discovery skips clientless logins; push cyclopedia map state now that a UI exists.
+	if DiscoverySystem and DiscoverySystem.onClientAttached then
+		pcall(DiscoverySystem.onClientAttached, player)
+	end
 end
 
 --- Called from C++ when a real client detaches and the creature stays online as headless.
@@ -1436,27 +1440,10 @@ function TeamManager.deploy(controller, opts)
 						companions[#companions + 1] = claimed
 					else
 						-- Died/logged out during claim — treat as offline load.
-						local offline = Game.getOfflinePlayer(name)
-						if not offline then
-							rollbackCompanions(companions)
-							return deliverDeployResult(opts, nil, string.format("Character not found: %s", name))
-						end
-						if offline:getAccountId() ~= accountId then
-							rollbackCompanions(companions)
-							return deliverDeployResult(opts, nil, string.format("%s is not on your account.", name))
-						end
 						namesToLoad[#namesToLoad + 1] = name
 					end
 				else
-					local offline = Game.getOfflinePlayer(name)
-					if not offline then
-						rollbackCompanions(companions)
-						return deliverDeployResult(opts, nil, string.format("Character not found: %s", name))
-					end
-					if offline:getAccountId() ~= accountId then
-						rollbackCompanions(companions)
-						return deliverDeployResult(opts, nil, string.format("%s is not on your account.", name))
-					end
+					-- Existence + account are checked off-thread by headlessLoginBatch before place.
 					namesToLoad[#namesToLoad + 1] = name
 				end
 			end
@@ -1495,7 +1482,7 @@ function TeamManager.deploy(controller, opts)
 		end
 		local finalized, ferr = finalizeDeploy(controller, opts, merged)
 		opts.onComplete(finalized, ferr)
-	end, instanceId)
+	end, instanceId, accountId)
 	return true
 end
 

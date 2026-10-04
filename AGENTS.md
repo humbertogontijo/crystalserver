@@ -23,3 +23,19 @@ index: [`../../AGENTS.md`](../../AGENTS.md). Fork layout:
 3. **C++ scope** — smallest interface that unlocks clean Lua; not a wholesale
    port of product content into `src/`. Commit in this submodule, rebase
    `upstream/main`, no `*.patch` twins of engine diffs.
+
+## Instances
+
+- **Hazard is stock-only.** Zones live on map tiles shared by every instance,
+  so a stock `Hazard.new({ name = "hazard.<area>", from, to, maxLevel, crit,
+  dodge, damageBoost, defenseBoost }):register()` (see
+  `data-global/scripts/systems/hazard_primal.lua`) also applies inside private
+  expedition instances: zone `afterEnter`/`afterLeave` set player points and
+  `onSpawn` flags monsters. Players pick their level through a stock NPC/lever
+  (e.g. Gnomadness). Do not add expedition-side hazard logic.
+- **Pass the instance id when spawning outside an actor scope.** Death
+  callbacks and `addEvent` have no instance actor, so `Game.createMonster` /
+  `Game.createItem` fall back to the open world. Capture
+  `creature:getInstanceId()` up front and pass it explicitly
+  (`Game.createMonster(name, pos, ext, force, nil, instanceId)`,
+  `Game.createItem(id, count, pos, instanceId)`).

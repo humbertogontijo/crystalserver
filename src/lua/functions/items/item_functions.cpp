@@ -224,7 +224,7 @@ int ItemFunctions::luaItemClone(lua_State* L) {
 		return 1;
 	}
 
-	const auto &clone = item->clone(Lua::getNumber<uint32_t>(L, 2, item->getInstanceId()));
+	const auto &clone = item->clone(InstanceId(Lua::getNumber<uint32_t>(L, 2, item->getInstanceId())));
 	if (!clone) {
 		lua_pushnil(L);
 		return 1;

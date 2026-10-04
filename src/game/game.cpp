@@ -102,6 +102,28 @@ namespace {
 	void syncCompanionTaskBoardUi(const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target);
 	void persistOfflineCompanionEditTarget(const std::shared_ptr<Player> &target);
 
+	// Runs fn(viewer, target) where target is the player whose feature UI the viewer is editing (self or a companion).
+	template <typename Fn>
+	void withFeatureEditTarget(uint32_t playerId, Fn &&fn) {
+		const auto &viewer = g_game().getPlayerByID(playerId);
+		if (!viewer) {
+			return;
+		}
+		const auto &target = resolveFeatureEditTarget(viewer);
+		if (!target) {
+			return;
+		}
+		fn(viewer, target);
+	}
+
+	template <typename Fn>
+	void editTaskBoard(uint32_t playerId, Fn &&fn) {
+		withFeatureEditTarget(playerId, [&](const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target) {
+			fn(target);
+			syncCompanionTaskBoardUi(viewer, target);
+		});
+	}
+
 	bool isBountyHighscoreCategory(const std::string &categoryName) {
 		return categoryName == "bounty_points";
 	}
@@ -157,8 +179,6 @@ namespace {
 
 	/** Items that may walk-to-Use under idle combat (expedition AI). Everything else must
 	 *  not force-walk — smart map clicks call Use on tile tops and would unlock free locomotion. */
-	constexpr uint16_t ITEM_ECHO_WARDEN_PORTAL = 54133;
-
 	[[nodiscard]] bool allowsIdleCombatWalkToUse(const std::shared_ptr<Item> &item) {
 		return item && item->getID() == ITEM_ECHO_WARDEN_PORTAL;
 	}
@@ -222,11 +242,11 @@ InstanceActorScope::~InstanceActorScope() {
 	g_instanceActor = previous;
 }
 
-uint32_t Game::getInstanceActorId() {
-	return g_instanceActor ? g_instanceActor->getInstanceId() : 0;
+InstanceId Game::getInstanceActorId() {
+	return g_instanceActor ? g_instanceActor->getInstanceId() : InstanceId::World;
 }
 
-uint32_t Game::getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder) {
+InstanceId Game::getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder) {
 	if (cylinder) {
 		if (const auto &creature = cylinder->getCreature()) {
 			return creature->getInstanceId();
@@ -238,20 +258,20 @@ uint32_t Game::getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder) 
 	return getInstanceActorId();
 }
 
-uint32_t Game::resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position) {
+InstanceId Game::resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position) {
 	if (explicitId != 0) {
-		return explicitId;
+		return InstanceId(explicitId);
 	}
 	if (master) {
 		return master->getInstanceId();
 	}
-	if (const uint32_t actorId = getInstanceActorId(); actorId != 0) {
+	if (const InstanceId actorId = getInstanceActorId(); !actorId.isWorld()) {
 		return actorId;
 	}
-	return position ? g_instanceFences().instanceForPosition(*position) : 0;
+	return position ? InstanceId(g_instanceFences().instanceForPosition(*position)) : InstanceId::World;
 }
 
-void Game::adoptItemInstance(const std::shared_ptr<Item> &item, uint32_t instanceId) {
+void Game::adoptItemInstance(const std::shared_ptr<Item> &item, InstanceId instanceId) {
 	if (item && item->getInstanceId() != instanceId && !item->isMapTemplateItem()) {
 		item->adoptInstance(instanceId);
 	}
@@ -1022,142 +1042,6 @@ void Game::loadMap(const std::string &path, const Position &pos) {
 	}
 }
 
-uint32_t Game::copyMapRegion(const Position &sourceFrom, const Position &sourceTo, const Position &dest) {
-	if (sourceFrom.x > sourceTo.x || sourceFrom.y > sourceTo.y) {
-		g_logger().warn("[Game::copyMapRegion] invalid AABB from=({},{},{}) to=({},{},{})", sourceFrom.x, sourceFrom.y, sourceFrom.z, sourceTo.x, sourceTo.y, sourceTo.z);
-		return 0;
-	}
-
-	const int32_t width = static_cast<int32_t>(sourceTo.x) - static_cast<int32_t>(sourceFrom.x) + 1;
-	const int32_t height = static_cast<int32_t>(sourceTo.y) - static_cast<int32_t>(sourceFrom.y) + 1;
-	if (width <= 0 || height <= 0 || width > 128 || height > 128) {
-		g_logger().warn("[Game::copyMapRegion] rejected size {}x{} (max 128)", width, height);
-		return 0;
-	}
-	if (static_cast<uint32_t>(dest.x) + static_cast<uint32_t>(width) > 0xFFFF
-	    || static_cast<uint32_t>(dest.y) + static_cast<uint32_t>(height) > 0xFFFF) {
-		g_logger().warn("[Game::copyMapRegion] destination overflow dest=({},{}) size={}x{}", dest.x, dest.y, width, height);
-		return 0;
-	}
-
-	uint32_t copied = 0;
-	// Single-floor clone (expedition viewports); use sourceFrom.z → dest.z.
-	const uint8_t srcZ = sourceFrom.z;
-	const uint8_t destZ = dest.z;
-
-	g_logger().debug(
-		"[Game::copyMapRegion] cloning {}x{} from ({},{},{}) → ({},{},{})",
-		width,
-		height,
-		sourceFrom.x,
-		sourceFrom.y,
-		srcZ,
-		dest.x,
-		dest.y,
-		destZ
-	);
-
-	const auto shouldSkipNonGround = [](const ItemType &it) {
-		// Match map-loader safety: do not materialize interactive / scripted fixtures.
-		return it.id == 0
-			|| it.isTeleport()
-			|| it.isDoor()
-			|| it.isBed()
-			|| it.isDepot()
-			|| it.isMailbox()
-			|| it.isTrashHolder()
-			|| it.isMagicField()
-			|| it.isRewardChest()
-			|| it.isContainer()
-			|| it.isSplash()
-			|| it.isFluidContainer()
-			|| it.movable;
-	};
-
-	for (int32_t dy = 0; dy < height; ++dy) {
-		for (int32_t dx = 0; dx < width; ++dx) {
-			const Position srcPos(
-				static_cast<uint16_t>(sourceFrom.x + dx),
-				static_cast<uint16_t>(sourceFrom.y + dy),
-				srcZ
-			);
-			const auto &srcTile = map.getTile(srcPos);
-			if (!srcTile) {
-				continue;
-			}
-
-			const Position destPos(
-				static_cast<uint16_t>(dest.x + dx),
-				static_cast<uint16_t>(dest.y + dy),
-				destZ
-			);
-			const auto &destTile = map.getOrCreateTile(destPos, true);
-			if (!destTile) {
-				continue;
-			}
-
-			bool wrote = false;
-			const bool houseSource = srcTile->getHouse() != nullptr;
-
-			const auto addFresh = [&](const std::shared_ptr<Item> &srcItem) {
-				if (!srcItem) {
-					return;
-				}
-				if (srcItem->isPickupable()) {
-					return;
-				}
-				if (srcItem->hasAttribute(ItemAttribute_t::UNIQUEID)) {
-					return;
-				}
-				const ItemType &it = Item::items.getItemType(srcItem->getID());
-				if (it.id == 0) {
-					return;
-				}
-				if (!it.isGroundTile()) {
-					if (shouldSkipNonGround(it)) {
-						return;
-					}
-					// House furniture stays on the live house; only copy terrain/walls.
-					if (houseSource && !it.blockSolid) {
-						return;
-					}
-				}
-
-				const uint16_t count = it.isGroundTile() ? 1 : srcItem->getItemCount();
-				const auto &fresh = Item::CreateItem(srcItem->getID(), count, 0);
-				if (!fresh) {
-					return;
-				}
-				// Avoid postAddNotification / moveevents (can crash on interactive types).
-				destTile->internalAddThing(fresh);
-				wrote = true;
-			};
-
-			addFresh(srcTile->getGround());
-
-			if (const TileItemVector* items = srcTile->getItemList()) {
-				for (const auto &item : *items) {
-					if (!item || item == srcTile->getGround()) {
-						continue;
-					}
-					addFresh(item);
-				}
-			}
-
-			if (wrote) {
-				++copied;
-			}
-		}
-	}
-
-	if (copied == 0) {
-		g_logger().warn("[Game::copyMapRegion] copied 0 tiles ({}x{}) → ({},{},{})", width, height, dest.x, dest.y, dest.z);
-	} else {
-		g_logger().debug("[Game::copyMapRegion] copied {} tiles ({}x{}) → ({},{},{})", copied, width, height, dest.x, dest.y, dest.z);
-	}
-	return copied;
-}
-
 uint32_t Game::allocateInstanceId() {
 	while (!freePrivateInstanceIds.empty()) {
 		const uint32_t id = freePrivateInstanceIds.back();
@@ -1619,7 +1503,7 @@ std::shared_ptr<Player> Game::getPlayerByID(uint32_t id, bool allowOffline /* = 
 	if (!allowOffline) {
 		return nullptr;
 	}
-	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
+	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 	if (!IOLoginData::loadPlayerById(tmpPlayer, id)) {
 		return nullptr;
 	}
@@ -1641,7 +1525,7 @@ std::shared_ptr<Player> Game::getMarketPlayerByGUID(uint32_t &guid) {
 		}
 	}
 
-	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
+	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 	if (!IOLoginData::loadPlayerById(tmpPlayer, guid, false)) {
 		return nullptr;
 	}
@@ -1699,7 +1583,7 @@ std::shared_ptr<Player> Game::getPlayerByName(const std::string &s, bool allowOf
 		if (!allowOffline) {
 			return nullptr;
 		}
-		std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
+		std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 		if (!IOLoginData::loadPlayerByName(tmpPlayer, s)) {
 			if (!isNewName) {
 				g_logger().error("Failed to load player {} from database", s);
@@ -1727,7 +1611,7 @@ std::shared_ptr<Player> Game::getPlayerByGUID(const uint32_t &guid, bool allowOf
 	if (!allowOffline) {
 		return nullptr;
 	}
-	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, 0);
+	std::shared_ptr<Player> tmpPlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 	if (!IOLoginData::loadPlayerById(tmpPlayer, guid)) {
 		return nullptr;
 	}
@@ -7144,10 +7028,6 @@ void Game::ensureAccountQuickLootFilter(const std::shared_ptr<Player> &player) {
 	);
 }
 
-void Game::inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player) {
-	ensureAccountQuickLootFilter(player);
-}
-
 /*******************************************************************************
  * Depot search system
  ******************************************************************************/
@@ -10967,22 +10847,14 @@ void Game::playerReportBug(uint32_t playerId, const std::string &message, const 
 }
 
 void Game::playerPreyAction(uint32_t playerId, uint8_t slot, uint8_t action, uint8_t option, int8_t index, uint16_t raceId) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
+	withFeatureEditTarget(playerId, [&](const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target) {
+		g_ioprey().parsePreyAction(target, static_cast<PreySlot_t>(slot), static_cast<PreyAction_t>(action), static_cast<PreyOption_t>(option), index, raceId);
 
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_ioprey().parsePreyAction(target, static_cast<PreySlot_t>(slot), static_cast<PreyAction_t>(action), static_cast<PreyOption_t>(option), index, raceId);
-
-	if (target.get() != viewer.get()) {
-		target->deliverPreyUiTo(viewer);
-		persistOfflineCompanionEditTarget(target);
-	}
+		if (target.get() != viewer.get()) {
+			target->deliverPreyUiTo(viewer);
+			persistOfflineCompanionEditTarget(target);
+		}
+	});
 }
 
 void Game::playerSoulSealsFight(uint32_t playerId, uint16_t raceId) {
@@ -11035,274 +10907,145 @@ void Game::playerSoulSealsFight(uint32_t playerId, uint16_t raceId) {
  ******************************************************************************/
 
 void Game::playerOpenBountyTask(uint32_t playerId) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	if (target->getPlayerVocationEnum() == Vocation_t::VOCATION_NONE) {
-		viewer->sendMessageDialog("Bounty Tasks are not available in Rookgaard.");
-		return;
-	}
-
-	auto &bountyData = target->getBountyTaskData();
-	if (bountyData.state == BOUNTY_STATE_NONE) {
-		g_iobountytasks().generateCreatureList(target, bountyData.selectedDifficulty);
-	} else {
-		if (bountyData.state == BOUNTY_STATE_SELECTION && bountyData.currentCreaturesList.size() < BOUNTY_MAX_CREATURES) {
-			g_iobountytasks().fillMissingCreatures(target);
+	withFeatureEditTarget(playerId, [&](const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target) {
+		if (target->getPlayerVocationEnum() == Vocation_t::VOCATION_NONE) {
+			viewer->sendMessageDialog("Bounty Tasks are not available in Rookgaard.");
+			return;
 		}
-		if (target.get() == viewer.get()) {
-			target->sendBountyTaskData();
+
+		auto &bountyData = target->getBountyTaskData();
+		if (bountyData.state == BOUNTY_STATE_NONE) {
+			g_iobountytasks().generateCreatureList(target, bountyData.selectedDifficulty);
+		} else {
+			if (bountyData.state == BOUNTY_STATE_SELECTION && bountyData.currentCreaturesList.size() < BOUNTY_MAX_CREATURES) {
+				g_iobountytasks().fillMissingCreatures(target);
+			}
+			if (target.get() == viewer.get()) {
+				target->sendBountyTaskData();
+			}
 		}
-	}
-	syncCompanionTaskBoardUi(viewer, target);
+		syncCompanionTaskBoardUi(viewer, target);
+	});
 }
 
 void Game::playerOpenWeeklyTask(uint32_t playerId) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_ioweeklytasks().initializeWeeklyTasks(target);
-	if (target.get() == viewer.get()) {
-		target->sendWeeklyTaskData();
-	}
-	syncCompanionTaskBoardUi(viewer, target);
+	withFeatureEditTarget(playerId, [&](const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target) {
+		g_ioweeklytasks().initializeWeeklyTasks(target);
+		if (target.get() == viewer.get()) {
+			target->sendWeeklyTaskData();
+		}
+		syncCompanionTaskBoardUi(viewer, target);
+	});
 }
 
 void Game::playerOpenHuntingTaskShop(uint32_t playerId) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	if (target.get() == viewer.get()) {
-		target->sendHuntingTaskShopData();
-	} else {
-		target->deliverHuntingTaskShopUiTo(viewer);
-	}
+	withFeatureEditTarget(playerId, [&](const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target) {
+		if (target.get() == viewer.get()) {
+			target->sendHuntingTaskShopData();
+		} else {
+			target->deliverHuntingTaskShopUiTo(viewer);
+		}
+	});
 }
 
 void Game::playerWeeklyTasksRegenerate(uint32_t playerId, uint8_t difficulty) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
+	withFeatureEditTarget(playerId, [&](const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target) {
+		if (difficulty > 3) {
+			return;
+		}
 
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
+		uint32_t minLevel = IOWeeklyTasks::getMinLevelForDifficulty(difficulty);
+		if (target->getLevel() < minLevel) {
+			viewer->sendTextMessage(MESSAGE_STATUS, fmt::format("You need at least level {} to select this difficulty.", minLevel));
+			return;
+		}
 
-	if (difficulty > 3) {
-		return;
-	}
-
-	uint32_t minLevel = IOWeeklyTasks::getMinLevelForDifficulty(difficulty);
-	if (target->getLevel() < minLevel) {
-		viewer->sendTextMessage(MESSAGE_STATUS, fmt::format("You need at least level {} to select this difficulty.", minLevel));
-		return;
-	}
-
-	g_ioweeklytasks().generateWeeklyTasks(target, difficulty);
-	if (target.get() == viewer.get()) {
-		target->sendWeeklyTaskData();
-		target->refreshTaskIcons();
-	}
-	syncCompanionTaskBoardUi(viewer, target);
+		g_ioweeklytasks().generateWeeklyTasks(target, difficulty);
+		if (target.get() == viewer.get()) {
+			target->sendWeeklyTaskData();
+			target->refreshTaskIcons();
+		}
+		syncCompanionTaskBoardUi(viewer, target);
+	});
 }
 
 void Game::playerWeeklyTaskDeliver(uint32_t playerId, uint8_t taskIndex) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_ioweeklytasks().deliverWeeklyTask(target, taskIndex);
-	syncCompanionTaskBoardUi(viewer, target);
+	editTaskBoard(playerId, [&](const std::shared_ptr<Player> &target) {
+		g_ioweeklytasks().deliverWeeklyTask(target, taskIndex);
+	});
 }
 
 void Game::playerBountyTaskChangeDifficulty(uint32_t playerId, uint8_t difficulty) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
+	withFeatureEditTarget(playerId, [&](const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target) {
+		if (difficulty > BOUNTY_DIFFICULTY_LAST) {
+			return;
+		}
 
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	if (difficulty > BOUNTY_DIFFICULTY_LAST) {
-		return;
-	}
-
-	g_iobountytasks().changeDifficulty(target, static_cast<BountyTaskDifficulty_t>(difficulty));
-	syncCompanionTaskBoardUi(viewer, target);
+		g_iobountytasks().changeDifficulty(target, static_cast<BountyTaskDifficulty_t>(difficulty));
+		syncCompanionTaskBoardUi(viewer, target);
+	});
 }
 
 void Game::playerBountyTaskClaimReroll(uint32_t playerId) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_iobountytasks().claimDailyReroll(target);
-	syncCompanionTaskBoardUi(viewer, target);
+	editTaskBoard(playerId, [&](const std::shared_ptr<Player> &target) {
+		g_iobountytasks().claimDailyReroll(target);
+	});
 }
 
 void Game::playerBountyTaskReroll(uint32_t playerId) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_iobountytasks().rerollCreatureList(target);
-	syncCompanionTaskBoardUi(viewer, target);
+	editTaskBoard(playerId, [&](const std::shared_ptr<Player> &target) {
+		g_iobountytasks().rerollCreatureList(target);
+	});
 }
 
 void Game::playerBountyTaskSelectTask(uint32_t playerId, uint8_t taskIndex) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_iobountytasks().selectTask(target, taskIndex);
-	syncCompanionTaskBoardUi(viewer, target);
+	editTaskBoard(playerId, [&](const std::shared_ptr<Player> &target) {
+		g_iobountytasks().selectTask(target, taskIndex);
+	});
 }
 
 void Game::playerBountyTaskSetPreferred(uint32_t playerId, uint8_t listType, uint8_t slot, uint16_t raceId) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_iobountytasks().setPreferredMonster(target, listType, slot, raceId);
-	syncCompanionTaskBoardUi(viewer, target);
+	editTaskBoard(playerId, [&](const std::shared_ptr<Player> &target) {
+		g_iobountytasks().setPreferredMonster(target, listType, slot, raceId);
+	});
 }
 
 void Game::playerBountyTaskSetUnwanted(uint32_t playerId, uint8_t listType, uint8_t slot, uint16_t raceId) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_iobountytasks().setUnwantedMonster(target, listType, slot, raceId);
-	syncCompanionTaskBoardUi(viewer, target);
+	editTaskBoard(playerId, [&](const std::shared_ptr<Player> &target) {
+		g_iobountytasks().setUnwantedMonster(target, listType, slot, raceId);
+	});
 }
 
 void Game::playerBountyTaskClaimReward(uint32_t playerId) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
+	withFeatureEditTarget(playerId, [&](const std::shared_ptr<Player> &viewer, const std::shared_ptr<Player> &target) {
+		const bool hadCompletedTask = target->getBountyTaskData().state == BOUNTY_STATE_COMPLETED;
 
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
+		g_iobountytasks().claimTaskReward(target);
 
-	const bool hadCompletedTask = target->getBountyTaskData().state == BOUNTY_STATE_COMPLETED;
+		if (hadCompletedTask) {
+			callActivityBoostOnBountyClaim(target);
+		}
 
-	g_iobountytasks().claimTaskReward(target);
-
-	if (hadCompletedTask) {
-		callActivityBoostOnBountyClaim(target);
-	}
-
-	syncCompanionTaskBoardUi(viewer, target);
+		syncCompanionTaskBoardUi(viewer, target);
+	});
 }
 
 void Game::playerBountyTaskUpgradeTalisman(uint32_t playerId, uint8_t pathIndex) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_iobountytasks().upgradeTalisman(target, pathIndex);
-	syncCompanionTaskBoardUi(viewer, target);
+	editTaskBoard(playerId, [&](const std::shared_ptr<Player> &target) {
+		g_iobountytasks().upgradeTalisman(target, pathIndex);
+	});
 }
 
 void Game::playerBountyTaskBuyShopOffer(uint32_t playerId, uint8_t offerIndex) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_ioweeklytasks().buyShopOffer(target, offerIndex);
-	syncCompanionTaskBoardUi(viewer, target);
+	editTaskBoard(playerId, [&](const std::shared_ptr<Player> &target) {
+		g_ioweeklytasks().buyShopOffer(target, offerIndex);
+	});
 }
 
 void Game::playerBountyTaskUnlockListSlot(uint32_t playerId, uint8_t slot) {
-	const auto &viewer = getPlayerByID(playerId);
-	if (!viewer) {
-		return;
-	}
-
-	const auto &target = resolveFeatureEditTarget(viewer);
-	if (!target) {
-		return;
-	}
-
-	g_iobountytasks().unlockListSlot(target, slot);
-	syncCompanionTaskBoardUi(viewer, target);
+	editTaskBoard(playerId, [&](const std::shared_ptr<Player> &target) {
+		g_iobountytasks().unlockListSlot(target, slot);
+	});
 }
 
 /*******************************************************************************/
@@ -12895,7 +12638,7 @@ void Game::createLuaItemsOnMap() {
 			continue;
 		}
 
-		const auto &item = Item::CreateItem(itemId, 1, 0);
+		const auto &item = Item::CreateItem(itemId, 1, InstanceId::World);
 		if (!item) {
 			positionStr = position.toString();
 			g_logger().warn("[Game::createLuaItemsOnMap] - Cannot create item with id {} on position {}", itemId, positionStr);
@@ -13463,7 +13206,7 @@ void Game::transferHouseItemsToDepot() {
 	for (const auto &[houseId, playerGuid] : transferHouseItemsToPlayer) {
 		auto house = map.houses.getHouse(houseId);
 		if (house) {
-			auto offlinePlayer = std::make_shared<Player>(nullptr, 0);
+			auto offlinePlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 			if (!IOLoginData::loadPlayerById(offlinePlayer, playerGuid)) {
 				continue;
 			}

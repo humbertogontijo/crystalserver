@@ -716,18 +716,16 @@ function Player:onChangeZone(zone)
 		if configManager.getBoolean(configKeys.STAMINA_PZ) then
 			if zone == ZONE_PROTECTION then
 				local stamina = self:getStamina()
-				local maxStamina = STAMINA_MAX_MINUTES or 2520
-				if stamina < maxStamina then
+				if stamina < 2520 then
 					if not event then
-						local delay = getStaminaRegenDelayMs(stamina)
-						local delayMin = delay / (60 * 1000)
-						local message = string.format(
-							"In protection zone. Recharging %i stamina every %s minutes.",
-							configManager.getNumber(configKeys.STAMINA_PZ_GAIN),
-							tostring(delayMin)
-						)
+						local delay = configManager.getNumber(configKeys.STAMINA_ORANGE_DELAY)
+						if stamina > configManager.getNumber(configKeys.STAMINA_GREEN_THRESHOLD) and stamina <= 2520 then
+							delay = configManager.getNumber(configKeys.STAMINA_GREEN_DELAY)
+						end
+
+						local message = string.format("In protection zone. Recharging %i stamina every %i minutes.", configManager.getNumber(configKeys.STAMINA_PZ_GAIN), delay)
 						self:sendTextMessage(MESSAGE_FAILURE, message)
-						staminaBonus.eventsPz[self:getId()] = addEvent(addStamina, delay, nil, self:getId(), delay)
+						staminaBonus.eventsPz[self:getId()] = addEvent(addStamina, delay * 60 * 1000, nil, self:getId(), delay * 60 * 1000)
 					end
 				end
 			else

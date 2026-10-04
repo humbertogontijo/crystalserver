@@ -146,16 +146,6 @@ function TeamStore.sanitizeMembers(primaryPlayer, members)
 	return out
 end
 
---- Backward-compatible name-only list (companions + friends names in order).
-function TeamStore.sanitizeNames(primaryPlayer, names)
-	local members = TeamStore.sanitizeMembers(primaryPlayer, names)
-	local out = {}
-	for _, m in ipairs(members) do
-		out[#out + 1] = m.name
-	end
-	return out
-end
-
 local function decodeStored(stored)
 	if type(stored) == "string" and stored ~= "" then
 		local decoded = JsonParser.decode(stored)
@@ -447,15 +437,9 @@ function TeamStore.adoptAccountTeamLeadership(player, opts)
 	TeamStore.setControllerPointer(oldHost, player:getGuid())
 	TeamStore.setControllerPointer(player, nil)
 
-	if TeamManager and TeamManager.retargetRosterInvites then
-		TeamManager.retargetRosterInvites(pointerGuid, player:getGuid(), player:getName())
-	end
-	if ListingsStore and ListingsStore.adoptListing then
-		ListingsStore.adoptListing(player, oldHost)
-	end
-	if TeamBonus and TeamBonus.syncCombatCache then
-		pcall(TeamBonus.syncCombatCache, player)
-	end
+	TeamManager.retargetRosterInvites(pointerGuid, player:getGuid(), player:getName())
+	ListingsStore.adoptListing(player, oldHost)
+	pcall(TeamBonus.syncCombatCache, player)
 
 	return true
 end
@@ -556,15 +540,6 @@ function TeamStore.getMembers(player)
 	return members
 end
 
-function TeamStore.getMemberNames(player)
-	local members = TeamStore.getMembers(player)
-	local names = {}
-	for _, m in ipairs(members) do
-		names[#names + 1] = m.name
-	end
-	return names
-end
-
 function TeamStore.setMembers(player, members)
 	if not player then
 		return false, "No player."
@@ -573,11 +548,6 @@ function TeamStore.setMembers(player, members)
 		return false, "Only the team host can edit the roster."
 	end
 	return TeamStore.setMembersOnController(player, members)
-end
-
-function TeamStore.setMemberNames(player, names)
-	-- Legacy API: treat bare names as companions.
-	return TeamStore.setMembers(player, names)
 end
 
 function TeamStore.resolveCharacter(nameOrGuid)
@@ -640,16 +610,6 @@ function TeamStore.resolveFriendMember(controller, nameOrGuid)
 		return nil, "Only friends can join your team."
 	end
 	return candidate
-end
-
-function TeamStore.getCompanionNames(player)
-	local names = {}
-	for _, m in ipairs(TeamStore.getMembers(player)) do
-		if m.kind ~= TeamConfig.KIND_FRIEND then
-			names[#names + 1] = m.name
-		end
-	end
-	return names
 end
 
 function TeamStore.getFriendNames(player)

@@ -128,9 +128,7 @@ local function isFraggedToday(player)
 end
 
 local function noteWorldBossFrag(player)
-	if ActivityBoostActivities and ActivityBoostActivities.addProgress then
-		ActivityBoostActivities.addProgress(player, "world_boss", 1)
-	end
+	ActivityBoostActivities.addProgress(player, "world_boss", 1)
 end
 
 local function partyLeaderKey(player)
@@ -384,9 +382,7 @@ function ActivityBoostWorldBoss.broadcastSchedule()
 		sessionTimes = ActivityBoostConfig.WORLD_BOSS_SESSION_TIMES or {},
 	}
 	for _, player in ipairs(Game.getPlayers()) do
-		if ActivityBoostProtocol and ActivityBoostProtocol.send then
-			ActivityBoostProtocol.send(player, payload)
-		end
+		ActivityBoostProtocol.send(player, payload)
 	end
 end
 
@@ -469,15 +465,6 @@ local function startBandSession(band, bossName)
 			end, 2000)
 		end
 	end, (ActivityBoostConfig.WORLD_BOSS_FIGHT_SEC or 1200) * 1000)
-end
-
---- Keep arena free until a player joins a specific boss. No auto-spawn.
-function ActivityBoostWorldBoss.ensureBand(band)
-	if not band or not band.id then
-		return false
-	end
-	local session = ActivityBoostWorldBoss.active[band.id]
-	return session ~= nil and not session.tearingDown and not session.bossDead
 end
 
 function ActivityBoostWorldBoss.ensureAllBands()
@@ -757,11 +744,6 @@ local function clearWorldBossSkulls(player, opts)
 	end
 end
 
---- Public for login/stranded rescue — never leave arena marks into open world.
-function ActivityBoostWorldBoss.clearSkulls(player, opts)
-	clearWorldBossSkulls(player, opts)
-end
-
 --- Clear arena PvP marks + open-PvP flag (stranded rescue / leave / login fallback).
 function ActivityBoostWorldBoss.clearArenaState(player, opts)
 	if not player then
@@ -869,9 +851,7 @@ function ActivityBoostWorldBoss.leave(player, opts)
 	end
 	-- Re-assert skull clear after teleport so the client refresh at the new tile is NONE.
 	clearWorldBossSkulls(player)
-	if ExpeditionProtocol and ExpeditionProtocol.sendEnded then
-		ExpeditionProtocol.sendEnded(player)
-	end
+	ExpeditionProtocol.sendEnded(player)
 	if not opts.silent then
 		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, opts.reason or "Left world boss.")
 	end

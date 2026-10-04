@@ -844,10 +844,6 @@ function TeamBonus.effectivePrey(player, raceId)
 	return nil
 end
 
-function TeamBonus.hasTeamPreyForRace(player, raceId)
-	return TeamBonus.effectivePrey(player, raceId) ~= nil
-end
-
 function TeamBonus.buyXpBoost(player)
 	if not player then
 		return false, "Invalid player."

@@ -95,9 +95,7 @@ function QuestsProtocol.handle(player, buffer)
 			QuestsProtocol.sendList(player, data.kind or "all", targetName)
 			if bossHuntId then
 				-- Refresh exclusive solo bosses into the client's expedition catalog.
-				if ExpeditionProtocol and ExpeditionProtocol.sendCatalog then
-					ExpeditionProtocol.sendCatalog(player)
-				end
+				ExpeditionProtocol.sendCatalog(player)
 				QuestsProtocol.send(player, {
 					type = "hunt",
 					id = data.id,
@@ -131,9 +129,7 @@ function QuestsProtocol.handle(player, buffer)
 			huntId = QuestArena.expeditionIdForArena(entry.arenaId)
 			huntHint = entry.huntHint
 			-- Fee-paid exclusive rows only appear after accept; refresh client catalog.
-			if ExpeditionProtocol and ExpeditionProtocol.sendCatalog then
-				ExpeditionProtocol.sendCatalog(player)
-			end
+			ExpeditionProtocol.sendCatalog(player)
 		end
 		if not huntId and ExpeditionConfig and ExpeditionConfig.Catalog then
 			local hint = entry.huntHint

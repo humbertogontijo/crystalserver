@@ -63,9 +63,6 @@ function EM_PRIV.beginExpeditionHunt(session, contentRole)
 		return
 	end
 	EM_PRIV.syncClientMaps(session)
-	if ExpeditionDifficulty and ExpeditionDifficulty.applySessionPoints then
-		ExpeditionDifficulty.applySessionPoints(session)
-	end
 	if contentRole == "arena" then
 		if QuestArena and QuestArena.begin then
 			QuestArena.begin(session)

@@ -30,11 +30,11 @@ using CreatureVector = std::vector<std::shared_ptr<Creature>>;
 
 class Monster final : public Creature {
 public:
-	static std::shared_ptr<Monster> createMonster(const std::string &name, uint32_t instanceId);
+	static std::shared_ptr<Monster> createMonster(const std::string &name, InstanceId instanceId);
 	static int32_t despawnRange;
 	static int32_t despawnRadius;
 
-	Monster(const std::shared_ptr<MonsterType> &mType, uint32_t instanceId);
+	Monster(const std::shared_ptr<MonsterType> &mType, InstanceId instanceId);
 
 	// non-copyable
 	Monster(const Monster &) = delete;
@@ -270,6 +270,8 @@ protected:
 	void onExecuteAsyncTasks() override;
 
 private:
+	void scaleMaxHealth(float hpMult);
+
 	auto getTargetIterator(const std::shared_ptr<Creature> &creature) {
 		return std::ranges::find_if(targetList.begin(), targetList.end(), [id = creature->getID()](const std::weak_ptr<Creature> &ref) {
 			const auto &target = ref.lock();

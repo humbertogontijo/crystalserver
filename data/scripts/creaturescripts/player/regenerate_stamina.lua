@@ -14,18 +14,15 @@ function regenerateStamina.onLogin(player)
 		return true
 	end
 
-	local greenThreshold = STAMINA_GREEN_THRESHOLD or 2160
-	local maxStamina = STAMINA_MAX_MINUTES or 2520
 	local staminaMinutes = player:getStamina()
 	local initialStamina = staminaMinutes
-	local normalRegenSec = configManager.getNumber(configKeys.STAMINA_REGEN_MINUTE)
-	local greenRegenSec = configManager.getNumber(configKeys.STAMINA_REGEN_PREMIUM)
+	local greenThreshold = configManager.getNumber(configKeys.STAMINA_GREEN_THRESHOLD)
 	local maxNormalStaminaRegen = greenThreshold - math.min(greenThreshold, staminaMinutes)
-	local regainStaminaMinutes = offlineTime / normalRegenSec
+	local regainStaminaMinutes = offlineTime / configManager.getNumber(configKeys.STAMINA_REGEN_MINUTE)
 
 	if regainStaminaMinutes > maxNormalStaminaRegen then
-		local happyHourStaminaRegen = (offlineTime - (maxNormalStaminaRegen * normalRegenSec)) / greenRegenSec
-		staminaMinutes = math.min(maxStamina, math.max(greenThreshold, staminaMinutes) + happyHourStaminaRegen)
+		local happyHourStaminaRegen = (offlineTime - (maxNormalStaminaRegen * configManager.getNumber(configKeys.STAMINA_REGEN_MINUTE))) / configManager.getNumber(configKeys.STAMINA_REGEN_PREMIUM)
+		staminaMinutes = math.min(2520, math.max(greenThreshold, staminaMinutes) + happyHourStaminaRegen)
 	else
 		staminaMinutes = staminaMinutes + regainStaminaMinutes
 	end

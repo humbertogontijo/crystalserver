@@ -31,7 +31,6 @@
 #include "game/instance_fence.hpp"
 #include "game/instance_spawns.hpp"
 #include "game/scheduling/dispatcher.hpp"
-#include "creatures/monsters/monsters.hpp"
 #ifdef IDLEOT_HAS_OCCUPANCY
 #include "occupancy_mask.hpp"
 #endif
@@ -67,7 +66,7 @@ bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position positio
 	// Bind before placeCreature (same pattern as Game.createMonster) so login hooks and
 	// spectators see the private hunt/raid id immediately — no post-place enterInstance race.
 	if (instanceId != 0) {
-		player->moveToInstance(instanceId);
+		player->moveToInstance(InstanceId(instanceId));
 	}
 	// Forced place so headless players can stack near the controller / temple.
 	// onPlacedCreature → playerLogin must see the DB lastLoginSaved — same order as ProtocolGame.
@@ -94,16 +93,16 @@ void reclaimHeadlessPlayer(const std::shared_ptr<Player> &player, Position posit
 	const bool onMap = tile && !player->isRemoved();
 	if (hasPosition && onMap && player->getPosition() != position) {
 		if (instanceId != 0) {
-			player->moveToInstance(instanceId);
+			player->moveToInstance(InstanceId(instanceId));
 		}
 		g_game().internalTeleport(player, position, true);
 	} else if (hasPosition && !onMap) {
 		if (instanceId != 0) {
-			player->moveToInstance(instanceId);
+			player->moveToInstance(InstanceId(instanceId));
 		}
 		g_game().internalTeleport(player, position, true);
 	} else if (instanceId != 0 && (!onMap || player->getInstanceId() == 0)) {
-		player->moveToInstance(instanceId);
+		player->moveToInstance(InstanceId(instanceId));
 	} else if (instanceId != 0 && onMap && player->getInstanceId() != instanceId) {
 		g_logger().warn(
 			"[Game.headlessLogin] refusing same-tile instance rebind for '{}' ({} → {}); pass a distinct position",
@@ -130,6 +129,77 @@ struct HeadlessBatchLoadResult {
 	std::string error;
 };
 
+// Each placement fires every onLogin handler; one dispatcher task per player keeps
+// a multi-companion deploy from stalling every client's packets in a single tick.
+struct HeadlessBatchPlaceState {
+	std::vector<HeadlessBatchLoadResult> results;
+	std::vector<HeadlessBatchSlot> slots;
+	std::vector<std::shared_ptr<Player>> claimed;
+	std::vector<bool> placedHere;
+	std::vector<size_t> needLoad;
+	Position position;
+	bool hasPosition = false;
+	uint32_t instanceId = 0;
+	size_t next = 0;
+	std::function<void(const std::vector<std::shared_ptr<Player>> &, const std::string &)> callback;
+};
+
+void finishHeadlessBatch(const std::shared_ptr<HeadlessBatchPlaceState> &state, std::string error) {
+	std::vector<std::shared_ptr<Player>> placed;
+	if (error.empty()) {
+		placed.reserve(state->claimed.size());
+		for (const auto &p : state->claimed) {
+			if (!p || p->isRemoved()) {
+				error = fmt::format("{} went offline during login", p ? p->getName() : "a companion");
+				break;
+			}
+			placed.push_back(p);
+		}
+	}
+	if (error.empty()) {
+		state->callback(placed, {});
+		return;
+	}
+	// Only roll back players this batch put online; reclaimed headless stay for the caller.
+	for (size_t i = 0; i < state->claimed.size(); ++i) {
+		const auto &p = state->claimed[i];
+		if (state->placedHere[i] && p && !p->isRemoved() && p->isHeadless() && p->getProtocolVersion() == 0) {
+			p->removePlayer(true, true);
+		}
+	}
+	state->claimed.clear();
+	state->callback({}, error);
+}
+
+void placeHeadlessBatchStep(const std::shared_ptr<HeadlessBatchPlaceState> &state) {
+	if (state->next >= state->needLoad.size()) {
+		finishHeadlessBatch(state, {});
+		return;
+	}
+	const size_t r = state->next++;
+	const size_t slotIndex = state->needLoad[r];
+	const auto &loaded = state->results[r].player;
+
+	// Another session may have logged in while we were loading.
+	const auto live = g_game().getPlayerByGUID(loaded->getGUID(), false);
+	if (live && live.get() != loaded.get()) {
+		if (!live->isHeadless() && live->getProtocolVersion() > 0) {
+			finishHeadlessBatch(state, fmt::format("{} is online on a real client", live->getName()));
+			return;
+		}
+		reclaimHeadlessPlayer(live, state->position, state->hasPosition, state->instanceId);
+		state->claimed[slotIndex] = live;
+	} else if (placeHeadlessPlayer(loaded, state->position, state->hasPosition, state->instanceId)) {
+		g_logger().info("[Game.headlessLoginBatch] '{}' online (headless)", loaded->getName());
+		state->claimed[slotIndex] = loaded;
+		state->placedHere[slotIndex] = true;
+	} else {
+		finishHeadlessBatch(state, fmt::format("could not place '{}'", loaded->getName()));
+		return;
+	}
+	g_dispatcher().addEvent([state] { placeHeadlessBatchStep(state); }, "Game.headlessLoginBatch place");
+}
+
 } // namespace
 
 void GameFunctions::init(lua_State* L) {
@@ -146,7 +216,6 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "getPlayers", GameFunctions::luaGameGetPlayers);
 	Lua::registerMethod(L, "Game", "loadMap", GameFunctions::luaGameLoadMap);
 	Lua::registerMethod(L, "Game", "loadMapChunk", GameFunctions::luaGameloadMapChunk);
-	Lua::registerMethod(L, "Game", "copyMapRegion", GameFunctions::luaGameCopyMapRegion);
 #ifdef IDLEOT_HAS_OCCUPANCY
 	Lua::registerMethod(L, "Game", "loadOccupancyMask", GameFunctions::luaGameLoadOccupancyMask);
 #endif
@@ -158,6 +227,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "clearInstancePrivateFence", GameFunctions::luaGameClearInstancePrivateFence);
 	Lua::registerMethod(L, "Game", "createInstanceSpawns", GameFunctions::luaGameCreateInstanceSpawns);
 	Lua::registerMethod(L, "Game", "clearInstanceSpawns", GameFunctions::luaGameClearInstanceSpawns);
+	Lua::registerMethod(L, "Game", "sweepInstance", GameFunctions::luaGameSweepInstance);
 	Lua::registerMethod(L, "Game", "setInstanceFloors", GameFunctions::luaGameSetInstanceFloors);
 	Lua::registerMethod(L, "Game", "canWalkInstance", GameFunctions::luaGameCanWalkInstance);
 	Lua::registerMethod(L, "Game", "computeCombatPowerFromTraits", GameFunctions::luaGameComputeCombatPowerFromTraits);
@@ -204,6 +274,7 @@ void GameFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Game", "hasDistanceEffect", GameFunctions::luaGameHasDistanceEffect);
 	Lua::registerMethod(L, "Game", "hasEffect", GameFunctions::luaGameHasEffect);
+	Lua::registerMethod(L, "Game", "registerMagicEffect", GameFunctions::luaGameRegisterMagicEffect);
 	Lua::registerMethod(L, "Game", "getOfflinePlayer", GameFunctions::luaGameGetOfflinePlayer);
 	Lua::registerMethod(L, "Game", "headlessLogin", GameFunctions::luaGameHeadlessLogin);
 	Lua::registerMethod(L, "Game", "headlessLoginBatch", GameFunctions::luaGameHeadlessLoginBatch);
@@ -514,15 +585,6 @@ int GameFunctions::luaGameloadMapChunk(lua_State* L) {
 	return 0;
 }
 
-int GameFunctions::luaGameCopyMapRegion(lua_State* L) {
-	// Game.copyMapRegion(sourceFrom, sourceTo, dest)
-	const Position &sourceFrom = Lua::getPosition(L, 1);
-	const Position &sourceTo = Lua::getPosition(L, 2);
-	const Position &dest = Lua::getPosition(L, 3);
-	lua_pushnumber(L, g_game().copyMapRegion(sourceFrom, sourceTo, dest));
-	return 1;
-}
-
 #ifdef IDLEOT_HAS_OCCUPANCY
 namespace {
 	int luaOccupancyMaskContains(lua_State* L) {
@@ -738,6 +800,80 @@ int GameFunctions::luaGameClearInstanceSpawns(lua_State* L) {
 	// Game.clearInstanceSpawns(instanceId)
 	g_instanceSpawns().clear(Lua::getNumber<uint32_t>(L, 1));
 	return 0;
+}
+
+int GameFunctions::luaGameSweepInstance(lua_State* L) {
+	// Game.sweepInstance(instanceId) -> removed count | nil (not private / no fence registered)
+	// Stops instance spawns, then removes every non-player creature and loose item tagged
+	// with instanceId: a native map scan plus the fence tiles across its floors.
+	const auto instanceId = Lua::getNumber<uint32_t>(L, 1);
+	const auto &fences = g_instanceFences();
+	const auto bounds = instanceId >= InstanceFenceRegistry::PRIVATE_BASE ? fences.boundsFor(instanceId) : std::nullopt;
+	if (!bounds) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	g_instanceSpawns().clear(instanceId);
+
+	std::vector<std::shared_ptr<Creature>> creatures;
+	for (const auto &[id, monster] : g_game().getMonsters()) {
+		if (monster && monster->getInstanceId() == instanceId) {
+			creatures.emplace_back(monster);
+		}
+	}
+	for (const auto &[id, npc] : g_game().getNpcs()) {
+		if (npc && npc->getInstanceId() == instanceId) {
+			creatures.emplace_back(npc);
+		}
+	}
+
+	std::vector<std::shared_ptr<Item>> items;
+	for (int32_t z = 0; z < MAP_MAX_LAYERS; ++z) {
+		for (int32_t y = bounds->y; y < bounds->y + bounds->h; ++y) {
+			for (int32_t x = bounds->x; x < bounds->x + bounds->w; ++x) {
+				const Position pos(static_cast<uint16_t>(x), static_cast<uint16_t>(y), static_cast<uint8_t>(z));
+				if (!fences.containsPos(instanceId, pos)) {
+					continue;
+				}
+				const auto &tile = g_game().map.getTile(pos);
+				if (!tile) {
+					continue;
+				}
+				if (const auto* tileCreatures = tile->getCreatures()) {
+					for (const auto &creature : *tileCreatures) {
+						if (creature && !creature->getPlayer() && creature->getInstanceId() == instanceId) {
+							creatures.emplace_back(creature);
+						}
+					}
+				}
+				if (const auto* tileItems = tile->getItemList()) {
+					for (const auto &item : *tileItems) {
+						if (item && item->getInstanceId() == instanceId) {
+							items.emplace_back(item);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	uint32_t removed = 0;
+	for (const auto &creature : creatures) {
+		if (creature->isRemoved()) {
+			continue;
+		}
+		creature->setDropLoot(false);
+		g_game().removeCreature(creature);
+		++removed;
+	}
+	for (const auto &item : items) {
+		if (!item->isRemoved() && g_game().internalRemoveItem(item) == RETURNVALUE_NOERROR) {
+			++removed;
+		}
+	}
+	lua_pushnumber(L, removed);
+	return 1;
 }
 
 int GameFunctions::luaGameSetInstanceFloors(lua_State* L) {
@@ -976,8 +1112,8 @@ int GameFunctions::luaGameCreateItem(lua_State* L) {
 		position = Lua::getPosition(L, 3);
 	}
 	// An explicit instanceId (0 included) wins; otherwise inherit from the acting creature / area.
-	const uint32_t instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
-		? Lua::getNumber<uint32_t>(L, 4)
+	const InstanceId instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
+		? InstanceId(Lua::getNumber<uint32_t>(L, 4))
 		: Game::resolveBirthInstance(0, nullptr, position.x != 0 ? &position : nullptr);
 
 	const bool hasTable = itemCount > 1;
@@ -1054,8 +1190,8 @@ int GameFunctions::luaGameCreateContainer(lua_State* L) {
 
 	const bool hasPosition = lua_gettop(L) >= 3 && lua_type(L, 3) != LUA_TNIL;
 	const Position position = hasPosition ? Lua::getPosition(L, 3) : Position();
-	const uint32_t instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
-		? Lua::getNumber<uint32_t>(L, 4)
+	const InstanceId instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
+		? InstanceId(Lua::getNumber<uint32_t>(L, 4))
 		: Game::resolveBirthInstance(0, nullptr, hasPosition ? &position : nullptr);
 	const auto &container = Item::CreateItemAsContainer(id, size, instanceId);
 	if (!container) {
@@ -1299,6 +1435,14 @@ int GameFunctions::luaGameHasEffect(lua_State* L) {
 	return 1;
 }
 
+int GameFunctions::luaGameRegisterMagicEffect(lua_State* L) {
+	// Game.registerMagicEffect(effectId)
+	const uint16_t effectId = Lua::getNumber<uint16_t>(L, 1);
+	g_game().registerMagicEffect(effectId);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
 int GameFunctions::luaGameHasDistanceEffect(lua_State* L) {
 	// Game.hasDistanceEffect(effectId)
 	const uint16_t effectId = Lua::getNumber<uint16_t>(L, 1);
@@ -1375,7 +1519,7 @@ int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
 		return 1;
 	}
 
-	auto player = std::make_shared<Player>(nullptr, 0);
+	auto player = std::make_shared<Player>(nullptr, InstanceId::World);
 	const bool loaded = guid != 0
 		? IOLoginData::loadPlayerById(player, guid, false)
 		: IOLoginData::loadPlayerByName(player, name, false);
@@ -1405,8 +1549,9 @@ int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
 }
 
 int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
-	// Game.headlessLoginBatch(names, position, callback[, instanceId = 0])
+	// Game.headlessLoginBatch(names, position, callback[, instanceId = 0[, accountId = 0]])
 	// names: array of character name strings (and/or guids as numbers)
+	// accountId: non-zero rejects characters of another account before they are placed.
 	// callback(players|nil, err|nil) — invoked on the game dispatcher after place.
 	// DB loads run on ThreadPool so the dispatcher is not blocked.
 	if (!lua_istable(L, 1) || !lua_isfunction(L, 3)) {
@@ -1421,6 +1566,7 @@ int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
 		position = Lua::getPosition(L, 2);
 	}
 	const uint32_t instanceId = lua_gettop(L) >= 4 ? Lua::getNumber<uint32_t>(L, 4, 0) : 0;
+	const uint32_t accountId = lua_gettop(L) >= 5 ? Lua::getNumber<uint32_t>(L, 5, 0) : 0;
 
 	lua_pushvalue(L, 3);
 	const int32_t callbackRef = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -1532,105 +1678,50 @@ int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
 		return 0;
 	}
 
-	auto results = std::make_shared<std::vector<HeadlessBatchLoadResult>>(needLoad.size());
-	auto remaining = std::make_shared<std::atomic<size_t>>(needLoad.size());
-	auto slotsPtr = std::make_shared<std::vector<HeadlessBatchSlot>>(std::move(slots));
-	auto claimedPtr = std::make_shared<std::vector<std::shared_ptr<Player>>>(std::move(claimed));
+	auto state = std::make_shared<HeadlessBatchPlaceState>();
+	state->results.resize(needLoad.size());
+	state->slots = std::move(slots);
+	state->claimed = std::move(claimed);
+	state->placedHere.assign(state->slots.size(), false);
+	state->needLoad = std::move(needLoad);
+	state->position = position;
+	state->hasPosition = hasPosition;
+	state->instanceId = instanceId;
+	state->callback = invokeCallback;
+	auto remaining = std::make_shared<std::atomic<size_t>>(state->needLoad.size());
 
-	auto finishOnDispatcher = [invokeCallback, results, slotsPtr, claimedPtr, position, hasPosition, needLoad, instanceId]() {
-		std::vector<std::shared_ptr<Player>> placed;
-		placed.reserve(slotsPtr->size());
-		std::string firstError;
-
-		for (size_t r = 0; r < needLoad.size(); ++r) {
-			const auto &load = (*results)[r];
-			const size_t slotIndex = needLoad[r];
+	auto finishOnDispatcher = [state]() {
+		for (const auto &load : state->results) {
 			if (!load.ok || !load.player) {
-				if (firstError.empty()) {
-					firstError = load.error.empty() ? "headless load failed" : load.error;
-				}
-				continue;
-			}
-
-			// Another session may have logged in while we were loading.
-			auto live = g_game().getPlayerByGUID(load.player->getGUID(), false);
-			if (live && live.get() != load.player.get()) {
-				if (!live->isHeadless() && live->getProtocolVersion() > 0) {
-					if (firstError.empty()) {
-						firstError = fmt::format("{} is online on a real client", live->getName());
-					}
-					continue;
-				}
-				reclaimHeadlessPlayer(live, position, hasPosition, instanceId);
-				(*claimedPtr)[slotIndex] = live;
-				continue;
-			}
-
-			if (!placeHeadlessPlayer(load.player, position, hasPosition, instanceId)) {
-				if (firstError.empty()) {
-					firstError = fmt::format("could not place '{}'", load.player->getName());
-				}
-				continue;
-			}
-			g_logger().info("[Game.headlessLoginBatch] '{}' online (headless)", load.player->getName());
-			(*claimedPtr)[slotIndex] = load.player;
-		}
-
-		for (const auto &p : *claimedPtr) {
-			if (p) {
-				placed.push_back(p);
+				finishHeadlessBatch(state, load.error.empty() ? "headless login batch failed" : load.error);
+				return;
 			}
 		}
-
-		if (!firstError.empty() || placed.size() != slotsPtr->size()) {
-			for (const auto &p : placed) {
-				if (p && p->isHeadless() && p->getProtocolVersion() == 0) {
-					// Only roll back players we placed in this batch that were newly online.
-					// Already-claimed headless companions stay up for the caller to manage.
-				}
-			}
-			// Rollback newly placed companions from this batch so a partial deploy does not leak.
-			for (size_t r = 0; r < needLoad.size(); ++r) {
-				const size_t slotIndex = needLoad[r];
-				auto &p = (*claimedPtr)[slotIndex];
-				if (!p || (*slotsPtr)[slotIndex].existing) {
-					continue;
-				}
-				if (p->isHeadless() && p->getProtocolVersion() == 0) {
-					p->removePlayer(true, true);
-				}
-				p.reset();
-			}
-			invokeCallback({}, firstError.empty() ? "headless login batch failed" : firstError);
-			return;
-		}
-
-		invokeCallback(placed, {});
+		placeHeadlessBatchStep(state);
 	};
 
-	for (size_t r = 0; r < needLoad.size(); ++r) {
-		const size_t slotIndex = needLoad[r];
-		const HeadlessBatchSlot slot = (*slotsPtr)[slotIndex];
-		ThreadPool::getInstance().detach_task([results, remaining, r, slot, slotIndex, finishOnDispatcher]() {
+	for (size_t r = 0; r < state->needLoad.size(); ++r) {
+		const size_t slotIndex = state->needLoad[r];
+		const HeadlessBatchSlot slot = state->slots[slotIndex];
+		ThreadPool::getInstance().detach_task([state, remaining, r, slot, slotIndex, accountId, finishOnDispatcher]() {
 			HeadlessBatchLoadResult out;
 			out.index = slotIndex;
-			auto player = std::make_shared<Player>(nullptr, 0);
+			auto player = std::make_shared<Player>(nullptr, InstanceId::World);
 			const bool loaded = slot.kind == HeadlessBatchSlot::Kind::Guid && slot.guid != 0
 				? IOLoginData::loadPlayerById(player, slot.guid, false)
 				: IOLoginData::loadPlayerByName(player, slot.name, false);
 			if (!loaded || !player->getGUID()) {
 				out.ok = false;
-				out.error = fmt::format(
-					"load failed for '{}'/guid {}",
-					slot.name,
-					slot.guid
-				);
-				g_logger().warn("[Game.headlessLoginBatch] {}", out.error);
+				out.error = slot.name.empty() ? fmt::format("Character not found: guid {}", slot.guid) : fmt::format("Character not found: {}", slot.name);
+				g_logger().warn("[Game.headlessLoginBatch] load failed for '{}'/guid {}", slot.name, slot.guid);
+			} else if (accountId != 0 && player->getAccountId() != accountId) {
+				out.ok = false;
+				out.error = fmt::format("{} is not on your account.", player->getName());
 			} else {
 				out.ok = true;
 				out.player = std::move(player);
 			}
-			(*results)[r] = std::move(out);
+			state->results[r] = std::move(out);
 			if (remaining->fetch_sub(1) == 1) {
 				g_dispatcher().addEvent(finishOnDispatcher, "Game.headlessLoginBatch finish");
 			}

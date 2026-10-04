@@ -510,65 +510,6 @@ function ExpeditionManager.setLure(player, lure)
 	end
 end
 
-function ExpeditionManager.setHazardLevel(player, hazard)
-	if not player then
-		return
-	end
-	if not ExpeditionDifficulty then
-		ExpeditionProtocol.sendError(player, "Hazard system unavailable.")
-		return
-	end
-	local session = ExpeditionManager.getSessionByPlayer(player)
-	if not session then
-		ExpeditionProtocol.sendError(player, "Not on an expedition.")
-		return
-	end
-	if session.kind == "raid" or session.role == "boss" or session.role == "arena" then
-		ExpeditionProtocol.sendError(player, "Hazard is only available on monster hunt expeditions.")
-		return
-	end
-	-- Host-only (match party control expectations for lure-like knobs).
-	if session.playerId and session.playerId ~= player:getId() and not PzTeleport.isGod(player) then
-		ExpeditionProtocol.sendError(player, "Only the expedition host can change hazard level.")
-		return
-	end
-	local members = {}
-	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local m = Player(mid)
-		if m then
-			members[#members + 1] = m
-		end
-	end
-	local requested = math.floor(tonumber(hazard) or 0)
-	local value = 0
-	if requested > 0 then
-		local maxAllowed = ExpeditionDifficulty.maxAllowedHazard
-				and ExpeditionDifficulty.maxAllowedHazard(members, session.catalog)
-			or 0
-		value = math.max(0, math.floor(tonumber(maxAllowed) or 0))
-		if value > 0 then
-			local ok, err = ExpeditionDifficulty.canAttemptHazard(members, session.catalog, value, player)
-			if not ok then
-				ExpeditionProtocol.sendError(player, err or "Hazard level too high for party.")
-				ExpeditionManager.broadcastStatus(session)
-				return
-			end
-		end
-	end
-	if session.hazardLevel == value then
-		ExpeditionManager.broadcastStatus(session)
-		return
-	end
-	session.hazardLevel = value
-	ExpeditionDifficulty.applySessionPoints(session)
-	ExpeditionManager.broadcastStatus(session)
-	if value > 0 then
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Hazard enabled (level %d).", value))
-	else
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Hazard disabled.")
-	end
-end
-
 function ExpeditionManager.prepareBoss(player, expeditionId, loadout, options)
 	if not player or not ExpeditionDifficulty then
 		return
@@ -814,7 +755,7 @@ function EM_PRIV.completeLeaveCountdown(sessionKey, initiatorId, initiatorName, 
 			tostring(switchTo.id),
 			tostring(initiatorName or joiner:getName())
 		)
-		performDirectSwitch(joiner, s, switchTo, {})
+		performDirectSwitch(joiner, s, switchTo, {}, { channeled = true })
 		return
 	end
 
@@ -1151,10 +1092,12 @@ end
 --- Tear down the current hunt in place and join the next (no city return).
 --- Validates host + pre-accepted teammates against the destination levelMin *before*
 --- aborting the prior session so a failed transfer cannot strand anyone mid-instance.
-performDirectSwitch = function(host, session, switchTo, preAcceptedPlayers)
+--- opts.channeled: the switch channel already ran, so the join enters without a second one.
+performDirectSwitch = function(host, session, switchTo, preAcceptedPlayers, opts)
 	if not host or not switchTo then
 		return
 	end
+	opts = opts or {}
 	local hostId = host:getId()
 	local others = {}
 	for _, p in ipairs(preAcceptedPlayers or {}) do
@@ -1248,6 +1191,7 @@ performDirectSwitch = function(host, session, switchTo, preAcceptedPlayers)
 		joinOpts[k] = v
 	end
 	joinOpts.skipPzCheck = true
+	joinOpts.skipEntryChannel = opts.channeled == true
 	if #others > 0 then
 		joinOpts.preAcceptedPlayers = others
 	end
@@ -1316,7 +1260,7 @@ function EM_PRIV.tryCompletePendingSwitch(session)
 			if not joiner then
 				return
 			end
-			performDirectSwitch(joiner, live, switchTo, accepted)
+			performDirectSwitch(joiner, live, switchTo, accepted, { channeled = true })
 		end,
 		onCancel = function(ids)
 			for _, id in ipairs(ids or memberIds) do
@@ -1849,7 +1793,8 @@ function ExpeditionManager.leave(player, opts)
 		if InstanceWorld and InstanceWorld.suppressHuntLeave then
 			InstanceWorld.suppressHuntLeave(player, false)
 		end
-		if player.getHealth and player:getHealth() > 0 then
+		-- Hometown recall already sent its instance-teleport arrival effect.
+		if not opts.goHometown and player.getHealth and player:getHealth() > 0 then
 			local now = player:getPosition()
 			if now then
 				now:sendMagicEffect(CONST_ME_TELEPORT)

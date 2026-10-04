@@ -12,9 +12,7 @@ function loginEvent.onLogin(player)
 	player:registerEvent("PlayerHomeOpcode")
 	player:registerEvent("PlayerHomeLogout")
 	player:registerEvent("PlayerHomeDeath")
-	if PlayerHomeManager and PlayerHomeManager.onLogin then
-		pcall(PlayerHomeManager.onLogin, player)
-	end
+	pcall(PlayerHomeManager.onLogin, player)
 	return true
 end
 
@@ -57,9 +55,7 @@ logoutEvent:register()
 local deathEvent = CreatureEvent("PlayerHomeDeath")
 
 function deathEvent.onDeath(player, corpse, killer, mostDamageKiller, lastHitUnjustified, mostDamageUnjustified)
-	if PlayerHomeManager and PlayerHomeManager.onDeath then
-		pcall(PlayerHomeManager.onDeath, player)
-	end
+	pcall(PlayerHomeManager.onDeath, player)
 	return true
 end
 
@@ -68,9 +64,7 @@ deathEvent:register()
 local startup = GlobalEvent("PlayerHomeStartup")
 
 function startup.onStartup()
-	if PlayerHomeManager and PlayerHomeManager.onStartup then
-		PlayerHomeManager.onStartup()
-	end
+	PlayerHomeManager.onStartup()
 	return true
 end
 
@@ -80,9 +74,7 @@ startup:register()
 local saveEvent = GlobalEvent("PlayerHomeSave")
 
 function saveEvent.onSave()
-	if PlayerHomeManager and PlayerHomeManager.onServerSave then
-		pcall(PlayerHomeManager.onServerSave)
-	end
+	pcall(PlayerHomeManager.onServerSave)
 	return true
 end
 

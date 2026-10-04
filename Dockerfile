@@ -5,8 +5,8 @@
 # Coolify custom build command must NOT pass --no-cache (resets those mounts
 # on this host): DOCKER_BUILDKIT=1 docker compose build
 #
-# The image datapack (data + data-global) is the source of truth — no
-# /opt/product overlay. Datapack-only pushes still rebuild the runtime stage.
+# data + data-global are baked into the runtime stage; datapack-only pushes
+# still rebuild it.
 
 FROM ubuntu:24.04 AS toolchain
 
@@ -15,7 +15,7 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean \
 	&& apt-get update && apt-get install -y --no-install-recommends \
 	cmake git unzip build-essential ca-certificates curl zip tar \
 	pkg-config ninja-build autoconf automake libtool \
-	python3 ccache rsync util-linux \
+	python3 ccache util-linux \
 	&& rm -rf /var/lib/apt/lists/*
 
 SHELL ["/bin/bash", "-lc"]

@@ -31,7 +31,6 @@
 #include "creatures/players/attached_effects/player_attached_effects.hpp"
 
 #include "io/iobountytasks.hpp"
-#include "io/iodailyactivities.hpp"
 #include "io/ioweeklytasks.hpp"
 
 class AnimusMastery;
@@ -287,7 +286,7 @@ public:
 		const std::shared_ptr<Player> &player;
 	};
 
-	Player(std::shared_ptr<ProtocolGame> p, uint32_t instanceId);
+	Player(std::shared_ptr<ProtocolGame> p, InstanceId instanceId);
 	~Player() override;
 
 	// non-copyable
@@ -303,7 +302,7 @@ public:
 
 	/** The only way a creature changes instance; summons follow. Carried items keep
 	 *  their id until dropped, where Game adopts them into the mover's instance. */
-	void moveToInstance(uint32_t id) {
+	void moveToInstance(InstanceId id) {
 		setInstanceId(id);
 	}
 
@@ -904,9 +903,6 @@ public:
 	bool isAttackable() const override;
 	static bool lastHitIsPlayer(const std::shared_ptr<Creature> &lastHitCreature);
 
-	// Soft-death / arena knockout: per-player, not shared group flags.
-	bool isCombatUnattackable() const;
-	void setCombatUnattackable(bool enabled);
 	/// Soft-death: hide from combat (stay on tile as spectator); restore with softSpawn.
 	bool softDespawn();
 	bool softSpawn(const Position &pos);
@@ -1517,7 +1513,6 @@ public:
 
 	void clearTeamPreyBonuses();
 	void setTeamPreyBonus(uint16_t raceId, uint8_t bonusType, uint16_t percentage);
-	bool hasTeamPreyBonus(uint16_t raceId) const;
 	bool getTeamPreyBonus(uint16_t raceId, uint8_t &bonusType, uint16_t &percentage) const;
 
 	// Task hunting system
@@ -1569,12 +1564,6 @@ public:
 
 	WeeklyTaskData &getWeeklyTaskData();
 	const WeeklyTaskData &getWeeklyTaskData() const;
-
-	DailyActivityData &getDailyActivityData();
-	const DailyActivityData &getDailyActivityData() const;
-
-	uint32_t getDailyActivityStat(const std::string &activityId);
-	uint32_t addDailyActivityStat(const std::string &activityId, uint32_t delta);
 
 	bool hasWeeklyTaskExpansion() const;
 	void setWeeklyTaskExpansion(bool onOff);
@@ -1989,7 +1978,6 @@ private:
 
 	BountyTaskData bountyTaskData;
 	WeeklyTaskData weeklyTaskData;
-	DailyActivityData dailyActivityData;
 	bool weeklyTaskExpansion = false;
 
 	GuildWarVector guildWarVector;
@@ -2180,7 +2168,6 @@ private:
 	bool chaseMode = false;
 	bool secureMode = true;
 	bool openPvp = false;
-	bool combatUnattackable = false;
 	bool softDespawned = false;
 	bool inMarket = false;
 	bool wasMounted = false;

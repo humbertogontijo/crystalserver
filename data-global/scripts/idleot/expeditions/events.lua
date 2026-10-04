@@ -122,12 +122,8 @@ local thinkCallback = EventCallback("CombatAutomationPlayerOnThink")
 function thinkCallback.playerOnThink(player, interval)
 	-- Engine think owns per-player combat cadence (idleCombat 250ms).
 	-- Session AI is only ExpeditionAI.start's aiEvent — do not call ExpeditionAI.tick here.
-	if CombatAutomation and CombatAutomation.onThink then
-		pcall(CombatAutomation.onThink, player, interval)
-	end
-	if ExpeditionManager and ExpeditionManager.syncSessionClientIfNeeded then
-		pcall(ExpeditionManager.syncSessionClientIfNeeded, player)
-	end
+	pcall(CombatAutomation.onThink, player, interval)
+	pcall(ExpeditionManager.syncSessionClientIfNeeded, player)
 end
 
 thinkCallback:register()
@@ -158,12 +154,8 @@ zoneLeaveCallback:register()
 local startup = GlobalEvent("ExpeditionStartup")
 
 function startup.onStartup()
-	if ExpeditionManager and ExpeditionManager.onStartup then
-		ExpeditionManager.onStartup()
-	end
-	if RaidInstance and RaidInstance.onStartup then
-		RaidInstance.onStartup()
-	end
+	ExpeditionManager.onStartup()
+	RaidInstance.onStartup()
 	return true
 end
 
@@ -172,9 +164,7 @@ startup:register()
 local saveEvent = GlobalEvent("ExpeditionSave")
 
 function saveEvent.onSave()
-	if ExpeditionManager and ExpeditionManager.onServerSave then
-		pcall(ExpeditionManager.onServerSave)
-	end
+	pcall(ExpeditionManager.onServerSave)
 	return true
 end
 

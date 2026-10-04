@@ -137,8 +137,8 @@ function CombatGeo.freeNeighbourCount(pos, self, instanceId)
 	return n
 end
 
---- Stepping `from` -> `dest` moves farther from the player's path leash anchor while
---- `from` is already outside the leash radius.
+--- Stepping `from` -> `dest` ends outside the player's path leash radius and farther
+--- from its anchor than `from` (the engine path search's leash rule).
 function CombatGeo.fartherFromLeash(player, from, dest)
 	if not player.getPathLeashRadius or not player.getPathLeashAnchor then
 		return false
@@ -151,6 +151,6 @@ function CombatGeo.fartherFromLeash(player, from, dest)
 	if not anchor or anchor.z ~= dest.z then
 		return false
 	end
-	local now = CombatGeo.chebyshev(from, anchor)
-	return now > radius and CombatGeo.chebyshev(dest, anchor) > now
+	local later = CombatGeo.chebyshev(dest, anchor)
+	return later > radius and later > CombatGeo.chebyshev(from, anchor)
 end

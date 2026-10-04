@@ -33,7 +33,6 @@ private:
 	static int luaGameGetPlayers(lua_State* L);
 	static int luaGameLoadMap(lua_State* L);
 	static int luaGameloadMapChunk(lua_State* L);
-	static int luaGameCopyMapRegion(lua_State* L);
 #ifdef IDLEOT_HAS_OCCUPANCY
 	static int luaGameLoadOccupancyMask(lua_State* L);
 #endif
@@ -45,6 +44,7 @@ private:
 	static int luaGameClearInstancePrivateFence(lua_State* L);
 	static int luaGameCreateInstanceSpawns(lua_State* L);
 	static int luaGameClearInstanceSpawns(lua_State* L);
+	static int luaGameSweepInstance(lua_State* L);
 	static int luaGameSetInstanceFloors(lua_State* L);
 	static int luaGameCanWalkInstance(lua_State* L);
 	static int luaGameComputeCombatPowerFromTraits(lua_State* L);
@@ -100,6 +100,7 @@ private:
 	static int luaGameGetNormalizedPlayerName(lua_State* L);
 	static int luaGameGetNormalizedGuildName(lua_State* L);
 	static int luaGameHasEffect(lua_State* L);
+	static int luaGameRegisterMagicEffect(lua_State* L);
 	static int luaGameHasDistanceEffect(lua_State* L);
 
 	static int luaGameAddInfluencedMonster(lua_State* L);

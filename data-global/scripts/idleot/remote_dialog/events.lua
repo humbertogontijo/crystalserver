@@ -29,9 +29,7 @@ opcodeEvent:register()
 local logoutEvent = CreatureEvent("RemoteDialogLogout")
 
 function logoutEvent.onLogout(player)
-	if RemoteDialog and RemoteDialog.onLogout then
-		RemoteDialog.onLogout(player)
-	end
+	RemoteDialog.onLogout(player)
 	return true
 end
 

@@ -11,7 +11,7 @@
 --   /disco donations          -> pools + boost states (scheduled / active until)
 --   /disco ss                 -> simulate the server-save boundary (activate/expire boosts)
 --
--- Viewpoints come from tibiamaps flag markers (discovery_pois.generated.lua), not random rolls.
+-- Viewpoints come from tibiamaps flag markers (lib/idleot/discovery/pois.generated.lua), not random rolls.
 -- Regenerate catalog: python3 tools/gen_discovery_pois.py
 
 local talkaction = TalkAction("/disco")

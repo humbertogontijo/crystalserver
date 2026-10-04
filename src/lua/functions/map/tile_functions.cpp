@@ -649,7 +649,7 @@ int TileFunctions::luaTileAddItem(lua_State* L) {
 
 	const auto subType = Lua::getNumber<uint32_t>(L, 3, 1);
 
-	const auto &item = Item::CreateItem(itemId, std::min<uint32_t>(subType, Item::items[itemId].stackSize), lua_gettop(L) >= 5 && !lua_isnil(L, 5) ? Lua::getNumber<uint32_t>(L, 5) : Game::resolveBirthInstance(0, nullptr, &tile->getPosition()));
+	const auto &item = Item::CreateItem(itemId, std::min<uint32_t>(subType, Item::items[itemId].stackSize), lua_gettop(L) >= 5 && !lua_isnil(L, 5) ? InstanceId(Lua::getNumber<uint32_t>(L, 5)) : Game::resolveBirthInstance(0, nullptr, &tile->getPosition()));
 	if (!item) {
 		lua_pushnil(L);
 		return 1;

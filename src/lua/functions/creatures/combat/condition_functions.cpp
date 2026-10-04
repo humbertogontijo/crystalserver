@@ -47,7 +47,6 @@ void ConditionFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Condition", "setOutfit", ConditionFunctions::luaConditionSetOutfit);
 
 	Lua::registerMethod(L, "Condition", "addDamage", ConditionFunctions::luaConditionAddDamage);
-	Lua::registerMethod(L, "Condition", "getTotalDamage", ConditionFunctions::luaConditionGetTotalDamage);
 }
 
 int ConditionFunctions::luaConditionCreate(lua_State* L) {
@@ -262,21 +261,5 @@ int ConditionFunctions::luaConditionAddDamage(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
-	return 1;
-}
-
-int ConditionFunctions::luaConditionGetTotalDamage(lua_State* L) {
-	// condition:getTotalDamage()
-	const auto &condition = Lua::getUserdataShared<Condition>(L, 1);
-	if (!condition) {
-		lua_pushnil(L);
-		return 1;
-	}
-	const auto damageCondition = condition->dynamic_self_cast<ConditionDamage>();
-	if (!damageCondition) {
-		lua_pushnumber(L, 0);
-		return 1;
-	}
-	lua_pushnumber(L, damageCondition->getTotalDamage());
 	return 1;
 }

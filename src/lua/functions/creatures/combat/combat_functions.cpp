@@ -32,8 +32,6 @@ void CombatFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Combat", "setParameter", CombatFunctions::luaCombatSetParameter);
 	Lua::registerMethod(L, "Combat", "setFormula", CombatFunctions::luaCombatSetFormula);
-	Lua::registerMethod(L, "Combat", "getFormula", CombatFunctions::luaCombatGetFormula);
-	Lua::registerMethod(L, "Combat", "estimateMagnitude", CombatFunctions::luaCombatEstimateMagnitude);
 
 	Lua::registerMethod(L, "Combat", "setArea", CombatFunctions::luaCombatSetArea);
 	Lua::registerMethod(L, "Combat", "addCondition", CombatFunctions::luaCombatSetCondition);
@@ -90,50 +88,6 @@ int CombatFunctions::luaCombatSetFormula(lua_State* L) {
 	const double maxb = Lua::getNumber<double>(L, 6);
 	combat->setPlayerCombatValues(type, mina, minb, maxa, maxb);
 	Lua::pushBoolean(L, true);
-	return 1;
-}
-
-int CombatFunctions::luaCombatGetFormula(lua_State* L) {
-	// combat:getFormula() -> { formulaType, mina, minb, maxa, maxb, combatType }
-	const auto &combat = Lua::getUserdataShared<Combat>(L, 1);
-	if (!combat) {
-		lua_pushnil(L);
-		return 1;
-	}
-
-	double mina = 0;
-	double minb = 0;
-	double maxa = 0;
-	double maxb = 0;
-	combat->getFormulaValues(mina, minb, maxa, maxb);
-
-	lua_createtable(L, 0, 6);
-	Lua::setField(L, "formulaType", static_cast<lua_Number>(combat->getFormulaType()));
-	Lua::setField(L, "mina", mina);
-	Lua::setField(L, "minb", minb);
-	Lua::setField(L, "maxa", maxa);
-	Lua::setField(L, "maxb", maxb);
-	Lua::setField(L, "combatType", static_cast<lua_Number>(combat->getCombatType()));
-	return 1;
-}
-
-int CombatFunctions::luaCombatEstimateMagnitude(lua_State* L) {
-	// combat:estimateMagnitude() -> { formula, combatType, minBurst, maxBurst, conditionPackage, formulaKnown }
-	const auto &combat = Lua::getUserdataShared<Combat>(L, 1);
-	if (!combat) {
-		lua_pushnil(L);
-		return 1;
-	}
-
-	const auto magnitude = combat->estimateMagnitude();
-	lua_createtable(L, 0, 6);
-	Lua::setField(L, "formula", static_cast<lua_Number>(magnitude.formula));
-	Lua::setField(L, "combatType", static_cast<lua_Number>(magnitude.combatType));
-	Lua::setField(L, "minBurst", magnitude.minBurst);
-	Lua::setField(L, "maxBurst", magnitude.maxBurst);
-	Lua::setField(L, "conditionPackage", magnitude.conditionPackage);
-	Lua::pushBoolean(L, magnitude.formulaKnown);
-	lua_setfield(L, -2, "formulaKnown");
 	return 1;
 }
 

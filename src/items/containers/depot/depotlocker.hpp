@@ -22,7 +22,7 @@
 
 class DepotLocker final : public Container {
 public:
-	DepotLocker(uint16_t type, uint16_t size, uint32_t instanceId);
+	DepotLocker(uint16_t type, uint16_t size, InstanceId instanceId);
 
 	std::shared_ptr<DepotLocker> getDepotLocker() override {
 		return static_self_cast<DepotLocker>();

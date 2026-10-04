@@ -177,13 +177,6 @@ PlayerHomeConfig.EXERCISE_WEAPONS = {
 	[44067] = { skill = "shield" },
 }
 
---- Skill name for an exercise weapon item id.
-function PlayerHomeConfig.weaponSkill(itemId)
-	itemId = tonumber(itemId) or 0
-	local meta = PlayerHomeConfig.EXERCISE_WEAPONS[itemId]
-	return meta and meta.skill or nil
-end
-
 --- Sorted server item ids for a training skill (stable consume order).
 function PlayerHomeConfig.weaponsForSkill(skill)
 	if type(skill) ~= "string" or skill == "" then
@@ -197,16 +190,4 @@ function PlayerHomeConfig.weaponsForSkill(skill)
 	end
 	table.sort(ids)
 	return ids
-end
-
-function PlayerHomeConfig.zoneName()
-	return PlayerHomeConfig.ZONE_NAME
-end
-
---- True if zone name belongs to a personal-home instance.
-function PlayerHomeConfig.isHomeZoneName(name)
-	if type(name) ~= "string" then
-		return false
-	end
-	return name:sub(1, #PlayerHomeConfig.ZONE_PREFIX) == PlayerHomeConfig.ZONE_PREFIX
 end

@@ -49,7 +49,7 @@ private:
 
 class Door final : public Item {
 public:
-	Door(uint16_t type, uint32_t instanceId);
+	Door(uint16_t type, InstanceId instanceId);
 
 	// non-copyable
 	Door(const Door &) = delete;
@@ -94,9 +94,9 @@ using HouseBedItemList = std::list<std::shared_ptr<BedItem>>;
 
 class HouseTransferItem final : public Item {
 public:
-	static std::shared_ptr<HouseTransferItem> createHouseTransferItem(const std::shared_ptr<House> &house, uint32_t instanceId);
+	static std::shared_ptr<HouseTransferItem> createHouseTransferItem(const std::shared_ptr<House> &house, InstanceId instanceId);
 
-	HouseTransferItem(std::shared_ptr<House> newHouse, uint32_t instanceId) :
+	HouseTransferItem(std::shared_ptr<House> newHouse, InstanceId instanceId) :
 		Item(0, 0, instanceId), house(std::move(newHouse)) { }
 
 	void onTradeEvent(TradeEvents_t event, const std::shared_ptr<Player> &owner) override;
@@ -342,7 +342,6 @@ public:
 
 	void setInstanceOwner(uint32_t instanceId, uint32_t guid);
 	void clearInstanceOwner(uint32_t instanceId);
-	uint32_t getInstanceOwner(uint32_t instanceId) const;
 
 private:
 	bool transferToDepot() const;
@@ -350,7 +349,7 @@ private:
 	AccessList guestList;
 	AccessList subOwnerList;
 
-	std::shared_ptr<Container> transfer_container = std::make_shared<Container>(ITEM_LOCKER, 0);
+	std::shared_ptr<Container> transfer_container = std::make_shared<Container>(ITEM_LOCKER, InstanceId::World);
 
 	HouseTileList houseTiles;
 	std::list<std::shared_ptr<Door>> doorList;

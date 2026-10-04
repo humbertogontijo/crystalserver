@@ -17,14 +17,14 @@ function IdleotServerSave.runHooks()
 	end
 	lastHookEpoch = epoch
 
-	if ActivityBoostActivities and ActivityBoostActivities.onServerSave then
-		pcall(ActivityBoostActivities.onServerSave)
+	pcall(ActivityBoostActivities.onServerSave)
+	pcall(ActivityBoostWorldBoss.onServerSave)
+	pcall(ExpeditionManager.onServerSave)
+	if DiscoverySystem and DiscoverySystem.onServerSave then
+		pcall(DiscoverySystem.onServerSave)
 	end
-	if ActivityBoostWorldBoss and ActivityBoostWorldBoss.onServerSave then
-		pcall(ActivityBoostWorldBoss.onServerSave)
-	end
-	if ExpeditionManager and ExpeditionManager.onServerSave then
-		pcall(ExpeditionManager.onServerSave)
+	if EchoWarden and EchoWarden.onServerSave then
+		pcall(EchoWarden.onServerSave)
 	end
 end
 

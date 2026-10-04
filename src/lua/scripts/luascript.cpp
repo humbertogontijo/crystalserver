@@ -274,7 +274,7 @@ bool LuaScriptInterface::closeState() {
 	return true;
 }
 
-std::string LuaScriptInterface::getMetricsScope() const {
+std::string LuaScriptInterface::getMetricsScope(int params) const {
 #ifdef FEATURE_METRICS
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
 	int32_t scriptId;
@@ -299,14 +299,31 @@ std::string LuaScriptInterface::getMetricsScope() const {
 		}
 	}
 
-	return fmt::format("{}:{}", name, timerEvent ? "timer" : "<direct>");
+	// One script file registers many callbacks; the called function's source line tells them apart.
+	std::string function = "?";
+	if (luaState && lua_isfunction(luaState, -(params + 1))) {
+		lua_Debug ar;
+		lua_pushvalue(luaState, -(params + 1));
+		if (lua_getinfo(luaState, ">S", &ar) != 0 && ar.source) {
+			std::string_view source(ar.source);
+			if (const auto pos = source.find("data"); pos != std::string_view::npos) {
+				source.remove_prefix(pos);
+			} else if (!source.empty() && source.front() == '@') {
+				source.remove_prefix(1);
+			}
+			function = source == name ? fmt::format("{}", ar.linedefined) : fmt::format("{}:{}", source, ar.linedefined);
+		}
+	}
+
+	return fmt::format("{}:{}:{}", name, timerEvent ? "timer" : "<direct>", function);
 #else
+	(void)params;
 	return {};
 #endif
 }
 
 bool LuaScriptInterface::callFunction(int params) const {
-	metrics::lua_latency measure(getMetricsScope());
+	metrics::lua_latency measure(getMetricsScope(params));
 	bool result = false;
 	const int size = lua_gettop(luaState);
 	if (protectedCall(luaState, params, 1) != 0) {
@@ -325,7 +342,7 @@ bool LuaScriptInterface::callFunction(int params) const {
 }
 
 void LuaScriptInterface::callVoidFunction(int params) const {
-	metrics::lua_latency measure(getMetricsScope());
+	metrics::lua_latency measure(getMetricsScope(params));
 	const int size = lua_gettop(luaState);
 	if (protectedCall(luaState, params, 0) != 0) {
 		LuaScriptInterface::reportError(nullptr, LuaScriptInterface::popString(luaState));

@@ -142,12 +142,12 @@ private:
 
 class Container : public Item, public Cylinder {
 public:
-	Container(uint16_t type, uint32_t instanceId);
-	Container(uint16_t type, uint16_t size, uint32_t instanceId, bool unlocked = true, bool pagination = false);
+	Container(uint16_t type, InstanceId instanceId);
+	Container(uint16_t type, uint16_t size, InstanceId instanceId, bool unlocked = true, bool pagination = false);
 	~Container() override;
 
-	static std::shared_ptr<Container> create(uint16_t type, uint32_t instanceId);
-	static std::shared_ptr<Container> create(uint16_t type, uint16_t size, uint32_t instanceId, bool unlocked = true, bool pagination = false);
+	static std::shared_ptr<Container> create(uint16_t type, InstanceId instanceId);
+	static std::shared_ptr<Container> create(uint16_t type, uint16_t size, InstanceId instanceId, bool unlocked = true, bool pagination = false);
 
 	/**
 	 * @brief Creates a container for browse field functionality with items from a specified tile.
@@ -162,14 +162,14 @@ public:
 	 *
 	 * @note This function will return nullptr if the newContainer could not be created or if the tile pointer is null.
 	 */
-	static std::shared_ptr<Container> createBrowseField(const std::shared_ptr<Tile> &type, uint32_t instanceId);
+	static std::shared_ptr<Container> createBrowseField(const std::shared_ptr<Tile> &type, InstanceId instanceId);
 
 	// non-copyable
 	Container(const Container &) = delete;
 	Container &operator=(const Container &) = delete;
 
 	using Item::clone;
-	std::shared_ptr<Item> clone(uint32_t targetInstanceId) const final;
+	std::shared_ptr<Item> clone(InstanceId targetInstanceId) const final;
 
 	std::shared_ptr<Container> getContainer() final {
 		return static_self_cast<Container>();

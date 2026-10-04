@@ -73,34 +73,13 @@ function serverInfo.onSay(player, words, param)
 
 	if staminaTrainer or staminaPz then
 		text = text .. "\n\nStamina: \n"
-		local orangeMin = configManager.getNumber(configKeys.STAMINA_REGEN_MINUTE) / 60
-		local greenMin = configManager.getNumber(configKeys.STAMINA_REGEN_PREMIUM) / 60
 
 		if staminaTrainer then
-			text = text
-				.. "\nTrainer enabled: Yes"
-				.. "\nTrainer Delay: "
-				.. orangeMin
-				.. " / "
-				.. greenMin
-				.. " min (orange/green)"
-				.. "\nTrainer Gain: "
-				.. configManager.getNumber(configKeys.STAMINA_TRAINER_GAIN)
-				.. " per tick"
+			text = text .. "\nTrainer enabled: Yes" .. "\nTrainer Delay: " .. configManager.getNumber(configKeys.STAMINA_TRAINER_DELAY) .. " min" .. "\nTrainer Gain: " .. configManager.getNumber(configKeys.STAMINA_TRAINER_GAIN) .. " per min"
 		end
 
 		if staminaPz then
-			text = text
-				.. "\nPZ enabled: Yes"
-				.. "\nOrange Delay: "
-				.. orangeMin
-				.. " min"
-				.. "\nGreen Delay: "
-				.. greenMin
-				.. " min"
-				.. "\nPZ Gain: "
-				.. configManager.getNumber(configKeys.STAMINA_PZ_GAIN)
-				.. " per tick"
+			text = text .. "\nPZ enabled: Yes" .. "\nOrange Delay: " .. configManager.getNumber(configKeys.STAMINA_ORANGE_DELAY) .. " min" .. "\nGreen Delay: " .. configManager.getNumber(configKeys.STAMINA_GREEN_DELAY) .. " min" .. "\nPZ Gain: " .. configManager.getNumber(configKeys.STAMINA_PZ_GAIN) .. " per min"
 		end
 	end
 

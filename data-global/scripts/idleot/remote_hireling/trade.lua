@@ -88,16 +88,6 @@ function RemoteHirelingPushStatus(player)
 	pushStatus(player)
 end
 
-local function decodePayload(buffer)
-	if JsonParser and JsonParser.decode then
-		local ok, decoded = pcall(JsonParser.decode, buffer)
-		if ok and type(decoded) == "table" then
-			return decoded
-		end
-	end
-	return nil
-end
-
 local function toItemIds(raw)
 	local out = {}
 	if type(raw) ~= "table" then
@@ -115,34 +105,15 @@ local function toItemIds(raw)
 	return out
 end
 
-local function handleSellAll(player, payload, buffer)
+local function handleSellAll(player, payload)
 	if not RemoteHirelingEconomy or not RemoteHirelingEconomy.sellAll then
 		reply(player, { type = "error", message = "Auto-sell is unavailable." })
 		return
 	end
 
-	local ignoreEquipped = true
-	local filterMode = 0
-	local itemIds = {}
-
-	if type(payload) == "table" then
-		if payload.ignoreEquipped == false then
-			ignoreEquipped = false
-		end
-		filterMode = tonumber(payload.filterMode) or 0
-		if filterMode ~= 1 then
-			filterMode = 0
-		end
-		itemIds = toItemIds(payload.itemIds)
-	else
-		if buffer and buffer:find('"ignoreEquipped"%s*:%s*false', 1, false) then
-			ignoreEquipped = false
-		end
-		filterMode = tonumber(buffer and buffer:match('"filterMode"%s*:%s*(%d+)')) or 0
-		if filterMode ~= 1 then
-			filterMode = 0
-		end
-	end
+	local ignoreEquipped = payload.ignoreEquipped ~= false
+	local filterMode = tonumber(payload.filterMode) == 1 and 1 or 0
+	local itemIds = toItemIds(payload.itemIds)
 
 	local gold, items, taxPercent = RemoteHirelingEconomy.sellAll(player, ignoreEquipped, filterMode, itemIds)
 	if RemoteHirelingEconomy.setSellFilter then
@@ -165,16 +136,11 @@ local function handleSellAll(player, payload, buffer)
 	pushStatus(player)
 end
 
-local function handleSetAutoSell(player, payload, buffer)
+local function handleSetAutoSell(player, payload)
 	if not RemoteHirelingEconomy then
 		return
 	end
-	local enabled = false
-	if type(payload) == "table" then
-		enabled = payload.enabled == true or payload.enabled == 1 or payload.enabled == "true"
-	elseif buffer and buffer:find('"enabled"%s*:%s*true', 1, false) then
-		enabled = true
-	end
+	local enabled = payload.enabled == true or payload.enabled == 1 or payload.enabled == "true"
 	RemoteHirelingEconomy.setAutoSell(player, enabled)
 	pushStatus(player)
 	local msg = enabled and "Auto-sell enabled." or "Auto-sell disabled."
@@ -183,7 +149,7 @@ local function handleSetAutoSell(player, payload, buffer)
 end
 
 local function handleSetAutoSellConfig(player, payload)
-	if not RemoteHirelingEconomy or type(payload) ~= "table" then
+	if not RemoteHirelingEconomy then
 		return
 	end
 	if payload.sellOnNoGold ~= nil then
@@ -416,6 +382,23 @@ end
 
 loginEvent:register()
 
+local actionHandlers = {
+	openRemoteHirelingTrade = function(player)
+		openRemoteHirelingTrade(player)
+		pushStatus(player)
+	end,
+	sellAll = handleSellAll,
+	setAutoSell = handleSetAutoSell,
+	setAutoSellConfig = handleSetAutoSellConfig,
+	status = pushStatus,
+	depositAll = depositAll,
+	withdraw = function(player, payload)
+		withdrawAmount(player, tonumber(payload.amount) or 0)
+	end,
+	sellLootPouch = handleSellLootPouch,
+	bankStatus = bankStatus,
+}
+
 local opcodeEvent = CreatureEvent("RemoteHirelingOpcode")
 
 function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
@@ -425,45 +408,10 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 	if type(buffer) ~= "string" or buffer == "" then
 		return
 	end
-	local payload = decodePayload(buffer)
-	local action = (payload and payload.action) or buffer:match('"action"%s*:%s*"([^"]+)"')
-	if action == "openRemoteHirelingTrade" or buffer:find('"openRemoteHirelingTrade"', 1, true) then
-		openRemoteHirelingTrade(player)
-		pushStatus(player)
-		return
-	end
-	if action == "sellAll" or buffer:find('"sellAll"', 1, true) then
-		handleSellAll(player, payload, buffer)
-		return
-	end
-	if action == "setAutoSell" or buffer:find('"setAutoSell"', 1, true) then
-		handleSetAutoSell(player, payload, buffer)
-		return
-	end
-	if action == "setAutoSellConfig" or buffer:find('"setAutoSellConfig"', 1, true) then
-		handleSetAutoSellConfig(player, payload)
-		return
-	end
-	if action == "status" or buffer:find('"status"', 1, true) then
-		pushStatus(player)
-		return
-	end
-	if action == "depositAll" or buffer:find('"depositAll"', 1, true) then
-		depositAll(player)
-		return
-	end
-	if action == "withdraw" or buffer:find('"withdraw"', 1, true) then
-		local amount = tonumber((payload and payload.amount) or buffer:match('"amount"%s*:%s*(%d+)')) or 0
-		withdrawAmount(player, amount)
-		return
-	end
-	if action == "sellLootPouch" or buffer:find('"sellLootPouch"', 1, true) then
-		handleSellLootPouch(player)
-		return
-	end
-	if action == "bankStatus" or buffer:find('"bankStatus"', 1, true) then
-		bankStatus(player)
-		return
+	local payload = JsonParser.decode(buffer)
+	local handler = type(payload) == "table" and actionHandlers[payload.action]
+	if handler then
+		handler(player, payload)
 	end
 end
 

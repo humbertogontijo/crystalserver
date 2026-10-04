@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runtime config for IdleOT CrystalServer image.
-# Expects host-synced datapack mounts at ./data and ./data-global.
+# The datapack (./data, ./data-global) is baked into the image.
 set -euo pipefail
 
 cd /crystalserver

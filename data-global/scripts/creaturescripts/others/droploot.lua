@@ -1,13 +1,19 @@
--- Product: keep equipment and containers on death (no corpse drops).
--- Stock Crystal DropLoot / Blessings.PlayerDeath is intentionally bypassed.
+dofile(CORE_DIRECTORY .. "/libs/systems/blessing.lua")
 
 local dropLoot = CreatureEvent("DropLoot")
 
 function dropLoot.onDeath(player, corpse, killer, mostDamage, unjustified, mostDamage_unjustified)
-	if not player:getSlotItem(CONST_SLOT_BACKPACK) then
-		player:addItem(ITEM_BAG, 1, false, CONST_SLOT_BACKPACK)
+	local town = player:getTown()
+	if town and town:getId() == TOWNS_LIST.DAWNPORT and player:getLevel() < 8 then
+		return true
 	end
-	return true
+
+	if player:hasFlag(PlayerFlag_NotGenerateLoot) then
+		return true
+	end
+
+	Blessings.DebugPrint("onDeath DROPLOOT EVENT DropLoot")
+	return Blessings.PlayerDeath(player, corpse, killer)
 end
 
 dropLoot:register()

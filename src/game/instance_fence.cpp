@@ -127,6 +127,25 @@ const InstanceFenceRegistry::Fence *InstanceFenceRegistry::fenceFor(uint32_t ins
 	return it != privateById.end() ? &it->second : nullptr;
 }
 
+std::optional<InstanceFenceRegistry::Aabb> InstanceFenceRegistry::boundsFor(uint32_t instanceId) const {
+	if (instanceId == HUB_ADVENTURERS) {
+		if (!hubCenterX || !hubCenterY) {
+			return std::nullopt;
+		}
+		const int32_t side = hubRadius * 2 + 1;
+		return Aabb { *hubCenterX - hubRadius, *hubCenterY - hubRadius, side, side };
+	}
+	const Fence* fence = fenceFor(instanceId);
+	if (!fence) {
+		return std::nullopt;
+	}
+	if (fence->occupancy) {
+		const auto &occ = *fence->occupancy;
+		return Aabb { occ.originX, occ.originY, occ.width, occ.height };
+	}
+	return fence->aabb;
+}
+
 bool InstanceFenceRegistry::canWalk(const std::shared_ptr<Creature> &creature, const Position &toPos) const {
 	if (!creature) {
 		return true;

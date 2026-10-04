@@ -1321,9 +1321,6 @@
 	<npc centerx="32004" centery="31443" centerz="7" radius="1">
 		<npc name="Nor" x="0" y="0" z="7" spawntime="60" />
 	</npc>
-	<npc centerx="33811" centery="31463" centerz="7" radius="4">
-		<npc name="Taya" x="0" y="1" z="7" spawntime="60" />
-	</npc>
 	<npc centerx="33941" centery="31465" centerz="7" radius="1">
 		<npc name="Alyxo" x="0" y="0" z="7" spawntime="60" />
 	</npc>
@@ -2906,14 +2903,8 @@
 	<npc centerx="32538" centery="32574" centerz="11" radius="5">
 		<npc name="Quill" x="0" y="0" z="11" spawntime="60" />
 	</npc>
-	<npc centerx="32570" centery="32574" centerz="11" radius="1">
-		<npc name="Death" x="0" y="0" z="11" spawntime="60" />
-	</npc>
 	<npc centerx="32242" centery="32598" centerz="11" radius="1">
 		<npc name="Gnombold" x="0" y="0" z="11" spawntime="60" />
-	</npc>
-	<npc centerx="32549" centery="32622" centerz="11" radius="1">
-		<npc name="Skullfrost" x="0" y="0" z="11" spawntime="60" />
 	</npc>
 	<npc centerx="33449" centery="32805" centerz="11" radius="1">
 		<npc name="..." x="0" y="0" z="11" spawntime="60" />

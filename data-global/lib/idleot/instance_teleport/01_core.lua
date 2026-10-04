@@ -72,6 +72,36 @@ function InstanceTeleport.isPending(player)
 	return groupByPlayerId[player:getId()] ~= nil
 end
 
+local function auraEffectFor(kind)
+	local fx = CustomEffects or {}
+	if kind == InstanceTeleport.KIND_HOMETOWN then
+		return fx.IT_AURA_HOMETOWN
+	elseif kind == InstanceTeleport.KIND_HOME then
+		return fx.IT_AURA_HOME
+	elseif kind == InstanceTeleport.KIND_EXPEDITION then
+		return fx.IT_AURA_EXPEDITION
+	end
+	return nil
+end
+
+--- Channel aura as a creature attached effect, so every spectator in the instance sees it.
+local function setChannelAura(pending, attached)
+	local effectId = auraEffectFor(pending.kind)
+	if not effectId then
+		return
+	end
+	for _, id in ipairs(pending.memberIds or {}) do
+		local p = Player(id)
+		if p then
+			if attached then
+				p:attachEffectById(effectId)
+			else
+				p:detachEffectById(effectId)
+			end
+		end
+	end
+end
+
 local function clearGroup(groupKey, opts)
 	opts = opts or {}
 	local pending = pendingByGroup[groupKey]
@@ -82,6 +112,7 @@ local function clearGroup(groupKey, opts)
 		stopEvent(pending.event)
 		pending.event = nil
 	end
+	setChannelAura(pending, false)
 	pendingByGroup[groupKey] = nil
 	for _, id in ipairs(pending.memberIds or {}) do
 		groupByPlayerId[id] = nil
@@ -236,6 +267,7 @@ function InstanceTeleport.beginGroup(opts)
 		durationMs = durationMs,
 		holdUntilReady = holdUntilReady,
 	})
+	setChannelAura(pending, true)
 
 	pending.event = addEvent(function(key)
 		local live = pendingByGroup[key]

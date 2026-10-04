@@ -53,14 +53,6 @@ void House::clearInstanceOwner(const uint32_t instanceId) {
 	instanceOwners.erase(instanceId);
 }
 
-uint32_t House::getInstanceOwner(const uint32_t instanceId) const {
-	const auto it = instanceOwners.find(instanceId);
-	if (it == instanceOwners.end()) {
-		return 0;
-	}
-	return it->second;
-}
-
 void House::setNewOwnerGuid(int32_t newOwnerGuid, bool serverStartup) {
 	auto isTransferOnRestart = g_configManager().getBoolean(TOGGLE_HOUSE_TRANSFER_ON_SERVER_RESTART);
 	if (!isTransferOnRestart) {
@@ -332,7 +324,7 @@ bool House::transferToDepot() const {
 	if (player) {
 		transferToDepot(player);
 	} else {
-		const auto tmpPlayer = std::make_shared<Player>(nullptr, 0);
+		const auto tmpPlayer = std::make_shared<Player>(nullptr, InstanceId::World);
 		if (!IOLoginData::loadPlayerById(tmpPlayer, owner)) {
 			return false;
 		}
@@ -582,7 +574,7 @@ std::shared_ptr<HouseTransferItem> House::getTransferItem() {
 	}
 
 	transfer_container->resetParent();
-	transferItem = HouseTransferItem::createHouseTransferItem(static_self_cast<House>(), 0);
+	transferItem = HouseTransferItem::createHouseTransferItem(static_self_cast<House>(), InstanceId::World);
 	transfer_container->addThing(transferItem);
 	return transferItem;
 }
@@ -633,7 +625,7 @@ void House::calculateBidEndDate(uint8_t daysToEnd) {
 	this->m_bidEndDate = bidEndDate;
 }
 
-std::shared_ptr<HouseTransferItem> HouseTransferItem::createHouseTransferItem(const std::shared_ptr<House> &house, uint32_t instanceId) {
+std::shared_ptr<HouseTransferItem> HouseTransferItem::createHouseTransferItem(const std::shared_ptr<House> &house, InstanceId instanceId) {
 	auto transferItem = std::make_shared<HouseTransferItem>(house, instanceId);
 	transferItem->setID(ITEM_DOCUMENT_RO);
 	transferItem->setSubType(1);
@@ -806,7 +798,7 @@ void AccessList::getList(std::string &retList) const {
 	retList = this->list;
 }
 
-Door::Door(uint16_t type, uint32_t instanceId) :
+Door::Door(uint16_t type, InstanceId instanceId) :
 	Item(type, 0, instanceId) { }
 
 Attr_ReadValue Door::readAttr(AttrTypes_t attr, PropStream &propStream) {
@@ -1055,7 +1047,7 @@ void Houses::payHouses(RentPeriod_t rentPeriod) const {
 			if (house->getPayRentWarnings() < 7) {
 				const int32_t daysLeft = 7 - house->getPayRentWarnings();
 
-				const std::shared_ptr<Item> &letter = Item::CreateItem(ITEM_LETTER_STAMPED, 0, 0);
+				const std::shared_ptr<Item> &letter = Item::CreateItem(ITEM_LETTER_STAMPED, 0, InstanceId::World);
 				std::string period;
 
 				switch (rentPeriod) {

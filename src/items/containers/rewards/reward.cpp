@@ -17,7 +17,7 @@
 
 #include "items/containers/rewards/reward.hpp"
 
-Reward::Reward(uint32_t instanceId) :
+Reward::Reward(InstanceId instanceId) :
 	Container(ITEM_REWARD_CONTAINER, instanceId) {
 	maxSize = 32;
 	unlocked = false;

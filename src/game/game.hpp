@@ -160,16 +160,6 @@ public:
 	void loadCustomMaps(const std::filesystem::path &customMapPath);
 	void loadMap(const std::string &path, const Position &pos = Position());
 
-	/**
-	 * Clone tiles from the live map into `dest` (top-left of the destination AABB).
-	 * Inclusive source range [sourceFrom, sourceTo]; same-floor expeditions use equal z.
-	 * Places fresh items via Tile::internalAddThing (no moveevents). Skips creatures,
-	 * pickupables, uniques, doors/beds/teleports/depots/mailboxes/fields/containers,
-	 * and non-blocking house furniture. Strips nothing because attributes are not cloned.
-	 * \returns number of source tiles that had ground or items copied
-	 */
-	uint32_t copyMapRegion(const Position &sourceFrom, const Position &sourceTo, const Position &dest);
-
 	static constexpr uint32_t INSTANCE_PRIVATE_BASE = 3000000;
 	uint32_t allocateInstanceId();
 	void releaseInstanceId(uint32_t id);
@@ -182,13 +172,13 @@ public:
 	/** Lua InstanceWorld.captureLoginPosition(player) — true if loginPosition was set. */
 	bool tryCaptureLoginPosition(const std::shared_ptr<Player> &player);
 	bool consumeInstanceFenceMessage();
-	/** Instance id of the creature currently in InstanceActorScope (0 if none). */
-	static uint32_t getInstanceActorId();
+	/** Instance of the creature currently in InstanceActorScope (World if none). */
+	static InstanceId getInstanceActorId();
 	/** Instance a new item inside `cylinder` is born in: holder creature/item, else the scoped actor. */
-	static uint32_t getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder);
+	static InstanceId getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder);
 	/** Birth instance for script-created creatures/items: explicit id, else the master /
 	 *  holder, else the creature whose action is running, else the area under `position`. */
-	static uint32_t resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position);
+	static InstanceId resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position);
 
 	uint64_t getLastMapLoadTime() const {
 		return lastMapLoadTime;
@@ -492,8 +482,6 @@ public:
 	void playerQuickLootBlackWhitelist(uint32_t playerId, QuickLootFilter_t filter, const std::vector<uint16_t> &itemIds);
 	/** Fetch account-scoped quick loot filter into `player` RAM cache (headless-safe). */
 	void ensureAccountQuickLootFilter(const std::shared_ptr<Player> &player);
-	/** @deprecated Prefer ensureAccountQuickLootFilter — kept as alias for call-site clarity. */
-	void inheritAccountQuickLootFilter(const std::shared_ptr<Player> &player);
 
 	/**
 	 * Collect one item into the player's managed loot/obtain container (capacity-aware).
@@ -769,6 +757,13 @@ public:
 		return std::ranges::find(registeredMagicEffects, type) != registeredMagicEffects.end();
 	}
 
+	// Client-side virtual effects (base appearance + shader) absent from appearances.dat.
+	void registerMagicEffect(uint16_t type) {
+		if (!isMagicEffectRegistered(type)) {
+			registeredMagicEffects.push_back(type);
+		}
+	}
+
 	bool isDistanceEffectRegistered(uint16_t type) const {
 		return std::ranges::find(registeredDistanceEffects, type) != registeredDistanceEffects.end();
 	}
@@ -885,7 +880,7 @@ public:
 
 private:
 	/** Off-map items (inventory/depot/stash) landing on a map tile join the mover's instance. */
-	static void adoptItemInstance(const std::shared_ptr<Item> &item, uint32_t instanceId);
+	static void adoptItemInstance(const std::shared_ptr<Item> &item, InstanceId instanceId);
 	bool callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult);
 	std::unordered_map<uint8_t, std::string> m_worldTypesNames;
 

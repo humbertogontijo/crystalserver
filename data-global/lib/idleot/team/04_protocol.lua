@@ -130,9 +130,7 @@ function TeamProtocol.handle(player, buffer)
 			return
 		end
 		-- transferLeadership already pushes roster wire; refresh caller listing too.
-		if SocialProtocol and SocialProtocol.sendMyListing then
-			pcall(SocialProtocol.sendMyListing, player)
-		end
+		pcall(SocialProtocol.sendMyListing, player)
 	elseif action == "acceptRosterInvite" then
 		local ok, err = TeamManager.acceptRosterInvite(player)
 		if not ok then

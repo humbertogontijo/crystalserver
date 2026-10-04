@@ -1,0 +1,9 @@
+apiVersion: 1
+
+providers:
+  - name: crystalserver
+    folder: CrystalServer
+    type: file
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

@@ -20,7 +20,6 @@
 #include "account/account.hpp"
 #include "config/configmanager.hpp"
 #include "io/iobountytasks.hpp"
-#include "io/iodailyactivities.hpp"
 #include "io/ioweeklytasks.hpp"
 #include "core.hpp"
 #include "creatures/appearance/mounts/mounts.hpp"
@@ -87,7 +86,7 @@
 
 MuteCountMap Player::muteCountMap;
 
-Player::Player(std::shared_ptr<ProtocolGame> p, uint32_t instanceId) :
+Player::Player(std::shared_ptr<ProtocolGame> p, InstanceId instanceId) :
 	Creature(instanceId),
 	lastPing(OTSYS_TIME()),
 	lastPong(lastPing),
@@ -1497,7 +1496,7 @@ bool Player::canWalkthrough(const std::shared_ptr<Creature> &creature) {
 
 	const auto &player = creature->getPlayer();
 	// Soft-death bodies / soft-despawned fighters are props for pathing — walk through them.
-	if (player && (player->isCombatUnattackable() || player->isSoftDespawned())) {
+	if (player && player->isSoftDespawned()) {
 		return true;
 	}
 
@@ -1559,7 +1558,7 @@ bool Player::canWalkthroughEx(const std::shared_ptr<Creature> &creature) const {
 	const auto &player = creature->getPlayer();
 	const auto &npc = creature->getNpc();
 	if (player) {
-		if (player->isCombatUnattackable() || player->isSoftDespawned()) {
+		if (player->isSoftDespawned()) {
 			return true;
 		}
 		const auto &playerTile = player->getTile();
@@ -7049,7 +7048,7 @@ bool Player::onKilledMonster(const std::shared_ptr<Monster> &monster) {
 
 		g_iobountytasks().onCreatureKill(getPlayer(), mType->info.raceid);
 		g_ioweeklytasks().onCreatureKill(getPlayer(), mType->info.raceid);
-		g_iodailyactivities().onCreatureKill(getPlayer(), mType->info.raceid);
+		g_callbacks().executeCallback(EventCallback_t::playerOnKilledMonster, &EventCallback::playerOnKilledMonster, getPlayer(), monster);
 	} else if (monster->getForgeStack() == 40) {
 		addWeaponProficiencyExperience(mType, monster->getMonsterForgeClassification(), true);
 	}
@@ -7085,14 +7084,14 @@ void Player::onGainSharedExperience(uint64_t gainExp, const std::shared_ptr<Crea
 }
 
 bool Player::isImmune(CombatType_t type) const {
-	if (hasFlag(PlayerFlags_t::CannotBeAttacked) || combatUnattackable || softDespawned) {
+	if (hasFlag(PlayerFlags_t::CannotBeAttacked) || softDespawned) {
 		return true;
 	}
 	return Creature::isImmune(type);
 }
 
 bool Player::isImmune(ConditionType_t type) const {
-	if (hasFlag(PlayerFlags_t::CannotBeAttacked) || combatUnattackable || softDespawned) {
+	if (hasFlag(PlayerFlags_t::CannotBeAttacked) || softDespawned) {
 		return true;
 	}
 
@@ -7100,38 +7099,7 @@ bool Player::isImmune(ConditionType_t type) const {
 }
 
 bool Player::isAttackable() const {
-	return !hasFlag(PlayerFlags_t::CannotBeAttacked) && !combatUnattackable && !softDespawned;
-}
-
-bool Player::isCombatUnattackable() const {
-	return combatUnattackable;
-}
-
-void Player::setCombatUnattackable(bool enabled) {
-	if (combatUnattackable == enabled) {
-		return;
-	}
-	combatUnattackable = enabled;
-	if (!enabled) {
-		return;
-	}
-
-	// Drop aggro immediately — same path as walking out of sight / logout.
-	const auto &self = static_self_cast<Player>();
-	for (const auto &spectator : Spectators().find<Creature>(getPosition(), true).matchingInstance(getInstanceId())) {
-		if (!spectator || spectator.get() == this) {
-			continue;
-		}
-		if (spectator->getAttackedCreature() == self || spectator->getFollowCreature() == self) {
-			// onCreatureDisappear is protected; onRemoveCreature is the public entry that clears targets.
-			spectator->onRemoveCreature(self, false);
-		}
-		if (const auto &monster = spectator->getMonster()) {
-			if (!monster->getAttackedCreature()) {
-				monster->searchTarget(TARGETSEARCH_NEAREST);
-			}
-		}
-	}
+	return !hasFlag(PlayerFlags_t::CannotBeAttacked) && !softDespawned;
 }
 
 bool Player::lastHitIsPlayer(const std::shared_ptr<Creature> &lastHitCreature) {
@@ -10408,10 +10376,6 @@ void Player::setTeamPreyBonus(uint16_t raceId, uint8_t bonusType, uint16_t perce
 	teamPreyBonuses[raceId] = TeamPreyBonusEntry { bonusType, percentage };
 }
 
-bool Player::hasTeamPreyBonus(uint16_t raceId) const {
-	return teamPreyBonuses.contains(raceId);
-}
-
 bool Player::getTeamPreyBonus(uint16_t raceId, uint8_t &bonusType, uint16_t &percentage) const {
 	const auto it = teamPreyBonuses.find(raceId);
 	if (it == teamPreyBonuses.end()) {
@@ -10682,22 +10646,6 @@ WeeklyTaskData &Player::getWeeklyTaskData() {
 
 const WeeklyTaskData &Player::getWeeklyTaskData() const {
 	return weeklyTaskData;
-}
-
-DailyActivityData &Player::getDailyActivityData() {
-	return dailyActivityData;
-}
-
-const DailyActivityData &Player::getDailyActivityData() const {
-	return dailyActivityData;
-}
-
-uint32_t Player::getDailyActivityStat(const std::string &activityId) {
-	return g_iodailyactivities().getStat(getPlayer(), activityId);
-}
-
-uint32_t Player::addDailyActivityStat(const std::string &activityId, uint32_t delta) {
-	return g_iodailyactivities().addStat(getPlayer(), activityId, delta);
 }
 
 bool Player::hasWeeklyTaskExpansion() const {

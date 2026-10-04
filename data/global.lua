@@ -133,23 +133,10 @@ elseif SAVE_INTERVAL_TYPE == "hour" then
 	SAVE_INTERVAL_TIME = 60 * 60 * 1000
 end
 
--- Happy-hour (green) band: last 6 hours of the 42h bar (was 3h / 2340).
-STAMINA_MAX_MINUTES = 2520
-STAMINA_GREEN_THRESHOLD = 2160
-
---- Milliseconds between +1 stamina minute (same rate offline / PZ / trainers).
-function getStaminaRegenDelayMs(staminaMinutes)
-	local delaySec = configManager.getNumber(configKeys.STAMINA_REGEN_MINUTE)
-	if (staminaMinutes or 0) > STAMINA_GREEN_THRESHOLD then
-		delaySec = configManager.getNumber(configKeys.STAMINA_REGEN_PREMIUM)
-	end
-	return delaySec * 1000
-end
-
 -- Increase Stamina when Attacking Trainer
 staminaBonus = {
 	target = "Target Dummy",
-	period = configManager.getNumber(configKeys.STAMINA_REGEN_MINUTE) * 1000, -- ms; green uses premium rate in addStamina
+	period = configManager.getNumber(configKeys.STAMINA_TRAINER_DELAY) * 60 * 1000, -- time on miliseconds trainers
 	bonus = configManager.getNumber(configKeys.STAMINA_TRAINER_GAIN), -- gain stamina trainers
 	eventsTrainer = {}, -- stamina in trainers
 	eventsPz = {}, -- stamina in Pz
@@ -175,15 +162,9 @@ function addStamina(playerId, ...)
 				if not target or target:getName() ~= staminaBonus.target then
 					staminaBonus.eventsTrainer[playerId] = nil
 				else
-					local actualStamina = player:getStamina()
-					if actualStamina >= STAMINA_MAX_MINUTES then
-						staminaBonus.eventsTrainer[playerId] = nil
-						return true
-					end
-					player:setStamina(actualStamina + staminaBonus.bonus)
+					player:setStamina(player:getStamina() + staminaBonus.bonus)
 					player:sendTextMessage(MESSAGE_FAILURE, string.format("%i of stamina has been refilled.", configManager.getNumber(configKeys.STAMINA_TRAINER_GAIN)))
-					local nextDelay = getStaminaRegenDelayMs(player:getStamina())
-					staminaBonus.eventsTrainer[playerId] = addEvent(addStamina, nextDelay, playerId)
+					staminaBonus.eventsTrainer[playerId] = addEvent(addStamina, staminaBonus.period, playerId)
 				end
 			end
 		end
@@ -207,7 +188,9 @@ function addStamina(playerId, ...)
 
 		local actualStamina = player:getStamina()
 
-		if actualStamina >= STAMINA_MAX_MINUTES then
+		if actualStamina > configManager.getNumber(configKeys.STAMINA_GREEN_THRESHOLD) and actualStamina < 2520 then
+			delay = configManager.getNumber(configKeys.STAMINA_GREEN_DELAY) * 60 * 1000 -- Stamina Green 12 min.
+		elseif actualStamina == 2520 then
 			player:sendTextMessage(
 				MESSAGE_STATUS,
 				"You are no longer refilling stamina, \z
@@ -218,9 +201,8 @@ function addStamina(playerId, ...)
 		end
 
 		local regen = configManager.getNumber(configKeys.STAMINA_PZ_GAIN)
-		player:setStamina(actualStamina + regen)
+		player:setStamina(player:getStamina() + regen)
 		player:sendTextMessage(MESSAGE_FAILURE, string.format("%i minute%s of stamina has been refilled.", regen, regen == 1 and "" or "s"))
-		delay = getStaminaRegenDelayMs(player:getStamina())
 		staminaBonus.eventsPz[localPlayerId] = addEvent(addStamina, delay, nil, localPlayerId, delay)
 		return true
 	end

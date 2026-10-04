@@ -68,6 +68,8 @@ public:
 
 private:
 	static std::atomic_uint_fast64_t LAST_EVENT_ID;
+	// A dispatcher task this long delays every client's packets by the same amount.
+	static constexpr int64_t SLOW_TASK_WARN_MS = 100;
 
 	void updateTime();
 

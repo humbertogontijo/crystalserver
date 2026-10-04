@@ -73,6 +73,8 @@ public:
 	[[nodiscard]] uint32_t instanceForPosition(const Position &pos) const;
 	/** True when `pos` lies inside the registered fence geometry and floors of `instanceId`. */
 	[[nodiscard]] bool containsPos(uint32_t instanceId, const Position &pos) const;
+	/** XY bounding box of the registered fence geometry (any floor); nullopt when none. */
+	[[nodiscard]] std::optional<Aabb> boundsFor(uint32_t instanceId) const;
 
 private:
 	[[nodiscard]] const Fence *fenceFor(uint32_t instanceId) const;

@@ -17,7 +17,7 @@
 
 #include "items/containers/rewards/rewardchest.hpp"
 
-RewardChest::RewardChest(uint16_t type, uint32_t instanceId) :
+RewardChest::RewardChest(uint16_t type, InstanceId instanceId) :
 	Container(type, instanceId) {
 	maxSize = 32;
 	unlocked = false;

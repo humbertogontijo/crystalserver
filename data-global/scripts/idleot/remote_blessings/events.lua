@@ -23,10 +23,6 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 	if not RemoteBlessingsConfig or opcode ~= RemoteBlessingsConfig.OPCODE then
 		return
 	end
-	-- Home services also use 119 - only handle bless actions here.
-	if type(buffer) == "string" and buffer:find('"homeService"', 1, true) then
-		return
-	end
 	local ok, err = pcall(function()
 		RemoteBlessings.handleOpcode(player, buffer)
 	end)

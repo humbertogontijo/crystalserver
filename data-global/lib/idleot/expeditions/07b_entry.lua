@@ -144,39 +144,11 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 
 	local sessionLure = nil
 	local sessionLureMax = nil
-	local sessionHazard = nil
-	local sessionHazardMax = nil
 	if contentRole ~= "boss" and contentRole ~= "arena" then
 		sessionLureMax = tonumber(catalog.lureMax) or ExpeditionConfig.LURE_MAX
 		-- Ignore client lure; the cave route carries the hunt's pack size.
 		local route = ExpeditionConfig.caveRoute(catalog)
 		sessionLure = route and route.lure or ExpeditionConfig.lureFromDensity(sessionLureMax)
-		if ExpeditionDifficulty then
-			sessionHazardMax = tonumber(catalog.hazardMax) or ExpeditionDifficulty.HAZARD_MAX
-			local gatePlayers = { player }
-			for _, teammate in ipairs(EM_PRIV.collectExpectedHumanTeammates(player) or {}) do
-				gatePlayers[#gatePlayers + 1] = teammate
-			end
-			local maxAllowed = ExpeditionDifficulty.maxAllowedHazard
-					and ExpeditionDifficulty.maxAllowedHazard(gatePlayers, catalog)
-				or 0
-			-- Toggle: off → 0, on (any positive) → highest available.
-			local requestedHazard = options.hazard
-			local wantOn = requestedHazard ~= nil and math.floor(tonumber(requestedHazard) or 0) > 0
-			if wantOn then
-				sessionHazard = math.max(0, math.floor(tonumber(maxAllowed) or 0))
-				if sessionHazard > 0 then
-					local okHazard, hazardErr =
-						ExpeditionDifficulty.canAttemptHazard(gatePlayers, catalog, sessionHazard, player)
-					if not okHazard then
-						ExpeditionProtocol.sendError(player, hazardErr or "Hazard level too high for party.")
-						return
-					end
-				end
-			else
-				sessionHazard = 0
-			end
-		end
 	end
 	local sessionBossDifficulty = nil
 	if contentRole == "boss" and ExpeditionDifficulty then
@@ -360,8 +332,6 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		kills = 0,
 		lure = sessionLure,
 		lureMax = sessionLureMax,
-		hazardLevel = sessionHazard,
-		hazardMax = sessionHazardMax,
 		bossDifficulty = sessionBossDifficulty,
 		skipOpenWorldForge = options.skipOpenWorldForge == true,
 		forceFiendishCreatureId = tonumber(options.forceFiendishCreatureId),
@@ -379,6 +349,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 			loadout = loadout,
 			hostWorldPos = hostWorldPos,
 			soloBoss = soloBoss,
+			skipEntryChannel = options.skipEntryChannel == true,
 		},
 	}
 	EM_PRIV.sessionsByKey[key] = session
@@ -502,13 +473,6 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 		lureMax = snapshot.lureMax,
 		skipOpenWorldForge = snapshot.skipOpenWorldForge == true,
 		forceFiendishCreatureId = tonumber(snapshot.forceFiendishCreatureId),
-		hazardLevel = ExpeditionDifficulty
-				and ExpeditionDifficulty.normalizeHazard(snapshot.hazardLevel, catalog)
-			or tonumber(snapshot.hazardLevel)
-			or 0,
-		hazardMax = tonumber(snapshot.hazardMax)
-			or (ExpeditionDifficulty and ExpeditionDifficulty.HAZARD_MAX)
-			or 12,
 		state = "idle",
 		startedAt = os.time(),
 		holdPos = nil,
@@ -955,6 +919,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 	local loadout = pending.loadout
 	local hostWorldPos = pending.hostWorldPos or host:getPosition()
 	local soloBoss = pending.soloBoss == true
+	local skipEntryChannel = pending.skipEntryChannel == true
 	local catalog = session.catalog
 	local contentRole = session.role
 	local instance = session.instance
@@ -1042,11 +1007,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 						ExpeditionProtocol.sendError(p, "Failed to enter expedition (teleport blocked).")
 						ExpeditionManager.leave(p, { silent = true })
 					else
-						if ExpeditionInstance.sendMagicEffect then
-							ExpeditionInstance.sendMagicEffect(s.instance, p:getPosition(), CONST_ME_TELEPORT)
-						else
-							p:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
-						end
+						InstanceTeleport.sendArrivalEffect(p, InstanceTeleport.KIND_EXPEDITION)
 						enteredAny = true
 						local stance = s.memberStance and s.memberStance[mid] or s.stance
 						if contentRole == "boss" then
@@ -1144,6 +1105,43 @@ function ExpeditionManager.startExpeditionEntry(session)
 			ExpeditionManager.broadcastStatus(live)
 		end
 
+		local needDeploy = not soloBoss and TeamManager and TeamManager.deploy
+
+		-- Expedition switch: the change already channeled before the old hunt ended.
+		if skipEntryChannel then
+			if not needDeploy then
+				doEnter(s, liveHost)
+				return
+			end
+			TeamManager.deploy(liveHost, {
+				position = instance.entry,
+				instanceId = instance.instanceId,
+				companionsOnly = true,
+				inviteFriends = false,
+				onComplete = function(depCompanions, depErr)
+					local live = ExpeditionManager.getSessionByKey(sessionKey)
+					if not live or live.state == "ended" or live.entered or not live.starting then
+						return
+					end
+					local host = Player(live.playerId)
+					if not host then
+						ExpeditionManager.teardownSession(live)
+						return
+					end
+					if not depCompanions then
+						ExpeditionManager.cancelWaitingSession(live, depErr or "Failed to deploy account team.")
+						return
+					end
+					registerDeployedCompanions(live, host, depCompanions, {
+						loadout = loadout,
+						hostWorldPos = hostWorldPos,
+					})
+					doEnter(live, host)
+				end,
+			})
+			return
+		end
+
 		-- InstanceTeleport required for expedition entry.
 		if not InstanceTeleport or not InstanceTeleport.requestExpedition then
 			ExpeditionProtocol.sendError(liveHost, "Instance teleport is unavailable.")
@@ -1152,7 +1150,6 @@ function ExpeditionManager.startExpeditionEntry(session)
 		end
 
 		-- Overlap IT channel with companion deploy. Hop when both channel timer and prep are done.
-		local needDeploy = not soloBoss and TeamManager and TeamManager.deploy
 		local ok, groupKeyOrErr = InstanceTeleport.requestExpedition({
 			initiatorId = liveHost:getId(),
 			memberIds = memberIds,
@@ -1657,10 +1654,8 @@ function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 			ExpeditionManager.leave(p, { silent = true })
 			return
 		end
-		if ExpeditionInstance.sendMagicEffect then
-			ExpeditionInstance.sendMagicEffect(inst, p:getPosition(), CONST_ME_TELEPORT)
-		else
-			p:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
+		if InstanceTeleport and InstanceTeleport.sendArrivalEffect then
+			InstanceTeleport.sendArrivalEffect(p, InstanceTeleport.KIND_EXPEDITION)
 		end
 		local hostPlayer = host or (live.playerId and Player(live.playerId)) or nil
 		p:sendTextMessage(

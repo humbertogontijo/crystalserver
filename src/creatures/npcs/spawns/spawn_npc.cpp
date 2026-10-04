@@ -193,7 +193,7 @@ bool SpawnNpc::isInSpawnNpcZone(const Position &pos) const {
 }
 
 bool SpawnNpc::spawnNpc(uint32_t spawnId, const std::shared_ptr<NpcType> &npcType, const Position &pos, Direction dir, bool startup /*= false*/) {
-	auto npc = std::make_shared<Npc>(npcType, g_instanceFences().instanceForPosition(pos));
+	auto npc = std::make_shared<Npc>(npcType, InstanceId(g_instanceFences().instanceForPosition(pos)));
 	if (startup) {
 		// No need to send out events to the surrounding since there is no one out there to listen!
 		if (!g_game().internalPlaceCreature(npc, pos, true, false)) {

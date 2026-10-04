@@ -615,9 +615,7 @@ function ListingsStore.onLogout(player)
 			listingsByHostGuid[player:getGuid()] = nil
 
 			-- Ensure successor can adopt: roster companion + controller pointer.
-			if TeamManager and TeamManager.addCompanionToRoster then
-				pcall(TeamManager.addCompanionToRoster, player, successor)
-			end
+			pcall(TeamManager.addCompanionToRoster, player, successor)
 			if TeamStore.setControllerPointer then
 				TeamStore.setControllerPointer(successor, player:getGuid())
 			end
@@ -635,12 +633,8 @@ function ListingsStore.onLogout(player)
 					fromHostGuid = player:getGuid(),
 				})
 				if ok then
-					if SocialProtocol and SocialProtocol.sendMyListing then
-						pcall(SocialProtocol.sendMyListing, successor)
-					end
-					if TeamProtocol and TeamProtocol.sendTeam then
-						pcall(TeamProtocol.sendTeam, successor)
-					end
+					pcall(SocialProtocol.sendMyListing, successor)
+					pcall(TeamProtocol.sendTeam, successor)
 				end
 			end
 			if ok then
@@ -880,9 +874,7 @@ function ListingsStore.onLogin(player)
 		local onListing = ListingsStore.playerOnHostListing and ListingsStore.playerOnHostListing(accountHost, player)
 		local onRoster = TeamStore and TeamStore.isOnControllerRoster and TeamStore.isOnControllerRoster(player, accountHost)
 		if onListing or onRoster then
-			if TeamManager and TeamManager.addCompanionToRoster then
-				pcall(TeamManager.addCompanionToRoster, accountHost, player)
-			end
+			pcall(TeamManager.addCompanionToRoster, accountHost, player)
 			listingsByHostGuid[player:getGuid()] = nil
 			persistListing(player, nil)
 			return nil
@@ -1368,9 +1360,7 @@ function ListingsStore.requestJoin(player, hostGuidOrName)
 				refreshFreeSlots(listing)
 				inviteToTeamChannel(host, player)
 				saveListing(listing)
-				if TeamManager and TeamManager.syncRosterAfterListingAccept then
-					pcall(TeamManager.syncRosterAfterListingAccept, host, player)
-				end
+				pcall(TeamManager.syncRosterAfterListingAccept, host, player)
 				joinRequestsByJoiner[player:getGuid()] = nil
 				return true, { accepted = true, listing = listingWire(listing), host = host }
 			end
@@ -1386,9 +1376,7 @@ function ListingsStore.requestJoin(player, hostGuidOrName)
 	refreshFreeSlots(listing)
 	inviteToTeamChannel(host, player)
 	saveListing(listing)
-	if TeamManager and TeamManager.syncRosterAfterListingAccept then
-		pcall(TeamManager.syncRosterAfterListingAccept, host, player)
-	end
+	pcall(TeamManager.syncRosterAfterListingAccept, host, player)
 	joinRequestsByJoiner[player:getGuid()] = nil
 	return true, { accepted = true, listing = listingWire(listing), host = host }
 end

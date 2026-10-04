@@ -329,9 +329,7 @@ function CombatAutomationStore.setConfig(player, raw)
 	if not player then
 		return nil
 	end
-	if SampleSpells and SampleSpells.ensure then
-		SampleSpells.ensure(player)
-	end
+	SampleSpells.ensure(player)
 	local existing = CombatAutomationStore.getConfig(player)
 	local config = CombatAutomationStore.sanitize(raw, player)
 	-- Preserve auto-target when legacy expedition payloads only update slots.
@@ -384,9 +382,7 @@ function CombatAutomationStore.onLogin(player)
 	local config = CombatAutomationStore.load(player)
 	config._loaded = true
 	CombatAutomationStore.applyToRuntime(player, config)
-	if CombatAutomationProtocol and CombatAutomationProtocol.sendConfig then
-		CombatAutomationProtocol.sendConfig(player, config, { includePresets = true })
-	end
+	CombatAutomationProtocol.sendConfig(player, config, { includePresets = true })
 	-- Delayed resync: early login ticks can fire before the client has self/map,
 	-- and deduped attackTarget syncs would then never paint the red square.
 	local playerId = player:getId()

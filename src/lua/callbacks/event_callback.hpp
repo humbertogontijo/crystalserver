@@ -165,6 +165,7 @@ public:
 	void playerOnWalk(const std::shared_ptr<Player> &player, const Direction &dir) const;
 	void playerOnThink(std::shared_ptr<Player> player, uint32_t interval) const;
 	bool playerOnSoulSealsFight(const std::shared_ptr<Player> &player, const std::string &monsterName) const;
+	void playerOnKilledMonster(const std::shared_ptr<Player> &player, const std::shared_ptr<Monster> &monster) const;
 
 	// Monster
 	void monsterOnDropLoot(const std::shared_ptr<Monster> &monster, const std::shared_ptr<Container> &corpse) const;

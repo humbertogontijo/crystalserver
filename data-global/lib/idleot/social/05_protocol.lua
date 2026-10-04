@@ -191,9 +191,7 @@ function SocialProtocol.handle(player, buffer)
 		SocialProtocol.sendMyListing(player)
 		SocialProtocol.sendListings(player, {})
 		-- Push cleared account-team roster after disassemble.
-		if TeamProtocol and TeamProtocol.sendTeam then
-			TeamProtocol.sendTeam(player)
-		end
+		TeamProtocol.sendTeam(player)
 	elseif action == "updateListing" then
 		local ok, result = ListingsStore.update(player, msg)
 		if not ok then
@@ -215,18 +213,14 @@ function SocialProtocol.handle(player, buffer)
 			SocialProtocol.sendMyListing(result.host)
 			SocialProtocol.sendInvitations(result.host)
 			SocialProtocol.sendListings(result.host, {})
-			if TeamProtocol and TeamProtocol.sendTeam then
-				TeamProtocol.sendTeam(result.host)
-			end
+			TeamProtocol.sendTeam(result.host)
 			if result.accepted then
 				player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You joined the team.")
 				result.host:sendTextMessage(
 					MESSAGE_EVENT_ADVANCE,
 					string.format("%s joined your team.", player:getName())
 				)
-				if TeamProtocol and TeamProtocol.sendTeam then
-					TeamProtocol.sendTeam(player)
-				end
+				TeamProtocol.sendTeam(player)
 			end
 		end
 	elseif action == "setReady" then
@@ -267,9 +261,7 @@ function SocialProtocol.handle(player, buffer)
 		SocialProtocol.sendMyListing(player)
 		SocialProtocol.sendInvitations(player)
 		SocialProtocol.sendListings(player, {})
-		if TeamProtocol and TeamProtocol.sendTeam then
-			TeamProtocol.sendTeam(player)
-		end
+		TeamProtocol.sendTeam(player)
 		if result.joiner then
 			SocialProtocol.sendInvitations(result.joiner)
 			SocialProtocol.sendListings(result.joiner, {})
@@ -278,9 +270,7 @@ function SocialProtocol.handle(player, buffer)
 				MESSAGE_EVENT_ADVANCE,
 				string.format("%s accepted you onto their team.", player:getName())
 			)
-			if TeamProtocol and TeamProtocol.sendTeam then
-				TeamProtocol.sendTeam(result.joiner)
-			end
+			TeamProtocol.sendTeam(result.joiner)
 		end
 	elseif action == "declineJoin" then
 		local ok, result = ListingsStore.declineJoin(player, msg.guid or msg.name)
@@ -306,9 +296,7 @@ function SocialProtocol.handle(player, buffer)
 		end
 		SocialProtocol.sendMyListing(player)
 		SocialProtocol.sendListings(player, {})
-		if TeamProtocol and TeamProtocol.sendTeam then
-			TeamProtocol.sendTeam(player)
-		end
+		TeamProtocol.sendTeam(player)
 		if result and result.listing and result.member then
 			local host = Player(result.listing.hostGuid) or Player(result.listing.hostName)
 			if host then

@@ -1,9 +1,5 @@
--- Expedition hazard + boss difficulty (instance-scoped).
+-- Expedition boss difficulty (instance-scoped).
 ExpeditionDifficulty = ExpeditionDifficulty or {}
-
-ExpeditionDifficulty.HAZARD_MIN = 0
-ExpeditionDifficulty.HAZARD_MAX = 12
-ExpeditionDifficulty.HAZARD_DEFAULT = 0
 
 ExpeditionDifficulty.BOSS_DIFF_MIN = 0
 ExpeditionDifficulty.BOSS_DIFF_MAX = 25
@@ -19,29 +15,12 @@ ExpeditionDifficulty.KV_BOSS_DIFF = "expedition.bossDifficulty"
 
 local pendingBossByPlayerId = {}
 
-local function catalogHazardMax(catalog)
-	local max = tonumber(catalog and catalog.hazardMax) or ExpeditionDifficulty.HAZARD_MAX
-	return math.max(ExpeditionDifficulty.HAZARD_MIN, math.min(ExpeditionDifficulty.HAZARD_MAX, math.floor(max)))
-end
-
 local function catalogBossDiffMax(catalog)
 	local max = tonumber(catalog and catalog.bossDifficultyMax) or ExpeditionDifficulty.BOSS_DIFF_MAX
 	return math.max(
 		ExpeditionDifficulty.BOSS_DIFF_MIN,
 		math.min(ExpeditionDifficulty.BOSS_DIFF_MAX, math.floor(max))
 	)
-end
-
-function ExpeditionDifficulty.normalizeHazard(value, catalog)
-	local n = math.floor(tonumber(value) or ExpeditionDifficulty.HAZARD_DEFAULT)
-	local lo = ExpeditionDifficulty.HAZARD_MIN
-	local hi = catalogHazardMax(catalog)
-	if n < lo then
-		n = lo
-	elseif n > hi then
-		n = hi
-	end
-	return n
 end
 
 function ExpeditionDifficulty.normalizeBossDifficulty(value, catalog)
@@ -54,34 +33,6 @@ function ExpeditionDifficulty.normalizeBossDifficulty(value, catalog)
 		n = hi
 	end
 	return n
-end
-
-function ExpeditionDifficulty.hazardConfig()
-	if CreatureInfo and CreatureInfo.hazardConfigFromServer then
-		return CreatureInfo.hazardConfigFromServer()
-	end
-	return CreatureInfo and CreatureInfo.DEFAULT_HAZARD_CONFIG or {}
-end
-
-function ExpeditionDifficulty.levelsForHazard(catalog, hazardLevel)
-	if not catalog or not CreatureInfo or not CreatureInfo.levelsForHazardPack then
-		return { combatPower = 0, levelMin = catalog and catalog.levelMin or 1, recommendedLevel = 1 }
-	end
-	local H = ExpeditionDifficulty.normalizeHazard(hazardLevel, catalog)
-	local levels = CreatureInfo.levelsForHazardPack(
-		catalog.creatures,
-		catalog.creatureDensity,
-		H,
-		ExpeditionDifficulty.hazardConfig()
-	)
-	if levels then
-		return levels
-	end
-	return {
-		combatPower = tonumber(catalog.combatPower) or 0,
-		levelMin = tonumber(catalog.levelMin) or 1,
-		recommendedLevel = tonumber(catalog.recommendedLevel) or 1,
-	}
 end
 
 local function bossTraitsFromCatalog(catalog)
@@ -152,147 +103,6 @@ function ExpeditionDifficulty.partyMinLevel(players)
 	return minLevel or 1
 end
 
-local function isGodPlayer(player)
-	if not player or not player.getGroup then
-		return false
-	end
-	local g = player:getGroup()
-	return g and g.getAccess and g:getAccess() and true or false
-end
-
-local function catalogRaceIds(catalog)
-	local out = {}
-	local seen = {}
-	local function push(id)
-		id = math.floor(tonumber(id) or 0)
-		if id <= 0 or seen[id] then
-			return
-		end
-		seen[id] = true
-		out[#out + 1] = id
-	end
-	if type(catalog) ~= "table" then
-		return out
-	end
-	if type(catalog.creatures) == "table" then
-		for _, row in ipairs(catalog.creatures) do
-			push(row and row.creatureId)
-		end
-	end
-	if type(catalog.creatureIds) == "table" then
-		for _, id in ipairs(catalog.creatureIds) do
-			push(id)
-		end
-	end
-	push(catalog.creatureId)
-	return out
-end
-
---- Bestiary progress for one race: frac in [0,1], kills, need (toKill), name.
---- Missing / non-bestiary races return nil (skipped by caller).
-function ExpeditionDifficulty.bestiaryRaceProgress(player, raceId)
-	raceId = math.floor(tonumber(raceId) or 0)
-	if raceId <= 0 or not player then
-		return nil
-	end
-	local mType = MonsterType and MonsterType(raceId) or nil
-	if not mType then
-		return nil
-	end
-	local toKill = 0
-	if mType.BestiarytoKill then
-		toKill = math.floor(tonumber(mType:BestiarytoKill()) or 0)
-	end
-	if toKill <= 0 then
-		-- Not a bestiary creature (or unset thresholds): do not gate the hunt.
-		return nil
-	end
-	local kills = 0
-	if player.getBestiaryKillCount then
-		kills = math.floor(tonumber(player:getBestiaryKillCount(raceId)) or 0)
-	end
-	if kills < 0 then
-		kills = 0
-	end
-	local frac = kills / toKill
-	if frac > 1 then
-		frac = 1
-	end
-	local name = (mType.name and mType:name()) or tostring(raceId)
-	return {
-		raceId = raceId,
-		name = name,
-		kills = kills,
-		need = toKill,
-		frac = frac,
-	}
-end
-
---- Personal hazard unlock from weakest hunt bestiary entry.
---- Returns unlocked (0..hazardMax), plus binding race progress table (or nil).
-function ExpeditionDifficulty.getPersonalHazardMax(player, catalog)
-	local hi = catalogHazardMax(catalog)
-	if isGodPlayer(player) then
-		return hi, nil
-	end
-	local races = catalogRaceIds(catalog)
-	if #races == 0 then
-		return hi, nil
-	end
-	local minFrac = nil
-	local binding = nil
-	for _, raceId in ipairs(races) do
-		local prog = ExpeditionDifficulty.bestiaryRaceProgress(player, raceId)
-		if prog then
-			if not minFrac or prog.frac < minFrac then
-				minFrac = prog.frac
-				binding = prog
-			end
-		end
-	end
-	if minFrac == nil then
-		-- No bestiary races in mix: do not lock by unlock.
-		return hi, nil
-	end
-	local unlocked = math.floor(minFrac * hi)
-	if unlocked < ExpeditionDifficulty.HAZARD_MIN then
-		unlocked = ExpeditionDifficulty.HAZARD_MIN
-	elseif unlocked > hi then
-		unlocked = hi
-	end
-	return unlocked, binding
-end
-
-function ExpeditionDifficulty.partyMinHazardUnlock(players, catalog)
-	local hi = catalogHazardMax(catalog)
-	if type(players) ~= "table" or #players == 0 then
-		return hi, nil, nil
-	end
-	local minUnlock = nil
-	local bindingPlayer = nil
-	local bindingProg = nil
-	for _, p in ipairs(players) do
-		if p and not isGodPlayer(p) then
-			if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(p) then
-				-- Hirelings do not hold bestiary unlock progress.
-			elseif p.isHeadless and p:isHeadless() then
-				-- Skip headless park accounts.
-			else
-				local unlocked, prog = ExpeditionDifficulty.getPersonalHazardMax(p, catalog)
-				if not minUnlock or unlocked < minUnlock then
-					minUnlock = unlocked
-					bindingPlayer = p
-					bindingProg = prog
-				end
-			end
-		end
-	end
-	if minUnlock == nil then
-		return hi, nil, nil
-	end
-	return minUnlock, bindingPlayer, bindingProg
-end
-
 function ExpeditionDifficulty.partyMinBossUnlock(players, catalog)
 	local hi = catalogBossDiffMax(catalog)
 	local fallback = ExpeditionDifficulty.BOSS_DIFF_DEFAULT
@@ -323,22 +133,6 @@ function ExpeditionDifficulty.partyMinBossUnlock(players, catalog)
 	return math.min(hi, minUnlock), bindingPlayer
 end
 
-local function levelGateMaxHazard(players, catalog)
-	local hi = catalogHazardMax(catalog)
-	local partyLevel = ExpeditionDifficulty.partyMinLevel(players)
-	local allowed = ExpeditionDifficulty.HAZARD_MIN
-	for step = ExpeditionDifficulty.HAZARD_MIN, hi do
-		local levels = ExpeditionDifficulty.levelsForHazard(catalog, step)
-		local need = tonumber(levels.levelMin) or 1
-		if partyLevel >= need then
-			allowed = step
-		else
-			break
-		end
-	end
-	return allowed, partyLevel
-end
-
 local function levelGateMaxBoss(players, catalog)
 	local hi = catalogBossDiffMax(catalog)
 	local partyLevel = ExpeditionDifficulty.partyMinLevel(players)
@@ -355,12 +149,6 @@ local function levelGateMaxBoss(players, catalog)
 	return allowed, partyLevel
 end
 
-function ExpeditionDifficulty.maxAllowedHazard(players, catalog)
-	local levelMax = levelGateMaxHazard(players, catalog)
-	local unlockMax = select(1, ExpeditionDifficulty.partyMinHazardUnlock(players, catalog))
-	return math.min(levelMax, unlockMax)
-end
-
 function ExpeditionDifficulty.maxAllowedBossDifficulty(players, catalog)
 	local levelMax = levelGateMaxBoss(players, catalog)
 	local unlockMax = select(1, ExpeditionDifficulty.partyMinBossUnlock(players, catalog))
@@ -368,61 +156,6 @@ function ExpeditionDifficulty.maxAllowedBossDifficulty(players, catalog)
 end
 
 --- Returns ok, message, maxAllowed, reason ("ok"|"level"|"unlock"|"team")
-function ExpeditionDifficulty.canAttemptHazard(players, catalog, step, requester)
-	local H = ExpeditionDifficulty.normalizeHazard(step, catalog)
-	local levelMax, partyLevel = levelGateMaxHazard(players, catalog)
-	local unlockMax, unlockPlayer, unlockProg = ExpeditionDifficulty.partyMinHazardUnlock(players, catalog)
-	local maxAllowed = math.min(levelMax, unlockMax)
-	if H <= maxAllowed then
-		return true, nil, maxAllowed, "ok"
-	end
-	if H > levelMax then
-		local levels = ExpeditionDifficulty.levelsForHazard(catalog, H)
-		return false,
-			string.format(
-				"Hazard %d requires level %d (party min is %d).",
-				H,
-				tonumber(levels.levelMin) or 1,
-				partyLevel or 1
-			),
-			maxAllowed,
-			"level"
-	end
-	-- Unlock-bound
-	local localUnlock = requester and select(1, ExpeditionDifficulty.getPersonalHazardMax(requester, catalog))
-		or unlockMax
-	if requester and localUnlock < H and (not unlockPlayer or unlockPlayer:getId() == requester:getId()) then
-		local prog = unlockProg or select(2, ExpeditionDifficulty.getPersonalHazardMax(requester, catalog))
-		if prog then
-			return false,
-				string.format(
-					"Hazard %d locked — bestiary on %s %d/%d (you unlock %d).",
-					H,
-					tostring(prog.name or "?"),
-					tonumber(prog.kills) or 0,
-					tonumber(prog.need) or 0,
-					localUnlock
-				),
-				maxAllowed,
-				"unlock"
-		end
-		return false,
-			string.format("Hazard %d locked — bestiary unlock is %d.", H, localUnlock),
-			maxAllowed,
-			"unlock"
-	end
-	local name = unlockPlayer and unlockPlayer.getName and unlockPlayer:getName() or "teammate"
-	return false,
-		string.format(
-			"Hazard %d locked for teammate %s (unlocked %d).",
-			H,
-			name,
-			unlockMax
-		),
-		maxAllowed,
-		"team"
-end
-
 function ExpeditionDifficulty.canAttemptBossDifficulty(players, catalog, step, requester)
 	local D = ExpeditionDifficulty.normalizeBossDifficulty(step, catalog)
 	local levelMax, partyLevel = levelGateMaxBoss(players, catalog)
@@ -464,80 +197,6 @@ function ExpeditionDifficulty.canAttemptBossDifficulty(players, catalog, step, r
 		),
 		maxAllowed,
 		"team"
-end
-
-local function worldHazardLevelAt(player)
-	if not player or not Hazard or not Hazard.getByName then
-		return 0
-	end
-	local pos = player.getPosition and player:getPosition()
-	if not pos then
-		return 0
-	end
-	local zones = pos.getZones and pos:getZones()
-	if type(zones) ~= "table" then
-		return 0
-	end
-	for _, zone in ipairs(zones) do
-		local name = zone.getName and zone:getName()
-		local hazard = name and Hazard.getByName(name)
-		if hazard and hazard.getPlayerCurrentLevel then
-			return tonumber(hazard:getPlayerCurrentLevel(player)) or 0
-		end
-	end
-	return 0
-end
-
-function ExpeditionDifficulty.effectiveHazardPoints(session, player)
-	local exp = tonumber(session and session.hazardLevel) or 0
-	local world = worldHazardLevelAt(player)
-	return math.max(exp, world)
-end
-
-function ExpeditionDifficulty.applyPlayerPoints(player, session)
-	if not player or not player.setHazardSystemPoints then
-		return
-	end
-	local points = 0
-	if session and session.role == "monster" then
-		points = ExpeditionDifficulty.effectiveHazardPoints(session, player)
-	end
-	pcall(function()
-		player:setHazardSystemPoints(points)
-	end)
-end
-
-function ExpeditionDifficulty.applySessionPoints(session)
-	if not session or not ExpeditionManager or not ExpeditionManager.sessionMemberIds then
-		return
-	end
-	for _, pid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local p = Player(pid)
-		if p then
-			ExpeditionDifficulty.applyPlayerPoints(p, session)
-		end
-	end
-end
-
-function ExpeditionDifficulty.flagMonster(monster, session)
-	if not monster or not monster.hazard then
-		return
-	end
-	local points = tonumber(session and session.hazardLevel) or 0
-	if points <= 0 and session then
-		-- Still flag if world hazard may apply via engine; prefer explicit expedition.
-		points = ExpeditionDifficulty.effectiveHazardPoints(session, nil)
-	end
-	if points <= 0 then
-		return
-	end
-	pcall(function()
-		monster:hazard(true)
-		monster:hazardCrit(true)
-		monster:hazardDodge(true)
-		monster:hazardDamageBoost(true)
-		monster:hazardDefenseBoost(true)
-	end)
 end
 
 function ExpeditionDifficulty.bossScaleMults(difficulty, catalog)

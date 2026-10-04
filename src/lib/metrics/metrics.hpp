@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "lib/di/container.hpp"
+
 #ifdef FEATURE_METRICS
 	#include "game/scheduling/dispatcher.hpp"
 	#include <opentelemetry/exporters/ostream/metric_exporter_factory.h>
@@ -166,8 +168,6 @@ constexpr auto g_metrics
 	= metrics::Metrics::getInstance;
 
 #else // FEATURE_METRICS
-
-	#include "lib/di/container.hpp"
 
 struct Options {
 	bool enablePrometheusExporter;

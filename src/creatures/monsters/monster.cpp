@@ -37,7 +37,7 @@ int32_t Monster::despawnRadius;
 
 uint32_t Monster::monsterAutoID = 0x50000001;
 
-std::shared_ptr<Monster> Monster::createMonster(const std::string &name, uint32_t instanceId) {
+std::shared_ptr<Monster> Monster::createMonster(const std::string &name, InstanceId instanceId) {
 	const auto &mType = g_monsters().getMonsterType(name);
 	if (!mType) {
 		return nullptr;
@@ -45,7 +45,7 @@ std::shared_ptr<Monster> Monster::createMonster(const std::string &name, uint32_
 	return std::make_shared<Monster>(mType, instanceId);
 }
 
-Monster::Monster(const std::shared_ptr<MonsterType> &mType, uint32_t instanceId) :
+Monster::Monster(const std::shared_ptr<MonsterType> &mType, InstanceId instanceId) :
 	Creature(instanceId),
 	nameDescription(asLowerCaseString(mType->nameDescription)),
 	mType(mType) {
@@ -738,7 +738,7 @@ bool Monster::isOpponent(const std::shared_ptr<Creature> &creature) const {
 		return creature != master;
 	}
 
-	if (creature->getPlayer() && (creature->getPlayer()->hasFlag(PlayerFlags_t::IgnoredByMonsters) || creature->getPlayer()->isCombatUnattackable() || creature->getPlayer()->isSoftDespawned())) {
+	if (creature->getPlayer() && (creature->getPlayer()->hasFlag(PlayerFlags_t::IgnoredByMonsters) || creature->getPlayer()->isSoftDespawned())) {
 		return false;
 	}
 
@@ -2761,13 +2761,17 @@ bool Monster::scaleCombat(float hpMult, float atkMult) {
 
 	combatScaled = true;
 	combatAtkMult = atkMult;
-
-	if (hpMult != 1.f) {
-		healthMax = static_cast<int32_t>(std::ceil(static_cast<float>(healthMax) * hpMult));
-		health = healthMax;
-		runAwayHealth = static_cast<int32_t>(std::ceil(static_cast<float>(runAwayHealth) * hpMult));
-	}
+	scaleMaxHealth(hpMult);
 	return true;
+}
+
+void Monster::scaleMaxHealth(float hpMult) {
+	if (hpMult == 1.f) {
+		return;
+	}
+	healthMax = static_cast<int32_t>(std::ceil(static_cast<float>(healthMax) * hpMult));
+	health = healthMax;
+	runAwayHealth = static_cast<int32_t>(std::ceil(static_cast<float>(runAwayHealth) * hpMult));
 }
 
 bool Monster::applyEchoWarden(float hpMult, float atkMult) {
@@ -2785,10 +2789,7 @@ bool Monster::applyEchoWarden(float hpMult, float atkMult) {
 
 	echoWarden = true;
 	echoAtkMult = atkMult;
-
-	healthMax = static_cast<int32_t>(std::ceil(static_cast<float>(healthMax) * hpMult));
-	health = healthMax;
-	runAwayHealth = static_cast<int32_t>(std::ceil(static_cast<float>(runAwayHealth) * hpMult));
+	scaleMaxHealth(hpMult);
 
 	// Intense glow, distinct "warden" key (NOT "forge"); NO rename, classification stays NORMAL.
 	setIcon("warden", CreatureIcon(CreatureIconModifications_t::Fiendish, 0));
@@ -2802,51 +2803,9 @@ double Monster::getCombatPower() const {
 		return 0.0;
 	}
 
-	const auto rates = mType->estimateAttackRate();
-	double expectedDps = rates.expectedDps;
 	const float typeAtk = mType->getAttackMultiplier();
-	if (typeAtk > 0.f) {
-		expectedDps *= static_cast<double>(getAttackMultiplier() / typeAtk);
-	}
-
-	double meanElement = 0.0;
-	if (!mType->info.elementMap.empty()) {
-		double sum = 0.0;
-		for (const auto &[combatType, percent] : mType->info.elementMap) {
-			(void)combatType;
-			sum += static_cast<double>(percent);
-		}
-		meanElement = sum / static_cast<double>(mType->info.elementMap.size());
-	}
-
-	// Live HP / scaled DPS via shared trait product (runtime SoT).
-	double selfCp = 0.0;
-	if (expectedDps > 0.0) {
-		selfCp = computeCombatPowerFromTraits(
-			static_cast<double>(getMaxHealth()),
-			expectedDps,
-			rates.expectedHealDps,
-			static_cast<double>(mType->info.armor),
-			static_cast<double>(mType->info.defense),
-			static_cast<double>(mType->info.mitigation),
-			meanElement,
-			static_cast<double>(mType->info.baseSpeed)
-		);
-	}
-
-	double summonCp = 0.0;
-	for (const auto &summon : mType->info.summons) {
-		if (summon.name.empty() || summon.count <= 0) {
-			continue;
-		}
-		const auto summonType = g_monsters().getMonsterType(summon.name, true);
-		if (!summonType) {
-			continue;
-		}
-		const double chance = summon.chance > 0 ? static_cast<double>(summon.chance) : 100.0;
-		summonCp += summonType->getCombatPowerSelf() * (chance / 100.0) * static_cast<double>(summon.count);
-	}
-	return selfCp + summonCp;
+	const double dpsScale = typeAtk > 0.f ? static_cast<double>(getAttackMultiplier() / typeAtk) : 1.0;
+	return mType->getCombatPowerSelf(static_cast<double>(getMaxHealth()), dpsScale) + mType->getSummonCombatPower();
 }
 
 float Monster::getDefenseMultiplier() const {

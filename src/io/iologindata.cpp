@@ -284,10 +284,6 @@ bool IOLoginData::savePlayerGuard(const std::shared_ptr<Player> &player) {
 		throw DatabaseException("[IOLoginDataSave::savePlayerWeeklyTasks] - Failed to save player weekly tasks: " + player->getName());
 	}
 
-	if (!IOLoginDataSave::savePlayerDailyActivities(player)) {
-		throw DatabaseException("[IOLoginDataSave::savePlayerDailyActivities] - Failed to save player daily activities: " + player->getName());
-	}
-
 	if (!IOLoginDataSave::savePlayerForgeHistory(player)) {
 		throw DatabaseException("[IOLoginDataSave::savePlayerForgeHistory] - Failed to save player forge history: " + player->getName());
 	}

@@ -16,9 +16,7 @@ local loginEvent = CreatureEvent("InstanceWorldLogin")
 
 function loginEvent.onLogin(player)
 	local ok, err = pcall(function()
-		if InstanceWorld and InstanceWorld.bindLogin then
-			InstanceWorld.bindLogin(player)
-		end
+		InstanceWorld.bindLogin(player)
 		if InstanceWorld and InstanceWorld.rescueIfStranded then
 			InstanceWorld.rescueIfStranded(player)
 			local pid = player:getId()

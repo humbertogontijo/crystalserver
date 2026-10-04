@@ -238,18 +238,20 @@ end
 
 local function spawnTimer(monsterId, spawnPosition, spawnCallback)
 	local time_to_spawn = 3
+	local owner = Monster(monsterId)
+	local instanceId = owner and owner:getInstanceId() or 0
 	for i = 1, time_to_spawn do
 		addEvent(function()
 			spawnPosition:sendMagicEffect(CONST_ME_TELEPORT)
 		end, i * 1000)
 	end
 	addEvent(function()
-		spawnCallback(monsterId, spawnPosition)
+		spawnCallback(monsterId, spawnPosition, instanceId)
 	end, time_to_spawn * 1000)
 end
 
-local function spawnPod(monsterId, position)
-	createPrimalPod(position)
+local function spawnPod(monsterId, position, instanceId)
+	createPrimalPod(position, instanceId)
 end
 
 local function spawnPods(monster, hazardPoints)
@@ -269,14 +271,14 @@ local function handlePodSpawn(monster, hazardPoints)
 	end
 end
 
-local function spawnMonster(monsterId, spawnPosition)
+local function spawnMonster(monsterId, spawnPosition, instanceId)
 	local monster = Monster(monsterId)
 	if not monster then
 		return
 	end
 
 	local randomMonsterIndex = math.random(#thePrimalMenaceConfig.MonsterConfig.MonsterPool)
-	local primalMonster = Game.createMonster(thePrimalMenaceConfig.MonsterConfig.MonsterPool[randomMonsterIndex], spawnPosition)
+	local primalMonster = Game.createMonster(thePrimalMenaceConfig.MonsterConfig.MonsterPool[randomMonsterIndex], spawnPosition, false, false, nil, instanceId)
 	if not primalMonster then
 		logger.error("Cannot create primal monster {}", thePrimalMenaceConfig.MonsterConfig.MonsterPool[randomMonsterIndex])
 		return
@@ -322,7 +324,7 @@ local function handlePrimalBeasts(monster)
 			primalMonster:remove()
 			table.insert(indexesToRemove, index)
 			if position then
-				Game.createMonster("Fungosaurus", position)
+				Game.createMonster("Fungosaurus", position, false, false, nil, monster:getInstanceId())
 			end
 		end
 	end

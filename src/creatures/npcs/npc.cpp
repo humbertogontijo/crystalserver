@@ -33,7 +33,7 @@ int32_t Npc::despawnRadius;
 
 uint32_t Npc::npcAutoID = 0x80000000;
 
-std::shared_ptr<Npc> Npc::createNpc(const std::string &name, uint32_t instanceId) {
+std::shared_ptr<Npc> Npc::createNpc(const std::string &name, InstanceId instanceId) {
 	const auto &npcType = g_npcs().getNpcType(name);
 	if (!npcType) {
 		return nullptr;
@@ -41,7 +41,7 @@ std::shared_ptr<Npc> Npc::createNpc(const std::string &name, uint32_t instanceId
 	return std::make_shared<Npc>(npcType, instanceId);
 }
 
-Npc::Npc(const std::shared_ptr<NpcType> &npcType, uint32_t instanceId) :
+Npc::Npc(const std::shared_ptr<NpcType> &npcType, InstanceId instanceId) :
 	Creature(instanceId),
 	strDescription(npcType->nameDescription),
 	npcType(npcType) {
@@ -63,7 +63,7 @@ Npc::Npc(const std::shared_ptr<NpcType> &npcType, uint32_t instanceId) :
 }
 
 Npc::Npc() :
-	Creature(0) { }
+	Creature(InstanceId::World) { }
 
 Npc &Npc::getInstance() {
 	return inject<Npc>();

@@ -30,11 +30,11 @@ class SpawnNpc;
 
 class Npc final : public Creature {
 public:
-	static std::shared_ptr<Npc> createNpc(const std::string &name, uint32_t instanceId);
+	static std::shared_ptr<Npc> createNpc(const std::string &name, InstanceId instanceId);
 	static int32_t despawnRange;
 	static int32_t despawnRadius;
 
-	Npc(const std::shared_ptr<NpcType> &npcType, uint32_t instanceId);
+	Npc(const std::shared_ptr<NpcType> &npcType, InstanceId instanceId);
 	// Scripting singleton (g_npc()); never placed on the map.
 	Npc();
 

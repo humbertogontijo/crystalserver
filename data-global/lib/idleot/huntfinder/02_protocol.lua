@@ -21,21 +21,11 @@ local ELEMENT_INDEX = {
 	[COMBAT_HEALING] = 7,
 }
 
-local function encode(payload)
-	if JsonParser and JsonParser.encode then
-		return JsonParser.encode(payload)
-	end
-	return nil
-end
+local encode = JsonParser.encode
 
 local function decode(buffer)
-	if JsonParser and JsonParser.decode then
-		local ok, decoded = pcall(JsonParser.decode, buffer)
-		if ok and type(decoded) == "table" then
-			return decoded
-		end
-	end
-	return nil
+	local decoded = JsonParser.decode(buffer)
+	return type(decoded) == "table" and decoded or nil
 end
 
 local function send(player, payload)

@@ -305,7 +305,7 @@ int CreatureFunctions::luaCreatureSetInstanceId(lua_State* L) {
 		Lua::pushBoolean(L, creature->getInstanceId() == instanceId);
 		return 1;
 	}
-	player->moveToInstance(instanceId);
+	player->moveToInstance(InstanceId(instanceId));
 	Lua::pushBoolean(L, true);
 	return 1;
 }
@@ -957,7 +957,7 @@ int CreatureFunctions::luaCreatureTeleportTo(lua_State* L) {
 	if (lua_gettop(L) >= 4 && !Lua::isNil(L, 4)) {
 		const auto instanceId = Lua::getNumber<uint32_t>(L, 4, 0);
 		if (const auto &player = creature->getPlayer()) {
-			player->moveToInstance(instanceId);
+			player->moveToInstance(InstanceId(instanceId));
 		} else if (creature->getInstanceId() != instanceId) {
 			Lua::reportErrorFunc(fmt::format("teleportTo instanceId is players-only; {} stays in instance {}", creature->getName(), creature->getInstanceId()));
 			Lua::pushBoolean(L, false);

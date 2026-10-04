@@ -4,14 +4,13 @@ SHELL := /bin/bash
 
 HERE := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-.PHONY: help server-build server-start build start generate-combat check-migrations
+.PHONY: help server-build server-start build start
 
 help:
 	@echo "CrystalServer (IdleOT)"
 	@echo "  make server-build       cmake + build (vcpkg)"
+	@echo "                          METRICS=1 compiles OpenTelemetry metrics (sticky; METRICS=0 drops it)"
 	@echo "  make server-start       run ./crystalserver (cwd = this repo)"
-	@echo "  make generate-combat    patch idleot combat_automation catalog"
-	@echo "  make check-migrations   validate migration numbering"
 
 server-build:
 	@VCPKG_ROOT="$${VCPKG_ROOT:-$(HOME)/vcpkg}"; \
@@ -21,15 +20,17 @@ server-build:
 		Linux) PRESET=linux-release ;; *) PRESET=linux-release ;; esac; \
 	JOBS="$$(sysctl -n hw.ncpu 2>/dev/null || nproc)"; \
 	MAP_TOOLS=""; \
-	if [ -d "$(HERE)/../../packages/map-tools" ]; then MAP_TOOLS="$(HERE)/../../packages/map-tools"; \
-	elif [ -d "$(HERE)/tools/map-tools" ]; then MAP_TOOLS="$(HERE)/tools/map-tools"; fi; \
+	if [ -d "$(HERE)/../../packages/map-tools" ]; then MAP_TOOLS="$(HERE)/../../packages/map-tools"; fi; \
+	METRICS_FLAG=""; \
+	case "$(METRICS)" in 1|on|ON|yes|true) METRICS_FLAG="-DFEATURE_METRICS=ON" ;; \
+		0|off|OFF|no|false) METRICS_FLAG="-DFEATURE_METRICS=OFF" ;; esac; \
 	cd "$(HERE)" && \
 		if [ -n "$$MAP_TOOLS" ]; then \
-			cmake --preset "$$PRESET" -DIDLEOT_MAP_TOOLS_DIR="$$MAP_TOOLS"; \
+			cmake --preset "$$PRESET" -DIDLEOT_MAP_TOOLS_DIR="$$MAP_TOOLS" $$METRICS_FLAG; \
 		else \
-			cmake --preset "$$PRESET"; \
+			cmake --preset "$$PRESET" $$METRICS_FLAG; \
 		fi && \
-		cmake --build --preset "$$PRESET" -j"$$JOBS"; \
+		cmake --build --preset "$$PRESET" -j"$$JOBS" || exit 1; \
 	ABS_BIN=""; \
 	for cand in \
 		"$(HERE)/build/$$PRESET/bin/crystalserver" \
@@ -75,9 +76,3 @@ server-start:
 # Short aliases (same as umbrella naming preferred)
 build: server-build
 start: server-start
-
-generate-combat:
-	@python3 "$(HERE)/tools/combat/generate.py"
-
-check-migrations:
-	@python3 "$(HERE)/tools/migrations/check.py"

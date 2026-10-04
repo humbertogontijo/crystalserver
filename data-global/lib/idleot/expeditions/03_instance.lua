@@ -429,6 +429,10 @@ function ExpeditionInstance.sweep(instance)
 		return
 	end
 	local instanceId = instance.instanceId
+	-- Native sweep walks the registered fence; nil means no fence (fall back to the Lua scan).
+	if Game.sweepInstance and Game.sweepInstance(instanceId) then
+		return
+	end
 	-- Stop instance respawns before sweeping so nothing reappears mid-teardown.
 	if Game.clearInstanceSpawns then
 		Game.clearInstanceSpawns(instanceId)

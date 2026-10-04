@@ -33,12 +33,12 @@
 #include "creatures/players/player.hpp"
 #include "server/network/protocol/protocolgame.hpp"
 
-Creature::Creature(uint32_t initialInstanceId) :
+Creature::Creature(InstanceId initialInstanceId) :
 	instanceId(initialInstanceId) {
 	Creature::onIdleStatus();
 }
 
-void Creature::setInstanceId(uint32_t id) {
+void Creature::setInstanceId(InstanceId id) {
 	if (instanceId == id) {
 		return;
 	}
@@ -173,9 +173,6 @@ bool Creature::canSeeCreature(const std::shared_ptr<Creature> &creature) const {
 	// Other players never see soft-despawned fighters (corpse item is the marker).
 	if (const auto &targetPlayer = creature->getPlayer()) {
 		if (targetPlayer->isSoftDespawned()) {
-			return false;
-		}
-		if (!getPlayer() && targetPlayer->isCombatUnattackable()) {
 			return false;
 		}
 	}

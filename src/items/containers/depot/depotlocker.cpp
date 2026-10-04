@@ -17,7 +17,7 @@
 
 #include "items/containers/depot/depotlocker.hpp"
 
-DepotLocker::DepotLocker(uint16_t type, uint16_t size, uint32_t instanceId) :
+DepotLocker::DepotLocker(uint16_t type, uint16_t size, InstanceId instanceId) :
 	Container(type, size, instanceId), depotId(0) { }
 
 Attr_ReadValue DepotLocker::readAttr(AttrTypes_t attr, PropStream &propStream) {

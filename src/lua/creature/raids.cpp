@@ -390,7 +390,7 @@ bool SingleSpawnEvent::configureRaidEvent(const pugi::xml_node &eventNode) {
 }
 
 bool SingleSpawnEvent::executeEvent() {
-	const auto &monster = Monster::createMonster(monsterName, g_instanceFences().instanceForPosition(position));
+	const auto &monster = Monster::createMonster(monsterName, InstanceId(g_instanceFences().instanceForPosition(position)));
 	if (!monster) {
 		g_logger().error("{} - Cant create monster {}", __FUNCTION__, monsterName);
 		return false;
@@ -554,7 +554,7 @@ bool AreaSpawnEvent::executeEvent() {
 	for (const MonsterSpawn &spawn : spawnMonsterList) {
 		const uint32_t amount = uniform_random(spawn.minAmount, spawn.maxAmount);
 		for (uint32_t i = 0; i < amount; ++i) {
-			const std::shared_ptr<Monster> &monster = Monster::createMonster(spawn.name, g_instanceFences().instanceForPosition(fromPos));
+			const std::shared_ptr<Monster> &monster = Monster::createMonster(spawn.name, InstanceId(g_instanceFences().instanceForPosition(fromPos)));
 			if (!monster) {
 				g_logger().error("{} - Can't create monster {}", __FUNCTION__, spawn.name);
 				return false;

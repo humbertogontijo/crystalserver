@@ -124,10 +124,6 @@ function CreatureInfo.computeCombatPower(traits, weights)
 	return math.sqrt(prod)
 end
 
-function CreatureInfo.defaultCombatPowerWeights()
-	return resolveWeights(nil)
-end
-
 --- Round like asset-pipeline round_combat_power (2 decimals).
 function CreatureInfo.roundCombatPower(value)
 	value = tonumber(value) or 0

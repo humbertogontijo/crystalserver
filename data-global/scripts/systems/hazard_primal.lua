@@ -57,12 +57,21 @@ end
 primalPod:id(ITEM_PRIMAL_POD)
 primalPod:register()
 
-local spawnFungosaurus = function(position)
+local function findPod(tile, instanceId)
+	for _, item in ipairs(tile:getItems() or {}) do
+		if item:getId() == ITEM_PRIMAL_POD and item:getInstanceId() == instanceId then
+			return item
+		end
+	end
+	return nil
+end
+
+local spawnFungosaurus = function(position, instanceId)
 	local tile = Tile(position)
 	if tile then
-		local podItem = tile:getItemById(ITEM_PRIMAL_POD)
+		local podItem = findPod(tile, instanceId)
 		if podItem then
-			local monster = Game.createMonster("Fungosaurus", position, false, true)
+			local monster = Game.createMonster("Fungosaurus", position, false, true, nil, instanceId)
 			if monster then
 				monster:say("The primal pod explode and wild emerges from it.")
 			end
@@ -71,13 +80,15 @@ local spawnFungosaurus = function(position)
 	end
 end
 
--- Used by the primal menace
-function createPrimalPod(position)
-	local primalPod = Game.createItem(ITEM_PRIMAL_POD, 1, position)
+-- Used by the primal menace. addEvent and death callbacks have no instance in scope,
+-- so private-instance callers must pass instanceId (0 = open world).
+function createPrimalPod(position, instanceId)
+	instanceId = instanceId or 0
+	local primalPod = Game.createItem(ITEM_PRIMAL_POD, 1, position, instanceId)
 	if primalPod then
 		primalPod:setCustomAttribute("HazardSystem_PodTimer", os.time() * 1000)
 		local podPos = primalPod:getPosition()
-		addEvent(spawnFungosaurus, configManager.getNumber(configKeys.HAZARD_PODS_TIME_TO_SPAWN), podPos)
+		addEvent(spawnFungosaurus, configManager.getNumber(configKeys.HAZARD_PODS_TIME_TO_SPAWN), podPos, instanceId)
 	end
 end
 
@@ -114,12 +125,13 @@ function deathEvent.onDeath(creature)
 	if points < 1 then
 		return true
 	end
+	local instanceId = monster:getInstanceId()
 
 	-- Pod
 	local chanceTo = math.random(1, 10000)
 	if chanceTo <= (points * configManager.getNumber(configKeys.HAZARD_PODS_DROP_MULTIPLIER)) then
 		local closestFreePosition = player:getClosestFreePosition(monster:getPosition(), 4, true)
-		createPrimalPod(closestFreePosition)
+		createPrimalPod(closestFreePosition, instanceId)
 		return true
 	end
 
@@ -127,7 +139,7 @@ function deathEvent.onDeath(creature)
 	chanceTo = math.random(1, 100000)
 	if chanceTo <= (points * configManager.getNumber(configKeys.HAZARD_SPAWN_PLUNDER_MULTIPLIER)) then
 		local closestFreePosition = player:getClosestFreePosition(monster:getPosition(), 4, true)
-		local monster = Game.createMonster("Plunder Patriarch", closestFreePosition.x == 0 and monster:getPosition() or closestFreePosition, false, true)
+		local monster = Game.createMonster("Plunder Patriarch", closestFreePosition.x == 0 and monster:getPosition() or closestFreePosition, false, true, nil, instanceId)
 		if monster then
 			monster:say("The Plunder Patriarch rises from the ashes.")
 		end
