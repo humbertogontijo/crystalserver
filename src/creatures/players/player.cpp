@@ -11531,22 +11531,49 @@ void Player::forgeTransferItemTier(ForgeAction_t actionType, uint16_t donorItemI
 		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
 		return;
 	}
+	if (!convergence && donorItem->getTier() == 0) {
+		g_logger().error("[{}] Player {} tried to transfer a tier-0 donor item", __FUNCTION__, getName());
+		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
+		return;
+	}
+
+	const auto &receiveItem = getForgeItemFromId(receiveItemId, 0);
+	if (!receiveItem || receiveItem == donorItem) {
+		g_logger().error("[Log 2] Player with name {} failed to transfer item with id {}", getName(), receiveItemId);
+		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
+		return;
+	}
+	if (donorItem->getClassification() != receiveItem->getClassification()) {
+		g_logger().error("[{}] Player {} tried to transfer item classification {} to classification {}", __FUNCTION__, getName(), donorItem->getClassification(), receiveItem->getClassification());
+		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
+		return;
+	}
+
 	uint8_t coresAmount = 0;
 	uint64_t cost = 0;
+	bool hasMatchingClassification = false;
 	for (const auto &itemClassification : g_game().getItemsClassifications()) {
 		if (itemClassification->id != donorItem->getClassification()) {
 			continue;
 		}
-		if (!itemClassification->tiers.contains(donorItem->getTier())) {
-			g_logger().error("[{}] Failed to find tier {} for item {} in classification {}", __FUNCTION__, donorItem->getTier(), donorItem->getClassification(), itemClassification->id);
+		hasMatchingClassification = true;
+		const uint8_t donorTier = donorItem->getTier();
+		const uint8_t toTier = convergence ? donorTier : donorTier - 1;
+		if (!itemClassification->tiers.contains(toTier) || !itemClassification->tiers.contains(donorTier)) {
+			g_logger().error("[{}] Failed to find donor tier {} or result tier {} for item {} in classification {}", __FUNCTION__, donorTier, toTier, donorItem->getClassification(), itemClassification->id);
 			sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
-			break;
+			return;
 		}
-		const uint8_t toTier = convergence ? donorItem->getTier() : donorItem->getTier() - 1;
-		auto tierPriecs = itemClassification->tiers.at(toTier);
-		cost = convergence ? tierPriecs.convergenceTransferPrice : tierPriecs.regularPrice;
-		coresAmount = tierPriecs.corePrice;
+		const auto &resultTierPrices = itemClassification->tiers.at(toTier);
+		const auto &donorTierPrices = itemClassification->tiers.at(donorTier);
+		cost = convergence ? resultTierPrices.convergenceTransferPrice : donorTierPrices.regularPrice;
+		coresAmount = resultTierPrices.corePrice;
 		break;
+	}
+	if (!hasMatchingClassification) {
+		g_logger().error("[{}] Failed to find classification {} for player {}", __FUNCTION__, donorItem->getClassification(), getName());
+		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
+		return;
 	}
 	if (coresAmount > 0) {
 		const auto &[sliverCountAvail, coreCountAvail] = getForgeSliversAndCores();
@@ -11555,17 +11582,11 @@ void Player::forgeTransferItemTier(ForgeAction_t actionType, uint16_t donorItemI
 			return;
 		}
 	}
+
 	auto returnValue = g_game().internalRemoveItem(donorItem, 1);
 	if (returnValue != RETURNVALUE_NOERROR) {
 		g_logger().error("[Log 1] Failed to remove transfer item {} from player with name {}", donorItemId, getName());
 		sendCancelMessage(getReturnMessage(returnValue));
-		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
-		return;
-	}
-
-	const auto &receiveItem = getForgeItemFromId(receiveItemId, 0);
-	if (!receiveItem) {
-		g_logger().error("[Log 2] Player with name {} failed to transfer item with id {}", getName(), receiveItemId);
 		sendForgeError(RETURNVALUE_CONTACTADMINISTRATOR);
 		return;
 	}
