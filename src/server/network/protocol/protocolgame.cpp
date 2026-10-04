@@ -12040,10 +12040,12 @@ void ProtocolGame::parseWeaponProficiency(NetworkMessage &msg) {
 
 	if (type == WEAPON_PROFICIENCY_ITEM_INFO) {
 		const uint16_t itemId = msg.get<uint16_t>();
+		target->sanitizeWeaponProficiencyShapes(itemId);
 		target->sendWeaponProficiencyInfo(itemId);
 
 	} else if (type == WEAPON_PROFICIENCY_LIST_INFO) {
 		for (const auto &[itemId, _] : target->weaponProficiencies) {
+			target->sanitizeWeaponProficiencyShapes(itemId);
 			sendWeaponProficiencyInfo(itemId, target.get());
 		}
 
@@ -12195,10 +12197,11 @@ void ProtocolGame::sendWeaponProficiencyReshapeOffers(const uint16_t itemId) {
 	// 15.25 (sommerrelease26): Reshape offers = opcode 0xBB (Ghidra-confirmed FUN_140601bf0). NOT 0xC7 (that is
 	// CyclopediaCurrentHouseData). Wire: u16 itemId · byte curLevel · byte curPos · byte count · count×{u16 perkType, byte value}.
 	// Each offer uses the same perkType+rank encoding as a 0xC4 modified slot (no name string). See PORT.md §7.4.
-	uint8_t rank = 1;
+	// Offers are shown at the rank the slot already has (rank 0 = base magnitude); Reshape keeps the refinement.
+	uint8_t rank = 0;
 	for (const auto &slot : it->second.modifiedSlots) {
 		if (slot.proficiencyLevel == it->second.pendingReshapeLevel && slot.perkPosition == it->second.pendingReshapePosition) {
-			rank = std::max<uint8_t>(1, slot.value);
+			rank = slot.value;
 			break;
 		}
 	}
