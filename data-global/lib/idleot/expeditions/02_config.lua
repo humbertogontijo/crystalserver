@@ -70,13 +70,12 @@ ExpeditionConfig.TARGET_KEEP_SQM = 4
 -- there within LURE_WAIT_MS * 2 plus this much per tile of distance (or the path fails).
 ExpeditionConfig.HALT_WALK_MS_PER_SQM = 400
 -- Good halt tile: at least HALT_MIN_RING standable tiles around it (room for the
--- monster ring) and HALT_MIN_LANES lanes still linked around the filled 3x3 (the box
+-- monster ring) and a slot every member can walk to around the filled 3x3 (the box
 -- does not seal a corridor). With none on screen the anchor keeps luring along the
 -- route for up to HALT_DEFER_MS (never with LURE_WAIT_SKIP_ADJACENT monsters adjacent).
 ExpeditionConfig.HALT_MIN_RING = 7
-ExpeditionConfig.HALT_MIN_LANES = 2
 ExpeditionConfig.HALT_DEFER_MS = 6000
--- Halted on a poor tile: look for a reachable good one this often. A halt moves to a
+-- Halted on a poor tile: look for a reachable better one this often. A halt moves to a
 -- new tile at most HALT_REPICK_MAX times, then fights where it stands.
 ExpeditionConfig.HALT_RECHECK_MS = 1500
 ExpeditionConfig.HALT_REPICK_MAX = 4

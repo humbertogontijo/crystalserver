@@ -89,6 +89,23 @@ local function logWalkFail(creature, dest, reason, extra)
 	)
 end
 
+--- Count one more failed path search toward `key` in a row; returns the count.
+local function notePathFail(id, key, now)
+	local fail = lastPathFailById[id]
+	local count = 1
+	if fail and fail.key == key and (now - fail.at) <= PATH_FAIL_FRESH_MS then
+		count = fail.count + 1
+	end
+	lastPathFailById[id] = { key = key, at = now, count = count }
+	return count
+end
+
+local function occupiedByOther(dest, creature)
+	local tile = Tile(dest)
+	local top = tile and tile:getTopCreature()
+	return top ~= nil and top:getId() ~= creature:getId()
+end
+
 --- True when path searches toward `dest` keep finding nothing (PATH_FAIL_PERSIST in
 --- a row, the last just now).
 function CombatAutomationMovement.walkBlocked(creature, dest)
@@ -107,7 +124,10 @@ end
 --- `ignoreConditions` = autoWalk despite rooted/feared (expedition route walk).
 --- `reach` = Chebyshev distance from `dest` that counts as there (default 0:
 --- the exact tile), so a creature standing on a waypoint does not block it.
-function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreConditions, reach)
+--- An exact destination another creature stands on is not searched: it counts as a
+--- failed search (see `walkBlocked`) without a warning.
+--- `quiet` = never warn (halt tile walks: the caller repicks on `walkBlocked`).
+function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreConditions, reach, quiet)
 	if not creature or not dest or not creature.autoWalk then
 		return false
 	end
@@ -156,17 +176,17 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 		minDist = math.max(0, math.floor(tonumber(excl.minDist) or 0))
 		maxDist = math.max(minDist, math.floor(tonumber(excl.maxDist) or 0))
 	end
+	if maxDist == 0 and occupiedByOther(dest, creature) then
+		notePathFail(id, key, now)
+		clearQueuedWalk(creature)
+		return false
+	end
 	local path = dirsForAutoWalkFromGetPathTo(creature:getPathTo(dest, minDist, maxDist, true, false, maxSearch))
 	if type(path) ~= "table" or #path == 0 then
-		local fail = lastPathFailById[id]
-		local count = 1
-		if fail and fail.key == key and (now - fail.at) <= PATH_FAIL_FRESH_MS then
-			count = fail.count + 1
-		end
-		lastPathFailById[id] = { key = key, at = now, count = count }
-		-- Stance / follow retries (exact tile occupied, BLOCKPATH, etc.) are
-		-- expected every tick. Only a route walk that stays blocked is worth a warning.
-		if ignoreConditions and count == PATH_FAIL_PERSIST then
+		local count = notePathFail(id, key, now)
+		-- Stance / follow retries (BLOCKPATH, etc.) are expected every tick. Only a
+		-- route walk that stays blocked is worth a warning.
+		if ignoreConditions and not quiet and count == PATH_FAIL_PERSIST then
 			logWalkFail(
 				creature,
 				dest,
@@ -194,7 +214,7 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 		end
 	end
 
-	if ignoreConditions then
+	if ignoreConditions and not quiet then
 		logWalkFail(creature, dest, "autoWalk refused", string.format("steps=%d relocate=true", #path))
 	end
 	clearQueuedWalk(creature)
@@ -337,12 +357,39 @@ local function castsDirectional(monster)
 	return cached
 end
 
-local CARDINAL_OFFSETS = geo.CARDINAL_OFFSETS
+-- ---------------------------------------------------------------------------
+-- Expedition anchor tile: one weighted score for the halt pick and the in-fight
+-- step. Most monsters in the box around the anchor first, then room for every
+-- member to walk around the box to a cast slot, then short walks and progress
+-- along the route.
+-- ---------------------------------------------------------------------------
 
---- Ring of 8 standable neighbours plus all four ranged lanes.
-local ANCHOR_TILE_IDEAL = 8 + 2 * 4
---- Good enough to stay: full ring and this many lanes.
-local ANCHOR_TILE_GOOD_LANES = 2
+--- Per standable neighbour (room for the monster ring).
+local ANCHOR_RING_TILE = 6
+--- Per monster expected in the box (up to the ring): adjacent now, or fighting
+--- within ANCHOR_PULL_SQM.
+local ANCHOR_BOX_MONSTER = 12
+local ANCHOR_PULL_SQM = 5
+--- Per standable tile at distance 2 (walkway around the box).
+local ANCHOR_WALKWAY_TILE = 2
+--- Per member with a free slot at its slot distance, in sight of the anchor...
+local ANCHOR_MEMBER_SLOT = 10
+--- ...on a cardinal lane (wave / beam line through the box)...
+local ANCHOR_MEMBER_LANE = 4
+--- ...reachable from where it stands without walking through the box...
+local ANCHOR_MEMBER_SAME_SIDE = 6
+--- ...less this per tile it walks there (up to ANCHOR_MEMBER_WALK_CAP tiles).
+local ANCHOR_MEMBER_WALK = 1
+local ANCHOR_MEMBER_WALK_CAP = 6
+--- Per member left without a slot it can reach.
+local ANCHOR_UNSERVED_PENALTY = 15
+--- Per step the anchor walks; per step along (or against) the route front.
+local ANCHOR_WALK_STEP = 3
+local ANCHOR_FORWARD = 2
+--- Staying on the route hold.
+local ANCHOR_HOLD_BONUS = 10
+--- A new tile must beat the current one by this much (no jitter between near ties).
+local ANCHOR_MOVE_MARGIN = 10
 --- Halt tile search depth, in walking steps from the anchor.
 local ANCHOR_SPOT_MAX_STEPS = 8
 
@@ -366,147 +413,245 @@ local function memoStandable(z)
 	end
 end
 
---- Farthest lane slot a ranged companion takes from the anchor (its ranged distance
---- + 1, see `memberTileScore`), or nil for melee.
-function CombatAutomationMovement.rangedSlotDistance(player)
-	local config = player and CombatAutomationStore and CombatAutomationStore.getConfig(player)
-	local at = config and config.autoTarget
-	if not at or at.stance ~= "ranged" then
-		return nil
-	end
+--- Slot distance a member keeps from the anchor: stance distance + 1 (melee 2, right
+--- outside the monster box; ranged d + 1, see `memberTileScore`).
+local function slotDistanceOf(config)
 	return CombatAutomationConfig.stanceDistanceOf(config) + 1
 end
 
-local function defaultLaneDistance()
-	return CombatAutomationConfig.RANGED_DISTANCE_DEFAULT + 1
+function CombatAutomationMovement.memberSlotDistance(player)
+	return slotDistanceOf(player and CombatAutomationStore and CombatAutomationStore.getConfig(player))
 end
 
---- How far past the lane slots mages may walk around the anchor's 3x3 to change side.
-local LANE_LINK_MARGIN = 3
-
---- Largest group of lane slots (`tips`) still walkable to each other with the anchor's
---- 3x3 filled (anchor + monster ring), walking within laneDist + LANE_LINK_MARGIN of
---- the anchor. A 3x3 that seals a corridor splits the slots, trapping mages on a side.
-local function linkedLaneCount(pos, standable, laneDist, tips)
-	if #tips <= 1 then
-		return #tips
-	end
-	local radius = laneDist + LANE_LINK_MARGIN
-	local tipAt = {}
-	for i, tip in ipairs(tips) do
-		tipAt[tip[1] * 65536 + tip[2]] = i
-	end
-	local grouped, best = {}, 0
-	for i, tip in ipairs(tips) do
-		if not grouped[i] then
-			grouped[i] = true
-			local members = 1
-			local seen = { [tip[1] * 65536 + tip[2]] = true }
-			local queue, head = { tip }, 1
-			while queue[head] do
-				local cur = queue[head]
-				head = head + 1
-				for _, off in ipairs(geo.NEIGHBOUR_OFFSETS) do
-					local x, y = cur[1] + off[1], cur[2] + off[2]
-					local key = x * 65536 + y
-					local dx, dy = math.abs(x - pos.x), math.abs(y - pos.y)
-					if not seen[key] and math.max(dx, dy) <= radius and (dx > 1 or dy > 1) and standable(x, y) then
-						seen[key] = true
-						queue[#queue + 1] = { x, y }
-						local j = tipAt[key]
-						if j and not grouped[j] then
-							grouped[j] = true
-							members = members + 1
-						end
-					end
-				end
-			end
-			best = math.max(best, members)
+--- Inputs read once per search: monsters near the anchor, members on its floor
+--- (`team`: { { id, slotDist }, ... }, farthest slot first), the route front and hold.
+local function anchorContext(anchor, opts)
+	local apos = anchor:getPosition()
+	local ctx = {
+		anchor = anchor,
+		apos = apos,
+		standable = memoStandable(apos.z),
+		prefer = opts.prefer,
+		front = opts.front,
+		monsters = {},
+		members = {},
+		maxSlot = 2,
+	}
+	local monsters = CombatAutomation.visibleMonsters and CombatAutomation.visibleMonsters(anchor) or {}
+	for _, monster in ipairs(monsters) do
+		local mpos = monster:getPosition()
+		if mpos and mpos.z == apos.z then
+			ctx.monsters[#ctx.monsters + 1] = { pos = mpos, engaged = monster:getTarget() ~= nil }
 		end
 	end
-	return best
+	for _, entry in ipairs(opts.team or {}) do
+		local member = Player(entry.id)
+		local mpos = member and member:getPosition()
+		if mpos and mpos.z == apos.z then
+			local slotDist = math.max(2, tonumber(entry.slotDist) or 2)
+			ctx.members[#ctx.members + 1] = { player = member, pos = mpos, slotDist = slotDist }
+			ctx.maxSlot = math.max(ctx.maxSlot, slotDist)
+		end
+	end
+	table.sort(ctx.members, function(a, b)
+		return a.slotDist > b.slotDist
+	end)
+	ctx.teamBound = 16 * ANCHOR_WALKWAY_TILE
+		+ #ctx.members * (ANCHOR_MEMBER_SLOT + ANCHOR_MEMBER_LANE + ANCHOR_MEMBER_SAME_SIDE)
+	return ctx
 end
 
---- Expedition anchor fight tile, from terrain only: standable neighbours (room for a
---- full ring of monsters, up to 8) plus cardinal lanes standable all the way out to
---- `laneDist` (the lane slots memberTileScore rewards, in clear sight of the anchor), counting only
---- the largest group of lanes that stay linked around the filled 3x3 (up to 4), each
---- worth 2. Returns score, ring, lanes. When the unlinked score cannot beat `beat`,
---- returns that upper bound without the (costlier) link check.
-local function anchorTileScore(pos, standable, laneDist, beat)
-	standable = standable or standableAt(pos.z)
-	laneDist = laneDist or defaultLaneDistance()
-	local ring = 0
+--- Monster box at `pos`: standable ring and monsters expected in it. Returns score, ring.
+local function anchorBoxScore(ctx, pos)
+	local standable, ring = ctx.standable, 0
 	for _, off in ipairs(geo.NEIGHBOUR_OFFSETS) do
 		if standable(pos.x + off[1], pos.y + off[2]) then
 			ring = ring + 1
 		end
 	end
-	local tips = {}
-	for _, d in ipairs(CARDINAL_OFFSETS) do
-		local open = true
-		for step = 1, laneDist do
-			if not standable(pos.x + step * d[1], pos.y + step * d[2]) then
-				open = false
-				break
+	local expected = 0
+	for _, monster in ipairs(ctx.monsters) do
+		local d = chebyshev(monster.pos, pos)
+		if d == 1 or (monster.engaged and d <= ANCHOR_PULL_SQM) then
+			expected = expected + 1
+		end
+	end
+	return ring * ANCHOR_RING_TILE + math.min(expected, ring) * ANCHOR_BOX_MONSTER, ring
+end
+
+local function anchorMoveScore(ctx, pos)
+	local dx, dy = pos.x - ctx.apos.x, pos.y - ctx.apos.y
+	local score = -math.max(math.abs(dx), math.abs(dy)) * ANCHOR_WALK_STEP
+	local front = ctx.front
+	if front then
+		score = score + (dx * front[1] + dy * front[2]) * ANCHOR_FORWARD
+	end
+	if ctx.prefer and sameTile(pos, ctx.prefer) then
+		score = score + ANCHOR_HOLD_BONUS
+	end
+	return score
+end
+
+--- Room for the team around a box at `pos`: walkway tiles at distance 2, then per
+--- member (farthest slot first) the best distinct free slot at its slot distance, in
+--- sight of `pos`, that it can walk to with the 3x3 filled (walking within
+--- maxSlot + 2 of `pos`). A member beyond that area may take any slot, without the
+--- same-side bonus. Returns score, unserved.
+local function anchorTeamScore(ctx, pos)
+	local standable = ctx.standable
+	local walkway = 0
+	for dx = -2, 2 do
+		for dy = -2, 2 do
+			if (dx == -2 or dx == 2 or dy == -2 or dy == 2) and standable(pos.x + dx, pos.y + dy) then
+				walkway = walkway + 1
 			end
 		end
-		if open then
-			tips[#tips + 1] = { pos.x + laneDist * d[1], pos.y + laneDist * d[2] }
+	end
+	local score = walkway * ANCHOR_WALKWAY_TILE
+	if #ctx.members == 0 then
+		return score, 0
+	end
+
+	local radius = ctx.maxSlot + 2
+	local function open(x, y)
+		local dx, dy = math.abs(x - pos.x), math.abs(y - pos.y)
+		return (dx > 1 or dy > 1) and dx <= radius and dy <= radius and standable(x, y)
+	end
+	local sideAt, sides = {}, 0
+	local function sideOf(x, y)
+		local key = x * 65536 + y
+		if sideAt[key] then
+			return sideAt[key]
+		end
+		sides = sides + 1
+		sideAt[key] = sides
+		local queue, head = { x, y }, 1
+		while queue[head] do
+			local cx, cy = queue[head], queue[head + 1]
+			head = head + 2
+			for _, off in ipairs(geo.NEIGHBOUR_OFFSETS) do
+				local nx, ny = cx + off[1], cy + off[2]
+				local nkey = nx * 65536 + ny
+				if not sideAt[nkey] and open(nx, ny) then
+					sideAt[nkey] = sides
+					queue[#queue + 1] = nx
+					queue[#queue + 1] = ny
+				end
+			end
+		end
+		return sides
+	end
+	--- Sides a member can walk on from its tile (stepping out of the box first when
+	--- it stands in it); nil when it is beyond the area.
+	local function memberSides(mpos)
+		if math.abs(mpos.x - pos.x) > radius or math.abs(mpos.y - pos.y) > radius then
+			return nil
+		end
+		local out = {}
+		if open(mpos.x, mpos.y) then
+			out[sideOf(mpos.x, mpos.y)] = true
+		elseif chebyshev(mpos, pos) <= 1 then
+			for _, off in ipairs(geo.NEIGHBOUR_OFFSETS) do
+				local x, y = mpos.x + off[1], mpos.y + off[2]
+				if open(x, y) then
+					out[sideOf(x, y)] = true
+				end
+			end
+		end
+		return out
+	end
+
+	local taken, unserved = {}, 0
+	for _, member in ipairs(ctx.members) do
+		local reachable = memberSides(member.pos)
+		local d = member.slotDist
+		local bestKey, bestValue
+		for dx = -d, d do
+			for dy = -d, d do
+				local x, y = pos.x + dx, pos.y + dy
+				local key = x * 65536 + y
+				if (math.abs(dx) == d or math.abs(dy) == d) and not taken[key] and open(x, y)
+					and (not reachable or reachable[sideOf(x, y)])
+				then
+					local walk = math.max(math.abs(x - member.pos.x), math.abs(y - member.pos.y))
+					local value = ANCHOR_MEMBER_SLOT
+						+ (((dx == 0) ~= (dy == 0)) and ANCHOR_MEMBER_LANE or 0)
+						+ (reachable and ANCHOR_MEMBER_SAME_SIDE or 0)
+						- math.min(walk, ANCHOR_MEMBER_WALK_CAP) * ANCHOR_MEMBER_WALK
+					if not bestValue or value > bestValue then
+						local slot = Position(x, y, pos.z)
+						if tileFree(slot, member.player) and sightClear(member.player, slot, pos) then
+							bestKey, bestValue = key, value
+						end
+					end
+				end
+			end
+		end
+		if bestKey then
+			taken[bestKey] = true
+			score = score + bestValue
+		else
+			unserved = unserved + 1
+			score = score - ANCHOR_UNSERVED_PENALTY
 		end
 	end
-	if beat and ring + 2 * #tips <= beat then
-		return ring + 2 * #tips, ring, #tips
+	return score, unserved
+end
+
+--- Weighted anchor tile score (see the ANCHOR_* weights). Nil when the anchor cannot
+--- stand there (taken, or farther out of its leash) or, with `beat`, when it does not
+--- score above `beat` (the team term is skipped once the cheap terms already lose).
+--- Returns score, ring, unserved.
+local function anchorTileScore(ctx, pos, beat)
+	local anchor = ctx.anchor
+	if not sameTile(pos, ctx.apos) and (not tileFree(pos, anchor) or fartherFromLeash(anchor, ctx.apos, pos)) then
+		return nil
 	end
-	local lanes = linkedLaneCount(pos, standable, laneDist, tips)
-	return ring + 2 * lanes, ring, lanes
+	local box, ring = anchorBoxScore(ctx, pos)
+	local score = box + anchorMoveScore(ctx, pos)
+	if beat and score + ctx.teamBound <= beat then
+		return nil
+	end
+	local team, unserved = anchorTeamScore(ctx, pos)
+	score = score + team
+	if beat and score <= beat then
+		return nil
+	end
+	return score, ring, unserved
 end
 
-local function anchorTileGood(pos, standable, laneDist)
-	local _, ring, lanes = anchorTileScore(pos, standable, laneDist)
-	return ring >= 8 and lanes >= ANCHOR_TILE_GOOD_LANES
-end
-
---- Expedition halt tile. Stays on `prefer` (the route hold) or where the anchor
---- stands when that tile is already good (full ring, ANCHOR_TILE_GOOD_LANES lanes);
---- otherwise walks outward (up to ANCHOR_SPOT_MAX_STEPS steps, within the viewport)
---- and takes the best `anchorTileScore`, nearest by walk on ties. The walk only
---- crosses free tiles (monsters and members block), so every pick is reachable now.
---- `exclude`: set of `x * 65536 + y` keys never picked (tiles that failed to path).
---- `laneDist`: the team's ranged slot distance (`rangedSlotDistance`); kept on the
---- anchor for its tile adjustments. Returns pos, score, ring, lanes.
-function CombatAutomationMovement.bestAnchorSpot(anchor, prefer, laneDist, exclude)
+--- Expedition halt tile: the best `anchorTileScore` among `prefer` and the tiles the
+--- anchor can walk to now (up to ANCHOR_SPOT_MAX_STEPS steps over free tiles, within
+--- the viewport); leaving the current tile takes ANCHOR_MOVE_MARGIN more.
+--- `opts`: prefer (route hold), exclude (set of `x * 65536 + y` keys that failed to
+--- path), front ({ dx, dy } along the route), team ({ { id, slotDist }, ... }; kept
+--- on the anchor for its in-fight steps). Returns pos, score, ring, unserved.
+function CombatAutomationMovement.bestAnchorSpot(anchor, opts)
 	local apos = anchor and anchor:getPosition()
 	if not apos then
 		return nil
 	end
-	laneDist = laneDist or defaultLaneDistance()
+	opts = opts or {}
 	local anchorState = CombatAutomation.getState(anchor)
 	if anchorState then
-		anchorState.anchorLaneDist = laneDist
+		anchorState.anchorTeam = opts.team
 	end
-	local standable = memoStandable(apos.z)
-	local function result(pos)
-		return pos, anchorTileScore(pos, standable, laneDist)
-	end
-	exclude = exclude or {}
-	if prefer and (prefer.z ~= apos.z or exclude[prefer.x * 65536 + prefer.y]) then
-		prefer = nil
-	end
-	if prefer and anchorTileGood(prefer, standable, laneDist) then
-		return result(prefer)
-	end
-	if anchorTileGood(apos, standable, laneDist) then
-		return result(apos)
-	end
-
-	local best, bestScore = apos, (anchorTileScore(apos, standable, laneDist))
-	if prefer and tileFree(prefer, anchor) then
-		local score = anchorTileScore(prefer, standable, laneDist)
-		if score >= bestScore then
-			best, bestScore = prefer, score
+	local ctx = anchorContext(anchor, opts)
+	local exclude = opts.exclude or {}
+	local here, hereRing, hereUnserved = anchorTileScore(ctx, apos)
+	local best, bestScore, bestRing, bestUnserved = apos, here, hereRing, hereUnserved
+	local bar = here + ANCHOR_MOVE_MARGIN
+	local function consider(pos)
+		local score, ring, unserved = anchorTileScore(ctx, pos, best == apos and bar or bestScore)
+		if score then
+			best, bestScore, bestRing, bestUnserved = pos, score, ring, unserved
 		end
 	end
+	local prefer = ctx.prefer
+	if prefer and prefer.z == apos.z and not sameTile(prefer, apos) and not exclude[prefer.x * 65536 + prefer.y] then
+		consider(prefer)
+	end
+	local standable = ctx.standable
 	local seen = { [apos.x * 65536 + apos.y] = true }
 	local frontier = { apos }
 	for _ = 1, ANCHOR_SPOT_MAX_STEPS do
@@ -520,14 +665,8 @@ function CombatAutomationMovement.bestAnchorSpot(anchor, prefer, laneDist, exclu
 					local pos = Position(x, y, apos.z)
 					if standable(x, y) and geo.isInViewport(apos, pos) and tileFree(pos, anchor) then
 						nextFrontier[#nextFrontier + 1] = pos
-						if not exclude[key] and not fartherFromLeash(anchor, apos, pos) then
-							local score = anchorTileScore(pos, standable, laneDist, bestScore)
-							if score > bestScore then
-								best, bestScore = pos, score
-								if score >= ANCHOR_TILE_IDEAL then
-									return result(best)
-								end
-							end
+						if not exclude[key] then
+							consider(pos)
 						end
 					end
 				end
@@ -535,34 +674,46 @@ function CombatAutomationMovement.bestAnchorSpot(anchor, prefer, laneDist, exclu
 		end
 		frontier = nextFrontier
 	end
-	return result(best)
+	return best, bestScore, bestRing, bestUnserved
 end
 
---- Anchor next to its target: when its tile is not good, one step
---- to a free tile still next to the target that scores strictly better.
+--- Anchor in a fight: one step to a free neighbour that keeps its target adjacent
+--- (any free neighbour while a member has no slot it can reach) when it beats the
+--- current tile by ANCHOR_MOVE_MARGIN. The step is kept on the state
+--- (`anchorAdoptPos`, `anchorAdoptAt`) so the cavebot halt moves along.
 local function adjustAnchorTile(player, target, state)
 	if throttled(state, "anchorAdjustAt", ADJUST_THROTTLE_MS) then
 		return false
 	end
 	local ppos = player:getPosition()
-	local laneDist = state and state.anchorLaneDist
-	local standable = memoStandable(ppos.z)
-	if anchorTileGood(ppos, standable, laneDist) then
-		return false
-	end
-	local here = anchorTileScore(ppos, standable, laneDist)
 	local tpos = target:getPosition()
-	local best, bestScore = nil, here
+	local directive = state and state.directive
+	local ctx = anchorContext(player, {
+		team = state and state.anchorTeam,
+		front = directive and type(directive.front) == "table" and directive.front or nil,
+	})
+	local here, _, unserved = anchorTileScore(ctx, ppos)
+	local best, bestScore = nil, here + ANCHOR_MOVE_MARGIN
 	for _, off in ipairs(geo.NEIGHBOUR_OFFSETS) do
 		local pos = Position(ppos.x + off[1], ppos.y + off[2], ppos.z)
-		if chebyshev(pos, tpos) == 1 and tileFree(pos, player) and not fartherFromLeash(player, ppos, pos) then
-			local score = anchorTileScore(pos, standable, laneDist, bestScore)
-			if score > bestScore then
+		if unserved > 0 or chebyshev(pos, tpos) == 1 then
+			local score = anchorTileScore(ctx, pos, bestScore)
+			if score then
 				best, bestScore = pos, score
 			end
 		end
 	end
-	return best ~= nil and stepTo(player, best)
+	if not best or not stepTo(player, best) then
+		return false
+	end
+	if state then
+		state.anchorAdoptPos = best
+		state.anchorAdoptAt = nowMs()
+		if directive and directive.kind == "hold" then
+			directive.pos = best
+		end
+	end
+	return true
 end
 
 local function isExpeditionAnchor(state)
@@ -584,6 +735,14 @@ local function anchorMeleeStance(player, target, state)
 		return
 	end
 	followTarget(player, target)
+end
+
+--- Melee anchor holding a halt tile with its target adjacent: the in-fight step
+--- (no chasing while luring).
+local function haltStep(player, target, config, state)
+	return CombatAutomationConfig.stanceDistanceOf(config) <= 1
+		and chebyshev(player:getPosition(), target:getPosition()) <= 1
+		and adjustAnchorTile(player, target, state)
 end
 
 -- ---------------------------------------------------------------------------
@@ -796,7 +955,7 @@ local function driveMember(player, anchor, target, config, state)
 		apos = apos,
 		melee = melee,
 		d = d,
-		slotDist = d + 1,
+		slotDist = slotDistanceOf(config),
 		threats = threats,
 		safeDist = safeDist,
 		minFree = REPOSITION_MIN_FREE,
@@ -1113,11 +1272,13 @@ function CombatAutomationMovement.tick(player, config)
 			-- range; never chase, so the pack follows the anchor instead.
 			clearFollowIfAny(player)
 			if relocatePriority then
-				CombatAutomationMovement.queueWalkToward(player, hold, false, true, directive.reach)
+				CombatAutomationMovement.queueWalkToward(player, hold, false, true, directive.reach, directive.quiet)
 			else
 				clearQueuedWalk(player)
 				if hasFocus then
-					faceToward(player, target:getPosition())
+					if not (directive.halt and autoOn and haltStep(player, target, config, state)) then
+						faceToward(player, target:getPosition())
+					end
 				elseif type(directive.front) == "table" then
 					local ppos = player:getPosition()
 					faceToward(player, Position(ppos.x + directive.front[1], ppos.y + directive.front[2], ppos.z))
@@ -1134,7 +1295,7 @@ function CombatAutomationMovement.tick(player, config)
 				if not sameTile(player:getPosition(), hold) then
 					-- Do not force-repath every tick; stuck detection inside
 					-- queueWalkToward retries after ~400ms.
-					CombatAutomationMovement.queueWalkToward(player, hold, false, relocatePriority, directive.reach)
+					CombatAutomationMovement.queueWalkToward(player, hold, false, relocatePriority, directive.reach, directive.quiet)
 				else
 					clearQueuedWalk(player)
 					-- Tank waits facing where the pack comes from.
