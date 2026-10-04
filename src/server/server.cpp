@@ -22,6 +22,7 @@
 #include "game/scheduling/dispatcher.hpp"
 #include "creatures/players/management/ban.hpp"
 #include "server/network/websocket/websocket_port.hpp"
+#include "lib/di/container.hpp"
 
 ServiceManager::~ServiceManager() {
 	try {
