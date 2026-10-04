@@ -928,6 +928,9 @@ void ProtocolGame::attachToPlayer(const std::shared_ptr<Player> &target, Operati
 		}
 	}
 
+	// The new client knows no containers; a stale server-side entry would make the
+	// next use of that container toggle it closed instead of opening it.
+	player->closeAllContainers();
 	player->openPlayerContainers();
 
 	player->sendHarmonyProtocol();

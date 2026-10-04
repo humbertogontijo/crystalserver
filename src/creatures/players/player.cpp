@@ -1290,6 +1290,17 @@ void Player::closeContainer(uint8_t cid) {
 	openContainers.erase(it);
 }
 
+void Player::closeAllContainers() {
+	std::vector<uint8_t> cids;
+	cids.reserve(openContainers.size());
+	for (const auto &[cid, openContainer] : openContainers) {
+		cids.push_back(cid);
+	}
+	for (const auto cid : cids) {
+		closeContainer(cid);
+	}
+}
+
 void Player::removeEmptyRewards() {
 	std::erase_if(rewardMap, [this](const auto &rewardBag) {
 		auto [id, reward] = rewardBag;
@@ -5376,6 +5387,16 @@ std::shared_ptr<Cylinder> Player::queryDestination(int32_t &index, const std::sh
 		return getPlayer();
 	}
 
+	// Slot 12 holds an unsaved handle; moves onto it belong in the account pouch.
+	if (index == CONST_SLOT_LOOT_POUCH) {
+		if (const auto &pouch = getLootPouch()) {
+			index = INDEX_WHEREEVER;
+			destItem = nullptr;
+			return pouch;
+		}
+		return getPlayer();
+	}
+
 	std::shared_ptr<Thing> destThing = getThing(index);
 	if (destThing) {
 		destItem = destThing->getItem();
@@ -7433,13 +7454,9 @@ bool Player::isInSafeInstance() const {
 }
 
 void Player::captureLoginPosition() {
-	// Product Lua (InstanceWorld.captureLoginPosition) may rewrite loginPosition for
-	// hunt-footprint / home tiles. Always keep a C++ hard floor for private instances.
-	if (g_game().tryCaptureLoginPosition(static_self_cast<Player>())) {
-		return;
-	}
+	// Private instances (expeditions, homes) die with the session: keep the last
+	// persisted open-world tile instead of saving coordinates inside them.
 	if (!isInSafeInstance()) {
-		loginPosition = getTemplePosition();
 		return;
 	}
 	loginPosition = getPosition();

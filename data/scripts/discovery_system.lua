@@ -1,6 +1,7 @@
 -- Discovery System ("Measuring Tibia") - AUTOMATIC exploration (no "Start Discovering" button).
 -- Entering a registered subarea auto-activates discovery: the server picks viewpoints from the
--- tibiamaps flag catalog for that subarea (lib/idleot/discovery/pois.generated.lua); walking within 4 sqm
+-- tibiamaps flag catalog for that subarea (lib/idleot/discovery/pois.generated.lua), keeping only
+-- points inside the subarea's floors and inside some walkable instance fence; walking within 4 sqm
 -- of one marks it found; finishing the set unlocks the subarea permanently (KV).
 -- Wire: S2C 0xDD sub 1 (DiscoveryData), sub 5 (SetDiscoveryArea — viewport-visible unfound only),
 -- sub 10/11 (current/exploring). Clients must not foreshadow distant POIs on the cyclopedia map.
@@ -10,6 +11,9 @@
 -- exact client footprints (generated from subarea-*.bmp.lzma masks); load-order guard
 if not DiscoveryGeometry then
 	dofile(DATA_DIRECTORY .. "/lib/idleot/discovery/geometry.lua")
+end
+if not DiscoverySubareas then
+	dofile(DATA_DIRECTORY .. "/lib/idleot/discovery/subareas.lua")
 end
 if not DiscoveryPois then
 	dofile(DATA_DIRECTORY .. "/lib/idleot/discovery/pois.generated.lua")
@@ -29,8 +33,9 @@ if VIEW_Y < 15 then
 end
 local DISCOVER_RADIUS = 4 -- Chebyshev: viewpoint counts as found only within this range
 local POI_TARGET = 7
--- bump when subarea geometry OR the tibiamaps POI catalog changes: stale rolled/selected
--- viewpoints are wiped on login; completed subareas are kept
+-- bump only when subarea ids/footprints change incompatibly: rolled viewpoints are wiped on
+-- login (completed subareas are kept). Catalog changes need no bump - saved sets are
+-- reconciled against the usable catalog when the player enters the subarea.
 local GEOMETRY_VERSION = 6
 
 local OUTFIT_DISCOVERER_FEMALE = 1095
@@ -44,7 +49,8 @@ local MAIN_AREAS = DiscoveryGeometry.mains
 -- Measuring Tibia discoverable subareas only (https://tibia.fandom.com/wiki/Measuring_Tibia_Quest).
 -- Geometry may include corridors / dungeons / stubs (e.g. Trail to Rascacoon) that are
 -- not part of the quest — those stay in SUBAREA_LIST for footprint / donate boosts but
--- never start exploration or count toward progress.
+-- never start exploration or count toward progress. A listed subarea with no usable
+-- viewpoint (see usablePois) is treated the same way.
 local DISCOVERABLE = {
 	[28] = true, -- Thais City
 	[29] = true, -- Thais Surroundings
@@ -197,11 +203,11 @@ local DISCOVERABLE = {
 	[443] = true, -- Moonfall
 	[444] = true, -- Silvertides
 	[445] = true, -- Ingol
-	[448] = true, -- Kazordoon City
-	[451] = true, -- Ab'Dendriel City
-	[455] = true, -- Edron Castle
-	[456] = true, -- Carlin City
-	[460] = true, -- Venore City
+	[272] = true, -- Kazordoon City
+	[273] = true, -- Ab'Dendriel City
+	[275] = true, -- Edron Castle
+	[271] = true, -- Carlin City
+	[276] = true, -- Venore City
 	[461] = true, -- Yalahar Centre
 	[475] = true, -- Oskayaat
 	[498] = true, -- Candia
@@ -213,157 +219,53 @@ local DISCOVERABLE = {
 	[528] = true, -- Aragonia
 }
 
--- SUBAREA_LIST is built automatically from DiscoveryGeometry.subs (207 pixel-exact,
--- mutually disjoint surface footprints). Underground subareas have no client mask -
--- add them to MANUAL_SUBAREAS with hand-made boxes (tune via /disco where, Lua only).
--- floors = where the player counts as inside (detection, incl. rooftops/mountain tops);
--- poiFloors = where viewpoints may be rolled (reachable ground levels only).
-local SURFACE = { 0, 1, 2, 3, 4, 5, 6, 7 }
-
--- per-subarea tweaks on top of the generated geometry
-local OVERRIDES = {
-	[34] = { poiFloors = { 6, 7 } }, -- Mount Sternum: viewpoints also on the plateau (z6)
-	[33] = { floors = { 8, 9 } }, -- Trolls' Cave: underground, mask = horizontal footprint
-	[35] = { extraBoxes = { { from = { x = 32130, y = 32360 }, to = { x = 32230, y = 32450 }, floors = { 8 } } } }, -- Fibula dungeon
-	[317] = { floors = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }, poiFloors = { 7, 8 } }, -- Rookgaard incl. dungeons
-}
-
--- hand-made subareas (none right now - undergrounds come from DiscoveryGeometry.approx);
--- format: { id, mainArea, name, floors, boxes = { { from = {x,y}, to = {x,y}, floors? } } }
-local MANUAL_SUBAREAS = {}
-
-local function floorSetOf(list)
-	local set = {}
-	for _, z in ipairs(list) do
-		set[z] = true
-	end
-	return set
-end
-
--- "x1,y1,x2,y2 x1,y1,x2,y2 ..." -> flat number array (stride 4)
-local function parseRects(str)
-	local flat = {}
-	local n = 0
-	for x1, y1, x2, y2 in str:gmatch("(%d+),(%d+),(%d+),(%d+)") do
-		flat[n + 1] = tonumber(x1)
-		flat[n + 2] = tonumber(y1)
-		flat[n + 3] = tonumber(x2)
-		flat[n + 4] = tonumber(y2)
-		n = n + 4
-	end
-	return flat
-end
-
--- def carries: rects = flat array (uniform def.floors) + extra = { {x1,y1,x2,y2, floors} }
--- (per-box floor exceptions). finalizeDef computes bbox, floor sets and the cumulative
--- area array (rects first, then extras) used for weighted viewpoint rolls.
-local function finalizeDef(def)
-	local bb = def.bbox and { x1 = def.bbox.x1, y1 = def.bbox.y1, x2 = def.bbox.x2, y2 = def.bbox.y2 } or nil
-	local rects = def.rects
-	local cum = {}
-	local area = 0
-	local nRects = #rects / 4
-	for i = 0, nRects - 1 do
-		local x1, y1, x2, y2 = rects[i * 4 + 1], rects[i * 4 + 2], rects[i * 4 + 3], rects[i * 4 + 4]
-		if not bb then
-			bb = { x1 = x1, y1 = y1, x2 = x2, y2 = y2 }
-		else
-			bb.x1 = math.min(bb.x1, x1)
-			bb.y1 = math.min(bb.y1, y1)
-			bb.x2 = math.max(bb.x2, x2)
-			bb.y2 = math.max(bb.y2, y2)
-		end
-		area = area + (x2 - x1 + 1) * (y2 - y1 + 1)
-		cum[i + 1] = area
-	end
-	def.extra = def.extra or {}
-	for _, e in ipairs(def.extra) do
-		bb.x1 = math.min(bb.x1, e.x1)
-		bb.y1 = math.min(bb.y1, e.y1)
-		bb.x2 = math.max(bb.x2, e.x2)
-		bb.y2 = math.max(bb.y2, e.y2)
-		area = area + (e.x2 - e.x1 + 1) * (e.y2 - e.y1 + 1)
-		cum[#cum + 1] = area
-		e.floorSet = floorSetOf(e.floors)
-	end
-	def.nRects = nRects
-	def.bbox = bb
-	def.area = area
-	def.cum = cum
-	def.floorSet = floorSetOf(def.floors)
+-- footprints + floor rules live in lib/idleot/discovery/subareas.lua (shared with gen_pois.py)
+local SUBAREA_LIST = DiscoverySubareas.list
+for _, def in ipairs(SUBAREA_LIST) do
 	def.discoverable = DISCOVERABLE[def.id] == true
-	return def
 end
 
-local SUBAREA_LIST = {}
+-- Viewpoints a player can actually stand on: inside the subarea's own session footprint
+-- (right floor) and inside some walkable instance fence. Fences are static after startup,
+-- so the result is cached per subarea.
+local usableBySub = {}
+local usableReported = false
 
-local function addDef(def)
-	SUBAREA_LIST[#SUBAREA_LIST + 1] = finalizeDef(def)
-end
-
-local function sortedKeys(tbl)
-	local keys = {}
-	for k in pairs(tbl) do
-		keys[#keys + 1] = k
+local function usablePois(def)
+	local cached = usableBySub[def.id]
+	if cached then
+		return cached
 	end
-	table.sort(keys)
-	return keys
-end
-
-for _, def in ipairs(MANUAL_SUBAREAS) do
-	local flat = {}
-	local extras = {}
-	for _, box in ipairs(def.boxes) do
-		if box.floors then
-			extras[#extras + 1] = { x1 = box.from.x, y1 = box.from.y, x2 = box.to.x, y2 = box.to.y, floors = box.floors }
-		else
-			flat[#flat + 1] = box.from.x
-			flat[#flat + 1] = box.from.y
-			flat[#flat + 1] = box.to.x
-			flat[#flat + 1] = box.to.y
+	local reachable = InstanceWorld and InstanceWorld.isReachable
+	local list = {}
+	for _, p in ipairs((DiscoveryPois and DiscoveryPois[def.id]) or {}) do
+		local pos = { x = p.x, y = p.y, z = p.z }
+		if DiscoverySubareas.contains(pos, def) and (not reachable or reachable(pos)) then
+			list[#list + 1] = p
 		end
 	end
-	def.rects = flat
-	def.extra = extras
-	def.boxes = nil
-	addDef(def)
+	usableBySub[def.id] = list
+	return list
 end
 
--- pixel-exact surface footprints (client masks)
-for _, sid in ipairs(sortedKeys(DiscoveryGeometry.subs)) do
-	local g = DiscoveryGeometry.subs[sid]
-	local ov = OVERRIDES[sid] or {}
-	local extras = {}
-	for _, box in ipairs(ov.extraBoxes or {}) do
-		extras[#extras + 1] = { x1 = box.from.x, y1 = box.from.y, x2 = box.to.x, y2 = box.to.y, floors = box.floors or { 7 } }
+local function isDiscoverable(def)
+	return def.discoverable and #usablePois(def) > 0
+end
+
+local function reportUnusableSubareas()
+	if usableReported then
+		return
 	end
-	addDef({
-		id = sid,
-		mainArea = g.mainArea,
-		name = g.name,
-		floors = ov.floors or SURFACE,
-		poiFloors = ov.poiFloors or { 7 },
-		rects = parseRects(g.rects),
-		extra = extras,
-		bbox = g.bbox,
-	})
-end
-
--- approximate underground boxes (landmark clusters) - AFTER the exact ones, so an exact
--- footprint always wins the first-match scan
-for _, sid in ipairs(sortedKeys(DiscoveryGeometry.approx or {})) do
-	local g = DiscoveryGeometry.approx[sid]
-	local ov = OVERRIDES[sid] or {}
-	local floors = ov.floors or g.floors
-	addDef({
-		id = sid,
-		mainArea = g.mainArea,
-		name = g.name,
-		approx = true,
-		floors = floors,
-		poiFloors = ov.poiFloors or floors,
-		rects = { g.box.x1, g.box.y1, g.box.x2, g.box.y2 },
-	})
+	usableReported = true
+	local names = {}
+	for _, def in ipairs(SUBAREA_LIST) do
+		if def.discoverable and #usablePois(def) == 0 then
+			names[#names + 1] = string.format("%s (%d)", def.name, def.id)
+		end
+	end
+	if #names > 0 then
+		logger.warn("[DiscoverySystem] {} quest subareas have no reachable viewpoint and are not discoverable: {}", #names, table.concat(names, ", "))
+	end
 end
 
 local sessions = {} -- guid -> { subId, def, pois = { {x, y, z, found} }, foundCount, completed }
@@ -649,45 +551,19 @@ local function wireSignature(points)
 	return table.concat(parts, "|")
 end
 
-local function positionInDef(position, def)
-	local bb = def.bbox
-	local x, y, z = position.x, position.y, position.z
-	if x < bb.x1 or x > bb.x2 or y < bb.y1 or y > bb.y2 then
-		return false
-	end
-	if def.floorSet[z] then
-		local r = def.rects
-		for i = 1, #r, 4 do
-			if x >= r[i] and x <= r[i + 2] and y >= r[i + 1] and y <= r[i + 3] then
-				return true
-			end
-		end
-	end
-	for _, e in ipairs(def.extra) do
-		if e.floorSet[z] and x >= e.x1 and x <= e.x2 and y >= e.y1 and y <= e.y2 then
-			return true
-		end
-	end
-	return false
-end
-
 function DiscoverySystem.findSubarea(position)
-	for _, def in ipairs(SUBAREA_LIST) do
-		if positionInDef(position, def) then
-			return def.id, def
-		end
-	end
-	return nil, nil
+	return DiscoverySubareas.find(position)
 end
 
--- Pick up to POI_TARGET viewpoints from the tibiamaps flag catalog for this subarea.
--- Deterministic per (player, subarea) so re-entering after a wipe is stable; never invents
+local function poiTargetFor(def)
+	return math.min(POI_TARGET, #usablePois(def))
+end
+
+-- All usable viewpoints of this subarea in pick order: a deterministic shuffle per
+-- (player, subarea), with points already in view pushed to the back. Never invents
 -- random map coordinates.
-local function selectPois(player, def)
-	local catalog = DiscoveryPois and DiscoveryPois[def.id]
-	if not catalog or #catalog == 0 then
-		return nil
-	end
+local function orderedPool(player, def)
+	local catalog = usablePois(def)
 	local pool = {}
 	for i, p in ipairs(catalog) do
 		pool[i] = { x = p.x, y = p.y, z = p.z, found = false }
@@ -716,19 +592,62 @@ local function selectPois(player, def)
 	for _, p in ipairs(fallback) do
 		ordered[#ordered + 1] = p
 	end
+	return ordered
+end
 
-	local n = math.min(POI_TARGET, #ordered)
+local function selectPois(player, def)
+	local ordered = orderedPool(player, def)
 	local pois = {}
-	for i = 1, n do
+	for i = 1, poiTargetFor(def) do
 		pois[i] = ordered[i]
 	end
-	return pois
+	return #pois > 0 and pois or nil
+end
+
+-- Saved sets may predate a catalog / fence change: keep still-usable points (with their
+-- found state) and top up from the pick order so progress is never lost or stuck.
+local function reconcilePois(player, def, stored)
+	local usableKeys = {}
+	for _, p in ipairs(usablePois(def)) do
+		usableKeys[poiKey(p.x, p.y, p.z)] = true
+	end
+	local pois, have = {}, {}
+	for _, p in ipairs(stored) do
+		local key = poiKey(p.x, p.y, p.z)
+		if usableKeys[key] and not have[key] then
+			pois[#pois + 1] = p
+			have[key] = true
+		end
+	end
+	local target = poiTargetFor(def)
+	if #pois < target then
+		for _, p in ipairs(orderedPool(player, def)) do
+			if #pois >= target then
+				break
+			end
+			local key = poiKey(p.x, p.y, p.z)
+			if not have[key] then
+				pois[#pois + 1] = p
+				have[key] = true
+			end
+		end
+	end
+	local changed = #pois ~= #stored
+	if not changed then
+		for i, p in ipairs(pois) do
+			if p ~= stored[i] then
+				changed = true
+				break
+			end
+		end
+	end
+	return pois, changed
 end
 
 local function subareaCounts(player, mainId)
 	local total, done = 0, 0
 	for _, def in ipairs(SUBAREA_LIST) do
-		if def.discoverable and def.mainArea == mainId then
+		if def.mainArea == mainId and isDiscoverable(def) then
 			total = total + 1
 			if isCompleted(player, def.id) then
 				done = done + 1
@@ -744,7 +663,7 @@ function DiscoverySystem.sendDiscoveryData(player)
 	local discoverable = {}
 	for _, def in ipairs(SUBAREA_LIST) do
 		local mainId = def.mainArea
-		if def.discoverable and MAIN_AREAS[mainId] then
+		if MAIN_AREAS[mainId] and isDiscoverable(def) then
 			totals[mainId] = (totals[mainId] or 0) + 1
 			if isCompleted(player, def.id) then
 				dones[mainId] = (dones[mainId] or 0) + 1
@@ -823,10 +742,20 @@ local function sendAreaState(player, subId, session, active, force)
 	player:sendDiscoveryArea(subId, active, target, wire)
 end
 
-local missingPoiWarned = {}
+local function completeSubarea(player, session)
+	kv(player):set("done-" .. session.subId, true)
+	kv(player):set("pois-" .. session.subId, "")
+	session.completed = true
+	player:sendDiscoveryExploring(0)
+	player:getPosition():sendMagicEffect(CONST_ME_FIREWORK_BLUE)
+	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Congratulations! You have fully explored %s.", session.def.name))
+	sendAreaState(player, session.subId, session, false, true)
+	DiscoverySystem.sendDiscoveryData(player)
+	DiscoverySystem.grantMilestones(player)
+end
 
 local function enterSubarea(player, subId, def)
-	if not def.discoverable then
+	if not isDiscoverable(def) then
 		return
 	end
 	if isCompleted(player, subId) then
@@ -838,15 +767,17 @@ local function enterSubarea(player, subId, def)
 	end
 
 	local pois = deserializePois(kv(player):get("pois-" .. subId))
-	if not pois then
+	local changed = false
+	if pois then
+		pois, changed = reconcilePois(player, def, pois)
+	else
 		pois = selectPois(player, def)
-		if not pois then
-			if not missingPoiWarned[subId] then
-				missingPoiWarned[subId] = true
-				logger.warn("[DiscoverySystem] no tibiamaps flag catalog for subarea {} ({})", subId, def.name)
-			end
-			return
-		end
+		changed = true
+	end
+	if not pois or #pois == 0 then
+		return
+	end
+	if changed then
 		kv(player):set("pois-" .. subId, serializePois(pois))
 	end
 
@@ -859,6 +790,11 @@ local function enterSubarea(player, subId, def)
 	}
 	sessions[player:getGuid()] = session
 	player:sendDiscoveryCurrentArea(subId)
+	if session.foundCount >= session.poiTarget then
+		-- reconcile dropped the last unfound points (no usable replacements left)
+		completeSubarea(player, session)
+		return
+	end
 	player:sendDiscoveryExploring(subId)
 	sendAreaState(player, subId, session, true, true)
 	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("You have entered %s. Exploration in progress: %d/%d viewpoints found.", def.name, session.foundCount, session.poiTarget))
@@ -874,18 +810,6 @@ local function leaveSubarea(player, session)
 	end
 end
 
-local function completeSubarea(player, session)
-	kv(player):set("done-" .. session.subId, true)
-	kv(player):set("pois-" .. session.subId, "")
-	session.completed = true
-	player:sendDiscoveryExploring(0)
-	player:getPosition():sendMagicEffect(CONST_ME_FIREWORK_BLUE)
-	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Congratulations! You have fully explored %s.", session.def.name))
-	sendAreaState(player, session.subId, session, false, true)
-	DiscoverySystem.sendDiscoveryData(player)
-	DiscoverySystem.grantMilestones(player)
-end
-
 -- Debug/restore: mark a subarea (or all) fully explored without walking.
 function DiscoverySystem.markComplete(player, subId)
 	local ids = {}
@@ -893,7 +817,7 @@ function DiscoverySystem.markComplete(player, subId)
 		ids = { subId }
 	else
 		for _, def in ipairs(SUBAREA_LIST) do
-			if def.discoverable then
+			if isDiscoverable(def) then
 				ids[#ids + 1] = def.id
 			end
 		end
@@ -1094,7 +1018,7 @@ function DiscoverySystem.status(player)
 	local perMain = {}
 	local inProgress = {}
 	for _, def in ipairs(SUBAREA_LIST) do
-		if def.discoverable then
+		if isDiscoverable(def) then
 			local pm = perMain[def.mainArea]
 			if not pm then
 				pm = { total = 0, done = 0 }
@@ -1179,6 +1103,7 @@ discoveryLogin:register()
 local discoveryStartup = GlobalEvent("DiscoverySystemStartup")
 
 function discoveryStartup.onStartup()
+	reportUnusableSubareas()
 	local rects, names = DiscoverySystem.applyImprovedRespawnZones()
 	if rects > 0 then
 		logger.info("[DiscoverySystem] improved respawn active in: {} ({} rects)", table.concat(names, ", "), rects)

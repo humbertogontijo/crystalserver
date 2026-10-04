@@ -571,6 +571,20 @@ local function planTravelBind(creature, destPos)
 	return true, bindId, persistKey, scheduleLeave, current, target.kind
 end
 
+-- Teleports that keep the current city/settlement/hub id must land inside its walk
+-- fence, or the player is stuck (e.g. a ladder just past the mask edge: the trapdoor
+-- back down is outside too). Private ids are left to the session checks above.
+local function strandsOutsideFence(creature, current, destPos)
+	local player = asPlayer(creature)
+	if not player or isGodPlayer(player) or not Game.canWalkInstance then
+		return false
+	end
+	if current < InstanceWorld.CITY_BASE or current >= InstanceWorld.PRIVATE_BASE then
+		return false
+	end
+	return not Game.canWalkInstance(player, destPos)
+end
+
 function InstanceWorld.syncCreatureInstance(creature)
 	if not creature then
 		return false
@@ -601,6 +615,11 @@ function InstanceWorld.onEngineTravel(creature, destPos)
 	local player = asPlayer(creature)
 	local ok, bindId, persistKey, scheduleLeave, current, kind = planTravelBind(creature, destPos)
 	if not ok then
+		return false
+	end
+
+	if (kind == "stay" or kind == "hunt") and strandsOutsideFence(creature, current, destPos) then
+		player:sendCancelMessage("You cannot leave an instance area.")
 		return false
 	end
 
@@ -1196,40 +1215,6 @@ function InstanceWorld.rescueIfStranded(player)
 		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Your expedition was interrupted. You were returned to safety.")
 	end
 	return ok
-end
-
---- Snapshot a DB-safe login tile. Returns true when loginPosition was rewritten
---- (private hunt/raid/home, hunt footprint, blocked). False → C++ keeps map XY
---- when already on a town-only open-world tile.
-function InstanceWorld.captureLoginPosition(player)
-	if not player or not player.setLoginPosition then
-		return false
-	end
-	local pos = player.getPosition and player:getPosition() or nil
-	local iid = player.getInstanceId and player:getInstanceId() or 0
-	local privateBase = InstanceWorld.PRIVATE_BASE or 3000000
-	local unsafe = iid >= privateBase or isHomePosition(pos)
-	if not unsafe and pos then
-		local kind = InstanceWorld.classify(pos).kind
-		if kind == "hunt" or kind == "blocked" then
-			unsafe = true
-		elseif kind ~= "hub" and onHuntFootprint(pos) then
-			-- City may win classify on shared XY; never persist hunt footprint.
-			unsafe = true
-		elseif kind ~= "city" and kind ~= "settlement" and kind ~= "hub" then
-			-- stay / unknown open world is OK to persist as-is.
-			unsafe = false
-		end
-	end
-	if not unsafe then
-		return false
-	end
-	local dest = InstanceWorld.rescuePos(player)
-	if not dest then
-		return false
-	end
-	player:setLoginPosition(dest)
-	return true
 end
 
 function InstanceWorld.bindLogin(player, loginPos)

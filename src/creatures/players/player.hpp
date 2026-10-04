@@ -543,6 +543,7 @@ public:
 
 	void addContainer(uint8_t cid, const std::shared_ptr<Container> &container);
 	void closeContainer(uint8_t cid);
+	void closeAllContainers();
 	void setContainerIndex(uint8_t cid, uint16_t index);
 
 	std::shared_ptr<Container> getContainerByID(uint8_t cid);
@@ -719,7 +720,7 @@ public:
 	void setLoginPosition(const Position &pos) {
 		loginPosition = pos;
 	}
-	/// Snapshot a persistable open-world login tile (never private hunt/raid/home XY).
+	/// Snapshot the current tile as login position; no-op inside private instances.
 	void captureLoginPosition();
 
 	// Spell crosshair/cursor aim tile (sent by the 15.25 client in the say packet tail).

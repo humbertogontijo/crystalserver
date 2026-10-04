@@ -169,8 +169,6 @@ public:
 	void bindPlayerInstance(const std::shared_ptr<Player> &player);
 	/** Re-bind creature instanceId from active InstanceWorld session (expedition hunt). */
 	void syncCreatureInstance(const std::shared_ptr<Creature> &creature);
-	/** Lua InstanceWorld.captureLoginPosition(player) — true if loginPosition was set. */
-	bool tryCaptureLoginPosition(const std::shared_ptr<Player> &player);
 	bool consumeInstanceFenceMessage();
 	/** Instance of the creature currently in InstanceActorScope (World if none). */
 	static InstanceId getInstanceActorId();
