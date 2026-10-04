@@ -100,6 +100,7 @@ bool ConfigManager::load() {
 	loadBoolConfig(L, BOOSTED_BOSS_SLOT, "boostedBossSlot", true);
 	loadBoolConfig(L, BOUNTY_TASKS_ENABLED, "bountyTasksEnabled", true);
 	loadBoolConfig(L, CHAIN_SYSTEM_VIP_ONLY, "chainSystemVipOnly", false);
+	loadBoolConfig(L, CHARBAZAAR_ENABLED, "charBazaarEnabled", true);
 	loadBoolConfig(L, CLASSIC_ATTACK_SPEED, "classicAttackSpeed", false);
 	loadBoolConfig(L, CLEAN_PROTECTION_ZONES, "cleanProtectionZones", false);
 	loadBoolConfig(L, CONVERT_UNSAFE_SCRIPTS, "convertUnsafeScripts", true);
@@ -180,12 +181,14 @@ bool ConfigManager::load() {
 	loadBoolConfig(L, TOGGLE_IMBUEMENT_SHRINE_STORAGE, "toggleImbuementShrineStorage", true);
 	loadBoolConfig(L, TOGGLE_MAX_CONNECTIONS_BY_IP, "toggleMaxConnectionsByIP", false);
 	loadBoolConfig(L, TOGGLE_MOUNT_IN_PZ, "toggleMountInProtectionZone", false);
+	loadBoolConfig(L, TOGGLE_PLAYER_LOCK, "togglePlayerLock", true);
 	loadBoolConfig(L, TOGGLE_RECEIVE_REWARD, "toggleReceiveReward", false);
 	loadBoolConfig(L, TOGGLE_SAVE_ASYNC, "toggleSaveAsync", false);
 	loadBoolConfig(L, TOGGLE_SAVE_INTERVAL, "toggleSaveInterval", false);
 	loadBoolConfig(L, TOGGLE_SAVE_INTERVAL_CLEAN_MAP, "toggleSaveIntervalCleanMap", false);
 	loadBoolConfig(L, TOGGLE_SPECIAL_TILES, "toggleSpecialTiles", false);
 	loadBoolConfig(L, TOGGLE_TRAVELS_FREE, "toggleTravelsFree", false);
+	loadBoolConfig(L, TOGGLE_WEB_MARKET_ORDERS, "toggleWebMarketOrders", true);
 	loadBoolConfig(L, TOGGLE_WHEELSYSTEM, "wheelSystemEnabled", true);
 	loadBoolConfig(L, UNLOCK_ALL_FAMILIARS, "unlockAllFamiliars", false);
 	loadBoolConfig(L, UNLOCK_ALL_MOUNTS, "unlockAllMounts", false);
@@ -274,6 +277,13 @@ bool ConfigManager::load() {
 	loadIntConfig(L, BOUNTY_TASKS_REROLL_MULTIPLIER, "bountyTasksRerollMultiplier", 1);
 	loadIntConfig(L, BUY_AOL_COMMAND_FEE, "buyAolCommandFee", 0);
 	loadIntConfig(L, BUY_BLESS_COMMAND_FEE, "buyBlessCommandFee", 0);
+	loadIntConfig(L, CHARBAZAAR_FEE, "charBazaarFee", 50);
+	loadIntConfig(L, CHARBAZAAR_MAX_DAYS, "charBazaarMaxDays", 28);
+	loadIntConfig(L, CHARBAZAAR_MAX_SHOWCASE_SLOTS, "charBazaarShowcaseSlots", 4);
+	loadIntConfig(L, CHARBAZAAR_MIN_DAYS, "charBazaarMinDays", 1);
+	loadIntConfig(L, CHARBAZAAR_MIN_LEVEL, "charBazaarMinLevel", 8);
+	loadIntConfig(L, CHARBAZAAR_TAX_PERCENT, "charBazaarTaxPercent", 12);
+	loadIntConfig(L, CHARBAZAAR_VAULT_ACCOUNT, "charBazaarVaultAccount", 1);
 	loadIntConfig(L, CHECK_EXPIRED_MARKET_OFFERS_EACH_MINUTES, "checkExpiredMarketOffersEachMinutes", 60);
 	loadIntConfig(L, COMBAT_CHAIN_DELAY, "combatChainDelay", 50);
 	loadIntConfig(L, COMBAT_CHAIN_TARGETS, "combatChainTargets", 5);
@@ -370,6 +380,7 @@ bool ConfigManager::load() {
 	loadIntConfig(L, PARALYZE_DELAY_INTERVAL, "timeAfterParalyze", 200);
 	loadIntConfig(L, PARALLELISM, "parallelism", 2);
 	loadIntConfig(L, PARTY_LIST_MAX_DISTANCE, "partyListMaxDistance", 0);
+	loadIntConfig(L, PLAYER_LOCK_TIMEOUT, "playerLockTimeout", 60);
 	loadIntConfig(L, PREMIUM_DEPOT_LIMIT, "premiumDepotLimit", 8000);
 	loadIntConfig(L, PREY_BONUS_REROLL_PRICE, "preyBonusRerollPrice", 1);
 	loadIntConfig(L, PREY_BONUS_TIME, "preyBonusTime", 7200);
@@ -420,6 +431,7 @@ bool ConfigManager::load() {
 	loadIntConfig(L, VIP_BONUS_LOOT, "vipBonusLoot", 0);
 	loadIntConfig(L, VIP_BONUS_SKILL, "vipBonusSkill", 0);
 	loadIntConfig(L, VIP_FAMILIAR_TIME_COOLDOWN_REDUCTION, "vipFamiliarTimeCooldownReduction", 0);
+	loadIntConfig(L, WEB_MARKET_ORDERS_INTERVAL, "webMarketOrdersInterval", 2000);
 	loadIntConfig(L, WEEK_KILLS_TO_RED, "weekKillsToRedSkull", 5);
 	loadIntConfig(L, WHEEL_ATELIER_REVEAL_GREATER_COST, "wheelAtelierRevealGreaterCost", 6000000);
 	loadIntConfig(L, WHEEL_ATELIER_REVEAL_LESSER_COST, "wheelAtelierRevealLesserCost", 125000);
@@ -430,6 +442,7 @@ bool ConfigManager::load() {
 	loadIntConfig(L, WHEEL_POINTS_PER_LEVEL, "wheelPointsPerLevel", 1);
 	loadIntConfig(L, WHITE_SKULL_TIME, "whiteSkullTime", 15 * 60 * 1000);
 	loadIntConfig(L, WEBSOCKET_GAME_PORT, "websocketGamePort", 0);
+	loadIntConfig(L, WORLD_ID, "worldId", 0);
 
 	loadStringConfig(L, CORE_DIRECTORY, "coreDirectory", "data");
 	loadStringConfig(L, DATA_DIRECTORY, "dataPackDirectory", "data-global");

@@ -7194,55 +7194,45 @@ void ProtocolGame::sendOpenForge(const Player *dataPlayer) {
 
 	auto transferTotalCount = donorTierItemMap.size();
 	msg.addByte(transferTotalCount);
-	if (transferTotalCount > 0) {
-		for (const auto &[itemId, tierAndCountMap] : donorTierItemMap) {
-			// Let's access the itemType to check the item's (donator of tier) classification level
-			// Must be the same as the item that will receive the tier
-			const ItemType &donorType = Item::items[itemId];
-			auto donorSlotPosition = donorType.slotPosition;
-			if ((donorSlotPosition & SLOTP_TWO_HAND) != 0) {
-				donorSlotPosition = SLOTP_HAND;
+	for (const auto &[itemId, tierAndCountMap] : donorTierItemMap) {
+		// Let's access the itemType to check the item's (donator of tier) classification level
+		// Must be the same as the item that will receive the tier
+		const ItemType &donorType = Item::items[itemId];
+
+		// Total count of item (donator of tier)
+		auto donorTierTotalItemsCount = tierAndCountMap.size();
+		msg.add<uint16_t>(donorTierTotalItemsCount);
+		for (const auto &[donorItemTier, donorItemCount] : tierAndCountMap) {
+			msg.add<uint16_t>(itemId);
+			msg.addByte(donorItemTier);
+			msg.add<uint16_t>(donorItemCount);
+		}
+
+		uint16_t receiveTierTotalItemCount = 0;
+		for (const auto &[iteratorItemId, unusedTierAndCountMap] : receiveTierItemMap) {
+			// Let's access the itemType to check the item's (receiver of tier) classification level
+			const ItemType &receiveType = Item::items[iteratorItemId];
+			if (donorType.upgradeClassification == receiveType.upgradeClassification) {
+				receiveTierTotalItemCount++;
+			}
+		}
+
+		// Total count of item (receiver of tier)
+		msg.add<uint16_t>(receiveTierTotalItemCount);
+		if (receiveTierTotalItemCount == 0) {
+			continue;
+		}
+
+		for (const auto &[receiveItemId, receiveTierAndCountMap] : receiveTierItemMap) {
+			// Let's access the itemType to check the item's (receiver of tier) classification level
+			const ItemType &receiveType = Item::items[receiveItemId];
+			if (donorType.upgradeClassification != receiveType.upgradeClassification) {
+				continue;
 			}
 
-			// Total count of item (donator of tier)
-			auto donorTierTotalItemsCount = tierAndCountMap.size();
-			msg.add<uint16_t>(donorTierTotalItemsCount);
-			for (const auto &[donorItemTier, donorItemCount] : tierAndCountMap) {
-				msg.add<uint16_t>(itemId);
-				msg.addByte(donorItemTier);
-				msg.add<uint16_t>(donorItemCount);
-			}
-
-			uint16_t receiveTierTotalItemCount = 0;
-			for (const auto &[iteratorItemId, unusedTierAndCountMap] : receiveTierItemMap) {
-				// Let's access the itemType to check the item's (receiver of tier) classification level
-				const ItemType &receiveType = Item::items[iteratorItemId];
-				auto receiveSlotPosition = receiveType.slotPosition;
-				if ((receiveSlotPosition & SLOTP_TWO_HAND) != 0) {
-					receiveSlotPosition = SLOTP_HAND;
-				}
-				if (donorType.upgradeClassification == receiveType.upgradeClassification && donorSlotPosition == receiveSlotPosition) {
-					receiveTierTotalItemCount++;
-				}
-			}
-
-			// Total count of item (receiver of tier)
-			msg.add<uint16_t>(receiveTierTotalItemCount);
-			if (receiveTierTotalItemCount > 0) {
-				for (const auto &[receiveItemId, receiveTierAndCountMap] : receiveTierItemMap) {
-					// Let's access the itemType to check the item's (receiver of tier) classification level
-					const ItemType &receiveType = Item::items[receiveItemId];
-					auto receiveSlotPosition = receiveType.slotPosition;
-					if ((receiveSlotPosition & SLOTP_TWO_HAND) != 0) {
-						receiveSlotPosition = SLOTP_HAND;
-					}
-					if (donorType.upgradeClassification == receiveType.upgradeClassification && donorSlotPosition == receiveSlotPosition) {
-						for (const auto &[receiveItemTier, receiveItemCount] : receiveTierAndCountMap) {
-							msg.add<uint16_t>(receiveItemId);
-							msg.add<uint16_t>(receiveItemCount);
-						}
-					}
-				}
+			for (const auto &[receiveItemTier, receiveItemCount] : receiveTierAndCountMap) {
+				msg.add<uint16_t>(receiveItemId);
+				msg.add<uint16_t>(receiveItemCount);
 			}
 		}
 	}
@@ -12040,10 +12030,12 @@ void ProtocolGame::parseWeaponProficiency(NetworkMessage &msg) {
 
 	if (type == WEAPON_PROFICIENCY_ITEM_INFO) {
 		const uint16_t itemId = msg.get<uint16_t>();
+		target->sanitizeWeaponProficiencyShapes(itemId);
 		target->sendWeaponProficiencyInfo(itemId);
 
 	} else if (type == WEAPON_PROFICIENCY_LIST_INFO) {
 		for (const auto &[itemId, _] : target->weaponProficiencies) {
+			target->sanitizeWeaponProficiencyShapes(itemId);
 			sendWeaponProficiencyInfo(itemId, target.get());
 		}
 
@@ -12195,10 +12187,11 @@ void ProtocolGame::sendWeaponProficiencyReshapeOffers(const uint16_t itemId) {
 	// 15.25 (sommerrelease26): Reshape offers = opcode 0xBB (Ghidra-confirmed FUN_140601bf0). NOT 0xC7 (that is
 	// CyclopediaCurrentHouseData). Wire: u16 itemId · byte curLevel · byte curPos · byte count · count×{u16 perkType, byte value}.
 	// Each offer uses the same perkType+rank encoding as a 0xC4 modified slot (no name string). See PORT.md §7.4.
-	uint8_t rank = 1;
+	// Offers are shown at the rank the slot already has (rank 0 = base magnitude); Reshape keeps the refinement.
+	uint8_t rank = 0;
 	for (const auto &slot : it->second.modifiedSlots) {
 		if (slot.proficiencyLevel == it->second.pendingReshapeLevel && slot.perkPosition == it->second.pendingReshapePosition) {
-			rank = std::max<uint8_t>(1, slot.value);
+			rank = slot.value;
 			break;
 		}
 	}

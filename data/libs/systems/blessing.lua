@@ -100,7 +100,6 @@ end
 
 Blessings.DropLoot = function(player, corpse, chance, skulled)
 	local multiplier = 100
-	math.randomseed(os.time())
 	chance = chance * multiplier
 	Blessings.DebugPrint("DropLoot chance " .. chance)
 	for i = CONST_SLOT_HEAD, CONST_SLOT_AMMO do
@@ -274,7 +273,7 @@ Blessings.BuyAllBlesses = function(player)
 	end
 
 	if player:removeMoneyBank(totalCost) then
-		metrics.addCounter("balance_decrease", remainsPrice, {
+		metrics.addCounter("balance_decrease", totalCost, {
 			player = player:getName(),
 			context = "blessings",
 		})

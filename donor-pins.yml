@@ -1,0 +1,191 @@
+# Last donor commit we successfully ported from.
+# pin is empty until the first real port of a src/ or datapack hunk from that
+# donor. Do NOT set pin to tip just to "baseline" — that implies work was taken
+# when features: is still empty.
+#
+# Canary history is unrelated to zimbadev/crystalserver: port per commit
+# (git show canary/<sha> | remap paths | git apply -3), never merge.
+# Remote: scripts/submodules-config.sh (fetch-only, blobless, main only).
+# Playbook: docs/engine-forks.md "Crystal donor: Canary".
+#
+# Path map (canary -> crystal):
+#   data-otservbr-global/  -> data-global/
+#   data-canary/           -> (no equivalent; skip)
+#   data/, src/, schema.sql, config.lua.dist -> same path
+# Canary numbered data/migrations never port 1:1 (numbering diverges); write
+# an equivalent in data/migrations or data-global/scripts/custom_migrations.
+
+donors:
+  canary:
+    url: https://github.com/opentibiabr/canary.git
+    remote: canary
+    pin: "27226a63feaa17e7148a3a5150ab03345587a9bc"
+    updated: "2026-10-03"
+
+# Per-commit memory. Append one row per ported Canary commit.
+#   - donor: canary
+#     from: "<canary sha>"
+#     pr: <canary PR number>
+#     src: <canary paths>
+#     dest: <crystal paths>
+#     at: "YYYY-MM-DD"
+#     note: "<adaptations>"
+# Optional skipped: rows record triaged commits we intentionally did not take.
+features:
+  - donor: canary
+    from: "06c73ccb993b4625a966d452b7e9f867873d1f55"
+    pr: 4101
+    src: [data/libs/functions/functions.lua, data/libs/functions/tables.lua]
+    dest: [data/libs/functions/functions.lua, data/libs/functions/tables.lua]
+    at: "2026-10-03"
+    note: "Replaced fork whitespace-stripping parser (corrupted strings with spaces)."
+  - donor: canary
+    from: "27226a63feaa17e7148a3a5150ab03345587a9bc"
+    pr: 4143
+    src: [src/account/account.cpp]
+    dest: [src/account/account.cpp]
+    at: "2026-10-03"
+    note: "Clean apply."
+  - donor: canary
+    from: "210a01ea2c0cf83abdbcaa1f1a5ea69d5c745db5"
+    pr: 4116
+    src: [data/scripts/globalevents/save_interval.lua]
+    dest: [data/scripts/globalevents/save_interval.lua]
+    at: "2026-10-03"
+    note: "Took Canary save_interval.lua wholesale."
+  - donor: canary
+    from: "2390836727077d4393a0b709fb9d8c857efd596f"
+    pr: 4140
+    src: [src/creatures/combat/combat.cpp]
+    dest: [src/creatures/combat/combat.cpp]
+    at: "2026-10-03"
+    note: "Clean apply."
+  - donor: canary
+    from: "6b9f8ae3f945daf5d82bb3525e1a67382ac61d36"
+    pr: 4141
+    src: [src/server/server.cpp]
+    dest: [src/server/server.cpp]
+    at: "2026-10-03"
+    note: "Kept fork websocket_port include alongside."
+  - donor: canary
+    from: "8fba5bb3aa3c5e5d1dda1d4d8cb26922658ef037"
+    pr: 4105
+    src: [data/npclib/npc.lua]
+    dest: [data/npclib/npc.lua]
+    at: "2026-10-03"
+    note: "Clean apply."
+  - donor: canary
+    from: "47dfd51f45280a59a1d3e50ba7edd573d7234446"
+    pr: 4136
+    src: [data/libs/functions/player.lua]
+    dest: [data/libs/functions/player.lua]
+    at: "2026-10-03"
+    note: "Clean apply."
+  - donor: canary
+    from: "30e022c1dac6ec899d183f7812145949f1572cf3"
+    pr: 4067
+    src: [data/scripts/talkactions/player/auto_loot.lua]
+    dest: [data/scripts/talkactions/player/auto_loot.lua]
+    at: "2026-10-03"
+    note: "Clean apply."
+  - donor: canary
+    from: "593de82e9cff8395f24777b90907e2641d097e81"
+    pr: 4058
+    src: [src/game/game.cpp]
+    dest: [src/game/game.cpp]
+    at: "2026-10-03"
+    note: "Kept fork playerSaySpell signature (channelId); dropped walkExhausted gate."
+  - donor: canary
+    from: "f994fa0c4e91387e56c7c33f04ab6d54504ae4ed"
+    pr: 4121
+    src: [src/game/game.cpp]
+    dest: [src/game/game.cpp]
+    at: "2026-10-03"
+    note: "Clean apply."
+  - donor: canary
+    from: "6005fef4b8f6dd5e069de01b77373beda72c0306"
+    pr: 4122
+    src: [src/creatures/players/imbuements/imbuements.cpp]
+    dest: [src/creatures/players/imbuements/imbuements.cpp]
+    at: "2026-10-03"
+    note: "Canary change is src + tests; ported the one-char src fix only."
+  - donor: canary
+    from: "147a0c40aa928100b868e8f64c045ae56f4bc551"
+    pr: 4098
+    src: [src/canary_server.cpp]
+    dest: [src/crystalserver.cpp]
+    at: "2026-10-03"
+    note: "Clear cache before fork's std::exit(0)."
+  - donor: canary
+    from: "11f9a2aee2b77ca511c2b2f0d449efe800ce673a"
+    pr: 4072
+    src: [src/creatures/monsters/monsters.cpp]
+    dest: [src/creatures/monsters/monsters.cpp]
+    at: "2026-10-03"
+    note: "Clean apply."
+  - donor: canary
+    from: "7ef12bc6e0cc60d4f482895d7235b01e6c5e575b"
+    pr: 4120
+    src: [src/creatures/players/player.cpp, src/server/network/protocol/protocolgame.cpp]
+    dest: [src/creatures/players/player.cpp, src/server/network/protocol/protocolgame.cpp]
+    at: "2026-10-03"
+    note: "Fork transfer flow was older: all validation moved before item removal; missing tier now returns."
+
+# Triaged 2026-10-03 (Canary main since 2026-08-01); not taken. Content, NPC,
+# quest, Docker, CI, vcpkg, docs, taskboard and Expert PvP commits skipped wholesale.
+skipped:
+  - donor: canary
+    from: "d245c95a3aaeb2e9be4448d8e91169e34c6d7152"
+    pr: 4134
+    at: "2026-10-03"
+    note: "Network write cancellation depends on Canary TransportCodecs + dispatcher latency logging; conflicts with fork native WebSocket."
+  - donor: canary
+    from: "f1f3cdba237cd5ba28503538391130e60bb41b85"
+    pr: 4119
+    at: "2026-10-03"
+    note: "Fork removed advance-level saving on purpose (3e529dd4)."
+  - donor: canary
+    from: "0eb832e8b6cfd97dfaa7e4f9b0cf82ff6ee517fe"
+    pr: 4111
+    at: "2026-10-03"
+    note: "Fork death.lua structure differs; no leaked result handle there."
+  - donor: canary
+    from: "5701553aaaccf2f48cb1b3133e2c06c2173e1e39"
+    pr: 4106
+    at: "2026-10-03"
+    note: "Already present (fork uses byPlayer == 1)."
+  - donor: canary
+    from: "1269dde99045f569e1f4172c18605debd9ce3bfa"
+    pr: 4115
+    at: "2026-10-03"
+    note: "Fork TCP login is legacy-only by design (modern login via AAC HTTP); no livestream path."
+  - donor: canary
+    from: "44a2e1227f4fc1fc2a407ff712aa8a60fe16aad9"
+    pr: 4054
+    at: "2026-10-03"
+    note: "Already present in fork."
+  - donor: canary
+    from: "22a6904a3c2721628995abf8157e57e43ae561f5"
+    pr: 4080
+    at: "2026-10-03"
+    note: "Spawn weak_ptr guards conflict with fork instance spawns (13 hunks); revisit separately."
+  - donor: canary
+    from: "66694be921ba5ca964d48c9d078ee30545682f20"
+    pr: 4117
+    at: "2026-10-03"
+    note: "Wheel fix; fork has no player_wheel.cpp layout."
+  - donor: canary
+    from: "e16c8c39c888750330af9f43b02518a2bfe1356f"
+    pr: 4118
+    at: "2026-10-03"
+    note: "Wheel fix; fork has no player_wheel.cpp layout."
+  - donor: canary
+    from: "d9fba17031176975ef958efd0c2e6a8b6b941856"
+    pr: 4073
+    at: "2026-10-03"
+    note: "Needs Canary dispatcher_policy."
+  - donor: canary
+    from: "2f73c38f351c5e3903cc6ea817188d480390d2d8"
+    pr: 4103
+    at: "2026-10-03"
+    note: "Already present."
