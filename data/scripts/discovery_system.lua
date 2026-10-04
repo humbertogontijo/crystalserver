@@ -1,6 +1,6 @@
 -- Discovery System ("Measuring Tibia") - AUTOMATIC exploration (no "Start Discovering" button).
 -- Entering a registered subarea auto-activates discovery: the server picks viewpoints from the
--- tibiamaps flag catalog for that subarea (discovery_pois.generated.lua); walking within 4 sqm
+-- tibiamaps flag catalog for that subarea (lib/idleot/discovery/pois.generated.lua); walking within 4 sqm
 -- of one marks it found; finishing the set unlocks the subarea permanently (KV).
 -- Wire: S2C 0xDD sub 1 (DiscoveryData), sub 5 (SetDiscoveryArea — viewport-visible unfound only),
 -- sub 10/11 (current/exploring). Clients must not foreshadow distant POIs on the cyclopedia map.
@@ -9,10 +9,10 @@
 
 -- exact client footprints (generated from subarea-*.bmp.lzma masks); load-order guard
 if not DiscoveryGeometry then
-	dofile(CORE_DIRECTORY .. "/scripts/discovery_geometry.lua")
+	dofile(DATA_DIRECTORY .. "/lib/idleot/discovery/geometry.lua")
 end
 if not DiscoveryPois then
-	dofile(CORE_DIRECTORY .. "/scripts/discovery_pois.generated.lua")
+	dofile(DATA_DIRECTORY .. "/lib/idleot/discovery/pois.generated.lua")
 end
 
 DiscoverySystem = DiscoverySystem or {}

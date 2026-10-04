@@ -1,81 +1,7 @@
 RemoteBlessings = RemoteBlessings or {}
 
-local function escapeStr(s)
-	s = tostring(s or "")
-	s = s:gsub("\\", "\\\\")
-	s = s:gsub('"', '\\"')
-	s = s:gsub("\n", "\\n")
-	s = s:gsub("\r", "\\r")
-	s = s:gsub("\t", "\\t")
-	return '"' .. s .. '"'
-end
-
-local function encodeValue(v, depth)
-	depth = depth or 0
-	if depth > 12 then
-		return "null"
-	end
-	local t = type(v)
-	if v == nil then
-		return "null"
-	elseif t == "boolean" then
-		return v and "true" or "false"
-	elseif t == "number" then
-		if v ~= v or v == math.huge or v == -math.huge then
-			return "null"
-		end
-		return tostring(v)
-	elseif t == "string" then
-		return escapeStr(v)
-	elseif t == "table" then
-		local isArray = true
-		local n = 0
-		for k, _ in pairs(v) do
-			if type(k) ~= "number" then
-				isArray = false
-				break
-			end
-			if k > n then
-				n = k
-			end
-		end
-		if isArray then
-			local parts = {}
-			for i = 1, n do
-				parts[#parts + 1] = encodeValue(v[i], depth + 1)
-			end
-			return "[" .. table.concat(parts, ",") .. "]"
-		end
-		local parts = {}
-		for k, val in pairs(v) do
-			parts[#parts + 1] = escapeStr(tostring(k)) .. ":" .. encodeValue(val, depth + 1)
-		end
-		return "{" .. table.concat(parts, ",") .. "}"
-	end
-	return "null"
-end
-
-local function encode(payload)
-	return encodeValue(payload, 0)
-end
-
-local function decode(str)
-	if type(str) ~= "string" or str == "" then
-		return nil
-	end
-	-- Prefer team/expedition JSON if already loaded.
-	if SquadJson and SquadJson.decode then
-		return SquadJson.decode(str)
-	end
-	if JsonParser and JsonParser.decode then
-		return JsonParser.decode(str)
-	end
-	-- Minimal fallback: only used when sibling libs are not present.
-	return nil
-end
-
 local function reply(player, payload)
-	player:sendExtendedOpcode(RemoteBlessingsConfig.OPCODE, encode(payload))
+	player:sendExtendedOpcode(RemoteBlessingsConfig.OPCODE, JsonParser.encode(payload))
 end
 
 local function unitPrice(player, blessId)
@@ -408,27 +334,9 @@ function RemoteBlessings.handleOpcode(player, buffer)
 	if type(buffer) ~= "string" then
 		return
 	end
-	local msg = decode(buffer)
-	-- Fallback string parsing when decode is unavailable.
+	local msg = JsonParser.decode(buffer)
 	if type(msg) ~= "table" then
-		msg = {}
-		if buffer:find('"status"', 1, true) and buffer:find('"action"', 1, true) then
-			msg.action = "status"
-		elseif buffer:find('"buyOne"', 1, true) then
-			msg.action = "buyOne"
-			msg.id = tonumber(buffer:match('"id"%s*:%s*(%d+)'))
-		elseif buffer:find('"buyAll"', 1, true) then
-			msg.action = "buyAll"
-		elseif buffer:find('"action"%s*:%s*"buy"') or buffer:find('"action":"buy"', 1, true) then
-			msg.action = "buy"
-		elseif buffer:find('"setAutoRebuy"', 1, true) then
-			msg.action = "setAutoRebuy"
-			msg.enabled = buffer:find('"enabled"%s*:%s*true') ~= nil or buffer:find('"enabled":true', 1, true) ~= nil
-		else
-			return
-		end
-		local name = buffer:match('"name"%s*:%s*"([^"]+)"') or buffer:match('"target"%s*:%s*"([^"]+)"')
-		msg.name = name
+		return
 	end
 
 	local action = msg.action

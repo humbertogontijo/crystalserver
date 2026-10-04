@@ -130,7 +130,7 @@ local function loadMask(overviewFile, boundary)
 	if not ox or not oy then
 		return nil
 	end
-	local dir = ExpeditionConfig and ExpeditionConfig.SUBAREA_DIR or "tibia/subareas"
+	local dir = ExpeditionConfig and ExpeditionConfig.SUBAREA_DIR or "lib/idleot/subareas"
 	local path = DATA_DIRECTORY .. "/" .. dir .. "/" .. overviewFile
 	return Game.loadOccupancyMask(path, ox, oy)
 end

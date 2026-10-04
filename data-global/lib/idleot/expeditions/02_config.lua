@@ -37,7 +37,7 @@ function ExpeditionConfig.anchorPathBiasRadius()
 	return viewports * viewport
 end
 
-ExpeditionConfig.SUBAREA_DIR = "tibia/subareas"
+ExpeditionConfig.SUBAREA_DIR = "lib/idleot/subareas"
 ExpeditionConfig.AI_TICK_MS = 250
 -- Repath formation slots when stuck on the same tile (ms); avoids multi-second walk dedupe pauses.
 ExpeditionConfig.FORMATION_REPATH_MS = 400

@@ -318,55 +318,12 @@ function PlayerHomeManager.onServerSave()
 	end
 end
 
-local function decodeOpcode(buffer)
-	if type(buffer) ~= "string" or buffer == "" then
-		return nil
-	end
-	if JsonParser and JsonParser.decode then
-		local ok, decoded = pcall(JsonParser.decode, buffer)
-		if ok and type(decoded) == "table" then
-			return decoded
-		end
-	end
-	if SquadJson and SquadJson.decode then
-		local ok, decoded = pcall(SquadJson.decode, buffer)
-		if ok and type(decoded) == "table" then
-			return decoded
-		end
-	end
-	local action = nil
-	if buffer:find('"startTraining"', 1, true) then
-		action = "startTraining"
-	elseif buffer:find('"stopTraining"', 1, true) then
-		action = "stopTraining"
-	elseif buffer:find('"leaveHome"', 1, true) then
-		action = "leaveHome"
-	elseif buffer:find('"goHometown"', 1, true) then
-		action = "goHometown"
-	elseif buffer:find('"channelCancel"', 1, true) then
-		action = "channelCancel"
-	elseif buffer:find('"goHome"', 1, true) then
-		action = "goHome"
-	else
-		return nil
-	end
-	local msg = { action = action }
-	msg.skill = buffer:match('"skill"%s*:%s*"([^"]+)"')
-	local dx = buffer:match('"dummy"%s*:%s*{%s*"x"%s*:%s*(%-?%d+)')
-	local dy = buffer:match('"y"%s*:%s*(%-?%d+)')
-	local dz = buffer:match('"z"%s*:%s*(%-?%d+)')
-	if dx and dy and dz then
-		msg.dummy = { x = tonumber(dx), y = tonumber(dy), z = tonumber(dz) }
-	end
-	return msg
-end
-
 function PlayerHomeManager.handleOpcode(player, buffer)
 	if type(buffer) ~= "string" or buffer == "" then
 		return
 	end
 
-	local msg = decodeOpcode(buffer)
+	local msg = JsonParser.decode(buffer)
 	if type(msg) ~= "table" then
 		return
 	end

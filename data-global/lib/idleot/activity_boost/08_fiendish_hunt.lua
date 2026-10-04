@@ -11,24 +11,11 @@ local function kv(player)
 	return player:kv():scoped(ActivityBoostConfig.KV_SCOPE)
 end
 
-local function encode(value)
-	if JsonParser and JsonParser.encode then
-		return JsonParser.encode(value)
-	end
-	return "{}"
-end
+local encode = JsonParser.encode
 
 local function decode(raw)
-	if type(raw) ~= "string" or raw == "" then
-		return {}
-	end
-	if JsonParser and JsonParser.decode then
-		local ok, decoded = pcall(JsonParser.decode, raw)
-		if ok and type(decoded) == "table" then
-			return decoded
-		end
-	end
-	return {}
+	local decoded = JsonParser.decode(raw)
+	return type(decoded) == "table" and decoded or {}
 end
 
 local function fiendishHpMult()

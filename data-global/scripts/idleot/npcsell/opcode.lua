@@ -4,16 +4,6 @@
 
 local NPCSELL_OPCODE = 123
 
-local function decodePayload(buffer)
-	if JsonParser and JsonParser.decode then
-		local ok, decoded = pcall(JsonParser.decode, buffer)
-		if ok and type(decoded) == "table" then
-			return decoded
-		end
-	end
-	return nil
-end
-
 local function toItemIds(raw)
 	local out = {}
 	if type(raw) ~= "table" then
@@ -50,9 +40,8 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 		return
 	end
 
-	local payload = decodePayload(buffer)
-	local action = payload and payload.action or buffer:match('"action"%s*:%s*"([^"]+)"')
-	if action ~= "sellAll" then
+	local payload = JsonParser.decode(buffer)
+	if type(payload) ~= "table" or payload.action ~= "sellAll" then
 		return
 	end
 
@@ -61,35 +50,10 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 		return
 	end
 
-	local ignoreEquipped = true
-	local filterMode = 0
-	local itemIds = {}
-	local lootPouchOnly = true
-
-	if type(payload) == "table" then
-		if payload.ignoreEquipped == false then
-			ignoreEquipped = false
-		end
-		if payload.lootPouchOnly == false then
-			lootPouchOnly = false
-		end
-		filterMode = tonumber(payload.filterMode) or 0
-		if filterMode ~= 1 then
-			filterMode = 0
-		end
-		itemIds = toItemIds(payload.itemIds)
-	else
-		if buffer:find('"ignoreEquipped"%s*:%s*false', 1, false) then
-			ignoreEquipped = false
-		end
-		if buffer:find('"lootPouchOnly"%s*:%s*false', 1, false) then
-			lootPouchOnly = false
-		end
-		filterMode = tonumber(buffer:match('"filterMode"%s*:%s*(%d+)')) or 0
-		if filterMode ~= 1 then
-			filterMode = 0
-		end
-	end
+	local ignoreEquipped = payload.ignoreEquipped ~= false
+	local lootPouchOnly = payload.lootPouchOnly ~= false
+	local filterMode = tonumber(payload.filterMode) == 1 and 1 or 0
+	local itemIds = toItemIds(payload.itemIds)
 
 	player:sellAllShopItems(ignoreEquipped, filterMode, itemIds, lootPouchOnly)
 end
