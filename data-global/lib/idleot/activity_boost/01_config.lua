@@ -62,13 +62,6 @@ ActivityBoostConfig.ACTIVITIES = {
 
 ActivityBoostConfig.WORLD_BOSS_DAILY_CAP = 3
 
-ActivityBoostConfig.BOSS_RUSH_RANKS = {
-	{ id = "S", maxSec = 180 },
-	{ id = "A", maxSec = 300 },
-	{ id = "B", maxSec = 480 },
-	{ id = "C", maxSec = nil },
-}
-
 -- Tight player join gates. Same boss may appear in several adjacent bands.
 ActivityBoostConfig.LEVEL_BANDS = {
 	{ id = "50", name = "50–99", levelMin = 50, levelMax = 99 },

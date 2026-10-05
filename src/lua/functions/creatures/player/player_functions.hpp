@@ -134,6 +134,7 @@ class PlayerFunctions {
 	static int luaPlayerSetHeadless(lua_State* L);
 	static int luaPlayerSwitchClientTo(lua_State* L);
 	static int luaPlayerIsInSafeInstance(lua_State* L);
+	static int luaPlayerLeavesWhenClientReleased(lua_State* L);
 
 	static int luaPlayerGetKills(lua_State* L);
 	static int luaPlayerSetKills(lua_State* L);

@@ -6,15 +6,24 @@ function onBossDeath.onDeath(creature)
 	end
 
 	local name = creature:getName()
-	local key = "boss." .. toKey(name)
-	local zone = Zone(key)
-
-	if not zone then
+	local bossLever = BossLever.get(name) or BossLever.forFinalBoss(name)
+	if not bossLever then
+		return true
+	end
+	if not bossLever:isFinalBoss(name) then
+		if bossLever:isChained() then
+			return true
+		end
+	else
+		bossLever:onEncounterVictory(creature:getInstanceId())
+	end
+	-- Private-instance fights (expeditions) own their exit; the room timers are open-world only.
+	if creature:getInstanceId() ~= 0 then
 		return true
 	end
 
-	local bossLever = BossLever[name:lower()]
-	if not bossLever then
+	local zone = bossLever:getZone()
+	if not zone then
 		return true
 	end
 

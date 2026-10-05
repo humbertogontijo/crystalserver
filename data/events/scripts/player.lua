@@ -499,13 +499,13 @@ function Player:onGainExperience(target, exp, rawExp)
 	-- Apply XP Boost (Store or Daily Reward)
 	local xpBoostPercent = 0
 	local teamXpPercent, hasTeamXpBoost = 0, false
-	if TeamBonus and TeamBonus.effectiveXpBoost then
-		teamXpPercent, hasTeamXpBoost = TeamBonus.effectiveXpBoost(self)
+	if LobbyBonus and LobbyBonus.effectiveXpBoost then
+		teamXpPercent, hasTeamXpBoost = LobbyBonus.effectiveXpBoost(self)
 	end
 	if hasTeamXpBoost then
 		-- Team XP boost replaces personal; pause personal timer (do not drain).
-		if TeamBonus.touchDrain then
-			TeamBonus.touchDrain(self)
+		if LobbyBonus.touchDrain then
+			LobbyBonus.touchDrain(self)
 		end
 		xpBoostPercent = teamXpPercent
 	else
@@ -536,10 +536,10 @@ function Player:onGainExperience(target, exp, rawExp)
 		local monsterType = target:getType()
 		if monsterType and monsterType:raceId() > 0 then
 			local raceId = monsterType:raceId()
-			local teamPrey = TeamBonus and TeamBonus.effectivePrey and TeamBonus.effectivePrey(self, raceId) or nil
+			local teamPrey = LobbyBonus and LobbyBonus.effectivePrey and LobbyBonus.effectivePrey(self, raceId) or nil
 			if teamPrey then
-				if TeamBonus.touchDrain then
-					TeamBonus.touchDrain(self)
+				if LobbyBonus.touchDrain then
+					LobbyBonus.touchDrain(self)
 				end
 				-- Team prey on this race replaces personal (including non-XP personal).
 				if teamPrey.bonusType == 2 then -- Experience

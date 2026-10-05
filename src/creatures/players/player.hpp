@@ -1506,7 +1506,7 @@ public:
 
 	const std::unique_ptr<PreySlot> &getPreyWithMonster(uint16_t raceId) const;
 
-	// Team-exclusive prey cache (product TeamBonus; replaces personal prey for that race in combat).
+	// Team-exclusive prey cache (product LobbyBonus; replaces personal prey for that race in combat).
 	struct TeamPreyBonusEntry {
 		uint8_t bonusType = 0;
 		uint16_t percentage = 0;

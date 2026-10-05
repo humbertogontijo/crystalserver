@@ -289,12 +289,12 @@ local function isWorldBossRival(player, creature)
 end
 
 local function sameTeamDeployment(a, b)
-	if not TeamManager then
+	if not Alts then
 		return false
 	end
 	local aid, bid = a:getId(), b:getId()
-	if TeamManager.getDeployment then
-		local da = TeamManager.getDeployment(a)
+	if Alts.getDeployment then
+		local da = Alts.getDeployment(a)
 		if da then
 			for _, id in ipairs(da.companionIds or {}) do
 				if id == bid then
@@ -302,7 +302,7 @@ local function sameTeamDeployment(a, b)
 				end
 			end
 		end
-		local db = TeamManager.getDeployment(b)
+		local db = Alts.getDeployment(b)
 		if db then
 			for _, id in ipairs(db.companionIds or {}) do
 				if id == aid then
@@ -311,10 +311,10 @@ local function sameTeamDeployment(a, b)
 			end
 		end
 	end
-	if not TeamConfig or not a.getStorageValue then
+	if not AltsConfig or not a.getStorageValue then
 		return false
 	end
-	local key = TeamConfig.STORAGE_COMPANION_CONTROLLER
+	local key = AltsConfig.STORAGE_COMPANION_CONTROLLER
 	local ga = a:getStorageValue(key)
 	local gb = b:getStorageValue(key)
 	if ga and ga > 0 and gb and gb > 0 and ga == gb then
@@ -866,7 +866,7 @@ local function notifyAutomationCast(player, slot, words, label, exhaustMs)
 	end
 	sendCast(player)
 	-- Headless companions have no client; relay to expedition host so the cast flash is visible.
-	if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player) then
+	if Alts and Alts.isCompanion and Alts.isCompanion(player) then
 		local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
 		if session and session.playerId and session.playerId ~= player:getId() then
 			sendCast(Player(session.playerId))

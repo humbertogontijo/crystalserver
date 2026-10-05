@@ -1,11 +1,13 @@
--- Server-timed instance teleport channel (hometown / home / expedition).
+-- Server-timed instance teleport channel (hometown / lobby / expedition).
 -- Client VFX is cosmetic; this module owns duration + cancel policy.
 InstanceTeleport = InstanceTeleport or {}
 
+-- Travel opcode (recall, lobby room, channel cancel); distinct from expedition (113).
+InstanceTeleport.OPCODE = 116
 InstanceTeleport.DURATION_PZ_MS = 5000
 InstanceTeleport.DURATION_WILD_MS = 30000
 InstanceTeleport.KIND_HOMETOWN = "hometown"
-InstanceTeleport.KIND_HOME = "home"
+InstanceTeleport.KIND_LOBBY = "lobby"
 InstanceTeleport.KIND_EXPEDITION = "expedition"
 InstanceTeleport.CANCEL_INITIATOR = "initiator"
 InstanceTeleport.CANCEL_ANY = "any"
@@ -51,7 +53,7 @@ local function defaultSend(player, payload)
 	if not player or not payload then
 		return
 	end
-	local opcode = tonumber(payload._opcode) or (PlayerHomeConfig and PlayerHomeConfig.OPCODE) or 116
+	local opcode = tonumber(payload._opcode) or InstanceTeleport.OPCODE
 	local body = encodePayload(payload)
 	player:sendExtendedOpcode(opcode, body)
 end
@@ -83,8 +85,8 @@ local function auraEffectFor(kind)
 	local fx = CustomEffects or {}
 	if kind == InstanceTeleport.KIND_HOMETOWN then
 		return fx.IT_AURA_HOMETOWN
-	elseif kind == InstanceTeleport.KIND_HOME then
-		return fx.IT_AURA_HOME
+	elseif kind == InstanceTeleport.KIND_LOBBY then
+		return fx.IT_AURA_LOBBY
 	elseif kind == InstanceTeleport.KIND_EXPEDITION then
 		return fx.IT_AURA_EXPEDITION
 	end
@@ -191,7 +193,7 @@ local function tryFinishGroup(groupKey)
 	completeGroup(groupKey)
 end
 
---- Solo or multi-member channel. Home kind must be solo (one member).
+--- Solo or multi-member channel.
 --- opts.holdUntilReady: timer alone does not complete; call markReady(groupKey) when prep is done.
 function InstanceTeleport.beginGroup(opts)
 	opts = opts or {}
@@ -202,9 +204,6 @@ function InstanceTeleport.beginGroup(opts)
 	end
 	if #memberIds == 0 then
 		return false, "No members."
-	end
-	if kind == InstanceTeleport.KIND_HOME and #memberIds > 1 then
-		return false, "Home teleport is solo only."
 	end
 
 	local initiatorId = tonumber(opts.initiatorId) or memberIds[1]

@@ -189,8 +189,7 @@ local function ensureRemoteNpc()
 		tile = Game.createTile(REMOTE_NPC_POS, true)
 	end
 	if tile and not tile:getGround() then
-		local groundId = (PlayerHomeConfig and PlayerHomeConfig.FLOOR_ID) or 4526
-		Game.createItem(groundId, 1, REMOTE_NPC_POS)
+		Game.createItem(LobbyConfig.ROOM_FLOOR_ID, 1, REMOTE_NPC_POS)
 	end
 
 	local npc = Game.createNpc(NPC_TYPE_NAME, REMOTE_NPC_POS)

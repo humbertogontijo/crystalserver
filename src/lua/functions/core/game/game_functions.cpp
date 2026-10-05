@@ -228,6 +228,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "setInstanceAreaFence", GameFunctions::luaGameSetInstanceAreaFence);
 	Lua::registerMethod(L, "Game", "setInstancePrivateFence", GameFunctions::luaGameSetInstancePrivateFence);
 	Lua::registerMethod(L, "Game", "clearInstancePrivateFence", GameFunctions::luaGameClearInstancePrivateFence);
+	Lua::registerMethod(L, "Game", "runInInstance", GameFunctions::luaGameRunInInstance);
 	Lua::registerMethod(L, "Game", "createInstanceSpawns", GameFunctions::luaGameCreateInstanceSpawns);
 	Lua::registerMethod(L, "Game", "clearInstanceSpawns", GameFunctions::luaGameClearInstanceSpawns);
 	Lua::registerMethod(L, "Game", "sweepInstance", GameFunctions::luaGameSweepInstance);
@@ -246,7 +247,6 @@ void GameFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Game", "getTowns", GameFunctions::luaGameGetTowns);
 	Lua::registerMethod(L, "Game", "getHouses", GameFunctions::luaGameGetHouses);
-	Lua::registerMethod(L, "Game", "createHouse", GameFunctions::luaGameCreateHouse);
 
 	Lua::registerMethod(L, "Game", "getGameState", GameFunctions::luaGameGetGameState);
 	Lua::registerMethod(L, "Game", "setGameState", GameFunctions::luaGameSetGameState);
@@ -816,6 +816,25 @@ int GameFunctions::luaGameSetInstancePrivateFence(lua_State* L) {
 	return 1;
 }
 
+int GameFunctions::luaGameRunInInstance(lua_State* L) {
+	// Game.runInInstance(instanceId, callback, ...) -> callback results
+	// Script creates / effects / transforms inside callback default to instanceId.
+	const auto instanceId = Lua::getNumber<uint32_t>(L, 1);
+	if (!Lua::isFunction(L, 2)) {
+		Lua::reportErrorFunc("Game.runInInstance: callback must be a function");
+		lua_pushnil(L);
+		return 1;
+	}
+	const int nargs = lua_gettop(L) - 2;
+	lua_remove(L, 1);
+	InstanceActorScope scope(InstanceId { instanceId });
+	if (Lua::protectedCall(L, nargs, LUA_MULTRET) != 0) {
+		Lua::reportError(nullptr, Lua::popString(L));
+		return 0;
+	}
+	return lua_gettop(L);
+}
+
 int GameFunctions::luaGameClearInstancePrivateFence(lua_State* L) {
 	// Game.clearInstancePrivateFence(instanceId)
 	g_instanceFences().clearPrivateFence(Lua::getNumber<uint32_t>(L, 1));
@@ -1066,22 +1085,10 @@ int GameFunctions::luaGameGetHouses(lua_State* L) {
 
 	int index = 0;
 	for (const auto &houseEntry : houses) {
-		if (houseEntry.second->isEphemeral()) {
-			continue;
-		}
 		Lua::pushUserdata<House>(L, houseEntry.second);
 		Lua::setMetatable(L, -1, "House");
 		lua_rawseti(L, -2, ++index);
 	}
-	return 1;
-}
-
-int GameFunctions::luaGameCreateHouse(lua_State* L) {
-	// Game.createHouse(houseId)
-	const uint32_t houseId = Lua::getNumber<uint32_t>(L, 1);
-	const auto &house = g_game().map.houses.addHouse(houseId);
-	Lua::pushUserdata<House>(L, house);
-	Lua::setMetatable(L, -1, "House");
 	return 1;
 }
 
@@ -2094,9 +2101,6 @@ int GameFunctions::luaHouseGetHouseCountByAccount(lua_State* L) {
 	uint32_t accountId = Lua::getNumber<uint32_t>(L, 2);
 	uint16_t count = 0;
 	for (const auto &[id, house] : houses) {
-		if (house->isEphemeral()) {
-			continue;
-		}
 		if (house->getOwnerAccountId() == accountId) {
 			++count;
 		}

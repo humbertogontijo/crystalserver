@@ -1,9 +1,9 @@
--- Destination hops for InstanceTeleport kinds (hometown / home / expedition).
+-- Destination hops for InstanceTeleport kinds (hometown / lobby / expedition).
 -- Channel timing lives in 01_core; this file arms channels and performs teleports.
--- PlayerHomeManager owns home *instance* build/teardown; ExpeditionManager owns hunt sessions.
+-- LobbyInstance owns lobby room build/teardown; ExpeditionManager owns hunt sessions.
 
-local HOME_OPCODE = function()
-	return (PlayerHomeConfig and PlayerHomeConfig.OPCODE) or 116
+local TRAVEL_OPCODE = function()
+	return InstanceTeleport.OPCODE
 end
 
 local EXP_OPCODE = function()
@@ -31,7 +31,7 @@ local function encodeBody(payload)
 	return string.format('{"type":%q,"kind":%q}', t, kind)
 end
 
-function InstanceTeleport.notifyHome(player, payload)
+function InstanceTeleport.notifyTravel(player, payload)
 	if not player or type(payload) ~= "table" then
 		return
 	end
@@ -41,7 +41,7 @@ function InstanceTeleport.notifyHome(player, payload)
 			clean[k] = v
 		end
 	end
-	player:sendExtendedOpcode(HOME_OPCODE(), encodeBody(clean))
+	player:sendExtendedOpcode(TRAVEL_OPCODE(), encodeBody(clean))
 end
 
 function InstanceTeleport.notifyExpedition(player, payload)
@@ -69,8 +69,8 @@ local function arrivalEffectFor(kind)
 	local fx = CustomEffects or {}
 	if kind == InstanceTeleport.KIND_HOMETOWN then
 		return fx.IT_ARRIVAL_HOMETOWN
-	elseif kind == InstanceTeleport.KIND_HOME then
-		return fx.IT_ARRIVAL_HOME
+	elseif kind == InstanceTeleport.KIND_LOBBY then
+		return fx.IT_ARRIVAL_LOBBY
 	elseif kind == InstanceTeleport.KIND_EXPEDITION then
 		return fx.IT_ARRIVAL_EXPEDITION
 	end
@@ -107,7 +107,7 @@ local function fromExpeditionSafe(player, opts)
 	return true
 end
 
---- Temple recall (open world). Leaves personal home session in place if needed.
+--- Temple recall (open world). Works from inside a lobby room too.
 function InstanceTeleport.executeHometown(player, opts)
 	opts = opts or {}
 	if not player then
@@ -119,13 +119,9 @@ function InstanceTeleport.executeHometown(player, opts)
 		return false, "Leave the expedition before recalling."
 	end
 
-	if PlayerHomeManager and PlayerHomeManager.isPlayerInHome and PlayerHomeManager.isPlayerInHome(player) then
-		if PlayerHomeManager.closeHomeSession then
-			PlayerHomeManager.closeHomeSession(player)
-		elseif PlayerHomeManager.leaveHome then
-			-- Fallback: leaveHome travels to return pos; temple hop below overrides.
-			PlayerHomeManager.leaveHome(player)
-		end
+	local lobbyRoom = LobbyInstance and LobbyInstance.roomForPlayer and LobbyInstance.roomForPlayer(player) or nil
+	if lobbyRoom and LobbyServices and LobbyServices.onLeave then
+		LobbyServices.onLeave(player)
 	end
 
 	local town = player.getTown and player:getTown() or nil
@@ -137,6 +133,9 @@ function InstanceTeleport.executeHometown(player, opts)
 		ok = InstanceWorld.travel(player, dest) and true or false
 	else
 		ok = player:teleportTo(dest) and true or false
+	end
+	if lobbyRoom then
+		LobbyInstance.scheduleTeardownCheck(lobbyRoom.lobbyId)
 	end
 	if not ok then
 		return false, "Failed to recall to hometown."
@@ -169,10 +168,10 @@ function InstanceTeleport.requestHometown(player, opts)
 	local fromExpedition = opts.fromExpedition == true
 	return InstanceTeleport.begin(player, {
 		kind = InstanceTeleport.KIND_HOMETOWN,
-		opcode = HOME_OPCODE(),
+		opcode = TRAVEL_OPCODE(),
 		forceDurationMs = forceMs,
 		cancelPolicy = InstanceTeleport.CANCEL_INITIATOR,
-		send = InstanceTeleport.notifyHome,
+		send = InstanceTeleport.notifyTravel,
 		onComplete = function(memberIds)
 			local p = Player(memberIds and memberIds[1] or playerId)
 			if p then
@@ -182,49 +181,70 @@ function InstanceTeleport.requestHometown(player, opts)
 	})
 end
 
---- Arm home enter/leave channel (always solo). Destination via PlayerHomeManager.
-function InstanceTeleport.requestHome(player, opts)
+--- Arm the lobby room enter/leave channel (always solo). `record` is the player's lobby.
+--- opts.leave: leave the room (to the saved return tile); otherwise enter it.
+function InstanceTeleport.requestLobby(player, record, opts)
 	opts = opts or {}
-	if not player then
-		return false, "Invalid player."
+	if not player or not record then
+		return false, "You are not in a lobby."
 	end
-	if not PlayerHomeManager then
-		return false, "Home is unavailable."
+	if not LobbyInstance then
+		return false, "Lobby rooms are unavailable."
 	end
+	local leaving = opts.leave == true
 	if opts.immediate == true then
-		if PlayerHomeManager.isPlayerInHome and PlayerHomeManager.isPlayerInHome(player) then
-			return PlayerHomeManager.leaveHome(player)
+		if leaving then
+			return LobbyInstance.leaveNow(player)
 		end
-		return PlayerHomeManager.enterHome(player, opts)
+		return LobbyInstance.enterNow(player, record, opts)
 	end
 	if not fromExpeditionSafe(player, opts) then
-		return false, "Leave the expedition before going home."
+		return false, "Leave the expedition before going to the lobby."
 	end
 	if InstanceTeleport.isPending(player) then
 		return false, "Already channeling a teleport."
 	end
-
-	local leaving = PlayerHomeManager.isPlayerInHome and PlayerHomeManager.isPlayerInHome(player)
 	local forceMs = opts.forceDurationMs
-	if leaving then
+	if leaving or (LobbyInstance.roomForPlayer and LobbyInstance.roomForPlayer(player)) then
 		forceMs = forceMs or InstanceTeleport.DURATION_PZ_MS
 	end
 	local playerId = player:getId()
+	local lobbyId = record.id
 	return InstanceTeleport.begin(player, {
-		kind = InstanceTeleport.KIND_HOME,
-		opcode = HOME_OPCODE(),
+		kind = InstanceTeleport.KIND_LOBBY,
+		opcode = TRAVEL_OPCODE(),
 		forceDurationMs = forceMs,
 		cancelPolicy = InstanceTeleport.CANCEL_INITIATOR,
-		send = InstanceTeleport.notifyHome,
+		send = InstanceTeleport.notifyTravel,
 		onComplete = function(memberIds)
 			local p = Player(memberIds and memberIds[1] or playerId)
 			if not p then
 				return
 			end
+			local ok, err
 			if leaving then
-				PlayerHomeManager.leaveHome(p)
+				ok, err = LobbyInstance.leaveNow(p)
 			else
-				PlayerHomeManager.enterHome(p, opts)
+				local live = LobbyStore.get(lobbyId)
+				if not live or not LobbyStore.member(live, p:getGuid()) then
+					ok, err = false, "Your lobby changed while traveling."
+				else
+					-- Called out of a solo run: that run ends as part of this hop.
+					if opts.fromExpedition and ExpeditionManager and ExpeditionManager.getSessionByPlayer(p) then
+						ExpeditionManager.leave(p, { silent = true, skipTeleport = true })
+					end
+					ok, err = LobbyInstance.enterNow(p, live, {})
+				end
+			end
+			if opts.onComplete then
+				pcall(opts.onComplete, p, ok, err)
+			elseif not ok and err then
+				p:sendTextMessage(MESSAGE_FAILURE, err)
+			end
+		end,
+		onCancel = function(memberIds)
+			if opts.onCancel then
+				pcall(opts.onCancel, Player(memberIds and memberIds[1] or playerId))
 			end
 		end,
 	})
@@ -268,6 +288,16 @@ function InstanceTeleport.armSoloExpedition(player, opts)
 			end
 		end,
 	})
+end
+
+--- Group lobby channel (lobby Stop: expedition back to the lobby room). Caller supplies onComplete / onCancel.
+function InstanceTeleport.requestLobbyGroup(opts)
+	opts = opts or {}
+	opts.kind = InstanceTeleport.KIND_LOBBY
+	opts.cancelPolicy = opts.cancelPolicy or InstanceTeleport.CANCEL_INITIATOR
+	opts.opcode = opts.opcode or EXP_OPCODE()
+	opts.send = opts.send or InstanceTeleport.notifyExpedition
+	return InstanceTeleport.beginGroup(opts)
 end
 
 --- Group hometown channel (team recall leave). Caller supplies onComplete / onCancel.

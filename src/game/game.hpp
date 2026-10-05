@@ -107,6 +107,8 @@ struct PositionHasher {
 class InstanceActorScope {
 public:
 	explicit InstanceActorScope(const std::shared_ptr<Creature> &creature);
+	/** Scope a bare instance id (no creature), e.g. Lua `Game.runInInstance`. */
+	explicit InstanceActorScope(InstanceId instanceId);
 	~InstanceActorScope();
 
 	InstanceActorScope(const InstanceActorScope &) = delete;
@@ -114,6 +116,7 @@ public:
 
 private:
 	std::shared_ptr<Creature> previous;
+	uint32_t previousId = 0;
 };
 
 struct ImprovedRespawnZone {

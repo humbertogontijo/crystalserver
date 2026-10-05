@@ -731,7 +731,7 @@ function InstanceWorld.canWalk(creature, destPos)
 		return false
 	end
 	-- City / settlement instances allow every z (stairs, houses, depots).
-	-- Hunts, hub, and home still use the declared floor set.
+	-- Hunts, hub, and lobby rooms still use the declared floor set.
 	local cityRange = instanceId >= InstanceWorld.CITY_BASE and instanceId < InstanceWorld.HUB_ADVENTURERS
 	if not cityRange and not zAllowed(instanceId, destPos.z) then
 		return false
@@ -768,12 +768,9 @@ function InstanceWorld.canWalk(creature, destPos)
 	if session and session.instance and session.instance.instanceId == instanceId then
 		return ExpeditionInstance.contains(session.instance, destPos)
 	end
-	if player and PlayerHomeManager and PlayerHomeManager.getSession then
-		local homeSession = PlayerHomeManager.getSession(player)
-		local homeInst = homeSession and homeSession.instance
-		if homeInst and homeInst.instanceId == instanceId then
-			return PlayerHomeInstance.contains(homeInst, destPos)
-		end
+	local lobbyFence = LobbyInstance and LobbyInstance.containsForInstance(instanceId, destPos)
+	if lobbyFence ~= nil then
+		return lobbyFence
 	end
 	if creature.isMonster and creature:isMonster() then
 		return true
@@ -783,7 +780,7 @@ function InstanceWorld.canWalk(creature, destPos)
 		isPlayer = creature
 	end
 	if isPlayer then
-		-- Engine private hunt / raid / home ids must not fall through to open-world walk.
+		-- Engine private hunt / raid / lobby ids must not fall through to open-world walk.
 		if instanceId >= InstanceWorld.PRIVATE_BASE then
 			if isGodPlayer(isPlayer) and not session then
 				return true
@@ -877,26 +874,9 @@ function InstanceWorld.describeCurrent(player)
 			channel = channel,
 		}
 	end
-	if PlayerHomeManager and PlayerHomeManager.getSession then
-		local homeSession = PlayerHomeManager.getSession(player)
-		local homeInst = homeSession and homeSession.instance
-		if homeInst and homeInst.instanceId and engineId == homeInst.instanceId then
-			local origin = homeInst.origin
-			local w = homeInst.width or (PlayerHomeConfig and PlayerHomeConfig.OUTER_SIZE) or 9
-			local h = homeInst.height or (PlayerHomeConfig and PlayerHomeConfig.OUTER_SIZE) or 9
-			local bounds = nil
-			if origin then
-				bounds = { x = origin.x, y = origin.y, w = w, h = h }
-			end
-			return {
-				instanceId = (PlayerHomeConfig and PlayerHomeConfig.PLACE_ID) or 0,
-				kind = "home",
-				name = "Home",
-				key = "home",
-				channel = math.floor(tonumber(homeSession.channel or homeInst.channel) or 0),
-				bounds = bounds,
-			}
-		end
+	local lobby = LobbyInstance and LobbyInstance.describe(player)
+	if lobby then
+		return lobby
 	end
 	return {
 		instanceId = 0,
@@ -926,15 +906,8 @@ function InstanceWorld.sendBounds(player, force)
 	return ExpeditionProtocol.sendInstanceBounds(player, desc)
 end
 
-local function isHomePosition(pos)
-	if not pos then
-		return false
-	end
-	local cfg = PlayerHomeConfig
-	if not cfg or not cfg.INSTANCE_BASE_X then
-		return pos.x >= 62000
-	end
-	return pos.x >= cfg.INSTANCE_BASE_X and pos.y >= (cfg.INSTANCE_BASE_Y or 0)
+local function isLobbyPosition(pos)
+	return LobbyInstance ~= nil and LobbyInstance.isLobbyPosition(pos)
 end
 
 local function asWorldPos(pos)
@@ -1107,7 +1080,7 @@ function InstanceWorld.bindOpenWorld(player, destPos)
 	return ok
 end
 
---- Leave a private hunt/raid/home instance for city/settlement/hub.
+--- Leave a private hunt/raid/lobby instance for city/settlement/hub.
 function InstanceWorld.exitToOpenWorld(player, destPos)
 	return InstanceWorld.bindOpenWorld(player, destPos)
 end
@@ -1121,7 +1094,7 @@ function InstanceWorld.isStrandedExpedition(player, pos)
 		return false
 	end
 	pos = asWorldPos(pos)
-	if isHomePosition(pos) then
+	if isLobbyPosition(pos) then
 		return false
 	end
 	local instanceId = player.getInstanceId and player:getInstanceId() or 0
@@ -1172,7 +1145,7 @@ function InstanceWorld.shouldRescue(player)
 	if InstanceWorld.isStrandedExpedition(player, pos) then
 		return true
 	end
-	if isHomePosition(pos) then
+	if isLobbyPosition(pos) then
 		return false
 	end
 	if pos and not InstanceWorld.canWalk(player, pos) then
@@ -1206,7 +1179,12 @@ function InstanceWorld.rescueIfStranded(player)
 	if not (player.getTile and player:getTile()) then
 		return false
 	end
-	local ok = InstanceWorld.bindOpenWorld(player, nil)
+	local inLobby = false
+	if LobbyManager and LobbyInstance and Alts and Alts.isRealUiClient(player) then
+		local record = LobbyManager.ensureForPlayer(player)
+		inLobby = record ~= nil and LobbyInstance.enterNow(player, record, {}) == true
+	end
+	local ok = inLobby or InstanceWorld.bindOpenWorld(player, nil)
 	if ok then
 		local now = player:getPosition()
 		if now then
@@ -1233,12 +1211,8 @@ function InstanceWorld.bindLogin(player, loginPos)
 		bindCreature(player, byInst.instance.instanceId)
 		return
 	end
-	if PlayerHomeManager and PlayerHomeManager.getSession then
-		local home = PlayerHomeManager.getSession(player)
-		if home and home.instance and home.instance.instanceId then
-			bindCreature(player, home.instance.instanceId)
-			return
-		end
+	if LobbyInstance and LobbyInstance.restoreOnLogin(player) then
+		return
 	end
 	local pos = asWorldPos(loginPos) or (player.getPosition and player:getPosition() or nil)
 	-- Bind city/settlement/hub in place. Hunt-footprint overlap is fine for login —

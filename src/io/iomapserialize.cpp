@@ -97,9 +97,6 @@ bool IOMapSerialize::SaveHouseItemsGuard() {
 
 	PropWriteStream stream;
 	for (const auto &[key, house] : g_game().map.houses.getHouses()) {
-		if (house->isEphemeral()) {
-			continue;
-		}
 		// save house items
 		for (const auto &tile : house->getTiles()) {
 			saveTile(stream, tile);
@@ -399,9 +396,6 @@ bool IOMapSerialize::SaveHouseInfoGuard() {
 	houseUpdate.upsert({ "owner", "paid", "warnings", "name", "town_id", "rent", "size", "beds", "bidder", "bidder_name", "highest_bid", "internal_bid", "bid_end_date", "state", "transfer_status" });
 
 	for (const auto &[key, house] : g_game().map.houses.getHouses()) {
-		if (house->isEphemeral()) {
-			continue;
-		}
 		auto stateValue = magic_enum::enum_integer(house->getState());
 		std::string values = fmt::format("{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}", house->getId(), house->getOwner(), house->getPaidUntil(), house->getPayRentWarnings(), db.escapeString(house->getName()), house->getTownId(), house->getRent(), house->getSize(), house->getBedCount(), house->getBidder(), db.escapeString(house->getBidderName()), house->getHighestBid(), house->getInternalBid(), house->getBidEndDate(), std::to_string(stateValue), (house->getTransferStatus() ? 1 : 0), worldId);
 
@@ -419,9 +413,6 @@ bool IOMapSerialize::SaveHouseInfoGuard() {
 	auto version = getTimeUsNow();
 
 	for (const auto &[key, house] : g_game().map.houses.getHouses()) {
-		if (house->isEphemeral()) {
-			continue;
-		}
 		std::string listText;
 		if (house->getAccessList(GUEST_LIST, listText) && !listText.empty()) {
 			query << house->getId() << ',' << GUEST_LIST << ',' << db.escapeString(listText) << ',' << version << ',' << worldId;

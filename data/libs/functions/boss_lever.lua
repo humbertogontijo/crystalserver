@@ -20,7 +20,12 @@
 ---@field private encounter Encounter
 ---@field private timeoutEvent Event
 ---@field private disableCooldown boolean
+---@field private difficulty table|nil
+---@field private finalBoss string|nil
+---@field private encounters table<number, table>
+---@field private extraAreas {from: Position, to: Position}[]
 BossLever = {}
+BossLever.phaseHooks = BossLever.phaseHooks or {}
 
 --[[
 local config = {
@@ -47,6 +52,12 @@ local config = {
 		player:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
 	end,
 	exit = Position(33618, 32523, 15),
+	-- Optional: opens the boss difficulty dialog before the fight (scales HP / damage).
+	difficulty = { max = 25, hpPerLevel = 0.04, dmgPerLevel = 0.03 },
+	-- Optional: chained fights end when this form dies (default: boss.name).
+	finalBoss = "Faceless Bane",
+	-- Optional: more arena rectangles for fights spread over several rooms.
+	extraAreas = { { from = Position(33600, 32540, 13), to = Position(33606, 32552, 13) } },
 }
 ]]
 setmetatable(BossLever, {
@@ -73,8 +84,12 @@ setmetatable(BossLever, {
 			exitTeleporter = config.exitTeleporter,
 			exit = config.exit,
 			area = config.specPos,
+			extraAreas = config.extraAreas or {},
 			monsters = config.monsters or {},
 			disableCooldown = config.disableCooldown,
+			difficulty = config.difficulty == true and {} or config.difficulty,
+			finalBoss = (config.finalBoss or boss.name):lower(),
+			encounters = {},
 			_position = nil,
 			_uid = nil,
 			_aid = nil,
@@ -144,32 +159,11 @@ function BossLever:setLastEncounterTime(time)
 	return true
 end
 
+--- Build the stock Lever for the players on the slot tiles and run the slot checks
+--- (level, cooldown, onUseExtra). Returns the lever when the challenge may start.
 ---@param player Player
----@return boolean
-function BossLever:onUse(player)
-	local monsterName = MonsterType(self.name):getName()
-	local isParticipant = false
-	for _, v in ipairs(self.playerPositions) do
-		if Position(v.pos) == player:getPosition() then
-			isParticipant = true
-		end
-	end
-	if not isParticipant then
-		return false
-	end
-
-	if self.disabled then
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "The boss is temporarily disabled.")
-		return true
-	end
-
-	local zone = self:getZone()
-	zone:refresh() -- Refresh the zone to ensure it is up-to-date
-	if zone:countPlayers(IgnoredByMonsters) > 0 then
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "There's already someone fighting with " .. monsterName .. ".")
-		return true
-	end
-
+---@return table|nil
+function BossLever:prepareLever(player)
 	self.lever = Lever()
 	local lever = self.lever
 	lever:setPositions(self.playerPositions)
@@ -221,65 +215,292 @@ function BossLever:onUse(player)
 			creature:sendTextMessage(MESSAGE_EVENT_ADVANCE, message)
 			creature:getPosition():sendMagicEffect(CONST_ME_POFF)
 		end)
+		return nil
+	end
+	if not lever:checkConditions() then
+		return nil
+	end
+	return lever
+end
+
+---@param player Player
+---@return boolean
+function BossLever:onUse(player)
+	local monsterName = MonsterType(self.name):getName()
+	local isParticipant = false
+	for _, v in ipairs(self.playerPositions) do
+		if Position(v.pos) == player:getPosition() then
+			isParticipant = true
+		end
+	end
+	if not isParticipant then
 		return false
 	end
-	if lever:checkConditions() then
-		zone:removeMonsters()
+
+	if self.disabled then
+		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "The boss is temporarily disabled.")
+		return true
+	end
+
+	local zone = self:getZone()
+	zone:refresh() -- Refresh the zone to ensure it is up-to-date
+	if zone:countPlayers(IgnoredByMonsters) > 0 then
+		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "There's already someone fighting with " .. monsterName .. ".")
+		return true
+	end
+
+	local lever = self:prepareLever(player)
+	if not lever then
+		return false
+	end
+
+	if self.difficulty and BossDifficulty then
+		local players = lever:getPlayers()
+		BossDifficulty.open(player, {
+			lever = self,
+			players = players,
+			onStart = function(difficulty)
+				zone:refresh()
+				if zone:countPlayers(IgnoredByMonsters) > 0 then
+					player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "There's already someone fighting with " .. monsterName .. ".")
+					return
+				end
+				local again = self:prepareLever(player)
+				if again then
+					self:startWorldEncounter(again, difficulty)
+				end
+			end,
+		})
+		return true
+	end
+
+	self:startWorldEncounter(lever, nil)
+	return true
+end
+
+--- Open-world fight: spawn, teleport the slot players, cooldowns and the room timeout.
+---@param lever table
+---@param difficulty number|nil
+---@return boolean
+function BossLever:startWorldEncounter(lever, difficulty)
+	local zone = self:getZone()
+	zone:removeMonsters()
+	local playerIds = {}
+	for _, p in ipairs(lever:getPlayers()) do
+		playerIds[#playerIds + 1] = p:getId()
+	end
+	if not self:startEncounter({ instanceId = 0, difficulty = difficulty, playerIds = playerIds }) then
+		return true
+	end
+	lever:teleportPlayers()
+	local rottenBloodBosses = {
+		["murcion"] = true,
+		["chagorz"] = true,
+		["ichgahal"] = true,
+		["vemiath"] = true,
+		["bakragore"] = true,
+	}
+	if rottenBloodBosses[self.name:lower()] then
+		lever:executeOnPlayers(function(player)
+			if player and player:isPlayer() then
+				player:removeIcon("rotten-area")
+				local whiteCrossIcon = player:getIcon("white-cross")
+				if whiteCrossIcon then
+					player:removeIcon("white-cross")
+				end
+				local redCrossIcon = player:getIcon("red-cross")
+				if redCrossIcon then
+					player:removeIcon("red-cross")
+				end
+			end
+		end)
+	end
+	lever:setCooldownAllPlayers(self.name, os.time() + self.timeToFightAgain)
+	if self.encounter then
+		local encounter = Encounter(self.encounter)
+		encounter:reset()
+		encounter:start()
+	end
+	self:setLastEncounterTime(os.time() + self.timeToFightAgain)
+	if self.timeoutEvent then
+		stopEvent(self.timeoutEvent)
+		self.timeoutEvent = nil
+	end
+	self.timeoutEvent = addEvent(function(zn)
+		zn:refresh()
+		zn:removePlayers()
+	end, self.timeToDefeat * 1000, zone)
+	return true
+end
+
+--- Spawn the lever's monsters and boss. `ctx.instanceId` (private instance, 0 = open world)
+--- scopes every create inside the lever code; `ctx.difficulty` scales boss forms.
+--- Returns ok, spawned boss monsters.
+---@param ctx table|nil { instanceId, difficulty, playerIds }
+---@return boolean, Monster[]
+function BossLever:startEncounter(ctx)
+	ctx = ctx or {}
+	ctx.instanceId = tonumber(ctx.instanceId) or 0
+	ctx.lever = self
+	self.encounters[ctx.instanceId] = ctx
+	local spawned = {}
+	local function spawn()
 		for _, monster in pairs(self.monsters) do
 			Game.createMonster(monster.name, monster.pos, true, true)
 		end
 		if self.createBoss then
-			if not self.createBoss() then
-				return true
+			local created = self.createBoss(ctx)
+			if not created then
+				return false
 			end
-		elseif self.bossPosition then
-			logger.debug("BossLever:onUse - creating boss: {}", self.name)
+			if type(created) == "userdata" then
+				self:scaleForm(created, ctx)
+				spawned[#spawned + 1] = created
+			end
+			return true
+		end
+		if self.bossPosition then
+			logger.debug("BossLever:startEncounter - creating boss: {}", self.name)
 			local monster = Game.createMonster(self.name, self.bossPosition, true, true)
 			if not monster then
-				return true
+				return false
 			end
-			monster:registerEvent("BossLeverOnDeath")
+			if ctx.instanceId == 0 then
+				monster:registerEvent("BossLeverOnDeath")
+			end
+			self:scaleForm(monster, ctx)
+			spawned[#spawned + 1] = monster
 		end
-		lever:teleportPlayers()
-		local rottenBloodBosses = {
-			["murcion"] = true,
-			["chagorz"] = true,
-			["ichgahal"] = true,
-			["vemiath"] = true,
-			["bakragore"] = true,
-		}
-		if rottenBloodBosses[self.name:lower()] then
-			lever:executeOnPlayers(function(player)
-				if player and player:isPlayer() then
-					player:removeIcon("rotten-area")
-					local whiteCrossIcon = player:getIcon("white-cross")
-					if whiteCrossIcon then
-						player:removeIcon("white-cross")
-					end
-					local redCrossIcon = player:getIcon("red-cross")
-					if redCrossIcon then
-						player:removeIcon("red-cross")
-					end
-				end
-			end)
-		end
-		lever:setCooldownAllPlayers(self.name, os.time() + self.timeToFightAgain)
-		if self.encounter then
-			local encounter = Encounter(self.encounter)
-			encounter:reset()
-			encounter:start()
-		end
-		self:setLastEncounterTime(os.time() + self.timeToFightAgain)
-		if self.timeoutEvent then
-			stopEvent(self.timeoutEvent)
-			self.timeoutEvent = nil
-		end
-		self.timeoutEvent = addEvent(function(zn)
-			zn:refresh()
-			zn:removePlayers()
-		end, self.timeToDefeat * 1000, zone)
+		return true
 	end
-	return true
+	local ok
+	if ctx.instanceId ~= 0 and Game.runInInstance then
+		ok = Game.runInInstance(ctx.instanceId, spawn)
+	else
+		ok = spawn()
+	end
+	if not ok then
+		self.encounters[ctx.instanceId] = nil
+		return false, {}
+	end
+	return true, spawned
+end
+
+---@param instanceId number
+---@return table|nil
+function BossLever:encounterContext(instanceId)
+	return self.encounters[tonumber(instanceId) or 0]
+end
+
+---@param instanceId number
+function BossLever:clearEncounter(instanceId)
+	self.encounters[tonumber(instanceId) or 0] = nil
+end
+
+---@param monster Monster
+---@param ctx table|nil
+function BossLever:scaleForm(monster, ctx)
+	if monster and ctx and self.difficulty and BossDifficulty and BossDifficulty.apply then
+		BossDifficulty.apply(monster, self, ctx.difficulty)
+	end
+end
+
+--- Later boss form of a chained fight, born in the encounter's instance and scaled to its
+--- difficulty. Expeditions bind it through BossLever.addPhaseHook.
+---@param name string
+---@param position Position
+---@param instanceId number
+---@return Monster|nil
+function BossLever:spawnForm(name, position, instanceId)
+	local ctx = self:encounterContext(instanceId) or { instanceId = tonumber(instanceId) or 0 }
+	local monster = Game.createMonster(name, position, true, true, nil, ctx.instanceId)
+	if not monster then
+		return nil
+	end
+	self:scaleForm(monster, ctx)
+	BossLever.onPhaseSpawned(monster, self)
+	return monster
+end
+
+---@param hook fun(monster: Monster, lever: BossLever)
+function BossLever.addPhaseHook(hook)
+	table.insert(BossLever.phaseHooks, hook)
+end
+
+---@param monster Monster
+---@param lever BossLever
+function BossLever.onPhaseSpawned(monster, lever)
+	for _, hook in ipairs(BossLever.phaseHooks) do
+		hook(monster, lever)
+	end
+end
+
+--- True when `name` is the form whose death ends this lever's fight.
+---@param name string
+---@return boolean
+function BossLever:isFinalBoss(name)
+	return type(name) == "string" and name:lower() == self.finalBoss
+end
+
+--- True when the fight continues past the lever boss into later forms (finalBoss differs).
+---@return boolean
+function BossLever:isChained()
+	return self.finalBoss ~= self.name
+end
+
+--- Open-world victory: unlock the next difficulty for the encounter players.
+---@param instanceId number
+function BossLever:onEncounterVictory(instanceId)
+	local ctx = self:encounterContext(instanceId)
+	if not ctx then
+		return
+	end
+	if self.difficulty and BossDifficulty and BossDifficulty.unlock and ctx.playerIds then
+		for _, pid in ipairs(ctx.playerIds) do
+			local p = Player(pid)
+			if p then
+				BossDifficulty.unlock(p, self, ctx.difficulty)
+			end
+		end
+	end
+	self:clearEncounter(instanceId)
+end
+
+---@param name string
+---@return BossLever|nil
+function BossLever.get(name)
+	if type(name) ~= "string" or name == "" then
+		return nil
+	end
+	local lever = rawget(BossLever, name:lower())
+	if type(lever) == "table" and lever.playerPositions then
+		return lever
+	end
+	return nil
+end
+
+--- Lever whose chained fight ends with `name`.
+---@param name string
+---@return BossLever|nil
+function BossLever.forFinalBoss(name)
+	if type(name) ~= "string" then
+		return nil
+	end
+	local key = name:lower()
+	for _, lever in pairs(BossLever) do
+		if type(lever) == "table" and lever.playerPositions and lever.finalBoss == key then
+			return lever
+		end
+	end
+	return nil
+end
+
+--- Tile the lever sends the player on slot `index` to (nil when the slot has none).
+---@param index number
+---@return Position|nil
+function BossLever:arrival(index)
+	local slot = self.playerPositions and (self.playerPositions[index] or self.playerPositions[1])
+	return slot and slot.teleport and Position(slot.teleport) or nil
 end
 
 ---@param Zone
@@ -315,6 +536,9 @@ function BossLever:register()
 	local zone = self:getZone()
 
 	zone:addArea(self.area.from, self.area.to)
+	for _, extra in ipairs(self.extraAreas) do
+		zone:addArea(extra.from, extra.to)
+	end
 	zone:blockFamiliars()
 	zone:setRemoveDestination(self.exit)
 

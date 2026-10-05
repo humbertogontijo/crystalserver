@@ -137,7 +137,7 @@ function ExpeditionInstance.hasLivingPlayers(instance, opts)
 			local id = player:getId()
 			if opts.excludeIds and opts.excludeIds[id] then
 				-- skip
-			elseif opts.excludeCompanions and TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player) then
+			elseif opts.excludeCompanions and Alts and Alts.isCompanion and Alts.isCompanion(player) then
 				-- skip
 			else
 				return true

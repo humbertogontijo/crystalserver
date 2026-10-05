@@ -185,20 +185,32 @@ namespace {
 } // namespace
 
 thread_local std::shared_ptr<Creature> g_instanceActor;
+thread_local uint32_t g_instanceActorId = 0;
+
+static bool hasInstanceActor() {
+	return g_instanceActorId != 0 || g_instanceActor != nullptr;
+}
+
+static uint32_t instanceActorId() {
+	if (g_instanceActorId != 0) {
+		return g_instanceActorId;
+	}
+	return g_instanceActor ? static_cast<uint32_t>(g_instanceActor->getInstanceId()) : 0;
+}
 
 static uint32_t sightInstanceId(uint32_t instanceId) {
 	if (instanceId != 0) {
 		return instanceId;
 	}
-	return g_instanceActor ? g_instanceActor->getInstanceId() : 0;
+	return instanceActorId();
 }
 
 /** Resolve which private instance should receive an effect that has no explicit actor.
  *  Prefer the current InstanceActorScope; otherwise infer from creatures on the tile.
  *  If multiple instance ids share the tile, fall back to 0 (open world) — never fan out. */
 static uint32_t resolveEffectInstanceId(const Position &pos) {
-	if (g_instanceActor) {
-		return g_instanceActor->getInstanceId();
+	if (hasInstanceActor()) {
+		return instanceActorId();
 	}
 	uint32_t inferred = std::numeric_limits<uint32_t>::max();
 	if (const auto &tile = g_game().map.getTile(pos)) {
@@ -220,8 +232,8 @@ static uint32_t resolveEffectInstanceId(const Position &pos) {
 }
 
 static uint32_t resolveEffectInstanceId(const Position &fromPos, const Position &toPos) {
-	if (g_instanceActor) {
-		return g_instanceActor->getInstanceId();
+	if (hasInstanceActor()) {
+		return instanceActorId();
 	}
 	const uint32_t fromId = resolveEffectInstanceId(fromPos);
 	const uint32_t toId = resolveEffectInstanceId(toPos);
@@ -232,18 +244,28 @@ static uint32_t resolveEffectInstanceId(const Position &fromPos, const Position 
 }
 
 InstanceActorScope::InstanceActorScope(const std::shared_ptr<Creature> &creature) :
-	previous(g_instanceActor) {
+	previous(g_instanceActor), previousId(g_instanceActorId) {
 	if (creature) {
 		g_instanceActor = creature;
+		g_instanceActorId = 0;
+	}
+}
+
+InstanceActorScope::InstanceActorScope(InstanceId instanceId) :
+	previous(g_instanceActor), previousId(g_instanceActorId) {
+	if (!instanceId.isWorld()) {
+		g_instanceActor = nullptr;
+		g_instanceActorId = instanceId.value();
 	}
 }
 
 InstanceActorScope::~InstanceActorScope() {
 	g_instanceActor = previous;
+	g_instanceActorId = previousId;
 }
 
 InstanceId Game::getInstanceActorId() {
-	return g_instanceActor ? g_instanceActor->getInstanceId() : InstanceId::World;
+	return InstanceId(instanceActorId());
 }
 
 InstanceId Game::getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder) {
@@ -5384,31 +5406,20 @@ void Game::playerWrapableItem(uint32_t playerId, const Position &pos, uint8_t st
 		return;
 	}
 
-	// Personal-home instances use Zone("player-home") with shared HouseTiles + instance owners.
-	bool inPlayerHome = false;
-	for (const auto &zone : Zone::getZones(item->getPosition())) {
-		if (zone && zone->getName().starts_with("player-home")) {
-			inPlayerHome = true;
-			break;
-		}
+	const auto houseTile = tile->dynamic_self_cast<HouseTile>();
+	if (!tile->hasFlag(TILESTATE_PROTECTIONZONE) || !houseTile) {
+		player->sendCancelMessage("You may construct this only inside a house.");
+		return;
+	}
+	const auto &house = houseTile->getHouse();
+	if (!house) {
+		player->sendCancelMessage("You may construct this only inside a house.");
+		return;
 	}
 
-	const auto houseTile = tile->dynamic_self_cast<HouseTile>();
-	const std::shared_ptr<House> house = houseTile ? houseTile->getHouse() : nullptr;
-	if (!inPlayerHome) {
-		if (!tile->hasFlag(TILESTATE_PROTECTIONZONE) || !houseTile) {
-			player->sendCancelMessage("You may construct this only inside a house.");
-			return;
-		}
-		if (!house) {
-			player->sendCancelMessage("You may construct this only inside a house.");
-			return;
-		}
-
-		if (house->getHouseAccessLevel(player) < HOUSE_OWNER) {
-			player->sendCancelMessage("You are not allowed to construct this here.");
-			return;
-		}
+	if (house->getHouseAccessLevel(player) < HOUSE_OWNER) {
+		player->sendCancelMessage("You are not allowed to construct this here.");
+		return;
 	}
 
 	if (!item || item->getID() != itemId || item->hasAttribute(ItemAttribute_t::UNIQUEID) || (!item->isWrapable() && item->getID() != ITEM_DECORATION_KIT)) {
@@ -5421,7 +5432,7 @@ void Game::playerWrapableItem(uint32_t playerId, const Position &pos, uint8_t st
 		return;
 	}
 
-	if (g_configManager().getBoolean(ONLY_INVITED_CAN_MOVE_HOUSE_ITEMS) && house && !InternalGame::playerCanUseItemOnHouseTile(player, item)) {
+	if (g_configManager().getBoolean(ONLY_INVITED_CAN_MOVE_HOUSE_ITEMS) && !InternalGame::playerCanUseItemOnHouseTile(player, item)) {
 		player->sendCancelMessage(RETURNVALUE_CANNOTUSETHISOBJECT);
 		return;
 	}
@@ -5473,9 +5484,9 @@ void Game::playerWrapableItem(uint32_t playerId, const Position &pos, uint8_t st
 	}
 
 	if (item->isWrapable() && item->getID() != ITEM_DECORATION_KIT) {
-		wrapItem(item, house);
+		wrapItem(item, houseTile->getHouse());
 	} else if (item->getID() == ITEM_DECORATION_KIT && unWrapId != 0) {
-		unwrapItem(item, unWrapId, house, player);
+		unwrapItem(item, unWrapId, houseTile->getHouse(), player);
 	}
 	addMagicEffect(pos, CONST_ME_POFF, player);
 }
@@ -13519,9 +13530,6 @@ void Game::playerCyclopediaHousesByTown(uint32_t playerId, const std::string &to
 		const auto &housesList = g_game().map.houses.getHouses();
 		for (const auto &it : housesList) {
 			const auto &house = it.second;
-			if (house->isEphemeral()) {
-				continue;
-			}
 			const auto &town = g_game().map.towns.getTown(house->getTownId());
 			if (!town) {
 				continue;
@@ -13543,7 +13551,7 @@ void Game::playerCyclopediaHousesByTown(uint32_t playerId, const std::string &to
 			}
 		}
 		const auto house = g_game().map.houses.getHouseByBidderName(player->getName());
-		if (house && !house->isEphemeral()) {
+		if (house) {
 			houses.emplace(house->getClientId(), house);
 		}
 	}

@@ -1,15 +1,15 @@
 -- CP → level maps. Creatures, bosses, raids: recommended ≈ 1.5 × CP^0.6.
--- Hunts: recommended ≈ 3.2 × S^0.69 with S the mix-weighted mean creature CP.
--- levelMin ≈ recommended × 0.6 for both.
--- Constants synced from hunt_level_fit_generated.py via `make optimize`.
+-- Hunts: recommended ≈ HUNT_LEVEL_COEF × S^HUNT_LEVEL_EXP with S the
+-- mix-weighted mean creature CP. levelMin ≈ recommended × 0.6 for both.
+-- HUNT_LEVEL_* are refit against TibiaWiki hunt levels by `make generate`.
 CreatureInfo = CreatureInfo or {}
 
 local MONSTER_LEVEL_STEP = 5
 local MONSTER_LEVEL_COEF = 1.5
 local MONSTER_LEVEL_EXP = 0.6
 local PARTY_LEVEL_RATIO = 0.6
-local HUNT_LEVEL_COEF = 14.909524947979074
-local HUNT_LEVEL_EXP = 0.4190320455865943
+local HUNT_LEVEL_COEF = 3.15
+local HUNT_LEVEL_EXP = 0.69
 --- Pack: (Σ share_i × CP_i) × density^HUNT_DENSITY_EXP
 local HUNT_DENSITY_EXP = 0
 

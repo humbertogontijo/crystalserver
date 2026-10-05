@@ -17,20 +17,17 @@ local function resolveQuestTarget(controller, nameOrGuid, requireOnline)
 	if tostring(nameOrGuid):lower() == controller:getName():lower() then
 		return controller
 	end
-	if not TeamStore or not TeamStore.resolveAccountMember then
-		return nil, "Alt quests require team support."
+	if not Alts or not Alts.resolveAccountMember then
+		return nil, "Alt quests require alts support."
 	end
-	if TeamStore.isFriend and TeamStore.isFriend(controller, nameOrGuid) then
-		return nil, "Friends have view-only quest access."
-	end
-	if requireOnline and TeamManager and TeamManager.ensureOnlineMember then
-		local online, onlineErr = TeamManager.ensureOnlineMember(controller, nameOrGuid)
+	if requireOnline and Alts.ensureOnlineMember then
+		local online, onlineErr = Alts.ensureOnlineMember(controller, nameOrGuid)
 		if not online then
 			return nil, onlineErr or "Character must be online."
 		end
 		return online
 	end
-	local target, err = TeamStore.resolveAccountMember(controller, nameOrGuid)
+	local target, err = Alts.resolveAccountMember(controller, nameOrGuid)
 	if not target then
 		return nil, err or "Unknown character."
 	end

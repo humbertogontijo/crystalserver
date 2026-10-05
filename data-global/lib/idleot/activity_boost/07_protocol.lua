@@ -28,7 +28,6 @@ function ActivityBoostProtocol.sendState(player)
 			type = "state",
 			boost = ActivityBoostLedger.getStatus(player),
 			activities = activities,
-			soloBoss = ActivityBoostSoloBoss.get(player),
 			fiendishHunt = fiendishHunt,
 			worldBoss = {
 				active = ActivityBoostWorldBoss.listActive(),
@@ -90,26 +89,6 @@ function ActivityBoostProtocol.handle(player, buffer)
 	if action == "leaveWorldBoss" then
 		ActivityBoostWorldBoss.leave(player)
 		ActivityBoostProtocol.sendState(player)
-		return
-	end
-	if action == "startBossRush" then
-		local solo = ActivityBoostSoloBoss.get(player)
-		if not solo or not solo.expeditionId then
-			ActivityBoostProtocol.send(player, { type = "error", message = "No Boss Rush assigned." })
-			return
-		end
-		local can, err = ActivityBoostSoloBoss.canJoin(player, solo.expeditionId)
-		if not can then
-			player:sendTextMessage(MESSAGE_FAILURE, err or "Boss Rush unavailable.")
-			ActivityBoostProtocol.send(player, { type = "error", message = err })
-			return
-		end
-		ActivityBoostSoloBoss.markAttempt(player, solo.expeditionId)
-		ActivityBoostProtocol.send(player, {
-			type = "bossRushStart",
-			expeditionId = solo.expeditionId,
-			name = solo.name,
-		})
 		return
 	end
 	if action == "joinFiendishHunt" then

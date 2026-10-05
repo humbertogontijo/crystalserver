@@ -56,6 +56,39 @@ function CombatGeo.isInViewport(fromPos, toPos)
 	return math.abs(fromPos.x - toPos.x) <= CombatGeo.VIEWPORT_X and math.abs(fromPos.y - toPos.y) <= CombatGeo.VIEWPORT_Y
 end
 
+local FACING_OFFSETS = {
+	[DIRECTION_NORTH] = { 0, -1 },
+	[DIRECTION_EAST] = { 1, 0 },
+	[DIRECTION_SOUTH] = { 0, 1 },
+	[DIRECTION_WEST] = { -1, 0 },
+}
+
+--- `pos` lies in the cone in front of a creature at `cpos` facing `dir` (N/E/S/W):
+--- from the tile it faces, one tile wider on each side per tile out, up to `range`.
+--- `dir` nil: the creature turns to face `pos` (a monster facing its target), so only
+--- exact diagonals stay out. Exact diagonals are never in the cone.
+function CombatGeo.inFrontCone(cpos, dir, pos, range)
+	if not cpos or not pos or cpos.z ~= pos.z then
+		return false
+	end
+	local dx, dy = pos.x - cpos.x, pos.y - cpos.y
+	local forward, lateral
+	if dir == nil then
+		forward, lateral = math.max(math.abs(dx), math.abs(dy)), math.min(math.abs(dx), math.abs(dy))
+	else
+		local f = FACING_OFFSETS[dir]
+		if not f then
+			return false
+		end
+		if f[1] ~= 0 then
+			forward, lateral = dx * f[1], math.abs(dy)
+		else
+			forward, lateral = dy * f[2], math.abs(dx)
+		end
+	end
+	return forward >= 1 and forward <= range and lateral <= forward - 1
+end
+
 --- Turn `player` toward `toPos` (dominant axis; same floor only).
 function CombatGeo.faceToward(player, toPos)
 	if not player or not toPos then

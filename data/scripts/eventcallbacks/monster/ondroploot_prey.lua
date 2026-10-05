@@ -26,7 +26,7 @@ function callback.monsterOnDropLoot(monster, corpse)
 	for _, participant in ipairs(participants) do
 		local raceId = mType:raceId()
 		local participantChance = 0
-		local teamPrey = TeamBonus and TeamBonus.effectivePrey and TeamBonus.effectivePrey(participant, raceId) or nil
+		local teamPrey = LobbyBonus and LobbyBonus.effectivePrey and LobbyBonus.effectivePrey(participant, raceId) or nil
 		if teamPrey then
 			-- Team prey on this race replaces personal loot prey.
 			if teamPrey.bonusType == 3 then -- Loot
@@ -34,8 +34,8 @@ function callback.monsterOnDropLoot(monster, corpse)
 			else
 				participantChance = 0
 			end
-			if TeamBonus.touchDrain then
-				TeamBonus.touchDrain(participant)
+			if LobbyBonus.touchDrain then
+				LobbyBonus.touchDrain(participant)
 			end
 		else
 			participantChance = participant:getPreyLootPercentage(raceId)

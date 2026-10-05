@@ -75,15 +75,15 @@ function ExpeditionManager.onLogout(player)
 			pcall(ExpeditionPersist.writeSession, session)
 			session.persistedForRestart = true
 		end
-		if TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
+		if Alts and Alts.getDeployment and Alts.getDeployment(player) then
 			for _, id in ipairs(EM_PRIV.sessionMemberIds(session)) do
 				local member = Player(id)
 				if member and member:getId() ~= player:getId() and EM_PRIV.isSessionCompanion(session, member) then
 					EM_PRIV.removeHuntMember(session, member, { skipEnded = true })
 					EM_PRIV.clearActive(member)
 					pcall(function()
-						if TeamManager.safeLogoutCompanion then
-							TeamManager.safeLogoutCompanion(member)
+						if Alts.safeLogoutCompanion then
+							Alts.safeLogoutCompanion(member)
 						elseif Game.headlessLogout then
 							Game.headlessLogout(member)
 						end
@@ -91,14 +91,14 @@ function ExpeditionManager.onLogout(player)
 				end
 			end
 			pcall(function()
-				TeamManager.undeploy(player)
+				Alts.undeploy(player)
 			end)
 		end
 		EM_PRIV.clearActive(player)
 		return true
 	end
 
-	if TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
+	if Alts and Alts.getDeployment and Alts.getDeployment(player) then
 		for _, id in ipairs(EM_PRIV.sessionMemberIds(session)) do
 			local member = Player(id)
 			if member and member:getId() ~= player:getId() and EM_PRIV.isSessionCompanion(session, member) then
@@ -106,8 +106,8 @@ function ExpeditionManager.onLogout(player)
 				EM_PRIV.removeHuntMember(session, member, { skipEnded = true })
 				EM_PRIV.clearActive(member)
 				pcall(function()
-					if TeamManager.safeLogoutCompanion then
-						TeamManager.safeLogoutCompanion(member)
+					if Alts.safeLogoutCompanion then
+						Alts.safeLogoutCompanion(member)
 					elseif Game.headlessLogout then
 						Game.headlessLogout(member)
 					end
@@ -115,7 +115,7 @@ function ExpeditionManager.onLogout(player)
 			end
 		end
 		pcall(function()
-			TeamManager.undeploy(player)
+			Alts.undeploy(player)
 		end)
 	end
 
@@ -258,8 +258,8 @@ function ExpeditionManager.onClientSwitched(oldPlayer, newPlayer)
 	if oldInSession then
 		session.companionIds = session.companionIds or {}
 		session.companionIds[oldId] = true
-		if TeamManager and TeamManager.onBecameHeadless then
-			pcall(TeamManager.onBecameHeadless, oldPlayer)
+		if Alts and Alts.onBecameHeadless then
+			pcall(Alts.onBecameHeadless, oldPlayer)
 		elseif oldPlayer.setHeadless then
 			oldPlayer:setHeadless(true)
 		end
@@ -438,7 +438,7 @@ function ExpeditionManager.onLogin(player)
 		EM_PRIV.clearActive(player)
 		ExpeditionManager.clearAreaEffects(player)
 		player:setIdleCombat(false)
-		EM_PRIV.teleportPlayerHome(player, returnPos)
+		EM_PRIV.returnToLobby(player, returnPos)
 		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Your expedition was interrupted. You were returned to safety.")
 	end
 

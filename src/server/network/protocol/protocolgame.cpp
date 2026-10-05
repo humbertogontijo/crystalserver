@@ -615,7 +615,7 @@ namespace {
 // OTC same-socket alt switch (Proto::GameServerCharacterSwitch).
 constexpr uint8_t SERVER_CHARACTER_SWITCH = 0x0D;
 
-void callTeamManagerPlayerMethod(const std::shared_ptr<Player> &player, const char* method) {
+void callAltsPlayerMethod(const std::shared_ptr<Player> &player, const char* method) {
 	if (!player || !method) {
 		return;
 	}
@@ -625,12 +625,12 @@ void callTeamManagerPlayerMethod(const std::shared_ptr<Player> &player, const ch
 		return;
 	}
 	if (!Lua::reserveScriptEnv()) {
-		g_logger().error("[TeamManager] Lua call stack overflow ({})", method);
+		g_logger().error("[Alts] Lua call stack overflow ({})", method);
 		return;
 	}
 	ScriptEnvironment* env = Lua::getScriptEnv();
 	env->setScriptId(EVENT_ID_USER, &scriptInterface);
-	lua_getglobal(L, "TeamManager");
+	lua_getglobal(L, "Alts");
 	if (lua_type(L, -1) != LUA_TTABLE) {
 		lua_pop(L, 1);
 		Lua::resetScriptEnv();
@@ -656,7 +656,7 @@ void ProtocolGame::detachClient() {
 		// Creature may stay online (idle hunt / VIP stay). Notify Lua before clearing client
 		// so protocolVersion becomes 0 and headless leadership handoff can run.
 		if (!player->isRemoved() && player->staysOnlineWithoutClient()) {
-			callTeamManagerPlayerMethod(player, "onClientDetached");
+			callAltsPlayerMethod(player, "onClientDetached");
 		}
 		player->client.reset();
 		player = nullptr;
@@ -947,7 +947,7 @@ void ProtocolGame::attachToPlayer(const std::shared_ptr<Player> &target, Operati
 	acceptPackets = true;
 
 	// Headless body reclaim: no CreatureEvent onLogin — promote team host / party if needed.
-	callTeamManagerPlayerMethod(player, "onClientAttached");
+	callAltsPlayerMethod(player, "onClientAttached");
 
 	// Fresh ProtocolGame has an empty knownCreatureSet — re-push party show-status
 	// (health/mana + vocation/level) so party HUD labels survive client reopen.
@@ -1879,10 +1879,23 @@ void ProtocolGame::GetMapDescription(int32_t x, int32_t y, int32_t z, int32_t wi
 	}
 }
 
+namespace {
+// Worst-case bytes for one tile description (10 things incl. creatures) plus the
+// skip markers and opcodes that may still follow in the same packet.
+constexpr size_t MAP_TILE_DESCRIPTION_RESERVE = 4096;
+} // namespace
+
 void ProtocolGame::GetFloorDescription(NetworkMessage &msg, int32_t x, int32_t y, int32_t z, int32_t width, int32_t height, int32_t offset, int32_t &skip) {
 	for (int32_t nx = 0; nx < width; nx++) {
 		for (int32_t ny = 0; ny < height; ny++) {
-			std::shared_ptr<Tile> tile = g_game().map.getTile(static_cast<uint16_t>(x + nx + offset), static_cast<uint16_t>(y + ny + offset), static_cast<uint8_t>(z));
+			const auto tileX = static_cast<uint16_t>(x + nx + offset);
+			const auto tileY = static_cast<uint16_t>(y + ny + offset);
+			std::shared_ptr<Tile> tile = g_game().map.getTile(tileX, tileY, static_cast<uint8_t>(z));
+			if (tile && !msg.canAdd(MAP_TILE_DESCRIPTION_RESERVE)) {
+				deferredMapTiles.emplace_back(tileX, tileY, static_cast<uint8_t>(z));
+				tile = nullptr;
+			}
+
 			if (tile) {
 				if (skip >= 0) {
 					msg.addByte(skip);
@@ -1899,6 +1912,36 @@ void ProtocolGame::GetFloorDescription(NetworkMessage &msg, int32_t x, int32_t y
 				++skip;
 			}
 		}
+	}
+}
+
+void ProtocolGame::sendDeferredMapTiles() {
+	if (deferredMapTiles.empty()) {
+		return;
+	}
+
+	const auto positions = std::exchange(deferredMapTiles, {});
+	NetworkMessage msg;
+	for (const auto &pos : positions) {
+		const auto &tile = g_game().map.getTile(pos);
+		if (!tile) {
+			continue;
+		}
+
+		if (!msg.canAdd(MAP_TILE_DESCRIPTION_RESERVE)) {
+			writeToOutputBuffer(msg);
+			msg.reset();
+		}
+
+		msg.addByte(0x69);
+		msg.addPosition(pos);
+		GetTileDescription(tile, msg);
+		msg.addByte(0x00);
+		msg.addByte(0xFF);
+	}
+
+	if (msg.getLength() > 0) {
+		writeToOutputBuffer(msg);
 	}
 }
 
@@ -8374,6 +8417,7 @@ void ProtocolGame::sendMapDescription(const Position &pos) {
 	msg.addPosition(player->getPosition());
 	GetMapDescription(pos.x - MAP_MAX_CLIENT_VIEW_PORT_X, pos.y - MAP_MAX_CLIENT_VIEW_PORT_Y, pos.z, (MAP_MAX_CLIENT_VIEW_PORT_X + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_Y + 1) * 2, msg);
 	writeToOutputBuffer(msg);
+	sendDeferredMapTiles();
 }
 
 void ProtocolGame::sendAddTileItem(const Position &pos, uint32_t stackpos, const std::shared_ptr<Item> &item) {
@@ -8719,6 +8763,7 @@ void ProtocolGame::sendMoveCreature(const std::shared_ptr<Creature> &creature, c
 				GetMapDescription(newPos.x - MAP_MAX_CLIENT_VIEW_PORT_X, newPos.y - MAP_MAX_CLIENT_VIEW_PORT_Y, newPos.z, 1, (MAP_MAX_CLIENT_VIEW_PORT_Y + 1) * 2, msg);
 			}
 			writeToOutputBuffer(msg);
+			sendDeferredMapTiles();
 		}
 	} else if (canSee(oldPos) && canSee(newPos)) {
 		if (teleport || (oldPos.z == MAP_INIT_SURFACE_LAYER && newPos.z >= MAP_INIT_SURFACE_LAYER + 1) || oldStackPos >= 10) {
@@ -12266,8 +12311,8 @@ void ProtocolGame::parseBossDifficultySelection(NetworkMessage &msg) {
 		msg.getByte();
 	}
 
-	// Route to IdleOT ExpeditionManager (unlock clamp + join / preview update).
-	auto callExpeditionBossDifficulty = [&](const char* method, bool withDifficulty) {
+	// Route to Lua BossDifficulty (lever-owned difficulty: unlock clamp, preview, start / cancel).
+	auto callBossDifficulty = [&](const char* method, bool withDifficulty) {
 		auto &scriptInterface = g_scripts().getScriptInterface();
 		lua_State* L = scriptInterface.getLuaState();
 		if (!L) {
@@ -12279,7 +12324,7 @@ void ProtocolGame::parseBossDifficultySelection(NetworkMessage &msg) {
 		}
 		ScriptEnvironment* env = Lua::getScriptEnv();
 		env->setScriptId(EVENT_ID_USER, &scriptInterface);
-		lua_getglobal(L, "ExpeditionManager");
+		lua_getglobal(L, "BossDifficulty");
 		if (lua_type(L, -1) != LUA_TTABLE) {
 			lua_pop(L, 1);
 			Lua::resetScriptEnv();
@@ -12305,19 +12350,13 @@ void ProtocolGame::parseBossDifficultySelection(NetworkMessage &msg) {
 
 	if (action == 0x02) {
 		// Spinner preview — refresh mods / keep selection clamped to unlock max.
-		g_logger().info("[BossDiffSel] select difficulty={}", difficulty);
-		callExpeditionBossDifficulty("onBossDifficultyPreview", true);
+		callBossDifficulty("onPreview", true);
 		return;
 	}
 	if (action == 0x00) {
-		if (difficulty > 25) {
-			difficulty = 25;
-		}
-		g_logger().info("[BossDiffSel] START FIGHT difficulty={} (0..25)", difficulty);
-		callExpeditionBossDifficulty("onBossDifficultyStart", true);
+		callBossDifficulty("onStart", true);
 	} else {
-		g_logger().info("[BossDiffSel] cancel/other action={}", action);
-		callExpeditionBossDifficulty("onBossDifficultyCancel", false);
+		callBossDifficulty("onCancel", false);
 	}
 	// Start (after handling) or Cancel -> close the dialog
 	NetworkMessage out;

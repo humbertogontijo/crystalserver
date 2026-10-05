@@ -1,15 +1,15 @@
 -- CaveBot walker for map-spawn lure hunts.
 -- The anchor walks the hunt's closed cave route (ExpeditionConfig.caveRoute) and
--- attacks on the way; it halts once lureMax monsters are on screen and a good halt
--- tile is in reach (else it keeps luring for up to HALT_DEFER_MS). Reaching a hold
--- (a generated spawn cluster stand) halts too when more than LURE_RESUME_LOAD is on
--- screen. Either halt fights (without chasing) until the load on screen (summed
--- monster health fractions) drops to LURE_RESUME_LOAD, then walks on. A halt fights
--- from the best reachable tile on screen (CombatAutomationMovement.bestAnchorSpot:
--- monsters in the box and a reachable cast slot for every member; the hold gets a
--- bonus), picking again when that tile cannot be reached, another creature takes it,
--- or it turns out poor; the anchor's own in-fight step moves the halt tile along. A monster blocking the path halts the
--- walk until it dies, or until the pack catches up (then it is a lure halt).
+-- attacks on the way; it only fights at holds (generated spawn cluster stands). Once
+-- lureMax monsters are on screen it stops waiting for stragglers and, as soon as the
+-- next waypoint is a hold, walks straight to the best spot near that hold; reaching a
+-- hold with more than LURE_RESUME_LOAD on screen halts there too. A halt fights
+-- (without chasing) until the load on screen (summed monster health fractions) drops
+-- to LURE_RESUME_LOAD, then walks on. The halt spot is the best tile within
+-- HALT_SPOT_STEPS of the hold by the terrain score generation placed the hold with
+-- (CombatAutomationMovement.bestAnchorSpot / AnchorSpot), for the actual party; it is
+-- picked again when it cannot be reached, and a boss dodge step moves it along. A
+-- monster blocking the path halts the walk until it dies.
 -- Single-hold routes park on their hold and fight respawns.
 --
 -- Fiendish Hunt: the forced Fiendish on screen halts the walk until it dies; out of
@@ -18,9 +18,9 @@
 --
 -- session.cave = {
 --   mode = "walk" | "pace" | "halt", idx (waypoint), lap, entryIdx (entry walk),
---   progress = { dist, at }, still = { pos, since }, visible, load, haltPos, haltReached, haltAt, haltSetAt,
---   haltWalkUntil, haltGood, haltExclude, haltRepicks, haltCheckAt, haltDeferSince, haltDeferCheckAt,
---   packHalt, blockerId, paceUntil, paceCooldownUntil, lapStartedAt, parked, fought,
+--   progress = { dist, at }, still = { pos, since }, visible, load, haltPos, haltCenter, haltReached,
+--   haltAt, haltSetAt, haltExclude, haltRepicks,
+--   blockerId, paceUntil, paceCooldownUntil, lapStartedAt, parked, fought,
 --   detour, detourProgress = { dist, at }, fiendishIgnoreUntil, fiendishHp, fiendishHitAt,
 -- }
 
@@ -37,7 +37,7 @@ local function toPosition(p)
 	return p and Position(p.x, p.y, p.z) or nil
 end
 
---- Monsters on screen that halt the walk.
+--- Monsters on screen that send the walk straight to the next hold.
 function ExpeditionCavebot.lureMax(session)
 	local lure = math.floor(tonumber(session and session.lure) or 0)
 	if lure < 1 then
@@ -55,18 +55,13 @@ end
 
 local function setMode(cave, mode)
 	cave.mode = mode
-	if mode == "halt" then
-		cave.haltDeferSince = nil
-		cave.haltDeferCheckAt = nil
-	else
+	if mode ~= "halt" then
 		cave.haltPos = nil
+		cave.haltCenter = nil
 		cave.haltReached = nil
 		cave.haltSetAt = nil
-		cave.haltGood = nil
 		cave.haltExclude = nil
 		cave.haltRepicks = nil
-		cave.haltCheckAt = nil
-		cave.packHalt = nil
 		cave.blockerId = nil
 	end
 	if mode ~= "pace" then
@@ -179,77 +174,53 @@ local function haltTeam(session, anchor)
 	return team
 end
 
---- Room for a monster ring and a reachable slot for every member.
-local function goodHaltSpot(ring, unserved)
-	return (ring or 0) >= ExpeditionConfig.HALT_MIN_RING and unserved == 0
-end
-
---- Best reachable fight tile: pos, score, ring, unserved.
-local function findHaltSpot(session, anchor, prefer, exclude)
+--- Best fight tile within HALT_SPOT_STEPS of `center` for the session's party.
+local function findHaltSpot(session, anchor, center, exclude)
 	return CombatAutomationMovement.bestAnchorSpot(anchor, {
-		prefer = prefer and toPosition(prefer),
+		center = center,
+		steps = ExpeditionConfig.HALT_SPOT_STEPS,
 		exclude = exclude,
-		front = ExpeditionCavebot.travelFront(session, anchor:getPosition()),
 		team = haltTeam(session, anchor),
 	})
 end
 
---- Walk to `spot`; the walk may take longer the farther it is.
-local function setHaltPos(cave, here, spot, ring, unserved, now)
+local function setHaltPos(cave, spot, now)
 	cave.haltPos = toPosition(spot)
-	cave.haltGood = goodHaltSpot(ring, unserved)
 	cave.haltReached = nil
 	cave.haltSetAt = now
-	cave.haltWalkUntil = now + ExpeditionConfig.LURE_WAIT_MS * 2 + chebyshev(here, spot) * ExpeditionConfig.HALT_WALK_MS_PER_SQM
-	cave.haltCheckAt = now + ExpeditionConfig.HALT_RECHECK_MS
 end
 
---- Halt tile: the hold / current tile when already good, else the best reachable
---- fight tile a few steps away.
-local function chooseHaltPos(session, cave, anchor, now, prefer)
-	local here = anchor:getPosition()
+--- Halt tile: the best spot near `center` (the hold; default the anchor's tile).
+local function chooseHaltPos(session, cave, anchor, now, center)
+	cave.haltCenter = toPosition(center) or anchor:getPosition()
 	cave.haltExclude = {}
 	cave.haltRepicks = 0
-	local spot, _, ring, unserved = findHaltSpot(session, anchor, prefer)
-	setHaltPos(cave, here, spot or here, ring, unserved, now)
+	setHaltPos(cave, findHaltSpot(session, anchor, cave.haltCenter) or cave.haltCenter, now)
 end
 
---- Look again from where the anchor stands. `failed`: the halt tile it cannot reach,
---- excluded from now on. The best reachable tile replaces the halt tile when it beats
---- staying by the move margin (`bestAnchorSpot`); past HALT_REPICK_MAX moves it stays put.
+--- `failed`: the halt tile the anchor cannot reach, excluded from now on; the next
+--- best near the same centre replaces it. Past HALT_REPICK_MAX picks (or with no
+--- other tile) it fights where it stands.
 local function repickHaltPos(session, cave, anchor, here, now, failed)
-	cave.haltCheckAt = now + ExpeditionConfig.HALT_RECHECK_MS
-	if failed then
-		cave.haltExclude[failed.x * 65536 + failed.y] = true
-	end
-	local spot, _, ring, unserved
+	cave.haltExclude[AnchorSpot.tileKey(failed.x, failed.y)] = true
+	local spot
 	if cave.haltRepicks < ExpeditionConfig.HALT_REPICK_MAX then
-		spot, _, ring, unserved = findHaltSpot(session, anchor, nil, cave.haltExclude)
-	end
-	if spot and not sameTile(spot, here) then
 		cave.haltRepicks = cave.haltRepicks + 1
-		setHaltPos(cave, here, spot, ring, unserved, now)
-	elseif failed then
+		spot = findHaltSpot(session, anchor, cave.haltCenter, cave.haltExclude)
+	end
+	if spot then
+		setHaltPos(cave, spot, now)
+	else
 		cave.haltPos = toPosition(here)
 		cave.haltReached = true
-		cave.haltGood = spot ~= nil and goodHaltSpot(ring, unserved)
 	end
 end
 
---- Lure halt off a hold: fight from the best tile on screen.
-local function beginPackHalt(session, cave, anchor, now)
-	cave.packHalt = true
-	cave.haltAt = now
-	chooseHaltPos(session, cave, anchor, now)
-end
-
---- Enter a lure halt. `prefer` (a hold reached with more than LURE_RESUME_LOAD on
---- screen) wins ties for the fight tile, so a leg into a thin area still ends in a fight.
-local function enterHalt(session, cave, anchor, now, visible, prefer)
+--- Fight at the best spot near `center` (the hold; default where the anchor stands).
+local function enterHalt(session, cave, anchor, now, visible, center)
 	setMode(cave, "halt")
-	cave.packHalt = true
 	cave.haltAt = now
-	chooseHaltPos(session, cave, anchor, now, prefer)
+	chooseHaltPos(session, cave, anchor, now, center)
 	ExpeditionMetrics.onHalt(session, visible)
 end
 
@@ -293,22 +264,16 @@ local function haltStuck(session, cave, now)
 end
 
 --- `fiendishInSight`: the forced Fiendish is on screen, so the halt holds until it dies.
-local function updateHalt(session, cave, anchor, here, now, visible, load, fiendishInSight)
-	if cave.blockerId and not blockerAlive(cave, here) then
-		cave.blockerId = nil
-		if not cave.packHalt then
-			if visible < ExpeditionCavebot.lureMax(session) and not fiendishInSight then
-				setMode(cave, "walk")
-				return
-			end
-			beginPackHalt(session, cave, anchor, now)
+--- A blocker halt walks on once the blocker is dead (to the next hold).
+local function updateHalt(session, cave, anchor, here, now, load, fiendishInSight)
+	if cave.blockerId then
+		if blockerAlive(cave, here) and not haltStuck(session, cave, now) then
+			return
 		end
-	end
-	if not cave.packHalt then
-		-- The pack caught up while killing the blocker: fight it from a proper tile.
-		if visible >= ExpeditionCavebot.lureMax(session) then
-			beginPackHalt(session, cave, anchor, now)
-		elseif haltStuck(session, cave, now) then
+		cave.blockerId = nil
+		if fiendishInSight then
+			chooseHaltPos(session, cave, anchor, now)
+		else
 			setMode(cave, "walk")
 		end
 		return
@@ -326,13 +291,7 @@ local function updateHalt(session, cave, anchor, here, now, visible, load, fiend
 	end
 end
 
-local function tileTaken(pos, anchor)
-	local tile = Tile(toPosition(pos))
-	local top = tile and tile:getTopCreature()
-	return top ~= nil and top:getId() ~= anchor:getId()
-end
-
---- The anchor's in-fight step since the halt tile was set (`adjustAnchorTile`).
+--- The anchor's boss dodge step since the halt tile was set (`dodgeBossFront`).
 local function anchorStep(anchor, cave)
 	local state = CombatAutomation.getState(anchor)
 	local step = state and state.anchorAdoptPos
@@ -343,10 +302,8 @@ local function anchorStep(anchor, cave)
 	return step
 end
 
---- Off the halt tile and unable to get there (another creature on it, blocked, or not
---- reached by `haltWalkUntil`): pick the best tile reachable from here instead. The
---- anchor's own in-fight step becomes the halt tile. Halted on a poor tile: keep
---- looking for a better one.
+--- Off the halt tile with no path there: pick again near the same centre. The
+--- anchor's boss dodge step becomes the halt tile.
 local function settleHaltPos(session, cave, anchor, here, now)
 	local step = cave.haltPos and anchorStep(anchor, cave)
 	if step and step.z == cave.haltPos.z then
@@ -361,15 +318,8 @@ local function settleHaltPos(session, cave, anchor, here, now)
 	elseif cave.haltReached and CombatAutomationMovement.rangedStance(anchor) then
 		-- A ranged anchor fights by stance around the halt tile once there.
 		return
-	elseif tileTaken(dest, anchor)
-		or CombatAutomationMovement.walkBlocked(anchor, dest)
-		or (not cave.haltReached and now > (cave.haltWalkUntil or 0))
-	then
+	elseif CombatAutomationMovement.walkBlocked(anchor, dest) then
 		repickHaltPos(session, cave, anchor, here, now, dest)
-		return
-	end
-	if cave.haltReached and not cave.haltGood and now >= (cave.haltCheckAt or 0) then
-		repickHaltPos(session, cave, anchor, here, now)
 	end
 end
 
@@ -487,8 +437,10 @@ local function tickDetour(cave, anchor, here, now)
 end
 
 --- Advance on reaching (or failing to path to) the walk target; a waypoint that
---- makes no progress for WAYPOINT_STALL_MS while walking alone is skipped.
-local function tickWalk(session, cave, route, anchor, here, now, visible, load)
+--- makes no progress for WAYPOINT_STALL_MS while walking alone is skipped. A hold as
+--- the walk target halts at the best spot near it once the lure is full (walking
+--- straight there), or on reaching it with more than LURE_RESUME_LOAD on screen.
+local function tickWalk(session, cave, route, anchor, here, now, visible, load, lureFull)
 	if cave.detour then
 		tickDetour(cave, anchor, here, now)
 		return
@@ -499,12 +451,14 @@ local function tickWalk(session, cave, route, anchor, here, now, visible, load)
 	end
 	local dist = chebyshev(here, target)
 	local reach = ExpeditionConfig.WAYPOINT_REACH + ExpeditionConfig.WAYPOINT_LOOKAHEAD
-	if dist <= reach or CombatAutomationMovement.walkBlocked(anchor, toPosition(target)) then
-		local fightHere = target.hold and not cave.entryIdx and overResumeLoad(load)
+	local reached = dist <= reach or CombatAutomationMovement.walkBlocked(anchor, toPosition(target))
+	if target.hold and not cave.entryIdx and (lureFull or (reached and overResumeLoad(load))) then
 		advance(session, cave, route, now)
-		if fightHere then
-			enterHalt(session, cave, anchor, now, visible, target)
-		end
+		enterHalt(session, cave, anchor, now, visible, target)
+		return
+	end
+	if reached then
+		advance(session, cave, route, now)
 		return
 	end
 	local progress = cave.progress
@@ -516,36 +470,6 @@ local function tickWalk(session, cave, route, anchor, here, now, visible, load)
 	elseif now - progress.at > ExpeditionConfig.WAYPOINT_STALL_MS then
 		advance(session, cave, route, now)
 	end
-end
-
-local function adjacentEngaged(session, here)
-	local n = 0
-	for mid in pairs(session.engaged) do
-		local monster = Monster(mid)
-		if monster and monster:getHealth() > 0 and chebyshev(monster:getPosition(), here) <= 1 then
-			n = n + 1
-		end
-	end
-	return n
-end
-
-local HALT_DEFER_CHECK_MS = 500
-
---- Lure full but no good halt tile on screen: keep walking the route (no pacing) for
---- up to HALT_DEFER_MS, unless LURE_WAIT_SKIP_ADJACENT monsters already box the anchor.
-local function haltDeferred(session, cave, anchor, here, now)
-	cave.haltDeferSince = cave.haltDeferSince or now
-	if now - cave.haltDeferSince > ExpeditionConfig.HALT_DEFER_MS
-		or adjacentEngaged(session, here) >= ExpeditionConfig.LURE_WAIT_SKIP_ADJACENT
-	then
-		return false
-	end
-	if now < (cave.haltDeferCheckAt or 0) then
-		return true
-	end
-	cave.haltDeferCheckAt = now + HALT_DEFER_CHECK_MS
-	local _, _, ring, unserved = findHaltSpot(session, anchor)
-	return not goodHaltSpot(ring, unserved)
 end
 
 local function trackStill(cave, here, now)
@@ -583,12 +507,12 @@ function ExpeditionCavebot.tick(session, anchor, members)
 		trackFiendishHp(cave, fiendish, now)
 		updateDetour(cave, here, now, fiendish, fiendishInSight)
 		if cave.mode == "halt" then
-			updateHalt(session, cave, anchor, here, now, visible, load, fiendishInSight)
+			updateHalt(session, cave, anchor, here, now, load, fiendishInSight)
 		else
 			local target = ExpeditionCavebot.walkTarget(session)
 			local blocker = target and stillMs >= ExpeditionConfig.BLOCKER_MS and blockerAhead(anchor, here, target)
 			local lureFull = visible >= ExpeditionCavebot.lureMax(session)
-			if fiendishInSight or (lureFull and not haltDeferred(session, cave, anchor, here, now)) then
+			if fiendishInSight then
 				enterHalt(session, cave, anchor, now, visible)
 			elseif blocker then
 				enterBlockerHalt(session, cave, now, blocker)
@@ -598,11 +522,10 @@ function ExpeditionCavebot.tick(session, anchor, members)
 						setMode(cave, "walk")
 					end
 				else
-					cave.haltDeferSince = nil
 					updatePacing(session, cave, here, now, members)
 				end
 				if cave.mode == "walk" then
-					tickWalk(session, cave, route, anchor, here, now, visible, load)
+					tickWalk(session, cave, route, anchor, here, now, visible, load, lureFull)
 				end
 			end
 		end
@@ -615,7 +538,7 @@ function ExpeditionCavebot.tick(session, anchor, members)
 end
 
 --- Directive for the anchor: walk the route (luring), wait for stragglers, or hold
---- a halt. In a halt it walks onto the halt tile and fights from it without chasing
+--- a halt. In a halt it walks straight onto the halt tile and fights from it without chasing
 --- while more than LURE_RESUME_LOAD is on screen; below that it fights with its
 --- normal stance (follow / positioning). A ranged anchor fights with its stance
 --- (distance, kiting, area-spell steps) as soon as it reached the halt tile, or the

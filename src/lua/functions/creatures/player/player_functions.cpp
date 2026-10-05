@@ -160,6 +160,7 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "setHeadless", PlayerFunctions::luaPlayerSetHeadless);
 	Lua::registerMethod(L, "Player", "switchClientTo", PlayerFunctions::luaPlayerSwitchClientTo);
 	Lua::registerMethod(L, "Player", "isInSafeInstance", PlayerFunctions::luaPlayerIsInSafeInstance);
+	Lua::registerMethod(L, "Player", "leavesWhenClientReleased", PlayerFunctions::luaPlayerLeavesWhenClientReleased);
 
 	Lua::registerMethod(L, "Player", "getFreeCapacity", PlayerFunctions::luaPlayerGetFreeCapacity);
 
@@ -1629,6 +1630,20 @@ int PlayerFunctions::luaPlayerIsInSafeInstance(lua_State* L) {
 		return 1;
 	}
 	Lua::pushBoolean(L, player->isInSafeInstance());
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerLeavesWhenClientReleased(lua_State* L) {
+	// player:leavesWhenClientReleased()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::pushBoolean(L, false);
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		return 1;
+	}
+	// Must match the removal rules in Player::sendPing.
+	const bool keptOnline = player->isHeadless() ? !player->isInSafeInstance() : player->staysOnlineWithoutClient();
+	Lua::pushBoolean(L, !keptOnline && player->canLogout());
 	return 1;
 }
 
@@ -3567,14 +3582,18 @@ const std::string kTeamChannelClosedMessage =
 }
 
 int PlayerFunctions::luaPlayerCreateTeamChannel(lua_State* L) {
-	// player:createTeamChannel()
+	// player:createTeamChannel([name])
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (!player) {
 		lua_pushnil(L);
 		return 1;
 	}
 
-	const auto &channel = g_chat().createTeamChannel(player);
+	std::string name;
+	if (lua_gettop(L) >= 2 && !Lua::isNil(L, 2)) {
+		name = Lua::getString(L, 2);
+	}
+	const auto &channel = g_chat().createTeamChannel(player, name);
 	if (!channel || !channel->addUser(player)) {
 		Lua::pushBoolean(L, false);
 		return 1;

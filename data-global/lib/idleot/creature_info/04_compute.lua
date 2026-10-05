@@ -5,7 +5,7 @@ CreatureInfo = CreatureInfo or {}
 
 local CP_RESIST_TAKEN_FLOOR = 0.03
 
--- Defaults; HUNT_LEVEL_FIT weights from 02_levels densityExp / optimize sync.
+-- Defaults; densityExp follows 02_levels HUNT_DENSITY_EXP.
 local DEFAULT_WEIGHTS = {
 	health = 1,
 	heal = 1,

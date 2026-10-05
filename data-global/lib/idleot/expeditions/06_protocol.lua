@@ -168,12 +168,16 @@ function ExpeditionProtocol.sendStatus(player, session)
 		status.bossCreatureId = session.catalog.creatureId
 	end
 	if role == "boss" and session.bossDifficulty ~= nil then
-		status.bossDifficulty = tonumber(session.bossDifficulty) or 0
-		if ExpeditionDifficulty then
-			local levels = ExpeditionDifficulty.levelsForBossDifficulty(session.catalog, status.bossDifficulty)
-			status.bossRequiredLevel = levels and levels.levelMin or nil
-			status.bossCombatPower = levels and levels.combatPower or nil
+		local lever = ExpeditionConfig.bossDifficultyLever(session.catalog)
+		if lever then
+			status.bossDifficulty = tonumber(session.bossDifficulty) or 0
+			status.bossDifficultyMax = BossDifficulty.max(lever)
 		end
+	end
+	-- Relative seconds (not a timestamp) so the client is immune to clock skew.
+	if role == "boss" and session.state == "hunting" and session.bossEndsAt then
+		status.bossRemainingSec = math.max(0, session.bossEndsAt - os.time())
+		status.bossTimeLimitSec = session.bossTimeLimitSec
 	end
 	if role == "monster" and kind ~= "raid" then
 		local lureMax = tonumber(session.lureMax)
@@ -199,7 +203,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 		local acceptedCount = 0
 		for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
 			local p = Player(id)
-			local isCompanion = TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(p)
+			local isCompanion = Alts and Alts.isCompanion and Alts.isCompanion(p)
 			local headless = p and p.isHeadless and p:isHeadless()
 			if p and not isCompanion and not headless then
 				local name = p:getName()
@@ -255,7 +259,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 				maxHealth = p:getMaxHealth(),
 				mana = p:getMana(),
 				maxMana = p:getMaxMana(),
-				companion = TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(p) or false,
+				alt = Alts and Alts.isCompanion and Alts.isCompanion(p) or false,
 			}
 		end
 	end
@@ -363,16 +367,24 @@ function ExpeditionProtocol.handle(player, buffer)
 			tostring(msg.lure or "")
 		)
 		local role = msg.role
-		if role == "boss" and ExpeditionManager.prepareBoss then
+		if msg.scope == "lobby" then
+			-- Lobby starts gather the room first (call / deploy) and then join with scope "lobby".
+			local ok, err = LobbyStart.request(player, { loadout = msg.loadout })
+			if not ok then
+				ExpeditionProtocol.sendError(player, err or "Could not start the lobby.")
+			end
+		elseif role == "boss" and ExpeditionManager.prepareBoss then
 			ExpeditionManager.prepareBoss(player, msg.id, msg.loadout, {
 				stopOnInsufficientGold = msg.stopOnInsufficientGold,
 				stopOnInsufficientCap = msg.stopOnInsufficientCap,
 				bossDifficulty = msg.bossDifficulty,
+				scope = "solo",
 			})
 		else
 			ExpeditionManager.join(player, msg.id, role, msg.loadout, msg.lure, {
 				stopOnInsufficientGold = msg.stopOnInsufficientGold,
 				stopOnInsufficientCap = msg.stopOnInsufficientCap,
+				scope = "solo",
 			})
 		end
 	elseif action == "prepareBoss" then

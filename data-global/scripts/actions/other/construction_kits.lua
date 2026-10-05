@@ -121,9 +121,7 @@ function constructionKit.onUse(player, item, fromPosition, target, toPosition, i
 
 	if fromPosition.x == CONTAINER_POSITION then
 		player:sendTextMessage(MESSAGE_FAILURE, "Put the construction kit on the floor first.")
-	elseif not fromPosition:getTile():getHouse()
-		and not (PlayerHome and PlayerHome.isHouseCapableTile and PlayerHome.isHouseCapableTile(fromPosition:getTile()))
-	then
+	elseif not fromPosition:getTile():getHouse() then
 		player:sendTextMessage(MESSAGE_FAILURE, "You may construct this only inside a house.")
 	else
 		item:transform(ITEM_DECORATION_KIT)

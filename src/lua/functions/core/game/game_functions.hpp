@@ -45,6 +45,7 @@ private:
 	static int luaGameSetInstanceAreaFence(lua_State* L);
 	static int luaGameSetInstancePrivateFence(lua_State* L);
 	static int luaGameClearInstancePrivateFence(lua_State* L);
+	static int luaGameRunInInstance(lua_State* L);
 	static int luaGameCreateInstanceSpawns(lua_State* L);
 	static int luaGameClearInstanceSpawns(lua_State* L);
 	static int luaGameSweepInstance(lua_State* L);
@@ -65,7 +66,6 @@ private:
 
 	static int luaGameGetTowns(lua_State* L);
 	static int luaGameGetHouses(lua_State* L);
-	static int luaGameCreateHouse(lua_State* L);
 
 	static int luaGameGetGameState(lua_State* L);
 	static int luaGameSetGameState(lua_State* L);

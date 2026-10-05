@@ -54,8 +54,8 @@ local function resolveTarget(controller, nameOrGuid)
 	if type(nameOrGuid) == "string" and nameOrGuid:lower() == selfName:lower() then
 		return controller
 	end
-	if TeamStore and TeamStore.resolveAccountMember then
-		local target, err = TeamStore.resolveAccountMember(controller, nameOrGuid)
+	if Alts and Alts.resolveAccountMember then
+		local target, err = Alts.resolveAccountMember(controller, nameOrGuid)
 		if not target then
 			return nil, err or "Character not found."
 		end

@@ -8,6 +8,19 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		ExpeditionProtocol.sendError(player, "You need stamina to enter an expedition.")
 		return
 	end
+	-- scope "lobby": the host's lobby (members in the room + companions) starts together.
+	-- Anything else is a solo run: host only, no companions.
+	if options.scope == "lobby" then
+		local startLobby = EM_PRIV.startLobby(player, options)
+		if not startLobby then
+			ExpeditionProtocol.sendError(player, "Only the lobby host can start a lobby expedition.")
+			return
+		end
+		options.lobbyId = startLobby.id
+	else
+		options.scope = "solo"
+		options.lobbyId = nil
+	end
 	-- Switch leave→join already returned from an active expedition; do not re-check
 	-- combat lock mid-hop. Open-world join: combat lock only (non-PZ uses longer IT).
 	if not options.skipPzCheck then
@@ -24,8 +37,8 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		EM_PRIV.clearActive(player)
 		ExpeditionManager.clearAreaEffects(player)
 		ExpeditionProtocol.sendEnded(player)
-		if TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
-			TeamManager.undeploy(player)
+		if Alts and Alts.getDeployment and Alts.getDeployment(player) then
+			Alts.undeploy(player)
 		end
 	end
 
@@ -54,8 +67,8 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	-- Companion-death races can leave STORAGE_ACTIVE set without a live session.
 	if player:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
 		EM_PRIV.clearActive(player)
-		if TeamManager and TeamManager.undeploy then
-			pcall(TeamManager.undeploy, player)
+		if Alts and Alts.undeploy then
+			pcall(Alts.undeploy, player)
 		end
 		ExpeditionProtocol.sendEnded(player)
 	end
@@ -96,18 +109,6 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		kind = "arena"
 	end
 
-	if contentRole == "boss" and ActivityBoostSoloBoss and ActivityBoostSoloBoss.canJoin then
-		local solo = ActivityBoostSoloBoss.get(player)
-		if solo and tostring(solo.expeditionId) == tostring(catalog.id) then
-			local can, rushErr = ActivityBoostSoloBoss.canJoin(player, catalog.id)
-			if not can then
-				ExpeditionProtocol.sendError(player, rushErr or "Boss Rush unavailable.")
-				return
-			end
-			ActivityBoostSoloBoss.markAttempt(player, catalog.id)
-		end
-	end
-
 	-- Today's Fiendish Hunt offer: forced Fiendish of the offered race; killing it ends the hunt.
 	if contentRole == "monster" and ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.get then
 		local offer = ActivityBoostFiendishHunt.get(player)
@@ -135,6 +136,8 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		local staminaErr = EM_PRIV.partyStaminaError(EM_PRIV.collectStaminaGatePlayers(player, {
 			skipPartyGate = soloOrSwitch,
 			preAcceptedPlayers = options.preAcceptedPlayers,
+			scope = options.scope,
+			lobbyId = options.lobbyId,
 		}))
 		if staminaErr then
 			ExpeditionProtocol.sendError(player, staminaErr)
@@ -150,17 +153,20 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		local route = ExpeditionConfig.caveRoute(catalog)
 		sessionLure = route and route.lure or ExpeditionConfig.lureFromDensity(sessionLureMax)
 	end
+	local bossLever = contentRole == "boss" and ExpeditionConfig.bossLever(catalog) or nil
 	local sessionBossDifficulty = nil
-	if contentRole == "boss" and ExpeditionDifficulty then
-		sessionBossDifficulty = ExpeditionDifficulty.normalizeBossDifficulty(options.bossDifficulty, catalog)
+	if bossLever and BossDifficulty and BossDifficulty.isEnabled(bossLever) then
+		sessionBossDifficulty = BossDifficulty.normalize(bossLever, options.bossDifficulty)
 		local gatePlayers = { player }
-		for _, teammate in ipairs(EM_PRIV.collectExpectedHumanTeammates(player) or {}) do
+		for _, teammate in ipairs(EM_PRIV.collectExpectedHumanTeammates(player, options)) do
 			gatePlayers[#gatePlayers + 1] = teammate
 		end
-		local okDiff, diffErr =
-			ExpeditionDifficulty.canAttemptBossDifficulty(gatePlayers, catalog, sessionBossDifficulty, player)
-		if not okDiff then
-			ExpeditionProtocol.sendError(player, diffErr or "Boss difficulty too high for party.")
+		local maxAllowed = BossDifficulty.groupMax(gatePlayers, bossLever)
+		if sessionBossDifficulty > maxAllowed then
+			ExpeditionProtocol.sendError(
+				player,
+				string.format("Difficulty %d is locked for your team (highest unlocked: %d).", sessionBossDifficulty, maxAllowed)
+			)
 			return
 		end
 	end
@@ -170,10 +176,6 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 			stopOnInsufficientGold = options.stopOnInsufficientGold,
 			stopOnInsufficientCap = options.stopOnInsufficientCap,
 		})
-	end
-
-	if ListingsStore and ListingsStore.hasPendingMembers and ListingsStore.hasPendingMembers(player) then
-		-- Instant join removed pending accepts; ignore leftover pending for Start.
 	end
 
 	-- Capture host world tile before companions spawn at instance entry.
@@ -186,7 +188,8 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		return
 	end
 
-	local instance, err = ExpeditionInstance.build(instanceId, catalog, player:getGuid() + os.time())
+	local instanceSpec = bossLever and ExpeditionConfig.bossLeverInstanceSpec(catalog, bossLever) or catalog
+	local instance, err = ExpeditionInstance.build(instanceId, instanceSpec, player:getGuid() + os.time())
 	if not instance then
 		ExpeditionInstance.free(instanceId)
 		ExpeditionProtocol.sendError(player, err or "Failed to build expedition instance.")
@@ -208,7 +211,8 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		return
 	end
 
-	local expectedTeammates = (soloBoss or options.skipPzCheck) and {} or EM_PRIV.collectExpectedHumanTeammates(player)
+	local expectedTeammates = (soloBoss or options.skipPzCheck) and {}
+		or EM_PRIV.collectExpectedHumanTeammates(player, options)
 	local bossName = nil
 	if contentRole == "boss" then
 		bossName = ExpeditionConfig.bossTypeName(catalog)
@@ -297,15 +301,10 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 				if not options.skipPzCheck then
 					allowed = EM_PRIV.expeditionTeleportCombatOk(teammate) == true
 				end
-				local isReady = ListingsStore
-					and ListingsStore.isMemberReady
-					and ListingsStore.isMemberReady(hostGuid, teammate:getGuid())
-				if isReady and allowed then
+				-- Being inside the lobby room is ready; anyone else gets the accept prompt.
+				if allowed then
 					readyTeammates[#readyTeammates + 1] = teammate
-				elseif allowed then
-					awaitingHumanGuids[teammate:getGuid()] = teammate:getName()
-				elseif isReady and not allowed then
-					-- Ready but not in PZ: fall back to accept modal if they become eligible.
+				else
 					awaitingHumanGuids[teammate:getGuid()] = teammate:getName()
 				end
 			end
@@ -319,6 +318,8 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		companionIds = companionIds,
 		guid = hostGuid,
 		memberGuids = memberGuids,
+		scope = options.scope,
+		lobbyId = options.lobbyId,
 		catalog = catalog,
 		kind = kind,
 		role = contentRole,
@@ -366,15 +367,17 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 
 	-- Auto-pull Ready members (skip accept modal). Attach silently, then enter or wait.
 	for _, teammate in ipairs(readyTeammates) do
-		if TeamManager and TeamManager.forceJoinFriendToParty then
-			pcall(TeamManager.forceJoinFriendToParty, player, teammate)
+		if Alts and Alts.forceJoinToParty then
+			pcall(Alts.forceJoinToParty, player, teammate)
 		end
 		ExpeditionManager.attachFriendToSession(teammate, session, player, { skipMaybeStart = true })
 		teammate:sendTextMessage(
 			MESSAGE_EVENT_ADVANCE,
-			string.format("You were Ready — joining %s's expedition: %s.", player:getName(), catalog.name)
+			string.format("Joining %s's lobby expedition: %s.", player:getName(), catalog.name)
 		)
 	end
+
+	EM_PRIV.notifyLobbies(ExpeditionManager.sessionMemberIds(session))
 
 	if EM_PRIV.awaitingHumanCount(session) > 0 then
 		EM_PRIV.armAcceptTimeout(session)
@@ -462,6 +465,8 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 		companionIds = {},
 		guid = hostGuid,
 		memberGuids = {},
+		scope = snapshot.scope,
+		lobbyId = tonumber(snapshot.lobbyId),
 		catalog = catalog,
 		kind = "hunt",
 		role = contentRole,
@@ -594,7 +599,7 @@ function EM_PRIV.startRestoredHuntOnStartup(session, snapshot)
 	if hostGuid <= 0 then
 		return false
 	end
-	local offlineHost = TeamStore and TeamStore.resolvePlayerByGuid and TeamStore.resolvePlayerByGuid(hostGuid)
+	local offlineHost = Alts and Alts.resolvePlayerByGuid and Alts.resolvePlayerByGuid(hostGuid)
 	if not offlineHost then
 		logger.warn(
 			"[ExpeditionPersist] startup start failed for {}: host guid {} unavailable",
@@ -727,11 +732,11 @@ function EM_PRIV.startRestoredHuntOnStartup(session, snapshot)
 	end
 
 	local function deployCompanionsThenFinish(headlessHost)
-		if not TeamManager or not TeamManager.deploy then
+		if not Alts or not Alts.deploy then
 			finishRestoredHunt(headlessHost, {})
 			return
 		end
-		TeamManager.deploy(headlessHost, {
+		Alts.deploy(headlessHost, {
 			position = spawnPos,
 			instanceId = instanceId,
 			companionsOnly = true,
@@ -873,8 +878,8 @@ function ExpeditionManager.attachPlayerToRunningHunt(player)
 		session.memberGuids[playerGuid] = player:getId()
 	else
 		local host = session.playerId and Player(session.playerId) or nil
-		if not host and hostGuid > 0 and TeamStore and TeamStore.findOnlinePlayerByGuid then
-			host = TeamStore.findOnlinePlayerByGuid(hostGuid)
+		if not host and hostGuid > 0 and Alts and Alts.findOnlinePlayerByGuid then
+			host = Alts.findOnlinePlayerByGuid(hostGuid)
 		end
 		if ExpeditionManager.getSessionByPlayer(player) then
 			-- already registered
@@ -1078,10 +1083,30 @@ function ExpeditionManager.startExpeditionEntry(session)
 			return
 		end
 
+		-- Lobby starts deploy companions into the lobby room first; they channel with the humans.
+		local lobbyScoped = s.scope == "lobby" and not soloBoss
+		local preDeployed = nil
+		if lobbyScoped and Alts and Alts.getDeployment then
+			local dep = Alts.getDeployment(liveHost)
+			if dep then
+				preDeployed = {}
+				for _, id in ipairs(dep.companionIds or {}) do
+					local c = Player(id)
+					if c and c:getHealth() > 0 then
+						preDeployed[#preDeployed + 1] = c
+					end
+				end
+				registerDeployedCompanions(s, liveHost, preDeployed, {
+					loadout = loadout,
+					hostWorldPos = hostWorldPos,
+				})
+			end
+		end
+
 		local memberIds = {}
 		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s)) do
 			local p = Player(mid)
-			if p and not EM_PRIV.isSessionCompanion(s, p) then
+			if p and (preDeployed or not EM_PRIV.isSessionCompanion(s, p)) then
 				memberIds[#memberIds + 1] = mid
 			end
 		end
@@ -1106,7 +1131,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 			ExpeditionManager.broadcastStatus(live)
 		end
 
-		local needDeploy = not soloBoss and TeamManager and TeamManager.deploy
+		local needDeploy = lobbyScoped and not preDeployed and Alts and Alts.deploy
 
 		-- Expedition switch: the change already channeled before the old hunt ended.
 		if skipEntryChannel then
@@ -1114,7 +1139,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 				doEnter(s, liveHost)
 				return
 			end
-			TeamManager.deploy(liveHost, {
+			Alts.deploy(liveHost, {
 				position = instance.entry,
 				instanceId = instance.instanceId,
 				companionsOnly = true,
@@ -1185,7 +1210,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 			return
 		end
 
-		TeamManager.deploy(liveHost, {
+		Alts.deploy(liveHost, {
 			position = instance.entry,
 			instanceId = instance.instanceId,
 			companionsOnly = true,
@@ -1287,16 +1312,33 @@ function ExpeditionManager.cancelWaitingSession(session, reason)
 			p:unregisterEvent("ExpeditionPlayerDeath")
 		end
 	end
-	if TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(Player(session.playerId)) then
+	if Alts and Alts.getDeployment and Alts.getDeployment(Player(session.playerId)) then
 		local host = Player(session.playerId)
 		if host then
-			TeamManager.undeploy(host)
+			Alts.undeploy(host)
 		end
 	end
 	ExpeditionManager.teardownSession(session)
 end
 
---- Invite online team friends / listing members to join this hunt/boss session (accept → auto-party + enter).
+--- Lobby mates (or party members) of `host` may join its waiting expedition.
+function EM_PRIV.isStartTeammate(host, player)
+	if not host or not player then
+		return false
+	end
+	if LobbyManager and LobbyManager.isLobbyMate and LobbyManager.isLobbyMate(host, player) then
+		return true
+	end
+	local party = host:getParty()
+	for _, member in ipairs(party and party:getMembers() or {}) do
+		if member and member:getId() == player:getId() then
+			return true
+		end
+	end
+	return false
+end
+
+--- Prompt awaiting lobby teammates to join this hunt/boss session (accept -> auto-party + enter).
 function ExpeditionManager.inviteTeamFriends(host, session)
 	if not host or not session then
 		return
@@ -1313,93 +1355,37 @@ function ExpeditionManager.inviteTeamFriends(host, session)
 	local timeoutSec = math.max(5, math.floor(tonumber(ExpeditionConfig.TEAM_ACCEPT_TIMEOUT_SEC) or 45))
 	local expires = session.acceptDeadline or (os.time() + timeoutSec)
 
-	local inviteNames = {}
-	local seen = {}
-	local function pushName(name)
-		name = tostring(name or "")
-		if name == "" then
-			return
-		end
-		local key = name:lower()
-		if seen[key] then
-			return
-		end
-		seen[key] = true
-		inviteNames[#inviteNames + 1] = name
-	end
-
-	if TeamStore and TeamStore.getFriendNames then
-		for _, name in ipairs(TeamStore.getFriendNames(host)) do
-			pushName(name)
-		end
-	end
-	if ListingsStore and ListingsStore.getAcceptedMemberNames then
-		for _, name in ipairs(ListingsStore.getAcceptedMemberNames(host:getGuid())) do
-			pushName(name)
-		end
-	end
-	local party = host:getParty()
-	if party then
-		local leader = party:getLeader()
-		if leader and leader:getId() == host:getId() then
-			for _, member in ipairs(party:getMembers() or {}) do
-				if member then
-					pushName(member:getName())
-				end
-			end
-		end
-	end
-
-	for _, name in ipairs(inviteNames) do
-		local friend = Player(name)
-		if friend and friend:getId() ~= host:getId() then
-			if session.awaitingHumanGuids and not session.awaitingHumanGuids[friend:getGuid()] then
-				-- Not part of this team start.
-			elseif ExpeditionManager.getSessionByPlayer(friend) then
-				-- Already on an expedition.
-			else
-				local allowed = false
-				if TeamStore and TeamStore.isFriend and TeamStore.isFriend(host, friend:getGuid()) then
-					allowed = true
-				elseif ListingsStore and ListingsStore.isListingMember and ListingsStore.isListingMember(host:getGuid(), friend:getGuid()) then
-					allowed = true
-				elseif party then
-					for _, member in ipairs(party:getMembers() or {}) do
-						if member and member:getId() == friend:getId() then
-							allowed = true
-							break
-						end
-					end
-				end
-				if allowed then
-					EM_PRIV.teamInvitesByFriendGuid[friend:getGuid()] = {
-						hostGuid = host:getGuid(),
-						hostName = host:getName(),
-						sessionKey = session.key,
-						expeditionId = expeditionId,
-						expeditionName = expeditionName,
-						expires = expires,
-					}
-					ExpeditionProtocol.send(friend, {
-						type = "teamExpeditionInvite",
-						hostName = host:getName(),
-						hostGuid = host:getGuid(),
-						expeditionId = expeditionId,
-						expeditionName = expeditionName,
-						expires = expires,
-						acceptDeadline = expires,
-						acceptTimeoutSec = timeoutSec,
-					})
-					friend:sendTextMessage(
-						MESSAGE_EVENT_ADVANCE,
-						string.format(
-							"%s invited you to expedition: %s. Accept from the notification on the left.",
-							host:getName(),
-							expeditionName
-						)
-					)
-				end
-			end
+	for guid in pairs(session.awaitingHumanGuids or {}) do
+		local friend = Player(guid)
+		if friend and friend:getId() ~= host:getId() and not ExpeditionManager.getSessionByPlayer(friend)
+			and EM_PRIV.isStartTeammate(host, friend)
+		then
+			EM_PRIV.teamInvitesByFriendGuid[friend:getGuid()] = {
+				hostGuid = host:getGuid(),
+				hostName = host:getName(),
+				sessionKey = session.key,
+				expeditionId = expeditionId,
+				expeditionName = expeditionName,
+				expires = expires,
+			}
+			ExpeditionProtocol.send(friend, {
+				type = "teamExpeditionInvite",
+				hostName = host:getName(),
+				hostGuid = host:getGuid(),
+				expeditionId = expeditionId,
+				expeditionName = expeditionName,
+				expires = expires,
+				acceptDeadline = expires,
+				acceptTimeoutSec = timeoutSec,
+			})
+			friend:sendTextMessage(
+				MESSAGE_EVENT_ADVANCE,
+				string.format(
+					"%s invited you to expedition: %s. Accept from the notification on the left.",
+					host:getName(),
+					expeditionName
+				)
+			)
 		end
 	end
 end
@@ -1484,25 +1470,10 @@ function ExpeditionManager.acceptTeamInvite(player)
 		return
 	end
 
-	local allowed = false
-	if TeamStore and TeamStore.isFriend and TeamStore.isFriend(host, player:getGuid()) then
-		allowed = true
-	elseif ListingsStore and ListingsStore.isListingMember and ListingsStore.isListingMember(host:getGuid(), player:getGuid()) then
-		allowed = true
-	else
-		local party = host:getParty()
-		if party then
-			for _, member in ipairs(party:getMembers() or {}) do
-				if member and member:getId() == player:getId() then
-					allowed = true
-					break
-				end
-			end
-		end
-	end
+	local allowed = EM_PRIV.isStartTeammate(host, player)
 	if not allowed then
 		EM_PRIV.teamInvitesByFriendGuid[player:getGuid()] = nil
-		ExpeditionProtocol.sendError(player, "Only friends or listing members can join this team expedition.")
+		ExpeditionProtocol.sendError(player, "Only lobby members can join this expedition.")
 		return
 	end
 
@@ -1523,8 +1494,8 @@ function ExpeditionManager.acceptTeamInvite(player)
 		end
 	end
 
-	if TeamManager and TeamManager.forceJoinFriendToParty then
-		local ok, err = TeamManager.forceJoinFriendToParty(host, player)
+	if Alts and Alts.forceJoinToParty then
+		local ok, err = Alts.forceJoinToParty(host, player)
 		if not ok then
 			ExpeditionProtocol.sendError(player, err or "Failed to join expedition party.")
 			return
@@ -1781,6 +1752,7 @@ function EM_PRIV.removeHuntMember(session, player, opts)
 		ExpeditionProtocol.sendEnded(player)
 	end
 	EM_PRIV.syncHuntPersist(session)
+	EM_PRIV.notifyLobbies({ playerId })
 end
 
 function EM_PRIV.cancelTeardownEvent(session)
@@ -1816,6 +1788,7 @@ function EM_PRIV.cleanupSession(session, player, opts)
 		return
 	end
 	session._cleaned = true
+	EM_PRIV.notifyLobbies(EM_PRIV.sessionMemberIds(session))
 	EM_PRIV.cancelTeardownEvent(session)
 	ExpeditionAI.stop(session)
 	if session.kind == "arena" or session.role == "arena" then

@@ -38,8 +38,8 @@ local function ensureBoostDay(player)
 		-- Drop legacy keys from the previous boolean-completion design.
 		store:remove("completed")
 		store:remove("worldBossFragged")
+		store:remove("soloBoss")
 		ActivityBoostLedger.resetDailyEarned(player)
-		ActivityBoostSoloBoss.resetForNewDay(player)
 		ActivityBoostFiendishHunt.resetForNewDay(player)
 	end
 	return store

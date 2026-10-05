@@ -17,12 +17,12 @@ function PzTeleport.isGod(player)
 	return group:getId() == godId
 end
 
---- True if standing on a PZ tile or inside a personal home instance.
+--- True if standing on a PZ tile or inside a lobby room.
 function PzTeleport.isInSafeZone(player)
 	if not player then
 		return false
 	end
-	if PlayerHomeManager and PlayerHomeManager.isPlayerInHome and PlayerHomeManager.isPlayerInHome(player) then
+	if LobbyInstance and LobbyInstance.roomForPlayer(player) then
 		return true
 	end
 	local tile = Tile(player:getPosition())

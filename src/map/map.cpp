@@ -20,7 +20,6 @@
 #include "creatures/monsters/monster.hpp"
 #include "creatures/players/player.hpp"
 #include "game/game.hpp"
-#include "map/house/housetile.hpp"
 #include "game/scheduling/dispatcher.hpp"
 #include "game/zones/zone.hpp"
 #include "io/iomap.hpp"
@@ -192,62 +191,6 @@ std::shared_ptr<Tile> Map::getOrCreateTile(uint16_t x, uint16_t y, uint8_t z, bo
 	}
 
 	return tile;
-}
-
-std::shared_ptr<HouseTile> Map::getOrCreateHouseTile(const Position &pos, const std::shared_ptr<House> &house) {
-	if (!house) {
-		return nullptr;
-	}
-
-	const auto &existingTile = getTile(pos);
-	if (existingTile) {
-		if (const auto &houseTile = std::dynamic_pointer_cast<HouseTile>(existingTile)) {
-			if (houseTile->getHouse() == house) {
-				return houseTile;
-			}
-			g_logger().error(
-				"[Map::getOrCreateHouseTile] position {} already belongs to house {}",
-				pos.toString(),
-				houseTile->getHouse()->getId()
-			);
-			return nullptr;
-		}
-	}
-
-	std::vector<std::shared_ptr<Item>> itemsToMove;
-	std::vector<std::shared_ptr<Creature>> creaturesToMove;
-	if (existingTile) {
-		if (const auto &ground = existingTile->getGround()) {
-			itemsToMove.push_back(ground);
-		}
-		if (const TileItemVector *items = existingTile->getItemList()) {
-			for (const auto &item : *items) {
-				if (item && item != existingTile->getGround()) {
-					itemsToMove.push_back(item);
-				}
-			}
-		}
-		if (const CreatureVector *creatures = existingTile->getCreatures()) {
-			for (const auto &creature : *creatures) {
-				if (creature) {
-					creaturesToMove.push_back(creature);
-				}
-			}
-		}
-	}
-
-	const auto houseTile = std::make_shared<HouseTile>(pos, house);
-	setTile(pos.x, pos.y, pos.z, houseTile);
-	house->addTile(houseTile);
-
-	for (const auto &item : itemsToMove) {
-		houseTile->internalAddThing(0, item);
-	}
-	for (const auto &creature : creaturesToMove) {
-		houseTile->internalAddThing(0, creature);
-	}
-
-	return houseTile;
 }
 
 std::shared_ptr<Tile> Map::getLoadedTile(uint16_t x, uint16_t y, uint8_t z) {

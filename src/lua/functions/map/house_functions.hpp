@@ -61,12 +61,4 @@ private:
 
 	static int luaHouseKickPlayer(lua_State* L);
 	static int luaHouseIsInvited(lua_State* L);
-
-	static int luaHouseSetEphemeral(lua_State* L);
-	static int luaHouseSetName(lua_State* L);
-	static int luaHouseSetSize(lua_State* L);
-	static int luaHouseSetEntryPosition(lua_State* L);
-	static int luaHouseAddTile(lua_State* L);
-	static int luaHouseSetInstanceOwner(lua_State* L);
-	static int luaHouseClearInstanceOwner(lua_State* L);
 };

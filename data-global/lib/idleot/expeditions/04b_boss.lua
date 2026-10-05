@@ -20,6 +20,10 @@ local function clearDespawn(session)
 		stopEvent(session.despawnEvent)
 		session.despawnEvent = nil
 	end
+	if session then
+		session.bossEndsAt = nil
+		session.bossTimeLimitSec = nil
+	end
 end
 
 --- HEALTHCHANGE kill-gates only (phase transforms must stay registered).
@@ -92,6 +96,9 @@ function ExpeditionBoss.hasKillGates(monster, _opts)
 end
 
 function ExpeditionBoss.ensureKillableSession(session)
+	if ExpeditionConfig.bossLever(session and session.catalog) then
+		return false
+	end
 	local boss = ExpeditionBoss.getBoss(session)
 	if not boss or not ExpeditionBoss.hasKillGates(boss) then
 		return false
@@ -99,16 +106,25 @@ function ExpeditionBoss.ensureKillableSession(session)
 	return ExpeditionBoss.ensureKillable(boss)
 end
 
+local function sessionLever(session)
+	return session and session.catalog and ExpeditionConfig.bossLever(session.catalog) or nil
+end
+
 --- Phase transforms remove+recreate the monster; re-bind ownership to the new form.
+--- Lever fights run in the lever's own arena, so its kill-gates stay and forms fought
+--- together keep their owner entries.
 function ExpeditionBoss.bindBoss(session, monster)
 	if not session or not monster then
 		return false
 	end
 	local mid = monster:getId()
-	-- Drop stale owner entries for this session (previous phase creature ids).
-	for id, ownerKey in pairs(bossOwners) do
-		if ownerKey == session.key and id ~= mid then
-			bossOwners[id] = nil
+	local lever = sessionLever(session)
+	if not lever then
+		-- Drop stale owner entries for this session (previous phase creature ids).
+		for id, ownerKey in pairs(bossOwners) do
+			if ownerKey == session.key and id ~= mid then
+				bossOwners[id] = nil
+			end
 		end
 	end
 	bossOwners[mid] = session.key
@@ -116,7 +132,9 @@ function ExpeditionBoss.bindBoss(session, monster)
 	session.alive = 1
 	session.phaseTransform = nil
 	monster:registerEvent("ExpeditionMonsterDeath")
-	ExpeditionBoss.ensureKillable(monster)
+	if not lever then
+		ExpeditionBoss.ensureKillable(monster)
+	end
 	return true
 end
 
@@ -150,6 +168,29 @@ function ExpeditionBoss.onPhaseSpawned(monster)
 		end
 	end
 	return false
+end
+
+--- BossLever:spawnForm hook: later forms of a chained lever fight join the session
+--- running that lever in the form's instance.
+local function onLeverFormSpawned(monster, lever)
+	if not monster or not monster.getInstanceId or not ExpeditionManager then
+		return
+	end
+	local instanceId = monster:getInstanceId()
+	if not instanceId or instanceId == 0 then
+		return
+	end
+	local session = ExpeditionManager.getSessionByInstanceId(instanceId)
+	if session and session.state == "hunting" and sessionLever(session) == lever then
+		ExpeditionBoss.bindBoss(session, monster)
+	end
+end
+
+if BossLever and BossLever.addPhaseHook and not ExpeditionBoss.leverHookAdded then
+	ExpeditionBoss.leverHookAdded = true
+	BossLever.addPhaseHook(function(monster, lever)
+		onLeverFormSpawned(monster, lever)
+	end)
 end
 
 function ExpeditionBoss.rebindBossIfNeeded(session)
@@ -210,15 +251,47 @@ local function bossSpawnPos(session)
 	return pos or ExpeditionInstance.randomWalkable(session.instance, nil, reserved)
 end
 
+--- Drop the arena's remaining monsters (crew, adds, respawns) once the fight is over;
+--- player summons stay. Deferred so the dying boss finishes its own death scripts.
+local function clearArena(session)
+	local instanceId = session.instance and session.instance.instanceId
+	if not instanceId or instanceId == 0 or not Game.getMonsters then
+		return
+	end
+	addEvent(function()
+		if Game.clearInstanceSpawns then
+			Game.clearInstanceSpawns(instanceId)
+		end
+		for _, monster in ipairs(Game.getMonsters()) do
+			if monster:getInstanceId() == instanceId and monster:getHealth() > 0 then
+				local master = monster:getMaster()
+				if not (master and master:isPlayer()) then
+					monster:remove()
+				end
+			end
+		end
+	end, SCHEDULER_MIN_TICKS or 50)
+end
+
 --- Shared overtime / victory end: loot delay then leave (or teardown if everyone offline).
 local function finishBoss(session, opts)
 	opts = opts or {}
 	local victory = opts.victory == true
+	local lever = sessionLever(session)
 
 	clearDespawn(session)
+	clearArena(session)
+	for mid, ownerKey in pairs(bossOwners) do
+		if ownerKey == session.key then
+			bossOwners[mid] = nil
+		end
+	end
 	session.alive = 0
 	session.bossCreatureId = nil
 	session.state = "waiting"
+	if lever and session.instance then
+		lever:clearEncounter(session.instance.instanceId)
+	end
 	ExpeditionManager.broadcastStatus(session)
 
 	local midMsg = victory and "Boss defeated! Looting..." or "Time expired! Expedition failed."
@@ -231,19 +304,11 @@ local function finishBoss(session, opts)
 			member:setTarget(nil)
 			member:sendTextMessage(MESSAGE_EVENT_ADVANCE, midMsg)
 			ExpeditionConfig.clearBossAttempt(member)
-			if victory and ExpeditionDifficulty and ExpeditionDifficulty.unlockBossDifficulty then
-				ExpeditionDifficulty.unlockBossDifficulty(member, session.catalog, session.bossDifficulty or 0)
+			if victory and lever and session.bossDifficulty and BossDifficulty then
+				BossDifficulty.unlock(member, lever, session.bossDifficulty)
 			end
 			if victory and ActivityBoostActivities and ActivityBoostActivities.onBossExpeditionVictory then
 				pcall(ActivityBoostActivities.onBossExpeditionVictory, member, session)
-			end
-			if victory and ActivityBoostSoloBoss and ActivityBoostSoloBoss.onBossClear then
-				local clearSec = 0
-				if session.startedAt then
-					clearSec = math.max(0, os.time() - session.startedAt)
-				end
-				local expeditionId = session.catalog and session.catalog.id
-				pcall(ActivityBoostSoloBoss.onBossClear, member, expeditionId, clearSec)
 			end
 		end
 	end
@@ -266,9 +331,12 @@ function ExpeditionBoss.scheduleDespawn(session)
 	end
 	clearDespawn(session)
 	local key = session.key
-	local sec = ExpeditionConfig.bossTimeToDefeatSec and ExpeditionConfig.bossTimeToDefeatSec()
+	local sec = ExpeditionConfig.bossTimeToDefeatSec and ExpeditionConfig.bossTimeToDefeatSec(sessionLever(session))
 		or ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC
 		or (20 * 60)
+	sec = math.floor(sec)
+	session.bossTimeLimitSec = sec
+	session.bossEndsAt = os.time() + sec
 	session.despawnEvent = addEvent(function()
 		local s = ExpeditionManager.getSessionByKey(key)
 		if not s or s.state ~= "hunting" then
@@ -293,7 +361,70 @@ function ExpeditionBoss.scheduleDespawn(session)
 			end
 		end
 		finishBoss(s, { victory = false })
-	end, math.floor(sec) * 1000)
+	end, sec * 1000)
+end
+
+local function isLeverBossMonster(monster, lever)
+	local name = monster:getName():lower()
+	if name == lever.name or lever:isFinalBoss(name) then
+		return true
+	end
+	local mType = monster:getType()
+	return mType and mType.isRewardBoss and mType:isRewardBoss() or false
+end
+
+--- Run the lever's own spawn inside the private instance and bind what it created.
+local function materializeLever(session, lever)
+	local instanceId = session.instance.instanceId
+	local ok, spawned = lever:startEncounter({
+		instanceId = instanceId,
+		difficulty = session.bossDifficulty,
+		playerIds = ExpeditionManager.sessionMemberIds(session),
+	})
+	if not ok then
+		return
+	end
+	-- createFunction levers may return any of their spawns (`a and b and c` yields the
+	-- last one, e.g. Ratmiral's Weak Spot) or none, so bind lever bosses from the arena.
+	local bosses, primary = {}, nil
+	local fallback = nil
+	local seen = {}
+	local function consider(monster, returned)
+		if not monster or monster:getHealth() <= 0 or seen[monster:getId()] then
+			return
+		end
+		seen[monster:getId()] = true
+		if not isLeverBossMonster(monster, lever) then
+			if returned then
+				fallback = fallback or monster
+			end
+			return
+		end
+		local name = monster:getName():lower()
+		if not primary and (name == lever.name or lever:isFinalBoss(name)) then
+			primary = monster
+		else
+			bosses[#bosses + 1] = monster
+		end
+	end
+	for _, monster in ipairs(spawned) do
+		consider(monster, true)
+	end
+	if Game.getMonsters then
+		for _, monster in ipairs(Game.getMonsters()) do
+			if monster:getInstanceId() == instanceId then
+				consider(monster)
+			end
+		end
+	end
+	-- Primary binds last so the HUD tracks it (bindBoss keeps the latest as bossCreatureId).
+	bosses[#bosses + 1] = primary
+	for _, monster in ipairs(bosses) do
+		ExpeditionBoss.bindBoss(session, monster)
+	end
+	if session.alive == 0 and fallback then
+		ExpeditionBoss.bindBoss(session, fallback)
+	end
 end
 
 local function materialize(session, planned)
@@ -302,6 +433,11 @@ local function materialize(session, planned)
 	session.state = "hunting"
 	session.bossCreatureId = nil
 
+	local lever = sessionLever(session)
+	if lever then
+		materializeLever(session, lever)
+		planned = {}
+	end
 	for _, entry in ipairs(planned) do
 		local monster = ExpeditionInstance.createMonsterExclusive
 				and ExpeditionInstance.createMonsterExclusive(entry.name, entry.pos, session.instance)
@@ -309,7 +445,6 @@ local function materialize(session, planned)
 		if monster then
 			monster:runHealth(0)
 			ExpeditionBoss.bindBoss(session, monster)
-			ExpeditionDifficulty.applyBossScale(monster, session)
 		else
 			logger.warn("[Expedition] failed to create boss '{}' at {}", entry.name, entry.pos)
 		end
@@ -368,6 +503,20 @@ function ExpeditionBoss.spawn(session)
 	if (not raceId or raceId <= 0) and type(session.catalog.creatureIds) == "table" then
 		raceId = session.catalog.creatureIds[1]
 	end
+
+	local lever = sessionLever(session)
+	if lever then
+		local flashPos = lever.bossPosition or session.instance.entry
+		session.wave = 1
+		session.state = "waiting"
+		session.alive = 0
+		session.bossCreatureId = nil
+		session.bossRaceId = raceId
+		ExpeditionManager.broadcastStatus(session)
+		local durationMs, _, intervalMs = preSpawnDurationMs()
+		schedulePreSpawn(session.key, { { name = lever.name, pos = Position(flashPos.x, flashPos.y, flashPos.z) } }, durationMs, intervalMs)
+		return
+	end
 	-- Prefer catalog.name so shared bosstiary race ids (multi-phase forms) spawn the right type.
 	local bossName = ExpeditionConfig.monsterNameByCreatureId(nil, session.catalog.name)
 		or ExpeditionConfig.monsterNameByCreatureId(raceId, session.catalog.name)
@@ -414,45 +563,75 @@ function ExpeditionBoss.spawn(session)
 	schedulePreSpawn(session.key, planned, durationMs, intervalMs)
 end
 
+--- Lever boss session fighting in `creature`'s instance when `creature` is that lever's
+--- final boss (covers forms the session never bound, e.g. script-respawned ones).
+local function unownedFinalBossSession(creature)
+	if not creature.getInstanceId or not ExpeditionManager.getSessionByInstanceId then
+		return nil
+	end
+	local session = ExpeditionManager.getSessionByInstanceId(creature:getInstanceId())
+	if not session or session.state ~= "hunting" then
+		return nil
+	end
+	local lever = sessionLever(session)
+	if lever and lever:isFinalBoss(creature:getName()) then
+		return session
+	end
+	return nil
+end
+
 function ExpeditionBoss.onMonsterDeath(creature, corpse)
 	if not creature then
 		return false
 	end
 	local monsterId = creature:getId()
 	local key = bossOwners[monsterId]
-	if not key then
-		return false
+	local session = nil
+	if key then
+		bossOwners[monsterId] = nil
+		session = ExpeditionManager.getSessionByKey(key)
+		if not session then
+			return true
+		end
+	else
+		session = unownedFinalBossSession(creature)
+		if not session then
+			return false
+		end
+		key = session.key
 	end
-	bossOwners[monsterId] = nil
-
-	local session = ExpeditionManager.getSessionByKey(key)
-	if not session then
-		return true
-	end
-
-	-- Phase swaps use creature:remove() and never reach onDeath. Real deaths run
-	-- dropCorpse → onDeath(corpse). Only end the expedition when a body is placed
-	-- (e.g. Urmahlullu Weakened has a corpse; mid-forms have corpse = 0).
-	if not corpse then
+	if session.bossCreatureId == monsterId then
 		session.bossCreatureId = nil
-		session.alive = 0
-		addEvent(function()
-			local s = ExpeditionManager.getSessionByKey(key)
-			if not s or s.state ~= "hunting" then
-				return
-			end
-			if ExpeditionBoss.rebindBossIfNeeded(s) then
-				return
-			end
-			-- True death with no corpse item (monster.corpse = 0): still complete.
-			s.kills = (s.kills or 0) + 1
-			finishBoss(s, { victory = true })
-		end, SCHEDULER_MIN_TICKS or 50)
-		return true
 	end
 
-	session.kills = (session.kills or 0) + 1
-	finishBoss(session, { victory = true })
+	local lever = sessionLever(session)
+	if lever then
+		if lever:isFinalBoss(creature:getName()) then
+			session.kills = (session.kills or 0) + 1
+			finishBoss(session, { victory = true })
+			return true
+		end
+		-- Chained fights continue until the final form dies; its spawn rebinds the session.
+		if lever:isChained() then
+			return true
+		end
+	end
+
+	-- Every bound boss must die. Phase swaps either remove() the old form (never reaching
+	-- onDeath) or kill a corpse-less mid-form and spawn the next one, so check on the
+	-- next tick whether any boss (or a same-race replacement form) is still alive.
+	session.alive = 0
+	addEvent(function()
+		local s = ExpeditionManager.getSessionByKey(key)
+		if not s or s.state ~= "hunting" then
+			return
+		end
+		if ExpeditionBoss.rebindBossIfNeeded(s) then
+			return
+		end
+		s.kills = (s.kills or 0) + 1
+		finishBoss(s, { victory = true })
+	end, SCHEDULER_MIN_TICKS or 50)
 	return true
 end
 
@@ -467,6 +646,10 @@ function ExpeditionBoss.clear(session)
 	clearDespawn(session)
 	if session.instance and session.instance.zone then
 		session.instance.zone:removeMonsters()
+	end
+	local lever = sessionLever(session)
+	if lever and session.instance then
+		lever:clearEncounter(session.instance.instanceId)
 	end
 	for mid, key in pairs(bossOwners) do
 		if key == session.key then

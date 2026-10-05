@@ -52,12 +52,12 @@ ExpeditionConfig.TEAM_ACCEPT_TIMEOUT_SEC = 45
 ExpeditionConfig.RELEASE_RADIUS = 18
 -- Engaged monsters that make no progress toward the party for this long stop being tracked.
 ExpeditionConfig.PULL_STALL_MS = 8000
--- Dynamic lure: walking the cave route, the anchor halts once lure * LURE_STOP_FACTOR
--- monsters are on its screen. `cave.lure` counts spawns seen over a whole lure walk
--- (it also sets hunt levels); the party kills on the way, so only about half of that
--- is ever on screen at once.
+-- Dynamic lure: walking the cave route, once lure * LURE_STOP_FACTOR monsters are on
+-- its screen the anchor stops waiting for stragglers and halts at the next hold.
+-- `cave.lure` counts spawns seen over a whole lure walk (it also sets hunt levels);
+-- the party kills on the way, so only about half of that is ever on screen at once.
 ExpeditionConfig.LURE_STOP_FACTOR = 0.5
--- A halt (pack or hold) walks on (still attacking) once the monsters on screen add up
+-- A halt walks on (still attacking) once the monsters on screen add up
 -- to at most this many full-health monsters: the sum of their health fractions, so 1
 -- can be one untouched monster or two at half health.
 ExpeditionConfig.LURE_RESUME_LOAD = 1
@@ -66,18 +66,11 @@ ExpeditionConfig.HALT_STUCK_MS = 20000
 -- Lure-hunt monsters keep chasing a target they already have this many sqm past their
 -- normal sight, so trailing monsters follow the anchor to the next halt.
 ExpeditionConfig.TARGET_KEEP_SQM = 4
--- A halt walks to the best reachable fight tile on screen; it picks again when not
--- there within LURE_WAIT_MS * 2 plus this much per tile of distance (or the path fails).
-ExpeditionConfig.HALT_WALK_MS_PER_SQM = 400
--- Good halt tile: at least HALT_MIN_RING standable tiles around it (room for the
--- monster ring) and a slot every member can walk to around the filled 3x3 (the box
--- does not seal a corridor). With none on screen the anchor keeps luring along the
--- route for up to HALT_DEFER_MS (never with LURE_WAIT_SKIP_ADJACENT monsters adjacent).
-ExpeditionConfig.HALT_MIN_RING = 7
-ExpeditionConfig.HALT_DEFER_MS = 6000
--- Halted on a poor tile: look for a reachable better one this often. A halt moves to a
--- new tile at most HALT_REPICK_MAX times, then fights where it stands.
-ExpeditionConfig.HALT_RECHECK_MS = 1500
+-- A halt walks straight to the best fight tile (AnchorSpot terrain score, the one
+-- generation placed the hold with) within this many walking steps of the hold.
+ExpeditionConfig.HALT_SPOT_STEPS = 3
+-- A halt tile the anchor cannot path to is replaced by the next best near the hold at
+-- most HALT_REPICK_MAX times, then it fights where it stands.
 ExpeditionConfig.HALT_REPICK_MAX = 4
 -- Blocker rule: the anchor stands still this long with an
 -- attackable monster in the way of its next waypoint → halt and kill it.
@@ -712,7 +705,10 @@ function ExpeditionConfig.cavePreview(route)
 end
 
 --- Boss lever timeToDefeat (Crystal bossDefaultTimeToDefeat), in seconds.
-function ExpeditionConfig.bossTimeToDefeatSec()
+function ExpeditionConfig.bossTimeToDefeatSec(lever)
+	if lever and tonumber(lever.timeToDefeat) and lever.timeToDefeat > 0 then
+		return math.floor(lever.timeToDefeat)
+	end
 	local duration = tonumber(ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC) or (20 * 60)
 	if configManager and configKeys and configKeys.BOSS_DEFAULT_TIME_TO_DEFEAT then
 		local n = configManager.getNumber(configKeys.BOSS_DEFAULT_TIME_TO_DEFEAT)
@@ -748,6 +744,54 @@ function ExpeditionConfig.bossTypeName(catalog)
 		raceId = tonumber(catalog.creatureIds[1])
 	end
 	return ExpeditionConfig.monsterNameByCreatureId(raceId, catalog.name)
+end
+
+--- Stock BossLever registered for this boss (arena, arrival, spawn, difficulty); nil when none.
+function ExpeditionConfig.bossLever(catalog)
+	if not catalog or not BossLever or not BossLever.get then
+		return nil
+	end
+	return BossLever.get(ExpeditionConfig.bossTypeName(catalog)) or BossLever.get(catalog.name)
+end
+
+--- Lever boss whose lever opts into the difficulty dialog.
+function ExpeditionConfig.bossDifficultyLever(catalog)
+	local lever = ExpeditionConfig.bossLever(catalog)
+	if lever and BossDifficulty and BossDifficulty.isEnabled(lever) then
+		return lever
+	end
+	return nil
+end
+
+--- Instance spec for a lever boss: the lever's specPos arena, arriving where the lever teleports.
+function ExpeditionConfig.bossLeverInstanceSpec(catalog, lever)
+	local area = lever and lever.area
+	local arrival = lever and lever:arrival(1)
+	if type(area) ~= "table" or not area.from or not area.to or not arrival then
+		return nil
+	end
+	local x1, y1, z1, x2, y2, z2 = math.huge, math.huge, math.huge, -math.huge, -math.huge, -math.huge
+	local function grow(rect)
+		for _, p in ipairs({ rect.from, rect.to }) do
+			x1, y1, z1 = math.min(x1, p.x), math.min(y1, p.y), math.min(z1, p.z)
+			x2, y2, z2 = math.max(x2, p.x), math.max(y2, p.y), math.max(z2, p.z)
+		end
+	end
+	grow(area)
+	for _, extra in ipairs(lever.extraAreas or {}) do
+		grow(extra)
+	end
+	local floors = {}
+	for z = z1, z2 do
+		floors[#floors + 1] = z
+	end
+	return {
+		region = catalog.region or catalog.id,
+		center = { x = arrival.x, y = arrival.y, z = arrival.z },
+		entry = { x = arrival.x, y = arrival.y, z = arrival.z },
+		boundary = { x = x1, y = y1, w = x2 - x1 + 1, h = y2 - y1 + 1, z = arrival.z },
+		floors = floors,
+	}
 end
 
 --- Prefer catalog.encounter (access-based); bosstiaryClass is display-only.
@@ -786,6 +830,26 @@ function ExpeditionConfig.formatBossCooldownRemaining(remainingSec)
 	return string.format("%ds", remainingSec)
 end
 
+--- Longest boss cooldown among `members`: remainingSec, blockerPlayer (0, nil when all can fight).
+function ExpeditionConfig.partyBossCooldown(members, bossName)
+	local remaining, blocker = 0, nil
+	for _, member in ipairs(members or {}) do
+		if member and PzTeleport.isGod(member) then
+			-- GOD may re-enter any boss regardless of lever cooldown.
+		elseif member and member.canFightBoss and not member:canFightBoss(bossName) then
+			local untilTs = 0
+			if member.getBossCooldown then
+				untilTs = tonumber(member:getBossCooldown(bossName)) or 0
+			end
+			local left = math.max(0, untilTs - os.time())
+			if not blocker or left > remaining then
+				remaining, blocker = left, member
+			end
+		end
+	end
+	return remaining, blocker
+end
+
 --- Returns ok, blockerPlayer, remainingSec, errorMessage.
 function ExpeditionConfig.partyCanFightBoss(members, bossName)
 	if type(bossName) ~= "string" or bossName == "" then
@@ -794,25 +858,17 @@ function ExpeditionConfig.partyCanFightBoss(members, bossName)
 	if type(members) ~= "table" then
 		return false, nil, 0, "No team members."
 	end
-	for _, member in ipairs(members) do
-		if member and PzTeleport.isGod(member) then
-			-- GOD may re-enter any boss regardless of lever cooldown.
-		elseif member and member.canFightBoss and not member:canFightBoss(bossName) then
-			local untilTs = 0
-			if member.getBossCooldown then
-				untilTs = tonumber(member:getBossCooldown(bossName)) or 0
-			end
-			local remaining = math.max(0, untilTs - os.time())
-			return false,
-				member,
-				remaining,
-				string.format(
-					"%s must wait %s to face %s again.",
-					member:getName(),
-					ExpeditionConfig.formatBossCooldownRemaining(remaining),
-					bossName
-				)
-		end
+	local remaining, blocker = ExpeditionConfig.partyBossCooldown(members, bossName)
+	if blocker then
+		return false,
+			blocker,
+			remaining,
+			string.format(
+				"%s must wait %s to face %s again.",
+				blocker:getName(),
+				ExpeditionConfig.formatBossCooldownRemaining(remaining),
+				bossName
+			)
 	end
 	return true, nil, 0, nil
 end
@@ -1044,6 +1100,10 @@ function ExpeditionConfig.catalogForClient(player)
 					row.minPlayers = minPlayers
 				elseif encounter == "solo" then
 					row.minPlayers = 1
+				end
+				local difficultyLever = ExpeditionConfig.bossDifficultyLever(entry)
+				if difficultyLever then
+					row.bossDifficultyMax = BossDifficulty.max(difficultyLever)
 				end
 			else
 				row.city = entry.city

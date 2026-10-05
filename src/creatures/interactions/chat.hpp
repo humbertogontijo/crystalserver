@@ -112,9 +112,9 @@ public:
 	std::shared_ptr<ChatChannel> createChannel(const std::shared_ptr<Player> &player, uint16_t channelId);
 	bool deleteChannel(const std::shared_ptr<Player> &player, uint16_t channelId);
 
-	// Social LFG team channel ("<leader>'s Team Channel"). Uses the private-channel
+	// Team channel named `name` (default "<leader>'s Team Channel"). Uses the private-channel
 	// slot; closes any existing owned private channel first. No premium required.
-	std::shared_ptr<PrivateChatChannel> createTeamChannel(const std::shared_ptr<Player> &player);
+	std::shared_ptr<PrivateChatChannel> createTeamChannel(const std::shared_ptr<Player> &player, const std::string &name = "");
 	bool closeTeamChannel(const std::shared_ptr<Player> &player, const std::string &closeMessage);
 
 	std::shared_ptr<ChatChannel> addUserToChannel(const std::shared_ptr<Player> &player, uint16_t channelId);

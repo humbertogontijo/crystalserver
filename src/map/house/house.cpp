@@ -32,25 +32,9 @@ House::House(uint32_t houseId) :
 	id(houseId) { }
 
 void House::addTile(const std::shared_ptr<HouseTile> &tile) {
-	for (const auto &existing : houseTiles) {
-		if (existing->getPosition() == tile->getPosition()) {
-			return;
-		}
-	}
 	tile->setFlag(TILESTATE_PROTECTIONZONE);
 	houseTiles.push_back(tile);
 	updateDoorDescription();
-}
-
-void House::setInstanceOwner(const uint32_t instanceId, const uint32_t guid) {
-	if (instanceId == 0) {
-		return;
-	}
-	instanceOwners[instanceId] = guid;
-}
-
-void House::clearInstanceOwner(const uint32_t instanceId) {
-	instanceOwners.erase(instanceId);
 }
 
 void House::setNewOwnerGuid(int32_t newOwnerGuid, bool serverStartup) {
@@ -114,10 +98,6 @@ bool House::tryTransferOwnership(const std::shared_ptr<Player> &player, bool ser
 }
 
 void House::setOwner(uint32_t guid, bool updateDatabase /* = true*/, const std::shared_ptr<Player> &player /* = nullptr*/) {
-	if (ephemeral) {
-		return;
-	}
-
 	const auto worldId = g_game().worlds().getCurrentWorld()->id;
 
 	if (updateDatabase && owner != guid) {
@@ -222,17 +202,6 @@ AccessHouseLevel_t House::getHouseAccessLevel(const std::shared_ptr<Player> &pla
 		return HOUSE_OWNER;
 	}
 
-	if (ephemeral) {
-		if (player->hasFlag(PlayerFlags_t::CanEditHouses)) {
-			return HOUSE_OWNER;
-		}
-		const auto it = instanceOwners.find(player->getInstanceId());
-		if (it != instanceOwners.end() && it->second == player->getGUID()) {
-			return HOUSE_OWNER;
-		}
-		return HOUSE_NOT_INVITED;
-	}
-
 	if (g_configManager().getBoolean(HOUSE_OWNED_BY_ACCOUNT)) {
 		if (ownerAccountId == player->getAccountId()) {
 			return HOUSE_OWNER;
@@ -295,10 +264,6 @@ void House::setAccessList(uint32_t listId, const std::string &textlist) {
 		}
 
 		// We dont have kick anyone
-		return;
-	}
-
-	if (ephemeral) {
 		return;
 	}
 
@@ -865,9 +830,6 @@ void Door::onRemoved() {
 
 std::shared_ptr<House> Houses::getHouseByPlayerId(uint32_t playerId) const {
 	for (const auto &it : houseMap) {
-		if (it.second->isEphemeral()) {
-			continue;
-		}
 		if (it.second->getOwner() == playerId) {
 			return it.second;
 		}
@@ -878,9 +840,6 @@ std::shared_ptr<House> Houses::getHouseByPlayerId(uint32_t playerId) const {
 std::vector<std::shared_ptr<House>> Houses::getAllHousesByPlayerId(uint32_t playerId) {
 	std::vector<std::shared_ptr<House>> playerHouses;
 	for (const auto &[id, house] : houseMap) {
-		if (house->isEphemeral()) {
-			continue;
-		}
 		if (house->getOwner() == playerId) {
 			playerHouses.emplace_back(house);
 		}
@@ -900,9 +859,6 @@ std::shared_ptr<House> Houses::getHouseByBidderName(const std::string &bidderNam
 uint16_t Houses::getHouseCountByAccount(uint32_t accountId) {
 	uint16_t count = 0;
 	for (const auto &[id, house] : houseMap) {
-		if (house->isEphemeral()) {
-			continue;
-		}
 		if (house->getOwnerAccountId() == accountId) {
 			++count;
 		}
@@ -977,9 +933,6 @@ void Houses::payHouses(RentPeriod_t rentPeriod) const {
 	const time_t currentTime = time(nullptr);
 	for (const auto &it : houseMap) {
 		const auto &house = it.second;
-		if (house->isEphemeral()) {
-			continue;
-		}
 		if (house->getOwner() == 0) {
 			continue;
 		}

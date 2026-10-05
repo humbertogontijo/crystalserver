@@ -1,5 +1,5 @@
--- Exercise training (opcode 116 startTraining / stopTraining).
-PlayerHomeServices = PlayerHomeServices or {}
+-- Exercise training on the lobby room dummy (opcode 116 startTraining / stopTraining).
+LobbyServices = LobbyServices or {}
 
 local trainingByPlayerId = {}
 local dummies = Game.getDummies()
@@ -13,13 +13,12 @@ local SKILL_MAP = {
 	fist = SKILL_FIST,
 }
 
-local function encodeTrainingState(active)
-	return string.format('{"type":"trainingState","active":%s}', active and "true" or "false")
-end
-
 local function sendTrainingState(player, active)
 	if player then
-		player:sendExtendedOpcode(PlayerHomeConfig.OPCODE, encodeTrainingState(active))
+		player:sendExtendedOpcode(
+			LobbyConfig.TRAVEL_OPCODE,
+			string.format('{"type":"trainingState","active":%s}', active and "true" or "false")
+		)
 	end
 end
 
@@ -32,12 +31,12 @@ local function findWeaponForSkill(player, skill)
 	if not player or type(skill) ~= "string" then
 		return nil
 	end
-	for _, typeId in ipairs(PlayerHomeConfig.weaponsForSkill(skill)) do
+	for _, typeId in ipairs(LobbyConfig.weaponsForSkill(skill)) do
 		local item = player:getItemById(typeId, true)
 		if item then
 			local charges = item:getAttribute(ITEM_ATTRIBUTE_CHARGES)
 			if charges and charges > 0 then
-				return item, typeId, PlayerHomeConfig.EXERCISE_WEAPONS[typeId]
+				return item, typeId, LobbyConfig.EXERCISE_WEAPONS[typeId]
 			end
 		end
 	end
@@ -57,7 +56,7 @@ local function leaveTraining(playerId, message, messageType)
 	trainingByPlayerId[playerId] = nil
 
 	local player = Player(playerId)
-	if player then
+	if player and state then
 		if player.setTraining then
 			player:setTraining(false)
 		end
@@ -69,27 +68,16 @@ local function leaveTraining(playerId, message, messageType)
 end
 
 local function countPlayersOnDummy(dummyPos)
-	if not dummyPos then
-		return 0
-	end
 	local count = 0
 	for _, state in pairs(trainingByPlayerId) do
 		if state.dummyPos and state.dummyPos == dummyPos then
 			count = count + 1
 		end
 	end
-	if _G.OnExerciseTraining then
-		for _, entry in pairs(_G.OnExerciseTraining) do
-			if entry.dummyPos == dummyPos then
-				count = count + 1
-			end
-		end
-	end
 	return count
 end
 
--- Forward-declare: scheduleNextTick must close over the local trainingTick
--- (not a nil global), or addEvent fails after the first charge.
+-- Forward-declared so scheduleNextTick closes over the local, not a nil global.
 local trainingTick
 
 local function scheduleNextTick(playerId, weaponId)
@@ -98,49 +86,39 @@ local function scheduleNextTick(playerId, weaponId)
 	if not player or not state then
 		return
 	end
-
-	local eventSpeedMultiplier = 1
-	local scopedFastExercise = KV.scoped("eventscheduler"):get("fast-exercise")
-	if scopedFastExercise then
-		eventSpeedMultiplier = 0.5
-	end
-
-	local vocation = player:getVocation()
-	local delay = (vocation:getBaseAttackSpeed() / configManager.getFloat(configKeys.RATE_EXERCISE_TRAINING_SPEED))
+	local eventSpeedMultiplier = KV.scoped("eventscheduler"):get("fast-exercise") and 0.5 or 1
+	local delay = (player:getVocation():getBaseAttackSpeed() / configManager.getFloat(configKeys.RATE_EXERCISE_TRAINING_SPEED))
 		* eventSpeedMultiplier
 	state.event = addEvent(trainingTick, delay, playerId, weaponId)
 end
 
-trainingTick = function(playerId, _lastWeaponId)
+trainingTick = function(playerId)
 	local player = Player(playerId)
 	if not player then
 		leaveTraining(playerId)
 		return
 	end
-
 	local state = trainingByPlayerId[playerId]
 	if not state then
 		return
 	end
-
 	if player:isTraining() == 0 then
 		leaveTraining(playerId, "You have stopped training.", MESSAGE_FAILURE)
 		return
 	end
 
 	local dummyPos = state.dummyPos
-	local dummyId = state.dummyId
-	local tile = dummyPos and Tile(dummyPos) or nil
-	local targetItem = tile and tile:getItemById(dummyId) or nil
+	local tile = Tile(dummyPos)
+	local targetItem = tile and tile:getItemById(state.dummyId) or nil
 	if not targetItem then
-		leaveTraining(playerId, "Someone has moved the dummy, the training has stopped.", MESSAGE_FAILURE)
+		leaveTraining(playerId, "The dummy is gone, the training has stopped.", MESSAGE_FAILURE)
 		return
 	end
 	state.targetItem = targetItem
 
 	local playerPosition = player:getPosition()
-	if not playerPosition:isProtectionZoneTile() then
-		leaveTraining(playerId, "You are no longer in a protection zone, the training has stopped.", MESSAGE_FAILURE)
+	if not playerPosition:isProtectionZoneTile() or not LobbyInstance.roomForPlayer(player) then
+		leaveTraining(playerId, "You left the lobby room, the training has stopped.", MESSAGE_FAILURE)
 		return
 	end
 
@@ -151,19 +129,13 @@ trainingTick = function(playerId, _lastWeaponId)
 	end
 
 	local weaponCharges = weapon:getAttribute(ITEM_ATTRIBUTE_CHARGES) or 0
-	if weaponCharges <= 0 then
-		weapon:remove(1)
-		leaveTraining(playerId, "Your training weapon has disappeared.", MESSAGE_EVENT_ADVANCE)
-		return
-	end
-
-	local rate = (dummies[dummyId] or 100) / 100
+	local rate = (dummies[state.dummyId] or 100) / 100
 	if meta.skill == "magic" then
-		player:addManaSpent(math.floor((PlayerHomeConfig.TRAIN_MANA_SPENT or 600) * rate))
+		player:addManaSpent(math.floor(LobbyConfig.TRAIN_MANA_SPENT * rate))
 	else
 		local skillId = SKILL_MAP[meta.skill]
 		if skillId then
-			player:addSkillTries(skillId, math.floor((PlayerHomeConfig.TRAIN_SKILL_TRIES or 7) * rate))
+			player:addSkillTries(skillId, math.floor(LobbyConfig.TRAIN_SKILL_TRIES * rate))
 		end
 	end
 
@@ -175,8 +147,7 @@ trainingTick = function(playerId, _lastWeaponId)
 
 	if (weapon:getAttribute(ITEM_ATTRIBUTE_CHARGES) or 0) <= 0 then
 		weapon:remove(1)
-		local nextWeapon = findWeaponForSkill(player, state.skill)
-		if not nextWeapon then
+		if not findWeaponForSkill(player, state.skill) then
 			leaveTraining(playerId, "Your training weapon has disappeared.", MESSAGE_EVENT_ADVANCE)
 			return
 		end
@@ -185,7 +156,7 @@ trainingTick = function(playerId, _lastWeaponId)
 	scheduleNextTick(playerId, weaponId)
 end
 
-function PlayerHomeServices.startTraining(player, opts)
+function LobbyServices.startTraining(player, opts)
 	if not player then
 		return false, "Invalid player."
 	end
@@ -194,69 +165,37 @@ function PlayerHomeServices.startTraining(player, opts)
 	if skill == "" then
 		return false, "Choose an exercise weapon type."
 	end
-
-	local dummy = opts.dummy
-	if type(dummy) ~= "table" then
-		return false, "Select an exercise dummy."
+	local room = LobbyInstance.roomForPlayer(player)
+	if not room or not room.dummyPos then
+		return false, "Exercise training is available in your lobby room."
 	end
-	local dummyPos = Position(
-		math.floor(tonumber(dummy.x) or 0),
-		math.floor(tonumber(dummy.y) or 0),
-		math.floor(tonumber(dummy.z) or 0)
-	)
-
 	local playerId = player:getId()
 	if trainingByPlayerId[playerId] or (_G.OnExerciseTraining and _G.OnExerciseTraining[playerId]) then
 		return false, "Already training."
 	end
 
+	local dummyPos = room.dummyPos
 	local tile = Tile(dummyPos)
-	if not tile then
-		return false, "Invalid exercise dummy."
-	end
-
-	local dummyId = nil
-	local targetItem = nil
-	for id in pairs(dummies) do
-		local item = tile:getItemById(id)
-		if item then
-			dummyId = id
-			targetItem = item
-			break
-		end
-	end
-	if not dummyId or not targetItem or not isDummy(dummyId) then
-		return false, "That is not an exercise dummy."
-	end
-
-	local playerPos = player:getPosition()
-	if playerPos.z ~= dummyPos.z then
-		return false, "The exercise dummy is on another floor."
+	local dummyId = LobbyConfig.EXERCISE_DUMMY_ID
+	local targetItem = tile and tile:getItemById(dummyId) or nil
+	if not targetItem or not isDummy(dummyId) then
+		return false, "The lobby dummy is unavailable."
 	end
 
 	local weapon, weaponId, weaponMeta = findWeaponForSkill(player, skill)
 	if not weapon or not weaponMeta then
 		return false, "Carry an exercise weapon with charges (buy from hireling)."
 	end
-
+	local playerPos = player:getPosition()
 	if not weaponMeta.allowFarUse and playerPos:getDistance(dummyPos) > 1 then
 		return false, "Get closer to the dummy."
 	end
-
 	if not playerPos:isProtectionZoneTile() then
 		return false, "You need to be in a protection zone."
 	end
-
-	local playerHouse = player:getTile():getHouse()
-	local targetHouse = tile:getHouse()
-	if targetHouse and isDummy(dummyId) then
-		if playerHouse ~= targetHouse then
-			return false, "You must be inside the house to use this dummy."
-		end
-		local maxOnDummy = configManager.getNumber(configKeys.MAX_ALLOWED_ON_A_DUMMY)
-		if countPlayersOnDummy(dummyPos) >= maxOnDummy then
-			return false, "That exercise dummy is busy."
-		end
+	local maxOnDummy = configManager.getNumber(configKeys.MAX_ALLOWED_ON_A_DUMMY)
+	if maxOnDummy and maxOnDummy > 0 and countPlayersOnDummy(dummyPos) >= maxOnDummy * LobbyConfig.MAX_MEMBERS then
+		return false, "That exercise dummy is busy."
 	end
 
 	trainingByPlayerId[playerId] = {
@@ -265,32 +204,27 @@ function PlayerHomeServices.startTraining(player, opts)
 		dummyId = dummyId,
 		targetItem = targetItem,
 	}
-
 	if player.setTraining then
 		player:setTraining(true)
 	end
 	pcall(function()
 		targetItem:actor(true)
 	end)
-
-	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You have started training on an exercise dummy.")
+	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You have started training on the lobby dummy.")
 	sendTrainingState(player, true)
 	trainingByPlayerId[playerId].event = addEvent(trainingTick, 0, playerId, weaponId)
 	return true
 end
 
-function PlayerHomeServices.stopTraining(player)
-	if not player then
-		return false, "Invalid player."
-	end
-	if not trainingByPlayerId[player:getId()] then
+function LobbyServices.stopTraining(player)
+	if not player or not trainingByPlayerId[player:getId()] then
 		return false, "Not training."
 	end
 	leaveTraining(player:getId(), "Training stopped.", MESSAGE_EVENT_ADVANCE)
 	return true
 end
 
-function PlayerHomeServices.onLeave(player)
+function LobbyServices.onLeave(player)
 	if player then
 		leaveTraining(player:getId())
 	end

@@ -221,8 +221,8 @@ function EM_PRIV.logoutExpeditionCompanions(session)
 		end
 		EM_PRIV.removeHuntMember(session, companion, { skipEnded = true, keepDeadFlag = true })
 		EM_PRIV.clearActive(companion)
-		if TeamManager and TeamManager.safeLogoutCompanion then
-			TeamManager.safeLogoutCompanion(companion, 0)
+		if Alts and Alts.safeLogoutCompanion then
+			Alts.safeLogoutCompanion(companion, 0)
 		elseif Game.headlessLogout then
 			-- Fallback: park to open-world return before save+logout (loginPosition).
 			local returnPos = EM_PRIV.loadReturn(companion)
@@ -255,7 +255,7 @@ function EM_PRIV.teleportHumanToReturn(player)
 	if not returnPos then
 		return false
 	end
-	local ok = EM_PRIV.teleportPlayerHome(player, returnPos)
+	local ok = EM_PRIV.returnToLobby(player, returnPos)
 	if ok and player.getHealth and player:getHealth() > 0 then
 		local now = player:getPosition()
 		if now then
@@ -277,8 +277,8 @@ function EM_PRIV.ejectPlayerFromExpedition(player, opts)
 	if not opts.skipTeleport then
 		EM_PRIV.teleportHumanToReturn(player)
 	end
-	if not opts.skipTeamUndeploy and TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
-		TeamManager.undeploy(player)
+	if not opts.skipTeamUndeploy and Alts and Alts.getDeployment and Alts.getDeployment(player) then
+		Alts.undeploy(player)
 	end
 	ExpeditionProtocol.sendEnded(player)
 end
@@ -510,8 +510,10 @@ function ExpeditionManager.setLure(player, lure)
 	end
 end
 
+--- Boss join: levers that declare `difficulty` open the native dialog first; every other
+--- boss joins directly.
 function ExpeditionManager.prepareBoss(player, expeditionId, loadout, options)
-	if not player or not ExpeditionDifficulty then
+	if not player then
 		return
 	end
 	options = options or {}
@@ -534,7 +536,7 @@ function ExpeditionManager.prepareBoss(player, expeditionId, loadout, options)
 		return
 	end
 	local gatePlayers = { player }
-	for _, teammate in ipairs(EM_PRIV.collectExpectedHumanTeammates(player) or {}) do
+	for _, teammate in ipairs(EM_PRIV.collectExpectedHumanTeammates(player, options)) do
 		gatePlayers[#gatePlayers + 1] = teammate
 	end
 	if not options.previewOnly then
@@ -544,125 +546,32 @@ function ExpeditionManager.prepareBoss(player, expeditionId, loadout, options)
 			return
 		end
 	end
-	local maxAllowed = ExpeditionDifficulty.maxAllowedBossDifficulty(gatePlayers, catalog)
-	local personal = ExpeditionDifficulty.getPersonalBossMax(player, catalog)
-	local selected = ExpeditionDifficulty.normalizeBossDifficulty(options.bossDifficulty or 0, catalog)
-	selected = math.min(selected, maxAllowed)
-	local raceId = tonumber(catalog.creatureId) or tonumber(catalog.id) or 0
-	local banners = EM_PRIV.collectBossDifficultyBannerNames(player)
-	while #banners < 5 do
-		banners[#banners + 1] = ""
-	end
-	if #banners > 5 then
-		local trimmed = {}
-		for i = 1, 5 do
-			trimmed[i] = banners[i]
-		end
-		banners = trimmed
-	end
-	local red, green = ExpeditionDifficulty.redGreenMods(catalog, selected)
-	-- numbers: lowest, spinnerGate(0=editable), raceId, selected, groupHighest, personalHighest, badLuck
-	local numbers = { 0, 0, raceId, selected, maxAllowed, personal, 0 }
-	ExpeditionDifficulty.setPendingBoss(player:getId(), {
-		catalogId = catalog.id,
-		loadout = loadout,
-		options = options,
-		raceId = raceId,
-		maxAllowed = maxAllowed,
-		previewOnly = options.previewOnly == true,
-	})
-	if player.sendBossDifficultySelection then
-		player:sendBossDifficultySelection(0, numbers, banners, red, green)
-	else
-		ExpeditionDifficulty.clearPendingBoss(player:getId())
-		-- Fallback when native UI is unavailable: join with the manage-panel selection.
-		if options.previewOnly then
-			ExpeditionProtocol.sendError(player, "Boss difficulty UI unavailable.")
-			return
-		end
-		local opts = options or {}
-		opts.bossDifficulty = selected
-		ExpeditionManager.join(player, catalog.id, "boss", loadout, nil, opts)
-	end
-end
 
-function ExpeditionManager.onBossDifficultyStart(player, difficulty, _selectionContext)
-	if not player or not ExpeditionDifficulty then
+	local lever = ExpeditionConfig.bossDifficultyLever(catalog)
+	local opened = lever
+		and BossDifficulty.open(player, {
+			lever = lever,
+			players = gatePlayers,
+			banners = EM_PRIV.collectBossDifficultyBannerNames(player, options),
+			selected = options.bossDifficulty,
+			onStart = function(D)
+				if options.previewOnly then
+					player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Boss difficulty set to %d.", D))
+					return
+				end
+				options.bossDifficulty = D
+				ExpeditionManager.join(player, catalog.id, "boss", loadout, nil, options)
+			end,
+		})
+	if opened then
 		return
 	end
-	local pending = ExpeditionDifficulty.getPendingBoss(player:getId())
-	if not pending then
+	if options.previewOnly then
+		ExpeditionProtocol.sendError(player, "This boss has no difficulty selection.")
 		return
 	end
-	ExpeditionDifficulty.clearPendingBoss(player:getId())
-	local catalog = ExpeditionConfig.getById(pending.catalogId, "boss")
-	if not catalog then
-		ExpeditionProtocol.sendError(player, "Unknown boss expedition.")
-		return
-	end
-	local D = ExpeditionDifficulty.normalizeBossDifficulty(difficulty, catalog)
-	local maxAllowed = tonumber(pending.maxAllowed)
-	if maxAllowed ~= nil then
-		D = math.min(D, maxAllowed)
-	end
-	-- Manage-panel "change difficulty" open: confirm selection only, do not join.
-	if pending.previewOnly then
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Boss difficulty set to %d.", D))
-		return
-	end
-	local gatePlayers = { player }
-	for _, teammate in ipairs(EM_PRIV.collectExpectedHumanTeammates(player) or {}) do
-		gatePlayers[#gatePlayers + 1] = teammate
-	end
-	local okDiff, diffErr =
-		ExpeditionDifficulty.canAttemptBossDifficulty(gatePlayers, catalog, D, player)
-	if not okDiff then
-		ExpeditionProtocol.sendError(player, diffErr or "Boss difficulty too high for party.")
-		return
-	end
-	local opts = pending.options or {}
-	opts.bossDifficulty = D
-	ExpeditionManager.join(player, pending.catalogId, "boss", pending.loadout, nil, opts)
-end
-
-function ExpeditionManager.onBossDifficultyCancel(player)
-	if not player or not ExpeditionDifficulty then
-		return
-	end
-	ExpeditionDifficulty.clearPendingBoss(player:getId())
-end
-
-function ExpeditionManager.onBossDifficultyPreview(player, difficulty)
-	if not player or not ExpeditionDifficulty or not player.sendBossDifficultySelection then
-		return
-	end
-	local pending = ExpeditionDifficulty.getPendingBoss(player:getId())
-	if not pending then
-		return
-	end
-	local catalog = ExpeditionConfig.getById(pending.catalogId, "boss")
-	if not catalog then
-		return
-	end
-	local D = ExpeditionDifficulty.normalizeBossDifficulty(difficulty, catalog)
-	D = math.min(D, tonumber(pending.maxAllowed) or D)
-	local red, green = ExpeditionDifficulty.redGreenMods(catalog, D)
-	local raceId = pending.raceId or 0
-	local personal = ExpeditionDifficulty.getPersonalBossMax(player, catalog)
-	local banners = EM_PRIV.collectBossDifficultyBannerNames(player)
-	while #banners < 5 do
-		banners[#banners + 1] = ""
-	end
-	if #banners > 5 then
-		local trimmed = {}
-		for i = 1, 5 do
-			trimmed[i] = banners[i]
-		end
-		banners = trimmed
-	end
-	-- Re-open packet (disc 0); client updates the existing window in place to avoid flicker.
-	local numbers = { 0, 0, raceId, D, pending.maxAllowed or D, personal, 0 }
-	player:sendBossDifficultySelection(0, numbers, banners, red, green)
+	options.bossDifficulty = nil
+	ExpeditionManager.join(player, catalog.id, "boss", loadout, nil, options)
 end
 
 function ExpeditionManager.setStopOptions(player, options)
@@ -883,9 +792,10 @@ function ExpeditionManager.requestLeave(player, opts)
 	local sessionKey = session.key
 	local leaverName = player:getName()
 	local goHometown = opts.reason == "recall" or opts.goHometown == true
+	local stopToLobby = opts.reason == "stop" and not goHometown and not switchTo
 
-	-- Recall / switch: shared InstanceTeleport channel (server-timed).
-	if (goHometown or switchTo) and InstanceTeleport then
+	-- Recall / switch / lobby stop: shared InstanceTeleport channel (server-timed).
+	if (goHometown or switchTo or stopToLobby) and InstanceTeleport then
 		if InstanceTeleport.isPending(player) then
 			return
 		end
@@ -897,7 +807,12 @@ function ExpeditionManager.requestLeave(player, opts)
 		if #memberIds == 0 then
 			memberIds = { playerId }
 		end
-		local requestFn = goHometown and InstanceTeleport.requestHometownGroup or InstanceTeleport.requestExpedition
+		local requestFn = InstanceTeleport.requestExpedition
+		if goHometown then
+			requestFn = InstanceTeleport.requestHometownGroup
+		elseif stopToLobby then
+			requestFn = InstanceTeleport.requestLobbyGroup
+		end
 		if not requestFn then
 			ExpeditionProtocol.sendError(player, "Teleport is unavailable.")
 			return
@@ -1098,6 +1013,7 @@ performDirectSwitch = function(host, session, switchTo, preAcceptedPlayers, opts
 		return
 	end
 	opts = opts or {}
+	local lobbyId = opts.lobbyId or (session and session.lobbyId) or nil
 	local hostId = host:getId()
 	local others = {}
 	for _, p in ipairs(preAcceptedPlayers or {}) do
@@ -1192,19 +1108,21 @@ performDirectSwitch = function(host, session, switchTo, preAcceptedPlayers, opts
 	end
 	joinOpts.skipPzCheck = true
 	joinOpts.skipEntryChannel = opts.channeled == true
+	if lobbyId then
+		joinOpts.scope = "lobby"
+		joinOpts.lobbyId = lobbyId
+	end
 	if #others > 0 then
 		joinOpts.preAcceptedPlayers = others
 	end
 	ExpeditionManager.join(host, switchTo.id, switchTo.role, switchTo.loadout, switchTo.lure, joinOpts)
-	-- Anyone who did not land in the new expedition must return to town-only open
-	-- world (atomic bindOpenWorld). Old session is already gone at this point.
+	-- Anyone who did not land in the new expedition goes back to the lobby room.
+	-- Old session is already gone at this point.
 	local function exitIfNotInExpedition(p)
 		if not p or ExpeditionManager.isInExpedition(p) then
 			return
 		end
-		if InstanceWorld and InstanceWorld.exitToOpenWorld then
-			pcall(InstanceWorld.exitToOpenWorld, p, EM_PRIV.loadReturn(p))
-		end
+		pcall(EM_PRIV.returnToLobby, p)
 	end
 	exitIfNotInExpedition(host)
 	for _, p in ipairs(others) do
@@ -1638,8 +1556,8 @@ function ExpeditionManager.leave(player, opts)
 		-- skipTeleport: caller is mid hunt→hunt switch (or death eject). Do not
 		-- bind open-world here; join / exitIfNotInExpedition / death return owns it.
 		ExpeditionProtocol.sendEnded(player)
-		if not opts.skipTeamUndeploy and TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
-			TeamManager.undeploy(player)
+		if not opts.skipTeamUndeploy and Alts and Alts.getDeployment and Alts.getDeployment(player) then
+			Alts.undeploy(player)
 		end
 		return
 	end
@@ -1683,7 +1601,7 @@ function ExpeditionManager.leave(player, opts)
 		if InstanceWorld and InstanceWorld.suppressHuntLeave then
 			InstanceWorld.suppressHuntLeave(member, true)
 		end
-		EM_PRIV.teleportPlayerHome(member, returnPos)
+		EM_PRIV.returnToLobby(member, returnPos)
 		if InstanceWorld and InstanceWorld.suppressHuntLeave then
 			InstanceWorld.suppressHuntLeave(member, false)
 		end
@@ -1691,11 +1609,11 @@ function ExpeditionManager.leave(player, opts)
 
 	-- Primary squaddie leaving: eject companions from this session first.
 	-- Default: logout via undeploy. Switch: park them in town and keep deployment.
-	if TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
+	if Alts and Alts.getDeployment and Alts.getDeployment(player) then
 		local companionIds = {}
 		for _, id in ipairs(EM_PRIV.sessionMemberIds(session)) do
 			local member = Player(id)
-			if member and member:getId() ~= player:getId() and TeamManager.isCompanion(member) then
+			if member and member:getId() ~= player:getId() and Alts.isCompanion(member) then
 				companionIds[#companionIds + 1] = id
 			end
 		end
@@ -1747,8 +1665,8 @@ function ExpeditionManager.leave(player, opts)
 					end
 				end
 				ExpeditionProtocol.sendEnded(player)
-				if TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
-					TeamManager.undeploy(player)
+				if Alts and Alts.getDeployment and Alts.getDeployment(player) then
+					Alts.undeploy(player)
 				end
 				return
 			end
@@ -1808,8 +1726,8 @@ function ExpeditionManager.leave(player, opts)
 	end
 
 	ExpeditionProtocol.sendEnded(player)
-	if not opts.skipTeamUndeploy and TeamManager and TeamManager.getDeployment and TeamManager.getDeployment(player) then
-		TeamManager.undeploy(player)
+	if not opts.skipTeamUndeploy and Alts and Alts.getDeployment and Alts.getDeployment(player) then
+		Alts.undeploy(player)
 	end
 	if not opts.silent then
 		if wasVictory then

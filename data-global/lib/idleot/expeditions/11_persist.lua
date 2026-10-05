@@ -51,7 +51,7 @@ local function isCompanion(session, player)
 	if session and session.companionIds and session.companionIds[player:getId()] then
 		return true
 	end
-	return TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player)
+	return Alts and Alts.isCompanion and Alts.isCompanion(player)
 end
 
 function ExpeditionPersist.snapshotFromSession(session)
@@ -111,6 +111,9 @@ function ExpeditionPersist.snapshotFromSession(session)
 		stopOnInsufficientCap = session.stopOnInsufficientCap == true,
 		hostGuid = hostGuid,
 		humanGuids = humanGuids,
+		-- Keeps the lobby "running" after a restart (no leave / kick mid-hunt).
+		scope = session.scope,
+		lobbyId = session.lobbyId,
 		savedAt = os.time(),
 	}
 end
@@ -131,7 +134,7 @@ local function setMemberPointer(guid, sessionKey)
 			end
 		end
 	end
-	local online = TeamStore and TeamStore.findOnlinePlayerByGuid and TeamStore.findOnlinePlayerByGuid(guid)
+	local online = Alts and Alts.findOnlinePlayerByGuid and Alts.findOnlinePlayerByGuid(guid)
 	if online and online.kv then
 		local kvStore = online:kv()
 		if kvStore then

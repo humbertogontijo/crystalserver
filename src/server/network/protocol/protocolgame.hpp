@@ -523,6 +523,9 @@ private:
 	// translate a map area to clientreadable format
 	void GetMapDescription(int32_t x, int32_t y, int32_t z, int32_t width, int32_t height, NetworkMessage &msg);
 
+	// Tiles that did not fit a map packet go out afterwards as 0x69 tile updates.
+	void sendDeferredMapTiles();
+
 	void AddCreature(NetworkMessage &msg, const std::shared_ptr<Creature> &creature, bool known, uint32_t remove);
 	void AddPlayerStats(NetworkMessage &msg);
 	// addAttachedEffects (wings/auras/effects/shader) is independent of mount bytes.
@@ -600,6 +603,7 @@ private:
 	friend class PlayerAttachedEffects;
 
 	std::unordered_set<uint32_t> knownCreatureSet;
+	std::vector<Position> deferredMapTiles;
 	std::shared_ptr<Player> player = nullptr;
 
 	std::list<uint32_t> creatureOrder;

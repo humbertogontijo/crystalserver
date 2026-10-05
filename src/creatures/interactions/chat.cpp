@@ -532,7 +532,7 @@ bool Chat::deleteChannel(const std::shared_ptr<Player> &player, uint16_t channel
 	return true;
 }
 
-std::shared_ptr<PrivateChatChannel> Chat::createTeamChannel(const std::shared_ptr<Player> &player) {
+std::shared_ptr<PrivateChatChannel> Chat::createTeamChannel(const std::shared_ptr<Player> &player, const std::string &name) {
 	if (!player) {
 		return nullptr;
 	}
@@ -542,9 +542,10 @@ std::shared_ptr<PrivateChatChannel> Chat::createTeamChannel(const std::shared_pt
 		privateChannels.erase(existing->getId());
 	}
 
+	const std::string channelName = name.empty() ? player->getName() + "'s Team Channel" : name;
 	for (uint16_t i = 100; i < 10000; ++i) {
 		auto [iter, inserted] = privateChannels.try_emplace(
-			i, std::make_shared<PrivateChatChannel>(i, player->getName() + "'s Team Channel")
+			i, std::make_shared<PrivateChatChannel>(i, channelName)
 		);
 		if (inserted) {
 			const auto &channel = iter->second;

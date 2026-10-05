@@ -1077,7 +1077,7 @@ discoveryTick:register()
 local discoveryLogin = CreatureEvent("DiscoverySystemLogin")
 discoveryLogin:type("login")
 
---- Login and headless-body reclaim (TeamManager.onClientAttached) both land here.
+--- Login and headless-body reclaim (Alts.onClientAttached) both land here.
 function DiscoverySystem.onClientAttached(player)
 	if not hasClient(player) then
 		return

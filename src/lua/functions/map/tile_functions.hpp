@@ -54,6 +54,8 @@ private:
 
 	static int luaTileHasProperty(lua_State* L);
 	static int luaTileHasFlag(lua_State* L);
+	static int luaTileSetFlag(lua_State* L);
+	static int luaTileResetFlag(lua_State* L);
 
 	static int luaTileGetThingIndex(lua_State* L);
 

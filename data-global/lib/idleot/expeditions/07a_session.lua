@@ -126,13 +126,13 @@ function ExpeditionManager.resolveSession(player)
 		-- Headless companions may logout before removeHuntMember; humans must not
 		-- re-bind via pending death after they have already left the session.
 		if s.pendingHuntDeath and s.pendingHuntDeath.id == player:getId() then
-			if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player) then
+			if Alts and Alts.isCompanion and Alts.isCompanion(player) then
 				return s
 			end
 		end
 	end
-	if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player) then
-		local controller = TeamManager.getCompanionController and TeamManager.getCompanionController(player)
+	if Alts and Alts.isCompanion and Alts.isCompanion(player) then
+		local controller = Alts.getCompanionController and Alts.getCompanionController(player)
 		if controller then
 			return EM_PRIV.sessionsByPlayerId[controller:getId()]
 		end
@@ -187,6 +187,18 @@ function ExpeditionManager.reconcilePresence(player)
 		return true
 	end
 
+	local pos = player:getPosition()
+	logger.warn(
+		"[Expedition] {} outside session {} area (instance={} expected={} pos={},{},{} contains={}) - leaving",
+		player:getName(),
+		tostring(session.key),
+		tostring(player.getInstanceId and player:getInstanceId() or "-"),
+		tostring(session.instance and session.instance.instanceId or "-"),
+		pos and pos.x or "?",
+		pos and pos.y or "?",
+		pos and pos.z or "?",
+		tostring(session.instance and ExpeditionInstance.contains(session.instance, pos) or false)
+	)
 	session.reconciling = true
 	if session.kind == "raid" and RaidInstance and RaidInstance.leave then
 		RaidInstance.leave(player, { silent = true })
@@ -298,9 +310,18 @@ function EM_PRIV.loadReturn(player)
 	return pos
 end
 
-function EM_PRIV.teleportPlayerHome(player, returnPos)
+--- Expedition exit: humans go back to their lobby room; companions (and any failure)
+--- fall back to the open-world return tile.
+function EM_PRIV.returnToLobby(player, returnPos)
 	if not player then
 		return false
+	end
+	local companion = Alts and Alts.isCompanion(player) and not Alts.isRealUiClient(player)
+	if not companion and LobbyManager and LobbyInstance then
+		local record = LobbyManager.ensureForPlayer(player)
+		if record and LobbyInstance.enterNow(player, record, {}) then
+			return true
+		end
 	end
 	returnPos = returnPos or EM_PRIV.loadReturn(player)
 	if InstanceWorld and InstanceWorld.exitToOpenWorld then
@@ -312,7 +333,7 @@ function EM_PRIV.teleportPlayerHome(player, returnPos)
 	return player:teleportTo(returnPos) and true or false
 end
 
---- After expedition cleanup: hometown temple (recall) or open-world return.
+--- After expedition cleanup: hometown temple (recall) or back to the lobby room.
 --- Always immediate — the IT channel already completed before leave/abort.
 function EM_PRIV.teleportAfterLeave(player, returnPos, opts)
 	opts = opts or {}
@@ -327,7 +348,7 @@ function EM_PRIV.teleportAfterLeave(player, returnPos, opts)
 			tostring(err)
 		)
 	end
-	return EM_PRIV.teleportPlayerHome(player, returnPos)
+	return EM_PRIV.returnToLobby(player, returnPos)
 end
 
 --- Combat-lock gate for IT kinds (non-PZ is allowed; duration handles it).
@@ -544,22 +565,9 @@ function EM_PRIV.collectStaminaGatePlayers(host, options)
 		list[#list + 1] = p
 	end
 	push(host)
-	if options.skipPartyGate then
-		-- Solo boss / arena / switch: only host (+ explicit pre-accepted below).
-	else
-		local party = host:getParty()
-		if party then
-			local leader = party:getLeader()
-			if leader and leader:getId() == host:getId() then
-				for _, member in ipairs(party:getMembers() or {}) do
-					push(member)
-				end
-			end
-		end
-		if ListingsStore and ListingsStore.getAcceptedMemberNames then
-			for _, name in ipairs(ListingsStore.getAcceptedMemberNames(host:getGuid()) or {}) do
-				push(Player(name))
-			end
+	if not options.skipPartyGate then
+		for _, teammate in ipairs(EM_PRIV.collectExpectedHumanTeammates(host, options)) do
+			push(teammate)
 		end
 	end
 	if type(options.preAcceptedPlayers) == "table" then
@@ -586,7 +594,7 @@ function EM_PRIV.isSessionCompanion(session, player)
 	if session and session.companionIds and session.companionIds[player:getId()] then
 		return true
 	end
-	return TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(player)
+	return Alts and Alts.isCompanion and Alts.isCompanion(player)
 end
 
 --- True when the player has a live ProtocolGame UI (not headless).
@@ -677,96 +685,72 @@ function ExpeditionManager.hasPendingRestore(player)
 	return ExpeditionPersist and ExpeditionPersist.hasPendingRestore and ExpeditionPersist.hasPendingRestore(player)
 end
 
---- Online human teammates expected to accept before a team expedition starts.
-function EM_PRIV.collectExpectedHumanTeammates(host)
-	if not host then
-		return {}
+--- Refresh the lobbies of these players (presence: in expedition / busy / back in lobby).
+--- Deferred so the session bind/unbind has settled before presence is read.
+function EM_PRIV.notifyLobbies(playerIds)
+	if not (LobbyStore and LobbyProtocol) then
+		return
 	end
-	local seen = {}
-	local list = {}
-	local function push(p)
-		if not p or p:getId() == host:getId() then
-			return
+	local guids = {}
+	for _, id in ipairs(playerIds or {}) do
+		local p = Player(id)
+		if p then
+			guids[#guids + 1] = p:getGuid()
 		end
-		if TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(p) then
-			return
-		end
-		if not EM_PRIV.hasUiClient(p) then
-			return
-		end
-		local id = p:getId()
-		if seen[id] then
-			return
-		end
-		seen[id] = true
-		list[#list + 1] = p
 	end
-
-	local party = host:getParty()
-	if party then
-		local leader = party:getLeader()
-		if leader and leader:getId() == host:getId() then
-			for _, member in ipairs(party:getMembers() or {}) do
-				push(member)
+	if #guids == 0 then
+		return
+	end
+	addEvent(function()
+		local seen = {}
+		for _, guid in ipairs(guids) do
+			local record = LobbyStore.getByGuid(guid)
+			if record and not seen[record.id] then
+				seen[record.id] = true
+				LobbyProtocol.broadcast(record)
 			end
 		end
-	end
+	end, 100)
+end
 
-	local function pushName(name)
-		local friend = Player(name)
-		if friend then
-			push(friend)
-		end
+--- Lobby whose members join this start; nil for solo runs (scope ~= "lobby").
+function EM_PRIV.startLobby(host, options)
+	options = options or {}
+	if not host or options.scope ~= "lobby" or not LobbyStore then
+		return nil
 	end
-	if TeamStore and TeamStore.getFriendNames then
-		for _, name in ipairs(TeamStore.getFriendNames(host)) do
-			pushName(name)
-		end
+	local record = options.lobbyId and LobbyStore.get(options.lobbyId) or LobbyStore.getForPlayer(host)
+	if record and record.hostGuid == host:getGuid() then
+		return record
 	end
-	if ListingsStore and ListingsStore.getAcceptedMemberNames then
-		for _, name in ipairs(ListingsStore.getAcceptedMemberNames(host:getGuid())) do
-			pushName(name)
+	return nil
+end
+
+--- Human lobby members inside the lobby room (= ready) who join a lobby start.
+function EM_PRIV.collectExpectedHumanTeammates(host, options)
+	local record = EM_PRIV.startLobby(host, options)
+	if not record then
+		return {}
+	end
+	local list = {}
+	for _, p in ipairs(LobbyManager.onlineHumans(record, host:getGuid())) do
+		if EM_PRIV.hasUiClient(p) and not (Alts and Alts.isCompanion(p)) and LobbyInstance.isInRoom(p, record) then
+			list[#list + 1] = p
 		end
 	end
 	return list
 end
 
---- Names for the boss-difficulty player boxes: listing/team roster (incl. companions),
---- not only online UI clients used for combat gating.
-function EM_PRIV.collectBossDifficultyBannerNames(host)
+--- Names for the boss-difficulty player boxes: the lobby roster (incl. companions).
+function EM_PRIV.collectBossDifficultyBannerNames(host, options)
 	local names = {}
-	local seen = {}
-	local function pushName(name)
-		if type(name) ~= "string" or name == "" then
-			return
-		end
-		local key = name:lower()
-		if seen[key] then
-			return
-		end
-		seen[key] = true
-		names[#names + 1] = name
-	end
 	if host and host.getName then
-		pushName(host:getName())
+		names[1] = host:getName()
 	end
-	if ListingsStore and ListingsStore.getByHost and host then
-		local listing = ListingsStore.getByHost(host)
-		for _, m in ipairs((listing and listing.members) or {}) do
-			local status = m and m.status
-			if status == nil or status == (SocialConfig and SocialConfig.MEMBER_STATUS_ACCEPTED) or status == "accepted" then
-				pushName(m and m.name)
-			end
-		end
-	end
-	if ListingsStore and ListingsStore.getAcceptedMemberNames and host and host.getGuid then
-		for _, name in ipairs(ListingsStore.getAcceptedMemberNames(host:getGuid()) or {}) do
-			pushName(name)
-		end
-	end
-	if TeamStore and TeamStore.getMembers and host then
-		for _, m in ipairs(TeamStore.getMembers(host) or {}) do
-			pushName(m and m.name)
+	local record = EM_PRIV.startLobby(host, options)
+	if record then
+		for _, name in ipairs(LobbyStore.memberNames(record, host:getGuid())) do
+			names[#names + 1] = name
 		end
 	end
 	return names
@@ -890,9 +874,9 @@ function EM_PRIV.collectHuntJoinParty(player, levelMin, extraPlayers, opts)
 			)
 		elseif not EM_PRIV.meetsExpeditionLevel(member, levelMin) then
 			-- Account-team companions enter with the host; host already passed levelMin.
-			local isTeamCompanion = TeamManager
-				and TeamManager.isCompanion
-				and TeamManager.isCompanion(member)
+			local isTeamCompanion = Alts
+				and Alts.isCompanion
+				and Alts.isCompanion(member)
 			if isTeamCompanion then
 				eligible[#eligible + 1] = member
 			else
@@ -906,9 +890,9 @@ function EM_PRIV.collectHuntJoinParty(player, levelMin, extraPlayers, opts)
 				)
 			end
 		else
-			local isTeamCompanion = TeamManager
-				and TeamManager.isCompanion
-				and TeamManager.isCompanion(member)
+			local isTeamCompanion = Alts
+				and Alts.isCompanion
+				and Alts.isCompanion(member)
 			local needCombat = not skipPzCheck
 				and not isTeamCompanion
 				and PzTeleport
@@ -1000,11 +984,11 @@ function EM_PRIV.registerSessionMember(session, member, host, opts)
 	session.companionIds = session.companionIds or {}
 	local fromDeploy = companionById[memberId] == true
 	local isCompanion = fromDeploy
-		or (TeamManager and TeamManager.isCompanion and TeamManager.isCompanion(member))
+		or (Alts and Alts.isCompanion and Alts.isCompanion(member))
 	if isCompanion then
 		session.companionIds[memberId] = true
-		if TeamManager and TeamManager.markCompanion then
-			pcall(TeamManager.markCompanion, member, host)
+		if Alts and Alts.markCompanion then
+			pcall(Alts.markCompanion, member, host)
 		end
 		EM_PRIV.saveReturn(member, hostWorldPos)
 	else

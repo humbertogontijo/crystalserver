@@ -333,16 +333,6 @@ public:
 		return guildHall;
 	}
 
-	void setEphemeral(bool value) {
-		ephemeral = value;
-	}
-	bool isEphemeral() const {
-		return ephemeral;
-	}
-
-	void setInstanceOwner(uint32_t instanceId, uint32_t guid);
-	void clearInstanceOwner(uint32_t instanceId);
-
 private:
 	bool transferToDepot() const;
 
@@ -375,9 +365,6 @@ private:
 	uint32_t maxBeds = 4;
 	int32_t bedsCount = -1;
 	bool guildHall = false;
-	bool ephemeral = false;
-
-	phmap::flat_hash_map<uint32_t, uint32_t> instanceOwners;
 
 	Position posEntry = {};
 
