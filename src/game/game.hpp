@@ -533,6 +533,16 @@ public:
 	void playerCancelMarketOffer(uint32_t playerId, uint32_t timestamp, uint16_t counter);
 	void playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16_t counter, uint16_t amount);
 
+	struct MarketSellQuote {
+		uint32_t amount = 0;
+		uint64_t totalPrice = 0;
+	};
+	// Cheapest tier-0 sell offers first, excluding the buyer's account and offers above maxUnitPrice.
+	MarketSellQuote quoteMarketSellOffers(const std::shared_ptr<Player> &buyer, uint16_t itemId, uint32_t maxAmount, uint64_t maxUnitPrice);
+	// Same selection as quote; buyer pays (bank, then carried gold), sellers are credited to bank.
+	// Items are consumed in place and never delivered to the buyer.
+	MarketSellQuote consumeMarketSellOffers(const std::shared_ptr<Player> &buyer, uint16_t itemId, uint32_t maxAmount, uint64_t maxUnitPrice);
+
 	void parsePlayerExtendedOpcode(uint32_t playerId, uint8_t opcode, const std::string &buffer);
 
 	void playerOpenWheel(uint32_t playerId, uint32_t ownerId);

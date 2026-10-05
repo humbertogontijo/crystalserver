@@ -93,13 +93,21 @@ local function healHpThreshold(slot)
 	return math.max(0, math.min(100, math.floor(tonumber(slot and slot.triggerPercent) or 0)))
 end
 
---- Magic Shield (utamo vita): keep up when absent; respect Always / Mana % triggers.
+local function isManaShieldPotion(slot)
+	if not slot or slot.kind ~= "potion" then
+		return false
+	end
+	local effect = CombatAutomationConfig.PotionEffects and CombatAutomationConfig.PotionEffects[slot.potionTypeId]
+	return effect ~= nil and effect.manashield == true
+end
+
+--- Magic Shield (utamo vita or magic shield potion): keep up when absent; respect Always / Mana % triggers.
 local function shieldSlotShouldFire(player, slot, hpPercent, manaPercent)
 	if not slot or slot.enabled == false then
 		return false
 	end
 	local words = tostring(slot.words or ""):lower()
-	if words ~= "utamo vita" then
+	if words ~= "utamo vita" and not isManaShieldPotion(slot) then
 		return false
 	end
 	if playerHasManaShield(player) then
@@ -123,7 +131,7 @@ local function slotShouldFire(slot, hpPercent, manaPercent, player)
 	if group == "support" then
 		return supportSlotShouldFire(player, slot)
 	end
-	if group == "shield" then
+	if group == "shield" or isManaShieldPotion(slot) then
 		return shieldSlotShouldFire(player, slot, hpPercent, manaPercent)
 	end
 	if slotIgnoresTriggerStat(slot) then
@@ -362,7 +370,17 @@ end
 --- Charge NPC buy price from inventory gold, then bank (same economics as NPC buy).
 --- Uses Player:removeMoney (useBank=true) so Canary syncs resource-balance packets to the client.
 --- Config price 0 = free (still succeeds). Missing price = refuse.
+--- Supplies priced in tokens rather than NPC gold (e.g. Cledwyn's magic shield potion).
+local function supplyTokenPrice(typeId)
+	local effect = CombatAutomationConfig.PotionEffects and CombatAutomationConfig.PotionEffects[typeId]
+	return effect and effect.tokenPrice or nil
+end
+
 local function chargeNpcBuyPrice(player, typeId)
+	local tokenPrice = supplyTokenPrice(typeId)
+	if tokenPrice then
+		return TokenMarket ~= nil and TokenMarket.acquire(player, tokenPrice.id, tokenPrice.count) == true
+	end
 	local price = CombatAutomationConfig.NpcBuyPriceByTypeId and CombatAutomationConfig.NpcBuyPriceByTypeId[typeId]
 	-- Prefer live NPC shop registry when available (clientId == typeId for these supplies),
 	-- unless config explicitly marks the supply free (price 0).
@@ -395,6 +413,14 @@ end
 local function supplyAvailable(player, typeId)
 	if player:getItemById(typeId, true) then
 		return true
+	end
+	local tokenPrice = supplyTokenPrice(typeId)
+	if tokenPrice then
+		if not TokenMarket then
+			return false
+		end
+		local quote = TokenMarket.quote(player, tokenPrice.id, tokenPrice.count)
+		return quote.gold <= (player:getMoney() or 0) + (player:getBankBalance() or 0)
 	end
 	local price = CombatAutomationConfig.NpcBuyPriceByTypeId and CombatAutomationConfig.NpcBuyPriceByTypeId[typeId]
 	if price ~= 0 and NpcPriceChecker and NpcPriceChecker[typeId] and NpcPriceChecker[typeId].buy then
@@ -652,6 +678,15 @@ local function usePotion(player, typeId)
 	if not consumeSupply(player, typeId) then
 		return false
 	end
+	local fx = CONST_ME_MAGIC_BLUE
+	if effect.manashield then
+		-- Mirrors the stock magic shield potion (data/scripts/actions/items/potions.lua).
+		local condition = Condition(CONDITION_MANASHIELD)
+		condition:setParameter(CONDITION_PARAM_TICKS, 60000)
+		condition:setParameter(CONDITION_PARAM_MANASHIELD, math.min(player:getMaxMana(), 300 + 7.6 * player:getLevel() + 7 * player:getMagicLevel()))
+		player:addCondition(condition)
+		fx = CONST_ME_ENERGYAREA
+	end
 	if effect.health then
 		doTargetCombatHealth(player, player, COMBAT_HEALING, effect.health[1], effect.health[2], CONST_ME_MAGIC_BLUE)
 	end
@@ -665,12 +700,12 @@ local function usePotion(player, typeId)
 		if type(specs) == "table" then
 			for _, spec in ipairs(specs) do
 				if spec then
-					pos:sendMagicEffect(CONST_ME_MAGIC_BLUE, spec)
+					pos:sendMagicEffect(fx, spec)
 				end
 			end
 		end
 	else
-		pos:sendMagicEffect(CONST_ME_MAGIC_BLUE)
+		pos:sendMagicEffect(fx)
 	end
 	return true
 end

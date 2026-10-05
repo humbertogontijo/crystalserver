@@ -30,6 +30,9 @@ private:
 	static int luaGameGetBoostedCreature(lua_State* L);
 	static int luaGameGetBestiaryList(lua_State* L);
 
+	static int luaGameQuoteMarketSellOffers(lua_State* L);
+	static int luaGameConsumeMarketSellOffers(lua_State* L);
+
 	static int luaGameGetPlayers(lua_State* L);
 	static int luaGameLoadMap(lua_State* L);
 	static int luaGameloadMapChunk(lua_State* L);

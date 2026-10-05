@@ -1649,3 +1649,17 @@ CombatAutomationConfig.PotionEffects = {
 	[53164] = { mana = { 425, 575 }, minLevel = 200, vocations = {} },
 }
 -- END GENERATED COMBAT AUTOMATION CATALOG
+
+-- Hand-maintained potions without HP/mana (the generator skips them). They live on the
+-- Shield tab and are priced in tokens (TokenMarket) instead of NPC gold.
+CombatAutomationConfig.SupportPotionEffects = {
+	[35563] = {
+		manashield = true,
+		minLevel = 14,
+		vocations = { "sorcerer", "master sorcerer", "druid", "elder druid" },
+		tokenPrice = { id = 22516, count = 1 },
+	},
+}
+for typeId, effect in pairs(CombatAutomationConfig.SupportPotionEffects) do
+	CombatAutomationConfig.PotionEffects[typeId] = effect
+end

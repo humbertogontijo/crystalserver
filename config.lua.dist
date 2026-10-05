@@ -623,8 +623,7 @@ rateExp = 1
 rateSkill = 1
 rateLoot = 2
 rateMagic = 1
--- Permanent "Fast Respawn": every map spawntime runs 5x faster.
-rateSpawn = 5
+rateSpawn = 2
 rateWeaponProficiency = 1
 
 -- Killing in the name of Quest

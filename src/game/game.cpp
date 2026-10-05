@@ -11756,6 +11756,114 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 	g_saveManager().savePlayer(player);
 }
 
+namespace {
+	struct MarketSellCandidate {
+		uint32_t offerId = 0;
+		uint32_t sellerGuid = 0;
+		uint16_t amount = 0;
+		uint64_t price = 0;
+	};
+
+	std::vector<MarketSellCandidate> loadMarketSellCandidates(uint16_t itemId, uint64_t maxUnitPrice, uint32_t excludeAccountId, uint32_t worldId) {
+		std::vector<MarketSellCandidate> candidates;
+		const std::string query = fmt::format(
+			"SELECT `o`.`id`, `o`.`player_id`, `o`.`amount`, `o`.`price` FROM `market_offers` `o` "
+			"INNER JOIN `players` `p` ON `p`.`id` = `o`.`player_id` "
+			"WHERE `o`.`sale` = {} AND `o`.`itemtype` = {} AND `o`.`tier` = 0 AND `o`.`world_id` = {} "
+			"AND `o`.`price` <= {} AND `p`.`account_id` <> {} "
+			"ORDER BY `o`.`price` ASC, `o`.`id` ASC LIMIT 100",
+			static_cast<int>(MARKETACTION_SELL), itemId, worldId, maxUnitPrice, excludeAccountId
+		);
+		const DBResult_ptr result = Database::getInstance().storeQuery(query);
+		if (!result) {
+			return candidates;
+		}
+		do {
+			MarketSellCandidate candidate;
+			candidate.offerId = result->getNumber<uint32_t>("id");
+			candidate.sellerGuid = result->getNumber<uint32_t>("player_id");
+			candidate.amount = result->getNumber<uint16_t>("amount");
+			candidate.price = result->getNumber<uint64_t>("price");
+			if (candidate.amount > 0) {
+				candidates.push_back(candidate);
+			}
+		} while (result->next());
+		return candidates;
+	}
+}
+
+Game::MarketSellQuote Game::quoteMarketSellOffers(const std::shared_ptr<Player> &buyer, uint16_t itemId, uint32_t maxAmount, uint64_t maxUnitPrice) {
+	MarketSellQuote quote;
+	if (!buyer || maxAmount == 0) {
+		return quote;
+	}
+	for (const auto &candidate : loadMarketSellCandidates(itemId, maxUnitPrice, buyer->getAccountId(), worlds().getCurrentWorld()->id)) {
+		if (quote.amount >= maxAmount) {
+			break;
+		}
+		const uint32_t take = std::min<uint32_t>(candidate.amount, maxAmount - quote.amount);
+		quote.amount += take;
+		quote.totalPrice += candidate.price * take;
+	}
+	return quote;
+}
+
+Game::MarketSellQuote Game::consumeMarketSellOffers(const std::shared_ptr<Player> &buyer, uint16_t itemId, uint32_t maxAmount, uint64_t maxUnitPrice) {
+	MarketSellQuote bought;
+	if (!buyer || !buyer->getAccount() || maxAmount == 0) {
+		return bought;
+	}
+
+	for (const auto &candidate : loadMarketSellCandidates(itemId, maxUnitPrice, buyer->getAccountId(), worlds().getCurrentWorld()->id)) {
+		if (bought.amount >= maxAmount) {
+			break;
+		}
+		const auto take = static_cast<uint16_t>(std::min<uint32_t>(candidate.amount, maxAmount - bought.amount));
+		const uint64_t price = candidate.price * take;
+		if (price > buyer->getBankBalance() + buyer->getMoney()) {
+			break;
+		}
+
+		uint32_t sellerGuid = candidate.sellerGuid;
+		const auto &seller = getMarketPlayerByGUID(sellerGuid);
+		if (!seller) {
+			continue;
+		}
+
+		if (price <= buyer->getBankBalance()) {
+			buyer->setBankBalance(buyer->getBankBalance() - price);
+		} else {
+			const uint64_t remainsPrice = price - buyer->getBankBalance();
+			buyer->setBankBalance(0);
+			removeMoney(buyer, remainsPrice);
+		}
+		g_metrics().addCounter("balance_decrease", price, { { "player", buyer->getName() }, { "context", "market_purchase" } });
+
+		seller->setBankBalance(seller->getBankBalance() + price);
+		g_metrics().addCounter("balance_increase", price, { { "player", seller->getName() }, { "context", "market_sale" } });
+		if (seller->isOffline()) {
+			g_saveManager().savePlayer(seller);
+		}
+
+		const time_t now = time(nullptr);
+		IOMarket::appendHistory(buyer->getGUID(), MARKETACTION_BUY, itemId, take, candidate.price, now, 0, OFFERSTATE_ACCEPTEDEX);
+		IOMarket::appendHistory(candidate.sellerGuid, MARKETACTION_SELL, itemId, take, candidate.price, now, 0, OFFERSTATE_ACCEPTED);
+		if (take >= candidate.amount) {
+			IOMarket::deleteOffer(candidate.offerId);
+		} else {
+			IOMarket::acceptOffer(candidate.offerId, take);
+		}
+
+		bought.amount += take;
+		bought.totalPrice += price;
+	}
+
+	if (bought.amount > 0) {
+		g_saveManager().savePlayer(buyer);
+	}
+	return bought;
+}
+
 void Game::parsePlayerExtendedOpcode(uint32_t playerId, uint8_t opcode, const std::string &buffer) {
 	const auto &player = getPlayerByID(playerId);
 	if (!player) {

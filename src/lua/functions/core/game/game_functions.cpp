@@ -213,6 +213,9 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "getBoostedCreature", GameFunctions::luaGameGetBoostedCreature);
 	Lua::registerMethod(L, "Game", "getBestiaryList", GameFunctions::luaGameGetBestiaryList);
 
+	Lua::registerMethod(L, "Game", "quoteMarketSellOffers", GameFunctions::luaGameQuoteMarketSellOffers);
+	Lua::registerMethod(L, "Game", "consumeMarketSellOffers", GameFunctions::luaGameConsumeMarketSellOffers);
+
 	Lua::registerMethod(L, "Game", "getPlayers", GameFunctions::luaGameGetPlayers);
 	Lua::registerMethod(L, "Game", "loadMap", GameFunctions::luaGameLoadMap);
 	Lua::registerMethod(L, "Game", "loadMapChunk", GameFunctions::luaGameloadMapChunk);
@@ -430,6 +433,36 @@ int GameFunctions::luaGameGetBoostedCreature(lua_State* L) {
 	// Game.getBoostedCreature()
 	Lua::pushString(L, g_game().getBoostedMonsterName());
 	return 1;
+}
+
+namespace {
+	int pushMarketSellOffers(lua_State* L, bool consume) {
+		const auto &player = Lua::getPlayer(L, 1);
+		if (!player) {
+			lua_pushinteger(L, 0);
+			lua_pushinteger(L, 0);
+			return 2;
+		}
+		const auto itemId = Lua::getNumber<uint16_t>(L, 2);
+		const auto maxAmount = Lua::getNumber<uint32_t>(L, 3);
+		const auto maxUnitPrice = Lua::getNumber<uint64_t>(L, 4, std::numeric_limits<int64_t>::max());
+		const auto result = consume
+			? g_game().consumeMarketSellOffers(player, itemId, maxAmount, maxUnitPrice)
+			: g_game().quoteMarketSellOffers(player, itemId, maxAmount, maxUnitPrice);
+		lua_pushinteger(L, static_cast<lua_Integer>(result.amount));
+		lua_pushinteger(L, static_cast<lua_Integer>(result.totalPrice));
+		return 2;
+	}
+}
+
+int GameFunctions::luaGameQuoteMarketSellOffers(lua_State* L) {
+	// Game.quoteMarketSellOffers(player, itemId, maxAmount[, maxUnitPrice]) -> amount, totalPrice
+	return pushMarketSellOffers(L, false);
+}
+
+int GameFunctions::luaGameConsumeMarketSellOffers(lua_State* L) {
+	// Game.consumeMarketSellOffers(player, itemId, maxAmount[, maxUnitPrice]) -> amount, totalPrice
+	return pushMarketSellOffers(L, true);
 }
 
 int GameFunctions::luaGameGetBestiaryList(lua_State* L) {

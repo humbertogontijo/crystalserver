@@ -21,7 +21,14 @@ local CONDITION_FIELDS = {
 --- Per-kind trigger rules (potions never "always", attacks/runes/ammo always, healing HP only).
 local function coerceCondition(slot)
 	local kind = slot.kind
-	if kind == "potion" then
+	local potionEffect = kind == "potion" and CombatAutomationConfig.PotionEffects[slot.potionTypeId]
+	if potionEffect and potionEffect.manashield then
+		-- Shield potions: Always (keep up) or Mana %, like utamo vita.
+		if slot.triggerStat ~= "mana" then
+			slot.triggerStat = "always"
+			slot.triggerPercent = 100
+		end
+	elseif kind == "potion" then
 		if slot.triggerStat == "always" then
 			slot.triggerStat = "hp"
 			if slot.triggerPercent >= 100 then
@@ -154,8 +161,21 @@ local function byGroupStep(a, b)
 	return a.priority < b.priority
 end
 
+--- Support buffs, stances and ammo ignore the trigger, so they never define a group's condition.
+local function carriesCondition(slot)
+	if slot.kind == "ammo" then
+		return false
+	end
+	if slot.kind ~= "spell" then
+		return true
+	end
+	local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
+	return group ~= "support" and group ~= "stance"
+end
+
 --- Sanitize a raw slot list: drop invalid / duplicate (group, step) entries, sort by
---- (group, step), and give every step of a group the lowest step's condition.
+--- (group, step), and give every step of a group the condition of its first step that
+--- carries one (else its lowest step).
 local function sanitizeSlotList(entries, player)
 	local out = {}
 	if type(entries) ~= "table" then
@@ -173,13 +193,18 @@ local function sanitizeSlotList(entries, player)
 		end
 	end
 	table.sort(out, byGroupStep)
-	local lead = nil
+	local sources = {}
 	for _, slot in ipairs(out) do
-		if not lead or lead.group ~= slot.group then
-			lead = slot
-		else
+		local current = sources[slot.group]
+		if not current or (not carriesCondition(current) and carriesCondition(slot)) then
+			sources[slot.group] = slot
+		end
+	end
+	for _, slot in ipairs(out) do
+		local source = sources[slot.group]
+		if source ~= slot then
 			for _, field in ipairs(CONDITION_FIELDS) do
-				slot[field] = lead[field]
+				slot[field] = source[field]
 			end
 			coerceCondition(slot)
 		end

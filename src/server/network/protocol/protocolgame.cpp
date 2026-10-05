@@ -4015,6 +4015,11 @@ void ProtocolGame::parseMarketBrowse(NetworkMessage &msg) {
 		if (Item::items[itemId].upgradeClassification > 0) {
 			tier = msg.get<uint8_t>();
 		}
+		// Show-in-market from anywhere (imbuing shrine) before any locker was opened this
+		// session: pin depot 1 like the market item does; depot boxes are shared across lockers.
+		if (player->getLastDepotId() == -1) {
+			player->setLastDepotId(1);
+		}
 		player->sendMarketEnter(player->getLastDepotId());
 		g_game().playerBrowseMarket(player->getID(), itemId, tier);
 	} else {
