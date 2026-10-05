@@ -1817,10 +1817,27 @@ local function byPriority(a, b)
 	return tostring(a.id) < tostring(b.id)
 end
 
+--- Attack execution order: "exact" monster counts first, then "at least", each from the
+--- highest count down, then bar slot / step. A broad "at least 1" never runs ahead of a
+--- narrower gate and takes the cooldown it needs.
+local function byMonsterGate(a, b)
+	local modeA = a.monsterCountMode == "exact" and 0 or 1
+	local modeB = b.monsterCountMode == "exact" and 0 or 1
+	if modeA ~= modeB then
+		return modeA < modeB
+	end
+	local countA = math.floor(tonumber(a.monsterCount) or 1)
+	local countB = math.floor(tonumber(b.monsterCount) or 1)
+	if countA ~= countB then
+		return countA > countB
+	end
+	return byPriority(a, b)
+end
+
 --- { config, slots } built once at the start of a tick (targeting, area steps and casts share it).
 local tickCombatSlots = nil
 
---- Runes and attack spells (rank >= 2), by slot priority.
+--- Runes and attack spells (rank >= 2), in attack execution order (byMonsterGate).
 local function combatSlotsOf(config)
 	if tickCombatSlots and tickCombatSlots.config == config then
 		return tickCombatSlots.slots
@@ -1835,7 +1852,7 @@ local function combatSlotsOf(config)
 			combatSlots[#combatSlots + 1] = slot
 		end
 	end
-	table.sort(combatSlots, byPriority)
+	table.sort(combatSlots, byMonsterGate)
 	return combatSlots
 end
 
@@ -1933,6 +1950,39 @@ local function bestAreaHits(player, area, origin)
 	return best, bestDir
 end
 
+--- Combat slot could go out this tick: condition, gates, cooldown/mana, and its monster
+--- count from here (directional areas: best facing).
+local function combatSlotCastableNow(player, state, slot, hpPercent, manaPercent, t)
+	if not (slotShouldFire(slot, hpPercent, manaPercent, player) and slotPassesSituationalGates(player, slot) and combatSlotWillCast(player, state, slot, t)) then
+		return false
+	end
+	local area = areaAttackOf(slot)
+	if area and isDirectionalArea(area) then
+		return monsterCountPasses(slot, (bestAreaHits(player, area, player:getPosition())))
+	end
+	return slotHasEnoughMonsters(player, slot)
+end
+
+--- Multi-action slots: each group (bar slot) offers only its lowest castable step.
+--- Returns those slots in `slots` order, plus group -> chosen step.
+local function firstCastableByGroup(player, state, slots, hpPercent, manaPercent, t)
+	local chosen = {}
+	for _, slot in ipairs(slots) do
+		local key = slot.group or slot.id
+		local current = chosen[key]
+		if (not current or (slot.step or 1) < (current.step or 1)) and combatSlotCastableNow(player, state, slot, hpPercent, manaPercent, t) then
+			chosen[key] = slot
+		end
+	end
+	local out = {}
+	for _, slot in ipairs(slots) do
+		if chosen[slot.group or slot.id] == slot then
+			out[#out + 1] = slot
+		end
+	end
+	return out, chosen
+end
+
 --- Lead slot among `slots` (ready, gated). Strict order: the first by priority. Smart
 --- (default): the area slot with the most hits (rotation-aware) when it hits 2+, else
 --- the first by priority. Returns slot, area, hits, facing.
@@ -1980,7 +2030,8 @@ end
 --- searched first; other elements only lead when no stance-element slot can cast.
 local function pickLeadSlot(player, state, config, hpPercent, manaPercent, t)
 	local strict = config and config.strictSkillOrder == true
-	for _, tier in ipairs(stanceElementTiers(player, combatSlotsOf(config))) do
+	local castable = firstCastableByGroup(player, state, combatSlotsOf(config), hpPercent, manaPercent, t)
+	for _, tier in ipairs(stanceElementTiers(player, castable)) do
 		local slot, area, hits, dir = pickLeadSlotIn(player, state, tier, strict, hpPercent, manaPercent, t)
 		if slot then
 			return slot, area, hits, dir
@@ -1993,8 +2044,12 @@ end
 --- every facing: it waits on the caster's position, not on cooldown or mana.
 --- Target-centred areas do not depend on the caster tile.
 local function positionBlockedAreaSlot(player, state, config, hpPercent, manaPercent, t, pos)
-	for _, slot in ipairs(stanceElementOrder(player, combatSlotsOf(config))) do
-		if slot.kind == "spell" then
+	local slots = combatSlotsOf(config)
+	local _, chosen = firstCastableByGroup(player, state, slots, hpPercent, manaPercent, t)
+	for _, slot in ipairs(stanceElementOrder(player, slots)) do
+		-- A lower step of the same group goes out from here first.
+		local lower = chosen[slot.group or slot.id]
+		if slot.kind == "spell" and not (lower and (lower.step or 1) < (slot.step or 1)) then
 			local area = areaAttackOf(slot)
 			if
 				area
@@ -2535,10 +2590,12 @@ function CombatAutomation.tick(player)
 						markFired(state, player, slot, "", "potion", exhaust, t, true)
 						hpPercent = percentOf(player:getHealth(), player:getMaxHealth())
 						manaPercent = percentOf(player:getMana(), player:getMaxMana())
+						return true
 					end
 				end
 			end
 		end
+		return false
 	end
 
 	local supportSlots, sustainSlots = {}, {}
@@ -2566,11 +2623,16 @@ function CombatAutomation.tick(player)
 
 	-- Potions + healing / support / shield in slot priority: a higher-priority heal that
 	-- lifts HP above a potion threshold saves that potion this tick.
+	-- Multi-action slots: the first step that goes out consumes its group for this tick.
+	local groupFired = {}
 	for _, slot in ipairs(sustainSlots) do
+		local groupKey = slot.group or slot.id
 		local partyTarget = nil
 		local shouldFire = false
-		if slot.kind == "potion" then
-			tryPotionSlot(slot)
+		if groupFired[groupKey] then
+			-- A lower step of this group already went out.
+		elseif slot.kind == "potion" then
+			groupFired[groupKey] = tryPotionSlot(slot)
 		elseif isPartyHealSlot(slot) then
 			if slot.enabled ~= false then
 				partyTarget = pickPartyHealTarget(player, slot)
@@ -2590,6 +2652,7 @@ function CombatAutomation.tick(player)
 					local result = tryCastSpellWords(player, words, param)
 					if result == "cast" then
 						markFired(state, player, slot, words, words, exhaust, t, false)
+						groupFired[groupKey] = true
 						hpPercent = percentOf(player:getHealth(), player:getMaxHealth())
 						manaPercent = percentOf(player:getMana(), player:getMaxMana())
 						-- Keep checking other support/heals; engine CD returns "skip".
@@ -2603,7 +2666,7 @@ function CombatAutomation.tick(player)
 
 	if autoEnabled and not state.pendingAreaCast then
 		local onlySlot = state.areaCastSlotId
-		for _, slot in ipairs(combatSlots) do
+		for _, slot in ipairs((firstCastableByGroup(player, state, combatSlots, hpPercent, manaPercent, t))) do
 			if onlySlot and slot.id ~= onlySlot then
 				-- Stepped for a specific area attack; do not fire a different one.
 			elseif

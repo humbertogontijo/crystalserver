@@ -2,6 +2,73 @@ CombatAutomationStore = CombatAutomationStore or {}
 
 -- Attack-page loadout banks (mirrors client AttackPreset.COUNT).
 local ATTACK_PRESET_COUNT = 3
+-- Bar slots (client SLOT_COUNT) and actions per multi-action slot (client MULTI_STEPS).
+local SLOT_GROUPS = 14
+local MULTI_STEPS = 3
+CombatAutomationStore.SLOT_GROUPS = SLOT_GROUPS
+CombatAutomationStore.MULTI_STEPS = MULTI_STEPS
+
+-- Shared by every step of a multi-action slot.
+local CONDITION_FIELDS = {
+	"triggerStat",
+	"triggerPercent",
+	"monsterCount",
+	"monsterCountMode",
+	"castIfTrapped",
+	"harmonyThreshold",
+}
+
+--- Per-kind trigger rules (potions never "always", attacks/runes/ammo always, healing HP only).
+local function coerceCondition(slot)
+	local kind = slot.kind
+	if kind == "potion" then
+		if slot.triggerStat == "always" then
+			slot.triggerStat = "hp"
+			if slot.triggerPercent >= 100 then
+				slot.triggerPercent = 50
+			end
+		end
+	elseif kind == "rune" or kind == "ammo" then
+		slot.triggerStat = "always"
+		slot.triggerPercent = 100
+	elseif kind == "spell" then
+		local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
+		local lowerWords = tostring(slot.words or ""):lower()
+		local isCripple = lowerWords == "exori kor tempo" or lowerWords == "exori moe tempo"
+		if group == "attack" or group == "stance" or isCripple then
+			slot.triggerStat = "always"
+			slot.triggerPercent = 100
+		elseif group == "healing" then
+			slot.triggerStat = "hp"
+			if slot.triggerPercent >= 100 then
+				slot.triggerPercent = 99
+			end
+		end
+	end
+end
+
+local function clampInt(value, low, high, fallback)
+	local n = math.floor(tonumber(value) or fallback)
+	if n < low then
+		return low
+	end
+	if n > high then
+		return high
+	end
+	return n
+end
+
+--- Bar slot + step. Legacy entries (no group) used priority as the bar index.
+local function slotPosition(raw, index)
+	local group = math.floor(tonumber(raw.group) or 0)
+	local step = 1
+	if group >= 1 then
+		step = clampInt(raw.step, 1, MULTI_STEPS, 1)
+	else
+		group = math.floor(tonumber(raw.priority) or index)
+	end
+	return clampInt(group, 1, SLOT_GROUPS, 1), step
+end
 
 local function sanitizeSlot(raw, index, player)
 	if type(raw) ~= "table" then
@@ -29,15 +96,18 @@ local function sanitizeSlot(raw, index, player)
 		triggerPercent = 100
 	end
 
+	local group, step = slotPosition(raw, index)
 	local slot = {
-		id = type(raw.id) == "string" and raw.id ~= "" and raw.id or ("slot_" .. tostring(index)),
+		id = "slot-" .. group .. "-" .. step,
+		group = group,
+		step = step,
 		enabled = raw.enabled ~= false,
 		kind = kind,
 		triggerStat = triggerStat,
 		triggerPercent = triggerPercent,
 		monsterCount = math.max(1, math.min(9, math.floor(tonumber(raw.monsterCount) or 1))),
 		monsterCountMode = raw.monsterCountMode == "exact" and "exact" or "minimum",
-		priority = math.floor(tonumber(raw.priority) or index),
+		priority = (group - 1) * MULTI_STEPS + step,
 		castIfTrapped = raw.castIfTrapped == true,
 		harmonyThreshold = math.max(0, math.min(5, math.floor(tonumber(raw.harmonyThreshold) or 0))),
 	}
@@ -48,29 +118,18 @@ local function sanitizeSlot(raw, index, player)
 			return nil
 		end
 		slot.potionTypeId = typeId
-		-- Potions use HP/Mana only (no Always).
-		if slot.triggerStat == "always" then
-			slot.triggerStat = "hp"
-			if slot.triggerPercent >= 100 then
-				slot.triggerPercent = 50
-			end
-		end
 	elseif kind == "rune" then
 		local typeId = math.floor(tonumber(raw.runeTypeId) or 0)
 		if typeId <= 0 or not CombatAutomationCatalog.runeAllowedForPlayer(typeId, player) then
 			return nil
 		end
 		slot.runeTypeId = typeId
-		slot.triggerStat = "always"
-		slot.triggerPercent = 100
 	elseif kind == "ammo" then
 		local typeId = math.floor(tonumber(raw.ammoTypeId) or 0)
 		if typeId <= 0 or not CombatAutomationCatalog.ammoAllowedForPlayer(typeId, player) then
 			return nil
 		end
 		slot.ammoTypeId = typeId
-		slot.triggerStat = "always"
-		slot.triggerPercent = 100
 	else
 		local spellId = tostring(raw.spellId or ""):lower():gsub("%s+", "_")
 		local ok, words = CombatAutomationCatalog.spellAllowedForPlayer(spellId, player)
@@ -79,36 +138,50 @@ local function sanitizeSlot(raw, index, player)
 		end
 		slot.spellId = spellId
 		slot.words = words
-		local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[spellId]
 		local lowerWords = tostring(words):lower()
-		local isCripple = lowerWords == "exori kor tempo" or lowerWords == "exori moe tempo"
-		local isHaste = lowerWords:find("utani", 1, true) ~= nil or lowerWords == "utamo tempo san"
-		if group == "attack" or group == "stance" or isCripple then
-			slot.triggerStat = "always"
-			slot.triggerPercent = 100
-		elseif group == "healing" then
-			-- Healing is HP-threshold only.
-			slot.triggerStat = "hp"
-			if slot.triggerPercent >= 100 then
-				slot.triggerPercent = 99
-			end
-		end
-		if isHaste then
+		if lowerWords:find("utani", 1, true) ~= nil or lowerWords == "utamo tempo san" then
 			slot.pzCast = raw.pzCast == true
 		end
 	end
+	coerceCondition(slot)
 	return slot
 end
 
-local function sanitizeAttackPresetEntries(entries, player)
+local function byGroupStep(a, b)
+	if a.priority == b.priority then
+		return tostring(a.id) < tostring(b.id)
+	end
+	return a.priority < b.priority
+end
+
+--- Sanitize a raw slot list: drop invalid / duplicate (group, step) entries, sort by
+--- (group, step), and give every step of a group the lowest step's condition.
+local function sanitizeSlotList(entries, player)
 	local out = {}
 	if type(entries) ~= "table" then
 		return out
 	end
+	local taken = {}
 	for i, entry in ipairs(entries) do
 		local slot = sanitizeSlot(entry, i, player)
 		if slot then
-			out[#out + 1] = slot
+			local key = slot.group * 10 + slot.step
+			if not taken[key] then
+				taken[key] = true
+				out[#out + 1] = slot
+			end
+		end
+	end
+	table.sort(out, byGroupStep)
+	local lead = nil
+	for _, slot in ipairs(out) do
+		if not lead or lead.group ~= slot.group then
+			lead = slot
+		else
+			for _, field in ipairs(CONDITION_FIELDS) do
+				slot[field] = lead[field]
+			end
+			coerceCondition(slot)
 		end
 	end
 	return out
@@ -126,7 +199,7 @@ function CombatAutomationStore.sanitizeAttackPresets(raw, player)
 	local presets = {}
 	local hasAny = false
 	for i = 1, ATTACK_PRESET_COUNT do
-		local entries = sanitizeAttackPresetEntries(source[i], player)
+		local entries = sanitizeSlotList(source[i], player)
 		presets[i] = entries
 		if #entries > 0 then
 			hasAny = true
@@ -196,21 +269,7 @@ function CombatAutomationStore.sanitize(raw, player)
 		end
 		attackPresets = CombatAutomationStore.sanitizeAttackPresets(rawPresets, player)
 	end
-	for i, entry in ipairs(source) do
-		local slot = sanitizeSlot(entry, i, player)
-		if slot then
-			slots[#slots + 1] = slot
-			if ammoTypeId == 0 and slot.kind == "ammo" and slot.enabled ~= false then
-				ammoTypeId = math.floor(tonumber(slot.ammoTypeId) or 0)
-			end
-		end
-	end
-	table.sort(slots, function(a, b)
-		if a.priority == b.priority then
-			return tostring(a.id) < tostring(b.id)
-		end
-		return a.priority < b.priority
-	end)
+	slots = sanitizeSlotList(source, player)
 	for _, slot in ipairs(slots) do
 		if slot.kind == "ammo" and slot.enabled ~= false then
 			local id = math.floor(tonumber(slot.ammoTypeId) or 0)
