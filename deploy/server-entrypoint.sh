@@ -107,6 +107,17 @@ patch_config ownerName "$OWNER_NAME"
 patch_config ownerEmail "$OWNER_EMAIL"
 patch_config url "$SERVER_URL"
 
+# Prometheus exporter (image is built with FEATURE_METRICS); scraped by deploy/metrics.
+if [ -n "${METRICS_ENABLE_PROMETHEUS:-}" ]; then
+  case "${METRICS_ENABLE_PROMETHEUS,,}" in
+    1 | true | yes | on) patch_config metricsEnablePrometheus true 0 ;;
+    *) patch_config metricsEnablePrometheus false 0 ;;
+  esac
+fi
+if [ -n "${METRICS_PROMETHEUS_ADDRESS:-}" ]; then
+  patch_config metricsPrometheusAddress "$METRICS_PROMETHEUS_ADDRESS"
+fi
+
 # ProtocolStatus reads worlds.{name,ip,port_status} from MariaDB (createFirstWorld only
 # inserts once). Sync every boot so otservlist sees the public host + Idlebra name.
 ADVERTISE_IP="${STATUS_ADVERTISE_IP:-$SERVER_IP}"

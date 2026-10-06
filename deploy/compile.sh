@@ -12,7 +12,7 @@ cd /src
 
 mkdir -p /var/cache/ccache /src/out
 export CCACHE_DIR=/var/cache/ccache \
-	CCACHE_MAXSIZE=20G \
+	CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-20G}" \
 	VCPKG_ROOT="${VCPKG_ROOT:-/opt/vcpkg}" \
 	VCPKG_DEFAULT_BINARY_CACHE=/var/cache/vcpkg-binaries \
 	VCPKG_DOWNLOADS=/var/cache/vcpkg-downloads \
@@ -34,6 +34,7 @@ echo "[compile] jobs=$JOBS (nproc=$(nproc))"
 cmake --preset linux-release \
 	-DOPTIONS_ENABLE_CCACHE=ON \
 	-DOPTIONS_ENABLE_SCCACHE=OFF \
+	-DFEATURE_METRICS=ON \
 	-DBUILD_TESTS=OFF
 cmake --build --preset linux-release -j"$JOBS"
 ccache -s || true

@@ -10,6 +10,10 @@ tests
 **/__pycache__
 *.log
 
+# Metrics stack images (deploy/metrics/*/Dockerfile.dockerignore).
+deploy/metrics
+metrics
+
 # Alternate datapack tree (not used by IdleOT runtime image).
 data-crystal
 data-crystal/**

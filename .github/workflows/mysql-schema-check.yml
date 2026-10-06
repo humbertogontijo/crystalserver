@@ -2,16 +2,7 @@
 name: MySQL Schema Check
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "schema.sql"
-  merge_group:
-  push:
-    paths:
-      - "schema.sql"
-    branches:
-      - main
+  workflow_call:
 
 jobs:
   mysql-schema-check:

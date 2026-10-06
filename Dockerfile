@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
-# IdleOT CrystalServer — Coolify compose build (idleot/crystalserver).
+# IdleOT CrystalServer runtime image (idleot/crystalserver).
 #
-# Compile in the builder stage with BuildKit cache mounts (vcpkg + ccache).
-# Coolify custom build command must NOT pass --no-cache (resets those mounts
-# on this host): DOCKER_BUILDKIT=1 docker compose build
+# Built by .github/workflows/deploy-image.yml → ghcr.io/idleot/crystalserver;
+# Coolify only pulls it. Compile uses BuildKit cache mounts (vcpkg + ccache)
+# that the workflow persists via buildkit-cache-dance.
 #
 # data + data-global are baked into the runtime stage; datapack-only pushes
 # still rebuild it.
@@ -22,9 +22,12 @@ SHELL ["/bin/bash", "-lc"]
 
 FROM toolchain AS builder
 
-# 0 = auto (nproc). Coolify should pass IDLEOT_COMPILE_JOBS as a build arg.
+# 0 = auto (nproc).
 ARG IDLEOT_COMPILE_JOBS=0
-ENV IDLEOT_COMPILE_JOBS=${IDLEOT_COMPILE_JOBS}
+# GitHub Actions round-trips the ccache mount through actions/cache (10 GB repo cap).
+ARG CCACHE_MAXSIZE=20G
+ENV IDLEOT_COMPILE_JOBS=${IDLEOT_COMPILE_JOBS} \
+	CCACHE_MAXSIZE=${CCACHE_MAXSIZE}
 
 WORKDIR /src
 

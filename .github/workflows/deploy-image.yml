@@ -1,0 +1,93 @@
+---
+# Build the Coolify runtime image (root Dockerfile) on GitHub Actions, push it
+# to GHCR and ask Coolify to redeploy idleot-server. Coolify no longer compiles.
+#
+# Secrets: COOLIFY_URL, COOLIFY_TOKEN (optional — deploy step is skipped without them)
+# Variables: COOLIFY_APP_UUID (idleot-server)
+name: Deploy - Image
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/crystalserver
+
+jobs:
+  image:
+    name: Build and push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The Dockerfile keeps vcpkg binaries and ccache in BuildKit cache mounts.
+      # Runners are ephemeral, so round-trip those mounts through actions/cache.
+      - name: Restore BuildKit cache mounts
+        id: mounts
+        uses: actions/cache@v4
+        with:
+          path: buildkit-mounts
+          key: crystal-mounts-${{ hashFiles('vcpkg.json') }}-${{ github.sha }}
+          restore-keys: |
+            crystal-mounts-${{ hashFiles('vcpkg.json') }}-
+            crystal-mounts-
+
+      - name: Inject cache mounts into BuildKit
+        uses: reproducible-containers/buildkit-cache-dance@v3
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          skip-extraction: ${{ steps.mounts.outputs.cache-hit }}
+          cache-map: |
+            {
+              "buildkit-mounts/vcpkg-binaries": { "target": "/var/cache/vcpkg-binaries", "id": "idleot-vcpkg-binaries" },
+              "buildkit-mounts/vcpkg-downloads": { "target": "/var/cache/vcpkg-downloads", "id": "idleot-vcpkg-downloads" },
+              "buildkit-mounts/ccache": { "target": "/var/cache/ccache", "id": "idleot-ccache" }
+            }
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          build-args: |
+            CCACHE_MAXSIZE=2G
+          cache-from: type=gha,scope=crystalserver
+          cache-to: type=gha,scope=crystalserver,mode=max
+
+      - name: Deploy on Coolify
+        if: github.ref == 'refs/heads/main'
+        env:
+          COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID }}
+        run: |
+          if [ -z "$COOLIFY_URL" ] || [ -z "$COOLIFY_TOKEN" ] || [ -z "$COOLIFY_APP_UUID" ]; then
+            echo "::notice::Coolify secrets/vars not set — image pushed, deploy skipped"
+            exit 0
+          fi
+          curl -fsS -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            "${COOLIFY_URL%/}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}"

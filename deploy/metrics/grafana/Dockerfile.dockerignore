@@ -1,0 +1,3 @@
+*
+!deploy/metrics/grafana/provisioning
+!metrics/grafana/dashboards

@@ -1,13 +1,7 @@
 ---
 name: Clang-format
 on:
-  pull_request:
-    paths:
-      - "src/**"
-  merge_group:
-  push:
-    paths:
-      - "src/**"
+  workflow_call:
 jobs:
   cancel-runs:
     if: github.event_name == 'pull_request' && github.ref != 'refs/heads/main'

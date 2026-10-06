@@ -1,20 +1,13 @@
 # Coolify compose pack — idleot/crystalserver
 #
-# Build: DOCKER_BUILDKIT=1 docker compose build
-# (do not use Coolify's --pull --no-cache; it resets BuildKit cache mounts)
-#
-# Cache mount ids (shared with otclient for vcpkg): idleot-vcpkg-* use
-# sharing=shared so concurrent Coolify builds do not block each other.
+# The image is built by GitHub Actions (.github/workflows/deploy-image.yml) and
+# pushed to GHCR; Coolify only pulls it. Pin a build with IMAGE_TAG=<sha>.
+# Local source build: docker build -t ghcr.io/idleot/crystalserver:latest .
 
 services:
   crystalserver:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      network: host
-      args:
-        # 0 = nproc inside the builder (Coolify concurrent_builds=1 → use the box)
-        IDLEOT_COMPILE_JOBS: ${IDLEOT_COMPILE_JOBS:-0}
+    image: ghcr.io/idleot/crystalserver:${IMAGE_TAG:-latest}
+    pull_policy: always
     restart: unless-stopped
     ports:
       - "7171:7171"
@@ -46,3 +39,7 @@ services:
       SERVER_URL: ${SERVER_URL:-}
       COIN_IMAGES_URL: ${COIN_IMAGES_URL:-}
       IDLEOT_ASSET_BASE: ${IDLEOT_ASSET_BASE:-}
+      # Prometheus exporter on :9464 — internal only (scraped as crystalserver:9464
+      # over the coolify network by deploy/metrics); never publish it in `ports`.
+      METRICS_ENABLE_PROMETHEUS: ${METRICS_ENABLE_PROMETHEUS:-true}
+      METRICS_PROMETHEUS_ADDRESS: ${METRICS_PROMETHEUS_ADDRESS:-0.0.0.0:9464}

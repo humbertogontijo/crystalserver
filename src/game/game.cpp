@@ -7642,6 +7642,7 @@ bool Game::playerSaySpell(const std::shared_ptr<Player> &player, SpeakClasses ty
 
 	TalkActionResult_t result = TALKACTION_FAILED;
 	if (text.front() == '/' || text.front() == '!') {
+		InstanceActorScope instanceActorScope(player);
 		result = g_talkActions().checkPlayerCanSayTalkAction(player, type, words, type == TALKTYPE_SAY ? (unsigned)CHANNEL_DEFAULT : channelId);
 		if (result == TALKACTION_BREAK) {
 			return true;

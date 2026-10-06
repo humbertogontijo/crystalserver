@@ -1,0 +1,31 @@
+---
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Crystal Prometheus exporter (FEATURE_METRICS). Coolify attaches both
+  # stacks to the shared `coolify` network, where the compose service name
+  # `crystalserver` resolves to the game server.
+  - job_name: crystalserver
+    scrape_interval: 5s
+    scrape_timeout: 4s
+    static_configs:
+      - targets: ["crystalserver:9464"]
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          instance: idleot-host
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          instance: idleot-host
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
