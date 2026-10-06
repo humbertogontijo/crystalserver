@@ -91,5 +91,5 @@ jobs:
             echo "::notice::Coolify secrets/vars not set — images pushed, deploy skipped"
             exit 0
           fi
-          curl -fsS -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+          curl -fsS -X POST -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
             "${COOLIFY_URL%/}/api/v1/deploy?uuid=${COOLIFY_METRICS_UUID}"
