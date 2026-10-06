@@ -57,6 +57,15 @@ jobs:
             echo "built=true" >> "$GITHUB_OUTPUT"; echo "::notice::$IMAGE:${{ steps.rev.outputs.sha }} already exists"
           fi
 
+      # A cold vcpkg + ccache build overflows the default runner disk.
+      - name: Free disk space
+        if: steps.exists.outputs.built != 'true'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          docker system prune -af >/dev/null
+          df -h /
+
       - name: Set up Docker Buildx
         if: steps.exists.outputs.built != 'true'
         id: buildx
