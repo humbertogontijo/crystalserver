@@ -212,6 +212,7 @@ function InstanceTeleport.requestLobby(player, record, opts)
 	local lobbyId = record.id
 	return InstanceTeleport.begin(player, {
 		kind = InstanceTeleport.KIND_LOBBY,
+		destination = leaving and InstanceTeleport.DEST_OPEN_WORLD or InstanceTeleport.DEST_LOBBY,
 		opcode = TRAVEL_OPCODE(),
 		forceDurationMs = forceMs,
 		cancelPolicy = InstanceTeleport.CANCEL_INITIATOR,
@@ -287,6 +288,35 @@ function InstanceTeleport.armSoloExpedition(player, opts)
 				opts.onCancel(p)
 			end
 		end,
+	})
+end
+
+--- Server-forced exit channel when a run ends (raid cleared, boss won/failed): not cancellable
+--- and not blocked by PZ lock. Members already channeling their own hop are left to it.
+--- Returns false when nobody could be armed; the caller then exits without a channel.
+--- opts.destination: DEST_LOBBY (hunt/boss, default) or DEST_OPEN_WORLD (raid).
+function InstanceTeleport.requestExpeditionExit(opts)
+	opts = opts or {}
+	local memberIds = {}
+	for _, id in ipairs(opts.memberIds or {}) do
+		local p = Player(id)
+		if p and not InstanceTeleport.isPending(p) then
+			memberIds[#memberIds + 1] = id
+		end
+	end
+	if #memberIds == 0 then
+		return false, "No members."
+	end
+	return InstanceTeleport.beginGroup({
+		kind = InstanceTeleport.KIND_LOBBY,
+		destination = opts.destination or InstanceTeleport.DEST_LOBBY,
+		memberIds = memberIds,
+		cancelPolicy = InstanceTeleport.CANCEL_NONE,
+		ignoreCombatLock = true,
+		forceDurationMs = opts.durationMs,
+		opcode = EXP_OPCODE(),
+		send = InstanceTeleport.notifyExpedition,
+		onComplete = opts.onComplete,
 	})
 end
 

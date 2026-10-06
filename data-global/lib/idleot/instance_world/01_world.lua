@@ -318,17 +318,9 @@ function InstanceWorld.classify(dest)
 		end
 	end
 
-	if ExpeditionConfig and ExpeditionConfig.Catalog then
-		for _, hunt in ipairs(ExpeditionConfig.Catalog) do
-			local occ = InstanceWorld.occupancyByHuntId[hunt.id]
-			if occ then
-				if occupancyContains(occ, dest.x, dest.y) then
-					return { kind = "hunt", huntId = hunt.id }
-				end
-			elseif hunt.boundary and inBoundary(dest, hunt.boundary) then
-				return { kind = "hunt", huntId = hunt.id }
-			end
-		end
+	local hunt = InstanceWorld.huntAt and InstanceWorld.huntAt(dest)
+	if hunt then
+		return { kind = "hunt", huntId = hunt.id }
 	end
 
 	for _, row in ipairs(InstanceWorld.surroundings) do
@@ -924,28 +916,6 @@ local function sameTile(a, b)
 	return a and b and a.x == b.x and a.y == b.y and a.z == b.z
 end
 
-local function onHuntFootprint(pos)
-	if not pos or not pos.x or not pos.y then
-		return false
-	end
-	if InstanceWorld.occupancyByHuntId then
-		for _, occ in pairs(InstanceWorld.occupancyByHuntId) do
-			if occ and occ.contains and occ:contains(pos.x, pos.y) then
-				return true
-			end
-		end
-	end
-	if ExpeditionConfig and ExpeditionConfig.Catalog then
-		for _, hunt in ipairs(ExpeditionConfig.Catalog) do
-			local occ = hunt.id and InstanceWorld.occupancyByHuntId[hunt.id] or nil
-			if not occ and hunt.boundary and inBoundary(pos, hunt.boundary) then
-				return true
-			end
-		end
-	end
-	return false
-end
-
 --- City / settlement / hub tile that is not also a hunt footprint.
 --- Open-world instance binds are only legal on these tiles.
 function InstanceWorld.isTownOnlyPos(pos)
@@ -957,7 +927,7 @@ function InstanceWorld.isTownOnlyPos(pos)
 	if target.kind ~= "city" and target.kind ~= "settlement" and target.kind ~= "hub" then
 		return false
 	end
-	if target.kind ~= "hub" and onHuntFootprint(pos) then
+	if target.kind ~= "hub" and InstanceWorld.isHuntTile(pos) then
 		return false
 	end
 	return true

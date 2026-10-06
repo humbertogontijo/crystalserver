@@ -44,7 +44,7 @@ function ExpeditionManager.scheduleSessionExit(session, opts)
 		stopEvent(session.waitingEvent)
 		session.waitingEvent = nil
 	end
-	session.waitingEvent = addEvent(function()
+	local function exitSession()
 		local s = ExpeditionManager.getSessionByKey(key)
 		if not s or s.state == "ended" then
 			return
@@ -64,7 +64,18 @@ function ExpeditionManager.scheduleSessionExit(session, opts)
 		else
 			ExpeditionManager.teardownSession(s)
 		end
-	end, delayMs)
+	end
+	-- The loot window is the exit channel.
+	local channeled = InstanceTeleport
+		and InstanceTeleport.requestExpeditionExit
+		and InstanceTeleport.requestExpeditionExit({
+			memberIds = ExpeditionManager.sessionMemberIds(session),
+			durationMs = delayMs,
+			onComplete = exitSession,
+		})
+	if not channeled then
+		session.waitingEvent = addEvent(exitSession, delayMs)
+	end
 end
 
 --- End the expedition for all members (supplies / capacity safety options).
@@ -817,9 +828,15 @@ function ExpeditionManager.requestLeave(player, opts)
 			ExpeditionProtocol.sendError(player, "Teleport is unavailable.")
 			return
 		end
+		local destination = nil
+		if stopToLobby and (session.kind == "raid" or session.kind == "worldboss") then
+			-- Shared raids / world boss exit to the open world, not the lobby room.
+			destination = InstanceTeleport.DEST_OPEN_WORLD
+		end
 		local ok, err = requestFn({
 			initiatorId = playerId,
 			memberIds = memberIds,
+			destination = destination,
 			onComplete = function()
 				EM_PRIV.completeLeaveCountdown(sessionKey, playerId, leaverName, switchTo, { goHometown = goHometown })
 			end,

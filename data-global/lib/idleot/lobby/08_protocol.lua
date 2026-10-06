@@ -150,10 +150,9 @@ function LobbyProtocol.sendLobbies(player, filters)
 	filters = type(filters) == "table" and filters or {}
 	local role = tostring(filters.role or "all")
 	local search = tostring(filters.search or ""):lower()
-	local mine = LobbyStore.getForPlayer(player)
 	local cards = {}
 	for _, record in ipairs(LobbyStore.all()) do
-		local matches = record.public and record ~= mine
+		local matches = LobbyManager.isListedFor(player, record)
 		if matches and role ~= "all" and role ~= "" then
 			matches = record.role == role
 		end

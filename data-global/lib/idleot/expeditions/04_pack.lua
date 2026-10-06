@@ -278,12 +278,16 @@ local function tickPack(session, anchorPos, members)
 		if not monster or monster:getHealth() <= 0 then
 			session.engaged[mid] = nil
 		else
-			local dist = chebyshev(monster:getPosition(), anchorPos)
-			if dist > releaseRadius then
+			local mpos = monster:getPosition()
+			local dist = chebyshev(mpos, anchorPos)
+			local chasing = targetsMember(monster, members)
+			-- A monster chasing a trailing member is measured from that member too.
+			local target = chasing and monster:getTarget() or nil
+			local near = target and math.min(dist, chebyshev(mpos, target:getPosition())) or dist
+			if near > releaseRadius then
 				release(session, mid)
 			else
-				local chasing = targetsMember(monster, members)
-				if packProgress(state, monster, dist, chasing, geo.isInViewport(anchorPos, monster:getPosition())) then
+				if packProgress(state, monster, dist, chasing, geo.isInViewport(anchorPos, mpos)) then
 					state.progressAt = now
 				end
 				state.dist = dist
@@ -317,34 +321,65 @@ local function sealedIn(pos)
 end
 ExpeditionPack.sealedIn = sealedIn
 
---- Live monsters (not summons) on the anchor's screen that some member can attack:
---- what a lure halt counts. A monster behind a wall (no clear shot from anyone) or
---- sealed on an island never arrives, so counting it would hold a halt forever.
---- Returns the count and the load: their summed health fractions (two monsters at
---- half health weigh as one).
-function ExpeditionPack.monstersOnScreen(session, anchor)
-	local pos = anchor:getPosition()
-	local vx, vy = geo.VIEWPORT_X, geo.VIEWPORT_Y
-	local members = {}
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session) or {}) do
-		local member = Player(id)
-		if member then
-			members[#members + 1] = member
+--- Engaged monsters chasing a party member (any member, not only the anchor) on floor
+--- `z` that can still come: alive, not sealed in, and (unless `includeStuck`) not given
+--- up on by the lure walk (`lagStuckUntil` on their engaged entry). `members`: set of
+--- member ids. Returns { { monster, state, target }, ... }.
+function ExpeditionPack.chasers(session, members, z, now, includeStuck)
+	local out = {}
+	for mid, state in pairs(session.engaged or {}) do
+		if includeStuck or (state.lagStuckUntil or 0) <= now then
+			local monster = Monster(mid)
+			local target = monster and monster:getHealth() > 0 and monster:getTarget() or nil
+			if target and members[target:getId()] then
+				local mpos = monster:getPosition()
+				if mpos.z == z and target:getPosition().z == z and not sealedIn(mpos) then
+					out[#out + 1] = { monster = monster, state = state, target = target }
+				end
+			end
 		end
 	end
-	if #members == 0 then
-		members[1] = anchor
+	return out
+end
+
+--- What a lure halt counts: live monsters (not summons) on the anchor's screen that
+--- some member can attack, plus every chaser (`ExpeditionPack.chasers`) on a member
+--- off that screen, each once. A monster behind a wall (no clear shot from anyone) or
+--- sealed on an island never arrives, so counting it would hold a halt forever.
+--- `members`: set of member ids. Returns the count and the load: their summed health
+--- fractions (two monsters at half health weigh as one).
+function ExpeditionPack.lureCount(session, anchor, members)
+	local pos = anchor:getPosition()
+	local vx, vy = geo.VIEWPORT_X, geo.VIEWPORT_Y
+	local players = {}
+	for id in pairs(members) do
+		local member = Player(id)
+		if member then
+			players[#players + 1] = member
+		end
 	end
-	local n, load = 0, 0
+	if #players == 0 then
+		players[1] = anchor
+	end
+	local n, load, counted = 0, 0, {}
+	local function count(monster)
+		counted[monster:getId()] = true
+		n = n + 1
+		load = load + monster:getHealth() / math.max(1, monster:getMaxHealth())
+	end
 	for _, creature in ipairs(Game.getSpectators(pos, false, false, vx, vx, vy, vy, anchor:getInstanceId())) do
 		if creature:isMonster() and creature:getHealth() > 0 and not creature:getMaster() and not sealedIn(creature:getPosition()) then
-			for _, member in ipairs(members) do
+			for _, member in ipairs(players) do
 				if CombatAutomation.isValidAttackTarget(member, creature) then
-					n = n + 1
-					load = load + creature:getHealth() / math.max(1, creature:getMaxHealth())
+					count(creature)
 					break
 				end
 			end
+		end
+	end
+	for _, chaser in ipairs(ExpeditionPack.chasers(session, members, pos.z, nowMs())) do
+		if not counted[chaser.monster:getId()] then
+			count(chaser.monster)
 		end
 	end
 	return n, load

@@ -65,9 +65,15 @@ bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position positio
 	}
 	// Bind before placeCreature (same pattern as Game.createMonster) so login hooks and
 	// spectators see the private hunt/raid id immediately — no post-place enterInstance race.
+	// Without an explicit id, bind the city/settlement instance like ProtocolGame login does,
+	// otherwise onLogin hooks see instance 0 and treat the body as stranded.
 	if (instanceId != 0) {
 		player->moveToInstance(InstanceId(instanceId));
+	} else {
+		g_game().bindPlayerInstance(player, position);
 	}
+	// Headless before placing: onLogin hooks must not mistake this body for a real client.
+	player->setHeadless(true);
 	// Forced place so headless players can stack near the controller / temple.
 	// onPlacedCreature → playerLogin must see the DB lastLoginSaved — same order as ProtocolGame.
 	if (!g_game().placeCreature(player, position, false, true)
@@ -77,7 +83,6 @@ bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position positio
 	player->stampLoginTimestamps();
 	g_game().addCreatureCheck(player);
 	player->setOnline(true);
-	player->setHeadless(true);
 	g_game().ensureAccountQuickLootFilter(player);
 	return true;
 }

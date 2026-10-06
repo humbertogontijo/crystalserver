@@ -259,12 +259,8 @@ function EM_PRIV.isOpenWorldReturnPos(pos)
 	end
 	-- City occupancy can win over hunt masks on shared XY (graves, etc.). Reject
 	-- any tile that is also a hunt footprint so leave never parks on the hold.
-	if kind ~= "hub" and InstanceWorld.occupancyByHuntId then
-		for _, occ in pairs(InstanceWorld.occupancyByHuntId) do
-			if occ and occ.contains and occ:contains(pos.x, pos.y) then
-				return false
-			end
-		end
+	if kind ~= "hub" and InstanceWorld.isHuntTile and InstanceWorld.isHuntTile(pos) then
+		return false
 	end
 	return true
 end

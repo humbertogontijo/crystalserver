@@ -9,8 +9,13 @@ InstanceTeleport.DURATION_WILD_MS = 30000
 InstanceTeleport.KIND_HOMETOWN = "hometown"
 InstanceTeleport.KIND_LOBBY = "lobby"
 InstanceTeleport.KIND_EXPEDITION = "expedition"
+-- Where a hop lands; picks the aura tint (kind only drives policy and client UI).
+InstanceTeleport.DEST_OPEN_WORLD = InstanceTeleport.KIND_HOMETOWN
+InstanceTeleport.DEST_LOBBY = InstanceTeleport.KIND_LOBBY
+InstanceTeleport.DEST_EXPEDITION = InstanceTeleport.KIND_EXPEDITION
 InstanceTeleport.CANCEL_INITIATOR = "initiator"
 InstanceTeleport.CANCEL_ANY = "any"
+InstanceTeleport.CANCEL_NONE = "none"
 
 -- groupKey -> pending
 local pendingByGroup = {}
@@ -81,13 +86,13 @@ function InstanceTeleport.isPending(player)
 	return groupByPlayerId[player:getId()] ~= nil
 end
 
-local function auraEffectFor(kind)
+local function auraEffectFor(destination)
 	local fx = CustomEffects or {}
-	if kind == InstanceTeleport.KIND_HOMETOWN then
+	if destination == InstanceTeleport.DEST_OPEN_WORLD then
 		return fx.IT_AURA_HOMETOWN
-	elseif kind == InstanceTeleport.KIND_LOBBY then
+	elseif destination == InstanceTeleport.DEST_LOBBY then
 		return fx.IT_AURA_LOBBY
-	elseif kind == InstanceTeleport.KIND_EXPEDITION then
+	elseif destination == InstanceTeleport.DEST_EXPEDITION then
 		return fx.IT_AURA_EXPEDITION
 	end
 	return nil
@@ -95,7 +100,7 @@ end
 
 --- Channel aura as a creature attached effect, so every spectator in the instance sees it.
 local function setChannelAura(pending, attached)
-	local effectId = auraEffectFor(pending.kind)
+	local effectId = auraEffectFor(pending.destination)
 	if not effectId then
 		return
 	end
@@ -195,6 +200,8 @@ end
 
 --- Solo or multi-member channel.
 --- opts.holdUntilReady: timer alone does not complete; call markReady(groupKey) when prep is done.
+--- opts.ignoreCombatLock: server-forced hops (run ended) that must happen regardless of PZ lock.
+--- opts.destination: DEST_* where the hop lands (aura tint); defaults to the kind's usual destination.
 function InstanceTeleport.beginGroup(opts)
 	opts = opts or {}
 	local kind = tostring(opts.kind or "")
@@ -217,9 +224,10 @@ function InstanceTeleport.beginGroup(opts)
 	end
 
 	-- Combat lock blocks arming (still hard-fail).
+	local checkCombatLock = opts.ignoreCombatLock ~= true
 	for _, id in ipairs(memberIds) do
 		local p = Player(id)
-		if p and PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(p) and not (PzTeleport.isGod and PzTeleport.isGod(p)) then
+		if checkCombatLock and p and PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(p) and not (PzTeleport.isGod and PzTeleport.isGod(p)) then
 			return false, PzTeleport.PZ_LOCKED_MESSAGE
 		end
 		if p and InstanceTeleport.isPending(p) then
@@ -253,6 +261,7 @@ function InstanceTeleport.beginGroup(opts)
 	local pending = {
 		groupKey = groupKey,
 		kind = kind,
+		destination = opts.destination or kind,
 		initiatorId = initiatorId,
 		memberIds = memberIds,
 		cancelPolicy = cancelPolicy,
@@ -337,7 +346,7 @@ function InstanceTeleport.adoptMember(fromPlayer, toPlayer)
 	if not existing then
 		pending.memberIds[#pending.memberIds + 1] = toId
 		groupByPlayerId[toId] = groupKey
-		local effectId = auraEffectFor(pending.kind)
+		local effectId = auraEffectFor(pending.destination)
 		if effectId then
 			toPlayer:attachEffectById(effectId)
 		end
@@ -388,6 +397,9 @@ function InstanceTeleport.cancel(player)
 		return false
 	end
 
+	if pending.cancelPolicy == InstanceTeleport.CANCEL_NONE then
+		return false
+	end
 	if pending.cancelPolicy == InstanceTeleport.CANCEL_INITIATOR then
 		if playerId ~= pending.initiatorId then
 			return false

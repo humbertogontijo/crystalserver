@@ -331,6 +331,11 @@ local function checkJoinable(player, record, viaInvite)
 	return true
 end
 
+--- Find Lobby listing: joinable without an invite and not mid-expedition.
+function LobbyManager.isListedFor(player, record)
+	return checkJoinable(player, record, false) and LobbyManager.isIdle(record)
+end
+
 function LobbyManager.join(player, lobbyId, viaInvite)
 	local record = LobbyStore.get(lobbyId)
 	local ok, err = checkJoinable(player, record, viaInvite)
@@ -366,9 +371,6 @@ function LobbyManager.leave(player)
 	if not record then
 		return false, "You are not in a lobby."
 	end
-	if #record.members <= 1 then
-		return false, "You are alone in your lobby."
-	end
 	if LobbyStart and LobbyStart.isActive(record) then
 		return false, "The lobby is starting an expedition."
 	end
@@ -378,6 +380,7 @@ function LobbyManager.leave(player)
 	if LobbyInstance.isInRoom(player, record) then
 		return false, "Leave the lobby room first."
 	end
+	-- Alone: the lobby dissolves (unlisting a public one) and a fresh private one replaces it.
 	local wasInRoom = leaveCurrent(player, "leave")
 	local personal = LobbyManager.ensureForPlayer(player)
 	moveIntoRoomIfInside(player, wasInRoom, personal)

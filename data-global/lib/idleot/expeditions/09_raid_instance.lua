@@ -565,9 +565,23 @@ local function beginGrace(session)
 	end
 	RaidInstance.broadcastActiveRaids()
 	local raidName = session.raidName
-	session.graceEvent = addEvent(function()
-		RaidInstance.teardown(raidName)
-	end, graceMs)
+	local function finish()
+		if RaidInstance.active[raidName] == session then
+			RaidInstance.teardown(raidName)
+		end
+	end
+	-- The loot window is the exit channel.
+	local channeled = InstanceTeleport
+		and InstanceTeleport.requestExpeditionExit
+		and InstanceTeleport.requestExpeditionExit({
+			memberIds = session.playerIds,
+			destination = InstanceTeleport.DEST_OPEN_WORLD,
+			durationMs = graceMs,
+			onComplete = finish,
+		})
+	if not channeled then
+		session.graceEvent = addEvent(finish, graceMs)
+	end
 end
 
 function RaidInstance.watchTick(session)

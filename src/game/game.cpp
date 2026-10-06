@@ -1235,7 +1235,13 @@ void Game::disableWorldSpawns() {
 
 void Game::bindPlayerInstance(const std::shared_ptr<Player> &player) {
 	if (player) {
-		callInstanceWorld("bindLogin", player, player->getLoginPosition(), true);
+		bindPlayerInstance(player, player->getLoginPosition());
+	}
+}
+
+void Game::bindPlayerInstance(const std::shared_ptr<Player> &player, const Position &placePos) {
+	if (player) {
+		callInstanceWorld("bindLogin", player, placePos, true);
 	}
 }
 

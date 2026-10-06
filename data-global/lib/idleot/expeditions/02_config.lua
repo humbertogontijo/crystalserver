@@ -52,12 +52,13 @@ ExpeditionConfig.TEAM_ACCEPT_TIMEOUT_SEC = 45
 ExpeditionConfig.RELEASE_RADIUS = 18
 -- Engaged monsters that make no progress toward the party for this long stop being tracked.
 ExpeditionConfig.PULL_STALL_MS = 8000
--- Dynamic lure: walking the cave route, once lure * LURE_STOP_FACTOR monsters are on
--- its screen the anchor stops waiting for stragglers and halts at the next hold.
+-- Dynamic lure: walking the cave route, once lure * LURE_STOP_FACTOR monsters are in
+-- the lure (on the anchor's screen or chasing any member) the anchor halts: at the next
+-- hold when it is on screen, else near where it stands (LURE_FULL_SPOT_STEPS).
 -- `cave.lure` counts spawns seen over a whole lure walk (it also sets hunt levels);
 -- the party kills on the way, so only about half of that is ever on screen at once.
 ExpeditionConfig.LURE_STOP_FACTOR = 0.5
--- A halt walks on (still attacking) once the monsters on screen add up
+-- A halt walks on (still attacking) once the monsters in the lure add up
 -- to at most this many full-health monsters: the sum of their health fractions, so 1
 -- can be one untouched monster or two at half health.
 ExpeditionConfig.LURE_RESUME_LOAD = 1
@@ -75,13 +76,21 @@ ExpeditionConfig.HALT_REPICK_MAX = 4
 -- Blocker rule: the anchor stands still this long with an
 -- attackable monster in the way of its next waypoint → halt and kill it.
 ExpeditionConfig.BLOCKER_MS = 1000
--- Pacing: walking with at least LURE_PACE_MIN engaged, wait up to LURE_WAIT_MS when a
--- monster still chasing the party trails more than LURE_LAG_SQM behind; never while
--- LURE_WAIT_SKIP_ADJACENT or more monsters are adjacent (anti-trap).
-ExpeditionConfig.LURE_PACE_MIN = 2
-ExpeditionConfig.LURE_WAIT_MS = 2000
+-- Lure leash (any count): walking, the anchor stands still when a monster chasing any
+-- member trails that member by more than LURE_LAG_SQM (it would lose its lock) or the
+-- anchor by more than LURE_LEASH_SQM (kept on the anchor's screen), and walks on once
+-- every chaser is within LURE_LAG_RESUME_SQM of its target and LURE_LEASH_SQM - 2 of the
+-- anchor. A wait whose lag does not shrink for LURE_LAG_STALL_MS gives those chasers up
+-- for PULL_STALL_MS. Never waits while LURE_WAIT_SKIP_ADJACENT or more chasers are
+-- adjacent (anti-trap).
 ExpeditionConfig.LURE_LAG_SQM = 4
+ExpeditionConfig.LURE_LAG_RESUME_SQM = 2
+ExpeditionConfig.LURE_LEASH_SQM = 6
+ExpeditionConfig.LURE_LAG_STALL_MS = 2500
 ExpeditionConfig.LURE_WAIT_SKIP_ADJACENT = 4
+-- Lure full mid-route (no hold on screen): halt at the best spot within this many
+-- walking steps of the anchor, inside the viewport so the pack stays in sight.
+ExpeditionConfig.LURE_FULL_SPOT_STEPS = 4
 -- Anchor within this Chebyshev distance of a waypoint counts as reached.
 ExpeditionConfig.WAYPOINT_REACH = 1
 -- Advance to the next waypoint this many steps early, so its path replaces the

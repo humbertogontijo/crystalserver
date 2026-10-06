@@ -170,6 +170,7 @@ public:
 	bool canWalkInstance(const std::shared_ptr<Creature> &creature, const Position &toPos);
 	void disableWorldSpawns();
 	void bindPlayerInstance(const std::shared_ptr<Player> &player);
+	void bindPlayerInstance(const std::shared_ptr<Player> &player, const Position &placePos);
 	/** Re-bind creature instanceId from active InstanceWorld session (expedition hunt). */
 	void syncCreatureInstance(const std::shared_ptr<Creature> &creature);
 	bool consumeInstanceFenceMessage();
