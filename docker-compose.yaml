@@ -1,7 +1,8 @@
 # Coolify compose pack — idleot/crystalserver
 #
-# The image is built by GitHub Actions (.github/workflows/deploy-image.yml) and
-# pushed to GHCR; Coolify only pulls it. Pin a build with IMAGE_TAG=<sha>.
+# The image is built by GitHub Actions (.github/workflows/build-image.yml) and
+# pushed to GHCR; Coolify only pulls it. idleot/release sets IMAGE_TAG=<sha>
+# on each release (rollback = redeploy an older tag).
 # Local source build: docker build -t ghcr.io/idleot/crystalserver:latest .
 
 services:

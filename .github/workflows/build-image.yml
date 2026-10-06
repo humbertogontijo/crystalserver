@@ -1,22 +1,29 @@
 ---
-# Build the Coolify runtime image (root Dockerfile) on GitHub Actions, push it
-# to GHCR and ask Coolify to redeploy idleot-server. Coolify no longer compiles.
-#
-# Secrets: COOLIFY_URL, COOLIFY_TOKEN (optional — deploy step is skipped without them)
-# Variables: COOLIFY_APP_UUID (idleot-server)
-name: Deploy - Image
+# Build the Coolify runtime image (root Dockerfile) at a pinned commit and push
+# ghcr.io/idleot/crystalserver:<sha>. Build-only: idleot/release release.yml
+# dispatches this, waits for it, then points Coolify idleot-server at the tag
+# and moves :latest once the server is live.
+name: Build - Image
+
+run-name: Build image ${{ inputs.ref || github.sha }} ${{ inputs.release_id }}
 
 on:
   workflow_dispatch:
-  workflow_call:
+    inputs:
+      ref:
+        description: "Commit SHA to build (default: dispatch ref)"
+        default: ""
+      release_id:
+        description: Correlation id (set by idleot/release)
+        default: ""
 
 permissions:
   contents: read
   packages: write
 
 concurrency:
-  group: deploy-image-${{ github.ref }}
-  cancel-in-progress: true
+  group: build-image-${{ inputs.ref || github.sha }}
+  cancel-in-progress: false
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/crystalserver
@@ -29,10 +36,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Resolve commit
+        id: rev
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -41,19 +50,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Skip if already built
+        id: exists
+        run: |
+          if docker buildx imagetools inspect "$IMAGE:${{ steps.rev.outputs.sha }}" >/dev/null 2>&1; then
+            echo "built=true" >> "$GITHUB_OUTPUT"; echo "::notice::$IMAGE:${{ steps.rev.outputs.sha }} already exists"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.exists.outputs.built != 'true'
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
       # The Dockerfile keeps vcpkg binaries and ccache in BuildKit cache mounts.
       # Runners are ephemeral, so round-trip those mounts through actions/cache.
       - name: Restore BuildKit cache mounts
+        if: steps.exists.outputs.built != 'true'
         id: mounts
         uses: actions/cache@v4
         with:
           path: buildkit-mounts
-          key: crystal-mounts-${{ hashFiles('vcpkg.json') }}-${{ github.sha }}
+          key: crystal-mounts-${{ hashFiles('vcpkg.json') }}-${{ steps.rev.outputs.sha }}
           restore-keys: |
             crystal-mounts-${{ hashFiles('vcpkg.json') }}-
             crystal-mounts-
 
       - name: Inject cache mounts into BuildKit
+        if: steps.exists.outputs.built != 'true'
         uses: reproducible-containers/buildkit-cache-dance@v3
         with:
           builder: ${{ steps.buildx.outputs.name }}
@@ -66,6 +89,7 @@ jobs:
             }
 
       - name: Build and push
+        if: steps.exists.outputs.built != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -73,32 +97,17 @@ jobs:
           push: true
           provenance: false
           sbom: false
-          tags: |
-            ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:latest
+          tags: ${{ env.IMAGE }}:${{ steps.rev.outputs.sha }}
           build-args: |
             CCACHE_MAXSIZE=2G
           cache-from: type=gha,scope=crystalserver
           cache-to: type=gha,scope=crystalserver,mode=max
 
       - name: Prune old image versions
+        if: steps.exists.outputs.built != 'true'
         uses: actions/delete-package-versions@v5
         continue-on-error: true
         with:
           package-name: crystalserver
           package-type: container
-          min-versions-to-keep: 5
-
-      - name: Deploy on Coolify
-        if: github.ref == 'refs/heads/main'
-        env:
-          COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
-          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-          COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID }}
-        run: |
-          if [ -z "$COOLIFY_URL" ] || [ -z "$COOLIFY_TOKEN" ] || [ -z "$COOLIFY_APP_UUID" ]; then
-            echo "::notice::Coolify secrets/vars not set — image pushed, deploy skipped"
-            exit 0
-          fi
-          curl -fsS -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
-            "${COOLIFY_URL%/}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}"
+          min-versions-to-keep: 10

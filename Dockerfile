@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # IdleOT CrystalServer runtime image (idleot/crystalserver).
 #
-# Built by .github/workflows/deploy-image.yml → ghcr.io/idleot/crystalserver;
+# Built by .github/workflows/build-image.yml → ghcr.io/idleot/crystalserver:<sha>;
 # Coolify only pulls it. Compile uses BuildKit cache mounts (vcpkg + ccache)
 # that the workflow persists via buildkit-cache-dance.
 #

@@ -18,8 +18,9 @@ concurrency:
   cancel-in-progress: true
 
 # Private repo billing (macOS 10x, Windows 2x): pushes to main run the lint
-# checks and deploy-image (the Linux compile gate). Ubuntu builds on PRs; the
-# other platforms and the stock Docker build only on manual dispatch.
+# checks only. Ubuntu builds on PRs; the other platforms and the stock Docker
+# build only on manual dispatch. Release images are built by build-image.yml,
+# dispatched from idleot/release.
 
 jobs:
   changes:
@@ -29,7 +30,6 @@ jobs:
       build: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'merge_group') && 'true' || steps.filter.outputs.build }}
       lua: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'merge_group') && 'true' || steps.filter.outputs.lua }}
       schema: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'merge_group') && 'true' || steps.filter.outputs.schema }}
-      image: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.image }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -61,20 +61,6 @@ jobs:
               - "schema.sql"
               - ".github/workflows/ci.yml"
               - ".github/workflows/mysql-schema-check.yml"
-            image:
-              - "src/**"
-              - "cmake/**"
-              - "data/**"
-              - "data-global/**"
-              - "deploy/*.sh"
-              - "Dockerfile"
-              - "CMakeLists.txt"
-              - "CMakePresets.json"
-              - "vcpkg.json"
-              - "config.lua.dist"
-              - "schema.sql"
-              - "key.pem"
-              - ".github/workflows/deploy-image.yml"
 
   tests-lua:
     name: Tests - Lua
@@ -137,14 +123,4 @@ jobs:
     needs: [changes]
     if: github.event_name == 'workflow_dispatch' && needs.changes.outputs.build == 'true'
     uses: ./.github/workflows/build-docker.yml
-    secrets: inherit
-
-  deploy-image:
-    name: Deploy - Image
-    needs: [changes]
-    if: needs.changes.outputs.image == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.event_name != 'merge_group'
-    permissions:
-      contents: read
-      packages: write
-    uses: ./.github/workflows/deploy-image.yml
     secrets: inherit
