@@ -22,17 +22,9 @@ concurrency:
 
 jobs:
   images:
-    name: Build ${{ matrix.name }}
+    name: Build and deploy
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - name: metrics-prometheus
-            context: deploy/metrics/prometheus
-            file: deploy/metrics/prometheus/Dockerfile
-          - name: metrics-grafana
-            context: .
-            file: deploy/metrics/grafana/Dockerfile
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -47,22 +39,48 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push metrics-prometheus
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
+          context: deploy/metrics/prometheus
+          file: deploy/metrics/prometheus/Dockerfile
           platforms: linux/amd64
           push: true
+          provenance: false
+          sbom: false
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:latest
+            ghcr.io/${{ github.repository_owner }}/metrics-prometheus:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/metrics-prometheus:latest
 
-  deploy:
-    name: Coolify redeploy
-    needs: [images]
-    runs-on: ubuntu-latest
-    steps:
+      - name: Build and push metrics-grafana
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/metrics/grafana/Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/metrics-grafana:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/metrics-grafana:latest
+
+      - name: Prune old metrics-prometheus versions
+        uses: actions/delete-package-versions@v5
+        continue-on-error: true
+        with:
+          package-name: metrics-prometheus
+          package-type: container
+          min-versions-to-keep: 3
+
+      - name: Prune old metrics-grafana versions
+        uses: actions/delete-package-versions@v5
+        continue-on-error: true
+        with:
+          package-name: metrics-grafana
+          package-type: container
+          min-versions-to-keep: 3
+
       - name: Trigger Coolify deploy
         env:
           COOLIFY_URL: ${{ secrets.COOLIFY_URL }}

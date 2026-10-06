@@ -25,6 +25,7 @@ jobs:
   image:
     name: Build and push
     runs-on: ubuntu-latest
+    timeout-minutes: 240
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -70,6 +71,8 @@ jobs:
           context: .
           file: Dockerfile
           push: true
+          provenance: false
+          sbom: false
           tags: |
             ${{ env.IMAGE }}:${{ github.sha }}
             ${{ env.IMAGE }}:latest
@@ -77,6 +80,14 @@ jobs:
             CCACHE_MAXSIZE=2G
           cache-from: type=gha,scope=crystalserver
           cache-to: type=gha,scope=crystalserver,mode=max
+
+      - name: Prune old image versions
+        uses: actions/delete-package-versions@v5
+        continue-on-error: true
+        with:
+          package-name: crystalserver
+          package-type: container
+          min-versions-to-keep: 5
 
       - name: Deploy on Coolify
         if: github.ref == 'refs/heads/main'
