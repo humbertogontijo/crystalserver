@@ -1120,7 +1120,7 @@ function CombatAutomation.isValidAttackTarget(player, creature)
 	if not fromPos or not toPos or fromPos.z ~= toPos.z then
 		return false
 	end
-	local instanceId = player.getInstanceId and player:getInstanceId() or 0
+	local instanceId = Instance.of(player)
 	if fromPos.isSightClear and not fromPos:isSightClear(toPos, true, instanceId) then
 		return false
 	end
@@ -1377,7 +1377,7 @@ local function knightChainCanStart(player, origin, monster, opts)
 	if not mp or mp.z ~= origin.z or tileDistance(origin, mp) > KnightChallenge.CHAIN_DISTANCE then
 		return false
 	end
-	local instanceId = player.getInstanceId and player:getInstanceId() or 0
+	local instanceId = Instance.of(player)
 	return not origin.isSightClear or origin:isSightClear(mp, true, instanceId)
 end
 
@@ -1762,7 +1762,7 @@ local function runeAimPosition(player, typeId)
 		return n
 	end
 	local best, bestCount = nil, hitsAt(tpos)
-	local instanceId = player.getInstanceId and player:getInstanceId() or 0
+	local instanceId = Instance.of(player)
 	for _, monster in ipairs(monsters) do
 		local mpos = monster:getPosition()
 		if mpos.z == tpos.z and tileDistance(mpos, tpos) <= RUNE_AIM_RADIUS and tileDistance(ppos, mpos) <= RUNE_AIM_RANGE then

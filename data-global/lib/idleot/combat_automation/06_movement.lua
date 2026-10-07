@@ -76,7 +76,7 @@ local function logWalkFail(creature, dest, reason, extra)
 	lastPathFailLogById[id] = { key = key, at = now }
 	local from = creature and creature.getPosition and creature:getPosition() or nil
 	local name = creature and creature.getName and creature:getName() or "?"
-	local instanceId = creature and creature.getInstanceId and creature:getInstanceId() or 0
+	local instanceId = Instance.of(creature)
 	logger.warn(
 		"[CombatAutomation] {} {} from {} to {} dist={} instance={}{}",
 		reason,
@@ -280,7 +280,7 @@ local function sightClear(player, from, to)
 	if not from.isSightClear then
 		return true
 	end
-	return from:isSightClear(to, true, player.getInstanceId and player:getInstanceId() or 0)
+	return from:isSightClear(to, true, Instance.of(player))
 end
 
 -- Fight positioning knobs.

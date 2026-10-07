@@ -37,7 +37,7 @@ struct spawnBlock_t {
 
 class SpawnMonster : public SharedObject {
 public:
-	SpawnMonster(Position initPos, int32_t initRadius, uint32_t initInstanceId) :
+	SpawnMonster(Position initPos, int32_t initRadius, InstanceId initInstanceId) :
 		centerPos(initPos), radius(initRadius), instanceId(initInstanceId) { }
 	~SpawnMonster();
 
@@ -72,7 +72,7 @@ public:
 	int32_t getRadius() const {
 		return radius;
 	}
-	uint32_t getInstanceId() const {
+	InstanceId getInstanceId() const {
 		return instanceId;
 	}
 
@@ -91,7 +91,7 @@ private:
 	std::map<uint32_t, spawnBlock_t> spawnMonsterMap;
 	Position centerPos;
 	int32_t radius;
-	uint32_t instanceId = 0;
+	InstanceId instanceId = InstanceId::World;
 	uint32_t interval = 30000;
 	uint32_t checkSpawnMonsterEvent = 0;
 	// Bumped by stopEvent / removeMonsters; staged spawns from an older generation are dropped.

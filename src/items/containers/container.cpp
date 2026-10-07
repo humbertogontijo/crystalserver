@@ -61,7 +61,7 @@ std::shared_ptr<Container> Container::createBrowseField(const std::shared_ptr<Ti
 	const TileItemVector* itemVector = tile->getItemList();
 	if (itemVector) {
 		for (const auto &item : *itemVector) {
-			if (!item) {
+			if (!item || !item->isVisibleInInstance(instanceId)) {
 				continue;
 			}
 
@@ -90,9 +90,11 @@ Container::~Container() {
 		if (parent) {
 			const auto &tile = parent->getTile();
 			if (tile) {
-				auto browseField = g_game().browseFields.find(tile);
-				if (browseField != g_game().browseFields.end()) {
-					g_game().browseFields.erase(browseField);
+				if (auto browseField = g_game().browseFields.find(tile); browseField != g_game().browseFields.end()) {
+					browseField->second.erase(getInstanceId());
+					if (browseField->second.empty()) {
+						g_game().browseFields.erase(browseField);
+					}
 				}
 			}
 

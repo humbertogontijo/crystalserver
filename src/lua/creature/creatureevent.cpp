@@ -18,6 +18,7 @@
 #include "lua/creature/creatureevent.hpp"
 
 #include "creatures/players/player.hpp"
+#include "game/game.hpp"
 #include "items/item.hpp"
 #include "lua/scripts/scripts.hpp"
 #include "lib/di/container.hpp"
@@ -206,6 +207,7 @@ void CreatureEvent::clearEvent() {
 
 bool CreatureEvent::executeOnLogin(const std::shared_ptr<Player> &player) const {
 	// onLogin(player)
+	InstanceActorScope instanceActorScope(player);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeOnLogin - Player {} event {}]"
 		                 "Call stack overflow. Too many lua script calls being nested.",
@@ -226,6 +228,7 @@ bool CreatureEvent::executeOnLogin(const std::shared_ptr<Player> &player) const 
 
 bool CreatureEvent::executeOnLogout(const std::shared_ptr<Player> &player) const {
 	// onLogout(player)
+	InstanceActorScope instanceActorScope(player);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeOnLogout - Player {} event {}] "
 		                 "Call stack overflow. Too many lua script calls being nested.",
@@ -246,6 +249,7 @@ bool CreatureEvent::executeOnLogout(const std::shared_ptr<Player> &player) const
 
 bool CreatureEvent::executeOnThink(const std::shared_ptr<Creature> &creature, uint32_t interval) const {
 	// onThink(creature, interval)
+	InstanceActorScope instanceActorScope(creature);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeOnThink - Creature {} event {}] "
 		                 "Call stack overflow. Too many lua script calls being nested.",
@@ -268,6 +272,7 @@ bool CreatureEvent::executeOnThink(const std::shared_ptr<Creature> &creature, ui
 
 bool CreatureEvent::executeOnPrepareDeath(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &killer, int realDamage) const {
 	// onPrepareDeath(creature, killer)
+	InstanceActorScope instanceActorScope(creature);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeOnPrepareDeath - Creature {} killer {}"
 		                 " event {}] Call stack overflow. Too many lua script calls being nested.",
@@ -299,6 +304,7 @@ bool CreatureEvent::executeOnPrepareDeath(const std::shared_ptr<Creature> &creat
 
 bool CreatureEvent::executeOnDeath(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Item> &corpse, const std::shared_ptr<Creature> &killer, const std::shared_ptr<Creature> &mostDamageKiller, bool lastHitUnjustified, bool mostDamageUnjustified) const {
 	// onDeath(creature, corpse, lasthitkiller, mostdamagekiller, lasthitunjustified, mostdamageunjustified)
+	InstanceActorScope instanceActorScope(creature);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeOnDeath - Creature {} killer {} event {}] "
 		                 "Call stack overflow. Too many lua script calls being nested.",
@@ -339,6 +345,7 @@ bool CreatureEvent::executeOnDeath(const std::shared_ptr<Creature> &creature, co
 
 bool CreatureEvent::executeAdvance(const std::shared_ptr<Player> &player, skills_t skill, uint32_t oldLevel, uint32_t newLevel) const {
 	// onAdvance(player, skill, oldLevel, newLevel)
+	InstanceActorScope instanceActorScope(player);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeAdvance - Player {} event {}] "
 		                 "Call stack overflow. Too many lua script calls being nested.",
@@ -366,6 +373,7 @@ bool CreatureEvent::executeAdvance(const std::shared_ptr<Player> &player, skills
  */
 void CreatureEvent::executeOnKill(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &target, bool lastHit) const {
 	// onKill(creature, target, lastHit)
+	InstanceActorScope instanceActorScope(creature);
 	g_logger().warn("[CreatureEvent::executeOnKill - Creature {} target {} event {}] "
 	                "Deprecated use of onKill event. Use registered onDeath events instead for better performance.",
 	                creature->getName(), target->getName(), getName());
@@ -392,6 +400,7 @@ void CreatureEvent::executeOnKill(const std::shared_ptr<Creature> &creature, con
 
 void CreatureEvent::executeModalWindow(const std::shared_ptr<Player> &player, uint32_t modalWindowId, uint8_t buttonId, uint8_t choiceId) const {
 	// onModalWindow(player, modalWindowId, buttonId, choiceId)
+	InstanceActorScope instanceActorScope(player);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeModalWindow - "
 		                 "Player {} modaw window id {} event {}] "
@@ -418,6 +427,7 @@ void CreatureEvent::executeModalWindow(const std::shared_ptr<Player> &player, ui
 
 bool CreatureEvent::executeTextEdit(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, const std::string &text) const {
 	// onTextEdit(player, item, text)
+	InstanceActorScope instanceActorScope(player);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeTextEdit - Player {} event {}] "
 		                 "Call stack overflow. Too many lua script calls being nested.",
@@ -442,6 +452,7 @@ bool CreatureEvent::executeTextEdit(const std::shared_ptr<Player> &player, const
 
 void CreatureEvent::executeHealthChange(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &attacker, CombatDamage &damage) const {
 	// onHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
+	InstanceActorScope instanceActorScope(creature);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeHealthChange - "
 		                 "Creature {} attacker {} event {}] "
@@ -487,6 +498,7 @@ void CreatureEvent::executeHealthChange(const std::shared_ptr<Creature> &creatur
 
 void CreatureEvent::executeManaChange(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &attacker, CombatDamage &damage) const {
 	// onManaChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
+	InstanceActorScope instanceActorScope(creature);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeManaChange - "
 		                 "Creature {} attacker {} event {}] "
@@ -527,6 +539,7 @@ void CreatureEvent::executeManaChange(const std::shared_ptr<Creature> &creature,
 
 void CreatureEvent::executeExtendedOpcode(const std::shared_ptr<Player> &player, uint8_t opcode, const std::string &buffer) const {
 	// onExtendedOpcode(player, opcode, buffer)
+	InstanceActorScope instanceActorScope(player);
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[CreatureEvent::executeExtendedOpcode - "
 		                 "Player {} event {}] "

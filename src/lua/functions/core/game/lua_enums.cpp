@@ -22,6 +22,8 @@
 #include "enums/account_type.hpp"
 #include "enums/item_attribute.hpp"
 #include "game/functions/game_reload.hpp"
+#include "game/instance_fence.hpp"
+#include "game/instance_id.hpp"
 #include "io/io_bosstiary.hpp"
 #include "io/ioweeklytasks.hpp"
 #include "lua/functions/lua_functions_loader.hpp"
@@ -124,6 +126,7 @@ void LuaEnums::init(lua_State* L) {
 	initConcoctionsEnum(L);
 	initGuildsEnum(L);
 	initWorldTypeEnums(L);
+	initInstanceKindEnums(L);
 	initVirtueEnums(L);
 	initStanceEnums(L);
 }
@@ -276,6 +279,13 @@ void LuaEnums::initWorldTypeEnums(lua_State* L) {
 	registerEnum(L, WORLDTYPE_RETRO_HARDCORE);
 	registerEnum(L, WORLDTYPE_FIRST);
 	registerEnum(L, WORLDTYPE_LAST);
+}
+
+void LuaEnums::initInstanceKindEnums(lua_State* L) {
+	lua_pushstring(L, InstanceId::World.toKey().c_str());
+	lua_setglobal(L, "INSTANCE_WORLD");
+	lua_pushstring(L, InstanceFenceRegistry::HUB_ADVENTURERS.toKey().c_str());
+	lua_setglobal(L, "INSTANCE_HUB");
 }
 
 void LuaEnums::initAccountEnums(lua_State* L) {

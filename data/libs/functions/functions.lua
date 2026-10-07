@@ -205,8 +205,9 @@ function setPlayerMarriageStatus(id, val)
 	db.query("UPDATE `players` SET `marriage_status` = " .. val .. " WHERE `id` = " .. id)
 end
 
-function checkBoss(centerPosition, rangeX, rangeY, bossName, bossPos)
-	local spectators, found = Game.getSpectators(centerPosition, false, false, rangeX, rangeX, rangeY, rangeY), false
+--- `instanceId` defaults to the caller's instance scope (positional for global events).
+function checkBoss(centerPosition, rangeX, rangeY, bossName, bossPos, instanceId)
+	local spectators, found = Game.getSpectators(centerPosition, false, false, rangeX, rangeX, rangeY, rangeY, instanceId), false
 	for i = 1, #spectators do
 		local spec = spectators[i]
 		if spec:isMonster() then
@@ -217,8 +218,10 @@ function checkBoss(centerPosition, rangeX, rangeY, bossName, bossPos)
 		end
 	end
 	if not found then
-		local boss = Game.createMonster(bossName, bossPos, true, true)
-		boss:setReward(true)
+		local boss = Game.createMonster(bossName, bossPos, true, true, nil, instanceId)
+		if boss then
+			boss:setReward(true)
+		end
 	end
 	return found
 end

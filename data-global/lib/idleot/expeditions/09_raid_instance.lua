@@ -198,12 +198,6 @@ function RaidInstance.provision(raid)
 	local worldZoneName = raid.zone
 	local worldSpawnZoneName = raid.spawnZone or raid.zone
 
-	local instanceId = ExpeditionInstance.allocate("raid")
-	if instanceId == nil then
-		logger.error("[RaidInstance] no expedition instances for raid {}", raid.name)
-		return false
-	end
-
 	local kind = ExpeditionConfig.RAID_ARENA_KIND or "raid"
 	local region = ExpeditionConfig.raidRegionId(raid.name)
 	local center = region and ExpeditionConfig.RaidArenaCenters and ExpeditionConfig.RaidArenaCenters[region] or nil
@@ -227,9 +221,14 @@ function RaidInstance.provision(raid)
 			)
 		else
 			logger.error("[RaidInstance] no center for raid {}", raid.name)
-			ExpeditionInstance.free(instanceId)
 			return false
 		end
+	end
+
+	local instanceId = ExpeditionInstance.allocate("raid", InstanceWorld.subareaIdAt(center), string.format("%s_%d", raid.name, os.time()), raid.name)
+	if instanceId == nil then
+		logger.error("[RaidInstance] no expedition instances for raid {}", raid.name)
+		return false
 	end
 
 	local buildOpts = {
@@ -243,7 +242,7 @@ function RaidInstance.provision(raid)
 	if type(raid._raidSpawnFloors) == "table" and #raid._raidSpawnFloors > 0 then
 		buildOpts.floors = raid._raidSpawnFloors
 	end
-	local instance, err = ExpeditionInstance.build(instanceId, buildOpts, os.time() + instanceId)
+	local instance, err = ExpeditionInstance.build(instanceId, buildOpts, os.time())
 	if not instance then
 		ExpeditionInstance.free(instanceId)
 		logger.error("[RaidInstance] failed to build arena for {}: {}", raid.name, err or "unknown")
@@ -694,7 +693,7 @@ function RaidInstance.join(player, raidName, loadout, options)
 	end
 
 	saveReturn(player)
-	ExpeditionManager.markActiveFlag(player, raidName, session.instance.slot)
+	ExpeditionManager.markActiveFlag(player, raidName)
 	SampleSpells.ensure(player)
 
 	local automation = ExpeditionManager.sanitizeAutomation(loadout, player)
@@ -778,12 +777,7 @@ function RaidInstance.join(player, raidName, loadout, options)
 				instance.entry = entry
 			end
 		end
-		local entered = InstanceWorld.enterInstance(
-			p,
-			instance.instanceId,
-			entry,
-			"hunt:" .. tostring(bound.key or raidName)
-		)
+		local entered = InstanceWorld.enterInstance(p, instance.instanceId, entry)
 		if not entered then
 			logger.error(
 				"[RaidInstance] enterInstance failed for {} into {} at {},{},{}",
@@ -1096,6 +1090,9 @@ function RaidInstance.installHooks()
 		local raidRole = raidSession and raidSession.role or ExpeditionConfig.raidRole(self.name)
 		local markAsBoss = raidRole == "boss" and self.currentStage == #self.stages and #positions == 1
 		local raidName = self.name
+		-- Spawns fire later: bind them to this run's instance, never to whatever runs then.
+		local scheduledInstance = self._raidInstance
+		local scheduledKey = scheduledInstance and scheduledInstance.instanceId or nil
 
 		for _, position in ipairs(positions) do
 			if position then
@@ -1122,10 +1119,13 @@ function RaidInstance.installHooks()
 					end
 					-- Re-materialize Position (addEvent registry can leave a plain table).
 					spawnPos = Position(spawnPos.x, spawnPos.y, spawnPos.z)
-					-- Re-check entry avoidance at spawn time (map may have loaded since schedule).
 					local raid = Raid.registry[raidName]
-					local inst = raid and raid._raidInstance
-					if inst and sameTilePos(spawnPos, inst.entry) then
+					local inst = scheduledInstance
+					if not scheduledKey or not Instance.isLive(scheduledKey) or not raid or raid._raidInstance ~= inst then
+						return false
+					end
+					-- Re-check entry avoidance at spawn time (map may have loaded since schedule).
+					if sameTilePos(spawnPos, inst.entry) then
 						spawnPos = resolveRaidSpawnPosition(raid, nil) or spawnPos
 					end
 					local monster = nil
@@ -1133,8 +1133,7 @@ function RaidInstance.installHooks()
 						monster = ExpeditionInstance.createMonsterExclusive(monsterName, spawnPos, inst)
 					end
 					if not monster then
-						local instanceId = inst and inst.instanceId or nil
-						monster = Game.createMonster(monsterName, spawnPos, true, true, nil, instanceId)
+						monster = Game.createMonster(monsterName, spawnPos, true, true, nil, scheduledKey)
 						if monster and InstanceWorld and InstanceWorld.applyOpenWorldForge then
 							InstanceWorld.applyOpenWorldForge(monster)
 						end

@@ -490,7 +490,7 @@ void Map::moveCreature(const std::shared_ptr<Creature> &creature, const std::sha
 	}
 }
 
-bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/, const uint32_t instanceId /*= 0*/) {
+bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/, const InstanceId instanceId /*= InstanceId::World*/) {
 	// z checks
 	// underground 8->15
 	// ground level and above 7->0
@@ -519,7 +519,7 @@ bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const
 	return isSightClear(fromPos, toPos, lineOfSight & SightLine_FloorCheck, instanceId);
 }
 
-bool Map::checkSightLine(Position start, Position destination, uint32_t instanceId) {
+bool Map::checkSightLine(Position start, Position destination, InstanceId instanceId) {
 	if (start.x == destination.x && start.y == destination.y) {
 		return true;
 	}
@@ -556,7 +556,7 @@ bool Map::checkSightLine(Position start, Position destination, uint32_t instance
 	return true;
 }
 
-bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck, uint32_t instanceId) {
+bool Map::isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck, InstanceId instanceId) {
 	// Check if this sight line should be even possible
 	if (floorCheck && fromPos.z != toPos.z) {
 		return false;

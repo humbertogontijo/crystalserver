@@ -6,6 +6,10 @@
 -- floors = where the player counts as inside (detection, incl. rooftops/mountain tops).
 -- Surface subareas come from the client masks (207 pixel-exact, mutually disjoint
 -- footprints); underground ones from DiscoveryGeometry.approx or MANUAL_SUBAREAS.
+-- Below the surface, a CIP subarea also covers its region from lib/idleot/subareas
+-- (DiscoverySubareas.regionCipAt): only cave-like subareas and the ones listed in
+-- asset-pipeline subarea_floor_rules.py extend underground (Gloom Caverns, Fibula,
+-- Rookgaard, ...); cities stop at z7, so their sewers are left.
 
 DiscoverySubareas = {}
 
@@ -13,10 +17,12 @@ local SURFACE = { 0, 1, 2, 3, 4, 5, 6, 7 }
 
 -- per-subarea tweaks on top of the generated geometry
 local OVERRIDES = {
-	[33] = { floors = { 8, 9 } }, -- Trolls' Cave: underground, mask = horizontal footprint
-	[35] = { extraBoxes = { { from = { x = 32130, y = 32360 }, to = { x = 32230, y = 32450 }, floors = { 8 } } } }, -- Fibula dungeon
-	[317] = { floors = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 } }, -- Rookgaard incl. dungeons
+	[33] = { floors = { 8, 9 } }, -- Trolls' Cave: underground, mask = horizontal footprint (surface is not the cave)
 }
+
+--- Optional `function(position) -> CIP subarea id | nil` from the region map (set by the
+--- server, and by gen_pois.py when it assigns viewpoints).
+DiscoverySubareas.regionCipAt = nil
 
 -- hand-made subareas (none right now - undergrounds come from DiscoveryGeometry.approx);
 -- format: { id, mainArea, name, floors, boxes = { { from = {x,y}, to = {x,y}, floors? } } }
@@ -169,12 +175,27 @@ function DiscoverySubareas.contains(position, def)
 	return false
 end
 
---- First matching subarea (manual, then exact surface masks, then approx boxes).
+local function regionDef(position)
+	local cipId = DiscoverySubareas.regionCipAt and DiscoverySubareas.regionCipAt(position)
+	return cipId and byId[cipId] or nil
+end
+
+--- Footprint or region membership of `position` in `def`.
+function DiscoverySubareas.inSubarea(position, def)
+	return DiscoverySubareas.contains(position, def) or regionDef(position) == def
+end
+
+--- First matching subarea (manual, then exact surface masks, then approx boxes), then the
+--- CIP subarea whose region holds `position`.
 function DiscoverySubareas.find(position)
 	for _, def in ipairs(list) do
 		if DiscoverySubareas.contains(position, def) then
 			return def.id, def
 		end
+	end
+	local def = regionDef(position)
+	if def then
+		return def.id, def
 	end
 	return nil, nil
 end

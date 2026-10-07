@@ -279,10 +279,10 @@ int CreatureFunctions::luaCreatureGetId(lua_State* L) {
 }
 
 int CreatureFunctions::luaCreatureGetInstanceId(lua_State* L) {
-	// creature:getInstanceId()
+	// creature:getInstanceId() -> "kind:subareaId:channel"
 	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
 	if (creature) {
-		lua_pushnumber(L, creature->getInstanceId());
+		Lua::pushInstanceId(L, creature->getInstanceId());
 	} else {
 		lua_pushnil(L);
 	}
@@ -296,7 +296,13 @@ int CreatureFunctions::luaCreatureSetInstanceId(lua_State* L) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
-	const auto instanceId = Lua::getNumber<uint32_t>(L, 2);
+	const auto parsed = Lua::parseInstanceId(L, 2);
+	if (!parsed) {
+		Lua::reportErrorFunc("setInstanceId: expected 'kind:subareaId:channel' or {kind, subareaId, channel}");
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	const InstanceId instanceId = *parsed;
 	const auto &player = creature->getPlayer();
 	if (!player) {
 		if (creature->getInstanceId() != instanceId) {
@@ -305,7 +311,7 @@ int CreatureFunctions::luaCreatureSetInstanceId(lua_State* L) {
 		Lua::pushBoolean(L, creature->getInstanceId() == instanceId);
 		return 1;
 	}
-	player->moveToInstance(InstanceId(instanceId));
+	player->moveToInstance(instanceId);
 	Lua::pushBoolean(L, true);
 	return 1;
 }
@@ -954,12 +960,22 @@ int CreatureFunctions::luaCreatureTeleportTo(lua_State* L) {
 		return 1;
 	}
 
-	if (lua_gettop(L) >= 4 && !Lua::isNil(L, 4)) {
-		const auto instanceId = Lua::getNumber<uint32_t>(L, 4, 0);
+	std::optional<InstanceId> targetId;
+	if (!Lua::readInstanceId(L, 4, targetId)) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	const InstanceId previousId = creature->getInstanceId();
+	if (targetId) {
 		if (const auto &player = creature->getPlayer()) {
-			player->moveToInstance(InstanceId(instanceId));
-		} else if (creature->getInstanceId() != instanceId) {
-			Lua::reportErrorFunc(fmt::format("teleportTo instanceId is players-only; {} stays in instance {}", creature->getName(), creature->getInstanceId()));
+			if (targetId->isWorld() || !g_instanceRegistry().isLive(*targetId)) {
+				Lua::reportErrorFunc(fmt::format("teleportTo: instance {} is not live", *targetId));
+				Lua::pushBoolean(L, false);
+				return 1;
+			}
+			player->moveToInstance(*targetId);
+		} else if (previousId != *targetId) {
+			Lua::reportErrorFunc(fmt::format("teleportTo instanceId is players-only; {} stays in instance {}", creature->getName(), previousId));
 			Lua::pushBoolean(L, false);
 			return 1;
 		}
@@ -969,6 +985,12 @@ int CreatureFunctions::luaCreatureTeleportTo(lua_State* L) {
 	if (const auto ret = g_game().internalTeleport(creature, position, pushMovement);
 	    ret != RETURNVALUE_NOERROR) {
 		g_logger().debug("[{}] Failed to teleport creature {}, on position {}, error code: {}", __FUNCTION__, creature->getName(), oldPosition.toString(), getReturnMessage(ret));
+		// Do not leave the creature bound to the target instance on its old tile.
+		if (targetId && creature->getInstanceId() != previousId) {
+			if (const auto &player = creature->getPlayer()) {
+				player->moveToInstance(previousId);
+			}
+		}
 		Lua::pushBoolean(L, false);
 		return 1;
 	}

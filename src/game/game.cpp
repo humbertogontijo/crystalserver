@@ -17,7 +17,11 @@
 
 #include "game/game.hpp"
 
+#include "game/instance_registry.hpp"
+#include "game/instance_strict.hpp"
 #include "game/instance_fence.hpp"
+#include "game/instance_spawns.hpp"
+#include "game/subarea_registry.hpp"
 #include "config/configmanager.hpp"
 #include "creatures/appearance/mounts/mounts.hpp"
 #include "creatures/appearance/attached_effects/attached_effects.hpp"
@@ -155,10 +159,6 @@ namespace {
 		return fromClause.str();
 	}
 
-	uint32_t spectatorInstanceId(const std::shared_ptr<Creature> &actor) {
-		return actor ? actor->getInstanceId() : std::numeric_limits<uint32_t>::max();
-	}
-
 	enum class IdleCombatDeny : uint8_t {
 		Walk,
 		Target,
@@ -184,88 +184,168 @@ namespace {
 	}
 } // namespace
 
-thread_local std::shared_ptr<Creature> g_instanceActor;
-thread_local uint32_t g_instanceActorId = 0;
+namespace {
+	enum class InstanceScopeMode : uint8_t {
+		None,
+		Creature,
+		Instance,
+		Positional,
+	};
+
+	struct InstanceScopeState {
+		InstanceScopeMode mode = InstanceScopeMode::None;
+		std::shared_ptr<Creature> actor;
+		InstanceId id = InstanceId::World;
+	};
+
+	thread_local InstanceScopeState g_instanceScope;
+}
 
 static bool hasInstanceActor() {
-	return g_instanceActorId != 0 || g_instanceActor != nullptr;
+	return g_instanceScope.mode == InstanceScopeMode::Creature || g_instanceScope.mode == InstanceScopeMode::Instance;
 }
 
-static uint32_t instanceActorId() {
-	if (g_instanceActorId != 0) {
-		return g_instanceActorId;
+static InstanceId instanceActorId() {
+	switch (g_instanceScope.mode) {
+		case InstanceScopeMode::Creature:
+			return g_instanceScope.actor ? g_instanceScope.actor->getInstanceId() : InstanceId::World;
+		case InstanceScopeMode::Instance:
+			return g_instanceScope.id;
+		default:
+			return InstanceId::World;
 	}
-	return g_instanceActor ? static_cast<uint32_t>(g_instanceActor->getInstanceId()) : 0;
 }
 
-static uint32_t sightInstanceId(uint32_t instanceId) {
-	if (instanceId != 0) {
+/** Viewers of an item: its own layer, or every layer for a shared World template item. */
+static InstanceId itemViewerInstance(const std::shared_ptr<Item> &item) {
+	return item && !item->getInstanceId().isWorld() ? item->getInstanceId() : InstanceId::Any;
+}
+
+static InstanceId sightInstanceId(InstanceId instanceId) {
+	if (!instanceId.isWorld()) {
 		return instanceId;
 	}
 	return instanceActorId();
 }
 
-/** Resolve which private instance should receive an effect that has no explicit actor.
- *  Prefer the current InstanceActorScope; otherwise infer from creatures on the tile.
- *  If multiple instance ids share the tile, fall back to 0 (open world) — never fan out. */
-static uint32_t resolveEffectInstanceId(const Position &pos) {
+/** Instance that receives an effect with no explicit source: the active actor scope.
+ *  World-level (positional) scripts and unscoped callers broadcast to every public layer
+ *  (Any, see `effectViewers`); the unscoped case is reported. */
+static InstanceId resolveEffectInstanceId(const Position &pos) {
 	if (hasInstanceActor()) {
 		return instanceActorId();
 	}
-	uint32_t inferred = std::numeric_limits<uint32_t>::max();
-	if (const auto &tile = g_game().map.getTile(pos)) {
-		if (const CreatureVector* creatures = tile->getCreatures()) {
-			for (const auto &creature : *creatures) {
-				if (!creature) {
-					continue;
-				}
-				const uint32_t id = creature->getInstanceId();
-				if (inferred == std::numeric_limits<uint32_t>::max()) {
-					inferred = id;
-				} else if (inferred != id) {
-					return 0;
-				}
-			}
-		}
+	if (g_instanceScope.mode != InstanceScopeMode::Positional) {
+		reportInstanceInference("effect", pos.toString());
 	}
-	return inferred == std::numeric_limits<uint32_t>::max() ? 0 : inferred;
+	return InstanceId::Any;
 }
 
-static uint32_t resolveEffectInstanceId(const Position &fromPos, const Position &toPos) {
-	if (hasInstanceActor()) {
-		return instanceActorId();
+static InstanceId resolveEffectInstanceId(const Position &fromPos, [[maybe_unused]] const Position &toPos) {
+	return resolveEffectInstanceId(fromPos);
+}
+
+/** Effect layer: the source creature's, else the scope (see resolveEffectInstanceId). */
+static InstanceId effectInstanceFor(const std::shared_ptr<Creature> &actor, const Position &pos) {
+	return actor ? actor->getInstanceId() : resolveEffectInstanceId(pos);
+}
+
+/** Recipients were already chosen by the caller: only narrow them when a layer is known. */
+static InstanceId effectFilterFor(const std::shared_ptr<Creature> &actor) {
+	if (actor) {
+		return actor->getInstanceId();
 	}
-	const uint32_t fromId = resolveEffectInstanceId(fromPos);
-	const uint32_t toId = resolveEffectInstanceId(toPos);
-	if (fromId != 0 && toId != 0 && fromId != toId) {
-		return 0;
+	return hasInstanceActor() ? instanceActorId() : InstanceId::Any;
+}
+
+/** Unattributed effects (Any) reach every public layer; private instances only see their own. */
+static Spectators effectViewers(const Spectators &spectators, InstanceId instanceId) {
+	if (!instanceId.isAny()) {
+		return spectators;
 	}
-	return fromId != 0 ? fromId : toId;
+	Spectators out;
+	for (const auto &creature : spectators) {
+		if (!g_instanceRegistry().isPrivate(creature->getInstanceId())) {
+			out.insert(creature);
+		}
+	}
+	return out;
 }
 
 InstanceActorScope::InstanceActorScope(const std::shared_ptr<Creature> &creature) :
-	previous(g_instanceActor), previousId(g_instanceActorId) {
+	previous(g_instanceScope.actor), previousId(g_instanceScope.id), previousMode(static_cast<uint8_t>(g_instanceScope.mode)) {
 	if (creature) {
-		g_instanceActor = creature;
-		g_instanceActorId = 0;
+		g_instanceScope.mode = InstanceScopeMode::Creature;
+		g_instanceScope.actor = creature;
+		g_instanceScope.id = InstanceId::World;
 	}
 }
 
 InstanceActorScope::InstanceActorScope(InstanceId instanceId) :
-	previous(g_instanceActor), previousId(g_instanceActorId) {
-	if (!instanceId.isWorld()) {
-		g_instanceActor = nullptr;
-		g_instanceActorId = instanceId.value();
+	previous(g_instanceScope.actor), previousId(g_instanceScope.id), previousMode(static_cast<uint8_t>(g_instanceScope.mode)) {
+	if (!instanceId.isAny()) {
+		g_instanceScope.mode = InstanceScopeMode::Instance;
+		g_instanceScope.actor = nullptr;
+		g_instanceScope.id = instanceId;
 	}
 }
 
+InstanceActorScope::InstanceActorScope(Positional) :
+	previous(g_instanceScope.actor), previousId(g_instanceScope.id), previousMode(static_cast<uint8_t>(g_instanceScope.mode)) {
+	g_instanceScope.mode = InstanceScopeMode::Positional;
+	g_instanceScope.actor = nullptr;
+	g_instanceScope.id = InstanceId::World;
+}
+
 InstanceActorScope::~InstanceActorScope() {
-	g_instanceActor = previous;
-	g_instanceActorId = previousId;
+	g_instanceScope.mode = static_cast<InstanceScopeMode>(previousMode);
+	g_instanceScope.actor = previous;
+	g_instanceScope.id = previousId;
 }
 
 InstanceId Game::getInstanceActorId() {
-	return InstanceId(instanceActorId());
+	return instanceActorId();
+}
+
+std::optional<InstanceId> Game::getInstanceScope() {
+	if (!hasInstanceActor()) {
+		return std::nullopt;
+	}
+	return instanceActorId();
+}
+
+std::optional<InstanceId> Game::lookupInstance(std::optional<InstanceId> explicitId, std::string_view site, const Position &pos) {
+	if (explicitId && !explicitId->isWorld()) {
+		return explicitId;
+	}
+	if (hasInstanceActor()) {
+		return instanceActorId();
+	}
+	if (g_instanceScope.mode != InstanceScopeMode::Positional) {
+		reportInstanceInference(site, pos.toString());
+	}
+	return std::nullopt;
+}
+
+bool Game::isPositionalInstanceScope() {
+	return g_instanceScope.mode == InstanceScopeMode::Positional;
+}
+
+std::function<void()> Game::bindInstanceScope(std::function<void()> callback) {
+	if (g_instanceScope.mode == InstanceScopeMode::None) {
+		return callback;
+	}
+	if (g_instanceScope.mode == InstanceScopeMode::Positional) {
+		return [callback = std::move(callback)] {
+			InstanceActorScope scope { InstanceActorScope::Positional {} };
+			callback();
+		};
+	}
+	// Capture the id, not the creature: the actor may be gone (or moved) when the task runs.
+	return [callback = std::move(callback), id = instanceActorId()] {
+		InstanceActorScope scope(id);
+		callback();
+	};
 }
 
 InstanceId Game::getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder) {
@@ -276,21 +356,71 @@ InstanceId Game::getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder
 		if (const auto &item = cylinder->getItem()) {
 			return item->getInstanceId();
 		}
+		// A tile has no instance of its own: the item would land on the shared World template.
+		if (const auto &tile = cylinder->getTile(); tile && !hasInstanceActor() && g_instanceScope.mode != InstanceScopeMode::Positional) {
+			reportInstanceInference("cylinder", tile->getPosition().toString());
+		}
 	}
 	return getInstanceActorId();
 }
 
-InstanceId Game::resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position) {
-	if (explicitId != 0) {
-		return InstanceId(explicitId);
+std::optional<InstanceId> Game::resolveBirthInstance(std::optional<InstanceId> explicitId, const std::shared_ptr<Creature> &master, const Position* position, std::string_view site) {
+	if (explicitId) {
+		return *explicitId;
 	}
 	if (master) {
 		return master->getInstanceId();
 	}
-	if (const InstanceId actorId = getInstanceActorId(); !actorId.isWorld()) {
-		return actorId;
+	if (hasInstanceActor()) {
+		const InstanceId actorId = instanceActorId();
+		// An explicit World scope (or a creature scope whose actor is still World) is authoritative
+		// for off-map things; on the map a World creature scope is not, so fall through to position.
+		if (!actorId.isWorld() || g_instanceScope.mode == InstanceScopeMode::Instance || !position) {
+			return actorId;
+		}
 	}
-	return position ? InstanceId(g_instanceFences().instanceForPosition(*position)) : InstanceId::World;
+	// Off-map things (virtual cylinder, inventory) adopt an instance when they land on a tile.
+	if (!position) {
+		return InstanceId::World;
+	}
+	if (g_instanceScope.mode != InstanceScopeMode::Positional && reportInstanceInference(site, position->toString())) {
+		return std::nullopt;
+	}
+	return g_instanceFences().instanceForPosition(*position);
+}
+
+InstanceId Game::addedItemInstance(const std::shared_ptr<Cylinder> &destCylinder, const std::shared_ptr<Cylinder> &toCylinder, const std::shared_ptr<Item> &item) {
+	// A player's inventory (and everything inside it) is in the player's layer.
+	std::shared_ptr<Player> holder;
+	if (const auto &creature = destCylinder->getCreature()) {
+		holder = creature->getPlayer();
+	} else if (const auto &container = toCylinder->getItem()) {
+		holder = container->getHoldingPlayer();
+	}
+	if (holder) {
+		return holder->getInstanceId();
+	}
+	// Houses are shared, persisted space: their items live on the World layer.
+	if (const auto &tile = toCylinder->getTile(); tile && tile->getHouse()) {
+		return InstanceId::World;
+	}
+	if (!item->getInstanceId().isWorld()) {
+		return item->getInstanceId();
+	}
+	// Into a container on the map: the container's layer.
+	if (const auto &container = toCylinder->getItem(); container && !container->getInstanceId().isWorld()) {
+		return container->getInstanceId();
+	}
+	// Onto a bare tile: the layer of whoever is acting (world-level code keeps World).
+	return getInstanceScope().value_or(InstanceId::World);
+}
+
+bool Game::isBrowseFieldOf(const std::shared_ptr<Tile> &tile, const std::shared_ptr<Cylinder> &cylinder) {
+	if (!tile || !cylinder) {
+		return false;
+	}
+	const auto &container = cylinder->getContainer();
+	return container && container->getID() == ITEM_BROWSEFIELD && container->getParent() == tile;
 }
 
 void Game::adoptItemInstance(const std::shared_ptr<Item> &item, InstanceId instanceId) {
@@ -813,6 +943,9 @@ void Game::start(ServiceManager* manager) {
 	g_dispatcher().cycleEvent(
 		EVENT_LUA_GARBAGE_COLLECTION, [this] { g_luaEnvironment().collectGarbage(); }, "Calling GC"
 	);
+	g_dispatcher().cycleEvent(
+		10000, [this] { checkIdleInstanceChannels(); }, "Game::checkIdleInstanceChannels"
+	);
 	auto marketItemsPriceIntervalMinutes = g_configManager().getNumber(MARKET_REFRESH_PRICES);
 	if (marketItemsPriceIntervalMinutes > 0) {
 		auto marketItemsPriceIntervalMS = marketItemsPriceIntervalMinutes * 60000;
@@ -876,7 +1009,7 @@ void Game::setGameState(GameState_t newState) {
 			groups.load();
 			g_chat().load();
 
-			// NPCs stay; world monsters are instance 0 and would leak into city/hunt views.
+			// NPCs stay; World-layer monsters would leak into city/hunt views.
 			map.spawnsNpc.startup();
 			for (int i = 0; i < 50; i++) {
 				map.spawnsNpcCustomMaps[i].startup();
@@ -1064,61 +1197,51 @@ void Game::loadMap(const std::string &path, const Position &pos) {
 	}
 }
 
-uint32_t Game::allocateInstanceId() {
-	while (!freePrivateInstanceIds.empty()) {
-		const uint32_t id = freePrivateInstanceIds.back();
-		freePrivateInstanceIds.pop_back();
-		if (id < INSTANCE_PRIVATE_BASE) {
-			continue;
-		}
-		if (usedPrivateInstanceIds.insert(id).second) {
-			return id;
-		}
-		// Stale duplicate on the free list (released while still in use elsewhere).
-		g_logger().warn("[Game::allocateInstanceId] skipped still-in-use recycled id {}", id);
+std::optional<InstanceId> Game::allocateInstance(InstanceKind kind, uint32_t subareaId, const InstanceRegistry::AllocOptions &options) {
+	const auto id = g_instanceRegistry().allocate(kind, subareaId, options);
+	if (!id) {
+		g_metrics().addCounter("instance_allocate_failed_total", 1, { { "kind", std::string(instanceKindName(kind)) } });
+		g_logger().error("[Game::allocateInstance] failed to allocate {}:{}", instanceKindName(kind), subareaId);
 	}
-
-	for (int attempt = 0; attempt < 1024; ++attempt) {
-		const uint32_t id = nextPrivateInstanceId++;
-		if (id < INSTANCE_PRIVATE_BASE) {
-			nextPrivateInstanceId = INSTANCE_PRIVATE_BASE;
-			continue;
-		}
-		if (usedPrivateInstanceIds.insert(id).second) {
-			return id;
-		}
-		g_logger().warn("[Game::allocateInstanceId] skipped collision on next id {}", id);
-	}
-
-	g_logger().error("[Game::allocateInstanceId] failed to allocate a private instance id");
-	return 0;
+	return id;
 }
 
-void Game::releaseInstanceId(uint32_t id) {
-	if (id < INSTANCE_PRIVATE_BASE) {
+void Game::releaseInstance(InstanceId id) {
+	if (!id.isConcrete()) {
 		return;
 	}
-	if (usedPrivateInstanceIds.erase(id) == 0) {
-		g_logger().warn("[Game::releaseInstanceId] id {} was not in use (ignored)", id);
-		return;
+	auto &registry = g_instanceRegistry();
+	if (!registry.markClosing(id)) {
+		g_logger().warn("[Game::releaseInstance] {} was not live (ignored)", id);
 	}
-	// Soft check: actors still bound to this id will collide if recycled early.
+	g_instanceSpawns().clear(id);
+	// Soft check: actors still bound to this id will collide if the channel is reopened early.
 	for (const auto &[creatureId, creature] : getMonsters()) {
 		(void)creatureId;
 		if (creature && creature->getInstanceId() == id) {
-			g_logger().warn("[Game::releaseInstanceId] monster still on instance {} ({})", id, creature->getName());
+			g_logger().warn("[Game::releaseInstance] monster still on instance {} ({})", id, creature->getName());
 			break;
 		}
 	}
-	freePrivateInstanceIds.push_back(id);
 	g_instanceFences().clearPrivateFence(id);
-	instanceWorldTypes.erase(id);
+	registry.release(id);
 }
 
-WorldType_t Game::getWorldType(uint32_t instanceId) const {
-	if (instanceId != 0) {
-		const auto it = instanceWorldTypes.find(instanceId);
-		if (it != instanceWorldTypes.end()) {
+void Game::checkIdleInstanceChannels() {
+	const int64_t graceMs = std::max<int64_t>(0, g_configManager().getNumber(INSTANCE_CHANNEL_IDLE_SECONDS)) * 1000;
+	for (const auto &id : g_instanceRegistry().sweepIdle(OTSYS_TIME(), graceMs)) {
+		releaseInstance(id);
+		g_logger().debug("[Game::checkIdleInstanceChannels] released idle channel {}", id);
+	}
+	g_instanceSpawns().ensureOccupiedOpenWorld();
+}
+
+WorldType_t Game::getWorldType(InstanceId instanceId) const {
+	if (!instanceId.isWorld()) {
+		if (const auto type = g_instanceRegistry().worldType(instanceId)) {
+			return *type;
+		}
+		if (const auto it = kindWorldTypes.find(instanceId.kind()); it != kindWorldTypes.end()) {
 			return it->second;
 		}
 	}
@@ -1126,15 +1249,20 @@ WorldType_t Game::getWorldType(uint32_t instanceId) const {
 	return currentWorld ? currentWorld->type : WORLDTYPE_NONE;
 }
 
-void Game::setInstanceWorldType(uint32_t instanceId, WorldType_t type) {
-	if (instanceId == 0) {
-		return;
+bool Game::setInstanceWorldType(InstanceId instanceId, WorldType_t type) {
+	if (!g_instanceRegistry().setWorldType(instanceId, type)) {
+		g_logger().warn("[Game::setInstanceWorldType] {} is not a live instance", instanceId);
+		return false;
 	}
-	instanceWorldTypes[instanceId] = type;
+	return true;
 }
 
-void Game::clearInstanceWorldType(uint32_t instanceId) {
-	instanceWorldTypes.erase(instanceId);
+void Game::setInstanceKindWorldType(InstanceKind kind, std::optional<WorldType_t> type) {
+	if (type) {
+		kindWorldTypes[kind] = *type;
+	} else {
+		kindWorldTypes.erase(kind);
+	}
 }
 
 bool Game::callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult) {
@@ -1230,6 +1358,43 @@ bool Game::canWalkInstance(const std::shared_ptr<Creature> &creature, const Posi
 	return g_instanceFences().canWalk(creature, toPos);
 }
 
+std::optional<InstanceId> Game::openWorldSwitchTarget(const std::shared_ptr<Player> &player, const Position &pos) {
+	if (!player || !g_subareas().enabled()) {
+		return std::nullopt;
+	}
+	const InstanceId current = player->getInstanceId();
+	if (current.isWorld() || !isOpenWorldKind(current.kind()) || g_instanceRegistry().isPrivate(current)) {
+		return std::nullopt;
+	}
+	const uint32_t region = g_subareas().regionAt(pos);
+	if (region == 0 || g_subareas().allows(region, current)) {
+		return std::nullopt;
+	}
+	const InstanceId main = g_subareas().mainInstanceFor(region);
+	if (main.isWorld()) {
+		return std::nullopt;
+	}
+	return g_instanceRegistry().pickChannel(main.kind(), main.subareaId(), current.channel(), player);
+}
+
+bool Game::refreshOpenWorldInstance(const std::shared_ptr<Player> &player) {
+	if (!player || player->isRemoved()) {
+		return false;
+	}
+	return refreshOpenWorldInstance(player, openWorldSwitchTarget(player, player->getPosition()));
+}
+
+bool Game::refreshOpenWorldInstance(const std::shared_ptr<Player> &player, std::optional<InstanceId> target) {
+	if (!player || player->isRemoved() || !target || *target == player->getInstanceId()) {
+		return false;
+	}
+	player->moveToInstance(*target);
+	g_instanceSpawns().ensureOpenWorld(*target);
+	// HUD instance info, KV marker and other Lua-side per-layer state.
+	callInstanceWorld("onSubareaSwitch", player, player->getPosition(), true);
+	return true;
+}
+
 void Game::disableWorldSpawns() {
 	// Keep the loaded blocks: InstanceSpawns clones them into private instances.
 	const auto stopAll = [](SpawnsMonster &spawns) {
@@ -1247,7 +1412,7 @@ void Game::disableWorldSpawns() {
 
 	std::vector<std::shared_ptr<Monster>> leftover;
 	for (const auto &[id, monster] : getMonsters()) {
-		if (monster && monster->getInstanceId() == 0 && !monster->getMaster()) {
+		if (monster && monster->getInstanceId().isWorld() && !monster->getMaster()) {
 			leftover.push_back(monster);
 		}
 	}
@@ -1256,20 +1421,117 @@ void Game::disableWorldSpawns() {
 	}
 }
 
-void Game::bindPlayerInstance(const std::shared_ptr<Player> &player) {
-	if (player) {
-		bindPlayerInstance(player, player->getLoginPosition());
+Position Game::bindPlayerInstance(const std::shared_ptr<Player> &player) {
+	if (!player) {
+		return {};
 	}
+	return bindPlayerInstance(player, player->getLoginPosition());
 }
 
-void Game::bindPlayerInstance(const std::shared_ptr<Player> &player, const Position &placePos) {
-	if (player) {
-		callInstanceWorld("bindLogin", player, placePos, true);
+Position Game::bindPlayerInstance(const std::shared_ptr<Player> &player, const Position &placePos) {
+	if (!player) {
+		return placePos;
 	}
+	auto &registry = g_instanceRegistry();
+	Position placeAt = placePos;
+
+	// Binding below overwrites `instance`; keep the logout record for the stranded-session check.
+	if (const auto previous = player->kv()->get("instance")) {
+		player->kv()->set("instance_login", *previous);
+	} else {
+		player->kv()->remove("instance_login");
+	}
+
+	// Seed the persisted layer so bindLogin keeps its channel (or its live private session).
+	if (player->getInstanceId().isWorld()) {
+		if (const auto restored = loadPersistedInstance(player)) {
+			const bool fits = registry.isPrivate(*restored)
+				? g_instanceFences().containsPos(*restored, placePos)
+				: g_instanceFences().instanceForPosition(placePos) == InstanceId(restored->kind(), restored->subareaId(), 0);
+			if (fits) {
+				player->moveToInstance(*restored);
+			}
+		}
+	}
+
+	callInstanceWorld("bindLogin", player, placePos, true);
+
+	if (player->getInstanceId().isWorld()) {
+		const InstanceId main = g_instanceFences().instanceForPosition(placePos);
+		if (!main.isWorld()) {
+			if (const auto picked = registry.pickChannel(main.kind(), main.subareaId(), std::nullopt, player)) {
+				player->moveToInstance(*picked);
+			}
+		}
+	}
+
+	if (player->getInstanceId().isWorld()) {
+		const InstanceId hub = InstanceFenceRegistry::HUB_ADVENTURERS;
+		const auto picked = registry.pickChannel(hub.kind(), hub.subareaId(), std::nullopt, player);
+		player->moveToInstance(picked.value_or(hub));
+		const Position temple = player->getTemplePosition();
+		if (g_instanceFences().containsPos(hub, temple)) {
+			placeAt = temple;
+		} else if (const auto center = g_instanceFences().hubCenter()) {
+			placeAt = *center;
+		}
+		g_logger().warn("[Game::bindPlayerInstance] {} had no instance at {}; placed in {} at {}", player->getName(), placePos.toString(), player->getInstanceId().toKey(), placeAt.toString());
+	}
+
+	g_instanceSpawns().ensureOpenWorld(player->getInstanceId());
+	return placeAt;
+}
+
+void Game::rebindAttachedPlayer(const std::shared_ptr<Player> &player) {
+	if (!player) {
+		return;
+	}
+	if (player->getInstanceId().isWorld()) {
+		reportInstanceInference("reconnect", player->getName());
+		callInstanceWorld("bindLogin", player, player->getPosition(), true);
+	}
+	g_instanceSpawns().ensureOpenWorld(player->getInstanceId());
+}
+
+void Game::persistPlayerInstance(const std::shared_ptr<Player> &player, InstanceId id) {
+	if (!player || id.isAny()) {
+		return;
+	}
+	const auto record = g_instanceRegistry().find(id);
+	player->kv()->set(
+		"instance",
+		ValueWrapper({
+			{ "key", id.toKey() },
+			{ "kind", std::string(instanceKindName(id.kind())) },
+			{ "owner", record ? record->owner : std::string() },
+			{ "private", g_instanceRegistry().isPrivate(id) },
+		})
+	);
+}
+
+std::optional<InstanceId> Game::loadPersistedInstance(const std::shared_ptr<Player> &player) const {
+	if (!player) {
+		return std::nullopt;
+	}
+	const auto value = player->kv()->get("instance");
+	if (!value) {
+		return std::nullopt;
+	}
+	const auto id = InstanceId::fromKey(value->get<StringType>("key"));
+	if (!id || id->isWorld() || !g_instanceRegistry().isLive(*id)) {
+		return std::nullopt;
+	}
+	if (g_instanceRegistry().isPrivate(*id)) {
+		const auto record = g_instanceRegistry().find(*id);
+		if (!record || record->owner.empty() || record->owner != value->get<StringType>("owner")) {
+			return std::nullopt;
+		}
+	}
+	return id;
 }
 
 void Game::syncCreatureInstance(const std::shared_ptr<Creature> &creature) {
-	if (!creature || !creature->getPlayer() || creature->getInstanceId() != 0) {
+	if (!creature || !creature->getPlayer() || !creature->getInstanceId().isWorld()) {
 		return;
 	}
 	callInstanceWorld("syncCreatureInstance", creature, creature->getPosition(), false);
@@ -1957,6 +2219,7 @@ void Game::playerMoveThing(uint32_t playerId, const Position &fromPos, uint16_t 
 	if (!player) {
 		return;
 	}
+	InstanceActorScope instanceActorScope(player);
 
 	// Prevent the player from being able to move the item within the imbuement window
 	if (player->hasImbuingItem()) {
@@ -2224,7 +2487,11 @@ ReturnValue Game::internalMoveCreature(const std::shared_ptr<Creature> &creature
 		return RETURNVALUE_NOTPOSSIBLE;
 	}
 
-	ReturnValue ret = toTile->queryAdd(0, creature, 1, flags);
+	const auto &movingPlayer = creature->getPlayer();
+	const InstanceId instanceBefore = creature->getInstanceId();
+	const auto layer = openWorldSwitchTarget(movingPlayer, toTile->getPosition());
+	// Blocking creatures are per layer: check the tile as seen from the layer being entered.
+	const ReturnValue ret = toTile->queryAddCreature(creature, flags, layer.value_or(instanceBefore));
 	if (ret != RETURNVALUE_NOERROR) {
 		return ret;
 	}
@@ -2238,6 +2505,7 @@ ReturnValue Game::internalMoveCreature(const std::shared_ptr<Creature> &creature
 
 	map.moveCreature(creature, toTile);
 	if (creature->getParent() != toTile) {
+		refreshOpenWorldInstance(movingPlayer);
 		return RETURNVALUE_NOERROR;
 	}
 
@@ -2289,6 +2557,13 @@ ReturnValue Game::internalMoveCreature(const std::shared_ptr<Creature> &creature
 		}
 	}
 
+	// The layer picked for toTile still holds unless the walk went on (stairs, teleport) or a
+	// step-in script moved or rebound the player.
+	if (creature->getParent() == toTile && creature->getInstanceId() == instanceBefore) {
+		refreshOpenWorldInstance(movingPlayer, layer);
+	} else {
+		refreshOpenWorldInstance(movingPlayer);
+	}
 	return RETURNVALUE_NOERROR;
 }
 
@@ -2680,7 +2955,7 @@ ReturnValue Game::internalMoveItem(std::shared_ptr<Cylinder> fromCylinder, std::
 
 	if (checkTile) {
 		if (const std::shared_ptr<Tile> &fromTile = fromCylinder->getTile()) {
-			if (fromTile && browseFields.contains(fromTile) && browseFields[fromTile].lock() == fromCylinder) {
+			if (isBrowseFieldOf(fromTile, fromCylinder)) {
 				fromCylinder = fromTile;
 			}
 		}
@@ -2832,8 +3107,9 @@ ReturnValue Game::internalMoveItem(std::shared_ptr<Cylinder> fromCylinder, std::
 
 	// add item
 	if (moveItem /*m - n > 0*/) {
-		if (actor && toCylinder->getTile()) {
-			adoptItemInstance(moveItem, actor->getInstanceId());
+		if (const auto &toTile = toCylinder->getTile(); actor && toTile) {
+			// Houses are shared, persisted space: their items live on the World layer.
+			adoptItemInstance(moveItem, toTile->getHouse() ? InstanceId::World : actor->getInstanceId());
 		}
 		toCylinder->addThing(index, moveItem);
 	}
@@ -2967,6 +3243,8 @@ ReturnValue Game::internalAddItem(std::shared_ptr<Cylinder> toCylinder, const st
 		return RETURNVALUE_NOERROR;
 	}
 
+	adoptItemInstance(item, addedItemInstance(destCylinder, toCylinder, item));
+
 	if (item->isStackable() && item->equals(toItem)) {
 		uint32_t m = std::min<uint32_t>(item->getItemCount(), maxQueryCount);
 		uint32_t n = std::min<uint32_t>(toItem->getStackSize() - toItem->getItemCount(), m);
@@ -3030,7 +3308,7 @@ ReturnValue Game::internalRemoveItem(const std::shared_ptr<Item> &items, int32_t
 	}
 	const auto &fromTile = cylinder->getTile();
 	if (fromTile) {
-		if (fromTile && browseFields.contains(fromTile) && browseFields[fromTile].lock() == cylinder) {
+		if (isBrowseFieldOf(fromTile, cylinder)) {
 			cylinder = fromTile;
 		}
 	}
@@ -3225,7 +3503,7 @@ ReturnValue Game::internalPlayerAddItem(const std::shared_ptr<Player> &player, c
 		ret = internalAddItem(player, item, slot, 0, false, remainderCount);
 	}
 	if (remainderCount != 0) {
-		std::shared_ptr<Item> remainderItem = Item::CreateItem(item->getID(), remainderCount, item->getInstanceId());
+		std::shared_ptr<Item> remainderItem = Item::CreateItem(item->getID(), remainderCount, player->getInstanceId());
 		ReturnValue remaindRet = internalAddItem(player->getTile(), remainderItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
 		if (remaindRet != RETURNVALUE_NOERROR) {
 			player->sendLootStats(item, static_cast<uint8_t>(item->getItemCount()));
@@ -3233,6 +3511,7 @@ ReturnValue Game::internalPlayerAddItem(const std::shared_ptr<Player> &player, c
 	}
 
 	if (ret != RETURNVALUE_NOERROR && dropOnMap) {
+		adoptItemInstance(item, player->getInstanceId());
 		ret = internalAddItem(player->getTile(), item, INDEX_WHEREEVER, FLAG_NOLIMIT);
 	}
 
@@ -3500,13 +3779,20 @@ std::shared_ptr<Item> Game::resolveInstancedMapItem(const std::shared_ptr<Player
 	if (!player || !item) {
 		return item;
 	}
-	if (player->getInstanceId() == 0) {
+	if (player->getInstanceId().isWorld()) {
 		syncCreatureInstance(player);
-		if (player->getInstanceId() == 0) {
+		if (player->getInstanceId().isWorld()) {
 			return item;
 		}
 	}
-	if (!item->isStatefulMapTemplate() || item->getInstanceId() != 0) {
+	return resolveInstancedMapItem(player->getInstanceId(), item);
+}
+
+std::shared_ptr<Item> Game::resolveInstancedMapItem(InstanceId instanceId, const std::shared_ptr<Item> &item) {
+	if (!item || instanceId.isWorld() || instanceId.isAny()) {
+		return item;
+	}
+	if (!item->isStatefulMapTemplate() || !item->getInstanceId().isWorld()) {
 		return item;
 	}
 
@@ -3515,11 +3801,11 @@ std::shared_ptr<Item> Game::resolveInstancedMapItem(const std::shared_ptr<Player
 		return item;
 	}
 
-	if (const auto &fork = tile->findStatefulMapFork(*item, player->getInstanceId())) {
+	if (const auto &fork = tile->findStatefulMapFork(*item, instanceId)) {
 		return fork;
 	}
 
-	const auto &fork = item->clone(player->getInstanceId());
+	const auto &fork = item->clone(instanceId);
 	if (!fork) {
 		return item;
 	}
@@ -3529,7 +3815,7 @@ std::shared_ptr<Item> Game::resolveInstancedMapItem(const std::shared_ptr<Player
 	}
 
 	const Position &pos = tile->getPosition();
-	for (const auto &spectator : Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, player->getInstanceId())) {
+	for (const auto &spectator : Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId)) {
 		if (const auto &instancePlayer = spectator->getPlayer()) {
 			instancePlayer->sendUpdateTile(tile, pos);
 		}
@@ -3540,9 +3826,13 @@ std::shared_ptr<Item> Game::resolveInstancedMapItem(const std::shared_ptr<Player
 
 std::shared_ptr<Item> Game::transformItem(std::shared_ptr<Item> item, uint16_t newId, int32_t newCount /*= -1*/) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
-	if (g_instanceActor && item) {
-		if (const auto &actorPlayer = g_instanceActor->getPlayer()) {
-			item = resolveInstancedMapItem(actorPlayer, item);
+	if (item) {
+		if (g_instanceScope.mode == InstanceScopeMode::Creature && g_instanceScope.actor) {
+			if (const auto &actorPlayer = g_instanceScope.actor->getPlayer()) {
+				item = resolveInstancedMapItem(actorPlayer, item);
+			}
+		} else if (g_instanceScope.mode == InstanceScopeMode::Instance) {
+			item = resolveInstancedMapItem(g_instanceScope.id, item);
 		}
 	}
 	if (!item) {
@@ -3558,7 +3848,7 @@ std::shared_ptr<Item> Game::transformItem(std::shared_ptr<Item> item, uint16_t n
 	}
 
 	std::shared_ptr<Tile> fromTile = cylinder->getTile();
-	if (fromTile && browseFields.contains(fromTile) && browseFields[fromTile].lock() == cylinder) {
+	if (isBrowseFieldOf(fromTile, cylinder)) {
 		cylinder = fromTile;
 	}
 
@@ -3716,6 +4006,7 @@ ReturnValue Game::internalTeleport(const std::shared_ptr<Thing> &thing, const Po
 		creature->resetMovementState();
 
 		map.moveCreature(creature, toTile, !pushMove);
+		refreshOpenWorldInstance(creature->getPlayer());
 
 		return RETURNVALUE_NOERROR;
 	} else if (const auto &item = thing->getItem()) {
@@ -5114,12 +5405,11 @@ void Game::playerMoveUpContainer(uint32_t playerId, uint8_t cid) {
 			return;
 		}
 
-		auto it = browseFields.find(tile);
-		if (it == browseFields.end() || it->second.expired()) {
+		auto &field = browseFields[tile][player->getInstanceId()];
+		parentContainer = field.lock();
+		if (!parentContainer) {
 			parentContainer = Container::createBrowseField(tile, player->getInstanceId());
-			browseFields[tile] = parentContainer;
-		} else {
-			parentContainer = it->second.lock();
+			field = parentContainer;
 		}
 	}
 
@@ -5702,12 +5992,11 @@ void Game::playerBrowseField(uint32_t playerId, const Position &pos) {
 
 	std::shared_ptr<Container> container;
 
-	auto it = browseFields.find(tile);
-	if (it == browseFields.end() || it->second.expired()) {
+	auto &field = browseFields[tile][player->getInstanceId()];
+	container = field.lock();
+	if (!container) {
 		container = Container::createBrowseField(tile, player->getInstanceId());
-		browseFields[tile] = container;
-	} else {
-		container = it->second.lock();
+		field = container;
 	}
 
 	uint8_t dummyContainerId = 0xF - ((pos.x % 3) * 3 + (pos.y % 3));
@@ -7593,6 +7882,7 @@ void Game::playerSay(uint32_t playerId, uint16_t channelId, SpeakClasses type, c
 	if (!player) {
 		return;
 	}
+	InstanceActorScope instanceActorScope(player);
 
 	player->resetIdleTime();
 
@@ -7787,11 +8077,11 @@ std::shared_ptr<Task> Game::createPlayerTask(uint32_t delay, std::function<void(
 }
 
 //--
-bool Game::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/, const uint32_t instanceId /*= 0*/) {
+bool Game::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= MAP_CLASSIC_CLIENT_VIEW_PORT_X*/, const int32_t rangey /*= MAP_CLASSIC_CLIENT_VIEW_PORT_Y*/, const InstanceId instanceId /*= InstanceId::World*/) {
 	return map.canThrowObjectTo(fromPos, toPos, lineOfSight, rangex, rangey, sightInstanceId(instanceId));
 }
 
-bool Game::isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck, uint32_t instanceId) {
+bool Game::isSightClear(const Position &fromPos, const Position &toPos, bool floorCheck, InstanceId instanceId) {
 	return map.isSightClear(fromPos, toPos, floorCheck, sightInstanceId(instanceId));
 }
 
@@ -8064,8 +8354,8 @@ void Game::sendSingleSoundEffect(const Position &pos, SoundEffect_t soundId, con
 	}
 
 	using enum SourceEffect_t;
-	auto sendToInstance = [&](uint32_t instanceId) {
-		for (const auto &spectator : Spectators().find<Player>(pos, false, 0, 0, 0, 0, true, instanceId)) {
+	auto sendToInstance = [&](InstanceId instanceId) {
+		for (const auto &spectator : effectViewers(Spectators().find<Player>(pos, false, 0, 0, 0, 0, true, instanceId), instanceId)) {
 			SourceEffect_t source = CREATURES;
 			if (!actor || actor->getNpc()) {
 				source = GLOBAL;
@@ -8092,8 +8382,8 @@ void Game::sendDoubleSoundEffect(const Position &pos, SoundEffect_t mainSoundEff
 	}
 
 	using enum SourceEffect_t;
-	auto sendToInstance = [&](uint32_t instanceId) {
-		for (const auto &spectator : Spectators().find<Player>(pos, false, 0, 0, 0, 0, true, instanceId)) {
+	auto sendToInstance = [&](InstanceId instanceId) {
+		for (const auto &spectator : effectViewers(Spectators().find<Player>(pos, false, 0, 0, 0, 0, true, instanceId), instanceId)) {
 			SourceEffect_t source = CREATURES;
 			if (!actor || actor->getNpc()) {
 				source = GLOBAL;
@@ -9863,8 +10153,8 @@ void Game::addMagicEffect(const Position &pos, uint16_t effect) {
 	if (SpellFeedback::suppressed() && effect == CONST_ME_POFF) {
 		return;
 	}
-	const uint32_t instanceId = resolveEffectInstanceId(pos);
-	auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId);
+	const InstanceId instanceId = resolveEffectInstanceId(pos);
+	const auto spectators = effectViewers(Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId), instanceId);
 	addMagicEffect(spectators.data(), pos, effect);
 }
 
@@ -9877,16 +10167,17 @@ void Game::addMagicEffect(const CreatureVector &spectators, const Position &pos,
 }
 
 void Game::addMagicEffect(const Position &pos, uint16_t effect, const std::shared_ptr<Creature> &actor) {
-	auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, spectatorInstanceId(actor));
+	const InstanceId instanceId = effectInstanceFor(actor, pos);
+	const auto spectators = effectViewers(Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId), instanceId);
 	addMagicEffect(spectators.data(), pos, effect, actor);
 }
 
 void Game::addMagicEffect(const CreatureVector &spectators, const Position &pos, uint16_t effect, const std::shared_ptr<Creature> &actor) {
 	using enum SourceEffect_t;
-	const uint32_t instanceId = spectatorInstanceId(actor);
+	const InstanceId instanceId = effectFilterFor(actor);
 	for (const auto &spectator : spectators) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
-			if (instanceId != std::numeric_limits<uint32_t>::max() && tmpPlayer->getInstanceId() != instanceId) {
+			if (!instanceId.isAny() && tmpPlayer->getInstanceId() != instanceId) {
 				continue;
 			}
 			SourceEffect_t source = CREATURES;
@@ -9903,8 +10194,8 @@ void Game::addMagicEffect(const CreatureVector &spectators, const Position &pos,
 }
 
 void Game::removeMagicEffect(const Position &pos, uint16_t effect) {
-	const uint32_t instanceId = resolveEffectInstanceId(pos);
-	auto spectators = Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId);
+	const InstanceId instanceId = resolveEffectInstanceId(pos);
+	const auto spectators = effectViewers(Spectators().find<Player>(pos, true, 0, 0, 0, 0, true, instanceId), instanceId);
 	removeMagicEffect(spectators.data(), pos, effect);
 }
 
@@ -9917,8 +10208,8 @@ void Game::removeMagicEffect(const CreatureVector &spectators, const Position &p
 }
 
 void Game::addDistanceEffect(const Position &fromPos, const Position &toPos, uint16_t effect) {
-	const uint32_t instanceId = resolveEffectInstanceId(fromPos, toPos);
-	auto spectators = Spectators().find<Player>(fromPos, false, 0, 0, 0, 0, true, instanceId).find<Player>(toPos, false, 0, 0, 0, 0, true, instanceId);
+	const InstanceId instanceId = resolveEffectInstanceId(fromPos, toPos);
+	const auto spectators = effectViewers(Spectators().find<Player>(fromPos, false, 0, 0, 0, 0, true, instanceId).find<Player>(toPos, false, 0, 0, 0, 0, true, instanceId), instanceId);
 	addDistanceEffect(spectators.data(), fromPos, toPos, effect);
 }
 
@@ -9931,17 +10222,17 @@ void Game::addDistanceEffect(const CreatureVector &spectators, const Position &f
 }
 
 void Game::addDistanceEffect(const Position &fromPos, const Position &toPos, uint16_t effect, const std::shared_ptr<Creature> &actor) {
-	const uint32_t instanceId = spectatorInstanceId(actor);
-	auto spectators = Spectators().find<Player>(fromPos, false, 0, 0, 0, 0, true, instanceId).find<Player>(toPos, false, 0, 0, 0, 0, true, instanceId);
+	const InstanceId instanceId = effectInstanceFor(actor, fromPos);
+	const auto spectators = effectViewers(Spectators().find<Player>(fromPos, false, 0, 0, 0, 0, true, instanceId).find<Player>(toPos, false, 0, 0, 0, 0, true, instanceId), instanceId);
 	addDistanceEffect(spectators.data(), fromPos, toPos, effect, actor);
 }
 
 void Game::addDistanceEffect(const CreatureVector &spectators, const Position &fromPos, const Position &toPos, uint16_t effect, const std::shared_ptr<Creature> &actor) {
 	using enum SourceEffect_t;
-	const uint32_t instanceId = spectatorInstanceId(actor);
+	const InstanceId instanceId = effectFilterFor(actor);
 	for (const auto &spectator : spectators) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
-			if (instanceId != std::numeric_limits<uint32_t>::max() && tmpPlayer->getInstanceId() != instanceId) {
+			if (!instanceId.isAny() && tmpPlayer->getInstanceId() != instanceId) {
 				continue;
 			}
 			SourceEffect_t source = CREATURES;
@@ -12593,6 +12884,7 @@ void Game::addPlayer(const std::shared_ptr<Player> &player) {
 	wildcardTree->insert(lowercase_name);
 	players[player->getID()] = player;
 	playersByGUID[player->getGUID()] = player;
+	g_instanceRegistry().setPlayerInstance(player->getID(), player->getInstanceId());
 }
 
 void Game::removePlayer(const std::shared_ptr<Player> &player) {
@@ -12601,6 +12893,7 @@ void Game::removePlayer(const std::shared_ptr<Player> &player) {
 	wildcardTree->remove(lowercase_name);
 	players.erase(player->getID());
 	playersByGUID.erase(player->getGUID());
+	g_instanceRegistry().removePlayer(player->getID());
 }
 
 void Game::addNpc(const std::shared_ptr<Npc> &npc) {
@@ -12839,10 +13132,10 @@ uint32_t Game::makeFiendishMonster(uint32_t forgeableMonsterId /* = 0*/, bool cr
 				continue;
 			}
 
-			// Private hunt/raid instances are a tiny slice of the map. Including
-			// them in the global forge quota concentrates every Fiendish/Influenced
-			// roll onto expedition spawns once world spawn.xml is disabled.
-			if (monster->getInstanceId() >= INSTANCE_PRIVATE_BASE) {
+			// Instanced monsters (expeditions, open-world subarea layers) are a tiny,
+			// player-driven slice of the map: the global quota would concentrate every
+			// Fiendish/Influenced roll on them. They roll per spawn at world density (Lua).
+			if (!monster->getInstanceId().isWorld()) {
 				continue;
 			}
 
@@ -13030,7 +13323,7 @@ void Game::updateForgeableMonsters() {
 				continue;
 			}
 
-			if (monster->getInstanceId() >= INSTANCE_PRIVATE_BASE) {
+			if (!monster->getInstanceId().isWorld()) {
 				continue;
 			}
 
@@ -14057,7 +14350,7 @@ bool Game::hasPartyMembersNearby(const std::shared_ptr<Player> &player) {
 				continue;
 			}
 
-			const auto &topCreature = tile->getTopCreature();
+			const auto &topCreature = tile->getTopCreature(player->getInstanceId());
 			if (!topCreature) {
 				continue;
 			}
@@ -14097,7 +14390,7 @@ void Game::projectMonkVirtueAura(const std::shared_ptr<Player> &monk) {
 			if (!tile) {
 				continue;
 			}
-			const auto &topCreature = tile->getTopCreature();
+			const auto &topCreature = tile->getTopCreature(monk->getInstanceId());
 			if (!topCreature) {
 				continue;
 			}
@@ -14139,7 +14432,7 @@ bool Game::isPlayerNoBoxed(const std::shared_ptr<Player> &player) {
 				continue;
 			}
 
-			const auto &topCreature = tile->getTopCreature();
+			const auto &topCreature = tile->getTopCreature(player->getInstanceId());
 			if (!topCreature || topCreature == player) {
 				continue;
 			}
@@ -14274,7 +14567,7 @@ void Game::refreshItem(const std::shared_ptr<Item> &item) {
 	if (const auto &container = parent->getContainer()) {
 		int32_t index = container->getThingIndex(item);
 		if (index > -1 && index <= std::numeric_limits<uint16_t>::max()) {
-			const auto spectators = Spectators().find<Player>(container->getPosition(), false, 2, 2, 2, 2);
+			const auto spectators = Spectators().find<Player>(container->getPosition(), false, 2, 2, 2, 2, false, itemViewerInstance(container));
 			// send to client
 			for (const auto &spectator : spectators) {
 				const auto &player = spectator->getPlayer();
@@ -14287,7 +14580,7 @@ void Game::refreshItem(const std::shared_ptr<Item> &item) {
 		return;
 	}
 	if (const auto &tile = parent->getTile()) {
-		const auto spectators = Spectators().find<Player>(tile->getPosition(), true);
+		const auto spectators = Spectators().find<Player>(tile->getPosition(), true, 0, 0, 0, 0, false, itemViewerInstance(item));
 		// send to client
 		for (const auto &spectator : spectators) {
 			const auto &player = spectator->getPlayer();

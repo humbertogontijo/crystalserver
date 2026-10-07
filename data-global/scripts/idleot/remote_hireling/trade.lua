@@ -188,11 +188,12 @@ local function ensureRemoteNpc()
 	if not tile then
 		tile = Game.createTile(REMOTE_NPC_POS, true)
 	end
+	-- One off-map trader shared by every instance (dialogs are remote), so it lives in World.
 	if tile and not tile:getGround() then
-		Game.createItem(LobbyConfig.ROOM_FLOOR_ID, 1, REMOTE_NPC_POS)
+		Game.createItem(LobbyConfig.ROOM_FLOOR_ID, 1, REMOTE_NPC_POS, Instance.WORLD)
 	end
 
-	local npc = Game.createNpc(NPC_TYPE_NAME, REMOTE_NPC_POS)
+	local npc = Game.createNpc(NPC_TYPE_NAME, REMOTE_NPC_POS, false, false, Instance.WORLD)
 	if not npc then
 		return nil
 	end

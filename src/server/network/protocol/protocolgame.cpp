@@ -854,8 +854,8 @@ void ProtocolGame::login(const std::string &name, uint32_t accountId, OperatingS
 			}
 		}
 
-		g_game().bindPlayerInstance(player);
-		if (!g_game().placeCreature(player, player->getLoginPosition()) && !g_game().placeCreature(player, player->getTemplePosition(), false, true)) {
+		const Position placePos = g_game().bindPlayerInstance(player);
+		if (!g_game().placeCreature(player, placePos) && !g_game().placeCreature(player, player->getTemplePosition(), false, true)) {
 			disconnectClient("Temple position is wrong. Please, contact the administrator.");
 			g_logger().warn("Player {} temple position is wrong", player->getName());
 			return;
@@ -938,7 +938,7 @@ void ProtocolGame::attachToPlayer(const std::shared_ptr<Player> &target, Operati
 	player->sendStanceProtocol();
 	player->resyncSpellCooldowns();
 
-	g_game().bindPlayerInstance(player);
+	g_game().rebindAttachedPlayer(player);
 	sendAddCreature(player, player->getPosition(), 0, true);
 	player->lastIP = player->getIP();
 	player->lastLoad = OTSYS_TIME();
@@ -1310,6 +1310,7 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 	if (!player || player->isRemoved() || (player->getHealth() <= 0 && !player->isSoftDespawned())) {
 		return;
 	}
+	InstanceActorScope instanceActorScope(player);
 
 	switch (recvbyte) {
 		case 0x14:
@@ -1772,7 +1773,7 @@ namespace {
 		if (!item) {
 			return true;
 		}
-		const uint32_t viewerInstanceId = viewer ? viewer->getInstanceId() : 0;
+		const InstanceId viewerInstanceId = viewer ? viewer->getInstanceId() : InstanceId::World;
 		return !item->countsTowardClientMapStack(viewerInstanceId);
 	}
 }

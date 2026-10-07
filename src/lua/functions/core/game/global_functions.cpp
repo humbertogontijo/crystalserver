@@ -715,9 +715,11 @@ int GlobalFunctions::luaAddEvent(lua_State* L) {
 	eventDesc.scriptName = Lua::getScriptEnv()->getScriptInterface()->getLoadingScriptName();
 
 	auto &lastTimerEventId = g_luaEnvironment().lastEventTimerId;
+	// The callback runs in the instance scope active now: creates / effects inside it land in the
+	// scheduling actor's instance instead of being inferred from position.
 	eventDesc.eventId = g_dispatcher().scheduleEvent(
 		delay,
-		[lastTimerEventId] { g_luaEnvironment().executeTimerEvent(lastTimerEventId); },
+		Game::bindInstanceScope([lastTimerEventId] { g_luaEnvironment().executeTimerEvent(lastTimerEventId); }),
 		"LuaEnvironment::executeTimerEvent"
 	);
 

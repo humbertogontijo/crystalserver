@@ -221,6 +221,12 @@ local DISCOVERABLE = {
 
 -- footprints + floor rules live in lib/idleot/discovery/subareas.lua (shared with gen_pois.py)
 local SUBAREA_LIST = DiscoverySubareas.list
+
+DiscoverySubareas.regionCipAt = function(position)
+	local region = Game.getSubareaAt(Position(position.x, position.y, position.z))
+	local cipId = region and tonumber(region.cipId) or 0
+	return cipId > 0 and cipId or nil
+end
 for _, def in ipairs(SUBAREA_LIST) do
 	def.discoverable = DISCOVERABLE[def.id] == true
 end
@@ -240,7 +246,7 @@ local function usablePois(def)
 	local list = {}
 	for _, p in ipairs((DiscoveryPois and DiscoveryPois[def.id]) or {}) do
 		local pos = { x = p.x, y = p.y, z = p.z }
-		if DiscoverySubareas.contains(pos, def) and (not reachable or reachable(pos)) then
+		if DiscoverySubareas.inSubarea(pos, def) and (not reachable or reachable(pos)) then
 			list[#list + 1] = p
 		end
 	end
@@ -761,7 +767,7 @@ local function enterSubarea(player, subId, def)
 	if isCompleted(player, subId) then
 		player:sendDiscoveryCurrentArea(subId)
 		player:sendDiscoveryExploring(0)
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("You have entered %s (fully explored).", def.name))
+		player:sendTextMessage(MESSAGE_STATUS, string.format("You have entered the subarea %s.", def.name))
 		sessions[player:getGuid()] = { subId = subId, def = def, completed = true }
 		return
 	end
@@ -797,7 +803,8 @@ local function enterSubarea(player, subId, def)
 	end
 	player:sendDiscoveryExploring(subId)
 	sendAreaState(player, subId, session, true, true)
-	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("You have entered %s. Exploration in progress: %d/%d viewpoints found.", def.name, session.foundCount, session.poiTarget))
+	local remaining = session.poiTarget - session.foundCount
+	player:sendTextMessage(MESSAGE_STATUS, string.format("You have entered the subarea %s. Find %d point%s of interest to fully discover it.", def.name, remaining, remaining == 1 and "" or "s"))
 end
 
 local function leaveSubarea(player, session)
@@ -806,7 +813,8 @@ local function leaveSubarea(player, session)
 	player:sendDiscoveryCurrentArea(0)
 	player:sendDiscoveryExploring(0)
 	if session.def then
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("You have left %s.", session.def.name))
+		local suffix = session.completed and "" or " Return to discover its remaining secrets!"
+		player:sendTextMessage(MESSAGE_STATUS, string.format("You have left the subarea %s.%s", session.def.name, suffix))
 	end
 end
 

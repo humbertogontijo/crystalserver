@@ -37,53 +37,53 @@ namespace {
 	int32_t readI32(const uint8_t* p) {
 		return static_cast<int32_t>(readU32(p));
 	}
+}
 
-	bool decompressLzmaAlone(const uint8_t* src, size_t srcLen, std::vector<uint8_t> &out) {
-		if (src == nullptr || srcLen == 0) {
-			return false;
+bool lzmaAloneDecompress(const uint8_t* src, size_t srcLen, std::vector<uint8_t> &out) {
+	if (src == nullptr || srcLen == 0) {
+		return false;
+	}
+
+	// Packed LZMA size field is often wrong; treat uncompressed size as unknown.
+	std::vector<uint8_t> blob(src, src + srcLen);
+	if (blob.size() >= 13) {
+		for (size_t i = 0; i < 8; ++i) {
+			blob[5 + i] = 0xFF;
 		}
+	}
 
-		// Packed LZMA size field is often wrong; treat uncompressed size as unknown.
-		std::vector<uint8_t> blob(src, src + srcLen);
-		if (blob.size() >= 13) {
-			for (size_t i = 0; i < 8; ++i) {
-				blob[5 + i] = 0xFF;
-			}
+	lzma_stream strm = LZMA_STREAM_INIT;
+	const lzma_ret init = lzma_alone_decoder(&strm, UINT64_MAX);
+	if (init != LZMA_OK) {
+		lzma_end(&strm);
+		return false;
+	}
+
+	out.assign(1 << 16, 0);
+	strm.next_in = blob.data();
+	strm.avail_in = blob.size();
+	strm.next_out = out.data();
+	strm.avail_out = out.size();
+
+	while (true) {
+		const lzma_ret ret = lzma_code(&strm, LZMA_FINISH);
+		if (ret == LZMA_STREAM_END) {
+			out.resize(out.size() - strm.avail_out);
+			lzma_end(&strm);
+			return true;
 		}
-
-		lzma_stream strm = LZMA_STREAM_INIT;
-		const lzma_ret init = lzma_alone_decoder(&strm, UINT64_MAX);
-		if (init != LZMA_OK) {
+		if (ret != LZMA_OK) {
 			lzma_end(&strm);
 			return false;
 		}
-
-		out.assign(1 << 16, 0);
-		strm.next_in = blob.data();
-		strm.avail_in = blob.size();
-		strm.next_out = out.data();
-		strm.avail_out = out.size();
-
-		while (true) {
-			const lzma_ret ret = lzma_code(&strm, LZMA_FINISH);
-			if (ret == LZMA_STREAM_END) {
-				out.resize(out.size() - strm.avail_out);
-				lzma_end(&strm);
-				return true;
-			}
-			if (ret != LZMA_OK) {
-				lzma_end(&strm);
-				return false;
-			}
-			if (strm.avail_out > 0) {
-				lzma_end(&strm);
-				return false;
-			}
-			const size_t produced = out.size();
-			out.resize(produced * 2);
-			strm.next_out = out.data() + produced;
-			strm.avail_out = out.size() - produced;
+		if (strm.avail_out > 0) {
+			lzma_end(&strm);
+			return false;
 		}
+		const size_t produced = out.size();
+		out.resize(produced * 2);
+		strm.next_out = out.data() + produced;
+		strm.avail_out = out.size() - produced;
 	}
 }
 
@@ -318,7 +318,7 @@ bool occupancyFromPacked(const uint8_t* packed, size_t size, int32_t originX, in
 		return false;
 	}
 	std::vector<uint8_t> bmp;
-	if (!decompressLzmaAlone(packed + PACKED_PREFIX, size - PACKED_PREFIX, bmp)) {
+	if (!lzmaAloneDecompress(packed + PACKED_PREFIX, size - PACKED_PREFIX, bmp)) {
 		return false;
 	}
 	if (!occupancyFromBmp(bmp.data(), bmp.size(), originX, originY, out)) {
@@ -344,51 +344,50 @@ namespace {
 	void writeI32(uint8_t* p, int32_t value) {
 		writeU32(p, static_cast<uint32_t>(value));
 	}
+}
 
-	bool compressLzmaAlone(const uint8_t* src, size_t srcLen, std::vector<uint8_t> &out) {
-		if (src == nullptr || srcLen == 0) {
-			return false;
+bool lzmaAloneCompress(const uint8_t* src, size_t srcLen, std::vector<uint8_t> &out) {
+	if (src == nullptr || srcLen == 0) {
+		return false;
+	}
+
+	lzma_options_lzma opt;
+	if (lzma_lzma_preset(&opt, LZMA_PRESET_DEFAULT)) {
+		return false;
+	}
+
+	lzma_stream strm = LZMA_STREAM_INIT;
+	if (lzma_alone_encoder(&strm, &opt) != LZMA_OK) {
+		lzma_end(&strm);
+		return false;
+	}
+
+	out.assign(1 << 16, 0);
+	strm.next_in = const_cast<uint8_t*>(src);
+	strm.avail_in = srcLen;
+	strm.next_out = out.data();
+	strm.avail_out = out.size();
+
+	while (true) {
+		const lzma_ret ret = lzma_code(&strm, LZMA_FINISH);
+		if (ret == LZMA_STREAM_END) {
+			out.resize(out.size() - strm.avail_out);
+			lzma_end(&strm);
+			return true;
 		}
-
-		lzma_options_lzma opt;
-		if (lzma_lzma_preset(&opt, LZMA_PRESET_DEFAULT)) {
-			return false;
-		}
-
-		lzma_stream strm = LZMA_STREAM_INIT;
-		if (lzma_alone_encoder(&strm, &opt) != LZMA_OK) {
+		if (ret != LZMA_OK) {
 			lzma_end(&strm);
 			return false;
 		}
-
-		out.assign(1 << 16, 0);
-		strm.next_in = const_cast<uint8_t*>(src);
-		strm.avail_in = srcLen;
-		strm.next_out = out.data();
-		strm.avail_out = out.size();
-
-		while (true) {
-			const lzma_ret ret = lzma_code(&strm, LZMA_FINISH);
-			if (ret == LZMA_STREAM_END) {
-				out.resize(out.size() - strm.avail_out);
-				lzma_end(&strm);
-				return true;
-			}
-			if (ret != LZMA_OK) {
-				lzma_end(&strm);
-				return false;
-			}
-			if (strm.avail_out > 0) {
-				lzma_end(&strm);
-				return false;
-			}
-			const size_t produced = out.size();
-			out.resize(produced * 2);
-			strm.next_out = out.data() + produced;
-			strm.avail_out = out.size() - produced;
+		if (strm.avail_out > 0) {
+			lzma_end(&strm);
+			return false;
 		}
+		const size_t produced = out.size();
+		out.resize(produced * 2);
+		strm.next_out = out.data() + produced;
+		strm.avail_out = out.size() - produced;
 	}
-
 }
 
 bool occupancyToBmp(const OccupancyMask &occ, std::vector<uint8_t> &out) {
@@ -430,7 +429,7 @@ bool occupancyToPacked(const OccupancyMask &occ, std::vector<uint8_t> &out) {
 		return false;
 	}
 	std::vector<uint8_t> blob;
-	if (!compressLzmaAlone(bmp.data(), bmp.size(), blob)) {
+	if (!lzmaAloneCompress(bmp.data(), bmp.size(), blob)) {
 		return false;
 	}
 	out.assign(PACKED_PREFIX, 0);

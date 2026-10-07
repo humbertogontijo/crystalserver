@@ -1,14 +1,13 @@
--- Lobby room: shared stamped footprint (instance 0 template) + one private engine instance
--- per live lobby. Built when the first member enters, torn down when empty. Never saved.
+-- Lobby room: shared stamped footprint (world template) + one reserved engine channel of the
+-- lobby place ("lobby:0:<channel>") per live lobby. Built when the first member enters, torn
+-- down when empty. Never saved.
 LobbyInstance = LobbyInstance or {}
 
 local templateReady = false
 -- lobbyId -> room { lobbyId, instanceId, channel, origin, floorOrigin, entry, ... }
 local roomsByLobbyId = {}
--- engine instance id -> lobbyId
+-- engine instance key -> lobbyId
 local lobbyIdByInstance = {}
--- Incremental channels for the Lobby place (0, 1, 2, ...).
-local channelsInUse = {}
 
 local function outerW()
 	return LobbyConfig.ROOM_FLOOR_W + 2
@@ -132,21 +131,12 @@ function LobbyInstance.isLobbyPosition(pos)
 	return pos.z == o.z and pos.x >= o.x and pos.x < o.x + outerW() and pos.y >= o.y and pos.y < o.y + outerH()
 end
 
-local function allocateChannel(lobbyId)
-	local channel = 0
-	while channelsInUse[channel] do
-		channel = channel + 1
-	end
-	channelsInUse[channel] = lobbyId
-	return channel
-end
-
 function LobbyInstance.getRoom(record)
 	return record and roomsByLobbyId[record.id] or nil
 end
 
 function LobbyInstance.roomByInstanceId(instanceId)
-	local lobbyId = lobbyIdByInstance[tonumber(instanceId) or -1]
+	local lobbyId = lobbyIdByInstance[Instance.normalize(instanceId)]
 	return lobbyId and roomsByLobbyId[lobbyId] or nil
 end
 
@@ -155,7 +145,7 @@ function LobbyInstance.roomForPlayer(player)
 	if not player or not player.getInstanceId then
 		return nil
 	end
-	local room = LobbyInstance.roomByInstanceId(player:getInstanceId() or 0)
+	local room = LobbyInstance.roomByInstanceId(player:getInstanceId())
 	if room and LobbyInstance.isLobbyPosition(player:getPosition()) then
 		return room
 	end
@@ -177,7 +167,7 @@ function LobbyInstance.ensureRoom(record)
 		return existing
 	end
 	LobbyInstance.ensureTemplate()
-	local engineId = ExpeditionInstance and ExpeditionInstance.allocate and ExpeditionInstance.allocate("lobby") or nil
+	local engineId = ExpeditionInstance and ExpeditionInstance.allocate and ExpeditionInstance.allocate("lobby", 0, record.id) or nil
 	if engineId == nil then
 		return nil, "No lobby rooms available right now."
 	end
@@ -186,7 +176,7 @@ function LobbyInstance.ensureRoom(record)
 	local room = {
 		lobbyId = record.id,
 		instanceId = engineId,
-		channel = allocateChannel(record.id),
+		channel = Instance.channel(engineId),
 		origin = o,
 		floorOrigin = fo,
 		width = outerW(),
@@ -198,9 +188,7 @@ function LobbyInstance.ensureRoom(record)
 			room[spec.key] = Position(fo.x + spec.dx, fo.y + spec.dy, fo.z)
 		end
 	end
-	if Game.setInstancePrivateFence then
-		Game.setInstancePrivateFence(engineId, nil, { x = o.x, y = o.y, w = room.width, h = room.height }, { o.z })
-	end
+	Game.setInstancePrivateFence(engineId, nil, { x = o.x, y = o.y, w = room.width, h = room.height }, { o.z })
 	if InstanceWorld and InstanceWorld.rememberFloors then
 		InstanceWorld.rememberFloors(engineId, { [o.z] = true })
 	end
@@ -276,16 +264,9 @@ function LobbyInstance.teardownIfEmpty(lobbyId)
 		return false
 	end
 	removeInstanceThings(room)
-	if Game.clearInstancePrivateFence then
-		Game.clearInstancePrivateFence(room.instanceId)
-	end
-	if InstanceWorld and InstanceWorld.forgetFloors then
-		InstanceWorld.forgetFloors(room.instanceId)
-	end
 	if ExpeditionInstance and ExpeditionInstance.free then
 		ExpeditionInstance.free(room.instanceId)
 	end
-	channelsInUse[room.channel] = nil
 	lobbyIdByInstance[room.instanceId] = nil
 	roomsByLobbyId[room.lobbyId] = nil
 	logger.info("[Lobby] room torn down for lobby #{}", room.lobbyId)
@@ -306,8 +287,7 @@ local function saveReturnPos(player)
 		return
 	end
 	-- Hunt / raid tiles are never a place to come back to.
-	local privateBase = (InstanceWorld and InstanceWorld.PRIVATE_BASE) or 3000000
-	if (player:getInstanceId() or 0) >= privateBase then
+	if Instance.isPrivate(player:getInstanceId()) then
 		return
 	end
 	player:setStorageValue(LobbyConfig.STORAGE_RETURN_X, pos.x)
@@ -351,7 +331,7 @@ function LobbyInstance.enterNow(creature, record, opts)
 	local previousLobbyRoom = LobbyInstance.roomForPlayer(player)
 	local ok = false
 	if InstanceWorld and InstanceWorld.enterInstance then
-		ok = InstanceWorld.enterInstance(creature, room.instanceId, dest, "lobby") and true or false
+		ok = InstanceWorld.enterInstance(creature, room.instanceId, dest) and true or false
 	else
 		ok = creature:teleportTo(dest, false, room.instanceId) and true or false
 	end
@@ -419,24 +399,13 @@ function LobbyInstance.describe(player)
 	if not room then
 		return nil
 	end
-	local record = LobbyStore.get(room.lobbyId)
 	return {
-		instanceId = 0,
+		subareaId = Instance.subareaId(room.instanceId),
 		kind = "lobby",
-		name = record and ("Lobby #" .. record.id) or "Lobby",
-		key = "lobby",
+		key = room.instanceId,
 		channel = room.channel,
 		bounds = { x = room.origin.x, y = room.origin.y, w = room.width, h = room.height },
 	}
-end
-
---- Fence for walking inside a live room (InstanceWorld.canWalk fallback).
-function LobbyInstance.containsForInstance(instanceId, pos)
-	local room = LobbyInstance.roomByInstanceId(instanceId)
-	if not room then
-		return nil
-	end
-	return LobbyInstance.isLobbyPosition(pos)
 end
 
 --- Logout inside a room: remember it so login restores into the lobby.
@@ -470,7 +439,7 @@ function LobbyInstance.restoreOnLogin(player)
 	end
 	player:kv():remove(LobbyConfig.KV_INSIDE_LOBBY)
 	-- Headless deploys place straight onto a live room id.
-	local current = LobbyInstance.roomByInstanceId(player:getInstanceId() or 0)
+	local current = LobbyInstance.roomByInstanceId(player:getInstanceId())
 	if current then
 		return true
 	end
@@ -491,7 +460,6 @@ end
 function LobbyInstance.onStartup()
 	roomsByLobbyId = {}
 	lobbyIdByInstance = {}
-	channelsInUse = {}
 	templateReady = false
 	LobbyInstance.ensureTemplate()
 end

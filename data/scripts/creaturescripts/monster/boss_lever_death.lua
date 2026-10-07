@@ -18,7 +18,7 @@ function onBossDeath.onDeath(creature)
 		bossLever:onEncounterVictory(creature:getInstanceId())
 	end
 	-- Private-instance fights (expeditions) own their exit; the room timers are open-world only.
-	if creature:getInstanceId() ~= 0 then
+	if Instance.isPrivate(creature:getInstanceId()) then
 		return true
 	end
 

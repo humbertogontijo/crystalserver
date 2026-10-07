@@ -8,7 +8,6 @@ ExpeditionConfig.STORAGE_EXPEDITION_ID = 910002
 ExpeditionConfig.STORAGE_RETURN_X = 910003
 ExpeditionConfig.STORAGE_RETURN_Y = 910004
 ExpeditionConfig.STORAGE_RETURN_Z = 910005
-ExpeditionConfig.STORAGE_SLOT = 910006
 
 -- Player KV: pending hunt restore pointer (session key in global expeditions/hunts KV).
 ExpeditionConfig.KV_HUNT_KEY = "expedition_hunt_key"

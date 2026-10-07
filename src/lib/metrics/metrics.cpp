@@ -92,6 +92,45 @@ void Metrics::initHistograms() {
 	}
 }
 
+namespace {
+	void observeGauge(metrics_api::ObserverResult result, void* state) {
+		auto* gauge = static_cast<GaugeState*>(state);
+		using DoubleObserver = opentelemetry::nostd::shared_ptr<metrics_api::ObserverResultT<double>>;
+		if (!opentelemetry::nostd::holds_alternative<DoubleObserver>(result)) {
+			return;
+		}
+		auto &observer = opentelemetry::nostd::get<DoubleObserver>(result);
+		std::scoped_lock lock(gauge->mutex);
+		for (const auto &[attrs, value] : gauge->values) {
+			observer->Observe(value, opentelemetry::common::KeyValueIterableView<std::map<std::string, std::string>> { attrs });
+		}
+	}
+}
+
+void Metrics::setGauge(std::string_view name, double value, std::map<std::string, std::string> attrs) {
+	GaugeState* state = nullptr;
+	{
+		std::scoped_lock lock(mutex_);
+		if (!getMeter()) {
+			return;
+		}
+		auto it = gaugeStates.find(name);
+		if (it == gaugeStates.end()) {
+			std::string nameStr(name);
+			auto &created = gaugeStates[nameStr];
+			created = std::make_unique<GaugeState>();
+			auto instrument = getMeter()->CreateDoubleObservableGauge(nameStr);
+			instrument->AddCallback(observeGauge, created.get());
+			gauges[nameStr] = std::move(instrument);
+			state = created.get();
+		} else {
+			state = it->second.get();
+		}
+	}
+	std::scoped_lock lock(state->mutex);
+	state->values[std::move(attrs)] = value;
+}
+
 void Metrics::shutdown() {
 	std::shared_ptr<metrics_api::MeterProvider> none;
 	metrics_api::Provider::SetMeterProvider(none);

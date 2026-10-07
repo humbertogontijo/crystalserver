@@ -21,9 +21,8 @@ local revertEvent = nil
 
 --- Phase swaps must keep the private expedition instance and rebind ownership.
 local function spawnPhaseMonster(name, position, instanceId)
-	instanceId = math.floor(tonumber(instanceId) or 0)
 	local monster = nil
-	if instanceId > 0 then
+	if not Instance.isWorld(instanceId) then
 		monster = Game.createMonster(name, position, true, true, nil, instanceId)
 	else
 		monster = Game.createMonster(name, position, true, true)
@@ -33,13 +32,6 @@ local function spawnPhaseMonster(name, position, instanceId)
 		pcall(ExpeditionBoss.onPhaseSpawned, monster)
 	end
 	return monster
-end
-
-local function creatureInstanceId(creature)
-	if creature and creature.getInstanceId then
-		return math.floor(tonumber(creature:getInstanceId()) or 0)
-	end
-	return 0
 end
 
 local function revert(cid, name)
@@ -53,7 +45,7 @@ local function revert(cid, name)
 	end
 
 	local position = creature:getPosition()
-	local instanceId = creatureInstanceId(creature)
+	local instanceId = Instance.of(creature)
 	creature:remove()
 	local monster = spawnPhaseMonster(name, position, instanceId)
 	if not monster then
@@ -77,7 +69,7 @@ local function changeStage(cid, stage)
 
 	local position = creature:getPosition()
 	local previousName = creature:getName()
-	local instanceId = creatureInstanceId(creature)
+	local instanceId = Instance.of(creature)
 	creature:remove()
 	local newCreature = spawnPhaseMonster(stage, position, instanceId)
 	if not newCreature then

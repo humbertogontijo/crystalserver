@@ -10,8 +10,47 @@
   "panels": [
     {
       "type": "row",
-      "title": "Dispatcher (game thread) - every player's ping waits on this",
+      "title": "Game state",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Players online",
+      "description": "Headless = idle players kept online without a game client.",
+      "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "custom": { "stacking": { "mode": "normal" }, "fillOpacity": 30 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (client) (game_players)", "legendFormat": "{{client}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Active expeditions",
+      "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "custom": { "stacking": { "mode": "normal" }, "fillOpacity": 30 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (role) (game_expeditions)", "legendFormat": "{{role}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Creatures",
+      "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum(game_monsters)", "legendFormat": "monsters" },
+        { "refId": "B", "expr": "sum(game_npcs)", "legendFormat": "npcs" }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Dispatcher (game thread) - every player's ping waits on this",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
       "collapsed": false,
       "panels": []
     },
@@ -20,7 +59,7 @@
       "title": "Game thread busy (ms per second, 1000 = saturated)",
       "description": "Sum of all dispatcher task time per second. Spikes toward 1000 mean the single game thread had no idle time and every client's packets queued.",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
       "fieldConfig": {
         "defaults": {
           "unit": "ms",
@@ -38,7 +77,7 @@
       "title": "Dispatcher tasks slower than 50 ms (count per minute)",
       "description": "Any task in this panel froze the game thread for at least 50 ms.",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
       "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 60 } }, "overrides": [] },
       "targets": [
         { "refId": "A", "expr": "(sum by (task) (increase(task_latency_microseconds_count[1m])) - sum by (task) (increase(task_latency_microseconds_bucket{le=\"50000\"}[1m]))) > 0", "legendFormat": "{{task}}" }
@@ -48,7 +87,7 @@
       "type": "timeseries",
       "title": "Slowest dispatcher tasks (p99)",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 18 },
       "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
       "targets": [
         { "refId": "A", "expr": "topk(10, histogram_quantile(0.99, sum by (le, task) (rate(task_latency_microseconds_bucket[$__rate_interval])))) / 1000", "legendFormat": "{{task}}" }
@@ -58,7 +97,7 @@
       "type": "timeseries",
       "title": "Dispatcher time by task (ms per second)",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 18 },
       "fieldConfig": { "defaults": { "unit": "ms", "custom": { "stacking": { "mode": "normal" }, "fillOpacity": 30 } }, "overrides": [] },
       "targets": [
         { "refId": "A", "expr": "topk(10, sum by (task) (rate(task_latency_microseconds_sum[$__rate_interval]))) / 1000", "legendFormat": "{{task}}" }
@@ -68,7 +107,7 @@
       "type": "table",
       "title": "Total dispatcher time in the selected range (by task)",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 18 },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 27 },
       "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
       "options": { "sortBy": [ { "displayName": "Total ms", "desc": true } ] },
       "transformations": [
@@ -84,7 +123,7 @@
     {
       "type": "row",
       "title": "Lua (scope = script file : direct call or timer)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
       "collapsed": false,
       "panels": []
     },
@@ -92,7 +131,7 @@
       "type": "timeseries",
       "title": "Lua time by script (ms per second)",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 28 },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 37 },
       "fieldConfig": { "defaults": { "unit": "ms", "custom": { "stacking": { "mode": "normal" }, "fillOpacity": 30 } }, "overrides": [] },
       "targets": [
         { "refId": "A", "expr": "topk(10, sum by (scope) (rate(lua_latency_microseconds_sum[$__rate_interval]))) / 1000", "legendFormat": "{{scope}}" }
@@ -102,7 +141,7 @@
       "type": "timeseries",
       "title": "Lua calls slower than 50 ms (count per minute)",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 28 },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 37 },
       "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 60 } }, "overrides": [] },
       "targets": [
         { "refId": "A", "expr": "(sum by (scope) (increase(lua_latency_microseconds_count[1m])) - sum by (scope) (increase(lua_latency_microseconds_bucket{le=\"50000\"}[1m]))) > 0", "legendFormat": "{{scope}}" }
@@ -112,7 +151,7 @@
       "type": "timeseries",
       "title": "Slowest Lua scripts (p99)",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 37 },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 46 },
       "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
       "targets": [
         { "refId": "A", "expr": "topk(10, histogram_quantile(0.99, sum by (le, scope) (rate(lua_latency_microseconds_bucket[$__rate_interval])))) / 1000", "legendFormat": "{{scope}}" }
@@ -121,7 +160,7 @@
     {
       "type": "row",
       "title": "Database, C++ methods, locks",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 46 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 55 },
       "collapsed": false,
       "panels": []
     },
@@ -129,7 +168,7 @@
       "type": "timeseries",
       "title": "SQL time by query (ms per second)",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 47 },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 56 },
       "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
       "targets": [
         { "refId": "A", "expr": "topk(10, sum by (truncated_query) (rate(query_latency_microseconds_sum[$__rate_interval]))) / 1000", "legendFormat": "{{truncated_query}}" }
@@ -139,7 +178,7 @@
       "type": "timeseries",
       "title": "Slowest SQL queries (p99)",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 47 },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 56 },
       "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
       "targets": [
         { "refId": "A", "expr": "topk(10, histogram_quantile(0.99, sum by (le, truncated_query) (rate(query_latency_microseconds_bucket[$__rate_interval])))) / 1000", "legendFormat": "{{truncated_query}}" }
@@ -149,7 +188,7 @@
       "type": "timeseries",
       "title": "Slowest instrumented C++ methods (p99)",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 56 },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 65 },
       "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
       "targets": [
         { "refId": "A", "expr": "topk(10, histogram_quantile(0.99, sum by (le, method) (rate(method_latency_microseconds_bucket[$__rate_interval])))) / 1000", "legendFormat": "{{method}}" }
@@ -159,7 +198,7 @@
       "type": "timeseries",
       "title": "Lock wait (p99)",
       "datasource": { "type": "prometheus", "uid": "crystal-prometheus" },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 56 },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 65 },
       "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
       "targets": [
         { "refId": "A", "expr": "topk(10, histogram_quantile(0.99, sum by (le, scope) (rate(lock_latency_microseconds_bucket[$__rate_interval])))) / 1000", "legendFormat": "{{scope}}" }

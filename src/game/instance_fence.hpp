@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "game/instance_id.hpp"
 #include "game/movement/position.hpp"
 
 #include <parallel_hashmap/phmap.h>
@@ -16,15 +17,19 @@
 class Creature;
 
 /**
- * Native instance walk fences (city/settlement/hub/private).
+ * Native instance walk fences.
+ * - Area fences (city/settlement) are keyed by {kind, subareaId} and apply to every channel.
+ *   They are the fallback while `openWorldSubareaInstances` is off or the region index is
+ *   missing; with regions on they only resolve birth tiles no region covers.
+ * - Private fences (hunt/raid/lobby/... reserved channels) are keyed by the full instance id.
+ * - Open-world subarea kinds resolve through SubareaRegistry (tile -> region).
  * Lua registers masks/AABBs at load and instance build; serial + A* walks use C++.
  */
 class InstanceFenceRegistry {
 public:
-	static constexpr uint32_t CITY_BASE = 1000000;
-	static constexpr uint32_t HUB_ADVENTURERS = 2000000;
-	static constexpr uint32_t PRIVATE_BASE = 3000000;
 	static constexpr int32_t DEFAULT_HUB_WALK_RADIUS = 40;
+	/** The Adventurers' hub (one per world; channels split it like any other instance). */
+	static constexpr InstanceId HUB_ADVENTURERS { InstanceKind::Hub, 1, 0 };
 
 	struct Occupancy {
 		int32_t originX = 0;
@@ -61,31 +66,40 @@ public:
 	static InstanceFenceRegistry &getInstance();
 
 	void clear();
-	void setHub(int32_t centerX, int32_t centerY, int32_t radius, const std::vector<uint8_t> &floors);
-	void setAreaFence(uint32_t areaId, Fence fence);
-	void setPrivateFence(uint32_t instanceId, Fence fence);
-	void clearPrivateFence(uint32_t instanceId);
-	void setFloors(uint32_t instanceId, const std::vector<uint8_t> &floors, bool allFloors);
+	void setHub(int32_t centerX, int32_t centerY, int32_t radius, const std::vector<uint8_t> &floors, uint8_t centerZ = 7);
+	/** Hub center tile; nullopt until InstanceWorld registers the hub. */
+	[[nodiscard]] std::optional<Position> hubCenter() const;
+	/** City / settlement geometry for every channel of `{kind, subareaId}`. */
+	void setAreaFence(InstanceKind kind, uint32_t subareaId, Fence fence);
+	void setPrivateFence(InstanceId instanceId, Fence fence);
+	void clearPrivateFence(InstanceId instanceId);
+	void setFloors(InstanceId instanceId, const std::vector<uint8_t> &floors, bool allFloors);
 
 	[[nodiscard]] bool canWalk(const std::shared_ptr<Creature> &creature, const Position &toPos) const;
-	/** Instance a creature/item born at `pos` belongs to: hub, else a city/settlement
-	 *  area fence (CITY_BASE + areaId), else 0 (open world). Private ids are never inferred. */
-	[[nodiscard]] uint32_t instanceForPosition(const Position &pos) const;
+	/** Channel-0 instance a creature/item born at `pos` belongs to (hub, subarea region,
+	 *  city/settlement area fence), else World. Private reserved channels are never inferred. */
+	[[nodiscard]] InstanceId instanceForPosition(const Position &pos) const;
 	/** True when `pos` lies inside the registered fence geometry and floors of `instanceId`. */
-	[[nodiscard]] bool containsPos(uint32_t instanceId, const Position &pos) const;
+	[[nodiscard]] bool containsPos(InstanceId instanceId, const Position &pos) const;
 	/** XY bounding box of the registered fence geometry (any floor); nullopt when none. */
-	[[nodiscard]] std::optional<Aabb> boundsFor(uint32_t instanceId) const;
+	[[nodiscard]] std::optional<Aabb> boundsFor(InstanceId instanceId) const;
+	[[nodiscard]] bool hasPrivateFence(InstanceId instanceId) const;
+	/** Walkable floors registered for `instanceId`; empty = every floor. */
+	[[nodiscard]] std::vector<uint8_t> floorsFor(InstanceId instanceId) const;
 
 private:
-	[[nodiscard]] const Fence *fenceFor(uint32_t instanceId) const;
+	[[nodiscard]] const Fence* fenceFor(InstanceId instanceId) const;
+	[[nodiscard]] bool hubContainsXY(int32_t x, int32_t y) const;
 
 	std::optional<int32_t> hubCenterX;
 	std::optional<int32_t> hubCenterY;
+	uint8_t hubCenterZ = 7;
 	int32_t hubRadius = DEFAULT_HUB_WALK_RADIUS;
 	Fence hubFence;
-	phmap::flat_hash_map<uint32_t, Fence> areaById;
-	phmap::flat_hash_map<uint32_t, Fence> privateById;
-	phmap::flat_hash_map<uint32_t, std::vector<uint8_t>> floorsByInstanceId;
+	// Keyed by {kind, subareaId, channel 0}.
+	phmap::flat_hash_map<InstanceId, Fence> areaById;
+	phmap::flat_hash_map<InstanceId, Fence> privateById;
+	phmap::flat_hash_map<InstanceId, std::vector<uint8_t>> floorsByInstanceId;
 };
 
 constexpr auto g_instanceFences = InstanceFenceRegistry::getInstance;

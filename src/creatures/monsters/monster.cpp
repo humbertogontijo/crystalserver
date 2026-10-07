@@ -25,6 +25,7 @@
 #include "creatures/players/player.hpp"
 #include "creatures/players/wheel/player_wheel.hpp"
 #include "game/game.hpp"
+#include "game/instance_registry.hpp"
 #include "game/scheduling/dispatcher.hpp"
 #include "io/iobestiary.hpp"
 #include "items/tile.hpp"
@@ -110,7 +111,7 @@ void Monster::setName(const std::string &name) {
 
 	// NOTE: Due to how client caches known creatures,
 	// it is not feasible to send creature update to everyone that has ever met it
-	auto spectators = Spectators().find<Player>(position, true);
+	auto spectators = Spectators().find<Player>(position, true, 0, 0, 0, 0, false, getInstanceId());
 	for (const auto &spectator : spectators) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
 			tmpPlayer->sendCreatureReload(static_self_cast<Monster>());
@@ -468,7 +469,7 @@ void Monster::onCreatureMove(const std::shared_ptr<Creature> &creature, const st
 						const auto &checkPosition = getNextPosition(dir, pos);
 
 						if (const auto &nextTile = g_game().map.getTile(checkPosition)) {
-							const auto &topCreature = nextTile->getTopCreature();
+							const auto &topCreature = nextTile->getTopCreature(getInstanceId());
 							if (followCreature != topCreature && isOpponent(topCreature)) {
 								g_dispatcher().addEvent([selfWeak = std::weak_ptr(getMonster()), topCreatureWeak = std::weak_ptr(topCreature)] {
 									const auto &self = selfWeak.lock();
@@ -1153,7 +1154,7 @@ void Monster::onThink(uint32_t interval) {
 		if (scriptInterface->callFunction(2)) {
 			// Open-world quest hooks may return true to skip Monster AI. Private
 			// instances (expeditions/home/raids) always continue engine AI.
-			if (getInstanceId() < Game::INSTANCE_PRIVATE_BASE) {
+			if (!g_instanceRegistry().isPrivate(getInstanceId())) {
 				return;
 			}
 		}
@@ -1527,7 +1528,8 @@ void Monster::pushItems(const std::shared_ptr<Tile> &tile, const Direction &next
 		int32_t downItemSize = tile->getDownItemCount();
 		for (int32_t i = downItemSize; --i >= 0;) {
 			const auto &item = items->at(i);
-			if (item && item->hasProperty(CONST_PROP_MOVABLE) && (item->hasProperty(CONST_PROP_BLOCKPATH) || item->hasProperty(CONST_PROP_BLOCKSOLID)) && item->canBeMoved()) {
+			// Only this layer's own items: pushing or removing a shared World item would affect every layer.
+			if (item && item->getInstanceId() == getInstanceId() && item->hasProperty(CONST_PROP_MOVABLE) && (item->hasProperty(CONST_PROP_BLOCKPATH) || item->hasProperty(CONST_PROP_BLOCKSOLID)) && item->canBeMoved()) {
 				if (moveCount < 20 && pushItem(item, nextDirection)) {
 					++moveCount;
 				} else if (!item->isCorpse() && g_game().internalRemoveItem(item) == RETURNVALUE_NOERROR) {
@@ -1536,7 +1538,7 @@ void Monster::pushItems(const std::shared_ptr<Tile> &tile, const Direction &next
 			}
 		}
 		if (removeCount > 0) {
-			g_game().addMagicEffect(tile->getPosition(), CONST_ME_POFF);
+			g_game().addMagicEffect(tile->getPosition(), CONST_ME_POFF, getMonster());
 		}
 	}
 }
@@ -1568,7 +1570,7 @@ void Monster::pushCreatures(const std::shared_ptr<Tile> &tile) {
 
 		for (size_t i = 0; i < creatures->size();) {
 			const auto &monster = creatures->at(i)->getMonster();
-			if (monster && monster->isPushable()) {
+			if (monster && monster->getInstanceId() == getInstanceId() && monster->isPushable()) {
 				if (monster != lastPushedMonster && Monster::pushCreature(monster)) {
 					lastPushedMonster = monster;
 					continue;
@@ -1583,7 +1585,7 @@ void Monster::pushCreatures(const std::shared_ptr<Tile> &tile) {
 		}
 
 		if (removeCount > 0) {
-			g_game().addMagicEffect(tile->getPosition(), CONST_ME_BLOCKHIT);
+			g_game().addMagicEffect(tile->getPosition(), CONST_ME_BLOCKHIT, getMonster());
 		}
 	}
 }
@@ -1624,15 +1626,15 @@ bool Monster::getNextStep(Direction &nextDirection, uint32_t &flags) {
 		const auto &posTile = g_game().map.getTile(pos);
 		if (posTile) {
 			if (canPushItems()) {
-				Monster::pushItems(posTile, nextDirection);
+				pushItems(posTile, nextDirection);
 			}
 
 			if (canPushCreatures()) {
 				if (g_dispatcher().context().getGroup() == TaskGroup::Walk) {
-					Monster::pushCreatures(posTile);
+					pushCreatures(posTile);
 				} else {
 					g_dispatcher().addWalkEvent([=] {
-						Monster::pushCreatures(posTile);
+						pushCreatures(posTile);
 					});
 				}
 			}
@@ -2440,7 +2442,7 @@ bool Monster::canWalkTo(Position pos, Direction moveDirection) {
 
 void Monster::death(const std::shared_ptr<Creature> &) {
 	if (monsterForgeClassification > ForgeClassifications_t::FORGE_NORMAL_MONSTER
-	    && getInstanceId() < Game::INSTANCE_PRIVATE_BASE) {
+	    && !g_instanceRegistry().isPrivate(getInstanceId())) {
 		g_game().removeForgeMonster(getID(), monsterForgeClassification, true);
 	}
 	const auto &attackedCreature = getAttackedCreature();

@@ -243,6 +243,7 @@ void Raid::startRaid() {
 }
 
 void Raid::executeRaidEvent(const std::shared_ptr<RaidEvent> &raidEvent) {
+	InstanceActorScope instanceActorScope(InstanceActorScope::Positional {});
 	if (raidEvent->executeEvent()) {
 		nextEvent++;
 		const auto newRaidEvent = getNextRaidEvent();
@@ -390,7 +391,7 @@ bool SingleSpawnEvent::configureRaidEvent(const pugi::xml_node &eventNode) {
 }
 
 bool SingleSpawnEvent::executeEvent() {
-	const auto &monster = Monster::createMonster(monsterName, InstanceId(g_instanceFences().instanceForPosition(position)));
+	const auto &monster = Monster::createMonster(monsterName, g_instanceFences().instanceForPosition(position));
 	if (!monster) {
 		g_logger().error("{} - Cant create monster {}", __FUNCTION__, monsterName);
 		return false;
@@ -554,20 +555,23 @@ bool AreaSpawnEvent::executeEvent() {
 	for (const MonsterSpawn &spawn : spawnMonsterList) {
 		const uint32_t amount = uniform_random(spawn.minAmount, spawn.maxAmount);
 		for (uint32_t i = 0; i < amount; ++i) {
-			const std::shared_ptr<Monster> &monster = Monster::createMonster(spawn.name, InstanceId(g_instanceFences().instanceForPosition(fromPos)));
-			if (!monster) {
-				g_logger().error("{} - Can't create monster {}", __FUNCTION__, spawn.name);
-				return false;
-			}
-
 			for (int32_t tries = 0; tries < MAXIMUM_TRIES_PER_MONSTER; tries++) {
 				const auto &tile = g_game().map.getTile(static_cast<uint16_t>(uniform_random(fromPos.x, toPos.x)), static_cast<uint16_t>(uniform_random(fromPos.y, toPos.y)), static_cast<uint8_t>(uniform_random(fromPos.z, toPos.z)));
-				if (!tile) {
+				if (!tile || tile->isMovableBlocking() || tile->hasFlag(TILESTATE_PROTECTIONZONE)) {
+					continue;
+				}
+				// The area can span several regions: each monster belongs to its own tile's layer.
+				const InstanceId instanceId = g_instanceFences().instanceForPosition(tile->getPosition());
+				if (tile->getTopCreature(instanceId)) {
 					continue;
 				}
 
-				const auto &topCreature = tile->getTopCreature();
-				if (!tile->isMovableBlocking() && !tile->hasFlag(TILESTATE_PROTECTIONZONE) && topCreature == nullptr && g_game().placeCreature(monster, tile->getPosition(), false, true)) {
+				const std::shared_ptr<Monster> &monster = Monster::createMonster(spawn.name, instanceId);
+				if (!monster) {
+					g_logger().error("{} - Can't create monster {}", __FUNCTION__, spawn.name);
+					return false;
+				}
+				if (g_game().placeCreature(monster, tile->getPosition(), false, true)) {
 					monster->setForgeMonster(false);
 					monster->onSpawn(tile->getPosition());
 					break;

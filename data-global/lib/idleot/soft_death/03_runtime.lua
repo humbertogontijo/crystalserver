@@ -65,7 +65,7 @@ function SoftDeath.beginDowned(player, opts)
 	if not pos then
 		return false
 	end
-	local instanceId = player.getInstanceId and player:getInstanceId() or 0
+	local instanceId = Instance.of(player)
 	local pid = player:getId()
 
 	if player.setFollowCreature then
@@ -145,15 +145,19 @@ function SoftDeath.endDowned(player, opts)
 	SoftDeath._downed[pid] = nil
 
 	if player.isSoftDespawned and player:isSoftDespawned() and player.softSpawn then
-		local spawnPos
+		local spawnPos, spawnInstance
 		if opts.revive == false then
-			-- Leave / eject mid-knockout: do not reappear on the arena tile.
-			spawnPos = player:getTemplePosition()
+			-- Leave / eject mid-knockout: do not reappear on the arena tile or its instance.
+			spawnPos, spawnInstance = InstanceWorld.openWorldTarget(player, player:getTemplePosition())
+			if not spawnPos then
+				spawnPos, spawnInstance = player:getTemplePosition(), player:getInstanceId()
+			end
 		else
 			local pos = entry and entry.pos
 			spawnPos = pos and Position(pos.x, pos.y, pos.z) or player:getPosition()
+			spawnInstance = player:getInstanceId()
 		end
-		if not player:softSpawn(spawnPos) then
+		if not player:softSpawn(spawnPos, spawnInstance) then
 			logger.error("[SoftDeath] softSpawn failed for {}", player:getName())
 		end
 	end

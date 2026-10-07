@@ -19,6 +19,7 @@
 
 #include "declarations.hpp"
 #include "lua/scripts/luajit_sync.hpp"
+#include "game/instance_id.hpp"
 #include "game/movement/position.hpp"
 #include "lua/scripts/script_environment.hpp"
 
@@ -138,6 +139,16 @@ public:
 	static CombatDamage getCombatDamage(lua_State* L);
 	static Position getPosition(lua_State* L, int32_t arg, int32_t &stackpos);
 	static Position getPosition(lua_State* L, int32_t arg);
+	/** Instance kind given by name ("hunt") or enum number; nullopt when neither. */
+	static std::optional<InstanceKind> getInstanceKind(lua_State* L, int32_t arg);
+	/** Instance handle: key string `kind:subareaId:channel`, a {kind, subareaId, channel} table or 0 (world). */
+	static std::optional<InstanceId> parseInstanceId(lua_State* L, int32_t arg);
+	/** Mandatory instance argument: nullopt (after a script error) when missing or unparsable. */
+	static std::optional<InstanceId> requireInstanceId(lua_State* L, int32_t arg);
+	/** Optional instance argument: `out` stays nullopt when absent / nil. Returns false (after a
+	 *  script error) when the argument is present but unparsable — callers must bail, never default. */
+	static bool readInstanceId(lua_State* L, int32_t arg, std::optional<InstanceId> &out);
+	static void pushInstanceId(lua_State* L, InstanceId instanceId);
 	static Outfit_t getOutfit(lua_State* L, int32_t arg);
 	static LuaVariant getVariant(lua_State* L, int32_t arg);
 
@@ -207,6 +218,11 @@ public:
 
 		assert(scriptEnvIndex >= 0 && scriptEnvIndex < 16);
 		return scriptEnv + scriptEnvIndex;
+	}
+
+	/** True while a script call is on the stack (getScriptEnv() would succeed). */
+	static bool hasScriptEnv() {
+		return scriptEnvIndex >= 0 && scriptEnvIndex < 16;
 	}
 
 	static bool reserveScriptEnv() {

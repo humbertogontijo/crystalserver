@@ -169,7 +169,7 @@ trainingTick = function(playerId)
 	weapon:setAttribute(ITEM_ATTRIBUTE_CHARGES, weaponCharges - 1)
 	-- addEvent has no instance actor and the dummy tile holds no creature, so without the
 	-- scope the hit effect would only reach the open world.
-	Game.runInInstance(player:getInstanceId() or 0, function()
+	Game.runInInstance(player:getInstanceId(), function()
 		if meta.effect then
 			playerPosition:sendDistanceEffect(dummyPos, meta.effect)
 		end
@@ -221,7 +221,7 @@ function LobbyServices.startTraining(player, opts)
 	if not weaponMeta.allowFarUse and playerPos:getDistance(dummyPos) > 1 then
 		return false, "Get closer to the dummy."
 	end
-	local instanceId = player:getInstanceId() or 0
+	local instanceId = player:getInstanceId()
 	if
 		math.abs(playerPos.x - dummyPos.x) > LobbyConfig.TRAIN_MAX_RANGE_X
 		or math.abs(playerPos.y - dummyPos.y) > LobbyConfig.TRAIN_MAX_RANGE_Y

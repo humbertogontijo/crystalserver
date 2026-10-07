@@ -58,7 +58,7 @@ static constexpr int32_t EVENT_CHECK_CREATURE_INTERVAL = (EVENT_CREATURE_THINK_I
 
 class FrozenPathingConditionCall {
 public:
-	explicit FrozenPathingConditionCall(Position newTargetPos, uint32_t newInstanceId = 0) :
+	explicit FrozenPathingConditionCall(Position newTargetPos, InstanceId newInstanceId = InstanceId::World) :
 		targetPos(newTargetPos),
 		instanceId(newInstanceId) { }
 
@@ -72,7 +72,7 @@ public:
 
 private:
 	Position targetPos;
-	uint32_t instanceId = 0;
+	InstanceId instanceId = InstanceId::World;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -751,6 +751,8 @@ protected:
 	/** Moves an existing creature (and its summons) between instances. Only
 	 *  Player::moveToInstance calls this; everything else is born with its id. */
 	void setInstanceId(InstanceId id);
+	/// Stores the id without the remove/appear remap; only valid while no viewer sees this creature.
+	void setInstanceIdUnseen(InstanceId id);
 
 	enum FlagAsyncClass_t : uint8_t {
 		AsyncTaskRunning = 1 << 0,

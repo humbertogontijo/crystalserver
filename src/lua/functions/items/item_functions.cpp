@@ -206,10 +206,10 @@ int ItemFunctions::luaItemGetId(lua_State* L) {
 }
 
 int ItemFunctions::luaItemGetInstanceId(lua_State* L) {
-	// item:getInstanceId()
+	// item:getInstanceId() -> "kind:subareaId:channel"
 	const auto &item = Lua::getUserdataShared<Item>(L, 1);
 	if (item) {
-		lua_pushnumber(L, item->getInstanceId());
+		Lua::pushInstanceId(L, item->getInstanceId());
 	} else {
 		lua_pushnil(L);
 	}
@@ -224,7 +224,12 @@ int ItemFunctions::luaItemClone(lua_State* L) {
 		return 1;
 	}
 
-	const auto &clone = item->clone(InstanceId(Lua::getNumber<uint32_t>(L, 2, item->getInstanceId())));
+	std::optional<InstanceId> explicitId;
+	if (!Lua::readInstanceId(L, 2, explicitId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto &clone = item->clone(explicitId.value_or(item->getInstanceId()));
 	if (!clone) {
 		lua_pushnil(L);
 		return 1;

@@ -145,7 +145,7 @@ function ExpeditionBoss.onPhaseSpawned(monster)
 		return false
 	end
 	local instanceId = monster:getInstanceId()
-	if not instanceId or instanceId == 0 then
+	if Instance.isWorld(instanceId) then
 		return false
 	end
 
@@ -177,7 +177,7 @@ local function onLeverFormSpawned(monster, lever)
 		return
 	end
 	local instanceId = monster:getInstanceId()
-	if not instanceId or instanceId == 0 then
+	if Instance.isWorld(instanceId) then
 		return
 	end
 	local session = ExpeditionManager.getSessionByInstanceId(instanceId)
@@ -255,7 +255,7 @@ end
 --- player summons stay. Deferred so the dying boss finishes its own death scripts.
 local function clearArena(session)
 	local instanceId = session.instance and session.instance.instanceId
-	if not instanceId or instanceId == 0 or not Game.getMonsters then
+	if Instance.isWorld(instanceId) or not Game.getMonsters then
 		return
 	end
 	addEvent(function()
@@ -441,7 +441,7 @@ local function materialize(session, planned)
 	for _, entry in ipairs(planned) do
 		local monster = ExpeditionInstance.createMonsterExclusive
 				and ExpeditionInstance.createMonsterExclusive(entry.name, entry.pos, session.instance)
-			or Game.createMonster(entry.name, entry.pos, false, false)
+			or Game.createMonster(entry.name, entry.pos, false, false, nil, session.instance.instanceId)
 		if monster then
 			monster:runHealth(0)
 			ExpeditionBoss.bindBoss(session, monster)
@@ -467,6 +467,9 @@ end
 local function schedulePreSpawn(sessionKey, planned, remainingMs, intervalMs)
 	local session = ExpeditionManager.getSessionByKey(sessionKey)
 	if not session or session.state ~= "waiting" then
+		return
+	end
+	if not (session.instance and Instance.isLive(session.instance.instanceId)) then
 		return
 	end
 

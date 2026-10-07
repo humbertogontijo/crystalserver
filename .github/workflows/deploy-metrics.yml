@@ -1,6 +1,7 @@
 ---
 # Build the idleot-metrics config images (Prometheus scrape config, Grafana
-# provisioning + dashboards) and redeploy the Coolify idleot-metrics app.
+# provisioning + dashboards), sync deploy/metrics/docker-compose.yaml into the
+# Coolify idleot-metrics service and redeploy it.
 name: Deploy metrics
 
 on:
@@ -81,7 +82,7 @@ jobs:
           package-type: container
           min-versions-to-keep: 3
 
-      - name: Trigger Coolify deploy
+      - name: Sync compose and deploy Coolify service
         env:
           COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
@@ -91,5 +92,12 @@ jobs:
             echo "::notice::Coolify secrets/vars not set — images pushed, deploy skipped"
             exit 0
           fi
-          curl -fsS -X POST -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
-            "${COOLIFY_URL%/}/api/v1/deploy?uuid=${COOLIFY_METRICS_UUID}"
+          api="${COOLIFY_URL%/}/api/v1"
+          jq -n --arg compose "$(base64 -w0 deploy/metrics/docker-compose.yaml)" \
+            '{docker_compose_raw: $compose}' |
+            curl -fsS -o /dev/null -X PATCH \
+              -H "Authorization: Bearer ${COOLIFY_TOKEN}" -H "Content-Type: application/json" \
+              --data @- "${api}/services/${COOLIFY_METRICS_UUID}"
+          curl -fsS -o /dev/null -X POST -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            "${api}/deploy?uuid=${COOLIFY_METRICS_UUID}"
+          echo "Coolify idleot-metrics service synced and deploy queued"

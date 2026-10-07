@@ -128,18 +128,25 @@ function Spawn.spawnMonsterTimer(self, config, func)
 	-- 	config = {
 	-- 		spawntime = int,
 	-- 		monster = string,
-	-- 		pos = Position()
+	-- 		pos = Position(),
+	-- 		instanceId = key|nil (nil = caller's instance scope)
 	-- 	}
 	local time_tp = 3
 	config.spawntime = config.spawntime <= time_tp and (time_tp + 1) or (config.spawntime - time_tp)
 	addEvent(function()
 		for i = 1, time_tp do
 			addEvent(function()
-				config.pos:sendMagicEffect(CONST_ME_TELEPORT)
+				if config.instanceId then
+					Game.runInInstance(config.instanceId, function()
+						config.pos:sendMagicEffect(CONST_ME_TELEPORT)
+					end)
+				else
+					config.pos:sendMagicEffect(CONST_ME_TELEPORT)
+				end
 			end, i * 1000)
 		end
 		addEvent(function()
-			local monster = Game.createMonster(config.monster, config.pos, false, false)
+			local monster = Game.createMonster(config.monster, config.pos, false, false, nil, config.instanceId)
 			if not monster then
 				logger.error("[Spawn] Error on spawn monster: {}", config.monster)
 				return false

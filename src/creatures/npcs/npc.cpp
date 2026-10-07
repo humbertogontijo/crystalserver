@@ -202,6 +202,7 @@ bool Npc::isPlayerInteractingOnTopic(uint32_t playerId, uint16_t topicId) {
 }
 
 void Npc::onCreatureAppear(const std::shared_ptr<Creature> &creature, bool isLogin) {
+	InstanceActorScope instanceActorScope(getCreature());
 	Creature::onCreatureAppear(creature, isLogin);
 
 	if (const auto &player = creature->getPlayer()) {
@@ -221,6 +222,7 @@ void Npc::onCreatureAppear(const std::shared_ptr<Creature> &creature, bool isLog
 }
 
 void Npc::onRemoveCreature(const std::shared_ptr<Creature> &creature, bool isLogout) {
+	InstanceActorScope instanceActorScope(getCreature());
 	Creature::onRemoveCreature(creature, isLogout);
 
 	// onCreatureDisappear(self, creature)
@@ -245,6 +247,7 @@ void Npc::onRemoveCreature(const std::shared_ptr<Creature> &creature, bool isLog
 }
 
 void Npc::onCreatureMove(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Tile> &newTile, const Position &newPos, const std::shared_ptr<Tile> &oldTile, const Position &oldPos, bool teleport) {
+	InstanceActorScope instanceActorScope(getCreature());
 	Creature::onCreatureMove(creature, newTile, newPos, oldTile, oldPos, teleport);
 
 	// onCreatureMove(self, creature, oldPosition, newPosition)
@@ -295,6 +298,7 @@ void Npc::onPlayerDisappear(const std::shared_ptr<Player> &player) {
 }
 
 void Npc::onCreatureSay(const std::shared_ptr<Creature> &creature, SpeakClasses type, const std::string &text) {
+	InstanceActorScope instanceActorScope(getCreature());
 	Creature::onCreatureSay(creature, type, text);
 
 	if (!creature->getPlayer()) {
@@ -332,6 +336,7 @@ void Npc::onThinkSound(uint32_t interval) {
 }
 
 void Npc::onThink(uint32_t interval) {
+	InstanceActorScope instanceActorScope(getCreature());
 	Creature::onThink(interval);
 
 	// onThink(self, interval)
@@ -364,6 +369,7 @@ void Npc::onThink(uint32_t interval) {
 }
 
 void Npc::onPlayerBuyItem(const std::shared_ptr<Player> &player, uint16_t itemId, uint8_t subType, uint16_t amount, bool ignore, bool inBackpacks) {
+	InstanceActorScope instanceActorScope(getCreature());
 	if (player == nullptr) {
 		g_logger().error("[Npc::onPlayerBuyItem] - Player is nullptr");
 		return;
@@ -439,11 +445,13 @@ void Npc::onPlayerBuyItem(const std::shared_ptr<Player> &player, uint16_t itemId
 }
 
 void Npc::onPlayerSellItem(const std::shared_ptr<Player> &player, uint16_t itemId, uint8_t subType, uint16_t amount, bool ignore) {
+	InstanceActorScope instanceActorScope(getCreature());
 	uint64_t totalPrice = 0;
 	onPlayerSellItem(player, itemId, subType, amount, ignore, totalPrice);
 }
 
 void Npc::onPlayerSellAllLoot(uint32_t playerId, uint16_t itemId, bool ignore, uint64_t totalPrice) {
+	InstanceActorScope instanceActorScope(getCreature());
 	const auto &player = g_game().getPlayerByID(playerId);
 	if (!player) {
 		return;
@@ -587,6 +595,7 @@ void Npc::onPlayerSellAllLoot(uint32_t playerId, uint16_t itemId, bool ignore, u
 }
 
 void Npc::onPlayerSellItem(const std::shared_ptr<Player> &player, uint16_t itemId, uint8_t subType, uint16_t amount, bool ignore, uint64_t &totalPrice, const std::shared_ptr<Cylinder> &parent /*= nullptr*/) {
+	InstanceActorScope instanceActorScope(getCreature());
 	if (!player) {
 		return;
 	}
@@ -738,6 +747,7 @@ void Npc::onPlayerSellItem(const std::shared_ptr<Player> &player, uint16_t itemI
 }
 
 void Npc::onPlayerCheckItem(const std::shared_ptr<Player> &player, uint16_t itemId, uint8_t subType) {
+	InstanceActorScope instanceActorScope(getCreature());
 	if (!player) {
 		return;
 	}
@@ -757,6 +767,7 @@ void Npc::onPlayerCheckItem(const std::shared_ptr<Player> &player, uint16_t item
 }
 
 void Npc::onPlayerCloseChannel(const std::shared_ptr<Creature> &creature) {
+	InstanceActorScope instanceActorScope(getCreature());
 	const auto &player = creature->getPlayer();
 	if (!player) {
 		return;
@@ -834,7 +845,7 @@ void Npc::onPlacedCreature() {
 }
 
 void Npc::loadPlayerSpectators() {
-	const auto &spec = Spectators().find<Player>(position, true);
+	const auto &spec = Spectators().find<Player>(position, true, 0, 0, 0, 0, false, getInstanceId());
 	for (const auto &creature : spec) {
 		if (!creature->getPlayer()->hasFlag(PlayerFlags_t::IgnoredByNpcs)) {
 			playerSpectators.emplace(creature->getPlayer());

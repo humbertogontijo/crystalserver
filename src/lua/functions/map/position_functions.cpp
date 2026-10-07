@@ -146,9 +146,15 @@ int PositionFunctions::luaPositionGetPathTo(lua_State* L) {
 }
 
 int PositionFunctions::luaPositionIsSightClear(lua_State* L) {
-	// position:isSightClear(positionEx[, sameFloor = true[, instanceId = 0]])
+	// position:isSightClear(positionEx[, sameFloor = true[, instanceId = world]])
 	const bool sameFloor = Lua::getBoolean(L, 3, true);
-	const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 4, 0);
+	std::optional<InstanceId> explicitId;
+	if (!Lua::readInstanceId(L, 4, explicitId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	// World resolves through the active actor scope (Game::isSightClear).
+	const InstanceId instanceId = explicitId.value_or(InstanceId::World);
 	const Position &positionEx = Lua::getPosition(L, 2);
 	const Position &position = Lua::getPosition(L, 1);
 	Lua::pushBoolean(L, g_game().isSightClear(position, positionEx, sameFloor, instanceId));

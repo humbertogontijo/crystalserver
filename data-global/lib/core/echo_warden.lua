@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Echo Raids / Echo Wardens - shared library (pure Lua)
--- CIP-aligned: three raid outcomes, 3× Warden HP, empower aura, instance-0
+-- CIP-aligned: three raid outcomes, 3× Warden HP, empower aura, World-layer
 -- subarea portals with door-style per-instance claim, 10 min raid TTL.
 -- Loaded from data-global/lib/core/load.lua before revscriptsys scripts.
 -- ============================================================================
@@ -9,11 +9,11 @@ EchoWarden = EchoWarden or {}
 
 -- ----------------------------- TUNABLES -------------------------------------
 EchoWarden.PORTAL_ITEM_ID = 54133
-EchoWarden.PORTAL_SPENT_ITEM_ID = 54134 -- per-instance tombstone (hides instance-0 template)
+EchoWarden.PORTAL_SPENT_ITEM_ID = 54134 -- per-instance tombstone (hides World-layer template)
 EchoWarden.PORTAL_ATTR_KIND = "echoKind"
-EchoWarden.PORTAL_ATTR_SHARED = "echoShared" -- "1" = instance-0 scheduled/shared portal
+EchoWarden.PORTAL_ATTR_SHARED = "echoShared" -- "1" = World-layer scheduled/shared portal
 EchoWarden.PORTAL_TTL_MS = 120000 -- unused shared/corpse portal cleanup
-EchoWarden.SUBAREA_ARM_TTL_MS = 120000 -- how long an instance-0 arm stays on the map
+EchoWarden.SUBAREA_ARM_TTL_MS = 120000 -- how long an World-layer arm stays on the map
 EchoWarden.SUBAREA_INTERVAL_MIN_MS = 25 * 60 * 1000
 EchoWarden.SUBAREA_INTERVAL_MAX_MS = 35 * 60 * 1000
 
@@ -65,23 +65,12 @@ EchoWarden.activeRaidCreatures = EchoWarden.activeRaidCreatures or {}
 EchoWarden._glowLoop = false
 EchoWarden._subareaArmed = EchoWarden._subareaArmed or {} -- placeId -> {x,y,z,expires}
 
-function EchoWarden.normalizeInstanceId(value)
-	return math.floor(tonumber(value) or 0)
-end
-
-function EchoWarden.creatureInstanceId(creature)
-	if creature and creature.getInstanceId then
-		return EchoWarden.normalizeInstanceId(creature:getInstanceId())
-	end
-	return 0
-end
-
 function EchoWarden.sendEffect(pos, effect, instanceId)
 	if not pos or not effect then
 		return
 	end
-	local id = EchoWarden.normalizeInstanceId(instanceId)
-	if id == 0 or not Game.getSpectators then
+	local id = Instance.normalize(instanceId)
+	if Instance.isWorld(id) or not Game.getSpectators then
 		pos:sendMagicEffect(effect)
 		return
 	end
@@ -96,9 +85,9 @@ function EchoWarden.createRaidMonster(kindName, pos, instanceId)
 	if not kindName or not pos then
 		return nil
 	end
-	local id = EchoWarden.normalizeInstanceId(instanceId)
+	local id = Instance.normalize(instanceId)
 	local monster
-	if id > 0 then
+	if not Instance.isWorld(id) then
 		monster = Game.createMonster(kindName, pos, false, true, nil, id)
 	else
 		monster = Game.createMonster(kindName, pos, false, true)
@@ -128,8 +117,8 @@ function EchoWarden.applyExpeditionMonsterBind(m)
 	if m.runHealth then
 		m:runHealth(0)
 	end
-	local instanceId = EchoWarden.creatureInstanceId(m)
-	if instanceId < 3000000 then
+	local instanceId = Instance.of(m)
+	if not Instance.isPrivate(instanceId) then
 		return
 	end
 	local session = ExpeditionManager and ExpeditionManager.getSessionByInstanceId and ExpeditionManager.getSessionByInstanceId(instanceId)
@@ -156,26 +145,26 @@ function EchoWarden.scheduleRaidDespawn(raidToken, instanceId)
 				EchoWarden.activeEmpowered[cid] = nil
 			end
 		end
-	end, EchoWarden.RAID_TTL_MS, raidToken, EchoWarden.normalizeInstanceId(instanceId))
+	end, EchoWarden.RAID_TTL_MS, raidToken, Instance.normalize(instanceId))
 end
 
 function EchoWarden.findItemOnTile(tile, itemId, instanceId)
 	if not tile then
 		return nil
 	end
-	local expected = EchoWarden.normalizeInstanceId(instanceId)
+	local expected = Instance.normalize(instanceId)
 	local items = tile.getItems and tile:getItems() or nil
 	if type(items) == "table" then
 		for _, it in ipairs(items) do
 			if it and it:getId() == itemId then
-				local iid = it.getInstanceId and EchoWarden.normalizeInstanceId(it:getInstanceId()) or 0
+				local iid = Instance.of(it)
 				if iid == expected then
 					return it
 				end
 			end
 		end
 	end
-	if expected == 0 and tile.getItemById then
+	if Instance.isWorld(expected) and tile.getItemById then
 		return tile:getItemById(itemId)
 	end
 	return nil
@@ -189,10 +178,10 @@ function EchoWarden.findSpentOnTile(tile, instanceId)
 	return EchoWarden.findItemOnTile(tile, EchoWarden.PORTAL_SPENT_ITEM_ID, instanceId)
 end
 
---- Leave a per-instance spent fork so the instance-0 portal stays hidden (door-style).
+--- Leave a per-instance spent fork so the World-layer portal stays hidden (door-style).
 function EchoWarden.claimSharedPortal(pos, playerInstance, liveItem)
-	local iid = EchoWarden.normalizeInstanceId(playerInstance)
-	if iid == 0 then
+	local iid = Instance.normalize(playerInstance)
+	if Instance.isWorld(iid) then
 		if liveItem then
 			liveItem:remove()
 		end
@@ -200,13 +189,13 @@ function EchoWarden.claimSharedPortal(pos, playerInstance, liveItem)
 	end
 	local tile = Tile(pos)
 	if EchoWarden.findSpentOnTile(tile, iid) then
-		if liveItem and EchoWarden.normalizeInstanceId(liveItem:getInstanceId()) == iid then
+		if liveItem and Instance.normalize(liveItem:getInstanceId()) == iid then
 			liveItem:remove()
 		end
 		return
 	end
 	-- Use path may have already forked a live portal onto this instance.
-	if liveItem and EchoWarden.normalizeInstanceId(liveItem:getInstanceId()) == iid then
+	if liveItem and Instance.normalize(liveItem:getInstanceId()) == iid then
 		liveItem:transform(EchoWarden.PORTAL_SPENT_ITEM_ID)
 		return
 	end
@@ -235,9 +224,9 @@ function EchoWarden.activateFromItem(player, item, position)
 		end
 		return true
 	end
-	local itemInstance = item.getInstanceId and EchoWarden.normalizeInstanceId(item:getInstanceId()) or 0
-	local playerInstance = EchoWarden.creatureInstanceId(player)
-	if itemInstance ~= 0 and playerInstance ~= itemInstance then
+	local itemInstance = Instance.of(item)
+	local playerInstance = Instance.of(player)
+	if not Instance.isWorld(itemInstance) and playerInstance ~= itemInstance then
 		return false
 	end
 	local pos = position
@@ -248,13 +237,13 @@ function EchoWarden.activateFromItem(player, item, position)
 		return false
 	end
 	-- Already claimed this shared arm in this shard
-	if (shared == "1" or itemInstance == 0) and EchoWarden.findSpentOnTile(Tile(pos), playerInstance) then
+	if (shared == "1" or Instance.isWorld(itemInstance)) and EchoWarden.findSpentOnTile(Tile(pos), playerInstance) then
 		return true
 	end
 
 	local center = Position(pos.x, pos.y, pos.z)
 	local raidInstance = playerInstance
-	if shared == "1" or itemInstance == 0 then
+	if shared == "1" or Instance.isWorld(itemInstance) then
 		EchoWarden.claimSharedPortal(center, playerInstance, item)
 	else
 		item:remove()
@@ -323,7 +312,7 @@ function EchoWarden.sendCreatureGlow(creature, state)
 		return
 	end
 	local r = EchoWarden.GLOW_RANGE
-	local instanceId = EchoWarden.creatureInstanceId(creature)
+	local instanceId = Instance.of(creature)
 	for _, spec in ipairs(Game.getSpectators(pos, false, true, r, r, r, r, instanceId)) do
 		local msg = NetworkMessage()
 		msg:addByte(0x8B)
@@ -396,7 +385,7 @@ function EchoWarden.aura(wardenId, kindName)
 	end
 	local p = w:getPosition()
 	local r = EchoWarden.AURA_RANGE
-	local instanceId = EchoWarden.creatureInstanceId(w)
+	local instanceId = Instance.of(w)
 	for _, c in ipairs(Game.getSpectators(p, false, false, r, r, r, r, instanceId)) do
 		local m = c:getMonster()
 		if m and m:getId() ~= wardenId and m:getName() == kindName and m:getStorageValue(EchoWarden.STORAGE_IS_WARDEN) ~= 1 then
@@ -467,9 +456,9 @@ function EchoWarden.runRaid(kindName, center, instanceId, player)
 	end
 	local cx, cy, cz = center.x, center.y, center.z
 	local step = EchoWarden.SPAWN_STEP_MS
-	local id = EchoWarden.normalizeInstanceId(instanceId)
+	local id = Instance.normalize(instanceId)
 	local outcome = EchoWarden.rollOutcome(player, kindName)
-	local raidToken = string.format("%d:%d:%d:%d:%d", id, cx, cy, cz, os.time())
+	local raidToken = string.format("%s:%d:%d:%d:%d", id, cx, cy, cz, os.time())
 	if outcome == "warden" then
 		local w = EchoWarden.createRaidMonster(kindName, Position(cx, cy, cz), id)
 		if w then
@@ -493,7 +482,7 @@ function EchoWarden.spawnPortal(px, py, pz, kindName, instanceId, shared)
 		logger.warn("[EchoWarden] spawnPortal aborted: no ground at {},{},{} kind={}", px, py, pz, kindName)
 		return false
 	end
-	local id = EchoWarden.normalizeInstanceId(instanceId)
+	local id = Instance.normalize(instanceId)
 	-- Replace existing portal on this instance at the tile
 	local existing = EchoWarden.findPortalOnTile(tile, id)
 	if existing then
@@ -506,11 +495,11 @@ function EchoWarden.spawnPortal(px, py, pz, kindName, instanceId, shared)
 	end
 	portal:moveTo(pos)
 	portal:setCustomAttribute(EchoWarden.PORTAL_ATTR_KIND, kindName)
-	if shared or id == 0 then
+	if shared or Instance.isWorld(id) then
 		portal:setCustomAttribute(EchoWarden.PORTAL_ATTR_SHARED, "1")
 	end
 	EchoWarden.sendEffect(pos, CONST_ME_TELEPORT, id)
-	local ttl = (shared or id == 0) and EchoWarden.SUBAREA_ARM_TTL_MS or EchoWarden.PORTAL_TTL_MS
+	local ttl = (shared or Instance.isWorld(id)) and EchoWarden.SUBAREA_ARM_TTL_MS or EchoWarden.PORTAL_TTL_MS
 	addEvent(function(qx, qy, qz, expectedInstanceId)
 		local t = Tile(Position(qx, qy, qz))
 		local it = EchoWarden.findPortalOnTile(t, expectedInstanceId)
@@ -577,10 +566,10 @@ function EchoWarden.armSubareaEcho(placeId, reschedule)
 		end
 		return
 	end
-	-- Clear prior instance-0 portal for this place if we tracked it
+	-- Clear prior World-layer portal for this place if we tracked it
 	local prev = EchoWarden._subareaArmed[placeId]
 	if prev then
-		local it = EchoWarden.findPortalOnTile(Tile(Position(prev.x, prev.y, prev.z)), 0)
+		local it = EchoWarden.findPortalOnTile(Tile(Position(prev.x, prev.y, prev.z)), Instance.WORLD)
 		if it then
 			it:remove()
 		end

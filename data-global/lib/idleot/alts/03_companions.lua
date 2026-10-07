@@ -285,10 +285,8 @@ local function parkCompanionBeforeLogout(companion)
 	if not companion then
 		return
 	end
-	local privateBase = (InstanceWorld and InstanceWorld.PRIVATE_BASE) or 3000000
-	local iid = companion.getInstanceId and companion:getInstanceId() or 0
 	local pos = companion.getPosition and companion:getPosition() or nil
-	local needPark = iid >= privateBase
+	local needPark = Instance.isPrivate(Instance.of(companion))
 	if not needPark and ExpeditionConfig and companion.getStorageValue and companion:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
 		needPark = true
 	end
@@ -563,7 +561,7 @@ function Alts.deploy(controller, opts)
 	end
 
 	local spawnPos = opts.position or controller:getPosition()
-	local instanceId = math.floor(tonumber(opts.instanceId) or 0)
+	local instanceId = Instance.normalize(opts.instanceId)
 	local accountId = controller:getAccountId()
 	local names = type(opts.names) == "table" and opts.names or Alts.companionNamesFor(controller)
 

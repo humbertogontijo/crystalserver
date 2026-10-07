@@ -1561,14 +1561,19 @@ int PlayerFunctions::luaPlayerSoftDespawn(lua_State* L) {
 }
 
 int PlayerFunctions::luaPlayerSoftSpawn(lua_State* L) {
-	// player:softSpawn(position)
+	// player:softSpawn(position[, instanceId])
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (!player) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
 	const Position &pos = Lua::getPosition(L, 2);
-	Lua::pushBoolean(L, player->softSpawn(pos));
+	std::optional<InstanceId> instance;
+	if (!Lua::readInstanceId(L, 3, instance)) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	Lua::pushBoolean(L, player->softSpawn(pos, instance));
 	return 1;
 }
 

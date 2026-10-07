@@ -296,7 +296,7 @@ function ExpeditionProtocol.sendInstanceBounds(player, desc)
 	end
 	local payload = {
 		type = "instanceBounds",
-		instanceId = tonumber(desc.instanceId) or 0,
+		subareaId = tonumber(desc.subareaId) or 0,
 		kind = tostring(desc.kind or ""),
 		name = tostring(desc.name or ""),
 		key = tostring(desc.key or ""),

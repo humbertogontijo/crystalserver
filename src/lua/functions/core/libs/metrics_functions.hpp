@@ -23,5 +23,6 @@ public:
 
 private:
 	static int luaMetricsAddCounter(lua_State* L);
+	static int luaMetricsSetGauge(lua_State* L);
 	static std::map<std::string, std::string> getAttributes(lua_State* L, int32_t index);
 };

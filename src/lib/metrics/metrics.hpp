@@ -54,6 +54,14 @@ namespace metrics {
 	template <typename T>
 	using UpDownCounter = opentelemetry::nostd::unique_ptr<metrics_api::UpDownCounter<T>>;
 
+	using ObservableInstrument = opentelemetry::nostd::shared_ptr<metrics_api::ObservableInstrument>;
+
+	// Last value per attribute set; read by the exporter thread on collect.
+	struct GaugeState {
+		std::mutex mutex;
+		std::map<std::map<std::string, std::string>, double> values;
+	};
+
 	struct Options {
 		bool enablePrometheusExporter;
 		bool enableOStreamExporter;
@@ -139,6 +147,9 @@ namespace metrics {
 			upDownCounters[name]->Add(value, attrskv);
 		}
 
+		// Snapshot gauge (e.g. players online): keeps the last value per attribute set.
+		void setGauge(std::string_view name, double value, std::map<std::string, std::string> attrs = {});
+
 		friend class ScopedLatency;
 
 	protected:
@@ -146,6 +157,8 @@ namespace metrics {
 		phmap::parallel_flat_hash_map<std::string, Histogram<double>> latencyHistograms;
 		phmap::flat_hash_map<std::string, UpDownCounter<int64_t>> upDownCounters;
 		phmap::flat_hash_map<std::string, Counter<double>> counters;
+		phmap::flat_hash_map<std::string, ObservableInstrument> gauges;
+		phmap::flat_hash_map<std::string, std::unique_ptr<GaugeState>> gaugeStates;
 
 		Meter getMeter() {
 			auto provider = metrics_api::Provider::GetMeterProvider();
@@ -222,6 +235,8 @@ namespace metrics {
 		void addCounter([[maybe_unused]] std::string_view name, [[maybe_unused]] double value, [[maybe_unused]] const std::map<std::string, std::string> &attrs = {}) const { }
 
 		void addUpDownCounter([[maybe_unused]] std::string_view name, [[maybe_unused]] int value, [[maybe_unused]] const std::map<std::string, std::string> &attrs = {}) const { }
+
+		void setGauge([[maybe_unused]] std::string_view name, [[maybe_unused]] double value, [[maybe_unused]] const std::map<std::string, std::string> &attrs = {}) const { }
 
 		friend class ScopedLatency;
 	};

@@ -38,35 +38,35 @@ end
 
 loginEvent:register()
 
-local pvpLogin = CreatureEvent("InstancePvpLogin")
+local kindsLogin = CreatureEvent("InstanceKindsLogin")
 
-function pvpLogin.onLogin(player)
-	player:registerEvent("InstancePvpHealth")
-	player:registerEvent("InstancePvpPrepareDeath")
+function kindsLogin.onLogin(player)
+	player:registerEvent("InstanceKindsHealth")
+	player:registerEvent("InstanceKindsPrepareDeath")
 	return true
 end
 
-pvpLogin:register()
+kindsLogin:register()
 
-local pvpHealth = CreatureEvent("InstancePvpHealth")
+local kindsHealth = CreatureEvent("InstanceKindsHealth")
 
-function pvpHealth.onHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
-	return InstancePvp.onHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
+function kindsHealth.onHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
+	return InstanceKinds.onHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
 end
 
-pvpHealth:register()
+kindsHealth:register()
 
-local pvpPrepareDeath = CreatureEvent("InstancePvpPrepareDeath")
+local kindsPrepareDeath = CreatureEvent("InstanceKindsPrepareDeath")
 
-function pvpPrepareDeath.onPrepareDeath(creature, killer)
+function kindsPrepareDeath.onPrepareDeath(creature, killer)
 	local player = creature and creature:getPlayer()
 	if player then
-		return InstancePvp.onPrepareDeath(player)
+		return InstanceKinds.onPrepareDeath(player)
 	end
 	return true
 end
 
-pvpPrepareDeath:register()
+kindsPrepareDeath:register()
 
 local moveCreatureCallback = EventCallback("InstanceWorldPlayerOnMoveCreature")
 
@@ -110,3 +110,15 @@ function moveItemCallback.playerOnMoveItem(player, _item, _count, fromPosition, 
 end
 
 moveItemCallback:register()
+
+-- Open-world subarea layers spawn on first player: roll forge per spawn at world density
+-- (the engine's global quota would all land on the few occupied layers).
+local openWorldSpawnCallback = EventCallback("InstanceWorldMonsterOnSpawn")
+
+function openWorldSpawnCallback.monsterOnSpawn(monster, _position)
+	if Instance.isOpenWorld(monster:getInstanceId()) then
+		InstanceWorld.applyOpenWorldForge(monster)
+	end
+end
+
+openWorldSpawnCallback:register()

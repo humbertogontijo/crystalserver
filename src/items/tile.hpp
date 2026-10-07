@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "game/instance_id.hpp"
 #include "items/cylinder.hpp"
 
 class Creature;
@@ -145,14 +146,14 @@ public:
 	}
 
 	std::shared_ptr<MagicField> getFieldItem() const;
-	std::shared_ptr<MagicField> getFieldItem(uint32_t instanceId) const;
+	std::shared_ptr<MagicField> getFieldItem(InstanceId instanceId) const;
 	std::shared_ptr<Teleport> getTeleportItem() const;
 	std::shared_ptr<TrashHolder> getTrashHolder() const;
 	std::shared_ptr<Mailbox> getMailbox() const;
 	std::shared_ptr<BedItem> getBedItem() const;
 
 	std::shared_ptr<Creature> getTopCreature() const;
-	std::shared_ptr<Creature> getTopCreature(uint32_t instanceId) const;
+	std::shared_ptr<Creature> getTopCreature(InstanceId instanceId) const;
 	std::shared_ptr<Creature> getBottomCreature() const;
 	std::shared_ptr<Creature> getTopVisibleCreature(const std::shared_ptr<Creature> &creature) const;
 
@@ -177,9 +178,9 @@ public:
 	uint32_t getDownItemCount() const;
 
 	bool hasProperty(ItemProperty prop) const;
-	bool hasProperty(ItemProperty prop, uint32_t instanceId) const;
+	bool hasProperty(ItemProperty prop, InstanceId instanceId) const;
 	bool hasProperty(const std::shared_ptr<Item> &exclude, ItemProperty prop) const;
-	std::shared_ptr<Item> findStatefulMapFork(const Item &reference, uint32_t instanceId) const;
+	std::shared_ptr<Item> findStatefulMapFork(const Item &reference, InstanceId instanceId) const;
 
 	bool hasFlag(uint32_t flag) const;
 	void setFlag(uint32_t flag) {
@@ -218,6 +219,9 @@ public:
 
 	// cylinder implementations
 	ReturnValue queryAdd(int32_t index, const std::shared_ptr<Thing> &thing, uint32_t count, uint32_t flags, const std::shared_ptr<Creature> &actor = nullptr) override;
+	/** Creature branch of queryAdd, with blocking things seen from `layer` (the creature's
+	 *  instance, or the open-world layer it is about to switch into). */
+	virtual ReturnValue queryAddCreature(const std::shared_ptr<Creature> &creature, uint32_t flags, InstanceId layer);
 	ReturnValue queryMaxCount(int32_t index, const std::shared_ptr<Thing> &thing, uint32_t count, uint32_t &maxQueryCount, uint32_t flags) final;
 	ReturnValue queryRemove(const std::shared_ptr<Thing> &thing, uint32_t count, uint32_t tileFlags, const std::shared_ptr<Creature> &actor = nullptr) override;
 	std::shared_ptr<Cylinder> queryDestination(int32_t &index, const std::shared_ptr<Thing> &thing, std::shared_ptr<Item> &destItem, uint32_t &flags) override;
@@ -279,11 +283,13 @@ private:
 	void onUpdateTileItem(const std::shared_ptr<Item> &oldItem, const ItemType &oldType, const std::shared_ptr<Item> &newItem, const ItemType &newType);
 	void onRemoveTileItem(const CreatureVector &spectators, const std::vector<int32_t> &oldStackPosVector, const std::shared_ptr<Item> &item);
 	void onUpdateTile(const CreatureVector &spectators);
+	/** Open browse fields of this tile whose viewer layer can see `item`. */
+	void forEachBrowseField(const std::shared_ptr<Item> &item, const std::function<void(const std::shared_ptr<Container> &)> &action);
 
 	void setTileFlags(const std::shared_ptr<Item> &item);
 	void resetTileFlags(const std::shared_ptr<Item> &item);
 	bool hasHarmfulField() const;
-	bool hasHarmfulField(uint32_t instanceId) const;
+	bool hasHarmfulField(InstanceId instanceId) const;
 	ReturnValue checkNpcCanWalkIntoTile() const;
 
 protected:

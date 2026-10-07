@@ -74,30 +74,33 @@ void HouseTile::updateHouse(const std::shared_ptr<Item> &item) const {
 }
 
 ReturnValue HouseTile::queryAdd(int32_t index, const std::shared_ptr<Thing> &thing, uint32_t count, uint32_t tileFlags, const std::shared_ptr<Creature> &actor /* = nullptr*/) {
-	if (const auto &creature = thing->getCreature()) {
-		if (const auto &player = creature->getPlayer()) {
-			if (!house->isInvited(player)) {
-				return RETURNVALUE_PLAYERISNOTINVITED;
-			}
-		} else if (const auto &monster = creature->getMonster()) {
-			if (monster->isSummon()) {
-				if (!house->isInvited(monster->getMaster()->getPlayer())) {
-					return RETURNVALUE_NOTPOSSIBLE;
-				}
-				if (house->isInvited(monster->getMaster()->getPlayer()) && (hasFlag(TILESTATE_BLOCKSOLID) || (hasBitSet(FLAG_PATHFINDING, flags) && hasFlag(TILESTATE_NOFIELDBLOCKPATH)))) {
-					return RETURNVALUE_NOTPOSSIBLE;
-				} else {
-					return RETURNVALUE_NOERROR;
-				}
-			}
-		}
-	} else if (thing->getItem() && actor) {
+	if (thing && thing->getItem() && actor) {
 		const auto &actorPlayer = actor->getPlayer();
 		if (house && (!house->isInvited(actorPlayer) || house->getHouseAccessLevel(actorPlayer) == HOUSE_GUEST) && g_configManager().getBoolean(ONLY_INVITED_CAN_MOVE_HOUSE_ITEMS)) {
 			return RETURNVALUE_CANNOTTHROW;
 		}
 	}
 	return Tile::queryAdd(index, thing, count, tileFlags, actor);
+}
+
+ReturnValue HouseTile::queryAddCreature(const std::shared_ptr<Creature> &creature, uint32_t tileFlags, InstanceId layer) {
+	if (const auto &player = creature->getPlayer()) {
+		if (!house->isInvited(player)) {
+			return RETURNVALUE_PLAYERISNOTINVITED;
+		}
+	} else if (const auto &monster = creature->getMonster()) {
+		if (monster->isSummon()) {
+			if (!house->isInvited(monster->getMaster()->getPlayer())) {
+				return RETURNVALUE_NOTPOSSIBLE;
+			}
+			if (house->isInvited(monster->getMaster()->getPlayer()) && (hasFlag(TILESTATE_BLOCKSOLID) || (hasBitSet(FLAG_PATHFINDING, flags) && hasFlag(TILESTATE_NOFIELDBLOCKPATH)))) {
+				return RETURNVALUE_NOTPOSSIBLE;
+			} else {
+				return RETURNVALUE_NOERROR;
+			}
+		}
+	}
+	return Tile::queryAddCreature(creature, tileFlags, layer);
 }
 
 std::shared_ptr<Cylinder> HouseTile::queryDestination(int32_t &index, const std::shared_ptr<Thing> &thing, std::shared_ptr<Item> &destItem, uint32_t &tileFlags) {

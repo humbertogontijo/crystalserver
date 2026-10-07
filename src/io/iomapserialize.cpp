@@ -259,7 +259,8 @@ void IOMapSerialize::saveTile(PropWriteStream &stream, const std::shared_ptr<Til
 			items.push_front(tub);
 			++count;
 			continue;
-		} else if (!item->isSavedToHouses()) {
+		} else if (!item->isSavedToHouses() || !item->getInstanceId().isWorld()) {
+			// Only the shared World layer persists; instance-layer items die with their instance.
 			continue;
 		}
 

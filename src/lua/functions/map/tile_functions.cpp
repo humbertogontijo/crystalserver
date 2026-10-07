@@ -215,14 +215,20 @@ int TileFunctions::luaTileGetTopDownItem(lua_State* L) {
 }
 
 int TileFunctions::luaTileGetFieldItem(lua_State* L) {
-	// tile:getFieldItem()
+	// tile:getFieldItem([instanceId])
 	const auto &tile = Lua::getUserdataShared<Tile>(L, 1);
 	if (!tile) {
 		lua_pushnil(L);
 		return 1;
 	}
+	std::optional<InstanceId> instanceId;
+	if (!Lua::readInstanceId(L, 2, instanceId)) {
+		lua_pushnil(L);
+		return 1;
+	}
 
-	const auto &item = tile->getFieldItem();
+	const auto lookup = Game::lookupInstance(instanceId, "Tile.getFieldItem", tile->getPosition());
+	const auto &item = lookup ? tile->getFieldItem(*lookup) : tile->getFieldItem();
 	if (item) {
 		Lua::pushUserdata<Item>(L, item);
 		Lua::setItemMetatable(L, -1, item);
@@ -392,14 +398,20 @@ int TileFunctions::luaTileGetBottomCreature(lua_State* L) {
 }
 
 int TileFunctions::luaTileGetTopCreature(lua_State* L) {
-	// tile:getTopCreature()
+	// tile:getTopCreature([instanceId])
 	const auto &tile = Lua::getUserdataShared<Tile>(L, 1);
 	if (!tile) {
 		lua_pushnil(L);
 		return 1;
 	}
+	std::optional<InstanceId> instanceId;
+	if (!Lua::readInstanceId(L, 2, instanceId)) {
+		lua_pushnil(L);
+		return 1;
+	}
 
-	const auto &creature = tile->getTopCreature();
+	const auto lookup = Game::lookupInstance(instanceId, "Tile.getTopCreature", tile->getPosition());
+	const auto &creature = lookup ? tile->getTopCreature(*lookup) : tile->getTopCreature();
 	if (!creature) {
 		lua_pushnil(L);
 		return 1;
@@ -566,19 +578,29 @@ int TileFunctions::luaTileHasProperty(lua_State* L) {
 
 	ItemProperty property = Lua::getNumber<ItemProperty>(L, 2);
 	if (lua_gettop(L) >= 3) {
-		if (lua_isnumber(L, 3)) {
-			const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 3);
-			Lua::pushBoolean(L, tile->hasProperty(property, instanceId));
-			return 1;
-		}
-
-		const auto &item = Lua::getUserdataShared<Item>(L, 3);
-		if (item) {
-			Lua::pushBoolean(L, tile->hasProperty(item, property));
-			return 1;
+		if (lua_isuserdata(L, 3)) {
+			if (const auto &item = Lua::getUserdataShared<Item>(L, 3)) {
+				Lua::pushBoolean(L, tile->hasProperty(item, property));
+				return 1;
+			}
+		} else {
+			std::optional<InstanceId> instanceId;
+			if (!Lua::readInstanceId(L, 3, instanceId)) {
+				lua_pushnil(L);
+				return 1;
+			}
+			if (instanceId) {
+				Lua::pushBoolean(L, tile->hasProperty(property, *instanceId));
+				return 1;
+			}
 		}
 	}
 
+	// Scripts running for an actor query that actor's layer; unscoped callers get every layer.
+	if (const auto scope = Game::getInstanceScope()) {
+		Lua::pushBoolean(L, tile->hasProperty(property, *scope));
+		return 1;
+	}
 	Lua::pushBoolean(L, tile->hasProperty(property));
 	return 1;
 }
@@ -675,7 +697,17 @@ int TileFunctions::luaTileAddItem(lua_State* L) {
 
 	const auto subType = Lua::getNumber<uint32_t>(L, 3, 1);
 
-	const auto &item = Item::CreateItem(itemId, std::min<uint32_t>(subType, Item::items[itemId].stackSize), lua_gettop(L) >= 5 && !lua_isnil(L, 5) ? InstanceId(Lua::getNumber<uint32_t>(L, 5)) : Game::resolveBirthInstance(0, nullptr, &tile->getPosition()));
+	std::optional<InstanceId> explicitId;
+	if (!Lua::readInstanceId(L, 5, explicitId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto birthId = Game::resolveBirthInstance(explicitId, nullptr, &tile->getPosition(), "Tile.addItem");
+	if (!birthId) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto &item = Item::CreateItem(itemId, std::min<uint32_t>(subType, Item::items[itemId].stackSize), *birthId);
 	if (!item) {
 		lua_pushnil(L);
 		return 1;

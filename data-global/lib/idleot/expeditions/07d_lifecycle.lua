@@ -8,7 +8,7 @@ function ExpeditionManager.onDeath(player)
 		RaidInstance.onPlayerDeath(player)
 		return
 	end
-	-- World boss uses the InstancePvp knockout; never tear down the band fight on death.
+	-- World boss uses the InstanceKinds knockout; never tear down the band fight on death.
 	if session and session.kind == "worldboss" then
 		return
 	end
@@ -376,9 +376,12 @@ function ExpeditionManager.onLogin(player)
 				active.memberKeys[oldId] = nil
 			end
 		end
-		-- Spatial membership: once entered, being outside the instance ends the run.
-		-- Occupancy alone is not enough — bind private instance id when on hunt tiles.
-		if ExpeditionInstance.contains(session.instance, player:getPosition()) then
+		-- Membership is the bound instance key (restored from the login record before
+		-- placement). Fence position only matters when the key no longer matches.
+		local liveInstance = ExpeditionInstance.isLive(session.instance)
+		if liveInstance and player:getInstanceId() == session.instance.instanceId then
+			session.entered = true
+		elseif liveInstance and ExpeditionInstance.contains(session.instance, player:getPosition()) then
 			if not EM_PRIV.teleportPlayerIntoRunningHunt(player, session) then
 				logger.warn(
 					"[Expedition] login rebind failed to enter instance for {} on {}",
@@ -453,8 +456,6 @@ function ExpeditionManager.onStartup()
 	EM_PRIV.sessionsByKey = {}
 	EM_PRIV.sessionsByPlayerId = {}
 	EM_PRIV.leavePendingByPlayerId = {}
-	EM_PRIV.huntChannelsByPlace = {}
-	ExpeditionInstance.resetSlots()
 	pcall(ExpeditionPersist.loadAll)
 	pcall(ExpeditionPersist.restoreAllOnStartup)
 	logger.info("[Expedition] manager ready ({} catalog entries)", #ExpeditionConfig.Catalog)

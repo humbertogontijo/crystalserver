@@ -22,9 +22,9 @@ function pushCreature.onSay(player, words, param)
 		return true
 	end
 
-	local instanceId = player.getInstanceId and player:getInstanceId() or 0
+	local instanceId = Instance.of(player)
 	local ok = false
-	if InstanceWorld and InstanceWorld.enterInstance and instanceId ~= 0 then
+	if InstanceWorld and InstanceWorld.enterInstance and not Instance.isWorld(instanceId) then
 		ok = InstanceWorld.enterInstance(creature, instanceId, newPosition) and true or false
 	else
 		ok = creature:teleportTo(newPosition) and true or false

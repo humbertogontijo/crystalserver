@@ -55,7 +55,7 @@ local function buildIndex()
 	local hub = InstanceWorld.hubs and InstanceWorld.hubs[1]
 	if hub and hub.center then
 		local r = InstanceWorld.HUB_WALK_RADIUS
-		addFence(hub.center.x - r, hub.center.y - r, hub.center.x + r, hub.center.y + r, InstanceWorld.floorSetByInstanceId[InstanceWorld.HUB_ADVENTURERS], nil)
+		addFence(hub.center.x - r, hub.center.y - r, hub.center.x + r, hub.center.y + r, select(2, ExpeditionInstance.floorsFromSpec(hub, hub.center.z)), nil)
 	end
 
 	-- Hunt footprints come from InstanceWorld.isHuntTile; only boundary-less hunts

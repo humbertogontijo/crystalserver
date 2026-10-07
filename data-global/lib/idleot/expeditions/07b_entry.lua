@@ -107,6 +107,8 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	end
 	if contentRole == "arena" then
 		kind = "arena"
+	elseif catalog.soulPit then
+		kind = "soulpit"
 	end
 
 	-- Today's Fiendish Hunt offer: forced Fiendish of the offered race; killing it ends the hunt.
@@ -206,7 +208,9 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	local hostWorldPos = player:getPosition()
 
 	-- Build the private instance before team login so companions can spawn at entry.
-	local instanceId = ExpeditionInstance.allocate(kind)
+	-- Transient catalogs (soul pit) have no numeric id: use the region they are built in.
+	local subareaId = tonumber(catalog.id) or (catalog.center and InstanceWorld.subareaIdAt(catalog.center)) or 0
+	local instanceId = ExpeditionInstance.allocate(kind, subareaId, player:getGuid())
 	if instanceId == nil then
 		ExpeditionProtocol.sendError(player, "No expedition instances available.")
 		return
@@ -267,7 +271,8 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	local hostId = player:getId()
 	local hostAutomation = nil
 	local key = EM_PRIV.playerKey(player)
-	local channel = EM_PRIV.allocateHuntChannel(catalog.id, key)
+	-- The team's reserved engine channel on this hunt subarea.
+	local channel = Instance.channel(instanceId)
 
 	for _, member in ipairs(members) do
 		local memberId = member:getId()
@@ -283,7 +288,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 			hostAutomation = automation
 		end
 		EM_PRIV.saveReturn(member)
-		EM_PRIV.markActive(member, catalog.id, channel)
+		EM_PRIV.markActive(member, catalog.id)
 		if SampleSpells and SampleSpells.ensure then
 			SampleSpells.ensure(member)
 		end
@@ -486,7 +491,7 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 	end
 
 	local hostGuid = math.floor(tonumber(snapshot.hostGuid) or 0)
-	local instanceId = ExpeditionInstance.allocate("hunt")
+	local instanceId = ExpeditionInstance.allocate("hunt", catalog.id, hostGuid)
 	if instanceId == nil then
 		return false
 	end
@@ -502,7 +507,7 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 	end
 
 	local sessionKey = snapshot.sessionKey
-	local channel = EM_PRIV.allocateHuntChannel(catalog.id, sessionKey)
+	local channel = Instance.channel(instanceId)
 	local restoredRoute = ExpeditionConfig.caveRoute(catalog)
 	local sessionLure = math.max(
 		1,
@@ -578,12 +583,7 @@ function EM_PRIV.teleportPlayerIntoRunningHunt(player, session)
 		logger.error("[Expedition] InstanceWorld.enterInstance missing — cannot enter hunt")
 		return false
 	end
-	local entered = InstanceWorld.enterInstance(
-		player,
-		instanceId,
-		session.instance.entry,
-		"hunt:" .. tostring(session.key or "")
-	)
+	local entered = InstanceWorld.enterInstance(player, instanceId, session.instance.entry)
 	if not entered then
 		return false
 	end
@@ -709,7 +709,7 @@ function EM_PRIV.startRestoredHuntOnStartup(session, snapshot)
 
 	local sessionKey = session.key
 	local catalog = session.catalog
-	local instanceId = math.floor(tonumber(instance.instanceId) or 0)
+	local instanceId = Instance.normalize(instance.instanceId)
 	local humanGuids = EM_PRIV.restoredHumanGuids(snapshot, hostGuid)
 	local companionGroups = EM_PRIV.restoredCompanionGroups(snapshot, hostGuid, humanGuids)
 	local humans = {}
@@ -1106,7 +1106,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 				p:setFollowCreature(nil)
 				local atEntry = false
 				local ppos = p:getPosition()
-				local engineId = p.getInstanceId and p:getInstanceId() or 0
+				local engineId = Instance.of(p)
 				if ppos and instance.entry
 					and engineId == instance.instanceId
 					and ppos.x == instance.entry.x
@@ -1120,7 +1120,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 					if not (InstanceWorld and InstanceWorld.enterInstance) then
 						logger.error("[Expedition] InstanceWorld.enterInstance missing — cannot enter hunt")
 					else
-						ok = InstanceWorld.enterInstance(p, instance.instanceId, instance.entry, "hunt:" .. tostring(s.key or catalog.id))
+						ok = InstanceWorld.enterInstance(p, instance.instanceId, instance.entry)
 					end
 					if not ok then
 						logger.error(
@@ -1681,7 +1681,7 @@ function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 	end
 
 	EM_PRIV.saveReturn(friend)
-	EM_PRIV.markActive(friend, catalog and catalog.id or "", session.channel or 0)
+	EM_PRIV.markActive(friend, catalog and catalog.id or "")
 	if SampleSpells and SampleSpells.ensure then
 		SampleSpells.ensure(friend)
 	end
@@ -1751,7 +1751,7 @@ function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 			ExpeditionManager.leave(p, { silent = true })
 			return
 		end
-		local entered = InstanceWorld.enterInstance(p, inst.instanceId, inst.entry, "hunt:" .. tostring(live.key or ""))
+		local entered = InstanceWorld.enterInstance(p, inst.instanceId, inst.entry)
 		if not entered then
 			ExpeditionProtocol.sendError(p, "Failed to enter expedition (teleport blocked).")
 			ExpeditionManager.leave(p, { silent = true })
@@ -1934,9 +1934,6 @@ function EM_PRIV.cleanupSession(session, player, opts)
 		ExpeditionPack.clear(session)
 	end
 	ExpeditionInstance.teardown(session.instance)
-	if session.kind ~= "raid" then
-		EM_PRIV.releaseHuntChannel(session.catalog and session.catalog.id, session.channel)
-	end
 	if session.key then
 		EM_PRIV.sessionsByKey[session.key] = nil
 	end

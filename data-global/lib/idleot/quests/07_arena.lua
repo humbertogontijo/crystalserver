@@ -4,21 +4,13 @@
 QuestArena = QuestArena or {}
 
 QuestArena.ID_BASE = 920000
-QuestArena.PRIVATE_BASE = (InstanceWorld and InstanceWorld.PRIVATE_BASE) or 3000000
 
 -- monsterId -> session.key
 local monsterOwners = {}
 local registered = false
 
-local function privateBase()
-	return (InstanceWorld and InstanceWorld.PRIVATE_BASE) or QuestArena.PRIVATE_BASE
-end
-
-local function isPrivateInstance(creature)
-	if not creature or not creature.getInstanceId then
-		return false
-	end
-	return (creature:getInstanceId() or 0) >= privateBase()
+local function isPrivateInstance(thing)
+	return thing ~= nil and Instance.isPrivate(Instance.of(thing))
 end
 
 local function barb()
@@ -173,7 +165,7 @@ local function scheduleKick(session)
 end
 
 local function teleportToPit(session, pit)
-	if not session or not pit or not session.instance then
+	if not session or not pit or not ExpeditionInstance.isLive(session.instance) then
 		return false
 	end
 	local instanceId = session.instance.instanceId
@@ -183,10 +175,8 @@ local function teleportToPit(session, pit)
 		local p = Player(mid)
 		if p then
 			p:setFollowCreature(nil)
-			if not instanceId then
-				ok = p:teleportTo(dest) and true or false
-			elseif InstanceWorld and InstanceWorld.enterInstance then
-				ok = InstanceWorld.enterInstance(p, instanceId, dest, "arena:" .. tostring(session.key)) and true or false
+			if InstanceWorld and InstanceWorld.enterInstance then
+				ok = InstanceWorld.enterInstance(p, instanceId, dest) and true or false
 			else
 				logger.warn("[Arena] InstanceWorld.enterInstance missing — refuse teleport for {}", p:getName())
 				ok = false
@@ -221,7 +211,7 @@ local function spawnPitMonster(session)
 	end
 	local monster = ExpeditionInstance.createMonsterExclusive
 			and ExpeditionInstance.createMonsterExclusive(name, pos, session.instance)
-		or Game.createMonster(name, pos, false, true, nil, session.instance and session.instance.instanceId)
+		or (ExpeditionInstance.isLive(session.instance) and Game.createMonster(name, pos, false, true, nil, session.instance.instanceId))
 	if not monster then
 		logger.warn("[QuestArena] failed to spawn '{}' at pit {}", name, pitIndex)
 		session.state = "waiting"
@@ -768,7 +758,7 @@ function QuestArena.patchStockHelpers()
 						if movableItem and movableItem:isItem() then
 							local itemType = ItemType(movableItem:getId())
 							local skipItem = false
-							if movableItem.getInstanceId and (movableItem:getInstanceId() or 0) >= privateBase() then
+							if isPrivateInstance(movableItem) then
 								skipItem = true
 							end
 							if not skipItem and itemType and itemType:isMovable() and not table.contains(SvargrondArena.itemsNotErasable, movableItem:getId()) then
@@ -797,14 +787,14 @@ function QuestArena.patchStockHelpers()
 		if pillarTile then
 			local teleportItem = pillarTile:getItemById(SvargrondArena.itemTeleport)
 			if teleportItem then
-				local tid = teleportItem.getInstanceId and teleportItem:getInstanceId() or 0
-				if tid < privateBase() then
+				if not isPrivateInstance(teleportItem) then
 					teleportItem:remove()
 				end
 			end
 			local pillarItem = pillarTile:getItemById(SvargrondArena.itemPillar)
 			if not pillarItem then
-				Game.createItem(SvargrondArena.itemPillar, 1, PITS[pitId].pillar)
+				-- The pillar is a map-template item shared by every open-world channel.
+				Game.createItem(SvargrondArena.itemPillar, 1, PITS[pitId].pillar, Instance.WORLD)
 			end
 		end
 	end

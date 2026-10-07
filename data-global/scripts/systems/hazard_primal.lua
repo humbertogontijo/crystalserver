@@ -59,7 +59,7 @@ primalPod:register()
 
 local function findPod(tile, instanceId)
 	for _, item in ipairs(tile:getItems() or {}) do
-		if item:getId() == ITEM_PRIMAL_POD and item:getInstanceId() == instanceId then
+		if item:getId() == ITEM_PRIMAL_POD and Instance.of(item) == instanceId then
 			return item
 		end
 	end
@@ -80,10 +80,13 @@ local spawnFungosaurus = function(position, instanceId)
 	end
 end
 
--- Used by the primal menace. addEvent and death callbacks have no instance in scope,
--- so private-instance callers must pass instanceId (0 = open world).
+-- Used by the primal menace. Callers pass the instance key of the creature that dropped it.
 function createPrimalPod(position, instanceId)
-	instanceId = instanceId or 0
+	instanceId = Instance.normalize(instanceId)
+	if not instanceId then
+		logger.error("[HazardPrimal] createPrimalPod without an instance at {}", position)
+		return
+	end
 	local primalPod = Game.createItem(ITEM_PRIMAL_POD, 1, position, instanceId)
 	if primalPod then
 		primalPod:setCustomAttribute("HazardSystem_PodTimer", os.time() * 1000)

@@ -131,6 +131,15 @@ void Decay::internalDecayItem(const std::shared_ptr<Item> &item) {
 		return;
 	}
 
+	std::unique_ptr<InstanceActorScope> instanceScope;
+	if (const auto &holder = item->getHoldingPlayer()) {
+		instanceScope = std::make_unique<InstanceActorScope>(holder);
+	} else if (!item->getInstanceId().isWorld()) {
+		instanceScope = std::make_unique<InstanceActorScope>(item->getInstanceId());
+	} else {
+		instanceScope = std::make_unique<InstanceActorScope>(InstanceActorScope::Positional {});
+	}
+
 	const ItemType &it = Item::items[item->getID()];
 	// Remove the item and halt the decay process if a player triggers a bug where the item's decay ID matches its equip or de-equip transformation ID
 	if (it.id == it.transformEquipTo || it.id == it.transformDeEquipTo) {

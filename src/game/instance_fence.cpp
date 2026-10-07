@@ -8,8 +8,16 @@
 #include "creatures/players/player.hpp"
 #include "enums/account_group_type.hpp"
 #include "game/game.hpp"
+#include "game/instance_registry.hpp"
+#include "game/subarea_registry.hpp"
 
 #include <algorithm>
+
+namespace {
+	InstanceId areaKey(InstanceId instanceId) {
+		return instanceId.withChannel(0);
+	}
+}
 
 bool InstanceFenceRegistry::Occupancy::contains(int32_t worldX, int32_t worldY) const {
 	if (width <= 0 || height <= 0 || bits.empty()) {
@@ -61,21 +69,31 @@ void InstanceFenceRegistry::clear() {
 	floorsByInstanceId.clear();
 }
 
-void InstanceFenceRegistry::setHub(int32_t centerX, int32_t centerY, int32_t radius, const std::vector<uint8_t> &floors) {
+void InstanceFenceRegistry::setHub(int32_t centerX, int32_t centerY, int32_t radius, const std::vector<uint8_t> &floors, uint8_t centerZ) {
 	hubCenterX = centerX;
 	hubCenterY = centerY;
+	hubCenterZ = centerZ;
 	hubRadius = radius > 0 ? radius : DEFAULT_HUB_WALK_RADIUS;
 	hubFence.floors = floors;
 	hubFence.allFloors = floors.empty();
-	floorsByInstanceId[HUB_ADVENTURERS] = floors;
 }
 
-void InstanceFenceRegistry::setAreaFence(uint32_t areaId, Fence fence) {
-	areaById[areaId] = std::move(fence);
+std::optional<Position> InstanceFenceRegistry::hubCenter() const {
+	if (!hubCenterX || !hubCenterY) {
+		return std::nullopt;
+	}
+	return Position(static_cast<uint16_t>(*hubCenterX), static_cast<uint16_t>(*hubCenterY), hubCenterZ);
 }
 
-void InstanceFenceRegistry::setPrivateFence(uint32_t instanceId, Fence fence) {
-	if (instanceId < PRIVATE_BASE) {
+void InstanceFenceRegistry::setAreaFence(InstanceKind kind, uint32_t subareaId, Fence fence) {
+	if (!isAreaKind(kind)) {
+		return;
+	}
+	areaById[InstanceId(kind, subareaId, 0)] = std::move(fence);
+}
+
+void InstanceFenceRegistry::setPrivateFence(InstanceId instanceId, Fence fence) {
+	if (!instanceId.isConcrete()) {
 		return;
 	}
 	if (!fence.floors.empty()) {
@@ -84,29 +102,43 @@ void InstanceFenceRegistry::setPrivateFence(uint32_t instanceId, Fence fence) {
 	privateById[instanceId] = std::move(fence);
 }
 
-void InstanceFenceRegistry::clearPrivateFence(uint32_t instanceId) {
+void InstanceFenceRegistry::clearPrivateFence(InstanceId instanceId) {
 	privateById.erase(instanceId);
 	floorsByInstanceId.erase(instanceId);
 }
 
-void InstanceFenceRegistry::setFloors(uint32_t instanceId, const std::vector<uint8_t> &floors, bool allFloors) {
-	if (allFloors || floors.empty()) {
-		floorsByInstanceId.erase(instanceId);
-	} else {
-		floorsByInstanceId[instanceId] = floors;
+bool InstanceFenceRegistry::hasPrivateFence(InstanceId instanceId) const {
+	return privateById.contains(instanceId);
+}
+
+std::vector<uint8_t> InstanceFenceRegistry::floorsFor(InstanceId instanceId) const {
+	if (const auto it = floorsByInstanceId.find(instanceId); it != floorsByInstanceId.end()) {
+		return it->second;
 	}
-	if (instanceId == HUB_ADVENTURERS) {
+	if (const Fence* fence = fenceFor(instanceId); fence && !fence->allFloors) {
+		return fence->floors;
+	}
+	return {};
+}
+
+void InstanceFenceRegistry::setFloors(InstanceId instanceId, const std::vector<uint8_t> &floors, bool allFloors) {
+	if (instanceId.kind() == InstanceKind::Hub) {
 		hubFence.floors = floors;
 		hubFence.allFloors = allFloors || floors.empty();
 		return;
 	}
-	if (instanceId >= CITY_BASE && instanceId < HUB_ADVENTURERS) {
-		auto it = areaById.find(instanceId - CITY_BASE);
+	if (isAreaKind(instanceId.kind())) {
+		auto it = areaById.find(areaKey(instanceId));
 		if (it != areaById.end()) {
 			it->second.floors = floors;
 			it->second.allFloors = allFloors || floors.empty();
 		}
 		return;
+	}
+	if (allFloors || floors.empty()) {
+		floorsByInstanceId.erase(instanceId);
+	} else {
+		floorsByInstanceId[instanceId] = floors;
 	}
 	auto it = privateById.find(instanceId);
 	if (it != privateById.end()) {
@@ -115,20 +147,29 @@ void InstanceFenceRegistry::setFloors(uint32_t instanceId, const std::vector<uin
 	}
 }
 
-const InstanceFenceRegistry::Fence *InstanceFenceRegistry::fenceFor(uint32_t instanceId) const {
-	if (instanceId == HUB_ADVENTURERS) {
+const InstanceFenceRegistry::Fence* InstanceFenceRegistry::fenceFor(InstanceId instanceId) const {
+	if (instanceId.kind() == InstanceKind::Hub) {
 		return &hubFence;
 	}
-	if (instanceId >= CITY_BASE && instanceId < HUB_ADVENTURERS) {
-		const auto it = areaById.find(instanceId - CITY_BASE);
+	if (const auto it = privateById.find(instanceId); it != privateById.end()) {
+		return &it->second;
+	}
+	if (isAreaKind(instanceId.kind())) {
+		const auto it = areaById.find(areaKey(instanceId));
 		return it != areaById.end() ? &it->second : nullptr;
 	}
-	const auto it = privateById.find(instanceId);
-	return it != privateById.end() ? &it->second : nullptr;
+	return nullptr;
 }
 
-std::optional<InstanceFenceRegistry::Aabb> InstanceFenceRegistry::boundsFor(uint32_t instanceId) const {
-	if (instanceId == HUB_ADVENTURERS) {
+bool InstanceFenceRegistry::hubContainsXY(int32_t x, int32_t y) const {
+	if (!hubCenterX || !hubCenterY) {
+		return false;
+	}
+	return std::abs(x - *hubCenterX) <= hubRadius && std::abs(y - *hubCenterY) <= hubRadius;
+}
+
+std::optional<InstanceFenceRegistry::Aabb> InstanceFenceRegistry::boundsFor(InstanceId instanceId) const {
+	if (instanceId.kind() == InstanceKind::Hub) {
 		if (!hubCenterX || !hubCenterY) {
 			return std::nullopt;
 		}
@@ -151,96 +192,80 @@ bool InstanceFenceRegistry::canWalk(const std::shared_ptr<Creature> &creature, c
 		return true;
 	}
 
-	const uint32_t instanceId = creature->getInstanceId();
-	if (instanceId == 0) {
+	const InstanceId instanceId = creature->getInstanceId();
+	if (instanceId.isWorld()) {
 		return false;
 	}
 
-	const bool cityRange = instanceId >= CITY_BASE && instanceId < HUB_ADVENTURERS;
+	const InstanceKind kind = instanceId.kind();
+	const bool privateFence = privateById.contains(instanceId);
+
+	// Open-world subarea layers: players and summons cross freely (players switch layer on
+	// arrival); monsters stay on tiles of their own region or a connector it owns.
+	if (isOpenWorldKind(kind) && !privateFence && g_subareas().enabled() && !g_instanceRegistry().isReserved(instanceId)) {
+		if (creature->getPlayer() || creature->getMaster()) {
+			return true;
+		}
+		return g_subareas().allows(g_subareas().regionAt(toPos), instanceId);
+	}
+
+	const bool areaRange = isAreaKind(kind) && !privateFence;
+	const Fence* fence = fenceFor(instanceId);
 
 	// Floor gate: cities/settlements allow every z; others use remembered floors when set.
-	if (!cityRange) {
+	if (!areaRange) {
 		const auto floorsIt = floorsByInstanceId.find(instanceId);
 		if (floorsIt != floorsByInstanceId.end() && !floorsIt->second.empty()) {
-			const uint8_t z = toPos.z;
-			if (std::find(floorsIt->second.begin(), floorsIt->second.end(), z) == floorsIt->second.end()) {
+			if (std::ranges::find(floorsIt->second, toPos.z) == floorsIt->second.end()) {
 				return false;
 			}
-		} else if (const Fence *fence = fenceFor(instanceId)) {
-			if (!fence->allowsFloor(toPos.z)) {
-				return false;
-			}
-		}
-	}
-
-	if (instanceId == HUB_ADVENTURERS) {
-		if (!hubCenterX || !hubCenterY) {
-			return true;
-		}
-		const int32_t dx = std::abs(static_cast<int32_t>(toPos.x) - *hubCenterX);
-		const int32_t dy = std::abs(static_cast<int32_t>(toPos.y) - *hubCenterY);
-		return dx <= hubRadius && dy <= hubRadius;
-	}
-
-	if (cityRange) {
-		const Fence *fence = fenceFor(instanceId);
-		if (!fence) {
-			return true;
-		}
-		return fence->containsXY(toPos.x, toPos.y);
-	}
-
-	if (const Fence *fence = fenceFor(instanceId)) {
-		return fence->containsXY(toPos.x, toPos.y);
-	}
-
-	// No private fence registered: monsters may path; players on private ids are fenced.
-	if (creature->getMonster()) {
-		return true;
-	}
-
-	if (const auto &player = creature->getPlayer()) {
-		if (instanceId >= PRIVATE_BASE) {
-			const auto &group = player->getGroup();
-			if (group && group->id >= GROUP_TYPE_GOD) {
-				return true;
-			}
+		} else if (fence && !fence->allowsFloor(toPos.z)) {
 			return false;
 		}
 	}
 
-	return true;
+	if (kind == InstanceKind::Hub) {
+		return !hubCenterX || !hubCenterY || hubContainsXY(toPos.x, toPos.y);
+	}
+	if (fence) {
+		return fence->containsXY(toPos.x, toPos.y);
+	}
+
+	// No fence registered: only players on private instances are held (gods excepted).
+	const auto &player = creature->getPlayer();
+	if (!player || !g_instanceRegistry().isPrivate(instanceId)) {
+		return true;
+	}
+	const auto &group = player->getGroup();
+	return group && group->id >= GROUP_TYPE_GOD;
 }
 
-uint32_t InstanceFenceRegistry::instanceForPosition(const Position &pos) const {
-	if (hubCenterX && hubCenterY) {
-		const int32_t dx = std::abs(static_cast<int32_t>(pos.x) - *hubCenterX);
-		const int32_t dy = std::abs(static_cast<int32_t>(pos.y) - *hubCenterY);
-		if (dx <= hubRadius && dy <= hubRadius) {
-			return HUB_ADVENTURERS;
+InstanceId InstanceFenceRegistry::instanceForPosition(const Position &pos) const {
+	if (hubContainsXY(pos.x, pos.y) && hubFence.allowsFloor(pos.z)) {
+		return HUB_ADVENTURERS;
+	}
+
+	if (g_subareas().enabled()) {
+		if (const uint32_t region = g_subareas().regionAt(pos); region != 0) {
+			return g_subareas().mainInstanceFor(region);
 		}
 	}
 
-	std::optional<uint32_t> areaId;
+	std::optional<InstanceId> area;
 	for (const auto &[id, fence] : areaById) {
 		if ((!fence.occupancy && !fence.aabb) || !fence.containsXY(pos.x, pos.y)) {
 			continue;
 		}
-		if (!areaId || id < *areaId) {
-			areaId = id;
+		if (!area || id.subareaId() < area->subareaId()) {
+			area = id;
 		}
 	}
-	return areaId ? CITY_BASE + *areaId : 0;
+	return area.value_or(InstanceId::World);
 }
 
-bool InstanceFenceRegistry::containsPos(uint32_t instanceId, const Position &pos) const {
-	if (instanceId == HUB_ADVENTURERS) {
-		if (!hubCenterX || !hubCenterY || !hubFence.allowsFloor(pos.z)) {
-			return false;
-		}
-		const int32_t dx = std::abs(static_cast<int32_t>(pos.x) - *hubCenterX);
-		const int32_t dy = std::abs(static_cast<int32_t>(pos.y) - *hubCenterY);
-		return dx <= hubRadius && dy <= hubRadius;
+bool InstanceFenceRegistry::containsPos(InstanceId instanceId, const Position &pos) const {
+	if (instanceId.kind() == InstanceKind::Hub) {
+		return hubFence.allowsFloor(pos.z) && hubContainsXY(pos.x, pos.y);
 	}
 
 	const Fence* fence = fenceFor(instanceId);

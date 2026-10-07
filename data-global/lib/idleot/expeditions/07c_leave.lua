@@ -457,8 +457,7 @@ function ExpeditionManager.ackHuntDeath(player)
 		return
 	end
 	ExpeditionManager.cancelLeave(player)
-	local privateBase = (InstanceWorld and InstanceWorld.PRIVATE_BASE) or 3000000
-	if player.getInstanceId and player:getInstanceId() >= privateBase then
+	if Instance.isPrivate(Instance.of(player)) then
 		EM_PRIV.teleportHumanToReturn(player)
 	end
 	EM_PRIV.ejectPlayerFromExpedition(player, { skipTeleport = true })

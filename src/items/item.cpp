@@ -1206,11 +1206,11 @@ std::string Item::getOwnerName() const {
 	return "someone else";
 }
 
-bool Item::isVisibleInInstance(uint32_t viewerInstanceId) const {
-	if (instanceId != 0) {
+bool Item::isVisibleInInstance(InstanceId viewerInstanceId) const {
+	if (!instanceId.isWorld()) {
 		return instanceId == viewerInstanceId;
 	}
-	if (viewerInstanceId != 0 && isStatefulMapTemplate()) {
+	if (!viewerInstanceId.isWorld() && isStatefulMapTemplate()) {
 		const auto &parent = getParent();
 		const auto &tile = parent ? parent->getTile() : nullptr;
 		if (tile && tile->findStatefulMapFork(*this, viewerInstanceId)) {
@@ -1220,7 +1220,7 @@ bool Item::isVisibleInInstance(uint32_t viewerInstanceId) const {
 	return true;
 }
 
-bool Item::countsTowardClientMapStack(uint32_t viewerInstanceId) const {
+bool Item::countsTowardClientMapStack(InstanceId viewerInstanceId) const {
 	if (!isVisibleInInstance(viewerInstanceId)) {
 		return false;
 	}
@@ -1228,14 +1228,14 @@ bool Item::countsTowardClientMapStack(uint32_t viewerInstanceId) const {
 	return items[id].id != 0;
 }
 
-// Map-template items stay on instanceId 0 (shared hunt geometry). Includes items.xml
+// Map-template items stay on the World layer (shared hunt geometry). Includes items.xml
 // transform-on-use entries (transformToOnUse / transformOnUse) such as levers and lamps.
 bool Item::isMapTemplateItem() const {
-	if (instanceId != 0) {
+	if (!instanceId.isWorld()) {
 		return false;
 	}
 
-	// Echo Raid portals: dynamically placed on instance 0, forked per private shard like doors.
+	// Echo Raid portals: dynamically placed on the World layer, forked per private shard like doors.
 	if (id == ITEM_ECHO_WARDEN_PORTAL || id == ITEM_ECHO_WARDEN_PORTAL_SPENT) {
 		return true;
 	}
@@ -3534,8 +3534,7 @@ std::shared_ptr<Item> Item::transform(uint16_t itemId, uint16_t itemCount /*= -1
 
 	const auto &fromTile = cylinder->getTile();
 	if (fromTile) {
-		const auto it = g_game().browseFields.find(fromTile);
-		if (it != g_game().browseFields.end() && it->second.lock() == cylinder) {
+		if (Game::isBrowseFieldOf(fromTile, cylinder)) {
 			cylinder = fromTile;
 		}
 	}

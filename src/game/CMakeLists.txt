@@ -2,7 +2,11 @@ target_sources(${PROJECT_NAME}_lib PRIVATE
     functions/game_reload.cpp
     game.cpp
     instance_fence.cpp
+    instance_id.cpp
+    instance_registry.cpp
+    instance_strict.cpp
     instance_spawns.cpp
+    subarea_registry.cpp
     bank/bank.cpp
     movement/position.cpp
     movement/teleport.cpp

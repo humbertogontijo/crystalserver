@@ -239,14 +239,21 @@ end
 local function spawnTimer(monsterId, spawnPosition, spawnCallback)
 	local time_to_spawn = 3
 	local owner = Monster(monsterId)
-	local instanceId = owner and owner:getInstanceId() or 0
+	if not owner then
+		return
+	end
+	local instanceId = owner:getInstanceId()
 	for i = 1, time_to_spawn do
 		addEvent(function()
-			spawnPosition:sendMagicEffect(CONST_ME_TELEPORT)
+			Game.runInInstance(instanceId, function()
+				spawnPosition:sendMagicEffect(CONST_ME_TELEPORT)
+			end)
 		end, i * 1000)
 	end
 	addEvent(function()
-		spawnCallback(monsterId, spawnPosition, instanceId)
+		if Instance.isLive(instanceId) then
+			spawnCallback(monsterId, spawnPosition, instanceId)
+		end
 	end, time_to_spawn * 1000)
 end
 

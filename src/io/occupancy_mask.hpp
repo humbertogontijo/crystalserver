@@ -50,5 +50,8 @@ bool occupancyToPacked(const OccupancyMask &occ, std::vector<uint8_t> &out);
 
 bool writeOccupancyMaskFile(const std::string &path, const OccupancyMask &occ);
 
+bool lzmaAloneCompress(const uint8_t* src, size_t srcLen, std::vector<uint8_t> &out);
+bool lzmaAloneDecompress(const uint8_t* src, size_t srcLen, std::vector<uint8_t> &out);
+
 /** Fill enclosed holes + expand by radius without growing the outer silhouette. */
 void occupancyCloseInterior(OccupancyMask &occ, int radius = 2);

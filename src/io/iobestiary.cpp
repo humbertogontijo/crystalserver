@@ -90,9 +90,9 @@ bool IOBestiary::parseOffensiveCharmCombat(const std::shared_ptr<Charm> &charm, 
 					continue;
 				}
 
-				g_game().addMagicEffect(damagePosition, CONST_ME_DRAWBLOOD);
+				g_game().addMagicEffect(damagePosition, CONST_ME_DRAWBLOOD, player);
 
-				const auto &topCreature = tile->getTopCreature();
+				const auto &topCreature = tile->getTopCreature(player->getInstanceId());
 				if (topCreature && topCreature->getType() == CREATURETYPE_MONSTER) {
 					int32_t damage = std::min<int32_t>(
 						std::ceil(value * (charm->percent / 100.0)),

@@ -139,6 +139,10 @@ bool ConfigManager::load() {
 	loadBoolConfig(L, MOUNT_SOUNDS, "mountSounds", true);
 	loadBoolConfig(L, ONLY_INVITED_CAN_MOVE_HOUSE_ITEMS, "onlyInvitedCanMoveHouseItems", true);
 	loadBoolConfig(L, ONLY_PREMIUM_ACCOUNT, "onlyPremiumAccount", false);
+	// Off by default: needs the generated region index (lib/idleot/subareas); config.lua.dist turns it on.
+	loadBoolConfig(L, OPEN_WORLD_SUBAREA_INSTANCES, "openWorldSubareaInstances", false);
+	// Off: inferred instances (no explicit id / actor scope) are logged and counted. On: refused.
+	loadBoolConfig(L, INSTANCE_STRICT, "instanceStrict", false);
 	loadBoolConfig(L, PARTY_AUTO_SHARE_EXPERIENCE, "partyAutoShareExperience", true);
 	loadBoolConfig(L, PARTY_SHARE_LOOT_BOOSTS, "partyShareLootBoosts", true);
 	loadBoolConfig(L, PREY_ENABLED, "preySystemEnabled", true);
@@ -343,6 +347,7 @@ bool ConfigManager::load() {
 	loadIntConfig(L, HOUSE_LOSE_AFTER_INACTIVITY, "houseLoseAfterInactivity", 0);
 	loadIntConfig(L, HOUSE_PRICE_PER_SQM, "housePriceEachSQM", 1000);
 	loadIntConfig(L, IMBUEMENT_ACTIONS_DELAY_INTERVAL, "imbueActionsDelay", 1000);
+	loadIntConfig(L, INSTANCE_CHANNEL_IDLE_SECONDS, "instanceChannelIdleSeconds", 120);
 	loadIntConfig(L, KICK_AFTER_MINUTES, "kickIdlePlayerAfterMinutes", 15);
 	loadIntConfig(L, LEVEL_TO_FORM_GUILD, "levelToFormGuild", 8);
 	loadIntConfig(L, LOGIN_PORT, "loginProtocolPort", 7171);

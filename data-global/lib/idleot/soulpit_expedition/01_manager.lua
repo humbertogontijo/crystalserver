@@ -70,6 +70,10 @@ function SoulPitExpedition.spawnWave(session)
 	if not session or not session.instance or not session.soulPitMonster then
 		return
 	end
+	-- Wave timers outlive the session: never spawn into a released (or reused) instance.
+	if not Instance.isLive(session.instance.instanceId) or session.state == "ended" then
+		return
+	end
 	local waves = waveStacks()
 	local stage = (session.wave or 0) + 1
 	local wave = waves[stage]
@@ -236,9 +240,6 @@ function SoulPitExpedition.start(player)
 		return false, "Failed to start Soul Pit."
 	end
 	session.kind = "soulpit"
-	if session.instance and session.instance.instanceId then
-		InstancePvp.apply(session.instance.instanceId, "soulpit")
-	end
 	session.soulPitMonster = monsterName
 	session.role = "monster"
 	session.wave = 0

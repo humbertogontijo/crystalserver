@@ -250,6 +250,7 @@ std::string GlobalEvent::getScriptTypeName() const {
 }
 
 bool GlobalEvent::executePeriodChange(LightState_t lightState, LightInfo lightInfo) const {
+	InstanceActorScope instanceActorScope(InstanceActorScope::Positional {});
 	// onPeriodChange(lightState, lightTime)
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[GlobalEvent::executePeriodChange - {}] "
@@ -270,6 +271,7 @@ bool GlobalEvent::executePeriodChange(LightState_t lightState, LightInfo lightIn
 }
 
 bool GlobalEvent::executeRecord(uint32_t current, uint32_t old) const {
+	InstanceActorScope instanceActorScope(InstanceActorScope::Positional {});
 	// onRecord(current, old)
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[GlobalEvent::executeRecord - {}] "
@@ -290,6 +292,7 @@ bool GlobalEvent::executeRecord(uint32_t current, uint32_t old) const {
 }
 
 bool GlobalEvent::executeEvent() const {
+	InstanceActorScope instanceActorScope(InstanceActorScope::Positional {});
 	if (!LuaScriptInterface::reserveScriptEnv()) {
 		g_logger().error("[GlobalEvent::executeEvent - {}] "
 		                 "Call stack overflow. Too many lua script calls being nested.",

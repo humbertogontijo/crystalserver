@@ -17,7 +17,7 @@ target_sources(${PROJECT_NAME}_lib PRIVATE
 )
 
 # Standalone (no Game/Map deps, outside the unity build) so offline map tooling links it alone.
-add_library(idleot_occupancy STATIC occupancy_mask.cpp)
+add_library(idleot_occupancy STATIC occupancy_mask.cpp region_index.cpp)
 setup_target(idleot_occupancy)
 target_include_directories(idleot_occupancy PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(idleot_occupancy PUBLIC LibLZMA::LibLZMA)

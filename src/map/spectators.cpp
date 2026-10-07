@@ -23,9 +23,9 @@
 #include "game/game.hpp"
 
 namespace {
-uint64_t spectatorCacheKey(const Position &pos, uint32_t instanceId) {
+uint64_t spectatorCacheKey(const Position &pos, InstanceId instanceId) {
 	uint64_t loc = (static_cast<uint64_t>(pos.x) << 40) | (static_cast<uint64_t>(pos.y) << 16) | static_cast<uint64_t>(pos.z);
-	return loc ^ (static_cast<uint64_t>(instanceId) * 0x9E3779B97F4A7C15ULL);
+	return loc ^ (instanceId.value() * 0x9E3779B97F4A7C15ULL);
 }
 }
 
@@ -105,7 +105,7 @@ bool Spectators::checkCache(const SpectatorsCache::FloorData &specData, bool onl
 	return true;
 }
 
-CreatureVector Spectators::getSpectators(const Position &centerPos, bool multifloor, bool onlyPlayers, bool onlyMonsters, bool onlyNpcs, int32_t minRangeX, int32_t maxRangeX, int32_t minRangeY, int32_t maxRangeY, uint32_t instanceId) {
+CreatureVector Spectators::getSpectators(const Position &centerPos, bool multifloor, bool onlyPlayers, bool onlyMonsters, bool onlyNpcs, int32_t minRangeX, int32_t maxRangeX, int32_t minRangeY, int32_t maxRangeY, InstanceId instanceId) {
 	uint8_t minRangeZ = centerPos.z;
 	uint8_t maxRangeZ = centerPos.z;
 
@@ -162,7 +162,7 @@ CreatureVector Spectators::getSpectators(const Position &centerPos, bool multifl
 												   : sectorE->creature_list;
 
 				for (const auto &creature : nodeList) {
-					if (instanceId != std::numeric_limits<uint32_t>::max() && creature->getInstanceId() != instanceId) {
+					if (!instanceId.isAny() && creature->getInstanceId() != instanceId) {
 						continue;
 					}
 					const auto &cpos = creature->getPosition();
@@ -189,7 +189,7 @@ CreatureVector Spectators::getSpectators(const Position &centerPos, bool multifl
 	return spectators;
 }
 
-Spectators Spectators::find(const Position &centerPos, bool multifloor, bool onlyPlayers, bool onlyMonsters, bool onlyNpcs, int32_t minRangeX, int32_t maxRangeX, int32_t minRangeY, int32_t maxRangeY, bool useCache, uint32_t instanceId) {
+Spectators Spectators::find(const Position &centerPos, bool multifloor, bool onlyPlayers, bool onlyMonsters, bool onlyNpcs, int32_t minRangeX, int32_t maxRangeX, int32_t minRangeY, int32_t maxRangeY, bool useCache, InstanceId instanceId) {
 	minRangeX = (minRangeX == 0 ? -MAP_MAX_VIEW_PORT_X : -minRangeX);
 	maxRangeX = (maxRangeX == 0 ? MAP_MAX_VIEW_PORT_X : maxRangeX);
 	minRangeY = (minRangeY == 0 ? -MAP_MAX_VIEW_PORT_Y : -minRangeY);
@@ -296,7 +296,7 @@ Spectators Spectators::excludePlayerMaster() const {
 	return specs;
 }
 
-Spectators Spectators::matchingInstance(uint32_t instanceId) const {
+Spectators Spectators::matchingInstance(InstanceId instanceId) const {
 	auto specs = Spectators();
 	specs.creatures.reserve(creatures.size());
 	for (const auto &c : creatures) {

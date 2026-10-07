@@ -23,6 +23,7 @@
 #include "creatures/players/player.hpp"
 #include "game/game.hpp"
 #include "game/instance_fence.hpp"
+#include "game/instance_spawns.hpp"
 #include "game/movement/position.hpp"
 #include "game/scheduling/dispatcher.hpp"
 #include "game/scheduling/events_scheduler.hpp"
@@ -133,6 +134,7 @@ bool SpawnsMonster::loadFromXML(const std::string &filemonstername) {
 
 	// Clears unused memory that has been reserved
 	spawnMonsterList.shrink_to_fit();
+	g_instanceSpawns().invalidateWorldSpawnIndex();
 	return true;
 }
 
@@ -162,6 +164,7 @@ void SpawnsMonster::clear() {
 		spawnMonster->removeMonsters();
 	}
 	spawnMonsterList.clear();
+	g_instanceSpawns().invalidateWorldSpawnIndex();
 
 	loaded = false;
 	started = false;
@@ -285,8 +288,8 @@ bool SpawnMonster::spawnMonster(uint32_t spawnMonsterId, spawnBlock_t &sb, const
 	if (spawnedMonsterMap.contains(spawnMonsterId)) {
 		return false;
 	}
-	auto monster = std::make_shared<Monster>(monsterType, InstanceId(instanceId));
-	if (startup && instanceId == 0) {
+	auto monster = std::make_shared<Monster>(monsterType, instanceId);
+	if (startup && instanceId.isWorld()) {
 		// No need to send out events to the surrounding since there is no one out there to listen!
 		// Private instances start with their party already inside, so they take the normal path.
 		if (!g_game().internalPlaceCreature(monster, sb.pos, true)) {

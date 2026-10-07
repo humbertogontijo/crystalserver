@@ -28,8 +28,10 @@
 #include "creatures/players/player.hpp"
 #include "game/functions/game_reload.hpp"
 #include "game/game.hpp"
+#include "game/instance_registry.hpp"
 #include "game/instance_fence.hpp"
 #include "game/instance_spawns.hpp"
+#include "game/subarea_registry.hpp"
 #include "game/scheduling/dispatcher.hpp"
 #include "io/occupancy_mask.hpp"
 #include "io/io_bosstiary.hpp"
@@ -53,7 +55,19 @@
 
 namespace {
 
-bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position position, bool hasPosition, uint32_t instanceId = 0) {
+/** Script birth instance for a creature. Unlike items (a World item is shared by every layer),
+ *  a World creature is visible to no layered player, so an explicit World key resolves like nil. */
+bool creatureBirthArg(lua_State* L, int32_t arg, std::optional<InstanceId> &out) {
+	if (!Lua::readInstanceId(L, arg, out)) {
+		return false;
+	}
+	if (out && out->isWorld()) {
+		out.reset();
+	}
+	return true;
+}
+
+bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position position, bool hasPosition, InstanceId instanceId = InstanceId::World) {
 	if (!player) {
 		return false;
 	}
@@ -64,11 +78,11 @@ bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position positio
 	// Bind before placeCreature (same pattern as Game.createMonster) so login hooks and
 	// spectators see the private hunt/raid id immediately — no post-place enterInstance race.
 	// Without an explicit id, bind the city/settlement instance like ProtocolGame login does,
-	// otherwise onLogin hooks see instance 0 and treat the body as stranded.
-	if (instanceId != 0) {
-		player->moveToInstance(InstanceId(instanceId));
+	// otherwise onLogin hooks see the World layer and treat the body as stranded.
+	if (!instanceId.isWorld()) {
+		player->moveToInstance(instanceId);
 	} else {
-		g_game().bindPlayerInstance(player, position);
+		position = g_game().bindPlayerInstance(player, position);
 	}
 	// Headless before placing: onLogin hooks must not mistake this body for a real client.
 	player->setHeadless(true);
@@ -85,7 +99,7 @@ bool placeHeadlessPlayer(const std::shared_ptr<Player> &player, Position positio
 	return true;
 }
 
-void reclaimHeadlessPlayer(const std::shared_ptr<Player> &player, Position position, bool hasPosition, uint32_t instanceId) {
+void reclaimHeadlessPlayer(const std::shared_ptr<Player> &player, Position position, bool hasPosition, InstanceId instanceId) {
 	if (!player) {
 		return;
 	}
@@ -95,18 +109,18 @@ void reclaimHeadlessPlayer(const std::shared_ptr<Player> &player, Position posit
 	const auto &tile = player->getTile();
 	const bool onMap = tile && !player->isRemoved();
 	if (hasPosition && onMap && player->getPosition() != position) {
-		if (instanceId != 0) {
-			player->moveToInstance(InstanceId(instanceId));
+		if (!instanceId.isWorld()) {
+			player->moveToInstance(instanceId);
 		}
 		g_game().internalTeleport(player, position, true);
 	} else if (hasPosition && !onMap) {
-		if (instanceId != 0) {
-			player->moveToInstance(InstanceId(instanceId));
+		if (!instanceId.isWorld()) {
+			player->moveToInstance(instanceId);
 		}
 		g_game().internalTeleport(player, position, true);
-	} else if (instanceId != 0 && (!onMap || player->getInstanceId() == 0)) {
-		player->moveToInstance(InstanceId(instanceId));
-	} else if (instanceId != 0 && onMap && player->getInstanceId() != instanceId) {
+	} else if (!instanceId.isWorld() && (!onMap || player->getInstanceId().isWorld())) {
+		player->moveToInstance(instanceId);
+	} else if (!instanceId.isWorld() && onMap && player->getInstanceId() != instanceId) {
 		g_logger().warn(
 			"[Game.headlessLogin] refusing same-tile instance rebind for '{}' ({} → {}); pass a distinct position",
 			player->getName(),
@@ -142,7 +156,7 @@ struct HeadlessBatchPlaceState {
 	std::vector<size_t> needLoad;
 	Position position;
 	bool hasPosition = false;
-	uint32_t instanceId = 0;
+	InstanceId instanceId = InstanceId::World;
 	size_t next = 0;
 	std::function<void(const std::vector<std::shared_ptr<Player>> &, const std::string &)> callback;
 };
@@ -225,6 +239,21 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "loadOccupancyMask", GameFunctions::luaGameLoadOccupancyMask);
 	Lua::registerMethod(L, "Game", "allocateInstance", GameFunctions::luaGameAllocateInstance);
 	Lua::registerMethod(L, "Game", "releaseInstance", GameFunctions::luaGameReleaseInstance);
+	Lua::registerMethod(L, "Game", "isPrivateInstance", GameFunctions::luaGameIsPrivateInstance);
+	Lua::registerMethod(L, "Game", "getInstanceInfo", GameFunctions::luaGameGetInstanceInfo);
+	Lua::registerMethod(L, "Game", "isInstanceLive", GameFunctions::luaGameIsInstanceLive);
+	Lua::registerMethod(L, "Game", "getInstanceMembers", GameFunctions::luaGameGetInstanceMembers);
+	Lua::registerMethod(L, "Game", "getInstances", GameFunctions::luaGameGetInstances);
+	Lua::registerMethod(L, "Game", "parseInstance", GameFunctions::luaGameParseInstance);
+	Lua::registerMethod(L, "Game", "instanceKey", GameFunctions::luaGameInstanceKey);
+	Lua::registerMethod(L, "Game", "getInstanceFloors", GameFunctions::luaGameGetInstanceFloors);
+	Lua::registerMethod(L, "Game", "getSubareaAt", GameFunctions::luaGameGetSubareaAt);
+	Lua::registerMethod(L, "Game", "getSubareaInfo", GameFunctions::luaGameGetSubareaInfo);
+	Lua::registerMethod(L, "Game", "isSubareaInstancesEnabled", GameFunctions::luaGameIsSubareaInstancesEnabled);
+	Lua::registerMethod(L, "Game", "pickInstanceChannel", GameFunctions::luaGamePickInstanceChannel);
+	Lua::registerMethod(L, "Game", "getInstanceChannels", GameFunctions::luaGameGetInstanceChannels);
+	Lua::registerMethod(L, "Game", "setInstanceKindCapacity", GameFunctions::luaGameSetInstanceKindCapacity);
+	Lua::registerMethod(L, "Game", "setInstanceKindWorldType", GameFunctions::luaGameSetInstanceKindWorldType);
 	Lua::registerMethod(L, "Game", "setInstanceHubFence", GameFunctions::luaGameSetInstanceHubFence);
 	Lua::registerMethod(L, "Game", "setInstanceAreaFence", GameFunctions::luaGameSetInstanceAreaFence);
 	Lua::registerMethod(L, "Game", "setInstancePrivateFence", GameFunctions::luaGameSetInstancePrivateFence);
@@ -407,10 +436,14 @@ int GameFunctions::luaGameGetSpectators(lua_State* L) {
 	const auto maxRangeX = Lua::getNumber<int32_t>(L, 5, 0);
 	const auto minRangeY = Lua::getNumber<int32_t>(L, 6, 0);
 	const auto maxRangeY = Lua::getNumber<int32_t>(L, 7, 0);
-	uint32_t instanceId = std::numeric_limits<uint32_t>::max();
-	if (lua_gettop(L) >= 8 && !lua_isnil(L, 8)) {
-		instanceId = Lua::getNumber<uint32_t>(L, 8);
+	std::optional<InstanceId> explicitId;
+	if (!Lua::readInstanceId(L, 8, explicitId)) {
+		lua_pushnil(L);
+		return 1;
 	}
+	// Without an explicit id, scripts running for an actor see that actor's layer; only
+	// unscoped (admin / global) callers get every layer.
+	const InstanceId instanceId = explicitId.value_or(Game::getInstanceScope().value_or(InstanceId::Any));
 
 	Spectators spectators;
 
@@ -510,14 +543,23 @@ int GameFunctions::luaGameGetBestiaryList(lua_State* L) {
 }
 
 int GameFunctions::luaGameCreateSoulPitMonster(lua_State* L) {
-	// Game.createSoulPitMonster(monsterName, position, [stack = 1, [, extended = false[, force = false[, master = nil[, instanceId = 0]]]]])
+	// Game.createSoulPitMonster(monsterName, position, [stack = 1, [, extended = false[, force = false[, master = nil[, instanceId = nil]]]]])
 	const Position &position = Lua::getPosition(L, 2);
 	std::shared_ptr<Creature> master;
 	if (lua_gettop(L) >= 6 && lua_type(L, 6) != LUA_TNIL) {
 		master = Lua::getCreature(L, 6);
 	}
-	const uint32_t explicitId = lua_gettop(L) >= 7 ? Lua::getNumber<uint32_t>(L, 7, 0) : 0;
-	const auto &monster = Monster::createMonster(Lua::getString(L, 1), Game::resolveBirthInstance(explicitId, master, &position));
+	std::optional<InstanceId> explicitId;
+	if (!creatureBirthArg(L, 7, explicitId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto birthId = Game::resolveBirthInstance(explicitId, master, &position, "Game.createSoulPitMonster");
+	if (!birthId) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto &monster = Monster::createMonster(Lua::getString(L, 1), *birthId);
 	if (!monster) {
 		lua_pushnil(L);
 		return 1;
@@ -683,19 +725,296 @@ int GameFunctions::luaGameLoadOccupancyMask(lua_State* L) {
 }
 
 int GameFunctions::luaGameAllocateInstance(lua_State* L) {
-	// Game.allocateInstance()
-	const uint32_t id = g_game().allocateInstanceId();
-	if (id == 0) {
+	// Game.allocateInstance(kind, subareaId[, {private = true, owner = "", tag = ""}]) -> key | nil, reason
+	const auto kind = Lua::getInstanceKind(L, 1);
+	if (!kind || *kind == InstanceKind::World) {
+		Lua::reportErrorFunc("Game.allocateInstance: unknown instance kind");
 		lua_pushnil(L);
-		return 1;
+		Lua::pushString(L, "unknown kind");
+		return 2;
 	}
-	lua_pushnumber(L, id);
+	const auto subareaId = Lua::getNumber<uint32_t>(L, 2, 0);
+	InstanceRegistry::AllocOptions options;
+	if (lua_istable(L, 3)) {
+		lua_getfield(L, 3, "private");
+		if (!lua_isnil(L, -1)) {
+			options.reserved = lua_toboolean(L, -1) != 0;
+		}
+		lua_pop(L, 1);
+		lua_getfield(L, 3, "owner");
+		if (lua_isstring(L, -1)) {
+			options.owner = lua_tostring(L, -1);
+		}
+		lua_pop(L, 1);
+		lua_getfield(L, 3, "tag");
+		if (lua_isstring(L, -1)) {
+			options.tag = lua_tostring(L, -1);
+		}
+		lua_pop(L, 1);
+	}
+	const auto id = g_game().allocateInstance(*kind, subareaId, options);
+	if (!id) {
+		lua_pushnil(L);
+		Lua::pushString(L, "no free channel");
+		return 2;
+	}
+	Lua::pushInstanceId(L, *id);
 	return 1;
 }
 
 int GameFunctions::luaGameReleaseInstance(lua_State* L) {
-	// Game.releaseInstance(id)
-	g_game().releaseInstanceId(Lua::getNumber<uint32_t>(L, 1));
+	// Game.releaseInstance(instance)
+	const auto id = Lua::requireInstanceId(L, 1);
+	if (!id) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	g_game().releaseInstance(*id);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+namespace {
+	void pushInstanceInfo(lua_State* L, InstanceId id) {
+		const auto &registry = g_instanceRegistry();
+		const auto* record = registry.find(id);
+		lua_createtable(L, 0, 12);
+		Lua::setField(L, "key", id.toKey());
+		Lua::setField(L, "kind", std::string(instanceKindName(id.kind())));
+		Lua::setField(L, "subareaId", id.subareaId());
+		Lua::setField(L, "channel", id.channel());
+		Lua::pushBoolean(L, registry.isLive(id));
+		lua_setfield(L, -2, "live");
+		Lua::pushBoolean(L, registry.isPrivate(id));
+		lua_setfield(L, -2, "private");
+		Lua::setField(L, "owner", record ? record->owner : std::string {});
+		Lua::setField(L, "tag", record ? record->tag : std::string {});
+		Lua::setField(L, "createdAt", record ? record->createdAt : 0);
+		Lua::setField(L, "players", registry.playerCount(id));
+		Lua::setField(L, "worldType", static_cast<int32_t>(g_game().getWorldType(id)));
+	}
+}
+
+int GameFunctions::luaGameGetInstanceInfo(lua_State* L) {
+	// Game.getInstanceInfo(instance) -> {key, kind, subareaId, channel, live, private, owner, tag, createdAt, players, worldType} | nil
+	const auto id = Lua::requireInstanceId(L, 1);
+	if (!id || (!g_instanceRegistry().isLive(*id) && !g_instanceRegistry().find(*id))) {
+		lua_pushnil(L);
+		return 1;
+	}
+	pushInstanceInfo(L, *id);
+	return 1;
+}
+
+int GameFunctions::luaGameIsInstanceLive(lua_State* L) {
+	// Game.isInstanceLive(instance[, owner]) -> live (and owned by `owner` when given)
+	std::optional<InstanceId> id;
+	if (!Lua::readInstanceId(L, 1, id) || !id) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	const auto &registry = g_instanceRegistry();
+	bool live = registry.isLive(*id);
+	if (live && lua_isstring(L, 2)) {
+		const auto* record = registry.find(*id);
+		live = record && record->owner == Lua::getString(L, 2);
+	}
+	Lua::pushBoolean(L, live);
+	return 1;
+}
+
+int GameFunctions::luaGameGetInstanceMembers(lua_State* L) {
+	// Game.getInstanceMembers(instance) -> {player, ...}
+	const auto id = Lua::requireInstanceId(L, 1);
+	lua_newtable(L);
+	if (!id) {
+		return 1;
+	}
+	int index = 0;
+	for (const auto playerId : g_instanceRegistry().members(*id)) {
+		const auto &player = g_game().getPlayerByID(playerId);
+		if (!player) {
+			continue;
+		}
+		Lua::pushUserdata<Player>(L, player);
+		Lua::setMetatable(L, -1, "Player");
+		lua_rawseti(L, -2, ++index);
+	}
+	return 1;
+}
+
+int GameFunctions::luaGameGetInstances(lua_State* L) {
+	// Game.getInstances() -> {info, ...} for every registered instance
+	const auto ids = g_instanceRegistry().all();
+	lua_createtable(L, static_cast<int>(ids.size()), 0);
+	int index = 0;
+	for (const auto &id : ids) {
+		pushInstanceInfo(L, id);
+		lua_rawseti(L, -2, ++index);
+	}
+	return 1;
+}
+
+int GameFunctions::luaGameParseInstance(lua_State* L) {
+	// Game.parseInstance(instance) -> {key, kind, subareaId, channel} | nil  (no error on bad input)
+	const auto id = Lua::parseInstanceId(L, 1);
+	if (!id) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_createtable(L, 0, 4);
+	Lua::setField(L, "key", id->toKey());
+	Lua::setField(L, "kind", std::string(instanceKindName(id->kind())));
+	Lua::setField(L, "subareaId", id->subareaId());
+	Lua::setField(L, "channel", id->channel());
+	return 1;
+}
+
+int GameFunctions::luaGameInstanceKey(lua_State* L) {
+	// Game.instanceKey(kind, subareaId, channel) -> key | nil
+	const auto kind = Lua::getInstanceKind(L, 1);
+	if (!kind || (*kind == InstanceKind::World && (Lua::getNumber<uint32_t>(L, 2, 0) != 0 || Lua::getNumber<uint16_t>(L, 3, 0) != 0))) {
+		lua_pushnil(L);
+		return 1;
+	}
+	if (*kind == InstanceKind::World) {
+		Lua::pushInstanceId(L, InstanceId::World);
+		return 1;
+	}
+	Lua::pushInstanceId(L, InstanceId(*kind, Lua::getNumber<uint32_t>(L, 2, 0), Lua::getNumber<uint16_t>(L, 3, 0)));
+	return 1;
+}
+
+int GameFunctions::luaGameIsPrivateInstance(lua_State* L) {
+	// Game.isPrivateInstance(instance) -> reserved channel or private-only kind
+	const auto parsed = Lua::parseInstanceId(L, 1);
+	Lua::pushBoolean(L, parsed && g_instanceRegistry().isPrivate(*parsed));
+	return 1;
+}
+
+namespace {
+	// {id, kind, name, cipId, owners, instance} | nil
+	void pushSubarea(lua_State* L, uint32_t regionId) {
+		const auto &subareas = g_subareas();
+		const auto* record = regionId != 0 ? subareas.region(regionId) : nullptr;
+		if (!record) {
+			lua_pushnil(L);
+			return;
+		}
+		lua_createtable(L, 0, 6);
+		Lua::setField(L, "id", record->id);
+		Lua::setField(L, "kind", std::string(instanceKindName(subareas.kindOf(regionId))));
+		Lua::setField(L, "name", record->name);
+		Lua::setField(L, "cipId", record->cipId);
+		lua_createtable(L, static_cast<int>(record->owners.size()), 0);
+		int index = 0;
+		for (const auto owner : record->owners) {
+			lua_pushnumber(L, owner);
+			lua_rawseti(L, -2, ++index);
+		}
+		lua_setfield(L, -2, "owners");
+		Lua::pushInstanceId(L, subareas.mainInstanceFor(regionId));
+		lua_setfield(L, -2, "instance");
+	}
+}
+
+int GameFunctions::luaGameGetSubareaAt(lua_State* L) {
+	// Game.getSubareaAt(position) -> {id, kind, name, cipId, owners, instance} | nil
+	pushSubarea(L, g_subareas().regionAt(Lua::getPosition(L, 1)));
+	return 1;
+}
+
+int GameFunctions::luaGameGetSubareaInfo(lua_State* L) {
+	// Game.getSubareaInfo(regionId) -> {id, kind, name, cipId, owners, instance} | nil
+	pushSubarea(L, Lua::getNumber<uint32_t>(L, 1, 0));
+	return 1;
+}
+
+int GameFunctions::luaGameIsSubareaInstancesEnabled(lua_State* L) {
+	// Game.isSubareaInstancesEnabled() -> regions loaded and openWorldSubareaInstances on
+	Lua::pushBoolean(L, g_subareas().enabled());
+	return 1;
+}
+
+int GameFunctions::luaGamePickInstanceChannel(lua_State* L) {
+	// Game.pickInstanceChannel(kind, subareaId[, preferredChannel[, player]]) -> key | nil
+	const auto kind = Lua::getInstanceKind(L, 1);
+	if (!kind || *kind == InstanceKind::World) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto subareaId = Lua::getNumber<uint32_t>(L, 2, 0);
+	std::optional<uint16_t> preferred;
+	if (lua_gettop(L) >= 3 && lua_isnumber(L, 3)) {
+		preferred = Lua::getNumber<uint16_t>(L, 3);
+	}
+	std::shared_ptr<Player> player;
+	if (lua_gettop(L) >= 4 && !lua_isnil(L, 4)) {
+		player = Lua::getPlayer(L, 4);
+	}
+	const auto id = g_instanceRegistry().pickChannel(*kind, subareaId, preferred, player);
+	if (!id) {
+		lua_pushnil(L);
+		return 1;
+	}
+	Lua::pushInstanceId(L, *id);
+	return 1;
+}
+
+int GameFunctions::luaGameGetInstanceChannels(lua_State* L) {
+	// Game.getInstanceChannels(kind, subareaId) -> { {key, channel, players, reserved, owner}, ... }
+	const auto kind = Lua::getInstanceKind(L, 1);
+	lua_newtable(L);
+	if (!kind) {
+		return 1;
+	}
+	const auto subareaId = Lua::getNumber<uint32_t>(L, 2, 0);
+	const auto &channels = g_instanceRegistry();
+	int index = 0;
+	for (const auto &id : channels.channelsOf(*kind, subareaId)) {
+		const auto* state = channels.find(id);
+		lua_createtable(L, 0, 6);
+		Lua::setField(L, "tag", state ? state->tag : std::string {});
+		Lua::setField(L, "key", id.toKey());
+		Lua::setField(L, "channel", id.channel());
+		Lua::setField(L, "players", channels.playerCount(id));
+		Lua::pushBoolean(L, state && state->reserved);
+		lua_setfield(L, -2, "reserved");
+		Lua::setField(L, "owner", state ? state->owner : std::string {});
+		lua_rawseti(L, -2, ++index);
+	}
+	return 1;
+}
+
+int GameFunctions::luaGameSetInstanceKindCapacity(lua_State* L) {
+	// Game.setInstanceKindCapacity(kind, maxPlayers) -- 0 = unlimited
+	const auto kind = Lua::getInstanceKind(L, 1);
+	if (!kind) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	g_instanceRegistry().setKindCapacity(*kind, Lua::getNumber<uint32_t>(L, 2, 0));
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameSetInstanceKindWorldType(lua_State* L) {
+	// Game.setInstanceKindWorldType(kind, worldType|nil)
+	const auto kind = Lua::getInstanceKind(L, 1);
+	if (!kind) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	if (lua_isnoneornil(L, 2)) {
+		g_game().setInstanceKindWorldType(*kind, std::nullopt);
+	} else {
+		const auto type = Lua::getNumber<WorldType_t>(L, 2);
+		if (type < WORLDTYPE_FIRST || type > WORLDTYPE_LAST) {
+			Lua::pushBoolean(L, false);
+			return 1;
+		}
+		g_game().setInstanceKindWorldType(*kind, type);
+	}
 	Lua::pushBoolean(L, true);
 	return 1;
 }
@@ -783,35 +1102,46 @@ namespace {
 } // namespace
 
 int GameFunctions::luaGameSetInstanceHubFence(lua_State* L) {
-	// Game.setInstanceHubFence(centerX, centerY[, radius = 40[, floors]])
+	// Game.setInstanceHubFence(centerX, centerY[, radius = 40[, floors[, centerZ = 7]]])
 	const auto cx = Lua::getNumber<int32_t>(L, 1);
 	const auto cy = Lua::getNumber<int32_t>(L, 2);
 	const auto radius = Lua::getNumber<int32_t>(L, 3, InstanceFenceRegistry::DEFAULT_HUB_WALK_RADIUS);
 	std::vector<uint8_t> floors;
-	if (lua_gettop(L) >= 4) {
+	if (lua_gettop(L) >= 4 && lua_istable(L, 4)) {
 		floors = readFloorList(L, 4);
 	}
-	g_instanceFences().setHub(cx, cy, radius, floors);
+	const auto cz = Lua::getNumber<uint8_t>(L, 5, 7);
+	g_instanceFences().setHub(cx, cy, radius, floors, cz);
 	Lua::pushBoolean(L, true);
 	return 1;
 }
 
 int GameFunctions::luaGameSetInstanceAreaFence(lua_State* L) {
-	// Game.setInstanceAreaFence(areaId, occupancyTable[, boundaryTable])
-	// Cities/settlements: all floors. occupancyTable from Game.loadOccupancyMask.
-	const auto areaId = Lua::getNumber<uint32_t>(L, 1);
-	auto fence = makeFenceFromLua(L, 2, lua_gettop(L) >= 3 ? 3 : 0, 0, true);
-	g_instanceFences().setAreaFence(areaId, std::move(fence));
+	// Game.setInstanceAreaFence(kind, subareaId, occupancyTable[, boundaryTable])
+	// Cities/settlements: all floors, every channel. occupancyTable from Game.loadOccupancyMask.
+	const auto kind = Lua::getInstanceKind(L, 1);
+	if (!kind || !isAreaKind(*kind)) {
+		Lua::reportErrorFunc("Game.setInstanceAreaFence: kind must be 'city' or 'settlement'");
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	const auto subareaId = Lua::getNumber<uint32_t>(L, 2);
+	auto fence = makeFenceFromLua(L, 3, lua_gettop(L) >= 4 ? 4 : 0, 0, true);
+	g_instanceFences().setAreaFence(*kind, subareaId, std::move(fence));
 	Lua::pushBoolean(L, true);
 	return 1;
 }
 
 int GameFunctions::luaGameSetInstancePrivateFence(lua_State* L) {
 	// Game.setInstancePrivateFence(instanceId, occupancyTable[, boundaryTable[, floors]])
-	const auto instanceId = Lua::getNumber<uint32_t>(L, 1);
+	const auto instanceId = Lua::requireInstanceId(L, 1);
+	if (!instanceId || instanceId->isWorld()) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
 	const int top = lua_gettop(L);
 	auto fence = makeFenceFromLua(L, 2, top >= 3 ? 3 : 0, top >= 4 ? 4 : 0, false);
-	g_instanceFences().setPrivateFence(instanceId, std::move(fence));
+	g_instanceFences().setPrivateFence(*instanceId, std::move(fence));
 	Lua::pushBoolean(L, true);
 	return 1;
 }
@@ -819,7 +1149,11 @@ int GameFunctions::luaGameSetInstancePrivateFence(lua_State* L) {
 int GameFunctions::luaGameRunInInstance(lua_State* L) {
 	// Game.runInInstance(instanceId, callback, ...) -> callback results
 	// Script creates / effects / transforms inside callback default to instanceId.
-	const auto instanceId = Lua::getNumber<uint32_t>(L, 1);
+	const auto instanceId = Lua::requireInstanceId(L, 1);
+	if (!instanceId) {
+		lua_pushnil(L);
+		return 1;
+	}
 	if (!Lua::isFunction(L, 2)) {
 		Lua::reportErrorFunc("Game.runInInstance: callback must be a function");
 		lua_pushnil(L);
@@ -827,7 +1161,7 @@ int GameFunctions::luaGameRunInInstance(lua_State* L) {
 	}
 	const int nargs = lua_gettop(L) - 2;
 	lua_remove(L, 1);
-	InstanceActorScope scope(InstanceId { instanceId });
+	InstanceActorScope scope(*instanceId);
 	if (Lua::protectedCall(L, nargs, LUA_MULTRET) != 0) {
 		Lua::reportError(nullptr, Lua::popString(L));
 		return 0;
@@ -837,20 +1171,26 @@ int GameFunctions::luaGameRunInInstance(lua_State* L) {
 
 int GameFunctions::luaGameClearInstancePrivateFence(lua_State* L) {
 	// Game.clearInstancePrivateFence(instanceId)
-	g_instanceFences().clearPrivateFence(Lua::getNumber<uint32_t>(L, 1));
-	Lua::pushBoolean(L, true);
+	const auto instanceId = Lua::requireInstanceId(L, 1);
+	if (instanceId) {
+		g_instanceFences().clearPrivateFence(*instanceId);
+	}
+	Lua::pushBoolean(L, instanceId.has_value());
 	return 1;
 }
 
 int GameFunctions::luaGameCreateInstanceSpawns(lua_State* L) {
 	// Game.createInstanceSpawns(instanceId) -> spawn block count
-	lua_pushnumber(L, g_instanceSpawns().create(Lua::getNumber<uint32_t>(L, 1)));
+	const auto instanceId = Lua::requireInstanceId(L, 1);
+	lua_pushnumber(L, instanceId && !instanceId->isWorld() ? g_instanceSpawns().create(*instanceId) : 0);
 	return 1;
 }
 
 int GameFunctions::luaGameClearInstanceSpawns(lua_State* L) {
 	// Game.clearInstanceSpawns(instanceId)
-	g_instanceSpawns().clear(Lua::getNumber<uint32_t>(L, 1));
+	if (const auto instanceId = Lua::requireInstanceId(L, 1)) {
+		g_instanceSpawns().clear(*instanceId);
+	}
 	return 0;
 }
 
@@ -858,9 +1198,14 @@ int GameFunctions::luaGameSweepInstance(lua_State* L) {
 	// Game.sweepInstance(instanceId) -> removed count | nil (not private / no fence registered)
 	// Stops instance spawns, then removes every non-player creature and loose item tagged
 	// with instanceId: a native map scan plus the fence tiles across its floors.
-	const auto instanceId = Lua::getNumber<uint32_t>(L, 1);
+	const auto parsedId = Lua::requireInstanceId(L, 1);
+	if (!parsedId || parsedId->isWorld()) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const InstanceId instanceId = *parsedId;
 	const auto &fences = g_instanceFences();
-	const auto bounds = instanceId >= InstanceFenceRegistry::PRIVATE_BASE ? fences.boundsFor(instanceId) : std::nullopt;
+	const auto bounds = fences.hasPrivateFence(instanceId) ? fences.boundsFor(instanceId) : std::nullopt;
 	if (!bounds) {
 		lua_pushnil(L);
 		return 1;
@@ -930,14 +1275,35 @@ int GameFunctions::luaGameSweepInstance(lua_State* L) {
 
 int GameFunctions::luaGameSetInstanceFloors(lua_State* L) {
 	// Game.setInstanceFloors(instanceId, floorsTable|nil)
-	const auto instanceId = Lua::getNumber<uint32_t>(L, 1);
+	const auto instanceId = Lua::requireInstanceId(L, 1);
+	if (!instanceId || instanceId->isWorld()) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
 	if (lua_isnoneornil(L, 2)) {
-		g_instanceFences().setFloors(instanceId, {}, true);
+		g_instanceFences().setFloors(*instanceId, {}, true);
 	} else {
 		auto floors = readFloorList(L, 2);
-		g_instanceFences().setFloors(instanceId, floors, floors.empty());
+		g_instanceFences().setFloors(*instanceId, floors, floors.empty());
 	}
 	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameGetInstanceFloors(lua_State* L) {
+	// Game.getInstanceFloors(instanceId) -> {z, ...} | nil (every floor)
+	const auto instanceId = Lua::requireInstanceId(L, 1);
+	const auto floors = instanceId ? g_instanceFences().floorsFor(*instanceId) : std::vector<uint8_t> {};
+	if (floors.empty()) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_createtable(L, static_cast<int>(floors.size()), 0);
+	int index = 0;
+	for (const auto z : floors) {
+		lua_pushnumber(L, z);
+		lua_rawseti(L, -2, ++index);
+	}
 	return 1;
 }
 
@@ -1107,22 +1473,25 @@ int GameFunctions::luaGameSetGameState(lua_State* L) {
 }
 
 int GameFunctions::luaGameGetWorldType(lua_State* L) {
-	// Game.getWorldType([instanceId])
-	const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 1, 0);
-	lua_pushnumber(L, g_game().getWorldType(instanceId));
+	// Game.getWorldType([instanceId]) -- no argument = the world's global type
+	std::optional<InstanceId> instanceId;
+	if (!Lua::readInstanceId(L, 1, instanceId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_pushnumber(L, g_game().getWorldType(instanceId.value_or(InstanceId::World)));
 	return 1;
 }
 
 int GameFunctions::luaGameSetInstanceWorldType(lua_State* L) {
 	// Game.setInstanceWorldType(instanceId, worldType)
-	const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 1);
+	const auto instanceId = Lua::requireInstanceId(L, 1);
 	const auto type = Lua::getNumber<WorldType_t>(L, 2);
-	if (instanceId == 0 || type < WORLDTYPE_FIRST || type > WORLDTYPE_LAST) {
+	if (!instanceId || instanceId->isWorld() || type < WORLDTYPE_FIRST || type > WORLDTYPE_LAST) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
-	g_game().setInstanceWorldType(instanceId, type);
-	Lua::pushBoolean(L, true);
+	Lua::pushBoolean(L, g_game().setInstanceWorldType(*instanceId, type));
 	return 1;
 }
 
@@ -1165,10 +1534,18 @@ int GameFunctions::luaGameCreateItem(lua_State* L) {
 	if (lua_gettop(L) >= 3 && !lua_isnil(L, 3)) {
 		position = Lua::getPosition(L, 3);
 	}
-	// An explicit instanceId (0 included) wins; otherwise inherit from the acting creature / area.
-	const InstanceId instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
-		? InstanceId(Lua::getNumber<uint32_t>(L, 4))
-		: Game::resolveBirthInstance(0, nullptr, position.x != 0 ? &position : nullptr);
+	// An explicit instanceId (World included) wins; otherwise inherit from the acting creature / area.
+	std::optional<InstanceId> explicitId;
+	if (!Lua::readInstanceId(L, 4, explicitId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto birthId = Game::resolveBirthInstance(explicitId, nullptr, position.x != 0 ? &position : nullptr, "Game.createItem");
+	if (!birthId) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const InstanceId instanceId = *birthId;
 
 	const bool hasTable = itemCount > 1;
 	if (hasTable) {
@@ -1244,9 +1621,17 @@ int GameFunctions::luaGameCreateContainer(lua_State* L) {
 
 	const bool hasPosition = lua_gettop(L) >= 3 && lua_type(L, 3) != LUA_TNIL;
 	const Position position = hasPosition ? Lua::getPosition(L, 3) : Position();
-	const InstanceId instanceId = lua_gettop(L) >= 4 && !lua_isnil(L, 4)
-		? InstanceId(Lua::getNumber<uint32_t>(L, 4))
-		: Game::resolveBirthInstance(0, nullptr, hasPosition ? &position : nullptr);
+	std::optional<InstanceId> explicitId;
+	if (!Lua::readInstanceId(L, 4, explicitId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto birthId = Game::resolveBirthInstance(explicitId, nullptr, hasPosition ? &position : nullptr, "Game.createContainer");
+	if (!birthId) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const InstanceId instanceId = *birthId;
 	const auto &container = Item::CreateItemAsContainer(id, size, instanceId);
 	if (!container) {
 		lua_pushnil(L);
@@ -1272,14 +1657,23 @@ int GameFunctions::luaGameCreateContainer(lua_State* L) {
 }
 
 int GameFunctions::luaGameCreateMonster(lua_State* L) {
-	// Game.createMonster(monsterName, position[, extended = false[, force = false[, master = nil[, instanceId = 0]]]])
+	// Game.createMonster(monsterName, position[, extended = false[, force = false[, master = nil[, instanceId = nil]]]])
 	const Position &position = Lua::getPosition(L, 2);
 	std::shared_ptr<Creature> master;
 	if (lua_gettop(L) >= 5 && lua_type(L, 5) != LUA_TNIL) {
 		master = Lua::getCreature(L, 5);
 	}
-	const uint32_t explicitId = lua_gettop(L) >= 6 ? Lua::getNumber<uint32_t>(L, 6, 0) : 0;
-	const auto &monster = Monster::createMonster(Lua::getString(L, 1), Game::resolveBirthInstance(explicitId, master, &position));
+	std::optional<InstanceId> explicitId;
+	if (!creatureBirthArg(L, 6, explicitId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto birthId = Game::resolveBirthInstance(explicitId, master, &position, "Game.createMonster");
+	if (!birthId) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto &monster = Monster::createMonster(Lua::getString(L, 1), *birthId);
 	if (!monster) {
 		lua_pushnil(L);
 		return 1;
@@ -1319,7 +1713,12 @@ int GameFunctions::luaGameCreateMonster(lua_State* L) {
 
 int GameFunctions::luaGameGenerateNpc(lua_State* L) {
 	// Game.generateNpc(npcName[, instanceId])
-	const auto &npc = Npc::createNpc(Lua::getString(L, 1), Game::resolveBirthInstance(Lua::getNumber<uint32_t>(L, 2, 0), nullptr, nullptr));
+	std::optional<InstanceId> explicitId;
+	if (!creatureBirthArg(L, 2, explicitId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto &npc = Npc::createNpc(Lua::getString(L, 1), Game::resolveBirthInstance(explicitId, nullptr, nullptr, "Game.generateNpc").value_or(InstanceId::World));
 	if (!npc) {
 		lua_pushnil(L);
 		return 1;
@@ -1331,9 +1730,19 @@ int GameFunctions::luaGameGenerateNpc(lua_State* L) {
 }
 
 int GameFunctions::luaGameCreateNpc(lua_State* L) {
-	// Game.createNpc(npcName, position[, extended = false[, force = false[, instanceId = 0]]])
+	// Game.createNpc(npcName, position[, extended = false[, force = false[, instanceId = nil]]])
 	const Position &position = Lua::getPosition(L, 2);
-	const auto &npc = Npc::createNpc(Lua::getString(L, 1), Game::resolveBirthInstance(Lua::getNumber<uint32_t>(L, 5, 0), nullptr, &position));
+	std::optional<InstanceId> explicitId;
+	if (!creatureBirthArg(L, 5, explicitId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto birthId = Game::resolveBirthInstance(explicitId, nullptr, &position, "Game.createNpc");
+	if (!birthId) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto &npc = Npc::createNpc(Lua::getString(L, 1), *birthId);
 	if (!npc) {
 		lua_pushnil(L);
 		return 1;
@@ -1529,7 +1938,7 @@ int GameFunctions::luaGameGetOfflinePlayer(lua_State* L) {
 }
 
 int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
-	// Game.headlessLogin(name or guid[, position[, instanceId = 0]])
+	// Game.headlessLogin(name or guid[, position[, instanceId = nil]])
 	// Places a headless Player (no ProtocolGame) online.
 	// NOTE: DB load is synchronous on the dispatcher — prefer headlessLoginBatch for multi-login.
 	Position position;
@@ -1537,7 +1946,13 @@ int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
 	if (hasPosition) {
 		position = Lua::getPosition(L, 2);
 	}
-	const uint32_t instanceId = lua_gettop(L) >= 3 ? Lua::getNumber<uint32_t>(L, 3, 0) : 0;
+	std::optional<InstanceId> explicitId;
+	if (!Lua::readInstanceId(L, 3, explicitId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	// World = bind from the placement position (InstanceWorld.bindLogin).
+	const InstanceId instanceId = explicitId.value_or(InstanceId::World);
 
 	std::shared_ptr<Player> existing = nullptr;
 	std::string name;
@@ -1603,7 +2018,7 @@ int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
 }
 
 int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
-	// Game.headlessLoginBatch(names, position, callback[, instanceId = 0[, accountId = 0]])
+	// Game.headlessLoginBatch(names, position, callback[, instanceId = nil[, accountId = 0]])
 	// names: array of character name strings (and/or guids as numbers)
 	// accountId: non-zero rejects characters of another account before they are placed.
 	// callback(players|nil, err|nil) — invoked on the game dispatcher after place.
@@ -1619,7 +2034,13 @@ int GameFunctions::luaGameHeadlessLoginBatch(lua_State* L) {
 	if (hasPosition) {
 		position = Lua::getPosition(L, 2);
 	}
-	const uint32_t instanceId = lua_gettop(L) >= 4 ? Lua::getNumber<uint32_t>(L, 4, 0) : 0;
+	std::optional<InstanceId> explicitId;
+	if (!Lua::readInstanceId(L, 4, explicitId)) {
+		lua_pushnil(L);
+		Lua::pushString(L, "invalid instance id");
+		return 2;
+	}
+	const InstanceId instanceId = explicitId.value_or(InstanceId::World);
 	const uint32_t accountId = lua_gettop(L) >= 5 ? Lua::getNumber<uint32_t>(L, 5, 0) : 0;
 
 	lua_pushvalue(L, 3);

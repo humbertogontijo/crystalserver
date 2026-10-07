@@ -23,6 +23,7 @@
 void MetricsFunctions::init(lua_State* L) {
 	Lua::registerTable(L, "metrics");
 	Lua::registerMethod(L, "metrics", "addCounter", MetricsFunctions::luaMetricsAddCounter);
+	Lua::registerMethod(L, "metrics", "setGauge", MetricsFunctions::luaMetricsSetGauge);
 }
 
 // Metrics
@@ -33,6 +34,15 @@ int MetricsFunctions::luaMetricsAddCounter(lua_State* L) {
 	const auto attributes = getAttributes(L, 3);
 	g_metrics().addCounter(name, value, attributes);
 	return 1;
+}
+
+int MetricsFunctions::luaMetricsSetGauge(lua_State* L) {
+	// metrics.setGauge(name, value, attributes)
+	const auto name = Lua::getString(L, 1);
+	const auto value = Lua::getNumber<double>(L, 2);
+	const auto attributes = getAttributes(L, 3);
+	g_metrics().setGauge(name, value, attributes);
+	return 0;
 }
 
 std::map<std::string, std::string> MetricsFunctions::getAttributes(lua_State* L, int32_t index) {

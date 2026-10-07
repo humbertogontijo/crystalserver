@@ -379,9 +379,9 @@ private:
 	bool canWalkTo(Position pos, Direction direction);
 
 	static bool pushItem(const std::shared_ptr<Item> &item, const Direction &nextDirection);
-	static void pushItems(const std::shared_ptr<Tile> &tile, const Direction &nextDirection);
+	void pushItems(const std::shared_ptr<Tile> &tile, const Direction &nextDirection);
 	static bool pushCreature(const std::shared_ptr<Creature> &creature);
-	static void pushCreatures(const std::shared_ptr<Tile> &tile);
+	void pushCreatures(const std::shared_ptr<Tile> &tile);
 
 	void onThinkTarget(uint32_t interval);
 	void onThinkYell(uint32_t interval);

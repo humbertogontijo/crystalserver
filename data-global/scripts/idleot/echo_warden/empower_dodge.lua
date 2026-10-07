@@ -19,7 +19,7 @@ function dodge.onHealthChange(creature, attacker, primaryDamage, primaryType, se
 	end
 	local pos = creature:getPosition()
 	if pos and CONST_ME_DODGE then
-		EchoWarden.sendEffect(pos, CONST_ME_DODGE, EchoWarden.creatureInstanceId(creature))
+		EchoWarden.sendEffect(pos, CONST_ME_DODGE, Instance.of(creature))
 	end
 	return 0, primaryType, 0, secondaryType
 end

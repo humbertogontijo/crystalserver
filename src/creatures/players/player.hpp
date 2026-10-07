@@ -904,7 +904,7 @@ public:
 
 	/// Soft-death: hide from combat (stay on tile as spectator); restore with softSpawn.
 	bool softDespawn();
-	bool softSpawn(const Position &pos);
+	bool softSpawn(const Position &pos, std::optional<InstanceId> instance = std::nullopt);
 	bool isSoftDespawned() const {
 		return softDespawned;
 	}

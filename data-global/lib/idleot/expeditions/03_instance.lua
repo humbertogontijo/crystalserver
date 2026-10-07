@@ -1,42 +1,30 @@
 ExpeditionInstance = {}
 
-function ExpeditionInstance.resetSlots()
-	-- Private hunts use engine instance ids (Game.allocateInstance / releaseInstance).
-end
-
---- kind: InstancePvp.KINDS key (PvP mode + death rules for this instance).
-function ExpeditionInstance.allocate(kind)
-	if not Game.allocateInstance then
-		return nil
+--- Reserved channel of {kind, subareaId}: a private layer of that subarea for one session.
+--- kind: InstanceKinds key (PvP mode + death rules), subareaId: catalog / region id.
+--- owner: session key checked by Instance.isLive(key, owner); tag: engine-side label.
+--- Returns the key, or nil and the engine's reason.
+function ExpeditionInstance.allocate(kind, subareaId, owner, tag)
+	local id, reason = Game.allocateInstance(kind, math.floor(tonumber(subareaId) or 0), {
+		private = true,
+		owner = owner and tostring(owner) or nil,
+		tag = tag and tostring(tag) or nil,
+	})
+	if not id then
+		logger.error("[ExpeditionInstance] allocate failed for {}:{}: {}", tostring(kind), tostring(subareaId), tostring(reason))
+		return nil, reason
 	end
-	local raw = Game.allocateInstance()
-	local id = math.floor(tonumber(raw) or 0)
-	if id < 3000000 then
-		logger.error("[ExpeditionInstance] allocate returned invalid id {}", tostring(raw))
-		return nil
-	end
-	InstancePvp.apply(id, kind)
+	InstanceKinds.apply(id)
 	return id
 end
 
 function ExpeditionInstance.free(instanceId)
-	if instanceId == nil then
+	if instanceId == nil or Instance.isWorld(instanceId) then
 		return
 	end
-	local id = math.floor(tonumber(instanceId) or 0)
-	if id < 3000000 then
-		return
-	end
-	if Game.clearInstanceSpawns then
-		Game.clearInstanceSpawns(id)
-	end
-	if Game.releaseInstance then
-		Game.releaseInstance(id)
-	end
-	InstancePvp.forget(id)
-	if Game.clearInstancePrivateFence then
-		Game.clearInstancePrivateFence(id)
-	end
+	Game.clearInstanceSpawns(instanceId)
+	Game.releaseInstance(instanceId)
+	InstanceKinds.release(instanceId)
 end
 
 function ExpeditionInstance.origin(_instanceId)
@@ -169,9 +157,6 @@ local function loadOccupancy(opts)
 			return cached
 		end
 	end
-	if not Game.loadOccupancyMask then
-		return nil
-	end
 	local file = opts.overviewFile
 	local b = opts.boundary
 	if type(file) ~= "string" or file == "" or type(b) ~= "table" then
@@ -263,15 +248,13 @@ function ExpeditionInstance.build(instanceId, opts, _seed, _kind)
 			instance.entry = pos
 		end
 	end
-	if Game.setInstancePrivateFence then
-		local aabb = {
-			x = originX,
-			y = originY,
-			w = mapW,
-			h = mapH,
-		}
-		Game.setInstancePrivateFence(instanceId, occupancy, aabb, floors)
-	end
+	local aabb = {
+		x = originX,
+		y = originY,
+		w = mapW,
+		h = mapH,
+	}
+	Game.setInstancePrivateFence(instanceId, occupancy, aabb, floors)
 	return instance
 end
 
@@ -334,7 +317,7 @@ end
 
 --- Fork closed/locked doors open for this private instance (does not mutate the shared map).
 function ExpeditionInstance.openDoors(instance)
-	if not instance or not instance.instanceId then
+	if not ExpeditionInstance.isLive(instance) then
 		return
 	end
 	local instanceId = instance.instanceId
@@ -358,7 +341,7 @@ function ExpeditionInstance.openDoors(instance)
 						-- Snapshot first: transforming/adding mutates the tile item list.
 						local toOpen = {}
 						for _, item in ipairs(items) do
-							if item and (not item.getInstanceId or item:getInstanceId() == 0) then
+							if item and Instance.isWorld(Instance.of(item)) then
 								local id = item:getId()
 								local openId = openByClosed[id]
 								if openId then
@@ -433,28 +416,22 @@ function ExpeditionInstance.sweep(instance)
 	end
 	local instanceId = instance.instanceId
 	-- Native sweep walks the registered fence; nil means no fence (fall back to the Lua scan).
-	if Game.sweepInstance and Game.sweepInstance(instanceId) then
+	if Game.sweepInstance(instanceId) then
 		return
 	end
 	-- Stop instance respawns before sweeping so nothing reappears mid-teardown.
-	if Game.clearInstanceSpawns then
-		Game.clearInstanceSpawns(instanceId)
-	end
-	if Game.getMonsters then
-		for _, monster in ipairs(Game.getMonsters()) do
-			if monster and monster.getInstanceId and monster:getInstanceId() == instanceId then
-				if monster.setDropLoot then
-					monster:setDropLoot(false)
-				end
-				monster:remove()
+	Game.clearInstanceSpawns(instanceId)
+	for _, monster in ipairs(Game.getMonsters()) do
+		if monster and monster.getInstanceId and monster:getInstanceId() == instanceId then
+			if monster.setDropLoot then
+				monster:setDropLoot(false)
 			end
+			monster:remove()
 		end
 	end
-	if Game.getNpcs then
-		for _, npc in ipairs(Game.getNpcs()) do
-			if npc and npc.getInstanceId and npc:getInstanceId() == instanceId then
-				npc:remove()
-			end
+	for _, npc in ipairs(Game.getNpcs()) do
+		if npc and npc.getInstanceId and npc:getInstanceId() == instanceId then
+			npc:remove()
 		end
 	end
 
@@ -502,12 +479,14 @@ function ExpeditionInstance.teardown(instance)
 	instance._tornDown = true
 	local id = instance.instanceId or instance.slot
 	ExpeditionInstance.sweep(instance)
-	if InstanceWorld and InstanceWorld.forgetFloors then
-		InstanceWorld.forgetFloors(id)
-	end
 	ExpeditionInstance.free(id)
-	instance.instanceId = nil
 	instance.slot = nil
+end
+
+--- True while the instance has not been torn down and the engine still owns its key.
+--- The key stays on torn-down instances so late callbacks can compare against it.
+function ExpeditionInstance.isLive(instance)
+	return instance ~= nil and not instance._tornDown and instance.instanceId ~= nil and Instance.isLive(instance.instanceId)
 end
 
 local function sameInstance(creature, instanceId)
@@ -642,7 +621,7 @@ local function afterCreateMonster(monster, instance)
 		session = ExpeditionManager.getSessionByInstanceId(instance.instanceId)
 	end
 	local skipForge = session and session.skipOpenWorldForge == true
-	if monster and not skipForge and InstanceWorld and InstanceWorld.applyOpenWorldForge then
+	if monster and not skipForge then
 		InstanceWorld.applyOpenWorldForge(monster)
 	end
 	return monster

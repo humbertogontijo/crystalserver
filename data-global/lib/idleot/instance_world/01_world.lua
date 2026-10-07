@@ -1,15 +1,12 @@
 InstanceWorld = InstanceWorld or {}
 
-InstanceWorld.CITY_BASE = 1000000
-InstanceWorld.HUB_ADVENTURERS = 2000000
--- Engine private hunt/raid ids (Game.INSTANCE_PRIVATE_BASE). Dead after restart.
-InstanceWorld.PRIVATE_BASE = 3000000
+InstanceWorld.HUB_ADVENTURERS = Instance.HUB
 -- Chebyshev radius around hubs[1].center; classify and canWalk must agree.
 InstanceWorld.HUB_WALK_RADIUS = 40
-InstanceWorld.KV_KEY = "instance_key"
 
 InstanceWorld.cities = InstanceWorld.cities or {}
 InstanceWorld.citiesById = InstanceWorld.citiesById or {}
+InstanceWorld.citiesBySubareaId = InstanceWorld.citiesBySubareaId or {}
 InstanceWorld.settlements = InstanceWorld.settlements or {}
 InstanceWorld.settlementsById = InstanceWorld.settlementsById or {}
 InstanceWorld.hubs = InstanceWorld.hubs or {}
@@ -20,7 +17,6 @@ InstanceWorld.occupancyBySubarea = InstanceWorld.occupancyBySubarea or {}
 InstanceWorld.occupancyByCityId = InstanceWorld.occupancyByCityId or {}
 InstanceWorld.occupancyBySettlementId = InstanceWorld.occupancyBySettlementId or {}
 InstanceWorld.occupancyByHuntId = InstanceWorld.occupancyByHuntId or {}
-InstanceWorld.floorSetByInstanceId = InstanceWorld.floorSetByInstanceId or {}
 -- Player ids temporarily exempt from auto-leave-on-city-travel (expedition leave→switch).
 InstanceWorld._suppressHuntLeave = InstanceWorld._suppressHuntLeave or {}
 
@@ -36,37 +32,47 @@ function InstanceWorld.suppressHuntLeave(player, suppress)
 	end
 end
 
+--- Engine floor gate of `instanceId` (released with the channel).
 function InstanceWorld.rememberFloors(instanceId, floorSet)
 	if instanceId and type(floorSet) == "table" then
-		InstanceWorld.floorSetByInstanceId[instanceId] = floorSet
-		if Game.setInstanceFloors then
-			Game.setInstanceFloors(instanceId, floorSet)
-		end
+		Game.setInstanceFloors(instanceId, floorSet)
 	end
 end
 
-function InstanceWorld.forgetFloors(instanceId)
-	if instanceId then
-		InstanceWorld.floorSetByInstanceId[instanceId] = nil
-		if Game.setInstanceFloors then
-			Game.setInstanceFloors(instanceId, nil)
-		end
-		if Game.clearInstancePrivateFence and instanceId >= (InstanceWorld.PRIVATE_BASE or 3000000) then
-			Game.clearInstancePrivateFence(instanceId)
-		end
-	end
+--- City or settlement: the kinds with a catalog area (C++ isAreaKind).
+local function isAreaKind(kind)
+	return kind == "city" or kind == "settlement"
 end
 
-local function zAllowed(instanceId, z)
-	local floors = instanceId and InstanceWorld.floorSetByInstanceId[instanceId]
-	if not floors then
-		return true
+--- Instance kind + subarea id of a catalog city or settlement row.
+function InstanceWorld.areaIdentity(area)
+	if type(area) ~= "table" then
+		return nil, nil
 	end
-	return floors[math.floor(tonumber(z) or -1)] == true
+	local kind = area.kind == "settlement" and "settlement" or "city"
+	local subareaId = tonumber(area.subareaId or area.id)
+	if not subareaId then
+		return nil, nil
+	end
+	return kind, subareaId
 end
 
-function InstanceWorld.cityInstanceId(cityId)
-	return InstanceWorld.CITY_BASE + (tonumber(cityId) or 0)
+--- Public channel of {kind, subareaId} for `player`: keeps their current channel number
+--- when it has room, otherwise the lowest non-full one (engine pickChannel). nil when the
+--- engine cannot open one; callers must not invent a key.
+function InstanceWorld.pickInstance(player, kind, subareaId)
+	local preferred = nil
+	if player and player.getInstanceId then
+		local current = Instance.of(player)
+		if not Instance.isWorld(current) and not Instance.isPrivate(current) then
+			preferred = Instance.channel(current)
+		end
+	end
+	local picked = Game.pickInstanceChannel(kind, subareaId, preferred, player)
+	if not picked then
+		logger.error("[InstanceWorld] no channel available for {}:{}", tostring(kind), tostring(subareaId))
+	end
+	return picked
 end
 
 function InstanceWorld.posKey(pos)
@@ -123,9 +129,6 @@ local function loadMask(overviewFile, boundary)
 	if type(overviewFile) ~= "string" or overviewFile == "" or type(boundary) ~= "table" then
 		return nil
 	end
-	if not Game.loadOccupancyMask then
-		return nil
-	end
 	local ox, oy = tonumber(boundary.x), tonumber(boundary.y)
 	if not ox or not oy then
 		return nil
@@ -141,20 +144,25 @@ local function loadGenerated()
 	if type(catalog) == "table" and type(catalog.cities) == "table" then
 		InstanceWorld.cities = catalog.cities
 		InstanceWorld.citiesById = {}
+		InstanceWorld.citiesBySubareaId = {}
 		for _, city in ipairs(catalog.cities) do
 			if city.cityId then
 				InstanceWorld.citiesById[city.cityId] = city
+			end
+			local kind, subareaId = InstanceWorld.areaIdentity(city)
+			if subareaId then
+				InstanceWorld.citiesBySubareaId[subareaId] = city
 			end
 			local occ = loadMask(city.overviewFile, city.boundary)
 			if occ then
 				InstanceWorld.occupancyBySubarea[city.subareaId or city.id] = occ
 				InstanceWorld.occupancyByCityId[city.cityId] = occ
-				if Game.setInstanceAreaFence and city.cityId then
-					Game.setInstanceAreaFence(city.cityId, occ, city.boundary)
+				if subareaId then
+					Game.setInstanceAreaFence(kind, subareaId, occ, city.boundary)
 				end
 			end
 			-- Cities are multi-floor (houses, depots, stairs). Occupancy is XY;
-			-- do not rememberFloors or zAllowed would lock the catalog surface z.
+			-- do not rememberFloors or the engine would lock the catalog surface z.
 		end
 		logger.info("[InstanceWorld] loaded {} cities", #catalog.cities)
 	end
@@ -172,9 +180,7 @@ local function loadGenerated()
 			if occ and sid then
 				InstanceWorld.occupancyBySubarea[settlement.subareaId or sid] = occ
 				InstanceWorld.occupancyBySettlementId[sid] = occ
-				if Game.setInstanceAreaFence then
-					Game.setInstanceAreaFence(sid, occ, settlement.boundary)
-				end
+				Game.setInstanceAreaFence("settlement", sid, occ, settlement.boundary)
 			end
 			-- Settlements match cities: XY occupancy, all floors.
 		end
@@ -212,12 +218,13 @@ local function loadGenerated()
 		local hub = InstanceWorld.hubs[1]
 		local floors, floorSet = ExpeditionInstance.floorsFromSpec(hub, hub and hub.center and hub.center.z)
 		InstanceWorld.rememberFloors(InstanceWorld.HUB_ADVENTURERS, floorSet)
-		if Game.setInstanceHubFence and hub and hub.center then
+		if hub and hub.center then
 			Game.setInstanceHubFence(
 				hub.center.x,
 				hub.center.y,
 				InstanceWorld.HUB_WALK_RADIUS or 40,
-				floors
+				floors,
+				hub.center.z
 			)
 		end
 	end
@@ -262,27 +269,16 @@ function InstanceWorld.cityForTown(town)
 	return InstanceWorld.citiesById[24] or InstanceWorld.cities[1]
 end
 
-function InstanceWorld.persist(player, key)
-	if not player or not key then
-		return
-	end
-	local kv = player.kv and player:kv()
-	if kv then
-		kv:set(InstanceWorld.KV_KEY, key)
-	end
-end
-
-function InstanceWorld.loadKey(player)
+--- Engine instance record ({key, kind, owner, private}) as of the last logout; the engine
+--- rewrites `instance` on every instance change, so login code reads this snapshot.
+function InstanceWorld.loginRecord(player)
 	if not player or not player.kv then
 		return nil
 	end
 	local kv = player:kv()
-	if not kv or not kv.get then
-		return nil
-	end
-	local key = kv:get(InstanceWorld.KV_KEY)
-	if type(key) == "string" and key ~= "" then
-		return key
+	local record = kv and kv.get and kv:get("instance_login") or nil
+	if type(record) == "table" and type(record.key) == "string" then
+		return record
 	end
 	return nil
 end
@@ -295,15 +291,27 @@ function InstanceWorld.classify(dest)
 		return { kind = "hub", hubId = "adventurers" }
 	end
 
+	-- Multi-floor subarea regions: city/settlement regions keep their kind (connectors
+	-- resolve to their main owner); every other region is "open" (open-world hunt/wild).
+	if Game.isSubareaInstancesEnabled() then
+		local region = Game.getSubareaAt(Position(dest.x, dest.y, dest.z))
+		if region and region.instance then
+			local instanceKind = Instance.kind(region.instance)
+			local subareaId = Instance.subareaId(region.instance)
+			local kind = isAreaKind(instanceKind) and instanceKind or "open"
+			return { kind = kind, instanceKind = instanceKind, subareaId = subareaId, region = region }
+		end
+	end
+
 	for _, settlement in ipairs(InstanceWorld.settlements) do
 		local sid = settlement.id or settlement.subareaId
 		local occ = sid and InstanceWorld.occupancyBySettlementId[sid] or nil
 		if occ then
 			if occupancyContains(occ, dest.x, dest.y) then
-				return { kind = "settlement", settlementId = sid }
+				return { kind = "settlement", subareaId = tonumber(settlement.subareaId or sid) }
 			end
 		elseif settlement.boundary and inBoundary(dest, settlement.boundary) then
-			return { kind = "settlement", settlementId = sid }
+			return { kind = "settlement", subareaId = tonumber(settlement.subareaId or sid) }
 		end
 	end
 
@@ -311,10 +319,10 @@ function InstanceWorld.classify(dest)
 		local occ = InstanceWorld.occupancyByCityId[city.cityId]
 		if occ then
 			if occupancyContains(occ, dest.x, dest.y) then
-				return { kind = "city", cityId = city.cityId }
+				return { kind = "city", subareaId = tonumber(city.subareaId or city.id) }
 			end
 		elseif city.boundary and inBoundary(dest, city.boundary) then
-			return { kind = "city", cityId = city.cityId }
+			return { kind = "city", subareaId = tonumber(city.subareaId or city.id) }
 		end
 	end
 
@@ -330,6 +338,19 @@ function InstanceWorld.classify(dest)
 	end
 
 	return { kind = "stay" }
+end
+
+--- Subarea (region) id at `pos`; 0 when unknown.
+function InstanceWorld.subareaIdAt(pos)
+	if not pos then
+		return 0
+	end
+	local region = Game.getSubareaAt(Position(pos.x, pos.y, pos.z))
+	if region and region.id then
+		return region.id
+	end
+	-- Only subarea ids: catalog hunt ids live in another namespace.
+	return InstanceWorld.classify(pos).subareaId or 0
 end
 
 local function asPlayer(creature)
@@ -394,6 +415,22 @@ local function bindCreature(creature, instanceId)
 	InstanceWorld.scheduleSendBounds(player)
 end
 
+--- Engine moved the player to another subarea layer on crossing (walk, floor change, teleport).
+function InstanceWorld.onSubareaSwitch(creature)
+	local player = asPlayer(creature)
+	if not player then
+		return true
+	end
+	InstanceWorld.scheduleSendBounds(player)
+	return true
+end
+
+--- Region display name ("Thais Surroundings"); nil when unknown.
+function InstanceWorld.subareaName(subareaId)
+	local info = Game.getSubareaInfo(tonumber(subareaId) or 0)
+	return info and info.name or nil
+end
+
 --- GM /instance: rebind a player to `instanceId` without moving them.
 function InstanceWorld.setInstanceInPlace(player, instanceId)
 	local p = asPlayer(player)
@@ -407,37 +444,53 @@ local function afterAtomicBind(creature)
 	end
 end
 
+--- classify kinds that bind a public layer on arrival ("open" = non-city subarea region).
+local function isPublicBindKind(kind)
+	return isAreaKind(kind) or kind == "hub" or kind == "open"
+end
+
 --- Resolve destination instance for open-world classify targets (no bind).
-local function instanceIdForTarget(target)
+local function instanceIdForTarget(target, player)
 	if not target then
-		return nil, nil
+		return nil
 	end
+	local key = nil
 	if target.kind == "hub" then
-		return InstanceWorld.HUB_ADVENTURERS, "hub:adventurers"
+		key = InstanceWorld.pickInstance(player, "hub", Instance.subareaId(InstanceWorld.HUB_ADVENTURERS))
+	elseif target.region then
+		-- Stay on the current public layer while it owns the region (connectors are sticky).
+		local current = player and Instance.of(player) or nil
+		if current and Instance.isOpenWorld(current) then
+			local currentId = Instance.subareaId(current)
+			local owned = currentId == target.region.id
+			if not owned then
+				for _, owner in ipairs(target.region.owners or {}) do
+					if owner == currentId then
+						owned = true
+						break
+					end
+				end
+			end
+			if owned then
+				key = current
+			end
+		end
+		key = key or InstanceWorld.pickInstance(player, target.instanceKind, target.subareaId)
+	elseif isAreaKind(target.kind) and target.subareaId then
+		key = InstanceWorld.pickInstance(player, target.kind, target.subareaId)
 	end
-	if target.kind == "settlement" and target.settlementId then
-		return InstanceWorld.cityInstanceId(target.settlementId), "settlement:" .. tostring(target.settlementId)
-	end
-	if target.kind == "city" and target.cityId then
-		return InstanceWorld.cityInstanceId(target.cityId), "city:" .. tostring(target.cityId)
-	end
-	return nil, nil
+	return key
 end
 
 --- Safe city/settlement/hub destination + instance id (no bind).
 local function resolveSafeCity(player)
 	local dest = InstanceWorld.rescuePos(player)
 	local target = InstanceWorld.classify(dest)
-	local instanceId, persistKey = instanceIdForTarget(target)
+	local instanceId = instanceIdForTarget(target, player)
 	if instanceId then
-		return dest, instanceId, persistKey
+		return dest, instanceId
 	end
 	local area = InstanceWorld.cityForTown(player.getTown and player:getTown() or nil)
-	if area and area.kind == "settlement" then
-		local sid = area.id or area.subareaId
-		return dest, InstanceWorld.cityInstanceId(sid), "settlement:" .. tostring(sid)
-	end
-	local cityId = area and area.cityId or 24
 	if not target.kind or target.kind == "stay" or target.kind == "blocked" or target.kind == "hunt" then
 		if area and area.center then
 			dest = Position(area.center.x, area.center.y, area.center.z)
@@ -445,7 +498,11 @@ local function resolveSafeCity(player)
 			dest = Position(32369, 32241, 7)
 		end
 	end
-	return dest, InstanceWorld.cityInstanceId(cityId), "city:" .. tostring(cityId)
+	local kind, subareaId = InstanceWorld.areaIdentity(area)
+	if not kind then
+		return dest, nil
+	end
+	return dest, InstanceWorld.pickInstance(player, kind, subareaId)
 end
 
 local function isGodPlayer(player)
@@ -457,7 +514,7 @@ local function liveHuntSession(player)
 		return nil
 	end
 	local session = ExpeditionManager.getSessionByPlayer(player)
-	if session and session.state ~= "ended" and session.instance and session.instance.instanceId then
+	if session and session.state ~= "ended" and ExpeditionInstance.isLive(session.instance) then
 		return session
 	end
 	return nil
@@ -465,8 +522,8 @@ end
 
 --- Live private expedition session for an engine instance id (not ended).
 local function livePrivateSessionById(instanceId)
-	instanceId = math.floor(tonumber(instanceId) or 0)
-	if instanceId < InstanceWorld.PRIVATE_BASE then
+	instanceId = Instance.normalize(instanceId)
+	if not Instance.isPrivate(instanceId) then
 		return nil
 	end
 	if not ExpeditionManager or not ExpeditionManager.getSessionByInstanceId then
@@ -488,11 +545,7 @@ local function huntSessionFor(player, engineId)
 	if not player or not isGodPlayer(player) then
 		return nil
 	end
-	local id = math.floor(tonumber(engineId) or 0)
-	if id < InstanceWorld.PRIVATE_BASE then
-		return nil
-	end
-	return livePrivateSessionById(id)
+	return livePrivateSessionById(engineId)
 end
 
 --- Delayed leave when Lua/engine travel exits a private hunt into city/settlement/hub.
@@ -531,42 +584,40 @@ local function scheduleDelayedHuntLeave(player, huntInstanceId)
 end
 
 --- Resolve bind target for travel without applying it.
---- Returns ok, bindId, persistKey, scheduleLeave, current, kind
+--- Returns ok, bindId, scheduleLeave, current, kind
 local function planTravelBind(creature, destPos)
 	local player = asPlayer(creature)
-	local current = creature.getInstanceId and creature:getInstanceId() or 0
+	local current = Instance.of(creature)
 	local session = player and huntSessionFor(player, current) or nil
 
 	-- Live private hunt: stay on the private id inside the fence. Never city-rebind
 	-- on shared XY (classify prefers city/settlement). Leaving the fence is blocked;
 	-- intentional leave uses exitToOpenWorld / bindOpenWorld with _skipEngineTravel.
-	if session and session.instance and session.instance.instanceId then
+	if session and ExpeditionInstance.isLive(session.instance) then
 		if ExpeditionInstance and ExpeditionInstance.contains and ExpeditionInstance.contains(session.instance, destPos) then
-			return true, session.instance.instanceId, nil, false, current, "session"
+			return true, session.instance.instanceId, false, current, "session"
 		end
-		return false, nil, nil, false, current, "blocked"
+		return false, nil, false, current, "blocked"
 	end
 
 	local target = InstanceWorld.classify(destPos)
 	if target.kind == "blocked" then
-		return false, nil, nil, false, current, "blocked"
+		return false, nil, false, current, "blocked"
 	end
 
 	local bindId = nil
-	local persistKey = nil
 	local scheduleLeave = false
 
 	if target.kind == "stay" then
-		return true, bindId, nil, false, current, "stay"
+		return true, bindId, false, current, "stay"
 	end
 
-	if target.kind == "city" or target.kind == "settlement" or target.kind == "hub" then
-		bindId, persistKey = instanceIdForTarget(target)
-	elseif target.kind == "hunt" then
-		-- Unscheduled hunt dest: stay on current instance (HUD starts the private copy).
+	-- Unscheduled hunt dest: stay on the current instance (HUD starts the private copy).
+	if isPublicBindKind(target.kind) then
+		bindId = instanceIdForTarget(target, player)
 	end
 
-	return true, bindId, persistKey, scheduleLeave, current, target.kind
+	return true, bindId, scheduleLeave, current, target.kind
 end
 
 -- Teleports that keep the current city/settlement/hub id must land inside its walk
@@ -577,7 +628,8 @@ local function strandsOutsideFence(creature, current, destPos)
 	if not player or isGodPlayer(player) or not Game.canWalkInstance then
 		return false
 	end
-	if current < InstanceWorld.CITY_BASE or current >= InstanceWorld.PRIVATE_BASE then
+	local kind = Instance.kind(current)
+	if (not isAreaKind(kind) and kind ~= "hub") or Instance.isPrivate(current) then
 		return false
 	end
 	return not Game.canWalkInstance(player, destPos)
@@ -587,7 +639,7 @@ function InstanceWorld.syncCreatureInstance(creature)
 	if not creature then
 		return false
 	end
-	if creature.getInstanceId and creature:getInstanceId() ~= 0 then
+	if not Instance.isWorld(Instance.of(creature)) then
 		return false
 	end
 	local player = asPlayer(creature)
@@ -595,11 +647,25 @@ function InstanceWorld.syncCreatureInstance(creature)
 		return false
 	end
 	local session = liveHuntSession(player)
-	if session and session.instance and session.instance.instanceId then
+	if session and ExpeditionInstance.isLive(session.instance) then
 		bindCreature(creature, session.instance.instanceId)
 		return true
 	end
 	return false
+end
+
+--- Runs `fn` with engine travel routing suppressed (the caller already chose the instance).
+--- The flag is cleared even when `fn` raises; returns fn's result as a boolean.
+function InstanceWorld.withoutEngineTravel(fn)
+	local previous = InstanceWorld._skipEngineTravel
+	InstanceWorld._skipEngineTravel = true
+	local ok, result = pcall(fn)
+	InstanceWorld._skipEngineTravel = previous
+	if not ok then
+		logger.error("[InstanceWorld] travel failed: {}", tostring(result))
+		return false
+	end
+	return result and true or false
 end
 
 function InstanceWorld.onEngineTravel(creature, destPos)
@@ -611,7 +677,7 @@ function InstanceWorld.onEngineTravel(creature, destPos)
 	end
 
 	local player = asPlayer(creature)
-	local ok, bindId, persistKey, scheduleLeave, current, kind = planTravelBind(creature, destPos)
+	local ok, bindId, scheduleLeave, current, kind = planTravelBind(creature, destPos)
 	if not ok then
 		return false
 	end
@@ -626,7 +692,7 @@ function InstanceWorld.onEngineTravel(creature, destPos)
 		return true
 	end
 
-	if bindId and kind ~= "city" and kind ~= "settlement" and kind ~= "hub" then
+	if bindId and not isPublicBindKind(kind) then
 		bindCreature(creature, bindId)
 	end
 
@@ -634,7 +700,7 @@ function InstanceWorld.onEngineTravel(creature, destPos)
 		return true
 	end
 
-	if current >= 3000000 and kind ~= "city" and kind ~= "settlement" and kind ~= "hub" then
+	if Instance.isPrivate(current) and not isPublicBindKind(kind) then
 		return true
 	end
 
@@ -642,12 +708,9 @@ function InstanceWorld.onEngineTravel(creature, destPos)
 		scheduleDelayedHuntLeave(player, current)
 	end
 
-	if kind == "city" or kind == "settlement" or kind == "hub" then
+	if isPublicBindKind(kind) then
 		if bindId then
 			bindCreature(creature, bindId)
-		end
-		if player and persistKey then
-			InstanceWorld.persist(player, persistKey)
 		end
 		return true
 	end
@@ -668,45 +731,36 @@ function InstanceWorld.travel(creature, destPos)
 	-- Resolve bind target without applying it, then teleportTo(..., instanceId)
 	-- atomically. Avoid bind-then-teleport (client ghosts on the old instance).
 	local player = asPlayer(creature)
-	local ok, bindId, persistKey, scheduleLeave, current = planTravelBind(creature, destPos)
+	local ok, bindId, scheduleLeave, current = planTravelBind(creature, destPos)
 	if not ok then
 		return false
 	end
 
-	if persistKey and player then
-		InstanceWorld.persist(player, persistKey)
-	end
 	if scheduleLeave and player then
 		scheduleDelayedHuntLeave(player, current)
 	end
 
-	InstanceWorld._skipEngineTravel = true
-	local teleported
-	if bindId and player then
-		teleported = creature:teleportTo(destPos, false, bindId) and true or false
-	else
-		teleported = creature:teleportTo(destPos) and true or false
-	end
-	InstanceWorld._skipEngineTravel = false
+	local teleported = InstanceWorld.withoutEngineTravel(function()
+		if bindId and player then
+			return creature:teleportTo(destPos, false, bindId)
+		end
+		return creature:teleportTo(destPos)
+	end)
 	if teleported then
 		afterAtomicBind(creature)
 	end
 	return teleported
 end
 
-function InstanceWorld.enterInstance(creature, instanceId, destPos, persistKey)
+function InstanceWorld.enterInstance(creature, instanceId, destPos)
 	if not creature or not instanceId then
 		return false
 	end
-	local player = creature.getPlayer and creature:getPlayer() or creature
-	if persistKey and player and player.kv then
-		InstanceWorld.persist(player, persistKey)
-	end
 	if destPos then
-		InstanceWorld._skipEngineTravel = true
 		-- Atomic bind+move — do not call setInstanceId again afterwards.
-		local ok = creature:teleportTo(destPos, false, instanceId) and true or false
-		InstanceWorld._skipEngineTravel = false
+		local ok = InstanceWorld.withoutEngineTravel(function()
+			return creature:teleportTo(destPos, false, instanceId)
+		end)
 		if ok then
 			afterAtomicBind(creature)
 		end
@@ -718,75 +772,7 @@ function InstanceWorld.enterInstance(creature, instanceId, destPos, persistKey)
 end
 
 function InstanceWorld.canWalk(creature, destPos)
-	if Game.canWalkInstance then
-		return Game.canWalkInstance(creature, destPos) and true or false
-	end
-	if not creature or not destPos then
-		return true
-	end
-	local instanceId = creature.getInstanceId and creature:getInstanceId() or 0
-	if instanceId == 0 then
-		return false
-	end
-	-- City / settlement instances allow every z (stairs, houses, depots).
-	-- Hunts, hub, and lobby rooms still use the declared floor set.
-	local cityRange = instanceId >= InstanceWorld.CITY_BASE and instanceId < InstanceWorld.HUB_ADVENTURERS
-	if not cityRange and not zAllowed(instanceId, destPos.z) then
-		return false
-	end
-	if instanceId == InstanceWorld.HUB_ADVENTURERS then
-		if not (InstanceWorld.hubs[1] and InstanceWorld.hubs[1].center) then
-			return true
-		end
-		return inAdventurersHub(destPos)
-	end
-	if instanceId >= InstanceWorld.CITY_BASE and instanceId < InstanceWorld.HUB_ADVENTURERS then
-		local areaId = instanceId - InstanceWorld.CITY_BASE
-		local settlementOcc = InstanceWorld.occupancyBySettlementId[areaId]
-		if settlementOcc then
-			return occupancyContains(settlementOcc, destPos.x, destPos.y)
-		end
-		local settlement = InstanceWorld.settlementsById[areaId]
-		if settlement and settlement.boundary then
-			return inBoundary(destPos, settlement.boundary)
-		end
-		local occ = InstanceWorld.occupancyByCityId[areaId]
-		if occ then
-			return occupancyContains(occ, destPos.x, destPos.y)
-		end
-		local city = InstanceWorld.citiesById[areaId]
-		if city and city.boundary then
-			return inBoundary(destPos, city.boundary)
-		end
-		return true
-	end
-	-- Private hunt / raid: occupancy of the bound session when present.
-	local player = creature.getPlayer and creature:getPlayer() or nil
-	local session = player and huntSessionFor(player, instanceId) or nil
-	if session and session.instance and session.instance.instanceId == instanceId then
-		return ExpeditionInstance.contains(session.instance, destPos)
-	end
-	local lobbyFence = LobbyInstance and LobbyInstance.containsForInstance(instanceId, destPos)
-	if lobbyFence ~= nil then
-		return lobbyFence
-	end
-	if creature.isMonster and creature:isMonster() then
-		return true
-	end
-	local isPlayer = player
-	if not isPlayer and creature.isPlayer and creature:isPlayer() then
-		isPlayer = creature
-	end
-	if isPlayer then
-		-- Engine private hunt / raid / lobby ids must not fall through to open-world walk.
-		if instanceId >= InstanceWorld.PRIVATE_BASE then
-			if isGodPlayer(isPlayer) and not session then
-				return true
-			end
-			return false
-		end
-	end
-	return true
+	return Game.canWalkInstance(creature, destPos) and true or false
 end
 
 --- Block creature drags/pushes that would leave instance occupancy.
@@ -810,79 +796,48 @@ function InstanceWorld.describeCurrent(player)
 	if not player or not player.getInstanceId then
 		return nil
 	end
-	local engineId = player:getInstanceId() or 0
-	if engineId == 0 then
+	local engineId = Instance.of(player)
+	if Instance.isWorld(engineId) then
 		return nil
 	end
-	-- Identity protocol: instanceId = subarea (place) id, channel = shard on that place.
-	-- Engine binding stays on player:getInstanceId() / session.instance.instanceId.
-	if engineId == InstanceWorld.HUB_ADVENTURERS then
+	-- Identity protocol: {kind, subareaId, channel} straight from the engine key; only the
+	-- display name is looked up per kind.
+	local parsed = Instance.parse(engineId)
+	local desc = {
+		subareaId = parsed.subareaId,
+		kind = parsed.kind,
+		key = parsed.key,
+		channel = parsed.channel,
+	}
+	if parsed.kind == "hub" then
 		local hub = InstanceWorld.hubs[1]
-		local center = hub and hub.center or nil
-		return {
-			instanceId = 0,
-			kind = "hub",
-			name = (hub and hub.name) or "Adventurers' Guild",
-			key = "hub:adventurers",
-			channel = 0,
-			bounds = aabbAround(center, InstanceWorld.HUB_WALK_RADIUS),
-		}
+		desc.name = (hub and hub.name) or "Adventurers' Guild"
+		desc.bounds = aabbAround(hub and hub.center or nil, InstanceWorld.HUB_WALK_RADIUS)
+		return desc
 	end
-	if engineId >= InstanceWorld.CITY_BASE and engineId < InstanceWorld.HUB_ADVENTURERS then
-		local areaId = engineId - InstanceWorld.CITY_BASE
-		local settlement = InstanceWorld.settlementsById[areaId]
-		if settlement then
-			local subareaId = tonumber(settlement.subareaId or settlement.id) or areaId
-			return {
-				instanceId = subareaId,
-				kind = "settlement",
-				name = settlement.name or ("Settlement " .. tostring(subareaId)),
-				key = "settlement:" .. tostring(subareaId),
-				channel = 0,
-			}
-		end
-		local city = InstanceWorld.citiesById[areaId]
-		local subareaId = tonumber(city and (city.subareaId or city.id)) or areaId
-		return {
-			instanceId = subareaId,
-			kind = "city",
-			name = (city and (city.name or city.city)) or ("City " .. tostring(subareaId)),
-			key = "city:" .. tostring(subareaId),
-			channel = 0,
-		}
+	-- The subarea's own name ("Darashia City"); catalog city rows carry the CIP city
+	-- grouping ("Northern Darama"), which is only a fallback.
+	if parsed.kind == "settlement" then
+		local settlement = InstanceWorld.settlementsById[parsed.subareaId]
+		desc.name = InstanceWorld.subareaName(parsed.subareaId) or (settlement and settlement.name) or ("Settlement " .. tostring(parsed.subareaId))
+		return desc
+	end
+	if parsed.kind == "city" then
+		local city = InstanceWorld.citiesBySubareaId[parsed.subareaId]
+		desc.name = InstanceWorld.subareaName(parsed.subareaId) or (city and city.name) or ("City " .. tostring(parsed.subareaId))
+		return desc
+	end
+	-- Before the hunt session: a player can still hold a live expedition session while in a lobby room.
+	if parsed.kind == "lobby" then
+		return LobbyInstance and LobbyInstance.describe(player) or desc
 	end
 	local session = huntSessionFor(player, engineId)
 	if session and session.instance then
-		local inst = session.instance
-		local kind = session.kind == "raid" and "raid" or "hunt"
-		local name = (session.catalog and session.catalog.name)
-			or session.displayName
-			or session.raidName
-			or "Hunt"
-		local subareaId = tonumber(session.catalog and session.catalog.id)
-			or tonumber(inst.region)
-			or 0
-		-- Raids are public (channel 0). Private hunts use the team's allocated channel.
-		local channel = kind == "raid" and 0 or math.floor(tonumber(session.channel) or 0)
-		return {
-			instanceId = subareaId,
-			kind = kind,
-			name = name,
-			key = kind .. ":" .. tostring(session.catalog and session.catalog.id or inst.region or subareaId),
-			channel = channel,
-		}
+		desc.name = (session.catalog and session.catalog.name) or session.displayName or session.raidName or "Hunt"
+		return desc
 	end
-	local lobby = LobbyInstance and LobbyInstance.describe(player)
-	if lobby then
-		return lobby
-	end
-	return {
-		instanceId = 0,
-		kind = "unknown",
-		name = "Instance",
-		key = "instance:" .. tostring(engineId),
-		channel = 0,
-	}
+	desc.name = InstanceWorld.subareaName(parsed.subareaId) or desc.name
+	return desc
 end
 
 function InstanceWorld.sendBounds(player, force)
@@ -893,10 +848,8 @@ function InstanceWorld.sendBounds(player, force)
 		return false
 	end
 	local desc = InstanceWorld.describeCurrent(player)
-	local placeId = desc and desc.instanceId or 0
-	local channel = desc and desc.channel or 0
 	local pid = player.getId and player:getId() or 0
-	local cacheKey = tostring(placeId) .. ":" .. tostring(channel)
+	local cacheKey = desc and desc.key or ""
 	if not force and InstanceWorld._boundsSent[pid] == cacheKey then
 		return true
 	end
@@ -930,7 +883,7 @@ function InstanceWorld.isTownOnlyPos(pos)
 		return false
 	end
 	local target = InstanceWorld.classify(pos)
-	if target.kind ~= "city" and target.kind ~= "settlement" and target.kind ~= "hub" then
+	if not isAreaKind(target.kind) and target.kind ~= "hub" then
 		return false
 	end
 	if target.kind ~= "hub" and InstanceWorld.isHuntTile(pos) then
@@ -987,27 +940,33 @@ end
 
 --- Atomic open-world place bind: city/settlement/hub instance only on town-only XY.
 --- Never setInstanceId alone while standing on a hunt footprint.
+--- Open-world destination and instance key for `destPos` (safe city when it has none).
+--- Returns nil when no open-world instance can be resolved.
+function InstanceWorld.openWorldTarget(player, destPos)
+	destPos = resolveTownOnlyDest(player, destPos)
+	local bindId = instanceIdForTarget(InstanceWorld.classify(destPos), player)
+	if not bindId then
+		destPos, bindId = resolveSafeCity(player)
+		destPos = resolveTownOnlyDest(player, destPos)
+		bindId = instanceIdForTarget(InstanceWorld.classify(destPos), player)
+		if not bindId then
+			destPos, bindId = resolveSafeCity(player)
+		end
+	end
+	if not bindId then
+		return nil
+	end
+	return destPos, bindId
+end
+
 function InstanceWorld.bindOpenWorld(player, destPos)
 	if not player then
 		return false
 	end
-	destPos = resolveTownOnlyDest(player, destPos)
-	local target = InstanceWorld.classify(destPos)
-	local bindId, persistKey = instanceIdForTarget(target)
-	if not bindId then
-		destPos, bindId, persistKey = resolveSafeCity(player)
-		destPos = resolveTownOnlyDest(player, destPos)
-		target = InstanceWorld.classify(destPos)
-		bindId, persistKey = instanceIdForTarget(target)
-		if not bindId then
-			destPos, bindId, persistKey = resolveSafeCity(player)
-		end
-	end
+	local bindId
+	destPos, bindId = InstanceWorld.openWorldTarget(player, destPos)
 	if not bindId then
 		return false
-	end
-	if persistKey then
-		InstanceWorld.persist(player, persistKey)
 	end
 
 	local cur = player.getPosition and player:getPosition() or nil
@@ -1022,18 +981,15 @@ function InstanceWorld.bindOpenWorld(player, destPos)
 		return false
 	end
 
-	InstanceWorld._skipEngineTravel = true
-	local ok = player:teleportTo(destPos, false, bindId) and true or false
-	InstanceWorld._skipEngineTravel = false
+	local ok = InstanceWorld.withoutEngineTravel(function()
+		return player:teleportTo(destPos, false, bindId)
+	end)
 	if not ok then
 		destPos = resolveTownOnlyDest(player, nil)
 		local safeTarget = InstanceWorld.classify(destPos)
-		bindId, persistKey = instanceIdForTarget(safeTarget)
+		bindId = instanceIdForTarget(safeTarget, player)
 		if not bindId then
-			destPos, bindId, persistKey = resolveSafeCity(player)
-		end
-		if persistKey then
-			InstanceWorld.persist(player, persistKey)
+			destPos, bindId = resolveSafeCity(player)
 		end
 		cur = player.getPosition and player:getPosition() or nil
 		if InstanceWorld.isTownOnlyPos(cur) and sameTile(cur, destPos) then
@@ -1042,9 +998,9 @@ function InstanceWorld.bindOpenWorld(player, destPos)
 			end
 			ok = true
 		elseif bindId and player.getTile and player:getTile() and not sameTile(cur, destPos) then
-			InstanceWorld._skipEngineTravel = true
-			ok = player:teleportTo(destPos, false, bindId) and true or false
-			InstanceWorld._skipEngineTravel = false
+			ok = InstanceWorld.withoutEngineTravel(function()
+				return player:teleportTo(destPos, false, bindId)
+			end)
 		else
 			-- Never bind-only onto a hunt footprint.
 			ok = false
@@ -1061,7 +1017,7 @@ function InstanceWorld.exitToOpenWorld(player, destPos)
 	return InstanceWorld.bindOpenWorld(player, destPos)
 end
 
---- Hunt/raid tiles or a leftover hunt instance after the in-memory session is gone.
+--- A leftover private instance or expedition marker after the in-memory session is gone.
 function InstanceWorld.isStrandedExpedition(player, pos)
 	if not player then
 		return false
@@ -1073,8 +1029,8 @@ function InstanceWorld.isStrandedExpedition(player, pos)
 	if isLobbyPosition(pos) then
 		return false
 	end
-	local instanceId = player.getInstanceId and player:getInstanceId() or 0
-	if instanceId >= InstanceWorld.PRIVATE_BASE then
+	local instanceId = Instance.of(player)
+	if Instance.isPrivate(instanceId) then
 		-- Headless restore / deploy can place onto a live private id before the
 		-- player is registered as a session member — not stranded.
 		if livePrivateSessionById(instanceId) then
@@ -1082,22 +1038,13 @@ function InstanceWorld.isStrandedExpedition(player, pos)
 		end
 		return true
 	end
-	local key = InstanceWorld.loadKey(player)
-	if type(key) == "string" and (key:match("^hunt:") or key:match("^raid:")) then
+	-- Logged out inside a private hunt/raid whose session is gone (the engine did not restore it).
+	local record = InstanceWorld.loginRecord(player)
+	if record and record.private and (record.kind == "hunt" or record.kind == "raid" or record.kind == "soulpit") then
 		return true
 	end
-	if ExpeditionConfig and player.getStorageValue and player:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
-		return true
-	end
-	if pos then
-		local target = InstanceWorld.classify(pos)
-		if target.kind == "hunt" or target.kind == "blocked" then
-			return true
-		end
-		-- City/settlement tiles may overlap hunt occupancy masks. Do not temple on
-		-- every re-login — only when leftover expedition markers remain above.
-	end
-	return false
+	-- Hunt tiles alone are not stranding: open-world hunting grounds are public layers.
+	return ExpeditionConfig ~= nil and player:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1
 end
 
 function InstanceWorld.shouldRescue(player)
@@ -1113,7 +1060,7 @@ function InstanceWorld.shouldRescue(player)
 	if session and (not session.entered or session.starting) then
 		return false
 	end
-	local engineId = player.getInstanceId and player:getInstanceId() or 0
+	local engineId = Instance.of(player)
 	if livePrivateSessionById(engineId) then
 		return false
 	end
@@ -1125,7 +1072,7 @@ function InstanceWorld.shouldRescue(player)
 		return false
 	end
 	if pos and not InstanceWorld.canWalk(player, pos) then
-		if isGodPlayer(player) and engineId >= InstanceWorld.PRIVATE_BASE then
+		if isGodPlayer(player) and Instance.isPrivate(engineId) then
 			return false
 		end
 		return true
@@ -1166,14 +1113,13 @@ function InstanceWorld.bindLogin(player, loginPos)
 		return
 	end
 	local session = liveHuntSession(player)
-	if session and session.instance and session.instance.instanceId then
+	if session and ExpeditionInstance.isLive(session.instance) then
 		bindCreature(player, session.instance.instanceId)
 		return
 	end
 	-- Placed already on a live private hunt id (restore/deploy before member register).
-	local engineId = player.getInstanceId and player:getInstanceId() or 0
-	local byInst = livePrivateSessionById(engineId)
-	if byInst and byInst.instance and byInst.instance.instanceId then
+	local byInst = livePrivateSessionById(Instance.of(player))
+	if byInst and ExpeditionInstance.isLive(byInst.instance) then
 		bindCreature(player, byInst.instance.instanceId)
 		return
 	end
@@ -1181,16 +1127,13 @@ function InstanceWorld.bindLogin(player, loginPos)
 		return
 	end
 	local pos = asWorldPos(loginPos) or (player.getPosition and player:getPosition() or nil)
-	-- Bind city/settlement/hub in place. Hunt-footprint overlap is fine for login —
+	-- Bind city/settlement/hub/subarea region in place. Hunt-footprint overlap is fine for login —
 	-- the player is already standing there. Temple yank belongs to rescueIfStranded.
 	local target = pos and InstanceWorld.classify(pos) or nil
-	if target and (target.kind == "city" or target.kind == "settlement" or target.kind == "hub") then
-		local bindId, persistKey = instanceIdForTarget(target)
+	if target and isPublicBindKind(target.kind) then
+		local bindId = instanceIdForTarget(target, player)
 		if bindId then
 			bindCreature(player, bindId)
-			if persistKey then
-				InstanceWorld.persist(player, persistKey)
-			end
 			return
 		end
 	end
@@ -1201,13 +1144,10 @@ end
 --- NPC spawns resolve their city/settlement/hub instance at creation (C++ area fences);
 --- this only reports the split so a missing fence shows up in the startup log.
 function InstanceWorld.logNpcInstances()
-	if not Game.getNpcs then
-		return
-	end
 	local area, open = 0, 0
 	for _, npc in ipairs(Game.getNpcs()) do
 		if npc and npc.getInstanceId then
-			if npc:getInstanceId() ~= 0 then
+			if not Instance.isWorld(npc:getInstanceId()) then
 				area = area + 1
 			else
 				open = open + 1
@@ -1290,9 +1230,8 @@ function InstanceWorld.onStartup()
 	else
 		logger.warn("[InstanceWorld] world-monster.xml spawn count is 0; hunt forge rolls disabled")
 	end
-	if Game.disableWorldSpawns then
-		Game.disableWorldSpawns()
-		logger.info("[InstanceWorld] world spawn.xml activity disabled")
+	if Game.isSubareaInstancesEnabled() then
+		logger.info("[InstanceWorld] open-world spawns start per subarea layer on first player")
 	end
 	InstanceWorld.logNpcInstances()
 end

@@ -34,6 +34,20 @@ MoveEvents &MoveEvents::getInstance() {
 	return inject<MoveEvents>();
 }
 
+namespace {
+	/** Item add/remove scripts run for whoever moved the item (outer scope); otherwise in the
+	 *  item's own instance, and World template items as world-level (positional) code. */
+	std::unique_ptr<InstanceActorScope> itemMoveScope(const std::shared_ptr<Item> &item) {
+		if (Game::getInstanceScope() || Game::isPositionalInstanceScope() || !item) {
+			return nullptr;
+		}
+		if (item->getInstanceId().isWorld()) {
+			return std::make_unique<InstanceActorScope>(InstanceActorScope::Positional {});
+		}
+		return std::make_unique<InstanceActorScope>(item->getInstanceId());
+	}
+}
+
 void MoveEvents::clear() {
 	uniqueIdMap.clear();
 	actionIdMap.clear();
@@ -811,6 +825,7 @@ void MoveEvent::setEventType(MoveEvent_t type) {
 }
 
 uint32_t MoveEvent::fireStepEvent(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Item> &item, const Position &pos) const {
+	InstanceActorScope instanceActorScope(creature);
 	if (isLoadedScriptId()) {
 		return executeStep(creature, item, pos);
 	} else {
@@ -866,6 +881,7 @@ bool MoveEvent::executeStep(const std::shared_ptr<Creature> &creature, const std
 }
 
 uint32_t MoveEvent::fireEquip(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, Slots_t toSlot, bool isCheck) {
+	InstanceActorScope instanceActorScope(player);
 	if (isLoadedScriptId()) {
 		if (!equipFunction || equipFunction(static_self_cast<MoveEvent>(), player, item, toSlot, isCheck) == 1) {
 			if (executeEquip(player, item, toSlot, isCheck)) {
@@ -904,6 +920,7 @@ bool MoveEvent::executeEquip(const std::shared_ptr<Player> &player, const std::s
 }
 
 uint32_t MoveEvent::fireAddRemItem(const std::shared_ptr<Item> &item, const std::shared_ptr<Item> &fromTile, const Position &pos) const {
+	const auto instanceScope = itemMoveScope(item);
 	if (isLoadedScriptId()) {
 		return executeAddRemItem(item, fromTile, pos);
 	} else {
@@ -943,6 +960,7 @@ bool MoveEvent::executeAddRemItem(const std::shared_ptr<Item> &item, const std::
 }
 
 uint32_t MoveEvent::fireAddRemItem(const std::shared_ptr<Item> &item, const Position &pos) const {
+	const auto instanceScope = itemMoveScope(item);
 	if (isLoadedScriptId()) {
 		return executeAddRemItem(item, pos);
 	} else {

@@ -52,6 +52,7 @@
 #include "enums/player_icons.hpp"
 #include "enums/player_cyclopedia.hpp"
 #include "game/game.hpp"
+#include "game/instance_registry.hpp"
 #include "game/modal_window/modal_window.hpp"
 #include "game/scheduling/dispatcher.hpp"
 #include "game/scheduling/save_manager.hpp"
@@ -4538,7 +4539,7 @@ bool Player::spawn() {
 		return false;
 	}
 
-	const auto &spectators = Spectators().find<Creature>(position, true);
+	const auto &spectators = Spectators().find<Creature>(position, true, 0, 0, 0, 0, false, getInstanceId());
 	for (const auto &spectator : spectators) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
 			tmpPlayer->sendCreatureAppear(static_self_cast<Player>(), pos, true);
@@ -4585,7 +4586,7 @@ void Player::despawn() {
 
 	std::vector<int32_t> oldStackPosVector;
 
-	const auto &spectators = Spectators().find<Creature>(tile->getPosition(), true);
+	const auto &spectators = Spectators().find<Creature>(tile->getPosition(), true, 0, 0, 0, 0, false, getInstanceId());
 	size_t i = 0;
 	for (const auto &spectator : spectators) {
 		if (const auto &player = spectator->getPlayer()) {
@@ -4683,16 +4684,24 @@ bool Player::softDespawn() {
 	return true;
 }
 
-bool Player::softSpawn(const Position &pos) {
+bool Player::softSpawn(const Position &pos, std::optional<InstanceId> instance) {
 	if (!softDespawned || isDead()) {
 		return false;
+	}
+	if (instance && !instance->isWorld() && !g_instanceRegistry().isLive(*instance)) {
+		return false;
+	}
+
+	const auto self = static_self_cast<Player>();
+	if (instance) {
+		// No viewer sees a soft-despawned player, so skip setInstanceId's remove/appear remap.
+		setInstanceIdUnseen(*instance);
 	}
 
 	softDespawned = false;
 	health = healthMax;
 	mana = manaMax;
 
-	const auto self = static_self_cast<Player>();
 	Position spawnPos = pos.x != 0 ? pos : getPosition();
 
 	// Soft-despawn keeps the creature on the tile; only place if somehow detached.
@@ -7417,9 +7426,8 @@ void Player::setFamiliarLooktype(uint16_t familiarLooktype) {
 }
 
 bool Player::isInSafeInstance() const {
-	// Matches InstanceWorld: city/settlement/hub < PRIVATE_BASE; hunt/raid >= PRIVATE_BASE.
-	// Instance 0 (open world) is treated as safe for logout purposes.
-	return getInstanceId() < Game::INSTANCE_PRIVATE_BASE;
+	// Public layers (world, hub, open-world subarea channels) are safe; private sessions are not.
+	return !g_instanceRegistry().isPrivate(getInstanceId());
 }
 
 void Player::captureLoginPosition() {
@@ -10565,7 +10573,7 @@ void Player::refreshTaskIcons() {
 	if (!client) {
 		return;
 	}
-	for (const auto &spectator : Spectators().find<Monster>(getPosition(), true)) {
+	for (const auto &spectator : Spectators().find<Monster>(getPosition(), true, 0, 0, 0, 0, false, getInstanceId())) {
 		client->sendCreatureIcon(spectator);
 	}
 }
@@ -11013,9 +11021,9 @@ bool Player::saySpell(SpeakClasses type, const std::string &text, bool isGhostMo
 		// used (hopefully the compiler will optimize away the construction of
 		// the temporary when it's not used).
 		if (type != TALKTYPE_YELL && type != TALKTYPE_MONSTER_YELL) {
-			spectators.find<Creature>(*pos, false, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_Y, MAP_MAX_CLIENT_VIEW_PORT_Y);
+			spectators.find<Creature>(*pos, false, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_X, MAP_MAX_CLIENT_VIEW_PORT_Y, MAP_MAX_CLIENT_VIEW_PORT_Y, false, getInstanceId());
 		} else {
-			spectators.find<Creature>(*pos, true, (MAP_MAX_CLIENT_VIEW_PORT_X + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_X + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_Y + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_Y + 1) * 2);
+			spectators.find<Creature>(*pos, true, (MAP_MAX_CLIENT_VIEW_PORT_X + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_X + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_Y + 1) * 2, (MAP_MAX_CLIENT_VIEW_PORT_Y + 1) * 2, false, getInstanceId());
 		}
 	} else {
 		spectators = (*spectatorsPtr);

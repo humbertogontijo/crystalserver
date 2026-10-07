@@ -224,7 +224,7 @@ public:
 	// in an instance (InstanceId::World = shared map layer); there is no setter.
 	static std::shared_ptr<Item> CreateItem(uint16_t type, uint16_t count, InstanceId instanceId, Position* itemPosition = nullptr, bool createWrappableItem = false, bool customCharges = false);
 	static std::shared_ptr<Container> CreateItemAsContainer(uint16_t type, uint16_t size, InstanceId instanceId);
-	// OTBM map loader: shared map layer (instance 0).
+	// OTBM map loader: shared map layer (InstanceId::World).
 	static std::shared_ptr<Item> CreateItem(uint16_t itemId, Position &itemPosition);
 	static Items items;
 
@@ -671,10 +671,10 @@ public:
 	InstanceId getInstanceId() const {
 		return instanceId;
 	}
-	bool isVisibleInInstance(uint32_t viewerInstanceId) const;
+	bool isVisibleInInstance(InstanceId viewerInstanceId) const;
 	/** Same filter as ProtocolGame::GetTileDescription / skipMapTileItem (instance + non-zero client id). */
-	bool countsTowardClientMapStack(uint32_t viewerInstanceId) const;
-	/** Shared map layer (instanceId 0): OTBM tiles, doors, transform-on-use fixtures (levers/lamps), etc. */
+	bool countsTowardClientMapStack(InstanceId viewerInstanceId) const;
+	/** Shared map layer (InstanceId::World): OTBM tiles, doors, transform-on-use fixtures (levers/lamps), etc. */
 	bool isMapTemplateItem() const;
 	/** Interactive map fixtures (levers, lamps, doors) that can be forked per instance. */
 	bool isStatefulMapTemplate() const;

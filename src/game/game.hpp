@@ -29,6 +29,7 @@
 #include "modal_window/modal_window.hpp"
 #include "movement/position.hpp"
 #include "game/worlds/gameworlds.hpp"
+#include "game/instance_registry.hpp"
 #include "creatures/creatures_definitions.hpp"
 #include "items/items_classification.hpp"
 
@@ -103,12 +104,21 @@ struct PositionHasher {
 	}
 };
 
-/** While active, map item creates/transforms inherit this creature's instanceId. */
+/**
+ * The instance code is running for. While active, script creates / effects / transforms /
+ * spectator queries without an explicit id use it instead of guessing.
+ * - creature: that creature's current instance (a null creature keeps the outer scope);
+ * - instance id: exactly that id (World included), e.g. Lua `Game.runInInstance`, addEvent;
+ * - Positional: world-level code (startup, global events, raids) whose instance is by design
+ *   the open-world layer at each position.
+ */
 class InstanceActorScope {
 public:
+	struct Positional { };
+
 	explicit InstanceActorScope(const std::shared_ptr<Creature> &creature);
-	/** Scope a bare instance id (no creature), e.g. Lua `Game.runInInstance`. */
 	explicit InstanceActorScope(InstanceId instanceId);
+	explicit InstanceActorScope(Positional);
 	~InstanceActorScope();
 
 	InstanceActorScope(const InstanceActorScope &) = delete;
@@ -116,7 +126,8 @@ public:
 
 private:
 	std::shared_ptr<Creature> previous;
-	uint32_t previousId = 0;
+	InstanceId previousId = InstanceId::World;
+	uint8_t previousMode = 0;
 };
 
 struct ImprovedRespawnZone {
@@ -163,28 +174,55 @@ public:
 	void loadCustomMaps(const std::filesystem::path &customMapPath);
 	void loadMap(const std::string &path, const Position &pos = Position());
 
-	static constexpr uint32_t INSTANCE_PRIVATE_BASE = 3000000;
-	uint32_t allocateInstanceId();
-	void releaseInstanceId(uint32_t id);
-	/** PvP world type for an instance: per-instance override, else the current world's type. */
-	[[nodiscard]] WorldType_t getWorldType(uint32_t instanceId) const;
-	void setInstanceWorldType(uint32_t instanceId, WorldType_t type);
-	void clearInstanceWorldType(uint32_t instanceId);
+	/** Opens the lowest free channel of {kind, subareaId}; World on failure. */
+	std::optional<InstanceId> allocateInstance(InstanceKind kind, uint32_t subareaId, const InstanceRegistry::AllocOptions &options);
+	void releaseInstance(InstanceId id);
+	/** Tears down overflow public channels that stayed empty past instanceChannelIdleSeconds. */
+	void checkIdleInstanceChannels();
+	/** PvP world type for an instance: per-instance override, else the kind default, else the current world's type. */
+	[[nodiscard]] WorldType_t getWorldType(InstanceId instanceId) const;
+	bool setInstanceWorldType(InstanceId instanceId, WorldType_t type);
+	void setInstanceKindWorldType(InstanceKind kind, std::optional<WorldType_t> type);
 	bool routeInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destPos);
 	bool canWalkInstance(const std::shared_ptr<Creature> &creature, const Position &toPos);
+	/** Open-world layer a player must switch to on reaching `pos` (another subarea region);
+	 *  nullopt keeps the current key (private/non-open-world key, unknown tile, same region or an owned connector). */
+	[[nodiscard]] std::optional<InstanceId> openWorldSwitchTarget(const std::shared_ptr<Player> &player, const Position &pos);
+	/** Applies openWorldSwitchTarget for the player's current tile. Returns true when the layer changed. */
+	bool refreshOpenWorldInstance(const std::shared_ptr<Player> &player);
+	/** Moves the player onto `target` (a precomputed openWorldSwitchTarget) when it differs from its layer. */
+	bool refreshOpenWorldInstance(const std::shared_ptr<Player> &player, std::optional<InstanceId> target);
 	void disableWorldSpawns();
-	void bindPlayerInstance(const std::shared_ptr<Player> &player);
-	void bindPlayerInstance(const std::shared_ptr<Player> &player, const Position &placePos);
+	/** Binds a player that is about to be placed (login / headless spawn) and returns where to
+	 *  place them. Order: persisted instance record, InstanceWorld.bindLogin, the main layer of
+	 *  the login tile, then the Adventurers' hub (relocating to it). Never leaves World. */
+	Position bindPlayerInstance(const std::shared_ptr<Player> &player);
+	Position bindPlayerInstance(const std::shared_ptr<Player> &player, const Position &placePos);
+	/** Reconnect onto a live body: keeps its current layer (the DB login position is stale). */
+	void rebindAttachedPlayer(const std::shared_ptr<Player> &player);
+	/** Typed instance record (KV `instance` = {key, kind, owner}) restored on the next login. */
+	void persistPlayerInstance(const std::shared_ptr<Player> &player, InstanceId id);
+	[[nodiscard]] std::optional<InstanceId> loadPersistedInstance(const std::shared_ptr<Player> &player) const;
 	/** Re-bind creature instanceId from active InstanceWorld session (expedition hunt). */
 	void syncCreatureInstance(const std::shared_ptr<Creature> &creature);
 	bool consumeInstanceFenceMessage();
 	/** Instance of the creature currently in InstanceActorScope (World if none). */
 	static InstanceId getInstanceActorId();
+	/** Instance of the active InstanceActorScope; nullopt when no actor / id scope is open. */
+	static std::optional<InstanceId> getInstanceScope();
+	/** Layer a read-only tile lookup should filter by: explicit id, else the actor scope.
+	 *  nullopt means "all layers" (world-level code); unscoped callers are reported. */
+	static std::optional<InstanceId> lookupInstance(std::optional<InstanceId> explicitId, std::string_view site, const Position &pos);
+	/** World-level code (InstanceActorScope::Positional) is running. */
+	static bool isPositionalInstanceScope();
+	/** Wraps a deferred task so it runs inside the scope active now (addEvent, async think). */
+	static std::function<void()> bindInstanceScope(std::function<void()> callback);
 	/** Instance a new item inside `cylinder` is born in: holder creature/item, else the scoped actor. */
 	static InstanceId getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder);
-	/** Birth instance for script-created creatures/items: explicit id, else the master /
-	 *  holder, else the creature whose action is running, else the area under `position`. */
-	static InstanceId resolveBirthInstance(uint32_t explicitId, const std::shared_ptr<Creature> &master, const Position* position);
+	/** Birth instance for created creatures/items: explicit id, else the master, else the actor
+	 *  scope, else (off-map) World. On the map with no scope the area under `position` is used —
+	 *  reported as an inference at `site`, and refused (nullopt) when instanceStrict is on. */
+	static std::optional<InstanceId> resolveBirthInstance(std::optional<InstanceId> explicitId, const std::shared_ptr<Creature> &master, const Position* position, std::string_view site);
 
 	uint64_t getLastMapLoadTime() const {
 		return lastMapLoadTime;
@@ -301,6 +339,7 @@ public:
 
 	std::shared_ptr<Item> transformItem(std::shared_ptr<Item> item, uint16_t newId, int32_t newCount = -1);
 	std::shared_ptr<Item> resolveInstancedMapItem(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item);
+	std::shared_ptr<Item> resolveInstancedMapItem(InstanceId instanceId, const std::shared_ptr<Item> &item);
 
 	ReturnValue internalTeleport(const std::shared_ptr<Thing> &thing, const Position &newPos, bool pushMove = true, uint32_t flags = 0);
 
@@ -578,8 +617,8 @@ public:
 		return boostedCreature;
 	}
 
-	bool canThrowObjectTo(const Position &fromPos, const Position &toPos, SightLines_t lineOfSight = SightLine_CheckSightLine, int32_t rangex = MAP_CLASSIC_CLIENT_VIEW_PORT_X, int32_t rangey = MAP_CLASSIC_CLIENT_VIEW_PORT_Y, uint32_t instanceId = 0);
-	bool isSightClear(const Position &fromPos, const Position &toPos, bool sameFloor, uint32_t instanceId = 0);
+	bool canThrowObjectTo(const Position &fromPos, const Position &toPos, SightLines_t lineOfSight = SightLine_CheckSightLine, int32_t rangex = MAP_CLASSIC_CLIENT_VIEW_PORT_X, int32_t rangey = MAP_CLASSIC_CLIENT_VIEW_PORT_Y, InstanceId instanceId = InstanceId::World);
+	bool isSightClear(const Position &fromPos, const Position &toPos, bool sameFloor, InstanceId instanceId = InstanceId::World);
 
 	void changeSpeed(const std::shared_ptr<Creature> &creature, int32_t varSpeedDelta);
 	void setCreatureSpeed(const std::shared_ptr<Creature> &creature, int32_t speed); // setCreatureSpeed
@@ -720,7 +759,10 @@ public:
 	void addGuild(const std::shared_ptr<Guild> &guild);
 	void removeGuild(uint32_t guildId);
 
-	phmap::flat_hash_map<std::shared_ptr<Tile>, std::weak_ptr<Container>> browseFields;
+	/** One browse field per tile and viewer instance (each layer sees different items). */
+	phmap::flat_hash_map<std::shared_ptr<Tile>, phmap::flat_hash_map<InstanceId, std::weak_ptr<Container>>> browseFields;
+	/** True when `cylinder` is a browse field opened on `tile` (moves resolve to the tile). */
+	static bool isBrowseFieldOf(const std::shared_ptr<Tile> &tile, const std::shared_ptr<Cylinder> &cylinder);
 
 	void internalRemoveItems(const std::vector<std::shared_ptr<Item>> &itemVector, uint32_t amount, bool stackable);
 
@@ -897,6 +939,9 @@ public:
 private:
 	/** Off-map items (inventory/depot/stash) landing on a map tile join the mover's instance. */
 	static void adoptItemInstance(const std::shared_ptr<Item> &item, InstanceId instanceId);
+	/** Layer an item takes when added to `toCylinder`: the holding player's, its own, the
+	 *  destination container's, or the acting scope's (bare tile). */
+	static InstanceId addedItemInstance(const std::shared_ptr<Cylinder> &destCylinder, const std::shared_ptr<Cylinder> &toCylinder, const std::shared_ptr<Item> &item);
 	bool callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult);
 	std::unordered_map<uint8_t, std::string> m_worldTypesNames;
 
@@ -1042,11 +1087,7 @@ private:
 
 	uint64_t lastMapLoadTime = 0;
 
-	uint32_t nextPrivateInstanceId = INSTANCE_PRIVATE_BASE;
-	std::vector<uint32_t> freePrivateInstanceIds;
-	// Prevents double-free recycling the same private id while a hunt still holds it.
-	phmap::flat_hash_set<uint32_t> usedPrivateInstanceIds;
-	phmap::flat_hash_map<uint32_t, WorldType_t> instanceWorldTypes;
+	phmap::flat_hash_map<InstanceKind, WorldType_t> kindWorldTypes;
 	bool pendingInstanceFenceMessage = false;
 
 	ServiceManager* serviceManager = nullptr;

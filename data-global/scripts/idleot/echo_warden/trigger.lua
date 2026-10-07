@@ -103,7 +103,7 @@ function echoWardenTrigger.onDeath(creature, corpse, killer, mostDamageKiller, l
 
 	local kindName = creature:getName()
 	local pos = creature:getPosition()
-	local instanceId = EchoWarden.creatureInstanceId(creature)
+	local instanceId = Instance.of(creature)
 	EchoWarden.spawnPortal(pos.x, pos.y, pos.z, kindName, instanceId)
 
 	return true

@@ -10,34 +10,8 @@ EM_PRIV.leavePendingByPlayerId = EM_PRIV.leavePendingByPlayerId or {}
 EM_PRIV.leavePendingBySessionKey = EM_PRIV.leavePendingBySessionKey or {}
 -- Friend expedition invites: friendGuid → { hostGuid, sessionKey, expeditionId, expeditionName, expires }
 EM_PRIV.teamInvitesByFriendGuid = EM_PRIV.teamInvitesByFriendGuid or {}
--- Hunt place → channel → sessionKey. Channel is the team's shard on that subarea.
-EM_PRIV.huntChannelsByPlace = EM_PRIV.huntChannelsByPlace or {}
 -- Real-client UI sync after headless→client takeover (player id → true).
 EM_PRIV.expeditionClientSynced = EM_PRIV.expeditionClientSynced or {}
-
-function EM_PRIV.allocateHuntChannel(placeId, sessionKey)
-	local place = tostring(placeId or "")
-	local used = EM_PRIV.huntChannelsByPlace[place]
-	if not used then
-		used = {}
-		EM_PRIV.huntChannelsByPlace[place] = used
-	end
-	local channel = 0
-	while used[channel] do
-		channel = channel + 1
-	end
-	used[channel] = sessionKey
-	return channel
-end
-
-function EM_PRIV.releaseHuntChannel(placeId, channel)
-	local place = tostring(placeId or "")
-	local used = EM_PRIV.huntChannelsByPlace[place]
-	if not used or channel == nil then
-		return
-	end
-	used[math.floor(tonumber(channel) or -1)] = nil
-end
 
 function EM_PRIV.playerKey(player)
 	return "p" .. player:getGuid()
@@ -87,12 +61,27 @@ end
 
 --- Live hunt/raid session bound to an engine instance id (e.g. GOD /goto spectator).
 function ExpeditionManager.getSessionByInstanceId(instanceId)
-	local id = math.floor(tonumber(instanceId) or 0)
-	if id <= 0 then
+	local id = Instance.normalize(instanceId)
+	if Instance.isWorld(id) then
 		return nil
 	end
+	local function owns(session)
+		return session
+			and session.state ~= "ended"
+			and EM_PRIV.sessionsByKey[session.key] == session
+			and session.instance
+			and session.instance.instanceId == id
+			and ExpeditionInstance.isLive(session.instance)
+	end
+	EM_PRIV.sessionByInstanceKey = EM_PRIV.sessionByInstanceKey or {}
+	local cached = EM_PRIV.sessionByInstanceKey[id]
+	if owns(cached) then
+		return cached
+	end
+	EM_PRIV.sessionByInstanceKey[id] = nil
 	for _, session in pairs(EM_PRIV.sessionsByKey) do
-		if session.state ~= "ended" and session.instance and session.instance.instanceId == id then
+		if owns(session) then
+			EM_PRIV.sessionByInstanceKey[id] = session
 			return session
 		end
 	end
@@ -156,10 +145,7 @@ function ExpeditionManager.isInExpedition(player)
 	if not session.entered then
 		return true
 	end
-	if session.instance and session.instance.instanceId and player.getInstanceId then
-		return player:getInstanceId() == session.instance.instanceId
-	end
-	return ExpeditionInstance.contains(session.instance, player:getPosition())
+	return ExpeditionInstance.isLive(session.instance) and player:getInstanceId() == session.instance.instanceId
 end
 
 --- If the player has a session but is no longer in the instance, leave/rescue them.
@@ -175,15 +161,8 @@ function ExpeditionManager.reconcilePresence(player)
 	if not session.entered then
 		return true
 	end
-	-- Occupancy alone is not enough: shared hunt tiles exist on every instance id.
-	-- Match isInExpedition — wrong private id means the player is not in this hunt.
-	if session.instance and session.instance.instanceId and player.getInstanceId then
-		if player:getInstanceId() == session.instance.instanceId
-			and ExpeditionInstance.contains(session.instance, player:getPosition())
-		then
-			return true
-		end
-	elseif ExpeditionInstance.contains(session.instance, player:getPosition()) then
+	-- Membership is the bound key: shared hunt tiles exist on every instance id.
+	if ExpeditionInstance.isLive(session.instance) and player:getInstanceId() == session.instance.instanceId then
 		return true
 	end
 
@@ -273,8 +252,7 @@ function EM_PRIV.saveReturn(player, pos)
 	-- Never persist a private-instance or hunt-footprint tile as the post-leave
 	-- return point (switch leave→join with skipTeleport used to overwrite temple
 	-- with the hunt XY; leave then teleportTo'd the same tile and no-oped).
-	local privateBase = (InstanceWorld and InstanceWorld.PRIVATE_BASE) or 3000000
-	if player.getInstanceId and (player:getInstanceId() or 0) >= privateBase then
+	if Instance.isPrivate(Instance.of(player)) then
 		return
 	end
 	if not EM_PRIV.isOpenWorldReturnPos(pos) then
@@ -361,10 +339,9 @@ function EM_PRIV.expeditionTeleportCombatOk(player)
 	return true
 end
 
-function EM_PRIV.markActive(player, expeditionId, slot)
+function EM_PRIV.markActive(player, expeditionId)
 	player:setStorageValue(ExpeditionConfig.STORAGE_ACTIVE, 1)
 	player:setStorageValue(ExpeditionConfig.STORAGE_EXPEDITION_ID, expeditionId and 1 or -1)
-	player:setStorageValue(ExpeditionConfig.STORAGE_SLOT, slot or -1)
 	-- Store expedition id string via KV when available; storage holds flag only.
 	local kv = player:kv()
 	if kv then
@@ -374,7 +351,6 @@ end
 
 function EM_PRIV.clearActive(player)
 	player:setStorageValue(ExpeditionConfig.STORAGE_ACTIVE, -1)
-	player:setStorageValue(ExpeditionConfig.STORAGE_SLOT, -1)
 	local kv = player:kv()
 	if kv then
 		kv:remove("expedition_id")
@@ -479,8 +455,8 @@ function ExpeditionManager.loadReturnPos(player)
 	return EM_PRIV.loadReturn(player)
 end
 
-function ExpeditionManager.markActiveFlag(player, expeditionId, slot)
-	EM_PRIV.markActive(player, expeditionId, slot)
+function ExpeditionManager.markActiveFlag(player, expeditionId)
+	EM_PRIV.markActive(player, expeditionId)
 end
 
 function ExpeditionManager.clearActiveFlag(player)
@@ -963,7 +939,6 @@ function EM_PRIV.registerSessionMember(session, member, host, opts)
 	local hostId = host:getId()
 	local memberId = member:getId()
 	local catalog = session.catalog
-	local channel = session.channel
 	local loadout = opts.loadout
 	local hostWorldPos = opts.hostWorldPos
 	local companionById = opts.companionById or {}
@@ -1001,7 +976,7 @@ function EM_PRIV.registerSessionMember(session, member, host, opts)
 	else
 		EM_PRIV.saveReturn(member)
 	end
-	EM_PRIV.markActive(member, catalog and catalog.id or "", channel)
+	EM_PRIV.markActive(member, catalog and catalog.id or "")
 	if SampleSpells and SampleSpells.ensure then
 		SampleSpells.ensure(member)
 	end

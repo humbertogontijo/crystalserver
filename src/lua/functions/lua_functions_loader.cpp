@@ -439,6 +439,94 @@ Position Lua::getPosition(lua_State* L, int32_t arg) {
 	return position;
 }
 
+std::optional<InstanceKind> Lua::getInstanceKind(lua_State* L, int32_t arg) {
+	if (lua_type(L, arg) == LUA_TSTRING) {
+		return instanceKindFromName(lua_tostring(L, arg));
+	}
+	if (lua_type(L, arg) == LUA_TNUMBER) {
+		const auto raw = static_cast<int64_t>(lua_tonumber(L, arg));
+		if (raw >= 0 && raw < static_cast<int64_t>(InstanceKind::Count)) {
+			return static_cast<InstanceKind>(raw);
+		}
+	}
+	return std::nullopt;
+}
+
+std::optional<InstanceId> Lua::parseInstanceId(lua_State* L, int32_t arg) {
+	switch (lua_type(L, arg)) {
+		case LUA_TNONE:
+		case LUA_TNIL:
+			return std::nullopt;
+		case LUA_TNUMBER:
+			// Only 0 is meaningful as a number (legacy "open world"); structured ids are keys.
+			if (lua_tonumber(L, arg) == 0) {
+				return InstanceId::World;
+			}
+			return std::nullopt;
+		case LUA_TSTRING: {
+			size_t len = 0;
+			const char* text = lua_tolstring(L, arg, &len);
+			return InstanceId::fromKey(std::string_view(text, len));
+		}
+		case LUA_TTABLE: {
+			const int32_t absArg = arg < 0 ? lua_gettop(L) + arg + 1 : arg;
+			lua_getfield(L, absArg, "key");
+			if (lua_type(L, -1) == LUA_TSTRING) {
+				auto parsed = InstanceId::fromKey(lua_tostring(L, -1));
+				lua_pop(L, 1);
+				return parsed;
+			}
+			lua_pop(L, 1);
+
+			lua_getfield(L, absArg, "kind");
+			const auto kind = getInstanceKind(L, -1);
+			lua_pop(L, 1);
+			if (!kind) {
+				return std::nullopt;
+			}
+			lua_getfield(L, absArg, "subareaId");
+			const auto subareaId = static_cast<uint32_t>(std::max<lua_Number>(0, lua_tonumber(L, -1)));
+			lua_getfield(L, absArg, "channel");
+			const auto channel = static_cast<uint16_t>(std::max<lua_Number>(0, lua_tonumber(L, -1)));
+			lua_pop(L, 2);
+			if (*kind == InstanceKind::World) {
+				return InstanceId::World;
+			}
+			return InstanceId(*kind, subareaId, channel);
+		}
+		default:
+			return std::nullopt;
+	}
+}
+
+bool Lua::readInstanceId(lua_State* L, int32_t arg, std::optional<InstanceId> &out) {
+	out.reset();
+	if (lua_gettop(L) < arg || lua_isnil(L, arg)) {
+		return true;
+	}
+	if (const auto parsed = parseInstanceId(L, arg)) {
+		out = parsed;
+		return true;
+	}
+	reportErrorFunc(fmt::format("invalid instance id at argument {} (expected 'kind:subareaId:channel' or {{kind, subareaId, channel}})", arg));
+	return false;
+}
+
+std::optional<InstanceId> Lua::requireInstanceId(lua_State* L, int32_t arg) {
+	std::optional<InstanceId> id;
+	if (!readInstanceId(L, arg, id)) {
+		return std::nullopt;
+	}
+	if (!id) {
+		reportErrorFunc(fmt::format("missing instance id at argument {}", arg));
+	}
+	return id;
+}
+
+void Lua::pushInstanceId(lua_State* L, InstanceId instanceId) {
+	pushString(L, instanceId.toKey());
+}
+
 Outfit_t Lua::getOutfit(lua_State* L, int32_t arg) {
 	Outfit_t outfit;
 	outfit.lookMountFeet = getField<uint8_t>(L, arg, "lookMountFeet");

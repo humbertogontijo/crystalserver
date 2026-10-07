@@ -16,9 +16,9 @@ function teleportToCreature.onSay(player, words, param)
 	end
 
 	local dest = target:getPosition()
-	local instanceId = target.getInstanceId and target:getInstanceId() or 0
+	local instanceId = Instance.of(target)
 	local ok = false
-	if InstanceWorld and InstanceWorld.enterInstance and instanceId ~= 0 then
+	if InstanceWorld and InstanceWorld.enterInstance and not Instance.isWorld(instanceId) then
 		ok = InstanceWorld.enterInstance(player, instanceId, dest) and true or false
 	else
 		ok = player:teleportTo(dest) and true or false

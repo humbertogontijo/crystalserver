@@ -267,29 +267,31 @@ function BossLever:onUse(player)
 				end
 				local again = self:prepareLever(player)
 				if again then
-					self:startWorldEncounter(again, difficulty)
+					self:startWorldEncounter(again, difficulty, player:getInstanceId())
 				end
 			end,
 		})
 		return true
 	end
 
-	self:startWorldEncounter(lever, nil)
+	self:startWorldEncounter(lever, nil, player:getInstanceId())
 	return true
 end
 
 --- Open-world fight: spawn, teleport the slot players, cooldowns and the room timeout.
+--- The encounter lives in the puller's instance (open-world instances are per subarea/channel).
 ---@param lever table
 ---@param difficulty number|nil
+---@param instanceId string
 ---@return boolean
-function BossLever:startWorldEncounter(lever, difficulty)
+function BossLever:startWorldEncounter(lever, difficulty, instanceId)
 	local zone = self:getZone()
 	zone:removeMonsters()
 	local playerIds = {}
 	for _, p in ipairs(lever:getPlayers()) do
 		playerIds[#playerIds + 1] = p:getId()
 	end
-	if not self:startEncounter({ instanceId = 0, difficulty = difficulty, playerIds = playerIds }) then
+	if not self:startEncounter({ instanceId = instanceId, difficulty = difficulty, playerIds = playerIds }) then
 		return true
 	end
 	lever:teleportPlayers()
@@ -333,14 +335,14 @@ function BossLever:startWorldEncounter(lever, difficulty)
 	return true
 end
 
---- Spawn the lever's monsters and boss. `ctx.instanceId` (private instance, 0 = open world)
+--- Spawn the lever's monsters and boss. `ctx.instanceId` (instance key of the encounter)
 --- scopes every create inside the lever code; `ctx.difficulty` scales boss forms.
 --- Returns ok, spawned boss monsters.
 ---@param ctx table|nil { instanceId, difficulty, playerIds }
 ---@return boolean, Monster[]
 function BossLever:startEncounter(ctx)
 	ctx = ctx or {}
-	ctx.instanceId = tonumber(ctx.instanceId) or 0
+	ctx.instanceId = Instance.normalize(ctx.instanceId)
 	ctx.lever = self
 	self.encounters[ctx.instanceId] = ctx
 	local spawned = {}
@@ -365,7 +367,7 @@ function BossLever:startEncounter(ctx)
 			if not monster then
 				return false
 			end
-			if ctx.instanceId == 0 then
+			if not Instance.isPrivate(ctx.instanceId) then
 				monster:registerEvent("BossLeverOnDeath")
 			end
 			self:scaleForm(monster, ctx)
@@ -374,7 +376,7 @@ function BossLever:startEncounter(ctx)
 		return true
 	end
 	local ok
-	if ctx.instanceId ~= 0 and Game.runInInstance then
+	if not Instance.isWorld(ctx.instanceId) and Game.runInInstance then
 		ok = Game.runInInstance(ctx.instanceId, spawn)
 	else
 		ok = spawn()
@@ -386,15 +388,15 @@ function BossLever:startEncounter(ctx)
 	return true, spawned
 end
 
----@param instanceId number
+---@param instanceId string
 ---@return table|nil
 function BossLever:encounterContext(instanceId)
-	return self.encounters[tonumber(instanceId) or 0]
+	return self.encounters[Instance.normalize(instanceId)]
 end
 
----@param instanceId number
+---@param instanceId string
 function BossLever:clearEncounter(instanceId)
-	self.encounters[tonumber(instanceId) or 0] = nil
+	self.encounters[Instance.normalize(instanceId)] = nil
 end
 
 ---@param monster Monster
@@ -409,10 +411,10 @@ end
 --- difficulty. Expeditions bind it through BossLever.addPhaseHook.
 ---@param name string
 ---@param position Position
----@param instanceId number
+---@param instanceId string
 ---@return Monster|nil
 function BossLever:spawnForm(name, position, instanceId)
-	local ctx = self:encounterContext(instanceId) or { instanceId = tonumber(instanceId) or 0 }
+	local ctx = self:encounterContext(instanceId) or { instanceId = Instance.normalize(instanceId) }
 	local monster = Game.createMonster(name, position, true, true, nil, ctx.instanceId)
 	if not monster then
 		return nil
@@ -449,7 +451,7 @@ function BossLever:isChained()
 end
 
 --- Open-world victory: unlock the next difficulty for the encounter players.
----@param instanceId number
+---@param instanceId string
 function BossLever:onEncounterVictory(instanceId)
 	local ctx = self:encounterContext(instanceId)
 	if not ctx then

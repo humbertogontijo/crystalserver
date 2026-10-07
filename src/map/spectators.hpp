@@ -17,8 +17,9 @@
 
 #pragma once
 
+#include "game/instance_id.hpp"
+
 #include <cstdint>
-#include <limits>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -55,7 +56,7 @@ public:
 
 	template <typename T>
 		requires std::is_base_of_v<Creature, T>
-	Spectators find(const Position &centerPos, bool multifloor = false, int32_t minRangeX = 0, int32_t maxRangeX = 0, int32_t minRangeY = 0, int32_t maxRangeY = 0, bool useCache = true, uint32_t instanceId = std::numeric_limits<uint32_t>::max()) {
+	Spectators find(const Position &centerPos, bool multifloor = false, int32_t minRangeX = 0, int32_t maxRangeX = 0, int32_t minRangeY = 0, int32_t maxRangeY = 0, bool useCache = true, InstanceId instanceId = InstanceId::Any) {
 		constexpr bool onlyPlayers = std::is_same_v<T, Player>;
 		constexpr bool onlyMonsters = std::is_same_v<T, Monster>;
 		constexpr bool onlyNpcs = std::is_same_v<T, Npc>;
@@ -73,11 +74,11 @@ public:
 
 	Spectators excludeMaster() const;
 	Spectators excludePlayerMaster() const;
-	Spectators matchingInstance(uint32_t instanceId) const;
+	Spectators matchingInstance(InstanceId instanceId) const;
 
 	template <typename T>
 		requires std::is_base_of_v<Creature, T>
-	static Spectators around(const Position &centerPos, uint32_t instanceId, bool multifloor = true) {
+	static Spectators around(const Position &centerPos, InstanceId instanceId, bool multifloor = true) {
 		return Spectators().find<T>(centerPos, multifloor, 0, 0, 0, 0, true, instanceId);
 	}
 
@@ -118,8 +119,8 @@ public:
 private:
 	static phmap::flat_hash_map<uint64_t, SpectatorsCache> spectatorsCache;
 
-	Spectators find(const Position &centerPos, bool multifloor = false, bool onlyPlayers = false, bool onlyMonsters = false, bool onlyNpcs = false, int32_t minRangeX = 0, int32_t maxRangeX = 0, int32_t minRangeY = 0, int32_t maxRangeY = 0, bool useCache = true, uint32_t instanceId = std::numeric_limits<uint32_t>::max());
-	CreatureVector getSpectators(const Position &centerPos, bool multifloor = false, bool onlyPlayers = false, bool onlyMonsters = false, bool onlyNpcs = false, int32_t minRangeX = 0, int32_t maxRangeX = 0, int32_t minRangeY = 0, int32_t maxRangeY = 0, uint32_t instanceId = std::numeric_limits<uint32_t>::max());
+	Spectators find(const Position &centerPos, bool multifloor = false, bool onlyPlayers = false, bool onlyMonsters = false, bool onlyNpcs = false, int32_t minRangeX = 0, int32_t maxRangeX = 0, int32_t minRangeY = 0, int32_t maxRangeY = 0, bool useCache = true, InstanceId instanceId = InstanceId::Any);
+	CreatureVector getSpectators(const Position &centerPos, bool multifloor = false, bool onlyPlayers = false, bool onlyMonsters = false, bool onlyNpcs = false, int32_t minRangeX = 0, int32_t maxRangeX = 0, int32_t minRangeY = 0, int32_t maxRangeY = 0, InstanceId instanceId = InstanceId::Any);
 
 	Spectators filter(bool onlyPlayers, bool onlyMonsters, bool onlyNpcs) const;
 

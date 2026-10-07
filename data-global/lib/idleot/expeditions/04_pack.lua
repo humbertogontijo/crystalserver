@@ -168,7 +168,7 @@ function ExpeditionPack.onInstanceMonsterSpawn(monster, _position)
 		return
 	end
 	local instanceId = monster:getInstanceId()
-	if instanceId < (InstanceWorld and InstanceWorld.PRIVATE_BASE or 3000000) then
+	if not Instance.isPrivate(instanceId) then
 		return
 	end
 	local session = ExpeditionManager.getSessionByInstanceId and ExpeditionManager.getSessionByInstanceId(instanceId)

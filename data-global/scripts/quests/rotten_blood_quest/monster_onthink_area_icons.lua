@@ -188,9 +188,7 @@ function onRottenMonsterThink(monster, interval)
 		return true
 	end
 
-	local instanceId = monster.getInstanceId and monster:getInstanceId() or 0
-	local privateBase = (InstanceWorld and InstanceWorld.PRIVATE_BASE) or 3000000
-	if instanceId >= privateBase then
+	if Instance.isPrivate(Instance.of(monster)) then
 		if RottenBloodInstanceIcons and RottenBloodInstanceIcons.onMonsterThink then
 			RottenBloodInstanceIcons.onMonsterThink(monster)
 		end

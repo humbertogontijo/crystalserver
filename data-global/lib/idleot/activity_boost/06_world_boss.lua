@@ -250,8 +250,18 @@ local function teardownSession(session, reason)
 			ExpeditionInstance.free(session.instance.instanceId)
 		end
 	end
-	ActivityBoostWorldBoss.active[session.bandId] = nil
+	if ActivityBoostWorldBoss.active[session.bandId] == session then
+		ActivityBoostWorldBoss.active[session.bandId] = nil
+	end
 	ActivityBoostWorldBoss.broadcastSchedule()
+end
+
+--- True while `session` is still the band's live fight (timers captured it earlier).
+local function isCurrentSession(session)
+	return session ~= nil
+		and ActivityBoostWorldBoss.active[session.bandId] == session
+		and not session.tearingDown
+		and Instance.isLive(session.key, session.owner)
 end
 
 function ActivityBoostWorldBoss.listActive()
@@ -394,12 +404,16 @@ local function startBandSession(band, bossName)
 	if not bossName then
 		return
 	end
-	local instanceId = ExpeditionInstance and ExpeditionInstance.allocate and ExpeditionInstance.allocate("worldboss")
+	local arena = ActivityBoostConfig.WORLD_BOSS_ARENA or {}
+	-- The arena's own region is the subarea; the band is only a label (tag) and the owner
+	-- is unique per fight so stale timers can never match a later fight of the same band.
+	local arenaSubarea = arena.center and InstanceWorld.subareaIdAt(Position(arena.center.x, arena.center.y, arena.center.z)) or 0
+	local owner = string.format("worldboss_%s_%d", tostring(band.id), os.time())
+	local instanceId = ExpeditionInstance.allocate("worldboss", arenaSubarea, owner, band.id)
 	if not instanceId then
 		logger.error("[ActivityBoost] world boss: no instance for band {}", band.id)
 		return
 	end
-	local arena = ActivityBoostConfig.WORLD_BOSS_ARENA or {}
 	local buildOpts = {
 		id = "worldboss_" .. band.id,
 		region = "worldboss_" .. band.id,
@@ -407,7 +421,7 @@ local function startBandSession(band, bossName)
 		center = arena.center,
 		boundary = arena.boundary,
 	}
-	local instance, err = ExpeditionInstance.build(instanceId, buildOpts, os.time() + instanceId)
+	local instance, err = ExpeditionInstance.build(instanceId, buildOpts, os.time())
 	if not instance then
 		ExpeditionInstance.free(instanceId)
 		logger.error("[ActivityBoost] world boss build failed {}: {}", band.id, err or "?")
@@ -418,6 +432,8 @@ local function startBandSession(band, bossName)
 	local session = {
 		bandId = band.id,
 		bossName = bossName,
+		key = instanceId,
+		owner = owner,
 		instance = instance,
 		playerIds = {},
 		memberKeys = {},
@@ -453,13 +469,12 @@ local function startBandSession(band, bossName)
 	end
 
 	addEvent(function()
-		local s = ActivityBoostWorldBoss.active[band.id]
-		if s and not s.bossDead and not s.tearingDown then
+		if isCurrentSession(session) and not session.bossDead then
 			Game.broadcastMessage(
-				string.format("World Boss (%s): time expired - %s escaped.", band.name, s.bossName or "boss"),
+				string.format("World Boss (%s): time expired - %s escaped.", band.name, session.bossName or "boss"),
 				MESSAGE_EVENT_ADVANCE
 			)
-			teardownSession(s, "timeout")
+			teardownSession(session, "timeout")
 			addEvent(function()
 				ActivityBoostWorldBoss.broadcastSchedule()
 			end, 2000)
@@ -569,7 +584,7 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 	end
 
 	ExpeditionManager.saveReturnPos(player)
-	ExpeditionManager.markActiveFlag(player, "worldboss:" .. bandId, session.instance.instanceId)
+	ExpeditionManager.markActiveFlag(player, "worldboss:" .. bandId)
 
 	local key = "worldboss:" .. bandId .. ":p" .. player:getGuid()
 	local member = {
@@ -613,7 +628,7 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 			logger.error("[ActivityBoost] InstanceWorld.enterInstance missing — cannot join world boss")
 			return false
 		end
-		if not InstanceWorld.enterInstance(p, instance.instanceId, instance.entry, "worldboss:" .. bandId) then
+		if not InstanceWorld.enterInstance(p, instance.instanceId, instance.entry) then
 			logger.error("[ActivityBoost] enterInstance failed for {} into world boss {}", p:getName(), liveSession.bossName)
 			ActivityBoostWorldBoss.leave(p, { silent = true, force = true })
 			return false
@@ -690,7 +705,7 @@ function ActivityBoostWorldBoss.withdrawDamage(player)
 	broadcastMeter(session)
 end
 
-InstancePvp.setHooks("worldboss", {
+InstanceKinds.setHooks("worldboss", {
 	onRevive = function(p)
 		if p and p.sendTextMessage then
 			p:sendTextMessage(MESSAGE_EVENT_ADVANCE, "World Boss respawn - back in the fight!")
@@ -882,12 +897,10 @@ function ActivityBoostWorldBoss.onBossDeath(creature)
 		MESSAGE_EVENT_ADVANCE
 	)
 
-	local bandId = session.bandId
 	local cooldownSec = ActivityBoostConfig.WORLD_BOSS_COOLDOWN_SEC or 1800
 	addEvent(function()
-		local s = ActivityBoostWorldBoss.active[bandId]
-		if s then
-			teardownSession(s, "cleared")
+		if isCurrentSession(session) then
+			teardownSession(session, "cleared")
 		end
 		ActivityBoostWorldBoss.broadcastSchedule()
 	end, 8000)

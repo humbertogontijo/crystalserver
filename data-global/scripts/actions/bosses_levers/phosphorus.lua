@@ -57,7 +57,7 @@ lever:position(Position(33810, 32690, 15))
 lever:register()
 
 local function inEncounter(instanceId, fn)
-	if instanceId ~= 0 then
+	if not Instance.isWorld(instanceId) then
 		return Game.runInInstance(instanceId, fn)
 	end
 	return fn()
@@ -100,7 +100,7 @@ local function startFinal(instanceId)
 		return
 	end
 	local monster = lever:spawnForm("Phosphorus (Final)", ARENA.final.boss, instanceId)
-	if monster and instanceId == 0 then
+	if monster and not Instance.isPrivate(instanceId) then
 		monster:registerEvent("BossLeverOnDeath")
 	end
 end

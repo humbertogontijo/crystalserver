@@ -38,6 +38,24 @@ Creature::Creature(InstanceId initialInstanceId) :
 	Creature::onIdleStatus();
 }
 
+void Creature::setInstanceIdUnseen(InstanceId id) {
+	if (instanceId == id) {
+		return;
+	}
+	if (const auto &player = getPlayer()) {
+		g_instanceRegistry().updatePlayerInstance(getID(), id);
+		g_game().persistPlayerInstance(player, id);
+	}
+	instanceId = id;
+	Spectators::clearCache();
+	// Summons placed with the master must share the private id before appear.
+	for (const auto &summon : m_summons) {
+		if (summon) {
+			summon->setInstanceId(id);
+		}
+	}
+}
+
 void Creature::setInstanceId(InstanceId id) {
 	if (instanceId == id) {
 		return;
@@ -47,18 +65,16 @@ void Creature::setInstanceId(InstanceId id) {
 	const auto &tile = getTile();
 	// Not on the map yet (login / spawn bind): only store the id.
 	if (!tile || isRemoved()) {
-		instanceId = id;
-		Spectators::clearCache();
-		// Summons placed with the master must share the private id before appear.
-		for (const auto &summon : m_summons) {
-			if (summon) {
-				summon->setInstanceId(id);
-			}
-		}
+		setInstanceIdUnseen(id);
 		return;
 	}
 
-	const uint32_t oldInstanceId = instanceId;
+	if (const auto &player = getPlayer()) {
+		g_instanceRegistry().updatePlayerInstance(getID(), id);
+		g_game().persistPlayerInstance(player, id);
+	}
+
+	const InstanceId oldInstanceId = instanceId;
 	const Position &pos = tile->getPosition();
 
 	// Same as internalTeleport: clear walks before remove/appear/map-description so
@@ -242,6 +258,8 @@ void Creature::onThink(uint32_t interval) {
 	}
 
 	auto onThink = [self = getCreature(), interval] {
+		// May run after goToFollowCreature_async, outside the scope opened above.
+		InstanceActorScope instanceActorScope(self);
 		// scripting event - onThink
 		const auto &thinkEvents = self->getCreatureEvents(CREATURE_EVENT_THINK);
 		for (const auto &creatureEventPtr : thinkEvents) {
@@ -1601,6 +1619,7 @@ std::vector<std::shared_ptr<Condition>> Creature::getConditionsByType(ConditionT
 
 void Creature::executeConditions(uint32_t interval) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
+	InstanceActorScope instanceActorScope(getCreature());
 	auto it = conditions.begin(), end = conditions.end();
 	while (it != end) {
 		std::shared_ptr<Condition> condition = *it;

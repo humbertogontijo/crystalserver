@@ -29,6 +29,7 @@
 #include "game/game.hpp"
 #include "game/scheduling/dispatcher.hpp"
 #include "game/scheduling/events_scheduler.hpp"
+#include "game/subarea_registry.hpp"
 #include "game/zones/zone.hpp"
 #include "io/io_bosstiary.hpp"
 #include "io/iomarket.hpp"
@@ -86,6 +87,7 @@ int CrystalServer::run() {
 				}
 				g_metrics().init(metricsOptions);
 #endif
+				InstanceActorScope startupInstanceScope(InstanceActorScope::Positional {});
 				rsa.start();
 				initializeDatabase();
 				loadModules();
@@ -188,6 +190,8 @@ void CrystalServer::loadThisWorld() {
 
 void CrystalServer::loadMaps() const {
 	try {
+		// Before the map: spawn/NPC births resolve their instance from subarea regions.
+		g_subareas().load(g_configManager().getString(DATA_DIRECTORY) + "/lib/idleot/subareas/regions.generated.bin");
 		g_game().loadMainMap(g_configManager().getString(MAP_NAME));
 
 		// If "mapCustomEnabled" is true on config.lua, then load the custom map
