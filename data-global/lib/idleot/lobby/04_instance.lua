@@ -388,9 +388,6 @@ end
 --- Leave the lobby room for the open world (return tile or `dest`).
 function LobbyInstance.leaveNow(player, dest)
 	local room = LobbyInstance.roomForPlayer(player)
-	if LobbyServices and LobbyServices.onLeave then
-		LobbyServices.onLeave(player)
-	end
 	dest = dest or LobbyInstance.loadReturnPos(player)
 	local ok
 	if InstanceWorld and InstanceWorld.exitToOpenWorld then

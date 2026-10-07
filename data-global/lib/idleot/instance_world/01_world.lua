@@ -394,6 +394,12 @@ local function bindCreature(creature, instanceId)
 	InstanceWorld.scheduleSendBounds(player)
 end
 
+--- GM /instance: rebind a player to `instanceId` without moving them.
+function InstanceWorld.setInstanceInPlace(player, instanceId)
+	local p = asPlayer(player)
+	return p ~= nil and p:setInstanceId(instanceId) == true
+end
+
 local function afterAtomicBind(creature)
 	local player = asPlayer(creature)
 	if player then

@@ -686,6 +686,7 @@ local function usePotion(player, typeId)
 	else
 		pos:sendMagicEffect(fx)
 	end
+	player:say("Aaaah...", MESSAGE_POTION)
 	return true
 end
 
@@ -825,7 +826,8 @@ end
 local TALKTYPE_SPELL_USE_WIRE = 9
 
 local function notifyAutomationCast(player, slot, words, label, exhaustMs)
-	if words and words ~= "" then
+	-- Runes are thrown silently; their words only label the client cast flash.
+	if words and words ~= "" and not (slot and slot.kind == "rune") then
 		pcall(function()
 			player:say(words, TALKTYPE_SPELL_USE_WIRE)
 		end)

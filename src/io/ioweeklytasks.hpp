@@ -62,6 +62,14 @@ struct WeeklyDeliveryTask {
 	uint8_t delivered = 0; // 0 = not delivered, 1 = delivered
 };
 
+// Store-bought task board boosts (expiry timestamps live in player KV scope "task-board-boost")
+enum TaskBoardBoost_t : uint8_t {
+	TASK_BOARD_BOOST_BOUNTY_DOUBLE_KILL = 0, // 2x bounty kill credit for one hour
+	TASK_BOARD_BOOST_WEEKLY_DOUBLE_KILL = 1, // 2x weekly kill credit for one hour
+	TASK_BOARD_BOOST_WEEKLY_REDUCED_ITEMS = 2, // half delivery amounts until the next weekly reset
+	TASK_BOARD_BOOST_LAST = TASK_BOARD_BOOST_WEEKLY_REDUCED_ITEMS
+};
+
 // Hunting Task Shop offer types
 enum HuntingTaskShopOfferType_t : uint8_t {
 	HUNTING_SHOP_OFFER_ITEM = 0,
@@ -261,6 +269,15 @@ public:
 
 	// Get dynamic shop offer status for a player (checks if already owned)
 	uint8_t getPlayerOfferStatus(const std::shared_ptr<Player> &player, const HuntingTaskShopOffer &offer) const;
+
+	// Seconds left on a store task board boost (0 when inactive)
+	static uint32_t getBoostTimeLeft(const std::shared_ptr<Player> &player, TaskBoardBoost_t boost);
+
+	// Activate a store task board boost and resend the affected task board tab
+	static bool grantBoost(const std::shared_ptr<Player> &player, TaskBoardBoost_t boost);
+
+	// Items a delivery task currently requires (halved while reduced items is active)
+	static uint32_t getRequiredDeliveryItems(const std::shared_ptr<Player> &player, const WeeklyDeliveryTask &task);
 
 private:
 	std::vector<HuntingTaskShopOffer> shopOffers;

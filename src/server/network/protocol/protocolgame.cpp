@@ -6544,7 +6544,8 @@ void ProtocolGame::sendWeeklyTaskData(const WeeklyTaskData &weeklyData, const Pl
 		msg.add<uint16_t>(task.itemId);
 		msg.addByte(task.unknown1);
 		msg.addByte(task.unknown2);
-		msg.add<uint32_t>(task.totalItems);
+		const uint32_t requiredItems = task.delivered != 0 ? task.totalItems : IOWeeklyTasks::getRequiredDeliveryItems(ownerPlayer, task);
+		msg.add<uint32_t>(requiredItems);
 		if (task.delivered != 0) {
 			msg.add<uint32_t>(task.totalItems);
 		} else {

@@ -81,20 +81,41 @@ function ExpeditionPersist.snapshotFromSession(session)
 
 	local humanGuids = {}
 	local seenHuman = {}
+	local humanByAccount = {}
+	local companionMembers = {}
 
+	-- The host stays human even when a client detach re-marked its body as a companion.
 	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
 		local member = Player(id)
-		if member and not isCompanion(session, member) then
+		if member then
 			local guid = member:getGuid()
-			if not seenHuman[guid] then
-				seenHuman[guid] = true
-				humanGuids[#humanGuids + 1] = guid
+			if guid == hostGuid or not isCompanion(session, member) then
+				if not seenHuman[guid] then
+					seenHuman[guid] = true
+					humanGuids[#humanGuids + 1] = guid
+					local account = member:getAccountId()
+					if guid == hostGuid or not humanByAccount[account] then
+						humanByAccount[account] = guid
+					end
+				end
+			else
+				companionMembers[#companionMembers + 1] = member
 			end
 		end
 	end
 
 	if #humanGuids == 0 then
 		return nil
+	end
+
+	-- Restore redeploys each companion under a human of its own account.
+	local companions = {}
+	for _, companion in ipairs(companionMembers) do
+		local controllerGuid = math.floor(tonumber(companion:getStorageValue(AltsConfig.STORAGE_COMPANION_CONTROLLER)) or 0)
+		if not seenHuman[controllerGuid] then
+			controllerGuid = humanByAccount[companion:getAccountId()] or hostGuid
+		end
+		companions[#companions + 1] = { name = companion:getName(), controllerGuid = controllerGuid }
 	end
 
 	return {
@@ -111,6 +132,7 @@ function ExpeditionPersist.snapshotFromSession(session)
 		stopOnInsufficientCap = session.stopOnInsufficientCap == true,
 		hostGuid = hostGuid,
 		humanGuids = humanGuids,
+		companions = companions,
 		-- Keeps the lobby "running" after a restart (no leave / kick mid-hunt).
 		scope = session.scope,
 		lobbyId = session.lobbyId,
@@ -234,6 +256,10 @@ local function discardSnapshot(store, stale, keeper)
 end
 
 function ExpeditionPersist.writeSession(session)
+	-- Shutdown logs members out one by one; the first snapshot holds the full roster.
+	if session and session.persistedForRestart and ExpeditionPersist.isServerShuttingDown() then
+		return true
+	end
 	local snapshot = ExpeditionPersist.snapshotFromSession(session)
 	if not snapshot then
 		return false

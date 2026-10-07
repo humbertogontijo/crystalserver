@@ -19,6 +19,23 @@ local ROTTEN_BLOOD_HEART_BY_MONSTER = {
 	["converter"] = 43855,
 }
 
+local GOLD_COIN_ITEM_IDS = {
+	[ITEM_GOLD_COIN] = true,
+	[ITEM_PLATINUM_COIN] = true,
+	[ITEM_CRYSTAL_COIN] = true,
+}
+
+-- The fractional part rolls as a chance for one extra coin so e.g. 1.5x averages
+-- out over many kills.
+local function scaleGoldCoinCount(count)
+	local scaled = count * configManager.getFloat(configKeys.RATE_GOLD_LOOT)
+	local whole = math.floor(scaled)
+	if math.random() < scaled - whole then
+		whole = whole + 1
+	end
+	return whole
+end
+
 -- return a dictionary of itemId => { count, gut }
 ---@param config { factor: number, gut: boolean, filter?: fun(itemType: ItemType, unique: boolean): boolean }
 ---@return LootItems
@@ -74,6 +91,10 @@ function MonsterType:generateLootRoll(config, resultTable, player)
 		local dynamicFactor = factor * (math.random(95, 105) / 100)
 		local adjustedChance = chance * dynamicFactor
 
+		if iType:getType() == ITEM_TYPE_CREATUREPRODUCT then
+			adjustedChance = adjustedChance * configManager.getFloat(configKeys.RATE_GOLD_LOOT)
+		end
+
 		local originalChance = chance
 		if config.gut and iType:getType() == ITEM_TYPE_CREATUREPRODUCT then
 			local charmChance = player:getCharmChance(CHARM_GUT)
@@ -94,6 +115,10 @@ function MonsterType:generateLootRoll(config, resultTable, player)
 			count = math.max(0, randValue % (maxc - minc + 1)) + minc
 		else
 			count = 1
+		end
+
+		if GOLD_COIN_ITEM_IDS[item.itemId] then
+			count = scaleGoldCoinCount(count)
 		end
 
 		local gutTriggered = randValue < chance and randValue > originalChance

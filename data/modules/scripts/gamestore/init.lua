@@ -36,6 +36,9 @@ GameStore.OfferTypes = {
 	OFFER_TYPE_ITEM_BED = 26,
 	OFFER_TYPE_ITEM_UNIQUE = 27,
 	OFFER_TYPE_WEEKLYTASKEXPANSION = 28,
+	-- Script-defined offer: offer.onBuy(player, offer) -> ok, err; optional
+	-- offer.canBuy(player) -> disabledReason|nil and offer.getPrice(player) -> number.
+	OFFER_TYPE_CUSTOM = 100,
 }
 
 GameStore.SubActions = {
@@ -239,6 +242,19 @@ function GameStore.fuzzySearchOffer(searchString)
 	return results
 end
 
+-- Price the player pays right now (listing, home page and purchase must agree).
+function GameStore.getOfferPrice(player, offer)
+	local t = GameStore.OfferTypes
+	if offer.type == t.OFFER_TYPE_EXPBOOST then
+		return GameStore.ExpBoostValues[player:getStorageValue(GameStore.Storages.expBoostCount)] or offer.price or 0
+	elseif offer.type == t.OFFER_TYPE_NAMECHANGE and player:kv():get("namelock") then
+		return 0
+	elseif offer.type == t.OFFER_TYPE_CUSTOM and offer.getPrice then
+		return math.max(0, math.floor(tonumber(offer.getPrice(player)) or offer.price or 0))
+	end
+	return offer.price or 0
+end
+
 local function queueSendStoreAlertToUser(message, delay, playerId, storeErrorCode)
 	storeErrorCode = storeErrorCode and storeErrorCode or GameStore.StoreErrors.STORE_ERROR_NETWORK
 	addPlayerEvent(sendStoreError, delay, playerId, storeErrorCode, message)
@@ -314,12 +330,8 @@ function parseTransferableCoins(playerId, msg)
 end
 
 function parseOpenStore(playerId, msg)
+	-- The client requests Home (or a deep-linked offer) itself once categories arrive.
 	openStore(playerId)
-
-	local category = GameStore.Categories and GameStore.Categories[1] or nil
-	if category then
-		addPlayerEvent(parseRequestStoreOffers, 50, playerId)
-	end
 end
 
 function parseRequestStoreOffers(playerId, msg)
@@ -458,10 +470,13 @@ function parseBuyStoreOffer(playerId, msg)
 	end
 
 	-- At this point the purchase is assumed to be formatted correctly
-	local offerPrice = offer.type == GameStore.OfferTypes.OFFER_TYPE_EXPBOOST and GameStore.ExpBoostValues[player:getStorageValue(GameStore.Storages.expBoostCount)] or offer.price
+	local offerPrice = GameStore.getOfferPrice(player, offer)
 	local offerCoinType = offer.coinType
-	if offer.type == GameStore.OfferTypes.OFFER_TYPE_NAMECHANGE and player:kv():get("namelock") then
-		offerPrice = 0
+	if offer.type == GameStore.OfferTypes.OFFER_TYPE_CUSTOM then
+		local reason = offer.canBuy and offer.canBuy(player)
+		if reason then
+			return queueSendStoreAlertToUser(reason, 350, playerId, GameStore.StoreErrors.STORE_ERROR_INFORMATION)
+		end
 	end
 	-- Check if offer can be honored
 	if offerPrice > 0 and not player:canPayForOffer(offerPrice, offerCoinType) then
@@ -524,6 +539,11 @@ function parseBuyStoreOffer(playerId, msg)
 			GameStore.processHirelingSkillPurchase(player, offer)
 		elseif offer.type == GameStore.OfferTypes.OFFER_TYPE_HIRELING_OUTFIT then
 			GameStore.processHirelingOutfitPurchase(player, offer)
+		elseif offer.type == GameStore.OfferTypes.OFFER_TYPE_CUSTOM and offer.onBuy then
+			local ok, err = offer.onBuy(player, offer)
+			if not ok then
+				error({ code = 1, message = err or "This offer is unavailable." })
+			end
 		else
 			-- This should never happen by our convention, but just in case the guarding condition is messed up...
 			error({ code = 0, message = "This offer is unavailable [2]" })
@@ -546,7 +566,8 @@ function parseBuyStoreOffer(playerId, msg)
 	end
 	local configure = useOfferConfigure(offer.type)
 	if configure ~= GameStore.ConfigureOffers.SHOW_CONFIGURE then
-		if not player:makeCoinTransaction(offer) then
+		local chargePrice = offer.type == GameStore.OfferTypes.OFFER_TYPE_CUSTOM and offerPrice or nil
+		if not player:makeCoinTransaction(offer, nil, chargePrice) then
 			return player:showInfoModal("Error", "Purchase transaction error")
 		end
 
@@ -813,6 +834,12 @@ function Player.canBuyOffer(self, offer)
 				disabled = 1
 				disabledReason = "You need to have a hireling."
 			end
+		elseif offer.type == GameStore.OfferTypes.OFFER_TYPE_CUSTOM then
+			local reason = offer.canBuy and offer.canBuy(self)
+			if reason then
+				disabled = 1
+				disabledReason = reason
+			end
 		end
 	end
 
@@ -907,11 +934,13 @@ function sendShowStoreOffers(playerId, category, redirectId)
 			end
 		end
 
+		-- Offer tables are shared by every player: recompute the disable index per send.
+		offer.disabledReadonIndex = nil
 		local canBuy = player:canBuyOffer(offer)
 		if canBuy.disabled == 1 then
-			for index, disableTable in ipairs(disableReasons) do
-				if canBuy.disabledReason == disableTable.reason then
-					offer.disabledReadonIndex = index
+			for index, reason in ipairs(disableReasons) do
+				if canBuy.disabledReason == reason then
+					offer.disabledReadonIndex = index - 1
 				end
 			end
 
@@ -941,19 +970,9 @@ function sendShowStoreOffers(playerId, category, redirectId)
 			msg:addByte(#offer.offers)
 			sendOfferDescription(player, offer.id and offer.id or 0xFFFF, offer.description)
 			for _, off in ipairs(offer.offers) do
-				xpBoostPrice = nil
-				if offer.type == GameStore.OfferTypes.OFFER_TYPE_EXPBOOST then
-					xpBoostPrice = GameStore.ExpBoostValues[player:getStorageValue(GameStore.Storages.expBoostCount)]
-				end
-
-				nameLockPrice = nil
-				if offer.type == GameStore.OfferTypes.OFFER_TYPE_NAMECHANGE and player:kv():get("namelock") then
-					nameLockPrice = 0
-				end
-
 				msg:addU32(off.id)
 				msg:addU16(off.count or off.charges)
-				msg:addU32(xpBoostPrice or nameLockPrice or off.price)
+				msg:addU32(GameStore.getOfferPrice(player, off))
 				msg:addByte(off.coinType or 0x00)
 
 				msg:addByte((off.disabledReadonIndex ~= nil) and 1 or 0)
@@ -1097,7 +1116,7 @@ function sendShowStoreOffersOnOldProtocol(playerId, category)
 			end
 
 			local disabled, disabledReason = player:canBuyOffer(offer).disabled, player:canBuyOffer(offer).disabledReason
-			local offerPrice = offer.type == GameStore.OfferTypes.OFFER_TYPE_EXPBOOST and GameStore.ExpBoostValues[player:getStorageValue(GameStore.Storages.expBoostCount)] or (newPrice or offer.price or 0xFFFF)
+			local offerPrice = newPrice or (offer.price and GameStore.getOfferPrice(player, offer)) or 0xFFFF
 			msg:addU32(offer.id and offer.id or 0xFFFF)
 			msg:addString(name, "sendShowStoreOffersOnOldProtocol - name")
 			msg:addString(offer.description or GameStore.getDefaultDescription(offer.type, offer.count), "sendShowStoreOffersOnOldProtocol - offer.description or GameStore.getDefaultDescription(offer.type, offer.count)")
@@ -2140,11 +2159,26 @@ local function getStoreHistoryCoinType(offer)
 	return configManager.getNumber(configKeys.STORE_COIN_TYPE)
 end
 
-function Player.makeCoinTransaction(self, offer, desc)
+-- price: optional override (custom offers charge the price computed before onBuy).
+function Player.makeCoinTransaction(self, offer, desc, price)
 	if desc then
 		desc = offer.name .. " (" .. desc .. ")"
 	else
 		desc = offer.name
+	end
+
+	if price then
+		if price <= 0 then
+			return true
+		end
+		if not self:canPayForOffer(price, offer.coinType) then
+			return false
+		end
+		local paid = removeStoreCoinsBalance(self, price, offer.coinType)
+		if paid then
+			GameStore.insertHistory(self:getAccountId(), GameStore.HistoryTypes.HISTORY_TYPE_NONE, desc, price * -1, getStoreHistoryCoinType(offer))
+		end
+		return paid
 	end
 
 	if offer.type == GameStore.OfferTypes.OFFER_TYPE_EXPBOOST then
@@ -2267,11 +2301,12 @@ function sendHomePage(playerId)
 	local disableReasons = {}
 	local homeOffers = getHomeOffers(player:getId())
 	for p, offer in pairs(homeOffers) do
+		offer.disabledReadonIndex = nil
 		local canBuy = player:canBuyOffer(offer)
 		if canBuy.disabled == 1 then
-			for index, disableTable in ipairs(disableReasons) do
-				if canBuy.disabledReason == disableTable.reason then
-					offer.disabledReadonIndex = index
+			for index, reason in ipairs(disableReasons) do
+				if canBuy.disabledReason == reason then
+					offer.disabledReadonIndex = index - 1
 				end
 			end
 
@@ -2289,10 +2324,7 @@ function sendHomePage(playerId)
 
 	msg:addU16(#homeOffers) -- offers
 	for p, offer in pairs(homeOffers) do
-		local offerPrice = offer.type == GameStore.OfferTypes.OFFER_TYPE_EXPBOOST and GameStore.ExpBoostValues[player:getStorageValue(GameStore.Storages.expBoostCount)] or offer.price
-		if offer.type == GameStore.OfferTypes.OFFER_TYPE_NAMECHANGE and player:kv():get("namelock") then
-			offerPrice = 0
-		end
+		local offerPrice = GameStore.getOfferPrice(player, offer)
 
 		msg:addString(offer.name, "sendHomePage - offer.name")
 		msg:addByte(0x1) -- ?

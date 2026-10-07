@@ -614,6 +614,8 @@ public:
 	}
 	/** Body stays (as headless) when its client lets go: idle combat, exercise or VIP stay-online. */
 	bool staysOnlineWithoutClient() const;
+	/** Headless body stays while it keeps fighting without a client (idle combat, exercise) or sits in an unsafe instance. */
+	bool headlessStaysOnline() const;
 	/** Online without a ProtocolGame client (companions, battle detach, hunt persist). */
 	bool isHeadless() const {
 		return m_headless;

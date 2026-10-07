@@ -44,6 +44,9 @@ function Alts.onClientAttached(player)
 	if LobbyManager and LobbyManager.onClientAttached then
 		pcall(LobbyManager.onClientAttached, player)
 	end
+	if LobbyServices and LobbyServices.onClientAttached then
+		pcall(LobbyServices.onClientAttached, player)
+	end
 	if ExpeditionManager and ExpeditionManager.syncSessionClientIfNeeded then
 		pcall(ExpeditionManager.syncSessionClientIfNeeded, player)
 	end

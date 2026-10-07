@@ -343,6 +343,11 @@ function ExpeditionManager.onLogin(player)
 		end
 	end
 
+	-- Boot restore registers and teleports the whole team itself once everyone is online.
+	if session and session.restoring then
+		return
+	end
+
 	if session and session.endedByDeath then
 		local oldId = oldMemberId or session.playerId
 		if oldId and oldId ~= player:getId() then

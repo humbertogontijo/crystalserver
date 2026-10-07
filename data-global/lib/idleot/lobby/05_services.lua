@@ -1,4 +1,4 @@
--- Exercise training on the lobby room dummy (opcode 116 startTraining / stopTraining).
+-- Exercise training on any targetable dummy (opcode 116 startTraining / stopTraining).
 LobbyServices = LobbyServices or {}
 
 local trainingByPlayerId = {}
@@ -67,14 +67,41 @@ local function leaveTraining(playerId, message, messageType)
 	end
 end
 
-local function countPlayersOnDummy(dummyPos)
+-- Instances share map tiles, so the same dummy position is counted per instance.
+local function countPlayersOnDummy(dummyPos, instanceId)
 	local count = 0
 	for _, state in pairs(trainingByPlayerId) do
-		if state.dummyPos and state.dummyPos == dummyPos then
+		if state.dummyPos and state.dummyPos == dummyPos and state.instanceId == instanceId then
 			count = count + 1
 		end
 	end
 	return count
+end
+
+local function findDummyOnTile(tile)
+	if not tile then
+		return nil
+	end
+	for id in pairs(dummies) do
+		if isDummy(id) then
+			local item = tile:getItemById(id)
+			if item then
+				return item, id
+			end
+		end
+	end
+	return nil
+end
+
+local function positionFromMessage(value)
+	if type(value) ~= "table" then
+		return nil
+	end
+	local x, y, z = tonumber(value.x), tonumber(value.y), tonumber(value.z)
+	if not x or not y or not z then
+		return nil
+	end
+	return Position(math.floor(x), math.floor(y), math.floor(z))
 end
 
 -- Forward-declared so scheduleNextTick closes over the local, not a nil global.
@@ -117,8 +144,8 @@ trainingTick = function(playerId)
 	state.targetItem = targetItem
 
 	local playerPosition = player:getPosition()
-	if not playerPosition:isProtectionZoneTile() or not LobbyInstance.roomForPlayer(player) then
-		leaveTraining(playerId, "You left the lobby room, the training has stopped.", MESSAGE_FAILURE)
+	if not playerPosition:isProtectionZoneTile() then
+		leaveTraining(playerId, "You are no longer in a protection zone, the training has stopped.", MESSAGE_FAILURE)
 		return
 	end
 
@@ -140,10 +167,14 @@ trainingTick = function(playerId)
 	end
 
 	weapon:setAttribute(ITEM_ATTRIBUTE_CHARGES, weaponCharges - 1)
-	dummyPos:sendMagicEffect(CONST_ME_HITAREA)
-	if meta.effect then
-		playerPosition:sendDistanceEffect(dummyPos, meta.effect)
-	end
+	-- addEvent has no instance actor and the dummy tile holds no creature, so without the
+	-- scope the hit effect would only reach the open world.
+	Game.runInInstance(player:getInstanceId() or 0, function()
+		if meta.effect then
+			playerPosition:sendDistanceEffect(dummyPos, meta.effect)
+		end
+		dummyPos:sendMagicEffect(CONST_ME_HITAREA)
+	end)
 
 	if (weapon:getAttribute(ITEM_ATTRIBUTE_CHARGES) or 0) <= 0 then
 		weapon:remove(1)
@@ -165,21 +196,18 @@ function LobbyServices.startTraining(player, opts)
 	if skill == "" then
 		return false, "Choose an exercise weapon type."
 	end
-	local room = LobbyInstance.roomForPlayer(player)
-	if not room or not room.dummyPos then
-		return false, "Exercise training is available in your lobby room."
-	end
 	local playerId = player:getId()
 	if trainingByPlayerId[playerId] or (_G.OnExerciseTraining and _G.OnExerciseTraining[playerId]) then
 		return false, "Already training."
 	end
 
-	local dummyPos = room.dummyPos
-	local tile = Tile(dummyPos)
-	local dummyId = LobbyConfig.EXERCISE_DUMMY_ID
-	local targetItem = tile and tile:getItemById(dummyId) or nil
-	if not targetItem or not isDummy(dummyId) then
-		return false, "The lobby dummy is unavailable."
+	local dummyPos = positionFromMessage(opts.dummy)
+	if not dummyPos then
+		return false, "Select an exercise dummy."
+	end
+	local targetItem, dummyId = findDummyOnTile(Tile(dummyPos))
+	if not targetItem then
+		return false, "There is no exercise dummy there."
 	end
 
 	local weapon, weaponId, weaponMeta = findWeaponForSkill(player, skill)
@@ -187,14 +215,30 @@ function LobbyServices.startTraining(player, opts)
 		return false, "Carry an exercise weapon with charges (buy from hireling)."
 	end
 	local playerPos = player:getPosition()
+	if playerPos.z ~= dummyPos.z then
+		return false, "That exercise dummy is not in line of sight."
+	end
 	if not weaponMeta.allowFarUse and playerPos:getDistance(dummyPos) > 1 then
 		return false, "Get closer to the dummy."
+	end
+	local instanceId = player:getInstanceId() or 0
+	if
+		math.abs(playerPos.x - dummyPos.x) > LobbyConfig.TRAIN_MAX_RANGE_X
+		or math.abs(playerPos.y - dummyPos.y) > LobbyConfig.TRAIN_MAX_RANGE_Y
+		or not playerPos:isSightClear(dummyPos, true, instanceId)
+	then
+		return false, "That exercise dummy is not in line of sight."
 	end
 	if not playerPos:isProtectionZoneTile() then
 		return false, "You need to be in a protection zone."
 	end
+
+	local dummyHouse = Tile(dummyPos):getHouse()
+	if dummyHouse and player:getTile():getHouse() ~= dummyHouse then
+		return false, "You must be inside the house to use this dummy."
+	end
 	local maxOnDummy = configManager.getNumber(configKeys.MAX_ALLOWED_ON_A_DUMMY)
-	if maxOnDummy and maxOnDummy > 0 and countPlayersOnDummy(dummyPos) >= maxOnDummy * LobbyConfig.MAX_MEMBERS then
+	if dummyHouse and maxOnDummy and maxOnDummy > 0 and countPlayersOnDummy(dummyPos, instanceId) >= maxOnDummy then
 		return false, "That exercise dummy is busy."
 	end
 
@@ -203,6 +247,7 @@ function LobbyServices.startTraining(player, opts)
 		dummyPos = dummyPos,
 		dummyId = dummyId,
 		targetItem = targetItem,
+		instanceId = instanceId,
 	}
 	if player.setTraining then
 		player:setTraining(true)
@@ -210,7 +255,7 @@ function LobbyServices.startTraining(player, opts)
 	pcall(function()
 		targetItem:actor(true)
 	end)
-	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You have started training on the lobby dummy.")
+	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You have started training on an exercise dummy.")
 	sendTrainingState(player, true)
 	trainingByPlayerId[playerId].event = addEvent(trainingTick, 0, playerId, weaponId)
 	return true
@@ -222,6 +267,13 @@ function LobbyServices.stopTraining(player)
 	end
 	leaveTraining(player:getId(), "Training stopped.", MESSAGE_EVENT_ADVANCE)
 	return true
+end
+
+--- A client reattached to a body that kept training offline: restore the stop button.
+function LobbyServices.onClientAttached(player)
+	if player and trainingByPlayerId[player:getId()] then
+		sendTrainingState(player, true)
+	end
 end
 
 function LobbyServices.onLeave(player)

@@ -26,4 +26,5 @@ dofile(DATA_DIRECTORY .. "/lib/idleot/soft_death/load.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/activity_boost/load.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/loot_split/load.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/huntfinder/load.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/store/load.lua")
 

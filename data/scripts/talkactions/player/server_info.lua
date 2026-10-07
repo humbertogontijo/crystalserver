@@ -30,6 +30,9 @@ function serverInfo.onSay(player, words, param)
 		.. "\nLoot rate: "
 		.. configManager.getFloat(configKeys.RATE_LOOT)
 		.. "x"
+		.. "\nGold loot rate: "
+		.. configManager.getFloat(configKeys.RATE_GOLD_LOOT)
+		.. "x"
 		.. "\nSpawns rate: "
 		.. configManager.getNumber(configKeys.RATE_SPAWN)
 		.. "x"

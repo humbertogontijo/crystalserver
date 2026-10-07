@@ -28,6 +28,7 @@
 #include "items/containers/depot/depotchest.hpp"
 #include "items/containers/inbox/inbox.hpp"
 #include "items/item.hpp"
+#include "kv/kv.hpp"
 #include "lib/di/container.hpp"
 #include "lua/scripts/lua_environment.hpp"
 #include "utils/tools.hpp"
@@ -224,6 +225,7 @@ void IOWeeklyTasks::onCreatureKill(const std::shared_ptr<Player> &player, uint16
 
 	auto &weeklyData = player->getWeeklyTaskData();
 	bool updated = false;
+	const uint16_t killCredit = getBoostTimeLeft(player, TASK_BOARD_BOOST_WEEKLY_DOUBLE_KILL) > 0 ? 2 : 1;
 
 	// Update "any creature" counter
 	const auto mtype = g_monsters().getMonsterTypeByRaceId(raceId);
@@ -237,7 +239,10 @@ void IOWeeklyTasks::onCreatureKill(const std::shared_ptr<Player> &player, uint16
 
 	if (validBestiaryCreature) {
 		if (weeklyData.anyCreatureCurrentKills < weeklyData.anyCreatureTotalKills) {
-			weeklyData.anyCreatureCurrentKills++;
+			weeklyData.anyCreatureCurrentKills = static_cast<uint16_t>(std::min<uint32_t>(
+				weeklyData.anyCreatureCurrentKills + killCredit,
+				weeklyData.anyCreatureTotalKills
+			));
 			updated = true;
 
 			if (weeklyData.anyCreatureCurrentKills >= weeklyData.anyCreatureTotalKills) {
@@ -253,7 +258,7 @@ void IOWeeklyTasks::onCreatureKill(const std::shared_ptr<Player> &player, uint16
 	// Update specific creature tasks
 	for (auto &task : weeklyData.killTasks) {
 		if (task.raceId == raceId && task.currentKills < task.totalKills) {
-			task.currentKills++;
+			task.currentKills = static_cast<uint16_t>(std::min<uint32_t>(task.currentKills + killCredit, task.totalKills));
 			updated = true;
 			if (task.currentKills >= task.totalKills) {
 				weeklyData.completedKillTasks++;
@@ -298,7 +303,7 @@ void IOWeeklyTasks::deliverWeeklyTask(const std::shared_ptr<Player> &player, uin
 	}
 
 	uint16_t itemId = task.itemId;
-	uint32_t required = task.totalItems;
+	uint32_t required = getRequiredDeliveryItems(player, task);
 
 	// Count available items from inventory, stash, and depot (excluding inbox)
 	uint32_t inventoryCount = player->getItemTypeCount(itemId, -1);
@@ -879,6 +884,64 @@ void IOWeeklyTasks::checkWeeklyResetOnStartup() {
 
 uint32_t IOWeeklyTasks::getResetTimestamp() const {
 	return globalResetTimestamp;
+}
+
+namespace {
+	constexpr uint32_t TASK_BOARD_DOUBLE_KILL_SECONDS = 60 * 60;
+	constexpr const char* TASK_BOARD_BOOST_SCOPE = "task-board-boost";
+
+	const char* taskBoardBoostKey(TaskBoardBoost_t boost) {
+		switch (boost) {
+			case TASK_BOARD_BOOST_BOUNTY_DOUBLE_KILL:
+				return "bounty-double-kill";
+			case TASK_BOARD_BOOST_WEEKLY_DOUBLE_KILL:
+				return "weekly-double-kill";
+			case TASK_BOARD_BOOST_WEEKLY_REDUCED_ITEMS:
+				return "weekly-reduced-items";
+		}
+		return nullptr;
+	}
+}
+
+uint32_t IOWeeklyTasks::getBoostTimeLeft(const std::shared_ptr<Player> &player, TaskBoardBoost_t boost) {
+	const char* key = taskBoardBoostKey(boost);
+	if (!player || !key) {
+		return 0;
+	}
+
+	const auto value = player->kv()->scoped(TASK_BOARD_BOOST_SCOPE)->get(key);
+	if (!value) {
+		return 0;
+	}
+
+	const auto until = static_cast<int64_t>(value->getNumber());
+	const auto now = static_cast<int64_t>(std::time(nullptr));
+	return until > now ? static_cast<uint32_t>(until - now) : 0;
+}
+
+bool IOWeeklyTasks::grantBoost(const std::shared_ptr<Player> &player, TaskBoardBoost_t boost) {
+	const char* key = taskBoardBoostKey(boost);
+	if (!player || !key) {
+		return false;
+	}
+
+	const auto now = static_cast<uint32_t>(std::time(nullptr));
+	const uint32_t until = boost == TASK_BOARD_BOOST_WEEKLY_REDUCED_ITEMS ? getNextResetTimestamp() : now + TASK_BOARD_DOUBLE_KILL_SECONDS;
+	player->kv()->scoped(TASK_BOARD_BOOST_SCOPE)->set(key, static_cast<double>(until));
+
+	if (boost == TASK_BOARD_BOOST_BOUNTY_DOUBLE_KILL) {
+		player->sendBountyTaskData();
+	} else {
+		player->sendWeeklyTaskData();
+	}
+	return true;
+}
+
+uint32_t IOWeeklyTasks::getRequiredDeliveryItems(const std::shared_ptr<Player> &player, const WeeklyDeliveryTask &task) {
+	if (task.totalItems > 1 && getBoostTimeLeft(player, TASK_BOARD_BOOST_WEEKLY_REDUCED_ITEMS) > 0) {
+		return (task.totalItems + 1) / 2;
+	}
+	return task.totalItems;
 }
 
 uint32_t IOWeeklyTasks::getNextResetTimestamp() {

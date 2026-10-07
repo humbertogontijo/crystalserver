@@ -56,6 +56,8 @@ class PlayerFunctions {
 	static int luaPlayercharmExpansion(lua_State* L);
 	static int luaPlayergetCharmMonsterType(lua_State* L);
 	static int luaPlayerWeeklyTaskExpansion(lua_State* L);
+	static int luaPlayerGetTaskBoardBoost(lua_State* L);
+	static int luaPlayerGrantTaskBoardBoost(lua_State* L);
 	static int luaPlayerResetWeeklyTasks(lua_State* L);
 	static int luaPlayerPerformWeeklyReset(lua_State* L);
 

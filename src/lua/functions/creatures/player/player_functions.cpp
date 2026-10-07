@@ -84,6 +84,8 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "weeklyTaskExpansion", PlayerFunctions::luaPlayerWeeklyTaskExpansion);
 	Lua::registerMethod(L, "Player", "resetWeeklyTasks", PlayerFunctions::luaPlayerResetWeeklyTasks);
 	Lua::registerMethod(L, "Player", "performWeeklyReset", PlayerFunctions::luaPlayerPerformWeeklyReset);
+	Lua::registerMethod(L, "Player", "getTaskBoardBoost", PlayerFunctions::luaPlayerGetTaskBoardBoost);
+	Lua::registerMethod(L, "Player", "grantTaskBoardBoost", PlayerFunctions::luaPlayerGrantTaskBoardBoost);
 
 	Lua::registerMethod(L, "Player", "isMonsterPrey", PlayerFunctions::luaPlayerisMonsterPrey);
 	Lua::registerMethod(L, "Player", "getPreyCards", PlayerFunctions::luaPlayerGetPreyCards);
@@ -1418,6 +1420,30 @@ int PlayerFunctions::luaPlayerWeeklyTaskExpansion(lua_State* L) {
 	return 1;
 }
 
+int PlayerFunctions::luaPlayerGetTaskBoardBoost(lua_State* L) {
+	// player:getTaskBoardBoost(boost) - seconds left (TASK_BOARD_BOOST_*), 0 when inactive
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	const auto boost = Lua::getNumber<uint8_t>(L, 2);
+	if (!player || boost > TASK_BOARD_BOOST_LAST) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_pushnumber(L, IOWeeklyTasks::getBoostTimeLeft(player, static_cast<TaskBoardBoost_t>(boost)));
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGrantTaskBoardBoost(lua_State* L) {
+	// player:grantTaskBoardBoost(boost) - activates a store task board boost (TASK_BOARD_BOOST_*)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	const auto boost = Lua::getNumber<uint8_t>(L, 2);
+	if (!player || boost > TASK_BOARD_BOOST_LAST) {
+		lua_pushnil(L);
+		return 1;
+	}
+	Lua::pushBoolean(L, IOWeeklyTasks::grantBoost(player, static_cast<TaskBoardBoost_t>(boost)));
+	return 1;
+}
+
 int PlayerFunctions::luaPlayerResetWeeklyTasks(lua_State* L) {
 	// player:resetWeeklyTasks() - resets weekly tasks and shows the finished screen
 	// The client will then show the difficulty selection after the player confirms
@@ -1639,7 +1665,7 @@ int PlayerFunctions::luaPlayerLeavesWhenClientReleased(lua_State* L) {
 		return 1;
 	}
 	// Must match the removal rules in Player::sendPing.
-	const bool keptOnline = player->isHeadless() ? !player->isInSafeInstance() : player->staysOnlineWithoutClient();
+	const bool keptOnline = player->isHeadless() ? player->headlessStaysOnline() : player->staysOnlineWithoutClient();
 	Lua::pushBoolean(L, !keptOnline && player->canLogout());
 	return 1;
 }

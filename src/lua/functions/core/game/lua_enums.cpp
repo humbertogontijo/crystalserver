@@ -23,6 +23,7 @@
 #include "enums/item_attribute.hpp"
 #include "game/functions/game_reload.hpp"
 #include "io/io_bosstiary.hpp"
+#include "io/ioweeklytasks.hpp"
 #include "lua/functions/lua_functions_loader.hpp"
 
 constexpr const char* soundNamespace = "SOUND_EFFECT_TYPE_";
@@ -260,6 +261,10 @@ void LuaEnums::initOthersEnums(lua_State* L) {
 	registerEnum(L, BANNER_TYPE_TUTORIALCOMPLETE);
 	registerEnum(L, BANNER_TYPE_WEEKLY_TASK_ANY_CREATURE);
 	registerEnum(L, BANNER_TYPE_PROMOTION_GRANTED);
+
+	registerEnum(L, TASK_BOARD_BOOST_BOUNTY_DOUBLE_KILL);
+	registerEnum(L, TASK_BOARD_BOOST_WEEKLY_DOUBLE_KILL);
+	registerEnum(L, TASK_BOARD_BOOST_WEEKLY_REDUCED_ITEMS);
 }
 
 void LuaEnums::initWorldTypeEnums(lua_State* L) {

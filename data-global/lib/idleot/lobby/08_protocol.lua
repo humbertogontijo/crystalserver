@@ -1,7 +1,7 @@
 -- Lobby wire + extended opcode 117.
 -- client -> server: get, create, update, browse, join, leave, kick, passLeader, invite,
---   answerInvite, addAlt, removeAlt, start, answerCall, enterRoom, leaveRoom, buyXpBoost,
---   preyAction, cancelStart, switchAlt, alts
+--   answerInvite, addAlt, removeAlt, start, answerCall, enterRoom, leaveRoom,
+--   preyAction, cancelStart, switchAlt, alts (lobby XP boost is a store offer: lib/idleot/store)
 -- server -> client: lobby, lobbies, invite, inviteCleared, call, callCleared, alts, error
 LobbyProtocol = LobbyProtocol or {}
 
@@ -320,14 +320,6 @@ end
 
 handlers.leaveRoom = function(player)
 	local ok, err = LobbyTravel.requestLeave(player)
-	reply(player, ok, err, false)
-end
-
-handlers.buyXpBoost = function(player)
-	local ok, err = LobbyBonus.buyXpBoost(player)
-	if ok then
-		LobbyProtocol.broadcast(LobbyStore.getForPlayer(player))
-	end
 	reply(player, ok, err, false)
 end
 

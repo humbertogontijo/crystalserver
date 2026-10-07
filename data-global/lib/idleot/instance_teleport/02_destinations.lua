@@ -107,6 +107,28 @@ local function fromExpeditionSafe(player, opts)
 	return true
 end
 
+local ADVENTURERS_GUILD_POS = Position(32210, 32300, 6)
+
+--- Open-world hop shared by hometown and guild travel. Works from inside a lobby room too.
+local function executeOpenWorld(player, dest)
+	local lobbyRoom = LobbyInstance and LobbyInstance.roomForPlayer and LobbyInstance.roomForPlayer(player) or nil
+	local ok = false
+	if InstanceWorld and InstanceWorld.exitToOpenWorld then
+		ok = InstanceWorld.exitToOpenWorld(player, dest) and true or false
+	elseif InstanceWorld and InstanceWorld.travel then
+		ok = InstanceWorld.travel(player, dest) and true or false
+	else
+		ok = player:teleportTo(dest) and true or false
+	end
+	if lobbyRoom then
+		LobbyInstance.scheduleTeardownCheck(lobbyRoom.lobbyId)
+	end
+	if ok then
+		InstanceTeleport.sendArrivalEffect(player, InstanceTeleport.KIND_HOMETOWN)
+	end
+	return ok
+end
+
 --- Temple recall (open world). Works from inside a lobby room too.
 function InstanceTeleport.executeHometown(player, opts)
 	opts = opts or {}
@@ -119,28 +141,30 @@ function InstanceTeleport.executeHometown(player, opts)
 		return false, "Leave the expedition before recalling."
 	end
 
-	local lobbyRoom = LobbyInstance and LobbyInstance.roomForPlayer and LobbyInstance.roomForPlayer(player) or nil
-	if lobbyRoom and LobbyServices and LobbyServices.onLeave then
-		LobbyServices.onLeave(player)
+	local town = player.getTown and player:getTown() or nil
+	local dest = (town and town.getTemplePosition and town:getTemplePosition()) or Position(32369, 32241, 7)
+	if not executeOpenWorld(player, dest) then
+		return false, "Failed to recall to hometown."
+	end
+	return true
+end
+
+--- Adventurers' Guild hop. The guild exit portal (aid 4253) returns to the stored town temple.
+function InstanceTeleport.executeGuild(player)
+	if not player then
+		return false, "Invalid player."
+	end
+	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
+		return false, "Leave the expedition before traveling to the guild."
 	end
 
 	local town = player.getTown and player:getTown() or nil
-	local dest = (town and town.getTemplePosition and town:getTemplePosition()) or Position(32369, 32241, 7)
-	local ok = false
-	if InstanceWorld and InstanceWorld.exitToOpenWorld then
-		ok = InstanceWorld.exitToOpenWorld(player, dest) and true or false
-	elseif InstanceWorld and InstanceWorld.travel then
-		ok = InstanceWorld.travel(player, dest) and true or false
-	else
-		ok = player:teleportTo(dest) and true or false
+	if town and town.getId then
+		player:setStorageValue(Storage.Quest.U9_80.AdventurersGuild.Stone, town:getId())
 	end
-	if lobbyRoom then
-		LobbyInstance.scheduleTeardownCheck(lobbyRoom.lobbyId)
+	if not executeOpenWorld(player, ADVENTURERS_GUILD_POS) then
+		return false, "Failed to travel to the Adventurers' Guild."
 	end
-	if not ok then
-		return false, "Failed to recall to hometown."
-	end
-	InstanceTeleport.sendArrivalEffect(player, InstanceTeleport.KIND_HOMETOWN)
 	return true
 end
 
@@ -181,11 +205,43 @@ function InstanceTeleport.requestHometown(player, opts)
 	})
 end
 
---- Arm the lobby room enter/leave channel (always solo). `record` is the player's lobby.
+--- Arm the Adventurers' Guild channel (solo). Same aura and cancel rules as hometown recall.
+function InstanceTeleport.requestGuild(player)
+	if not player then
+		return false, "Invalid player."
+	end
+	if not fromExpeditionSafe(player) then
+		return false, "Leave the expedition before traveling to the guild."
+	end
+	if InstanceTeleport.isPending(player) then
+		return false, "Already channeling a teleport."
+	end
+
+	local playerId = player:getId()
+	return InstanceTeleport.begin(player, {
+		kind = InstanceTeleport.KIND_HOMETOWN,
+		opcode = TRAVEL_OPCODE(),
+		cancelPolicy = InstanceTeleport.CANCEL_INITIATOR,
+		send = InstanceTeleport.notifyTravel,
+		onComplete = function(memberIds)
+			local p = Player(memberIds and memberIds[1] or playerId)
+			if not p then
+				return
+			end
+			local ok, err = InstanceTeleport.executeGuild(p)
+			if not ok and err then
+				p:sendTextMessage(MESSAGE_FAILURE, err)
+			end
+		end,
+	})
+end
+
+--- Arm the lobby room enter/leave channel (always solo). `record` is the player's lobby
+--- (may be nil when leaving a room whose lobby is gone).
 --- opts.leave: leave the room (to the saved return tile); otherwise enter it.
 function InstanceTeleport.requestLobby(player, record, opts)
 	opts = opts or {}
-	if not player or not record then
+	if not player or (not record and opts.leave ~= true) then
 		return false, "You are not in a lobby."
 	end
 	if not LobbyInstance then
@@ -209,7 +265,7 @@ function InstanceTeleport.requestLobby(player, record, opts)
 		forceMs = forceMs or InstanceTeleport.DURATION_PZ_MS
 	end
 	local playerId = player:getId()
-	local lobbyId = record.id
+	local lobbyId = record and record.id
 	return InstanceTeleport.begin(player, {
 		kind = InstanceTeleport.KIND_LOBBY,
 		destination = leaving and InstanceTeleport.DEST_OPEN_WORLD or InstanceTeleport.DEST_LOBBY,

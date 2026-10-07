@@ -387,6 +387,37 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		session.holdPos = Position(instance.entry.x, instance.entry.y, instance.entry.z)
 	end
 
+	-- All-or-nothing team start: every expected teammate is pulled in or awaited, or nobody goes.
+	session.requiredHumanGuids = { [hostGuid] = player:getName() }
+	for _, teammate in ipairs(readyTeammates) do
+		session.requiredHumanGuids[teammate:getGuid()] = teammate:getName()
+	end
+	for guid, name in pairs(awaitingHumanGuids) do
+		session.requiredHumanGuids[guid] = name
+	end
+	local leftBehind = {}
+	local requiredTeammates = {}
+	for _, teammate in ipairs(expectedTeammates) do
+		requiredTeammates[#requiredTeammates + 1] = teammate
+	end
+	for _, teammate in ipairs(options.preAcceptedPlayers or {}) do
+		requiredTeammates[#requiredTeammates + 1] = teammate
+	end
+	for _, teammate in ipairs(requiredTeammates) do
+		if teammate and teammate.getGuid and teammate:getGuid() ~= hostGuid
+			and not session.requiredHumanGuids[teammate:getGuid()]
+		then
+			session.requiredHumanGuids[teammate:getGuid()] = teammate:getName()
+			leftBehind[#leftBehind + 1] = teammate:getName()
+		end
+	end
+	if #leftBehind > 0 then
+		local message = string.format("%s cannot join %s, so nobody enters.", table.concat(leftBehind, ", "), catalog.name)
+		ExpeditionProtocol.sendError(player, message)
+		ExpeditionManager.cancelWaitingSession(session, message)
+		return
+	end
+
 	ExpeditionManager.broadcastStatus(session)
 
 	-- Auto-pull Ready members (skip accept modal). Attach silently, then enter or wait.
@@ -614,100 +645,183 @@ function EM_PRIV.syncRunningHuntClients(session)
 	end
 end
 
---- Deploy headless host + companions and resume the hunt right after a restart.
+--- Humans to log back in for a restored hunt: host first, then the other saved humans.
+function EM_PRIV.restoredHumanGuids(snapshot, hostGuid)
+	local guids = { hostGuid }
+	local seen = { [hostGuid] = true }
+	for _, rawGuid in ipairs(snapshot.humanGuids or {}) do
+		local guid = math.floor(tonumber(rawGuid) or 0)
+		if guid > 0 and not seen[guid] then
+			seen[guid] = true
+			guids[#guids + 1] = guid
+		end
+	end
+	return guids
+end
+
+--- Companion deploys for a restored hunt, one { controllerGuid, names } per controlling human.
+--- Snapshots saved before companions were recorded redeploy the host's default team (names nil).
+function EM_PRIV.restoredCompanionGroups(snapshot, hostGuid, humanGuids)
+	if type(snapshot.companions) ~= "table" then
+		return { { controllerGuid = hostGuid } }
+	end
+	local isHuman = {}
+	for _, guid in ipairs(humanGuids) do
+		isHuman[guid] = true
+	end
+	local groups = {}
+	local byController = {}
+	for _, entry in ipairs(snapshot.companions) do
+		local name = type(entry) == "table" and entry.name or nil
+		if type(name) == "string" and name ~= "" then
+			local controllerGuid = math.floor(tonumber(entry.controllerGuid) or 0)
+			if not isHuman[controllerGuid] then
+				controllerGuid = hostGuid
+			end
+			local group = byController[controllerGuid]
+			if not group then
+				group = { controllerGuid = controllerGuid, names = {} }
+				byController[controllerGuid] = group
+				groups[#groups + 1] = group
+			end
+			group.names[#group.names + 1] = name
+		end
+	end
+	return groups
+end
+
+--- Log every saved human back in headless, redeploy their companions and resume the hunt.
+--- All-or-nothing: if any member cannot be brought back, nobody is and the hunt is dropped.
 function EM_PRIV.startRestoredHuntOnStartup(session, snapshot)
 	if not session or not snapshot or session.entered or session.starting or session.state == "ended" then
 		return false
 	end
 	local hostGuid = math.floor(tonumber(snapshot.hostGuid) or session.guid or 0)
-	if hostGuid <= 0 then
+	local instance = session.instance
+	local spawnPos = instance and instance.entry
+	if hostGuid <= 0 or not spawnPos then
 		return false
 	end
-	local offlineHost = Alts and Alts.resolvePlayerByGuid and Alts.resolvePlayerByGuid(hostGuid)
-	if not offlineHost then
-		logger.warn(
-			"[ExpeditionPersist] startup start failed for {}: host guid {} unavailable",
-			tostring(session.key),
-			tostring(hostGuid)
-		)
+	if not (Game.headlessLoginBatch and Alts and Alts.deploy) then
+		logger.warn("[ExpeditionPersist] startup start failed for {}: headless login unavailable", tostring(session.key))
 		return false
 	end
+
+	local sessionKey = session.key
+	local catalog = session.catalog
+	local instanceId = math.floor(tonumber(instance.instanceId) or 0)
+	local humanGuids = EM_PRIV.restoredHumanGuids(snapshot, hostGuid)
+	local companionGroups = EM_PRIV.restoredCompanionGroups(snapshot, hostGuid, humanGuids)
+	local humans = {}
+	local companions = {}
+	local controllers = {}
 
 	session.guid = hostGuid
 	session.starting = true
+	session.restoring = true
 
-	for _, rawGuid in ipairs(snapshot.humanGuids or {}) do
-		local guid = math.floor(tonumber(rawGuid) or 0)
-		if guid > 0 then
-			session.memberGuids = session.memberGuids or {}
-			if not session.memberGuids[guid] or session.memberGuids[guid] == 0 then
-				session.memberGuids[guid] = 0
+	local function abort(reason)
+		logger.warn("[ExpeditionPersist] restore of {} aborted, nobody deployed: {}", tostring(sessionKey), tostring(reason))
+		for _, controller in ipairs(controllers) do
+			local live = Player(controller:getId())
+			if live then
+				Alts.undeploy(live)
+			end
+		end
+		local live = ExpeditionManager.getSessionByKey(sessionKey)
+		if live then
+			live.starting = nil
+			live.restoring = nil
+			ExpeditionManager.teardownSession(live)
+		end
+		if ExpeditionPersist and ExpeditionPersist.clearSnapshot then
+			ExpeditionPersist.clearSnapshot(snapshot)
+		end
+		for _, guid in ipairs(humanGuids) do
+			local p = Alts.findOnlinePlayerByGuid(guid)
+			if p and not EM_PRIV.hasUiClient(p) then
+				Game.headlessLogout(p)
+			elseif p and InstanceWorld and InstanceWorld.rescueIfStranded then
+				InstanceWorld.rescueIfStranded(p)
 			end
 		end
 	end
 
-	local instance = session.instance
-	local catalog = session.catalog
-	local spawnPos = instance and instance.entry
-	local instanceId = instance and math.floor(tonumber(instance.instanceId) or 0) or 0
-	if not spawnPos then
-		session.starting = nil
-		return false
-	end
-
-	local hostName = offlineHost:getName()
-	local sessionKey = session.key
-
-	local function finishRestoredHunt(headlessHost, companions)
-		local live = ExpeditionManager.getSessionByKey(sessionKey)
-		if not live or live.state == "ended" or not headlessHost then
-			if live then
-				live.starting = nil
-			end
+	local function beginRestoredHunt()
+		local s = ExpeditionManager.getSessionByKey(sessionKey)
+		if not s or s.state == "ended" then
 			return
 		end
-
-		EM_PRIV.registerSessionMember(live, headlessHost, headlessHost, {})
-		live.playerId = headlessHost:getId()
-		live.memberGuids = live.memberGuids or {}
-		live.memberGuids[hostGuid] = headlessHost:getId()
-		-- Account quick-loot is applied in Game.headlessLogin → ensureAccountQuickLootFilter;
-		-- log restores so we can confirm headless loot filter without OTC.
-		logger.debug(
-			"[ExpeditionPersist] restored host {} guid={} headless={} protocol={} (account quickloot applied on headlessLogin)",
-			headlessHost:getName(),
-			tostring(headlessHost:getGuid()),
-			tostring(headlessHost.isHeadless and headlessHost:isHeadless() or false),
-			tostring(headlessHost.getProtocolVersion and headlessHost:getProtocolVersion() or -1)
+		EM_PRIV.beginExpeditionHunt(s, s.role)
+		EM_PRIV.syncRunningHuntClients(s)
+		logger.info(
+			"[ExpeditionPersist] started restored hunt {} catalog={} instance={} humans={} members={} lure={} anchor={}",
+			tostring(sessionKey),
+			tostring(catalog and catalog.id),
+			tostring(instanceId),
+			#humans,
+			#ExpeditionManager.sessionMemberIds(s),
+			tostring(s.lure or "-"),
+			tostring(s.anchorPlayerId or "-")
 		)
-		EM_PRIV.teleportPlayerIntoRunningHunt(headlessHost, live)
+	end
 
-		companions = companions or {}
-		local companionById = {}
-		for _, companion in ipairs(companions) do
-			if companion and companion.getId then
-				companionById[companion:getId()] = true
+	local function finish()
+		local live = ExpeditionManager.getSessionByKey(sessionKey)
+		if not live or live.state == "ended" then
+			abort("session ended during restore")
+			return
+		end
+		for _, member in ipairs(humans) do
+			if not Player(member:getId()) then
+				abort(member:getName() .. " went offline during restore")
+				return
 			end
 		end
-		for _, companion in ipairs(companions) do
-			local already = false
-			for _, mid in ipairs(live.playerIds or {}) do
-				if companion and companion.getId and mid == companion:getId() then
-					already = true
-					break
-				end
+		for _, entry in ipairs(companions) do
+			if not Player(entry.player:getId()) then
+				abort(entry.player:getName() .. " went offline during restore")
+				return
 			end
-			if not already then
-				EM_PRIV.registerSessionMember(live, companion, offlineHost, {
-					hostWorldPos = spawnPos,
-					companionById = companionById,
-				})
+		end
+
+		local host = humans[1]
+		local registered = {}
+		for _, id in ipairs(live.playerIds or {}) do
+			registered[id] = true
+		end
+		local function register(member, controller, opts)
+			if not registered[member:getId()] then
+				registered[member:getId()] = true
+				EM_PRIV.registerSessionMember(live, member, controller, opts)
 			end
-			EM_PRIV.teleportPlayerIntoRunningHunt(companion, live)
+		end
+		for _, human in ipairs(humans) do
+			-- Saved humans are humans even if a client detach left a companion mark.
+			Alts.clearCompanionMark(human)
+			register(human, host, {})
+		end
+		live.playerId = host:getId()
+		live.automation = live.memberAutomation[host:getId()] or live.automation
+		local companionById = {}
+		for _, entry in ipairs(companions) do
+			companionById[entry.player:getId()] = true
+		end
+		for _, entry in ipairs(companions) do
+			register(entry.player, entry.controller, { hostWorldPos = spawnPos, companionById = companionById })
+		end
+
+		for _, id in ipairs(ExpeditionManager.sessionMemberIds(live)) do
+			local member = Player(id)
+			if not member or not EM_PRIV.teleportPlayerIntoRunningHunt(member, live) then
+				abort(string.format("%s could not enter the hunt", member and member:getName() or tostring(id)))
+				return
+			end
 		end
 
 		live.entered = true
 		live.starting = nil
+		live.restoring = nil
 		live.state = "idle"
 		live.awaitingHumanGuids = nil
 		ExpeditionConfig.pickAnchor(live)
@@ -715,115 +829,69 @@ function EM_PRIV.startRestoredHuntOnStartup(session, snapshot)
 			pcall(ExpeditionPersist.writeSession, live)
 		end
 
-		local contentRole = live.role
-		local syncMs = ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500
 		addEvent(function()
-			local s = ExpeditionManager.getSessionByKey(sessionKey)
-			if not s or s.state == "ended" then
-				return
+			if ExpeditionInstance.hasGround(spawnPos) then
+				beginRestoredHunt()
+			else
+				addEvent(beginRestoredHunt, 100)
 			end
-			if not ExpeditionInstance.hasGround(instance.entry) then
-				addEvent(function()
-					local retry = ExpeditionManager.getSessionByKey(sessionKey)
-					if retry and retry.state ~= "ended" then
-						EM_PRIV.beginExpeditionHunt(retry, contentRole)
-						EM_PRIV.syncRunningHuntClients(retry)
-						logger.info(
-							"[ExpeditionPersist] started restored hunt {} catalog={} instance={} members={} lure={} anchor={}",
-							tostring(sessionKey),
-							tostring(catalog and catalog.id),
-							tostring(instance.instanceId),
-							#ExpeditionManager.sessionMemberIds(retry),
-							tostring(retry.lure or "-"),
-							tostring(retry.anchorPlayerId or "-")
-						)
-					end
-				end, 100)
-				return
-			end
-			EM_PRIV.beginExpeditionHunt(s, contentRole)
-			EM_PRIV.syncRunningHuntClients(s)
-			logger.info(
-				"[ExpeditionPersist] started restored hunt {} catalog={} instance={} members={} lure={} anchor={}",
-				tostring(sessionKey),
-				tostring(catalog and catalog.id),
-				tostring(instance.instanceId),
-				#ExpeditionManager.sessionMemberIds(s),
-				tostring(s.lure or "-"),
-				tostring(s.anchorPlayerId or "-")
-			)
-		end, syncMs)
+		end, ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500)
 	end
 
-	local function deployCompanionsThenFinish(headlessHost)
-		if not Alts or not Alts.deploy then
-			finishRestoredHunt(headlessHost, {})
+	local function deployGroup(index)
+		local group = companionGroups[index]
+		if not group then
+			finish()
 			return
 		end
-		Alts.deploy(headlessHost, {
+		local controller = nil
+		for _, human in ipairs(humans) do
+			if human:getGuid() == group.controllerGuid then
+				controller = human
+				break
+			end
+		end
+		if not controller or not Player(controller:getId()) then
+			abort(string.format("companion controller guid %s unavailable", tostring(group.controllerGuid)))
+			return
+		end
+		Alts.deploy(controller, {
+			names = group.names,
 			position = spawnPos,
 			instanceId = instanceId,
-			companionsOnly = true,
 			inviteFriends = false,
-			onComplete = function(depCompanions, depErr)
-				if not depCompanions then
-					logger.warn(
-						"[ExpeditionPersist] companion deploy failed for {}: {}",
-						tostring(sessionKey),
-						tostring(depErr or "unknown")
-					)
-					finishRestoredHunt(headlessHost, {})
+			onComplete = function(deployed, err)
+				if not deployed then
+					abort(string.format("companions of %s: %s", controller:getName(), tostring(err or "deploy failed")))
 					return
 				end
-				finishRestoredHunt(headlessHost, depCompanions)
+				controllers[#controllers + 1] = controller
+				for _, companion in ipairs(deployed) do
+					companions[#companions + 1] = { player = companion, controller = controller }
+				end
+				deployGroup(index + 1)
 			end,
 		})
 	end
 
-	local function onHostReady(headlessHost)
-		if not headlessHost then
-			logger.warn(
-				"[ExpeditionPersist] startup start failed for {}: could not login headless host",
-				tostring(sessionKey)
-			)
-			session.starting = nil
+	-- Async login so server boot does not stall the dispatcher; the batch is all-or-nothing.
+	Game.headlessLoginBatch(humanGuids, spawnPos, function(players, err)
+		if not players then
+			abort(string.format("could not log in %d human(s): %s", #humanGuids, tostring(err or "unknown")))
 			return
 		end
-		deployCompanionsThenFinish(headlessHost)
-	end
-
-	-- Async host login so server boot does not stall the dispatcher.
-	if not Game.headlessLoginBatch then
-		logger.warn(
-			"[ExpeditionPersist] startup start failed for {}: headlessLoginBatch unavailable",
-			tostring(sessionKey)
-		)
-		session.starting = nil
-		return false
-	end
-	Game.headlessLoginBatch({ hostName }, spawnPos, function(players, err)
-		local host = players and players[1] or nil
-		if not host and hostGuid > 0 then
-			Game.headlessLoginBatch({ hostGuid }, spawnPos, function(players2, err2)
-				onHostReady(players2 and players2[1] or nil)
-				if not (players2 and players2[1]) then
-					logger.warn(
-						"[ExpeditionPersist] async host login failed for {}: {}",
-						tostring(sessionKey),
-						tostring(err2 or err or "unknown")
-					)
-				end
-			end, instanceId)
-			return
+		local byGuid = {}
+		for _, p in ipairs(players) do
+			byGuid[p:getGuid()] = p
 		end
-		if not host then
-			logger.warn(
-				"[ExpeditionPersist] async host login failed for {}: {}",
-				tostring(sessionKey),
-				tostring(err or "unknown")
-			)
+		for _, guid in ipairs(humanGuids) do
+			if not byGuid[guid] then
+				abort(string.format("guid %d missing from login batch", guid))
+				return
+			end
+			humans[#humans + 1] = byGuid[guid]
 		end
-		onHostReady(host)
+		deployGroup(1)
 	end, instanceId)
 	return true
 end
@@ -933,6 +1001,32 @@ function ExpeditionManager.attachPlayerToRunningHunt(player)
 	return true
 end
 
+--- Names of required humans / companions that are not live, alive session members.
+function EM_PRIV.missingRosterMembers(session)
+	local presentGuids = {}
+	local presentNames = {}
+	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
+		local p = Player(id)
+		if p and p:getHealth() > 0 then
+			presentGuids[p:getGuid()] = true
+			presentNames[p:getName():lower()] = true
+		end
+	end
+	local missing = {}
+	for guid, name in pairs(session.requiredHumanGuids or {}) do
+		if not presentGuids[guid] then
+			missing[#missing + 1] = tostring(name)
+		end
+	end
+	for _, name in ipairs(session.requiredCompanionNames or {}) do
+		if not presentNames[name:lower()] then
+			missing[#missing + 1] = name
+		end
+	end
+	table.sort(missing)
+	return missing
+end
+
 function ExpeditionManager.startExpeditionEntry(session)
 	if not session or session.entered or session.starting then
 		return
@@ -997,6 +1091,14 @@ function ExpeditionManager.startExpeditionEntry(session)
 	end
 
 	local function teleportMembers(s)
+		local missing = EM_PRIV.missingRosterMembers(s)
+		if #missing > 0 then
+			ExpeditionManager.cancelWaitingSession(
+				s,
+				string.format("%s could not be deployed to %s, so nobody enters.", table.concat(missing, ", "), catalog.name)
+			)
+			return false
+		end
 		local enteredAny = false
 		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s)) do
 			local p = Player(mid)
@@ -1029,13 +1131,15 @@ function ExpeditionManager.startExpeditionEntry(session)
 							instance.entry.z,
 							catalog.id
 						)
-						if mid == s.playerId then
-							ExpeditionProtocol.sendError(p, "Failed to enter expedition (teleport blocked).")
-							ExpeditionManager.leaveAll(s, { silent = true })
-							return false
+						local message = string.format("%s could not enter %s, so nobody enters.", p:getName(), catalog.name)
+						for _, otherId in ipairs(ExpeditionManager.sessionMemberIds(s)) do
+							local other = Player(otherId)
+							if other then
+								ExpeditionProtocol.sendError(other, message)
+							end
 						end
-						ExpeditionProtocol.sendError(p, "Failed to enter expedition (teleport blocked).")
-						ExpeditionManager.leave(p, { silent = true })
+						ExpeditionManager.leaveAll(s, { silent = true })
+						return false
 					else
 						InstanceTeleport.sendArrivalEffect(p, InstanceTeleport.KIND_EXPEDITION)
 						enteredAny = true
@@ -1109,6 +1213,9 @@ function ExpeditionManager.startExpeditionEntry(session)
 
 		-- Lobby starts deploy companions into the lobby room first; they channel with the humans.
 		local lobbyScoped = s.scope == "lobby" and not soloBoss
+		if lobbyScoped and Alts and Alts.companionNamesFor then
+			s.requiredCompanionNames = Alts.companionNamesFor(liveHost)
+		end
 		local preDeployed = nil
 		if lobbyScoped and Alts and Alts.getDeployment then
 			local dep = Alts.getDeployment(liveHost)

@@ -34,10 +34,15 @@ local function emptyPreySlot(index, state)
 	}
 end
 
+local function buyDayKey()
+	return os.date("%Y-%m-%d")
+end
+
 local function defaultBonuses()
 	return {
 		xpBoost = { timeLeft = 0, percent = LobbyConfig.XP_BOOST_PERCENT },
 		buyCount = 1,
+		buyDay = buyDayKey(),
 		lastDrainAt = 0,
 		prey = {
 			emptyPreySlot(1, STATE_INACTIVE),
@@ -115,7 +120,10 @@ function LobbyBonus.normalize(stored)
 		data.xpBoost.timeLeft = math.max(0, tonumber(stored.xpBoost.timeLeft) or 0)
 		data.xpBoost.percent = tonumber(stored.xpBoost.percent) or LobbyConfig.XP_BOOST_PERCENT
 	end
-	data.buyCount = math.max(1, math.min(LobbyConfig.XP_BOOST_MAX_BUYS, tonumber(stored.buyCount) or 1))
+	-- buyCount is the next purchase number; MAX_BUYS + 1 means today's cap is reached.
+	if stored.buyDay == data.buyDay then
+		data.buyCount = math.max(1, math.min(LobbyConfig.XP_BOOST_MAX_BUYS + 1, tonumber(stored.buyCount) or 1))
+	end
 	data.lastDrainAt = tonumber(stored.lastDrainAt) or 0
 	local prey = indexedValues(stored.prey)
 	for i = 1, LobbyConfig.PREY_SLOT_COUNT do
@@ -447,30 +455,6 @@ function LobbyBonus.touchDrain(player)
 	end
 end
 
-local function payCoins(player, amount)
-	amount = math.floor(tonumber(amount) or 0)
-	if amount <= 0 then
-		return true
-	end
-	if player.canRemoveCoins and player.removeTransferableCoinsBalance then
-		if not player:canRemoveCoins(amount) then
-			return false, "Not enough Tibia Coins."
-		end
-		if not player:removeTransferableCoinsBalance(amount) then
-			return false, "Failed to charge Tibia Coins."
-		end
-		return true
-	end
-	if player.getTransferableCoins and player.removeTransferableCoins then
-		if (player:getTransferableCoins() or 0) < amount then
-			return false, "Not enough Tibia Coins."
-		end
-		player:removeTransferableCoins(amount)
-		return true
-	end
-	return false, "Coin payment unavailable."
-end
-
 local function payGold(player, amount)
 	amount = math.floor(tonumber(amount) or 0)
 	if amount <= 0 then
@@ -577,7 +561,7 @@ function LobbyBonus.getWire(player, record)
 			nextPrice = price,
 			buyCount = buyCount,
 			maxBuys = LobbyConfig.XP_BOOST_MAX_BUYS,
-			canBuy = isHost and not xpActive and buyCount <= LobbyConfig.XP_BOOST_MAX_BUYS,
+			canBuy = isHost and not xpActive and (data.buyCount or 1) <= LobbyConfig.XP_BOOST_MAX_BUYS,
 		},
 		prey = preyWire,
 		preyPrices = {
@@ -683,26 +667,36 @@ function LobbyBonus.effectivePrey(player, raceId)
 	return nil
 end
 
-function LobbyBonus.buyXpBoost(player)
+--- Store gate for the Lobby XP Boost offer: disabled reason (nil when buyable) and the next price.
+function LobbyBonus.canBuyXpBoost(player)
 	local record = lobbyOf(player)
 	if not record then
-		return false, "You are not in a lobby."
-	end
-	if not LobbyStore.isHost(record, player) then
-		return false, "Only the lobby host can buy the lobby XP boost."
+		return "You are not in a lobby.", LobbyConfig.XP_BOOST_PRICES[1]
 	end
 	local data = loadBonuses(record)
-	applySlotUnlockRules(record, data)
+	drainTimers(data, os.time())
+	local price = LobbyBonus.nextXpBoostPrice(data)
+	if not LobbyStore.isHost(record, player) then
+		return "Only the lobby host can buy the lobby XP boost.", price
+	end
 	if (data.xpBoost.timeLeft or 0) > 0 then
-		return false, "Lobby XP boost is already active."
+		return "Lobby XP boost is already active.", price
 	end
 	if (data.buyCount or 1) > LobbyConfig.XP_BOOST_MAX_BUYS then
-		return false, "Daily lobby XP boost purchase limit reached."
+		return "Daily lobby XP boost purchase limit reached.", price
 	end
-	local ok, err = payCoins(player, LobbyBonus.nextXpBoostPrice(data))
-	if not ok then
-		return false, err
+	return nil, price
+end
+
+--- Activates the boost (coins are charged by the store after this succeeds).
+function LobbyBonus.applyXpBoost(player)
+	local reason = LobbyBonus.canBuyXpBoost(player)
+	if reason then
+		return false, reason
 	end
+	local record = lobbyOf(player)
+	local data = loadBonuses(record)
+	applySlotUnlockRules(record, data)
 	data.xpBoost.timeLeft = LobbyConfig.XP_BOOST_DURATION_SEC
 	data.xpBoost.percent = LobbyConfig.XP_BOOST_PERCENT
 	data.buyCount = (data.buyCount or 1) + 1

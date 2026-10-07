@@ -2451,8 +2451,8 @@ void Player::sendPing() {
 		setAttackedCreature(nullptr);
 	}
 
-	// Headless in an unsafe (private hunt/raid) instance: stay online for AI / persist.
-	if (isHeadless() && !client && !isInSafeInstance()) {
+	// Headless and still fighting / training, or in an unsafe (private hunt/raid) instance: stay online for AI / persist.
+	if (isHeadless() && !client && headlessStaysOnline()) {
 		lastPong = timeNow;
 		return;
 	}
@@ -7433,6 +7433,10 @@ void Player::captureLoginPosition() {
 
 bool Player::staysOnlineWithoutClient() const {
 	return keepsDisconnectedCombat() || (isVip() && g_configManager().getBoolean(VIP_STAY_ONLINE));
+}
+
+bool Player::headlessStaysOnline() const {
+	return keepsDisconnectedCombat() || !isInSafeInstance();
 }
 
 bool Player::canLogout() {

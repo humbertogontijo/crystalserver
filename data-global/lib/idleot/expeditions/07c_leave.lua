@@ -693,10 +693,10 @@ function EM_PRIV.completeLeaveCountdown(sessionKey, initiatorId, initiatorName, 
 		return
 	end
 
-	-- Team stop is decided by human count, not session state ("waiting" also covers
-	-- the boss intermission after entry); the pre-entry lobby is handled in requestLeave.
+	-- Leaving a private hunt/boss ends it for every member (humans and companions alike);
+	-- shared raids / world boss let one player leave alone. Pre-entry is handled in requestLeave.
 	local humanCount = EM_PRIV.countHumanMembers(s)
-	local teamStop = s.kind ~= "raid" and humanCount >= 2
+	local teamStop = s.kind ~= "raid" and s.kind ~= "worldboss"
 	local name = initiatorName or "A teammate"
 	if teamStop then
 		if not s.entered then
@@ -709,12 +709,18 @@ function EM_PRIV.completeLeaveCountdown(sessionKey, initiatorId, initiatorName, 
 			end
 		else
 			logger.info(
-				"[Expedition] leave countdown complete teamStop key={} by={} goHometown={}",
+				"[Expedition] leave countdown complete teamStop key={} by={} goHometown={} humans={}",
 				tostring(sessionKey),
 				name,
-				tostring(goHometown)
+				tostring(goHometown),
+				humanCount
 			)
-			local abortMsg = goHometown and (name .. " recalled.") or (name .. " stopped the expedition.")
+			local abortMsg
+			if humanCount >= 2 then
+				abortMsg = goHometown and (name .. " recalled.") or (name .. " stopped the expedition.")
+			else
+				abortMsg = goHometown and "You recalled to your hometown." or "You left the expedition."
+			end
 			local abortOpts = {}
 			if goHometown then
 				abortOpts.goHometownPlayerId = initiatorId
@@ -810,10 +816,18 @@ function ExpeditionManager.requestLeave(player, opts)
 		if InstanceTeleport.isPending(player) then
 			return
 		end
-		local humans = EM_PRIV.collectSessionHumans(session)
+		-- The whole team channels out together, headless humans and companions included.
 		local memberIds = {}
-		for _, member in ipairs(humans) do
-			memberIds[#memberIds + 1] = member:getId()
+		if session.kind == "raid" or session.kind == "worldboss" then
+			for _, member in ipairs(EM_PRIV.collectSessionHumans(session)) do
+				memberIds[#memberIds + 1] = member:getId()
+			end
+		else
+			for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
+				if Player(id) then
+					memberIds[#memberIds + 1] = id
+				end
+			end
 		end
 		if #memberIds == 0 then
 			memberIds = { playerId }

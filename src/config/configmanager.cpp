@@ -237,6 +237,7 @@ bool ConfigManager::load() {
 	loadFloatConfig(L, RATE_HEALTH_REGEN_SPEED, "rateHealthRegenSpeed", 1.0);
 	loadFloatConfig(L, RATE_HEALTH_REGEN, "rateHealthRegen", 1.0);
 	loadFloatConfig(L, RATE_LOOT, "rateLoot", 1.0);
+	loadFloatConfig(L, RATE_GOLD_LOOT, "rateGoldLoot", 1.0);
 	loadFloatConfig(L, RATE_MANA_REGEN_SPEED, "rateManaRegenSpeed", 1.0);
 	loadFloatConfig(L, RATE_MANA_REGEN, "rateManaRegen", 1.0);
 	loadFloatConfig(L, RATE_MONSTER_ATTACK, "rateMonsterAttack", 1.0);

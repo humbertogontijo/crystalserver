@@ -40,8 +40,8 @@ LobbyConfig.LEGACY_KV_LISTING = "social_team_listing"
 -- Lobby XP boost + team prey (2x personal prices, full effect for every member).
 LobbyConfig.XP_BOOST_PERCENT = 50
 LobbyConfig.XP_BOOST_DURATION_SEC = 3600
-LobbyConfig.XP_BOOST_PRICES = { 60, 90, 180, 360, 720 }
-LobbyConfig.XP_BOOST_MAX_BUYS = 5
+LobbyConfig.XP_BOOST_PRICES = { 60, 90, 180 }
+LobbyConfig.XP_BOOST_MAX_BUYS = 3 -- per lobby per server day (os.date)
 LobbyConfig.PREY_SLOT_COUNT = 3
 LobbyConfig.PREY_BONUS_TIME_SEC = 7200
 LobbyConfig.PREY_PRICE_MULT = 2
@@ -74,7 +74,7 @@ LobbyConfig.ROOM_WALL_BR = 32830
 
 -- Fixtures carry this action id; a move-item callback keeps them in place.
 LobbyConfig.FIXTURE_ACTION_ID = 47100
-LobbyConfig.EXERCISE_DUMMY_ID = 28559
+LobbyConfig.EXERCISE_DUMMY_ID = 28558
 LobbyConfig.IMBUEMENT_SHRINE_ID = 25175
 LobbyConfig.DAILY_REWARD_SHRINE_ID = 25720
 LobbyConfig.MAILBOX_ID = 23399
@@ -119,10 +119,13 @@ LobbyConfig.STORAGE_RETURN_X = 910111
 LobbyConfig.STORAGE_RETURN_Y = 910112
 LobbyConfig.STORAGE_RETURN_Z = 910113
 
--- Exercise training on the room dummy (opcode 116 startTraining / stopTraining).
+-- Exercise training on any targetable dummy (opcode 116 startTraining / stopTraining).
 LobbyConfig.TRAVEL_OPCODE = 116
 LobbyConfig.TRAIN_SKILL_TRIES = 7
 LobbyConfig.TRAIN_MANA_SPENT = 600
+-- Targeting reach for far-use weapons (classic FOV, MAP_CLASSIC_CLIENT_VIEW_PORT_X/Y).
+LobbyConfig.TRAIN_MAX_RANGE_X = 8
+LobbyConfig.TRAIN_MAX_RANGE_Y = 6
 LobbyConfig.EXERCISE_WEAPONS = {
 	[28552] = { skill = "sword" },
 	[35279] = { skill = "sword" },

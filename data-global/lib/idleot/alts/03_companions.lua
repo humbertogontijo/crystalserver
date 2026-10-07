@@ -326,6 +326,10 @@ local function safeLogoutCompanion(companion, deferMs)
 		if not c or not isHeadlessCompanion(c) then
 			return
 		end
+		-- Exercise training keeps the body until the weapons run out; sendPing removes it then.
+		if c.isTraining and c:isTraining() ~= 0 then
+			return
+		end
 		parkCompanionBeforeLogout(c)
 		clearCompanionMark(c)
 		if type(Game.headlessLogout) == "function" then
@@ -540,7 +544,8 @@ local function acceptLoadedCompanions(controller, companions, loaded, accountId)
 	return companions
 end
 
---- Deploy account companions near the controller.
+--- Deploy account companions near the controller. All-or-nothing: if any requested
+--- companion cannot come (e.g. it is on a real client), none are deployed.
 --- opts.names: companion names (default Alts.companionNamesFor(controller)).
 --- opts.position: spawn/teleport companions here (e.g. lobby tile / expedition entry).
 --- opts.instanceId: bind private instance id before place (atomic with headlessLogin).
@@ -561,6 +566,13 @@ function Alts.deploy(controller, opts)
 	local instanceId = math.floor(tonumber(opts.instanceId) or 0)
 	local accountId = controller:getAccountId()
 	local names = type(opts.names) == "table" and opts.names or Alts.companionNamesFor(controller)
+
+	for _, name in ipairs(names) do
+		local online = Player(name)
+		if online and online:getId() ~= controller:getId() and isRealUiClient(online) then
+			return deliverDeployResult(opts, nil, string.format("%s is online on a real client.", online:getName()))
+		end
+	end
 
 	local existing = deployments[controller:getGuid()]
 	if existing then
@@ -607,8 +619,6 @@ function Alts.deploy(controller, opts)
 			local online = Player(name)
 			if online and online.getId and online:getId() == controller:getId() then
 				-- Deployer listed as companion (stale) - ignore.
-			elseif online and isRealUiClient(online) then
-				logger.info("[Alts] {} skip companion deploy for {} (already on a real client)", controller:getName(), name)
 			elseif online then
 				local claimed = claimOnlineCompanion(controller, online, spawnPos, opts)
 				if claimed then
