@@ -14,6 +14,10 @@ LetterConfig.DESCRIPTION = "A letter addressed to you. Use it to read it and cla
 -- Delivered once per character on login, in this order.
 LetterConfig.AUTO_DELIVER = { "welcome_exercise" }
 
+-- Character creation copies "<Vocation> Sample" player_items (incl. the Store
+-- Inbox) into new characters, so templates must never hold reward letters.
+LetterConfig.TEMPLATE_NAME_PATTERN = "^%a+ Sample$"
+
 -- reward.kind: "choice" grants one picked item, "items" grants all of them.
 LetterConfig.TEMPLATES = {
 	welcome_exercise = {
