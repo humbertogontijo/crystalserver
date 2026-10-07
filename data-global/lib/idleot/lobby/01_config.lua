@@ -145,6 +145,9 @@ LobbyConfig.EXERCISE_WEAPONS = {
 	[44065] = { skill = "shield" },
 	[44066] = { skill = "shield" },
 	[44067] = { skill = "shield" },
+	[50293] = { skill = "fist" },
+	[50294] = { skill = "fist" },
+	[50295] = { skill = "fist" },
 }
 
 --- Sorted server item ids for a training skill (stable consume order).
