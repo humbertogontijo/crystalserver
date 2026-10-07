@@ -29,7 +29,7 @@ maintainModeMessage = ""
 -- NOTE: valid values for worldType are: "pvp", "no-pvp", "pvp-enforced", "retro-pvp" and "retro-hardcore"
 -- NOTE: valid values for worldLocation are: "Europe", "North America", "South America" and "Oceania"
 worldId = 1
-worldType = "pvp"
+worldType = "no-pvp"
 worldLocation = "South America"
 
 -- Combat settings

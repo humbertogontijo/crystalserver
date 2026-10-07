@@ -32,8 +32,9 @@ function getWorldTypeName()
 	end
 end
 
-function isRetroPVP()
-	return table.contains({ WORLDTYPE_RETRO_PVP, WORLDTYPE_RETRO_HARDCORE }, Game.getWorldType())
+function isRetroPVP(creature)
+	local instanceId = creature and creature:getInstanceId() or 0
+	return table.contains({ WORLDTYPE_RETRO_PVP, WORLDTYPE_RETRO_HARDCORE }, Game.getWorldType(instanceId))
 end
 
 function IsTravelFree()

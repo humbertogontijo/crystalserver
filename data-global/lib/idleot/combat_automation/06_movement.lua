@@ -536,7 +536,9 @@ end
 -- side while it stands next to the anchor), and
 -- keeps out of the anchor's 3x3 where monsters stand. Ranged also keeps away from monsters
 -- targeting it; melee fights next to its target and never steps away from monsters
--- (low HP is retreatIfCritical's job).
+-- (low HP is retreatIfCritical's job). Formation is only for fighting: without a
+-- target the member trails (TRAIL_RADIUS, never ahead of the anchor) instead of
+-- taking its slot.
 -- ---------------------------------------------------------------------------
 
 local RANGED_TARGET_RANGE = 7
@@ -553,6 +555,13 @@ local AREA_SLOT_MEMORY_MS = 4000
 local AREA_BONUS_CAP = 60
 --- Leave the current tile only for one scoring at least this much more.
 local TILE_MOVE_MARGIN = 5
+--- Score lost per walking step: a fight slot close by beats a better lane across the
+--- box. A ranged member a monster closes in on walks cheaply, to get clear of it.
+local SLOT_WALK_COST = 6
+local UNSAFE_WALK_COST = 2
+--- Without a target a member trails within this many tiles of the anchor, never
+--- ahead of it along the travel front.
+local TRAIL_RADIUS = 3
 
 local function slotById(config, id)
 	for _, slot in ipairs(config and config.slots or {}) do
@@ -575,7 +584,8 @@ end
 
 --- Member tile score (nil: unusable). Needs a free tile inside the leash in clear
 --- sight of the anchor and target; melee next to the target, ranged
---- 2..RANGED_TARGET_RANGE from it. Scores the anchor slot and ring (above), then per
+--- 2..RANGED_TARGET_RANGE from it; trailing, within TRAIL_RADIUS of the anchor and
+--- not ahead of it. Scores the anchor slot (not when trailing) and ring, then per
 --- stance: ranged safety from monsters targeting it (dominant) or, alone, the stance
 --- band around the target; melee facing (diagonal to beam casters, orthogonal for
 --- its own wave spells) and a penalty when boxed in. Plus area-spell hits, minus
@@ -610,11 +620,18 @@ local function memberTileScore(ctx, pos, beat)
 	end
 	if apos then
 		local d = chebyshev(pos, apos)
-		local off = math.abs(d - ctx.slotDist)
-		if off == 0 then
-			score = score + ((ctx.anchorLanes and geo.onAnchorLane(pos, apos)) and 40 or 20)
-		elseif off == 1 then
-			score = score + 8
+		if ctx.trail then
+			local front = ctx.front
+			if d > TRAIL_RADIUS or (front and (pos.x - apos.x) * front[1] + (pos.y - apos.y) * front[2] > 0) then
+				return nil
+			end
+		else
+			local off = math.abs(d - ctx.slotDist)
+			if off == 0 then
+				score = score + ((ctx.anchorLanes and geo.onAnchorLane(pos, apos)) and 40 or 20)
+			elseif off == 1 then
+				score = score + 8
+			end
 		end
 		if d <= 1 then
 			score = score - ANCHOR_RING_PENALTY
@@ -624,7 +641,7 @@ local function memberTileScore(ctx, pos, beat)
 		local threat = nearestThreat(pos, ctx.threats)
 		score = score + (threat >= ctx.safeDist and 100 or 0) + math.min(threat, 4) * 5
 	end
-	score = score - chebyshev(ctx.ppos, pos) * 2
+	score = score - chebyshev(ctx.ppos, pos) * ctx.walkCost
 	if ctx.prevDest and sameTile(pos, ctx.prevDest) then
 		score = score + 3
 	end
@@ -656,7 +673,7 @@ local function memberTileScore(ctx, pos, beat)
 end
 
 --- Melee with a target: the tiles next to it. Otherwise tiles around the member,
---- plus the anchor's slot square.
+--- plus the anchor's slot square (trailing: its TRAIL_RADIUS square).
 local function memberCandidates(ctx)
 	local out, seen = {}, {}
 	local function addSquare(center, r)
@@ -677,7 +694,7 @@ local function memberCandidates(ctx)
 	end
 	addSquare(ctx.ppos, SEARCH_RADIUS)
 	if ctx.apos then
-		addSquare(ctx.apos, ctx.slotDist)
+		addSquare(ctx.apos, ctx.trail and TRAIL_RADIUS or ctx.slotDist)
 	end
 	return out
 end
@@ -697,9 +714,9 @@ local function pickTile(ctx)
 	return best
 end
 
---- Non-anchor member (fighting, holding its slot, trailing the anchor, aiming an
---- area spell): walk to the best-scoring tile when it beats staying, else hold facing
---- the target. Melee reaches its target with engine follow first. `anchor`
+--- Non-anchor member (fighting in formation, trailing the anchor without a target,
+--- aiming an area spell): walk to the best-scoring tile when it beats staying, else
+--- hold facing the target. Melee reaches its target with engine follow first. `anchor`
 --- (expedition formation) and `target` are optional; without an anchor, `home` (a
 --- ranged expedition anchor's fight spot) stands in for its position. Re-evaluates
 --- every ADJUST_THROTTLE_MS, or at once when a monster targeting a ranged member closes
@@ -735,11 +752,12 @@ local function driveMember(player, anchor, target, config, state, home)
 	local threats = melee and {} or threatPositions(player, true)
 	local safeDist = RANGED_SAFE_DIST
 	local bosses = bossFronts(player)
-	local unsafe = (not melee and nearestThreat(ppos, threats) < safeDist)
-		or (bosses[1] ~= nil and inBossFront(player, ppos, bosses))
+	local threatened = not melee and nearestThreat(ppos, threats) < safeDist
+	local unsafe = threatened or (bosses[1] ~= nil and inBossFront(player, ppos, bosses))
 	if not unsafe and throttled(state, "memberEvalAt", ADJUST_THROTTLE_MS) then
 		return
 	end
+	local directive = state and state.directive
 	local ctx = {
 		player = player,
 		ppos = ppos,
@@ -747,6 +765,9 @@ local function driveMember(player, anchor, target, config, state, home)
 		apos = apos,
 		melee = melee,
 		d = d,
+		trail = target == nil and anchor ~= nil,
+		front = directive and directive.front,
+		walkCost = threatened and UNSAFE_WALK_COST or SLOT_WALK_COST,
 		slotDist = slotDistanceOf(config),
 		anchorLanes = not (melee and apos and chebyshev(ppos, apos) <= 1),
 		threats = threats,
@@ -997,6 +1018,7 @@ local function driveCatchUp(player, anchor, state)
 end
 
 --- Per-tick positioning: follow → anchorStance → hold → stance vs attack target.
+--- Members form up around the anchor only while attacking; otherwise they trail it.
 function CombatAutomationMovement.tick(player, config)
 	if not player then
 		return
@@ -1053,6 +1075,7 @@ function CombatAutomationMovement.tick(player, config)
 		state.catchingUp = nil
 	end
 
+	-- Luring: trail the anchor (no target, so no formation).
 	if directive and directive.kind == "follow" then
 		if anchor then
 			driveMember(player, anchor, nil, config, state)
@@ -1069,7 +1092,7 @@ function CombatAutomationMovement.tick(player, config)
 	if hasFocus and state then
 		state.focusAt = nowMs()
 	end
-	-- Between kills: stay put rather than stepping back to formation for one tick.
+	-- Between kills: stay put rather than stepping back to the trail for one tick.
 	local betweenTargets = not hasFocus and state and nowMs() - (state.focusAt or 0) < FOCUS_GRACE_MS
 
 	if directive and directive.kind == "anchorStance" then
@@ -1080,6 +1103,7 @@ function CombatAutomationMovement.tick(player, config)
 		if betweenTargets and autoOn then
 			return
 		end
+		-- Halt without a target (pack still arriving): trail, form up once attacking.
 		if anchor and autoOn then
 			driveMember(player, anchor, nil, config, state)
 		elseif not autoOn then

@@ -198,7 +198,7 @@ function RaidInstance.provision(raid)
 	local worldZoneName = raid.zone
 	local worldSpawnZoneName = raid.spawnZone or raid.zone
 
-	local instanceId = ExpeditionInstance.allocate()
+	local instanceId = ExpeditionInstance.allocate("raid")
 	if instanceId == nil then
 		logger.error("[RaidInstance] no expedition instances for raid {}", raid.name)
 		return false

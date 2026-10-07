@@ -930,14 +930,6 @@ bool Player::hasSecureMode() const {
 	return secureMode;
 }
 
-bool Player::isOpenPvp() const {
-	return openPvp;
-}
-
-void Player::setOpenPvp(bool enabled) {
-	openPvp = enabled;
-}
-
 void Player::setParty(std::shared_ptr<Party> newParty) {
 	m_party = std::move(newParty);
 }
@@ -1522,7 +1514,7 @@ bool Player::canWalkthrough(const std::shared_ptr<Creature> &creature) {
 
 	if (player) {
 		const auto &playerTile = player->getTile();
-		if (!playerTile || (!playerTile->hasFlag(TILESTATE_NOPVPZONE) && !playerTile->hasFlag(TILESTATE_PROTECTIONZONE) && player->getLevel() > static_cast<uint32_t>(g_configManager().getNumber(PROTECTION_LEVEL)) && g_game().worlds().getCurrentWorld()->type != WORLDTYPE_OPTIONAL)) {
+		if (!playerTile || (!playerTile->hasFlag(TILESTATE_NOPVPZONE) && !playerTile->hasFlag(TILESTATE_PROTECTIONZONE) && player->getLevel() > static_cast<uint32_t>(g_configManager().getNumber(PROTECTION_LEVEL)) && g_game().getWorldType(player->getInstanceId()) != WORLDTYPE_OPTIONAL)) {
 			return false;
 		}
 
@@ -1573,7 +1565,7 @@ bool Player::canWalkthroughEx(const std::shared_ptr<Creature> &creature) const {
 			return true;
 		}
 		const auto &playerTile = player->getTile();
-		return playerTile && (playerTile->hasFlag(TILESTATE_NOPVPZONE) || playerTile->hasFlag(TILESTATE_PROTECTIONZONE) || player->getLevel() <= static_cast<uint32_t>(g_configManager().getNumber(PROTECTION_LEVEL)) || g_game().worlds().getCurrentWorld()->type == WORLDTYPE_OPTIONAL);
+		return playerTile && (playerTile->hasFlag(TILESTATE_NOPVPZONE) || playerTile->hasFlag(TILESTATE_PROTECTIONZONE) || player->getLevel() <= static_cast<uint32_t>(g_configManager().getNumber(PROTECTION_LEVEL)) || g_game().getWorldType(player->getInstanceId()) == WORLDTYPE_OPTIONAL);
 	} else if (npc) {
 		const auto &tile = npc->getTile();
 		const auto &houseTile = std::dynamic_pointer_cast<HouseTile>(tile);
@@ -3145,7 +3137,7 @@ void Player::onAttackedCreatureChangeZone(ZoneType_t zone) {
 				onAttackedCreatureDisappear(false);
 			}
 		}
-	} else if (zone == ZONE_NORMAL && g_game().worlds().getCurrentWorld()->type == WORLDTYPE_OPTIONAL) {
+	} else if (zone == ZONE_NORMAL && g_game().getWorldType(getInstanceId()) == WORLDTYPE_OPTIONAL) {
 		// attackedCreature can leave a pvp zone if not pzlocked
 		if (attackedCreature->getPlayer()) {
 			setAttackedCreature(nullptr);
@@ -6588,11 +6580,7 @@ void Player::setFightMode(FightMode_t mode) {
 }
 
 void Player::setSecureMode(bool mode) {
-	if (secureMode == mode) {
-		return;
-	}
 	secureMode = mode;
-	sendFightModes();
 }
 
 Faction_t Player::getFaction() const {
@@ -6796,7 +6784,7 @@ void Player::onCombatRemoveCondition(const std::shared_ptr<Condition> &condition
 	// Creature::onCombatRemoveCondition(condition);
 	if (condition->getId() > 0) {
 		// Means the condition is from an item, id == slot
-		if (g_game().worlds().getCurrentWorld()->type == WORLDTYPE_HARDCORE) {
+		if (g_game().getWorldType(getInstanceId()) == WORLDTYPE_HARDCORE) {
 			const auto &item = getInventoryItem(static_cast<Slots_t>(condition->getId()));
 			if (item) {
 				// 25% chance to destroy the item
@@ -6831,15 +6819,6 @@ void Player::onAttackedCreature(const std::shared_ptr<Creature> &target) {
 		return;
 	}
 
-	const auto &self = static_self_cast<Player>();
-	const auto &targetPlayer = target->getPlayer();
-	// Scripted open-PvP arenas (world boss) still assign white/yellow marks; only
-	// real ZONE_PVP tiles / non-openPvp isInPvpZone pairs skip skull logic.
-	const bool openPvpArena = targetPlayer && isOpenPvp() && targetPlayer->isOpenPvp();
-	if (Combat::isInPvpZone(self, target) && !openPvpArena) {
-		return;
-	}
-
 	if (target == getPlayer()) {
 		addInFightTicks();
 		return;
@@ -6849,41 +6828,31 @@ void Player::onAttackedCreature(const std::shared_ptr<Creature> &target) {
 		return;
 	}
 
+	const auto &targetPlayer = target->getPlayer();
 	if (targetPlayer && !isPartner(targetPlayer) && !isGuildMate(targetPlayer)) {
-		if (!pzLocked && g_game().worlds().getCurrentWorld()->type == WORLDTYPE_HARDCORE) {
+		if (!pzLocked && g_game().getWorldType(getInstanceId()) == WORLDTYPE_HARDCORE) {
 			pzLocked = true;
 			sendIcons();
 		}
 
-		// Open-PvP: white skull only from explicit target attacks on unmarked rivals.
-		// AOE splash on skulled players must not open white; yellow retaliation still marks.
-		if (openPvpArena && getAttackedCreature() != target) {
-			if (getSkull() == SKULL_NONE && getSkullClient(targetPlayer) == SKULL_YELLOW) {
-				addAttacked(targetPlayer);
-				targetPlayer->sendCreatureSkull(self);
-			}
-			addInFightTicks();
-			return;
-		}
-
 		if (getSkull() == SKULL_NONE && getSkullClient(targetPlayer) == SKULL_YELLOW) {
 			addAttacked(targetPlayer);
-			targetPlayer->sendCreatureSkull(self);
-		} else if (!targetPlayer->hasAttacked(self)) {
+			targetPlayer->sendCreatureSkull(static_self_cast<Player>());
+		} else if (!targetPlayer->hasAttacked(static_self_cast<Player>())) {
 			if (!pzLocked) {
 				pzLocked = true;
 				sendIcons();
 			}
 
-			if ((!Combat::isInPvpZone(self, targetPlayer) || openPvpArena) && !isInWar(targetPlayer)) {
+			if (!Combat::isInPvpZone(static_self_cast<Player>(), targetPlayer) && !isInWar(targetPlayer)) {
 				addAttacked(targetPlayer);
 
-				if (targetPlayer->getSkull() == SKULL_NONE && getSkull() == SKULL_NONE && !targetPlayer->hasKilled(self)) {
+				if (targetPlayer->getSkull() == SKULL_NONE && getSkull() == SKULL_NONE && !targetPlayer->hasKilled(static_self_cast<Player>())) {
 					setSkull(SKULL_WHITE);
 				}
 
 				if (getSkull() == SKULL_NONE) {
-					targetPlayer->sendCreatureSkull(self);
+					targetPlayer->sendCreatureSkull(static_self_cast<Player>());
 				}
 			}
 		}
@@ -6955,7 +6924,7 @@ void Player::onTargetCreatureGainHealth(const std::shared_ptr<Creature> &target,
 
 bool Player::onKilledPlayer(const std::shared_ptr<Player> &target, bool lastHit) {
 	bool unjustified = false;
-	if (target->getZoneType() == ZONE_PVP || Combat::isInPvpZone(getPlayer(), target)) {
+	if (target->getZoneType() == ZONE_PVP) {
 		target->setDropLoot(false);
 		target->setSkillLoss(false);
 	} else if (!hasFlag(PlayerFlags_t::NotGainInFight) && !isPartner(target)) {
@@ -7575,7 +7544,7 @@ Skulls_t Player::getSkull() const {
 }
 
 Skulls_t Player::getSkullClient(const std::shared_ptr<Creature> &creature) {
-	if (!creature || g_game().worlds().getCurrentWorld()->type != WORLDTYPE_OPEN) {
+	if (!creature || g_game().getWorldType(creature->getInstanceId()) != WORLDTYPE_OPEN) {
 		return SKULL_NONE;
 	}
 
@@ -7641,7 +7610,7 @@ void Player::clearAttacked() {
 }
 
 void Player::addUnjustifiedDead(const std::shared_ptr<Player> &attacked) {
-	if (hasFlag(PlayerFlags_t::NotGainInFight) || hasFlag(PlayerFlags_t::NotGainUnjustified) || attacked == getPlayer() || g_game().worlds().getCurrentWorld()->type == WORLDTYPE_HARDCORE) {
+	if (hasFlag(PlayerFlags_t::NotGainInFight) || hasFlag(PlayerFlags_t::NotGainUnjustified) || attacked == getPlayer() || g_game().getWorldType(getInstanceId()) == WORLDTYPE_HARDCORE) {
 		return;
 	}
 
@@ -9133,7 +9102,7 @@ void Player::onThink(uint32_t interval) {
 		}
 	}
 
-	if (g_game().worlds().getCurrentWorld()->type != WORLDTYPE_HARDCORE) {
+	if (g_game().getWorldType(getInstanceId()) != WORLDTYPE_HARDCORE) {
 		checkSkullTicks(interval / 1000);
 	}
 

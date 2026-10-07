@@ -396,9 +396,6 @@ void PlayerFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Player", "hasChaseMode", PlayerFunctions::luaPlayerHasChaseMode);
 	Lua::registerMethod(L, "Player", "hasSecureMode", PlayerFunctions::luaPlayerHasSecureMode);
-	Lua::registerMethod(L, "Player", "setSecureMode", PlayerFunctions::luaPlayerSetSecureMode);
-	Lua::registerMethod(L, "Player", "isOpenPvp", PlayerFunctions::luaPlayerIsOpenPvp);
-	Lua::registerMethod(L, "Player", "setOpenPvp", PlayerFunctions::luaPlayerSetOpenPvp);
 	Lua::registerMethod(L, "Player", "getFightMode", PlayerFunctions::luaPlayerGetFightMode);
 
 	Lua::registerMethod(L, "Player", "getBaseXpGain", PlayerFunctions::luaPlayerGetBaseXpGain);
@@ -4857,41 +4854,6 @@ int PlayerFunctions::luaPlayerHasSecureMode(lua_State* L) {
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (player) {
 		Lua::pushBoolean(L, player->secureMode);
-	} else {
-		lua_pushnil(L);
-	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerSetSecureMode(lua_State* L) {
-	// player:setSecureMode(enabled)
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (player) {
-		player->setSecureMode(Lua::getBoolean(L, 2));
-		Lua::pushBoolean(L, true);
-	} else {
-		lua_pushnil(L);
-	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerIsOpenPvp(lua_State* L) {
-	// player:isOpenPvp()
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (player) {
-		Lua::pushBoolean(L, player->isOpenPvp());
-	} else {
-		lua_pushnil(L);
-	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerSetOpenPvp(lua_State* L) {
-	// player:setOpenPvp(enabled)
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (player) {
-		player->setOpenPvp(Lua::getBoolean(L, 2));
-		Lua::pushBoolean(L, true);
 	} else {
 		lua_pushnil(L);
 	}

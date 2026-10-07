@@ -394,7 +394,7 @@ local function startBandSession(band, bossName)
 	if not bossName then
 		return
 	end
-	local instanceId = ExpeditionInstance and ExpeditionInstance.allocate and ExpeditionInstance.allocate()
+	local instanceId = ExpeditionInstance and ExpeditionInstance.allocate and ExpeditionInstance.allocate("worldboss")
 	if not instanceId then
 		logger.error("[ActivityBoost] world boss: no instance for band {}", band.id)
 		return
@@ -597,14 +597,6 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 	ExpeditionManager.bindSession(member)
 
 	player:registerEvent("ExpeditionPlayerDeath")
-	player:registerEvent("ActivityBoostWorldBossPlayerHealth")
-	player:registerEvent("ActivityBoostWorldBossPrepareDeath")
-	if player.setDropLoot then
-		player:setDropLoot(false)
-	end
-	if player.setSkillLoss then
-		player:setSkillLoss(false)
-	end
 
 	local function finishWorldBossEnter(p)
 		local liveMember = ExpeditionManager.getSessionByPlayer(p)
@@ -627,16 +619,9 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 			return false
 		end
 		liveMember.entered = true
-		if p.setOpenPvp then
-			p:setOpenPvp(true)
-		end
-		if p.setSecureMode and p.hasSecureMode then
-			liveMember.prevSecureMode = p:hasSecureMode() and true or false
-			p:setSecureMode(false)
-		end
 		p:sendTextMessage(
 			MESSAGE_EVENT_ADVANCE,
-			string.format("Joined World Boss: %s (%s band). Open PvP — skulls apply; no death penalty.", liveSession.bossName, band.name)
+			string.format("Joined World Boss: %s (%s band). Open PvP; no death penalty.", liveSession.bossName, band.name)
 		)
 		ExpeditionProtocol.sendStatus(p, liveMember)
 		ActivityBoostWorldBoss.broadcastSchedule()
@@ -705,87 +690,13 @@ function ActivityBoostWorldBoss.withdrawDamage(player)
 	broadcastMeter(session)
 end
 
-local function clearWorldBossSkulls(player, opts)
-	opts = opts or {}
-	if not player then
-		return
-	end
-	local skullNone = SKULL_NONE or 0
-	local skullWhite = SKULL_WHITE or 3
-	local skullRed = SKULL_RED or 4
-	local skullBlack = SKULL_BLACK or 5
-	if opts.whiteOnly then
-		if player.getSkull and player:getSkull() == skullWhite and player.setSkull then
-			player:setSkull(skullNone)
+InstancePvp.setHooks("worldboss", {
+	onRevive = function(p)
+		if p and p.sendTextMessage then
+			p:sendTextMessage(MESSAGE_EVENT_ADVANCE, "World Boss respawn - back in the fight!")
 		end
-		return
-	end
-	-- Drop infight so stock white-skull duration cannot reassert after leave.
-	if player.removeCondition and CONDITION_INFIGHT then
-		pcall(function()
-			player:removeCondition(CONDITION_INFIGHT)
-		end)
-	end
-	if player.clearAttacked then
-		pcall(function()
-			player:clearAttacked()
-		end)
-	end
-	if player.setSkull then
-		local skull = player.getSkull and player:getSkull() or nil
-		if skull == nil or (skull ~= skullRed and skull ~= skullBlack) then
-			player:setSkull(skullNone)
-		end
-	end
-	if player.setSkullTime then
-		pcall(function()
-			player:setSkullTime(0)
-		end)
-	end
-end
-
---- Clear arena PvP marks + open-PvP flag (stranded rescue / leave / login fallback).
-function ActivityBoostWorldBoss.clearArenaState(player, opts)
-	if not player then
-		return
-	end
-	clearWorldBossSkulls(player, opts)
-	if player.setOpenPvp then
-		player:setOpenPvp(false)
-	end
-end
-
-local function beginWorldBossKnockout(player, delaySec)
-	if not SoftDeath or not SoftDeath.beginDowned then
-		return false
-	end
-	-- Drop white before softDespawn so spectators see the mark clear, then player leaves the map.
-	clearWorldBossSkulls(player, { whiteOnly = true })
-	return SoftDeath.beginDowned(player, {
-		reason = "worldboss",
-		title = "Knocked out",
-		message = "Respawning in place...",
-		durationSec = delaySec,
-		onRevive = function(p)
-			-- Belt: softSpawn must not re-enter the fight with a white skull.
-			clearWorldBossSkulls(p, { whiteOnly = true })
-			if p and p.getSkull and p.setSkull then
-				local skull = p:getSkull()
-				local skullNone = SKULL_NONE or 0
-				local skullRed = SKULL_RED or 4
-				local skullBlack = SKULL_BLACK or 5
-				if skull ~= skullNone and skull ~= skullRed and skull ~= skullBlack then
-					pcall(function()
-						p:setSkull(skullNone)
-					end)
-				end
-			end
-			if p and p.sendTextMessage then
-				p:sendTextMessage(MESSAGE_EVENT_ADVANCE, "World Boss respawn - back in the fight!")
-			end
-		end,
-	})
-end
+	end,
+})
 
 local function endWorldBossKnockout(player)
 	if SoftDeath and SoftDeath.endDowned then
@@ -808,24 +719,7 @@ function ActivityBoostWorldBoss.leave(player, opts)
 		ActivityBoostWorldBoss.withdrawDamage(player)
 	end
 
-	if player.setDropLoot then
-		player:setDropLoot(true)
-	end
-	if player.setSkillLoss then
-		player:setSkillLoss(true)
-	end
-	if player.setOpenPvp then
-		player:setOpenPvp(false)
-	end
-	if player.setSecureMode and member.prevSecureMode ~= nil then
-		player:setSecureMode(member.prevSecureMode and true or false)
-		member.prevSecureMode = nil
-	end
-	-- Clear all arena skull marks before softSpawn/exit (including mid-knockout leave).
-	clearWorldBossSkulls(player)
 	endWorldBossKnockout(player)
-	player:unregisterEvent("ActivityBoostWorldBossPlayerHealth")
-	player:unregisterEvent("ActivityBoostWorldBossPrepareDeath")
 
 	local pid = player:getId()
 	if session and session.playerIds then
@@ -849,95 +743,11 @@ function ActivityBoostWorldBoss.leave(player, opts)
 	elseif returnPos then
 		player:teleportTo(returnPos)
 	end
-	-- Re-assert skull clear after teleport so the client refresh at the new tile is NONE.
-	clearWorldBossSkulls(player)
 	ExpeditionProtocol.sendEnded(player)
 	if not opts.silent then
 		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, opts.reason or "Left world boss.")
 	end
 	ActivityBoostWorldBoss.broadcastSchedule()
-end
-
---- Arena knockout: softDespawn (leave the map) + timed softSpawn — no 1 HP fake corpse.
-function ActivityBoostWorldBoss.onPlayerHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
-	local player = creature and creature:getPlayer()
-	if not player then
-		return primaryDamage, primaryType, secondaryDamage, secondaryType
-	end
-	local member = ExpeditionManager.getSessionByPlayer(player)
-	if not member or member.kind ~= "worldboss" then
-		return primaryDamage, primaryType, secondaryDamage, secondaryType
-	end
-	local session = ActivityBoostWorldBoss.active[member.bandId]
-	if not session then
-		return primaryDamage, primaryType, secondaryDamage, secondaryType
-	end
-
-	if SoftDeath and SoftDeath.isDowned and SoftDeath.isDowned(player) then
-		return 0, primaryType, 0, secondaryType
-	end
-
-	local health = player:getHealth()
-	local dmg = 0
-	local pDmg = tonumber(primaryDamage) or 0
-	local sDmg = tonumber(secondaryDamage) or 0
-	if pDmg < 0 then
-		dmg = dmg - pDmg
-	end
-	if sDmg < 0 then
-		dmg = dmg - sDmg
-	end
-	if dmg <= 0 then
-		return primaryDamage, primaryType, secondaryDamage, secondaryType
-	end
-	if health - dmg > 0 then
-		return primaryDamage, primaryType, secondaryDamage, secondaryType
-	end
-
-	local delay = ActivityBoostConfig.WORLD_BOSS_RESPAWN_SEC or 10
-	if not beginWorldBossKnockout(player, delay) then
-		-- SoftDeath unavailable — absorb lethal hit so true death does not fire.
-		return 0, primaryType, 0, secondaryType
-	end
-	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("Knocked out! Respawning in %ds...", delay))
-	-- SoftDeath owns corpse + timer; cancel lethal damage (player already off the map).
-	return 0, primaryType, 0, secondaryType
-end
-
-function ActivityBoostWorldBoss.onPlayerPrepareDeath(player)
-	if not player then
-		return true
-	end
-	local member = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
-	if not member or member.kind ~= "worldboss" then
-		return true
-	end
-	if player.setDropLoot then
-		player:setDropLoot(false)
-	end
-	if player.setSkillLoss then
-		player:setSkillLoss(false)
-	end
-	-- Prefer knockout via health change; if death still happens, no loot/skills.
-	return true
-end
-
-function ActivityBoostWorldBoss.onPlayerDeath(player, corpse)
-	-- Fallback if knockout missed: restore flags and eject with no penalty messaging.
-	if not player then
-		return true
-	end
-	local member = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
-	if not member or member.kind ~= "worldboss" then
-		return true
-	end
-	if player.setDropLoot then
-		player:setDropLoot(false)
-	end
-	if player.setSkillLoss then
-		player:setSkillLoss(false)
-	end
-	return true
 end
 
 function ActivityBoostWorldBoss.onHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)

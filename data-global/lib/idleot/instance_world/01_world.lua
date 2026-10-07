@@ -1131,16 +1131,6 @@ function InstanceWorld.rescueIfStranded(player)
 	if not InstanceWorld.shouldRescue(player) then
 		return false
 	end
-	-- World-boss arena marks are runtime-only but clear explicitly on stranded rescue.
-	if ActivityBoostWorldBoss and ActivityBoostWorldBoss.clearArenaState then
-		local kv = player.kv and player:kv() or nil
-		local expeditionId = kv and kv.get and kv:get("expedition_id") or nil
-		if (type(expeditionId) == "string" and expeditionId:find("^worldboss:", 1, false))
-			or (player.isOpenPvp and player:isOpenPvp())
-		then
-			ActivityBoostWorldBoss.clearArenaState(player)
-		end
-	end
 	ExpeditionManager.clearActiveFlag(player)
 	ExpeditionManager.clearAreaEffects(player)
 	if player.setIdleCombat then

@@ -206,8 +206,8 @@ function ExpeditionAI.syncPathLeash(session)
 end
 
 --- Movement directives: the anchor walks the cave route (ExpeditionCavebot) or holds
---- the session holdPos (boss / arena / before the walk starts); the others trail the
---- anchor in line while it walks and take formation around it while it fights.
+--- the session holdPos (boss / arena / before the walk starts); the others trail
+--- loosely behind it and take formation around it only while attacking.
 function ExpeditionAI.syncDirectives(session)
 	if not session or not CombatAutomationMovement then
 		return
@@ -240,7 +240,7 @@ function ExpeditionAI.syncDirectives(session)
 				end
 			elseif anchorId and anchorDirective then
 				if walking then
-					move.setDirective(player, { kind = "follow", targetId = anchorId })
+					move.setDirective(player, { kind = "follow", targetId = anchorId, front = anchorDirective.front })
 				else
 					move.setDirective(player, { kind = "anchorStance", targetId = anchorId, front = anchorDirective.front })
 				end

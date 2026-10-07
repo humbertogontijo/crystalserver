@@ -12,7 +12,7 @@ function onCreateWildGrowth(creature, position)
 		return false
 	end
 
-	local wildGrowth = Game.getWorldType() == WORLDTYPE_OPTIONAL and ITEM_WILDGROWTH_SAFE or ITEM_WILDGROWTH
+	local wildGrowth = Game.getWorldType(creature:getInstanceId()) == WORLDTYPE_OPTIONAL and ITEM_WILDGROWTH_SAFE or ITEM_WILDGROWTH
 
 	local item = Game.createItem(wildGrowth, 1, position)
 	if item then

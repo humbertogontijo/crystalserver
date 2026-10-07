@@ -234,15 +234,8 @@ function CombatAutomation.controllingPlayer(creature)
 	return nil
 end
 
-local function partyProtectionEnabled()
-	if isRetroPVP() then
-		return configManager.getBoolean(configKeys.ADVANCED_PARTY_PROTECTION)
-	end
-	return true
-end
-
 local function sameParty(a, b)
-	if not a or not b or not partyProtectionEnabled() then
+	if not a or not b or isRetroPVP(a) then
 		return false
 	end
 	local pa = a.getParty and a:getParty() or nil
@@ -259,33 +252,19 @@ local function sameExpedition(a, b)
 	if not sa or not sb or sa ~= sb then
 		return false
 	end
-	-- World-boss band fights are open PvP: sharing a session must not ally rivals.
-	if sa.kind == "worldboss" then
-		return false
-	end
-	return true
+	-- Sharing a session on a PvP-enabled instance does not make players allies.
+	return Game.getWorldType(a:getInstanceId()) == WORLDTYPE_OPTIONAL
 end
 
---- Rival players in the same world-boss band (manual target / sticky AUTO).
-local function isWorldBossRival(player, creature)
+--- Another player on a PvP-enabled instance (non-optional world type).
+local function isPvpRival(player, creature)
 	if not player or not creature or not creature.isPlayer or not creature:isPlayer() then
 		return false
 	end
 	if creature:getId() == player:getId() then
 		return false
 	end
-	if player.isOpenPvp and creature.isOpenPvp and player:isOpenPvp() and creature:isOpenPvp() then
-		return true
-	end
-	if not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
-		return false
-	end
-	local sa = ExpeditionManager.getSessionByPlayer(player)
-	local sb = ExpeditionManager.getSessionByPlayer(creature)
-	if not sa or not sb or sa.kind ~= "worldboss" or sb.kind ~= "worldboss" then
-		return false
-	end
-	return sa.bandId ~= nil and sa.bandId == sb.bandId
+	return Game.getWorldType(player:getInstanceId()) ~= WORLDTYPE_OPTIONAL
 end
 
 local function sameTeamDeployment(a, b)
@@ -1113,8 +1092,7 @@ local function sortDistanceSquared(a, b)
 	return dx * dx + dy * dy
 end
 
---- Open-PvP arenas (world boss): never auto-pick players — sticky manual target only.
---- Skulled rivals are hit by AOE via Creature:onTargetCombat, not by retargeting AUTO.
+--- Players are never auto-picked: on PvP-enabled instances only the sticky manual target stays valid.
 function CombatAutomation.isValidAttackTarget(player, creature)
 	if not player or not creature then
 		return false
@@ -1157,14 +1135,12 @@ function CombatAutomation.isValidAttackTarget(player, creature)
 		if SoftDeath and SoftDeath.isDowned and SoftDeath.isDowned(creature) then
 			return false
 		end
-		if not isWorldBossRival(player, creature) then
+		if not isPvpRival(player, creature) then
 			return false
 		end
-		-- Party / account-team allies stay protected even in open-PvP arenas.
 		if sameParty(player, creature) or sameTeamDeployment(player, creature) then
 			return false
 		end
-		-- Sticky manual target only — AOE splash on skulls is handled in onTargetCombat.
 		local current = player:getTarget()
 		if current and current:getId() == creature:getId() then
 			return true

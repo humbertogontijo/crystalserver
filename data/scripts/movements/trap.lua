@@ -1,7 +1,7 @@
 local traps = {
 	[2145] = { transformTo = 2146, damage = { -50, -100 } },
 	[2147] = { transformTo = 2148, damage = { -50, -100 } },
-	[3482] = { transformTo = 3481, damage = { -15, -30 }, ignorePlayer = (Game.getWorldType() == WORLDTYPE_OPTIONAL) },
+	[3482] = { transformTo = 3481, damage = { -15, -30 }, ignorePlayerOnOptional = true },
 	[3944] = { transformTo = 3945, damage = { -15, -30 }, type = COMBAT_EARTHDAMAGE },
 	[12368] = { ignorePlayer = true },
 	[44529] = { transformTo = 44530, damage = { -50, -100 } },
@@ -28,7 +28,7 @@ function trap.onStepIn(creature, item, position, fromPosition)
 		return true
 	end
 
-	if trap.ignorePlayer and creature:isPlayer() then
+	if creature:isPlayer() and (trap.ignorePlayer or (trap.ignorePlayerOnOptional and Game.getWorldType(creature:getInstanceId()) == WORLDTYPE_OPTIONAL)) then
 		return true
 	end
 

@@ -36,9 +36,7 @@ private:
 	static int luaGameGetPlayers(lua_State* L);
 	static int luaGameLoadMap(lua_State* L);
 	static int luaGameloadMapChunk(lua_State* L);
-#ifdef IDLEOT_HAS_OCCUPANCY
 	static int luaGameLoadOccupancyMask(lua_State* L);
-#endif
 	static int luaGameAllocateInstance(lua_State* L);
 	static int luaGameReleaseInstance(lua_State* L);
 	static int luaGameSetInstanceHubFence(lua_State* L);
@@ -71,6 +69,7 @@ private:
 	static int luaGameSetGameState(lua_State* L);
 
 	static int luaGameGetWorldType(lua_State* L);
+	static int luaGameSetInstanceWorldType(lua_State* L);
 
 	static int luaGameGetReturnMessage(lua_State* L);
 

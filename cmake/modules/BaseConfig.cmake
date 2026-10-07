@@ -18,6 +18,7 @@ set(CMAKE_VERBOSE_MAKEFILE OFF)
 # *****************************************************************************
 find_package(CURL CONFIG REQUIRED)
 find_package(GMP REQUIRED)
+find_package(LibLZMA REQUIRED)
 find_package(LuaJIT REQUIRED)
 find_package(MySQL REQUIRED)
 find_package(Protobuf REQUIRED)

@@ -517,6 +517,17 @@ function EM_PRIV.meetsExpeditionLevel(player, levelMin)
 	return player:getLevel() >= levelMin
 end
 
+--- Players below `levelMin` (GODs always pass).
+function ExpeditionManager.underleveled(players, levelMin)
+	local blocked = {}
+	for _, p in ipairs(players or {}) do
+		if p and p.getLevel and not EM_PRIV.meetsExpeditionLevel(p, levelMin) then
+			blocked[#blocked + 1] = p
+		end
+	end
+	return blocked
+end
+
 function EM_PRIV.playerHasExpeditionStamina(player)
 	if ExpeditionSafety and ExpeditionSafety.hasStamina then
 		return ExpeditionSafety.hasStamina(player)

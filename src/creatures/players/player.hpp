@@ -464,10 +464,6 @@ public:
 
 	bool hasSecureMode() const;
 
-	// Scripted open-PvP (world boss arena): treat mutual openPvp as ZONE_PVP for secure mode / skulls.
-	bool isOpenPvp() const;
-	void setOpenPvp(bool enabled);
-
 	uint8_t getOpenedContainersLimit() const;
 
 	void setParty(std::shared_ptr<Party> newParty);
@@ -2168,7 +2164,6 @@ private:
 
 	bool chaseMode = false;
 	bool secureMode = true;
-	bool openPvp = false;
 	bool softDespawned = false;
 	bool inMarket = false;
 	bool wasMounted = false;

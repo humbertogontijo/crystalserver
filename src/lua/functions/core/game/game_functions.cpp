@@ -31,9 +31,7 @@
 #include "game/instance_fence.hpp"
 #include "game/instance_spawns.hpp"
 #include "game/scheduling/dispatcher.hpp"
-#ifdef IDLEOT_HAS_OCCUPANCY
-#include "occupancy_mask.hpp"
-#endif
+#include "io/occupancy_mask.hpp"
 #include "io/io_bosstiary.hpp"
 #include "io/iobestiary.hpp"
 #include "io/iologindata.hpp"
@@ -224,9 +222,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "getPlayers", GameFunctions::luaGameGetPlayers);
 	Lua::registerMethod(L, "Game", "loadMap", GameFunctions::luaGameLoadMap);
 	Lua::registerMethod(L, "Game", "loadMapChunk", GameFunctions::luaGameloadMapChunk);
-#ifdef IDLEOT_HAS_OCCUPANCY
 	Lua::registerMethod(L, "Game", "loadOccupancyMask", GameFunctions::luaGameLoadOccupancyMask);
-#endif
 	Lua::registerMethod(L, "Game", "allocateInstance", GameFunctions::luaGameAllocateInstance);
 	Lua::registerMethod(L, "Game", "releaseInstance", GameFunctions::luaGameReleaseInstance);
 	Lua::registerMethod(L, "Game", "setInstanceHubFence", GameFunctions::luaGameSetInstanceHubFence);
@@ -257,6 +253,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "setGameState", GameFunctions::luaGameSetGameState);
 
 	Lua::registerMethod(L, "Game", "getWorldType", GameFunctions::luaGameGetWorldType);
+	Lua::registerMethod(L, "Game", "setInstanceWorldType", GameFunctions::luaGameSetInstanceWorldType);
 
 	Lua::registerMethod(L, "Game", "getReturnMessage", GameFunctions::luaGameGetReturnMessage);
 
@@ -623,7 +620,6 @@ int GameFunctions::luaGameloadMapChunk(lua_State* L) {
 	return 0;
 }
 
-#ifdef IDLEOT_HAS_OCCUPANCY
 namespace {
 	int luaOccupancyMaskContains(lua_State* L) {
 		// occupancy:contains(worldX, worldY)
@@ -685,7 +681,6 @@ int GameFunctions::luaGameLoadOccupancyMask(lua_State* L) {
 	lua_setfield(L, -2, "contains");
 	return 1;
 }
-#endif
 
 int GameFunctions::luaGameAllocateInstance(lua_State* L) {
 	// Game.allocateInstance()
@@ -1112,8 +1107,22 @@ int GameFunctions::luaGameSetGameState(lua_State* L) {
 }
 
 int GameFunctions::luaGameGetWorldType(lua_State* L) {
-	// Game.getWorldType()
-	lua_pushnumber(L, g_game().worlds().getCurrentWorld()->type);
+	// Game.getWorldType([instanceId])
+	const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 1, 0);
+	lua_pushnumber(L, g_game().getWorldType(instanceId));
+	return 1;
+}
+
+int GameFunctions::luaGameSetInstanceWorldType(lua_State* L) {
+	// Game.setInstanceWorldType(instanceId, worldType)
+	const uint32_t instanceId = Lua::getNumber<uint32_t>(L, 1);
+	const auto type = Lua::getNumber<WorldType_t>(L, 2);
+	if (instanceId == 0 || type < WORLDTYPE_FIRST || type > WORLDTYPE_LAST) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	g_game().setInstanceWorldType(instanceId, type);
+	Lua::pushBoolean(L, true);
 	return 1;
 }
 

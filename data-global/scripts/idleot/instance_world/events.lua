@@ -38,6 +38,36 @@ end
 
 loginEvent:register()
 
+local pvpLogin = CreatureEvent("InstancePvpLogin")
+
+function pvpLogin.onLogin(player)
+	player:registerEvent("InstancePvpHealth")
+	player:registerEvent("InstancePvpPrepareDeath")
+	return true
+end
+
+pvpLogin:register()
+
+local pvpHealth = CreatureEvent("InstancePvpHealth")
+
+function pvpHealth.onHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
+	return InstancePvp.onHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
+end
+
+pvpHealth:register()
+
+local pvpPrepareDeath = CreatureEvent("InstancePvpPrepareDeath")
+
+function pvpPrepareDeath.onPrepareDeath(creature, killer)
+	local player = creature and creature:getPlayer()
+	if player then
+		return InstancePvp.onPrepareDeath(player)
+	end
+	return true
+end
+
+pvpPrepareDeath:register()
+
 local moveCreatureCallback = EventCallback("InstanceWorldPlayerOnMoveCreature")
 
 function moveCreatureCallback.playerOnMoveCreature(player, creature, fromPosition, toPosition)

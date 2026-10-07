@@ -166,6 +166,10 @@ public:
 	static constexpr uint32_t INSTANCE_PRIVATE_BASE = 3000000;
 	uint32_t allocateInstanceId();
 	void releaseInstanceId(uint32_t id);
+	/** PvP world type for an instance: per-instance override, else the current world's type. */
+	[[nodiscard]] WorldType_t getWorldType(uint32_t instanceId) const;
+	void setInstanceWorldType(uint32_t instanceId, WorldType_t type);
+	void clearInstanceWorldType(uint32_t instanceId);
 	bool routeInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destPos);
 	bool canWalkInstance(const std::shared_ptr<Creature> &creature, const Position &toPos);
 	void disableWorldSpawns();
@@ -1042,6 +1046,7 @@ private:
 	std::vector<uint32_t> freePrivateInstanceIds;
 	// Prevents double-free recycling the same private id while a hunt still holds it.
 	phmap::flat_hash_set<uint32_t> usedPrivateInstanceIds;
+	phmap::flat_hash_map<uint32_t, WorldType_t> instanceWorldTypes;
 	bool pendingInstanceFenceMessage = false;
 
 	ServiceManager* serviceManager = nullptr;

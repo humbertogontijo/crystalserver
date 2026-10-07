@@ -380,9 +380,6 @@ class PlayerFunctions {
 
 	static int luaPlayerHasChaseMode(lua_State* L);
 	static int luaPlayerHasSecureMode(lua_State* L);
-	static int luaPlayerSetSecureMode(lua_State* L);
-	static int luaPlayerIsOpenPvp(lua_State* L);
-	static int luaPlayerSetOpenPvp(lua_State* L);
 	static int luaPlayerGetFightMode(lua_State* L);
 
 	static int luaPlayerGetBaseXpGain(lua_State* L);

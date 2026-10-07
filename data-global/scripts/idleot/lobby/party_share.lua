@@ -1,5 +1,5 @@
 -- Party shared XP: alts weigh half and the vocation bonus scales linearly
--- from 0 (one vocation) to full exp (all four), e.g. 1 real + 3 alts with
+-- from 20% (one vocation) to full exp (all four), e.g. 1 real + 3 alts with
 -- four vocations => 2.5/4 = 62.5% each. Rescales the stock Party:onShareExperience
 -- result, ceil(exp * bonus / partySize), using the same bonus table.
 local VOCATION_BONUS = { 1.20, 1.35, 1.70, 2.00 }

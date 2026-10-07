@@ -116,6 +116,21 @@ function LobbyStart.bossCooldown(record)
 	return remaining, blocker:getName()
 end
 
+--- Error naming the humans below the expedition level (nil when everyone may enter).
+local function levelError(record, catalog)
+	local levelMin = catalog.levelMin or 1
+	local fighters = isSoloOnly(catalog) and { online(record.hostGuid) } or LobbyManager.onlineHumans(record)
+	local blocked = ExpeditionManager.underleveled(fighters, levelMin)
+	if #blocked == 0 then
+		return nil
+	end
+	local names = {}
+	for _, p in ipairs(blocked) do
+		names[#names + 1] = string.format("%s (%d)", p:getName(), p:getLevel())
+	end
+	return string.format("%s requires level %d: %s.", catalog.name, levelMin, table.concat(names, ", "))
+end
+
 local function launch(lobbyId, token)
 	local record = LobbyStore.get(lobbyId)
 	if not record then
@@ -230,8 +245,13 @@ function LobbyStart.request(player, msg)
 	if ExpeditionManager.getSessionByPlayer(player) then
 		return false, "Leave your current expedition first."
 	end
-	if not ExpeditionConfig.getById(record.expeditionId, record.role) then
+	local catalog = ExpeditionConfig.getById(record.expeditionId, record.role)
+	if not catalog then
 		return false, "Unknown expedition."
+	end
+	local levelErr = levelError(record, catalog)
+	if levelErr then
+		return false, levelErr
 	end
 	if LobbyStart.bossCooldown(record) > 0 then
 		-- No message: the lobby card shows the cooldown timer; resync a stale client.

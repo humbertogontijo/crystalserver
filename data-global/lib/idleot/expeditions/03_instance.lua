@@ -4,7 +4,8 @@ function ExpeditionInstance.resetSlots()
 	-- Private hunts use engine instance ids (Game.allocateInstance / releaseInstance).
 end
 
-function ExpeditionInstance.allocate()
+--- kind: InstancePvp.KINDS key (PvP mode + death rules for this instance).
+function ExpeditionInstance.allocate(kind)
 	if not Game.allocateInstance then
 		return nil
 	end
@@ -14,6 +15,7 @@ function ExpeditionInstance.allocate()
 		logger.error("[ExpeditionInstance] allocate returned invalid id {}", tostring(raw))
 		return nil
 	end
+	InstancePvp.apply(id, kind)
 	return id
 end
 
@@ -31,6 +33,7 @@ function ExpeditionInstance.free(instanceId)
 	if Game.releaseInstance then
 		Game.releaseInstance(id)
 	end
+	InstancePvp.forget(id)
 	if Game.clearInstancePrivateFence then
 		Game.clearInstancePrivateFence(id)
 	end

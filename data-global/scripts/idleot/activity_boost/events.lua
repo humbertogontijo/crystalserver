@@ -80,37 +80,6 @@ end
 
 bossDeath:register()
 
-local playerHealth = CreatureEvent("ActivityBoostWorldBossPlayerHealth")
-
-function playerHealth.onHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
-	if ActivityBoostWorldBoss and ActivityBoostWorldBoss.onPlayerHealthChange then
-		return ActivityBoostWorldBoss.onPlayerHealthChange(
-			creature,
-			attacker,
-			primaryDamage,
-			primaryType,
-			secondaryDamage,
-			secondaryType,
-			origin
-		)
-	end
-	return primaryDamage, primaryType, secondaryDamage, secondaryType
-end
-
-playerHealth:register()
-
-local prepareDeath = CreatureEvent("ActivityBoostWorldBossPrepareDeath")
-
-function prepareDeath.onPrepareDeath(creature, killer)
-	local player = creature and creature:getPlayer()
-	if player and ActivityBoostWorldBoss and ActivityBoostWorldBoss.onPlayerPrepareDeath then
-		return ActivityBoostWorldBoss.onPlayerPrepareDeath(player)
-	end
-	return true
-end
-
-prepareDeath:register()
-
 local think = GlobalEvent("ActivityBoostThink")
 
 function think.onThink(interval)

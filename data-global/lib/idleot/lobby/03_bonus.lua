@@ -602,6 +602,7 @@ local function vocationBaseId(src)
 end
 
 --- Expected party XP share for the lobby line-up (alts weigh half).
+--- Nil when solo: no party forms, so there is no shared experience.
 function LobbyBonus.computePartyXpPreview(record)
 	local realCount = 0
 	local altCount = 0
@@ -623,19 +624,7 @@ function LobbyBonus.computePartyXpPreview(record)
 
 	local n = realCount + altCount
 	if n <= 1 then
-		return {
-			realCount = math.max(1, realCount),
-			altCount = altCount,
-			partySize = 1,
-			uniqueVocations = math.max(1, uniqueCount),
-			vocBonus = 1,
-			weight = 1,
-			effectiveMult = 1,
-			shareFraction = 1,
-			sharePercent = 100,
-			idealFourSharePercent = 100,
-			allRealSharePercent = 100,
-		}
+		return nil
 	end
 	uniqueCount = math.max(1, uniqueCount)
 	local vocBonusTable = LobbyConfig.PARTY_VOCATION_BONUS

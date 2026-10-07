@@ -159,7 +159,6 @@ ActivityBoostConfig.WORLD_BOSS_ARENA = {
 ActivityBoostConfig.WORLD_BOSS_SESSION_TIMES = { "12:00", "20:00" }
 ActivityBoostConfig.WORLD_BOSS_COOLDOWN_SEC = 30 * 60
 ActivityBoostConfig.WORLD_BOSS_FIGHT_SEC = 20 * 60
-ActivityBoostConfig.WORLD_BOSS_RESPAWN_SEC = 10
 
 ActivityBoostConfig.WORLD_BOSS_LOOT_MULT = {
 	[1] = 1.0,

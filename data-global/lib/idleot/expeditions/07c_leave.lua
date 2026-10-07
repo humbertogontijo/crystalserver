@@ -1012,13 +1012,7 @@ end
 
 --- Players among `players` who fail the destination levelMin (gods always pass).
 function EM_PRIV.underleveledForSwitch(players, levelMin)
-	local blocked = {}
-	for _, p in ipairs(players or {}) do
-		if p and p.getLevel and not EM_PRIV.meetsExpeditionLevel(p, levelMin) then
-			blocked[#blocked + 1] = p
-		end
-	end
-	return blocked
+	return ExpeditionManager.underleveled(players, levelMin)
 end
 
 --- Tear down the current hunt in place and join the next (no city return).

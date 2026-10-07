@@ -8,9 +8,8 @@ function ExpeditionManager.onDeath(player)
 		RaidInstance.onPlayerDeath(player)
 		return
 	end
-	-- World boss uses arena knockout; never tear down the band fight on death.
+	-- World boss uses the InstancePvp knockout; never tear down the band fight on death.
 	if session and session.kind == "worldboss" then
-		ActivityBoostWorldBoss.onPlayerDeath(player)
 		return
 	end
 	ExpeditionManager.notifyHuntMemberDeath(player, nil)
@@ -126,7 +125,7 @@ function ExpeditionManager.onLogout(player)
 	end
 
 	if session.kind == "worldboss" and ActivityBoostWorldBoss and ActivityBoostWorldBoss.leave then
-		-- Clear openPvp / skulls / SoftDeath before disconnect (same as voluntary leave).
+		-- Clear SoftDeath before disconnect (same as voluntary leave).
 		ActivityBoostWorldBoss.leave(player, { silent = true })
 		return true
 	end
@@ -427,13 +426,6 @@ function ExpeditionManager.onLogin(player)
 	if InstanceWorld and InstanceWorld.rescueIfStranded then
 		InstanceWorld.rescueIfStranded(player)
 	elseif player:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
-		local kv = player.kv and player:kv() or nil
-		local expeditionId = kv and kv.get and kv:get("expedition_id") or nil
-		if ActivityBoostWorldBoss and ActivityBoostWorldBoss.clearArenaState then
-			if type(expeditionId) == "string" and expeditionId:find("^worldboss:", 1, false) then
-				ActivityBoostWorldBoss.clearArenaState(player)
-			end
-		end
 		local returnPos = EM_PRIV.loadReturn(player)
 		EM_PRIV.clearActive(player)
 		ExpeditionManager.clearAreaEffects(player)

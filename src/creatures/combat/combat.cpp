@@ -397,16 +397,6 @@ ReturnValue Combat::canTargetCreature(const std::shared_ptr<Player> &player, con
 		if (player->hasSecureMode() && !Combat::isInPvpZone(player, target) && player->getSkullClient(target->getPlayer()) == SKULL_NONE) {
 			return RETURNVALUE_TURNSECUREMODETOATTACKUNMARKEDPLAYERS;
 		}
-
-		// Open-PvP arenas: allow selecting unmarked rivals as the attack target.
-		// Damage/AOE still goes through canDoCombat, which blocks unmarked non-targets.
-		if (player->isOpenPvp() && target->getPlayer()->isOpenPvp()) {
-			ReturnValue ret = g_events().eventCreatureOnTargetCombat(player, target);
-			if (ret == RETURNVALUE_NOERROR) {
-				ret = g_callbacks().checkCallbackWithReturnValue(EventCallback_t::creatureOnTargetCombat, &EventCallback::creatureOnTargetCombat, player, target);
-			}
-			return ret;
-		}
 	}
 
 	return canDoCombat(player, target, true);
@@ -448,13 +438,7 @@ ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &caster, const s
 }
 
 bool Combat::isInPvpZone(const std::shared_ptr<Creature> &attacker, const std::shared_ptr<Creature> &target) {
-	if (attacker->getZoneType() == ZONE_PVP && target->getZoneType() == ZONE_PVP) {
-		return true;
-	}
-	// Scripted open-PvP arenas (e.g. world boss): unmarked attacks with secure mode on.
-	const auto &attackerPlayer = attacker->getPlayer();
-	const auto &targetPlayer = target->getPlayer();
-	return attackerPlayer && targetPlayer && attackerPlayer->isOpenPvp() && targetPlayer->isOpenPvp();
+	return attacker->getZoneType() == ZONE_PVP && target->getZoneType() == ZONE_PVP;
 }
 
 bool Combat::isProtected(const std::shared_ptr<Player> &attacker, const std::shared_ptr<Player> &target) {
@@ -537,16 +521,6 @@ ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &attacker, const
 				if (attackerPlayer->getFaction() != FACTION_DEFAULT && attackerPlayer->getFaction() != FACTION_PLAYER && attackerPlayer->getFaction() == targetPlayer->getFaction()) {
 					return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
 				}
-
-				// Open-PvP arenas (world boss): only hurt the explicit attack target or
-				// players who show a skull to the attacker — blocks AOE splash on unmarked.
-				if (attackerPlayer->isOpenPvp() && targetPlayer->isOpenPvp()) {
-					const bool explicitTarget = attacker->getAttackedCreature() == target;
-					const bool skulled = attackerPlayer->getSkullClient(target) != SKULL_NONE;
-					if (!explicitTarget && !skulled) {
-						return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
-					}
-				}
 			}
 
 			if (attackerMaster) {
@@ -561,14 +535,6 @@ ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &attacker, const
 
 					if (isProtected(masterAttackerPlayer, targetPlayer)) {
 						return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
-					}
-
-					if (masterAttackerPlayer->isOpenPvp() && targetPlayer->isOpenPvp()) {
-						const bool explicitTarget = masterAttackerPlayer->getAttackedCreature() == target;
-						const bool skulled = masterAttackerPlayer->getSkullClient(target) != SKULL_NONE;
-						if (!explicitTarget && !skulled) {
-							return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
-						}
 					}
 				}
 			}
@@ -602,7 +568,7 @@ ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &attacker, const
 			return RETURNVALUE_YOUMAYNOTATTACKTHISCREATURE;
 		}
 
-		if (g_game().worlds().getCurrentWorld()->type == WORLDTYPE_OPTIONAL) {
+		if (g_game().getWorldType(attacker->getInstanceId()) == WORLDTYPE_OPTIONAL) {
 			if (attackerPlayer || masterAttackerPlayer) {
 				if (targetPlayer) {
 					if (!isInPvpZone(attacker, target)) {
@@ -1214,7 +1180,7 @@ void Combat::CombatDispelFunc(const std::shared_ptr<Creature> &, const std::shar
 	if (params.dispelType == CONDITION_INVISIBLE) {
 		if (const auto &player = target->getPlayer()) {
 			const auto &item = player->getEquippedItem(CONST_SLOT_RING);
-			if (item && item->getID() == ITEM_STEALTH_RING_ACTIVATED && (g_game().worlds().getCurrentWorld()->type == WORLDTYPE_HARDCORE || player->getTile()->hasFlag(TILESTATE_PVPZONE)) && normal_random(1, 100) <= 10) {
+			if (item && item->getID() == ITEM_STEALTH_RING_ACTIVATED && (g_game().getWorldType(player->getInstanceId()) == WORLDTYPE_HARDCORE || player->getTile()->hasFlag(TILESTATE_PVPZONE)) && normal_random(1, 100) <= 10) {
 				g_game().internalRemoveItem(item);
 			}
 		}
@@ -1276,7 +1242,7 @@ void Combat::combatTileEffects(const CreatureVector &spectators, const std::shar
 			}
 
 			if (casterPlayer) {
-				if (g_game().worlds().getCurrentWorld()->type == WORLDTYPE_OPTIONAL || tile->hasFlag(TILESTATE_NOPVPZONE)) {
+				if (g_game().getWorldType(casterPlayer->getInstanceId()) == WORLDTYPE_OPTIONAL || tile->hasFlag(TILESTATE_NOPVPZONE)) {
 					if (itemId == ITEM_FIREFIELD_PVP_FULL) {
 						itemId = ITEM_FIREFIELD_NOPVP;
 					} else if (itemId == ITEM_POISONFIELD_PVP) {
@@ -1646,7 +1612,7 @@ void Combat::CombatFunc(const std::shared_ptr<Creature> &caster, const Position 
 	// Calculate the max viewable range and affected creatures
 	for (const auto &tile : tileList) {
 		// If the caster is a player and the world is no pvp, we need to check if there are more than one player in the tile and skip the combat
-		if (casterPlayer && g_game().worlds().getCurrentWorld()->type == WORLDTYPE_OPTIONAL && tile->getPosition() == origin) {
+		if (casterPlayer && g_game().getWorldType(casterPlayer->getInstanceId()) == WORLDTYPE_OPTIONAL && tile->getPosition() == origin) {
 			if (!casterPlayer->isFirstOnStack()) {
 				casterPlayer->sendCancelMessage(RETURNVALUE_NOTPOSSIBLE);
 				casterPlayer->sendMagicEffect(origin, CONST_ME_POFF);
@@ -2007,8 +1973,6 @@ std::vector<std::pair<Position, std::vector<uint32_t>>> Combat::pickChainTargets
 			const auto &spectatorSummon = spectator->isSummon();
 
 			if (casterPlayer) {
-				// Secure mode: never chain onto players. Open-PvP arenas use canDoCombat
-				// (explicit target / skull marks) via isValidChainTarget below.
 				if (casterPlayer->hasSecureMode()) {
 					if (spectatorPlayer) {
 						visited.insert(spectator->getID());
@@ -2754,7 +2718,7 @@ void MagicField::onStepInField(const std::shared_ptr<Creature> &creature) {
 	}
 
 	// remove magic walls/wild growth
-	if ((!isBlocking() && g_game().worlds().getCurrentWorld()->type == WORLDTYPE_OPTIONAL && id == ITEM_MAGICWALL_SAFE) || id == ITEM_WILDGROWTH_SAFE) {
+	if ((!isBlocking() && g_game().getWorldType(creature->getInstanceId()) == WORLDTYPE_OPTIONAL && id == ITEM_MAGICWALL_SAFE) || id == ITEM_WILDGROWTH_SAFE) {
 		if (!creature->isInGhostMode()) {
 			g_game().internalRemoveItem(static_self_cast<Item>(), 1);
 		}
@@ -2769,7 +2733,7 @@ void MagicField::onStepInField(const std::shared_ptr<Creature> &creature) {
 		if (ownerId) {
 			bool harmfulField = true;
 			const auto &itemTile = getTile();
-			if (g_game().worlds().getCurrentWorld()->type == WORLDTYPE_OPTIONAL || (itemTile && itemTile->hasFlag(TILESTATE_NOPVPZONE))) {
+			if (g_game().getWorldType(creature->getInstanceId()) == WORLDTYPE_OPTIONAL || (itemTile && itemTile->hasFlag(TILESTATE_NOPVPZONE))) {
 				const auto &ownerPlayer = g_game().getPlayerByGUID(ownerId);
 				if (ownerPlayer) {
 					harmfulField = false;

@@ -177,7 +177,7 @@ function LobbyInstance.ensureRoom(record)
 		return existing
 	end
 	LobbyInstance.ensureTemplate()
-	local engineId = ExpeditionInstance and ExpeditionInstance.allocate and ExpeditionInstance.allocate() or nil
+	local engineId = ExpeditionInstance and ExpeditionInstance.allocate and ExpeditionInstance.allocate("lobby") or nil
 	if engineId == nil then
 		return nil, "No lobby rooms available right now."
 	end

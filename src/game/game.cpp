@@ -1112,6 +1112,29 @@ void Game::releaseInstanceId(uint32_t id) {
 	}
 	freePrivateInstanceIds.push_back(id);
 	g_instanceFences().clearPrivateFence(id);
+	instanceWorldTypes.erase(id);
+}
+
+WorldType_t Game::getWorldType(uint32_t instanceId) const {
+	if (instanceId != 0) {
+		const auto it = instanceWorldTypes.find(instanceId);
+		if (it != instanceWorldTypes.end()) {
+			return it->second;
+		}
+	}
+	const auto &currentWorld = worlds().getCurrentWorld();
+	return currentWorld ? currentWorld->type : WORLDTYPE_NONE;
+}
+
+void Game::setInstanceWorldType(uint32_t instanceId, WorldType_t type) {
+	if (instanceId == 0) {
+		return;
+	}
+	instanceWorldTypes[instanceId] = type;
+}
+
+void Game::clearInstanceWorldType(uint32_t instanceId) {
+	instanceWorldTypes.erase(instanceId);
 }
 
 bool Game::callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult) {
@@ -10111,7 +10134,7 @@ void Game::updateCreatureWalkthrough(const std::shared_ptr<Creature> &creature) 
 }
 
 void Game::updateCreatureSkull(const std::shared_ptr<Creature> &creature) const {
-	if (worlds().getCurrentWorld()->type != WORLDTYPE_OPEN) {
+	if (getWorldType(creature->getInstanceId()) != WORLDTYPE_OPEN) {
 		return;
 	}
 

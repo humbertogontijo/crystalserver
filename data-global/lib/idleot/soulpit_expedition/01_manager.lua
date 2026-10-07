@@ -236,6 +236,9 @@ function SoulPitExpedition.start(player)
 		return false, "Failed to start Soul Pit."
 	end
 	session.kind = "soulpit"
+	if session.instance and session.instance.instanceId then
+		InstancePvp.apply(session.instance.instanceId, "soulpit")
+	end
 	session.soulPitMonster = monsterName
 	session.role = "monster"
 	session.wave = 0

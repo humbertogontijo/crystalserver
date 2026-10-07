@@ -12,7 +12,7 @@ function spell.onCastSpell(creature, var)
 
 	local condition = Condition(CONDITION_MANASHIELD)
 
-	if not isRetroPVP() then
+	if not isRetroPVP(player) then
 		local grade = player:upgradeSpellsWOD("Magic Shield")
 		local shield = 300 + 7.6 * player:getLevel() + 7 * player:getMagicLevel()
 		if grade >= WHEEL_GRADE_REGULAR then

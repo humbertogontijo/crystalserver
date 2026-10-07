@@ -128,6 +128,30 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		return
 	end
 
+	-- Lobby starts are all-or-nothing: an underleveled teammate blocks the start instead
+	-- of being left behind in the lobby room.
+	if options.scope == "lobby" and not options.skipPzCheck then
+		local soloOnly = contentRole == "arena"
+			or (contentRole == "boss" and ExpeditionConfig.isSoloBoss and ExpeditionConfig.isSoloBoss(catalog))
+		local blocked = soloOnly and {}
+			or ExpeditionManager.underleveled(EM_PRIV.collectExpectedHumanTeammates(player, options), levelMin)
+		if #blocked > 0 then
+			local names = {}
+			for _, p in ipairs(blocked) do
+				names[#names + 1] = string.format("%s (%d)", p:getName(), p:getLevel())
+				ExpeditionProtocol.sendError(
+					p,
+					string.format("Level too low for this expedition (need %d, you are %d).", levelMin, p:getLevel())
+				)
+			end
+			ExpeditionProtocol.sendError(
+				player,
+				string.format("%s requires level %d: %s.", catalog.name, levelMin, table.concat(names, ", "))
+			)
+			return
+		end
+	end
+
 	-- Gate host + party / accepted listing teammates before allocating an instance.
 	do
 		local soloOrSwitch = (contentRole == "boss" and ExpeditionConfig.isSoloBoss and ExpeditionConfig.isSoloBoss(catalog))
@@ -182,7 +206,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	local hostWorldPos = player:getPosition()
 
 	-- Build the private instance before team login so companions can spawn at entry.
-	local instanceId = ExpeditionInstance.allocate()
+	local instanceId = ExpeditionInstance.allocate(kind)
 	if instanceId == nil then
 		ExpeditionProtocol.sendError(player, "No expedition instances available.")
 		return
@@ -431,7 +455,7 @@ function EM_PRIV.bootstrapRestoredHunt(snapshot)
 	end
 
 	local hostGuid = math.floor(tonumber(snapshot.hostGuid) or 0)
-	local instanceId = ExpeditionInstance.allocate()
+	local instanceId = ExpeditionInstance.allocate("hunt")
 	if instanceId == nil then
 		return false
 	end
