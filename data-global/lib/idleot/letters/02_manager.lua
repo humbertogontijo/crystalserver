@@ -57,22 +57,17 @@ local function collectLetters(container, out)
 	end
 end
 
-local function carriedLetters(player)
+function Letters.hasUnclaimed(player)
+	if not player then
+		return false
+	end
 	local found = {}
 	collectLetters(player:getStoreInbox(), found)
 	local backpack = player:getSlotItem(CONST_SLOT_BACKPACK)
 	if backpack and backpack:isContainer() then
 		collectLetters(backpack, found)
 	end
-	return found
-end
-
-function Letters.hasUnclaimed(player)
-	return player ~= nil and #carriedLetters(player) > 0
-end
-
-function Letters.isTemplateCharacter(player)
-	return player:getName():match(LetterConfig.TEMPLATE_NAME_PATTERN) ~= nil
+	return #found > 0
 end
 
 function Letters.sendStatus(player)
@@ -100,12 +95,6 @@ end
 
 --- Delivers each AUTO_DELIVER template this character has not received yet.
 function Letters.deliverPending(player)
-	if Letters.isTemplateCharacter(player) then
-		for _, letter in ipairs(carriedLetters(player)) do
-			letter:remove()
-		end
-		return 0
-	end
 	local kv = player:kv():scoped(LetterConfig.KV_SCOPE):scoped("delivered")
 	local delivered = 0
 	for _, key in ipairs(LetterConfig.AUTO_DELIVER) do
