@@ -939,6 +939,18 @@ local function spellRank(slot)
 	return 2
 end
 
+--- Healing page (heals, potions, magic shield): the only slots that keep running with AUTO off.
+local function runsWithAutoOff(slot)
+	if slot.kind == "potion" then
+		return true
+	end
+	local group = spellGroup(slot)
+	if group then
+		return group == "healing" or group == "shield"
+	end
+	return spellRank(slot) == 0 or tostring(slot.words or ""):lower() == "utamo vita"
+end
+
 -- Crystal stance spells toggle off when re-cast. Map words → channel + Stance_t value
 -- (see creatures_definitions.hpp Stance_t). Primary: getStance(); elemental: getElementalStance().
 -- Monk virtues use VirtueMonk_t via getVirtue() (not Stance_t); they do not toggle off on re-cast.
@@ -2434,7 +2446,9 @@ local function considerAreaStep(player, state, config, hpPercent, manaPercent, t
 	-- Expedition anchor walking its route or holding its halt tile: a side step
 	-- stalls the walk (step, settle, cast, repath) or leaves the halt tile.
 	local luring = state.directive and state.directive.kind == "hold" and state.directive.luring
-	if not walking and not critical and not luring then
+	-- The player walks themselves (manual control): cast from where they stand.
+	local manual = CombatAutomationMovement.isManual(player)
+	if not walking and not critical and not luring and not manual then
 		local apos = isDirectionalArea(area) and anchorPosOf(state) or nil
 		local seekLane = apos ~= nil and not CombatGeo.onAnchorLane(ppos, apos)
 		local bestOnLane = false
@@ -2521,7 +2535,7 @@ function CombatAutomation.clearState(player)
 end
 
 --- Run one automation tick for the player.
---- AUTO off: clear target and skip attack/rune slots; heals/support/potions still run.
+--- AUTO off: clear target and skip attack/rune/support/stance slots; only the healing page still runs.
 function CombatAutomation.tick(player)
 	if not player then
 		return
@@ -2617,7 +2631,9 @@ function CombatAutomation.tick(player)
 			sustainSlots[#sustainSlots + 1] = slot
 		elseif slot.kind == "spell" and spellRank(slot) < 2 then
 			supportSlots[#supportSlots + 1] = slot
-			sustainSlots[#sustainSlots + 1] = slot
+			if autoEnabled or runsWithAutoOff(slot) then
+				sustainSlots[#sustainSlots + 1] = slot
+			end
 		end
 	end
 	table.sort(supportSlots, byPriority)

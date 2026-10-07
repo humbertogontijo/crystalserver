@@ -608,6 +608,23 @@ public:
 
 	void startIdleCombatThink();
 	void stopIdleCombatThink();
+
+	/** Idle combat: client walk input (step, map click, walk-to-use) takes movement from the AI. */
+	void noteManualWalk();
+	/** Idle combat: a client follow takes movement from the AI while it lasts. */
+	void noteManualFollow(const std::shared_ptr<Creature> &creature);
+	/** A client walk is still running (refreshes the manual-control time every step). */
+	bool hasManualWalk() const {
+		return manualWalking;
+	}
+	/** Following the creature the client asked to follow. */
+	bool isManualFollow() const;
+	/** Client input owns movement: a manual walk or follow is running, or the last
+	 *  manual input is less than `graceMs` old. Always false outside idle combat. */
+	bool isManualControl(int64_t graceMs) const;
+	/** Hand movement back to the AI: stop the manual walk and drop the manual follow. */
+	void clearManualControl();
+
 	/** Exercise dummy or idle combat — keep attacking without a live client. */
 	bool keepsDisconnectedCombat() const {
 		return idleCombat || exerciseTraining;
@@ -2183,6 +2200,9 @@ private:
 	bool exerciseTraining = false;
 	bool idleCombat = false;
 	uint64_t idleCombatThinkEvent = 0;
+	int64_t manualControlAt = 0;
+	uint32_t manualFollowId = 0;
+	bool manualWalking = false;
 	bool m_headless = false;
 	bool moved = false;
 	bool m_isDead = false;

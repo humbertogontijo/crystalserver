@@ -158,30 +158,6 @@ namespace {
 		}
 		return fromClause.str();
 	}
-
-	enum class IdleCombatDeny : uint8_t {
-		Walk,
-		Target,
-	};
-
-	/** Idle combat: AI owns walk. Cancel without chat spam (clients can flood packets). */
-	[[nodiscard]] bool denyIdleCombatClientControl(const std::shared_ptr<Player> &player, IdleCombatDeny deny) {
-		if (!player || !player->isIdleCombat()) {
-			return false;
-		}
-		if (deny == IdleCombatDeny::Target) {
-			player->sendCancelTarget();
-		} else {
-			player->sendCancelWalk();
-		}
-		return true;
-	}
-
-	/** Items that may walk-to-Use under idle combat (expedition AI). Everything else must
-	 *  not force-walk — smart map clicks call Use on tile tops and would unlock free locomotion. */
-	[[nodiscard]] bool allowsIdleCombatWalkToUse(const std::shared_ptr<Item> &item) {
-		return item && item->getID() == ITEM_ECHO_WARDEN_PORTAL;
-	}
 } // namespace
 
 namespace {
@@ -4689,16 +4665,13 @@ void Game::playerMove(uint32_t playerId, Direction direction) {
 		return;
 	}
 
-	if (denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
-		return;
-	}
-
 	player->resetIdleTime();
 	player->setNextWalkActionTask(nullptr);
 	player->cancelPush();
 	player->resetLastLoad();
 
 	player->startAutoWalk(std::vector<Direction> { direction }, false);
+	player->noteManualWalk();
 }
 
 void Game::forcePlayerMove(uint32_t playerId, Direction direction) {
@@ -4882,10 +4855,6 @@ void Game::playerAutoWalk(uint32_t playerId, const std::vector<Direction> &listD
 		return;
 	}
 
-	if (denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
-		return;
-	}
-
 	player->resetIdleTime();
 	// Same as playerMove: drop deferred walk-then-act so startAutoWalk is not
 	// refused by hasWalkTask(). Map clicks must also recover from a stuck task
@@ -4893,6 +4862,7 @@ void Game::playerAutoWalk(uint32_t playerId, const std::vector<Direction> &listD
 	player->setNextWalkActionTask(nullptr);
 	player->setNextWalkTask(nullptr);
 	player->startAutoWalk(listDir, false);
+	player->noteManualWalk();
 }
 
 void Game::forcePlayerAutoWalk(uint32_t playerId, const std::vector<Direction> &listDir) {
@@ -4911,6 +4881,10 @@ void Game::forcePlayerAutoWalk(uint32_t playerId, const std::vector<Direction> &
 	player->setNextWalkTask(nullptr);
 
 	player->startAutoWalk(listDir, true);
+	// Fear flees through here too; that is not the player taking control.
+	if (!player->hasCondition(CONDITION_FEARED)) {
+		player->noteManualWalk();
+	}
 }
 
 void Game::playerStopAutoWalk(uint32_t playerId) {
@@ -4919,8 +4893,9 @@ void Game::playerStopAutoWalk(uint32_t playerId) {
 		return;
 	}
 
-	// Idle combat: AI owns the walk queue (direction keys / sendStop must not abort autoWalk).
-	if (denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
+	// Idle combat: direction keys / sendStop only stop the player's own walk, never the AI's.
+	if (player->isIdleCombat() && !player->hasManualWalk()) {
+		player->sendCancelWalk();
 		return;
 	}
 
@@ -4997,10 +4972,6 @@ void Game::playerUseItemEx(uint32_t playerId, const Position &fromPos, uint8_t f
 
 			std::vector<Direction> listDir;
 			if (player->getPathTo(walkToPos, listDir, 0, 1, true, true, MAP_MAX_CLIENT_VIEW_PORT_X)) {
-				// Idle combat owns walk — do not queue a walkTask we will never complete.
-				if (denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
-					return;
-				}
 				// forcePlayerAutoWalk: walkTask is set before the deferred walk runs;
 				// non-forced startAutoWalk refuses hasWalkTask() and would soft-lock clicks.
 				g_dispatcher().addEvent([this, playerId = player->getID(), listDir] { forcePlayerAutoWalk(playerId, listDir); }, __FUNCTION__);
@@ -5137,11 +5108,6 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 		if (ret == RETURNVALUE_TOOFARAWAY) {
 			std::vector<Direction> listDir;
 			if (player->getPathTo(pos, listDir, 0, 1, true, true, MAP_MAX_CLIENT_VIEW_PORT_X)) {
-				// Smart map clicks often Use the tile top. Under idle combat only allowlisted
-				// items (echo portal) may force-walk; everything else stays AI-locked.
-				if (!allowsIdleCombatWalkToUse(item) && denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
-					return;
-				}
 				// Always forcePlayerAutoWalk for walk-then-act. setNextWalkActionTask runs
 				// before the deferred walk event; non-forced startAutoWalk refuses hasWalkTask()
 				// and left map-click autoWalk soft-locked after a failed Use approach.
@@ -7406,14 +7372,17 @@ void Game::playerCancelAttackAndFollow(uint32_t playerId) {
 		return;
 	}
 
-	// Idle combat: Escape releases the attack target so automation can re-pick,
-	// but must not abort AI autoWalk.
+	// Idle combat: Escape releases the attack target so automation can re-pick and
+	// stops the player's own walk / follow, but must not abort AI autoWalk.
 	if (player->isIdleCombat()) {
 		if (player->getAttackedCreature()) {
 			player->setAttackedCreature(nullptr);
 			player->sendCancelTarget();
 		}
 		playerFollowCreature(playerId, 0);
+		if (player->hasManualWalk()) {
+			player->stopWalk();
+		}
 		return;
 	}
 
@@ -7428,7 +7397,7 @@ void Game::playerSetAttackedCreature(uint32_t playerId, uint32_t creatureId) {
 		return;
 	}
 
-	// Idle combat owns walk/follow. Players may pick a new attack target; ignore
+	// Idle combat: the AI owns the attack target. Players may pick a new one; ignore
 	// attack(0) echoes from CancelTarget → client cancelAttack (those would wipe
 	// the AI target and re-send CancelTarget, leaving the red square stuck off).
 	// Intentional clear goes through playerCancelAttackAndFollow (Escape).
@@ -7471,11 +7440,24 @@ void Game::playerFollowCreature(uint32_t playerId, uint32_t creatureId) {
 		return;
 	}
 
-	// Idle combat: AI owns pathing — deny client follow (cancel walk only when starting one).
-	if (creatureId != 0 && denyIdleCombatClientControl(player, IdleCombatDeny::Walk)) {
-		return;
-	}
+	// Idle combat: a client follow takes movement from the AI and keeps the AI's attack
+	// target; unfollow only drops a follow the client started.
 	if (player->isIdleCombat()) {
+		if (creatureId == 0) {
+			if (player->isManualFollow()) {
+				player->setFollowCreature(nullptr);
+			}
+			return;
+		}
+		const auto &creature = getCreatureByID(creatureId);
+		if (!creature) {
+			return;
+		}
+		player->noteManualFollow(creature);
+		updateCreatureWalk(player->getID()); // internally uses addEventWalk.
+		if (!player->setFollowCreature(creature)) {
+			player->sendCancelMessage(RETURNVALUE_THEREISNOWAY);
+		}
 		return;
 	}
 

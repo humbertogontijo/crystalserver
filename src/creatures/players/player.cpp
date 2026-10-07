@@ -3184,6 +3184,10 @@ bool Player::closeShopWindow() {
 }
 
 void Player::onWalk(Direction &dir) {
+	if (manualWalking) {
+		manualControlAt = OTSYS_TIME();
+	}
+
 	if (hasCondition(CONDITION_PARALYZE)) {
 		uint32_t delay = g_configManager().getNumber(PARALYZE_DELAY_INTERVAL);
 		setNextAction(OTSYS_TIME() + delay);
@@ -6514,13 +6518,14 @@ bool Player::setAttackedCreature(const std::shared_ptr<Creature> &creature) {
 	}
 
 	const auto &followCreature = getFollowCreature();
-	// Idle combat keeps the player stationary; never enter chase-follow (which can clear
-	// the attack target if follow pathing fails after disconnect).
+	// Idle combat never enters chase-follow (which can clear the attack target if follow
+	// pathing fails after disconnect); a follow the client started outlives the AI's
+	// target picks.
 	if (chaseMode && creature && !keepsDisconnectedCombat()) {
 		if (followCreature != creature) {
 			setFollowCreature(creature);
 		}
-	} else if (followCreature) {
+	} else if (followCreature && !isManualFollow()) {
 		setFollowCreature(nullptr);
 	}
 
@@ -6601,11 +6606,14 @@ void Player::setFaction(Faction_t factionId) {
 }
 
 void Player::onWalkAborted() {
+	manualWalking = false;
 	setNextWalkActionTask(nullptr);
 	sendCancelWalk();
 }
 
 void Player::onWalkComplete() {
+	manualWalking = false;
+
 	if (hasCondition(CONDITION_FEARED)) {
 		/**
 		 * The walk is only processed during the fear condition execution,
@@ -9138,6 +9146,9 @@ void Player::setIdleCombat(bool enabled) {
 	// set walkTask without starting a walk, soft-locking map-click autoWalk.
 	if (enabled != idleCombat) {
 		setNextWalkActionTask(nullptr);
+		manualControlAt = 0;
+		manualFollowId = 0;
+		manualWalking = false;
 	}
 	idleCombat = enabled;
 	if (enabled) {
@@ -9168,6 +9179,52 @@ void Player::stopIdleCombatThink() {
 	if (idleCombatThinkEvent != 0) {
 		g_dispatcher().stopEvent(idleCombatThinkEvent);
 		idleCombatThinkEvent = 0;
+	}
+}
+
+void Player::noteManualWalk() {
+	if (!idleCombat) {
+		return;
+	}
+	manualControlAt = OTSYS_TIME();
+	manualWalking = !listWalkDir.empty();
+}
+
+void Player::noteManualFollow(const std::shared_ptr<Creature> &creature) {
+	if (!idleCombat || !creature) {
+		return;
+	}
+	manualControlAt = OTSYS_TIME();
+	manualFollowId = creature->getID();
+}
+
+bool Player::isManualFollow() const {
+	if (manualFollowId == 0) {
+		return false;
+	}
+	const auto &followCreature = getFollowCreature();
+	return followCreature && followCreature->getID() == manualFollowId;
+}
+
+bool Player::isManualControl(int64_t graceMs) const {
+	if (!idleCombat) {
+		return false;
+	}
+	if (manualWalking || isManualFollow()) {
+		return true;
+	}
+	return manualControlAt != 0 && OTSYS_TIME() - manualControlAt < graceMs;
+}
+
+void Player::clearManualControl() {
+	manualControlAt = 0;
+	if (isManualFollow()) {
+		setFollowCreature(nullptr);
+	}
+	manualFollowId = 0;
+	if (manualWalking) {
+		manualWalking = false;
+		stopWalk();
 	}
 }
 

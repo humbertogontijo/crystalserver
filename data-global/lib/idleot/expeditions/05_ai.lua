@@ -1,5 +1,6 @@
 -- Expedition session AI: the single session tick (AI_TICK_MS), persistence,
--- movement directives and catch-up. Targeting / stance / casting live in
+-- movement directives, catch-up and manual control (players may walk themselves;
+-- the AI takes over again once they stop). Targeting / stance / casting live in
 -- CombatAutomation (per player, playerOnThink).
 
 ExpeditionAI = ExpeditionAI or {}
@@ -143,7 +144,7 @@ end
 --- last resort: another floor, or beyond CATCH_UP_TELEPORT_SQM without closing in
 --- for CATCH_UP_STALL_MS.
 local function catchUpMember(session, player, anchor)
-	if player:getId() == anchor:getId() then
+	if player:getId() == anchor:getId() or (session.manualIds and session.manualIds[player:getId()]) then
 		return
 	end
 	local ppos = player:getPosition()
@@ -182,6 +183,47 @@ function ExpeditionAI.stopPlayer(session, player)
 	clearPlayerCombat(player)
 end
 
+--- Members whose client walk / follow input owns their movement
+--- (`session.manualIds`: id -> true). Taking control drops the AI's queued walk and
+--- restarts catch-up tracking; handing it back resets positioning and, for the anchor,
+--- picks the cave route up from where it stands. Each change goes to that client.
+function ExpeditionAI.syncManual(session)
+	local before = session.manualIds or {}
+	local manual = {}
+	for _, id in ipairs(memberIds(session)) do
+		local player = Player(id)
+		if player and CombatAutomationMovement.isManual(player) then
+			manual[id] = true
+			if not before[id] then
+				CombatAutomationMovement.onManualControl(player)
+				if session._catchUp then
+					session._catchUp[id] = nil
+				end
+				ExpeditionProtocol.sendManualControl(player, true)
+			end
+		end
+	end
+	session.manualIds = manual
+	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
+	for id in pairs(before) do
+		local player = not manual[id] and Player(id)
+		if player then
+			CombatAutomationMovement.onAutoResumed(player)
+			if anchor and anchor:getId() == id and session.cave and ExpeditionCavebot then
+				ExpeditionCavebot.resume(session, anchor)
+			end
+			ExpeditionProtocol.sendManualControl(player, false)
+		end
+	end
+end
+
+--- "Resume Auto": hand the player's movement back to the AI now.
+function ExpeditionAI.resumeAuto(player)
+	if player and player.clearManualControl then
+		player:clearManualControl()
+	end
+end
+
 function ExpeditionAI.syncPathLeash(session)
 	if not session then
 		return
@@ -193,10 +235,11 @@ function ExpeditionAI.syncPathLeash(session)
 	end
 	local anchorId = anchor and anchor:getId() or 0
 	local anchorPos = anchor and anchor.getPosition and anchor:getPosition() or nil
+	local manual = session.manualIds or {}
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)
 		if player and player.clearPathLeash then
-			if not anchorPos or PzTeleport.isGod(player) or id == anchorId or radius <= 0 then
+			if not anchorPos or PzTeleport.isGod(player) or id == anchorId or radius <= 0 or manual[id] then
 				player:clearPathLeash()
 			else
 				player:setPathLeash(anchorPos, radius)
@@ -207,7 +250,9 @@ end
 
 --- Movement directives: the anchor walks the cave route (ExpeditionCavebot) or holds
 --- the session holdPos (boss / arena / before the walk starts); the others trail
---- loosely behind it and take formation around it only while attacking.
+--- loosely behind it and take formation around it only while attacking. Members under
+--- manual control get none; while the anchor is one, the others form on it wherever
+--- the player leads.
 function ExpeditionAI.syncDirectives(session)
 	if not session or not CombatAutomationMovement then
 		return
@@ -216,10 +261,13 @@ function ExpeditionAI.syncDirectives(session)
 	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
 	local anchorId = anchor and anchor:getId() or session.anchorPlayerId
 	local raid = sessionKind(session) == "raid"
+	local manual = session.manualIds or {}
 
 	local anchorDirective, walking = nil, false
 	if not raid and anchor then
-		if session.cave and ExpeditionCavebot then
+		if manual[anchorId] then
+			anchorDirective = { kind = "hold", pos = anchor:getPosition(), priority = "soft" }
+		elseif session.cave and ExpeditionCavebot then
 			anchorDirective, walking = ExpeditionCavebot.anchorDirective(session, anchor)
 		elseif session.holdPos then
 			local hold = session.holdPos
@@ -230,7 +278,7 @@ function ExpeditionAI.syncDirectives(session)
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)
 		if player and not PzTeleport.isGod(player) then
-			if raid then
+			if raid or manual[id] then
 				move.clearDirective(player)
 			elseif id == anchorId then
 				if anchorDirective then
@@ -289,6 +337,8 @@ function ExpeditionAI.tick(session)
 	if role == "boss" and ExpeditionBoss and ExpeditionBoss.ensureKillableSession then
 		ExpeditionBoss.ensureKillableSession(session)
 	end
+
+	ExpeditionAI.syncManual(session)
 
 	-- Map-spawn hunts: pack tracking + cave walker (boss / raid: pull to anchor).
 	if ExpeditionPack and ExpeditionPack.tickLure then
@@ -375,10 +425,15 @@ function ExpeditionAI.stop(session)
 		session.aiEvent = nil
 	end
 	session._catchUp = nil
+	local manual = session.manualIds or {}
+	session.manualIds = nil
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)
 		if player then
 			clearPlayerCombat(player)
+			if manual[id] then
+				ExpeditionProtocol.sendManualControl(player, false)
+			end
 		end
 	end
 end

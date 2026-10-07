@@ -14,7 +14,7 @@ local function metricsOf(session)
 	if not m then
 		m = {
 			startedMs = nowMs(),
-			ticks = { idle = 0, walk = 0, fight = 0 },
+			ticks = { idle = 0, walk = 0, fight = 0, manual = 0 },
 			halts = 0,
 			haltPack = 0,
 			blockerHalts = 0,
@@ -38,15 +38,18 @@ local function sessionOf(player)
 	return ExpeditionManager.getSessionByPlayer(player)
 end
 
---- One AI tick: classify the anchor's activity (fighting, walking the route with
---- nothing to attack, or idle in a halt / pace) and accumulate member HP lost.
+--- One AI tick: classify the anchor's activity (its player leading by hand, fighting,
+--- walking the route with nothing to attack, or idle in a halt / pace) and accumulate
+--- member HP lost.
 function ExpeditionMetrics.tick(session, anchor, memberIds)
 	local m = metricsOf(session)
 	if not m then
 		return
 	end
 	local bucket = "idle"
-	if anchor and anchor:getTarget() then
+	if anchor and session.manualIds and session.manualIds[anchor:getId()] then
+		bucket = "manual"
+	elseif anchor and anchor:getTarget() then
 		bucket = "fight"
 	elseif session.cave and session.cave.mode == "walk" and not session.cave.parked then
 		bucket = "walk"
@@ -118,7 +121,8 @@ function ExpeditionMetrics.summary(session)
 		return nil
 	end
 	local minutes = math.max(1 / 60, (nowMs() - m.startedMs) / 60000)
-	local ticks = m.ticks.idle + m.ticks.walk + m.ticks.fight
+	local manualTicks = m.ticks.manual or 0
+	local ticks = m.ticks.idle + m.ticks.walk + m.ticks.fight + manualTicks
 	local function pct(n)
 		return ticks > 0 and math.floor(n * 100 / ticks + 0.5) or 0
 	end
@@ -136,6 +140,7 @@ function ExpeditionMetrics.summary(session)
 		idlePct = pct(m.ticks.idle),
 		walkPct = pct(m.ticks.walk),
 		fightPct = pct(m.ticks.fight),
+		manualPct = pct(manualTicks),
 		aoeHitsPerCast = m.aoeCasts > 0 and round1(m.aoeHits / m.aoeCasts) or 0,
 		targetSwitchesPerMin = round1(m.targetSwitches / minutes),
 		teleports = session.catchUpTeleports or 0,
@@ -149,7 +154,7 @@ function ExpeditionMetrics.log(session)
 		return
 	end
 	logger.info(
-		"[ExpeditionMetrics] hunt '{}': {} min, {} kills ({}/min), {} spawn blocks, pack/halt {} ({} halts, {} blocker), laps {} ({}s/lap, {} halts/lap), idle/walk/fight {}/{}/{}%, aoe hits/cast {}, target switches/min {}, teleports {}, damage taken/min {}",
+		"[ExpeditionMetrics] hunt '{}': {} min, {} kills ({}/min), {} spawn blocks, pack/halt {} ({} halts, {} blocker), laps {} ({}s/lap, {} halts/lap), idle/walk/fight/manual {}/{}/{}/{}%, aoe hits/cast {}, target switches/min {}, teleports {}, damage taken/min {}",
 		tostring(session.catalog and session.catalog.id),
 		s.minutes,
 		s.kills,
@@ -164,6 +169,7 @@ function ExpeditionMetrics.log(session)
 		s.idlePct,
 		s.walkPct,
 		s.fightPct,
+		s.manualPct,
 		s.aoeHitsPerCast,
 		s.targetSwitchesPerMin,
 		s.teleports,

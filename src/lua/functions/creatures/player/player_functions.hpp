@@ -127,6 +127,8 @@ class PlayerFunctions {
 	static int luaPlayerSetTraining(lua_State* L);
 	static int luaPlayerGetIsIdleCombat(lua_State* L);
 	static int luaPlayerSetIdleCombat(lua_State* L);
+	static int luaPlayerIsManualControl(lua_State* L);
+	static int luaPlayerClearManualControl(lua_State* L);
 	static int luaPlayerSoftDespawn(lua_State* L);
 	static int luaPlayerSoftSpawn(lua_State* L);
 	static int luaPlayerIsSoftDespawned(lua_State* L);

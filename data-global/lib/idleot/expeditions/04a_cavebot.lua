@@ -25,12 +25,17 @@
 -- sight within FIENDISH_DETOUR_SQM of the anchor, the anchor detours off the route
 -- toward it. An unreachable Fiendish is ignored for FIENDISH_IGNORE_MS.
 --
+-- Manual control: while the anchor's player walks themselves the route waits
+-- (`cave.manual`); back on auto it walks on from the nearest route point. Chasers on a
+-- member under manual control never hold the leash.
+--
 -- session.cave = {
 --   mode = "walk" | "pace" | "halt", idx (waypoint), lap, entryIdx (entry walk),
 --   progress = { dist, at }, still = { pos, since }, visible, load, fullSpent,
 --   haltPos, haltCenter, haltSteps, haltReached, haltWait, haltAt, haltSetAt, haltExclude, haltRepicks,
 --   blockerId, paceProgress = { lag, at }, lapStartedAt, parked, fought,
 --   detour, detourProgress = { dist, at }, fiendishIgnoreUntil, fiendishHp, fiendishHitAt,
+--   manual,
 -- }
 
 ExpeditionCavebot = ExpeditionCavebot or {}
@@ -135,6 +140,53 @@ function ExpeditionCavebot.travelFront(session, fromPos)
 		return nil
 	end
 	return { fx, fy }
+end
+
+--- The anchor is back on auto after manual control: walk on from the route point
+--- nearest to where it stands on its floor (pending entry points or waypoints), out
+--- of any halt, pace or detour. A parked route drifts back onto its hold.
+function ExpeditionCavebot.resume(session, anchor)
+	local cave, route = session and session.cave, routeOf(session)
+	if not cave or not route or not anchor then
+		return
+	end
+	local here = anchor:getPosition()
+	local now = nowMs()
+	cave.manual = nil
+	cave.still = nil
+	cave.detour = nil
+	cave.paceProgress = nil
+	cave.haltWait = nil
+	cave.progress = { dist = math.huge, at = now }
+	if cave.parked then
+		return
+	end
+	setMode(cave, "walk")
+	local bestIdx, bestDist, bestEntry = nil, math.huge, false
+	local function consider(points, from, entry)
+		for i = from, #points do
+			local p = points[i]
+			if p.z == here.z then
+				local d = chebyshev(here, p)
+				if d < bestDist then
+					bestIdx, bestDist, bestEntry = i, d, entry
+				end
+			end
+		end
+	end
+	if cave.entryIdx then
+		consider(route.entry, cave.entryIdx, true)
+	end
+	consider(route.waypoints, 1, false)
+	if not bestIdx then
+		return
+	end
+	if bestEntry then
+		cave.entryIdx = bestIdx
+	else
+		cave.entryIdx = nil
+		cave.idx = bestIdx
+	end
 end
 
 function ExpeditionCavebot.blockerId(session)
@@ -551,10 +603,29 @@ function ExpeditionCavebot.tick(session, anchor, members)
 	local here = anchor:getPosition()
 	local now = nowMs()
 	local prevMode = cave.mode
-	local stillMs = trackStill(cave, here, now)
+	local manual = session.manualIds or {}
 
 	local visible, load = ExpeditionPack.lureCount(session, anchor, members)
 	cave.visible, cave.load = visible, load
+	-- The anchor's player leads: the route waits for ExpeditionCavebot.resume.
+	if manual[anchor:getId()] then
+		if not cave.manual then
+			cave.manual = true
+			ExpeditionManager.broadcastStatus(session)
+		end
+		return
+	end
+	local stillMs = trackStill(cave, here, now)
+	-- Members walking themselves drag their chasers off on purpose: never wait for those.
+	local leashMembers = members
+	if next(manual) then
+		leashMembers = {}
+		for id in pairs(members) do
+			if not manual[id] then
+				leashMembers[id] = true
+			end
+		end
+	end
 	local lureFull = visible >= ExpeditionCavebot.lureMax(session)
 	if not lureFull then
 		cave.fullSpent = nil
@@ -580,7 +651,7 @@ function ExpeditionCavebot.tick(session, anchor, members)
 			elseif lureFull and not cave.fullSpent then
 				enterLureFullHalt(session, cave, route, anchor, here, now, visible)
 			else
-				setMode(cave, updateLeash(session, cave, here, now, members) and "pace" or "walk")
+				setMode(cave, updateLeash(session, cave, here, now, leashMembers) and "pace" or "walk")
 				if cave.mode == "walk" then
 					tickWalk(session, cave, route, anchor, here, now, visible, load)
 				end
@@ -589,7 +660,7 @@ function ExpeditionCavebot.tick(session, anchor, members)
 		settleHaltPos(session, cave, anchor, here, now)
 		-- Walking onto the halt tile: the pack stays on the leash too.
 		if cave.mode == "halt" and cave.haltPos and not cave.haltReached and not cave.blockerId then
-			cave.haltWait = updateLeash(session, cave, here, now, members)
+			cave.haltWait = updateLeash(session, cave, here, now, leashMembers)
 		elseif cave.haltWait ~= nil then
 			cave.haltWait = nil
 			cave.paceProgress = nil

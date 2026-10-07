@@ -109,6 +109,9 @@ ExpeditionConfig.CATCH_UP_WALK_SQM = 10
 ExpeditionConfig.CATCH_UP_PATH_MAX = 256
 ExpeditionConfig.CATCH_UP_TELEPORT_SQM = 15
 ExpeditionConfig.CATCH_UP_STALL_MS = 10000
+-- Client walk / follow input pauses the AI's movement for that member; the AI takes
+-- over again this long after the last manual step (or at once via "Resume Auto").
+ExpeditionConfig.MANUAL_CONTROL_MS = 5000
 -- Path search radius (Chebyshev) for hold walks. Non-zero uses Crystal's
 -- getPathMatchingCond (no 100-node hard stop). 0 = unrestricted but capped at 100 nodes.
 ExpeditionConfig.HOLD_PATH_MAX = 128

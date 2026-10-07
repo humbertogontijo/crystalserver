@@ -153,6 +153,8 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "setTraining", PlayerFunctions::luaPlayerSetTraining);
 	Lua::registerMethod(L, "Player", "isIdleCombat", PlayerFunctions::luaPlayerGetIsIdleCombat);
 	Lua::registerMethod(L, "Player", "setIdleCombat", PlayerFunctions::luaPlayerSetIdleCombat);
+	Lua::registerMethod(L, "Player", "isManualControl", PlayerFunctions::luaPlayerIsManualControl);
+	Lua::registerMethod(L, "Player", "clearManualControl", PlayerFunctions::luaPlayerClearManualControl);
 	Lua::registerMethod(L, "Player", "softDespawn", PlayerFunctions::luaPlayerSoftDespawn);
 	Lua::registerMethod(L, "Player", "softSpawn", PlayerFunctions::luaPlayerSoftSpawn);
 	Lua::registerMethod(L, "Player", "isSoftDespawned", PlayerFunctions::luaPlayerIsSoftDespawned);
@@ -1546,6 +1548,32 @@ int PlayerFunctions::luaPlayerGetIsIdleCombat(lua_State* L) {
 	}
 
 	Lua::pushBoolean(L, player->isIdleCombat());
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerIsManualControl(lua_State* L) {
+	// player:isManualControl(graceMs)
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		Lua::pushBoolean(L, false);
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		return 1;
+	}
+
+	Lua::pushBoolean(L, player->isManualControl(Lua::getNumber<int64_t>(L, 2, 0)));
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerClearManualControl(lua_State* L) {
+	// player:clearManualControl()
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	player->clearManualControl();
+	Lua::pushBoolean(L, true);
 	return 1;
 }
 

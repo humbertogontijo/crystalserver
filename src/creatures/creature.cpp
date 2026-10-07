@@ -418,7 +418,7 @@ bool Creature::getNextStep(Direction &dir, uint32_t &) {
 bool Creature::startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions /* = false*/, bool immediate /* = false*/, uint32_t walkFlags /* = 0*/) {
 	// Preserve a pending walk-then-act path (use-with). Those approaches are started via
 	// forcePlayerAutoWalk (ignoreConditions=true). Non-forced walks (expedition AI, client)
-	// must not replace that specific path — this is not a general client-control unlock.
+	// must not replace that specific path.
 	if (!ignoreConditions) {
 		if (const auto &player = getPlayer()) {
 			if (player->hasWalkTask()) {

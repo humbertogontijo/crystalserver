@@ -2,7 +2,8 @@
 -- Pathfinding: Creature:getPathTo + autoWalk. On stall / blocked walk, drop the
 -- pending path and recalculate — same idea as client autowalk repathing.
 -- Pending walk-then-act (Use / use-with under idle combat) is preserved so echo
--- portal / tame FABs can finish walking adjacent.
+-- portal / tame FABs can finish walking adjacent. Client walk / follow input (manual
+-- control, see `isManual`) suspends all of it until the player stops.
 
 CombatAutomationMovement = CombatAutomationMovement or {}
 
@@ -11,7 +12,7 @@ local lastPathFailLogById = {}
 --- Last getPathTo failure per creature: { key = dest key, at = ms, count = in a row }.
 local lastPathFailById = {}
 -- Temporary exclusive destinations (discovery POI FAB). Blocks stance/hold from
--- stealing the path under idle combat without unlocking general client autoWalk.
+-- stealing the path under idle combat.
 local exclusiveWalkById = {}
 
 local PATH_MAX_SEARCH = 128
@@ -23,6 +24,7 @@ local PATH_FAIL_FRESH_MS = 1500
 --- path closed for a moment by a passing creature is not.
 local PATH_FAIL_PERSIST = 3
 local FOCUS_GRACE_MS = 1000
+local MANUAL_CONTROL_MS = 5000
 
 local geo = CombatGeo
 local nowMs, sameTile, chebyshev, faceToward = geo.nowMs, geo.sameTile, geo.chebyshev, geo.faceToward
@@ -220,8 +222,21 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 	clearQueuedWalk(creature)
 	return false
 end
+--- Client walk / follow input owns this player's movement (expedition idle combat):
+--- a manual walk or follow is running, or the last manual step is under
+--- ExpeditionConfig.MANUAL_CONTROL_MS old.
+function CombatAutomationMovement.isManual(player)
+	if not player or not player.isManualControl then
+		return false
+	end
+	local graceMs = (ExpeditionConfig and tonumber(ExpeditionConfig.MANUAL_CONTROL_MS)) or MANUAL_CONTROL_MS
+	return player:isManualControl(graceMs) == true
+end
+local isManual = CombatAutomationMovement.isManual
+
+--- Never drops a follow the player started (manual control).
 local function clearFollowIfAny(player)
-	if player and player.getFollowCreature and player:getFollowCreature() then
+	if player and player.getFollowCreature and player:getFollowCreature() and not isManual(player) then
 		player:setFollowCreature(nil)
 	end
 end
@@ -948,8 +963,8 @@ local function exclusiveArrived(ppos, excl)
 end
 
 --- Force-walk to `dest` (or within optional [minDist,maxDist] Chebyshev) and keep
---- owning the path until arrival / TTL. Used by discovery POI FAB — not a general
---- client-walk unlock. `minDist`/`maxDist` let city pathfinding stop on any tile
+--- owning the path until arrival / TTL. Used by discovery POI FAB and lobby training.
+--- `minDist`/`maxDist` let city pathfinding stop on any tile
 --- inside the discovery radius instead of requiring one exact (often blocked) sqm.
 function CombatAutomationMovement.beginExclusiveWalk(player, dest, ttlMs, minDist, maxDist)
 	if not player or not dest then
@@ -1020,7 +1035,7 @@ end
 --- Per-tick positioning: follow → anchorStance → hold → stance vs attack target.
 --- Members form up around the anchor only while attacking; otherwise they trail it.
 function CombatAutomationMovement.tick(player, config)
-	if not player then
+	if not player or isManual(player) then
 		return
 	end
 	-- Let walk-then-act (Use / use-with) finish without stance/hold stealing the path.
@@ -1167,6 +1182,21 @@ function CombatAutomationMovement.tick(player, config)
 	else
 		-- Never keep trailing an old follow target once directives are gone.
 		clearFollowIfAny(player)
+	end
+end
+
+--- Client input took over movement: drop the AI's queued walk and positioning state
+--- (a pending walk-then-act is the player's own and stays).
+function CombatAutomationMovement.onManualControl(player)
+	if not player then
+		return
+	end
+	clearQueuedWalk(player)
+	local state = CombatAutomation.getState(player)
+	if state then
+		state.pendingAreaCast = nil
+		state.catchingUp = nil
+		state.retreating = nil
 	end
 end
 

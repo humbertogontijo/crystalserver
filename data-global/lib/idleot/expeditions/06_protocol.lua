@@ -81,7 +81,7 @@ function ExpeditionProtocol.sendBossDetail(player, creatureId, nameHint, bosstia
 end
 
 --- Cave walker progress for the HUD: phase (walking | pacing | fighting | parked |
---- complete), waypoint i/n and laps done. Nil before the walk starts.
+--- manual | complete), waypoint i/n and laps done. Nil before the walk starts.
 local function caveStatus(session)
 	local cave = session.cave
 	local route = cave and ExpeditionConfig.caveRoute(session.catalog)
@@ -91,6 +91,8 @@ local function caveStatus(session)
 	local phase = ({ walk = "walking", pace = "pacing", halt = "fighting" })[cave.mode] or "walking"
 	if session.lureFinished then
 		phase = "complete"
+	elseif cave.manual then
+		phase = "manual"
 	elseif cave.parked then
 		phase = "parked"
 	end
@@ -192,6 +194,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 	status.stopOnInsufficientGold = session.stopOnInsufficientGold == true
 	status.stopOnInsufficientCap = session.stopOnInsufficientCap == true
 	status.entered = session.entered == true
+	status.manual = player ~= nil and session.manualIds ~= nil and session.manualIds[player:getId()] == true
 	-- Pre-entry teammate accepts only (boss AI uses "waiting" after entry).
 	local teamAccept = session.state == "pending"
 		and not session.entered
@@ -272,6 +275,11 @@ function ExpeditionProtocol.sendStatus(player, session)
 	})
 end
 
+--- The player's own walk / follow owns their movement (true) or the AI has it back.
+function ExpeditionProtocol.sendManualControl(player, active)
+	return ExpeditionProtocol.send(player, { type = "manualControl", active = active == true })
+end
+
 function ExpeditionProtocol.sendEnded(player)
 	return ExpeditionProtocol.send(player, { type = "ended" })
 end
@@ -330,7 +338,7 @@ function ExpeditionProtocol.handle(player, buffer)
 		end
 	end
 	-- Discovery POI FAB: exclusive walk into discovery radius (validated server-side).
-	-- Handled here so it works in and out of expeditions without unlocking client autoWalk.
+	-- Handled here so it works in and out of expeditions.
 	if msg.action == "discoverWalk" then
 		if DiscoverySystem and DiscoverySystem.walkTowardViewpoint then
 			DiscoverySystem.walkTowardViewpoint(player, msg.x, msg.y, msg.z)
@@ -472,6 +480,8 @@ function ExpeditionProtocol.handle(player, buffer)
 	elseif action == "declineTeamInvite" then
 		logger.info("[Expedition] {} declineTeamInvite", player:getName())
 		ExpeditionManager.declineTeamInvite(player)
+	elseif action == "resumeAuto" then
+		ExpeditionAI.resumeAuto(player)
 	elseif action == "setLure" then
 		ExpeditionManager.setLure(player, msg.lure)
 	elseif action == "setStopOptions" then
