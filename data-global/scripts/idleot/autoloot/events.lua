@@ -1,5 +1,4 @@
 -- Crystal Auto Loot feature default.
--- Loot pouch is granted once on first login via SendFirstItems (product overlay).
 -- Server death path: Creature death → dropLoot → LootSplit (multi-account party) →
 --   async Game::playerQuickLootCorpse for getAutoLootPlayer (companions → controller).
 -- Unassigned (OBJECTCATEGORY_DEFAULT=31) is hard-locked to loot pouch (ITEM_GOLD_POUCH) in C++.
