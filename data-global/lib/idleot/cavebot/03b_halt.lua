@@ -87,8 +87,8 @@ local function enterHalt(run, cave, anchor, now, visible, center, steps)
 end
 
 local function enterBlockerHalt(run, cave, now, blocker)
-	local halt = cave.halt
 	setMode(cave, "halt")
+	local halt = cave.halt
 	halt.blockerId = blocker:getId()
 	halt.at = now
 	Cavebot.metric(run, "onBlockerHalt")
