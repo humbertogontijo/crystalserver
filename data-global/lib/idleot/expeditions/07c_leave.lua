@@ -87,9 +87,7 @@ function ExpeditionManager.abort(session, reason, opts)
 	session.aborting = true
 	-- Halt AI / relocate walks before any member teleports; leftover autoWalk after a
 	-- city warp causes client stackpos desync (parseCreatureMove: no creature found).
-	if ExpeditionAI and ExpeditionAI.stop then
-		ExpeditionAI.stop(session)
-	end
+	ExpeditionAI.stop(session)
 	local message = tostring(reason or "Expedition stopped.")
 	local leaveOpts = { silent = true }
 	if opts.keepTeamDeployed then
@@ -265,7 +263,7 @@ function EM_PRIV.ejectPlayerFromExpedition(player, opts)
 	if not opts.skipTeleport then
 		EM_PRIV.teleportHumanToReturn(player)
 	end
-	if not opts.skipTeamUndeploy and Alts and Alts.getDeployment and Alts.getDeployment(player) then
+	if not opts.skipTeamUndeploy and Alts.getDeployment(player) then
 		Alts.undeploy(player)
 	end
 	ExpeditionProtocol.sendEnded(player)
@@ -319,7 +317,7 @@ function EM_PRIV.endHuntByDeath(session, deadMember, reason)
 	if not session or session.kind == "raid" then
 		return
 	end
-	if session.persistedForRestart or (ExpeditionPersist and ExpeditionPersist.isServerShuttingDown()) then
+	if session.persistedForRestart or (ExpeditionPersist.isServerShuttingDown()) then
 		return
 	end
 	if session._cleaned then
@@ -341,9 +339,7 @@ function EM_PRIV.endHuntByDeath(session, deadMember, reason)
 		if deadMember then
 			session.deadPlayerIds = session.deadPlayerIds or {}
 			session.deadPlayerIds[deadMember:getId()] = true
-			if ExpeditionAI and ExpeditionAI.stopPlayer then
-				ExpeditionAI.stopPlayer(session, deadMember)
-			end
+			ExpeditionAI.stopPlayer(session, deadMember)
 		elseif pending and pending.id then
 			session.deadPlayerIds = session.deadPlayerIds or {}
 			session.deadPlayerIds[pending.id] = true
@@ -355,9 +351,7 @@ function EM_PRIV.endHuntByDeath(session, deadMember, reason)
 			EM_PRIV.refundBossCooldownForSession(session)
 		end
 
-		if ExpeditionAI and ExpeditionAI.stop then
-			ExpeditionAI.stop(session)
-		end
+		ExpeditionAI.stop(session)
 
 		local subjectId = (pending and pending.id) or (deadMember and deadMember:getId()) or nil
 		for _, p in ipairs(EM_PRIV.collectHumanViewers(session, deadMember)) do
@@ -385,7 +379,7 @@ end
 
 --- Public entry for player death, companion logout, and AI watchdog.
 function ExpeditionManager.notifyHuntMemberDeath(deadRef, reason)
-	if ExpeditionPersist and ExpeditionPersist.isServerShuttingDown() then
+	if ExpeditionPersist.isServerShuttingDown() then
 		return
 	end
 	local player = deadRef
@@ -438,9 +432,7 @@ function ExpeditionManager.ackHuntDeath(player)
 		EM_PRIV.teleportHumanToReturn(player)
 	end
 	EM_PRIV.ejectPlayerFromExpedition(player, { skipTeleport = true })
-	if ExpeditionProtocol.sendInstanceBounds then
-		ExpeditionProtocol.sendInstanceBounds(player)
-	end
+	ExpeditionProtocol.sendInstanceBounds(player)
 	local pos = player:getPosition()
 	if pos then
 		player:sendMapDescription(pos)
@@ -530,7 +522,7 @@ function ExpeditionManager.prepareBoss(player, expeditionId, loadout, options)
 		for index, gatePlayer in ipairs(gatePlayers) do
 			fighters[index] = gatePlayer
 		end
-		local deployment = Alts and Alts.getDeployment and Alts.getDeployment(player)
+		local deployment = Alts.getDeployment(player)
 		for _, id in ipairs(deployment and deployment.companionIds or {}) do
 			local companion = Player(id)
 			if companion then
@@ -592,7 +584,7 @@ function ExpeditionManager.cancelLeave(player)
 	if not player then
 		return false
 	end
-	if InstanceTeleport and InstanceTeleport.isPending and InstanceTeleport.isPending(player) then
+	if InstanceTeleport.isPending(player) then
 		if InstanceTeleport.cancel(player) then
 			return true
 		end
@@ -689,7 +681,7 @@ function EM_PRIV.completeLeaveCountdown(sessionKey, initiatorId, initiatorName, 
 			ExpeditionManager.cancelWaitingSession(s, name .. " cancelled the expedition.")
 			if goHometown then
 				local p = Player(initiatorId)
-				if p and InstanceTeleport and InstanceTeleport.executeHometown then
+				if p then
 					InstanceTeleport.executeHometown(p, { fromExpedition = true })
 				end
 			end
@@ -760,7 +752,7 @@ function ExpeditionManager.requestLeave(player, opts)
 		end
 		return
 	end
-	if InstanceTeleport and InstanceTeleport.isPending and InstanceTeleport.isPending(player) then
+	if InstanceTeleport.isPending(player) then
 		return
 	end
 	local session = ExpeditionManager.getSessionByPlayer(player)
@@ -785,7 +777,7 @@ function ExpeditionManager.requestLeave(player, opts)
 		)
 		if switchTo then
 			performDirectSwitch(player, nil, switchTo, {})
-		elseif goHometown and InstanceTeleport and InstanceTeleport.executeHometown then
+		elseif goHometown then
 			InstanceTeleport.executeHometown(player, { fromExpedition = true })
 		end
 		return
@@ -798,7 +790,7 @@ function ExpeditionManager.requestLeave(player, opts)
 	local stopToLobby = opts.reason == "stop" and not goHometown and not switchTo
 
 	-- Recall / switch / lobby stop: shared InstanceTeleport channel (server-timed).
-	if (goHometown or switchTo or stopToLobby) and InstanceTeleport then
+	if (goHometown or switchTo or stopToLobby) then
 		if InstanceTeleport.isPending(player) then
 			return
 		end
@@ -1003,7 +995,7 @@ function EM_PRIV.switchDestinationLevelMin(switchTo)
 	if not switchTo then
 		return 1
 	end
-	local catalog = ExpeditionConfig.getById and ExpeditionConfig.getById(switchTo.id, switchTo.role) or nil
+	local catalog = ExpeditionConfig.getById(switchTo.id, switchTo.role) or nil
 	if not catalog then
 		return 1
 	end
@@ -1176,10 +1168,6 @@ function EM_PRIV.tryCompletePendingSwitch(session)
 		#accepted
 	)
 	EM_PRIV.clearPendingSwitch(session, { silent = true })
-	if not InstanceTeleport or not InstanceTeleport.requestExpedition then
-		performDirectSwitch(host, session, switchTo, accepted)
-		return
-	end
 	local ok, err = InstanceTeleport.requestExpedition({
 		initiatorId = hostId,
 		memberIds = memberIds,
@@ -1257,7 +1245,7 @@ function ExpeditionManager.requestSwitch(player, expeditionId, role, loadout, lu
 	if not player then
 		return
 	end
-	local catalog = ExpeditionConfig.getById and ExpeditionConfig.getById(expeditionId, role) or nil
+	local catalog = ExpeditionConfig.getById(expeditionId, role) or nil
 	if not catalog then
 		ExpeditionProtocol.sendError(
 			player,
@@ -1567,21 +1555,21 @@ function ExpeditionManager.leave(player, opts)
 		-- skipTeleport: caller is mid hunt→hunt switch (or death eject). Do not
 		-- bind open-world here; join / exitIfNotInExpedition / death return owns it.
 		ExpeditionProtocol.sendEnded(player)
-		if not opts.skipTeamUndeploy and Alts and Alts.getDeployment and Alts.getDeployment(player) then
+		if not opts.skipTeamUndeploy and Alts.getDeployment(player) then
 			Alts.undeploy(player)
 		end
 		return
 	end
-	if session.kind == "raid" and RaidInstance and RaidInstance.leave then
+	if session.kind == "raid" then
 		RaidInstance.leave(player, opts)
 		return
 	end
-	if session.kind == "worldboss" and ActivityBoostWorldBoss and ActivityBoostWorldBoss.leave then
+	if session.kind == "worldboss" then
 		ActivityBoostWorldBoss.leave(player, opts)
 		return
 	end
 
-	if session.role == "boss" and ExpeditionConfig.clearBossAttempt then
+	if session.role == "boss" then
 		ExpeditionConfig.clearBossAttempt(player)
 	end
 
@@ -1609,18 +1597,14 @@ function ExpeditionManager.leave(player, opts)
 		if not returnPos then
 			return
 		end
-		if InstanceWorld and InstanceWorld.suppressHuntLeave then
-			InstanceWorld.suppressHuntLeave(member, true)
-		end
+		InstanceWorld.suppressHuntLeave(member, true)
 		EM_PRIV.returnToLobby(member, returnPos)
-		if InstanceWorld and InstanceWorld.suppressHuntLeave then
-			InstanceWorld.suppressHuntLeave(member, false)
-		end
+		InstanceWorld.suppressHuntLeave(member, false)
 	end
 
 	-- Primary squaddie leaving: eject companions from this session first.
 	-- Default: logout via undeploy. Switch: park them in town and keep deployment.
-	if Alts and Alts.getDeployment and Alts.getDeployment(player) then
+	if Alts.getDeployment(player) then
 		local companionIds = {}
 		for _, id in ipairs(EM_PRIV.sessionMemberIds(session)) do
 			local member = Player(id)
@@ -1639,13 +1623,9 @@ function ExpeditionManager.leave(player, opts)
 				if not opts.skipTeleport then
 					local returnPos = EM_PRIV.loadReturn(player)
 					if returnPos or opts.goHometown then
-						if InstanceWorld and InstanceWorld.suppressHuntLeave then
-							InstanceWorld.suppressHuntLeave(player, true)
-						end
+						InstanceWorld.suppressHuntLeave(player, true)
 						EM_PRIV.teleportAfterLeave(player, returnPos, opts)
-						if InstanceWorld and InstanceWorld.suppressHuntLeave then
-							InstanceWorld.suppressHuntLeave(player, false)
-						end
+						InstanceWorld.suppressHuntLeave(player, false)
 					end
 				end
 				ExpeditionProtocol.sendEnded(player)
@@ -1666,17 +1646,13 @@ function ExpeditionManager.leave(player, opts)
 				if not opts.skipTeleport then
 					local returnPos = EM_PRIV.loadReturn(player)
 					if returnPos or opts.goHometown then
-						if InstanceWorld and InstanceWorld.suppressHuntLeave then
-							InstanceWorld.suppressHuntLeave(player, true)
-						end
+						InstanceWorld.suppressHuntLeave(player, true)
 						EM_PRIV.teleportAfterLeave(player, returnPos, opts)
-						if InstanceWorld and InstanceWorld.suppressHuntLeave then
-							InstanceWorld.suppressHuntLeave(player, false)
-						end
+						InstanceWorld.suppressHuntLeave(player, false)
 					end
 				end
 				ExpeditionProtocol.sendEnded(player)
-				if Alts and Alts.getDeployment and Alts.getDeployment(player) then
+				if Alts.getDeployment(player) then
 					Alts.undeploy(player)
 				end
 				return
@@ -1715,13 +1691,9 @@ function ExpeditionManager.leave(player, opts)
 	end
 	local skipTeleport = opts.skipTeleport == true
 	if not skipTeleport then
-		if InstanceWorld and InstanceWorld.suppressHuntLeave then
-			InstanceWorld.suppressHuntLeave(player, true)
-		end
+		InstanceWorld.suppressHuntLeave(player, true)
 		EM_PRIV.teleportAfterLeave(player, returnPos, opts)
-		if InstanceWorld and InstanceWorld.suppressHuntLeave then
-			InstanceWorld.suppressHuntLeave(player, false)
-		end
+		InstanceWorld.suppressHuntLeave(player, false)
 		-- Hometown recall already sent its instance-teleport arrival effect.
 		if not opts.goHometown and player:getHealth() > 0 then
 			local now = player:getPosition()
@@ -1737,7 +1709,7 @@ function ExpeditionManager.leave(player, opts)
 	end
 
 	ExpeditionProtocol.sendEnded(player)
-	if not opts.skipTeamUndeploy and Alts and Alts.getDeployment and Alts.getDeployment(player) then
+	if not opts.skipTeamUndeploy and Alts.getDeployment(player) then
 		Alts.undeploy(player)
 	end
 	if not opts.silent then

@@ -283,9 +283,6 @@ handlers.removeAlt = function(player, msg)
 end
 
 handlers.start = function(player, msg)
-	if not LobbyStart then
-		return reply(player, false, "Lobby starts are unavailable.")
-	end
 	local record = LobbyStore.getForPlayer(player)
 	if record and LobbyVariants.hasLeverRoom(record) then
 		return reply(player, false, "Pull the boss lever in the lobby room to start.")
@@ -298,17 +295,11 @@ handlers.start = function(player, msg)
 end
 
 handlers.answerCall = function(player, msg)
-	if not LobbyStart then
-		return
-	end
 	local ok, err = LobbyStart.answerCall(player, msg.accept == true)
 	reply(player, ok, err, false)
 end
 
 handlers.cancelStart = function(player)
-	if not LobbyStart then
-		return
-	end
 	local ok, err = LobbyStart.hostCancel(player)
 	reply(player, ok, err, false)
 end

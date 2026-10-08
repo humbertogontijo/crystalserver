@@ -32,7 +32,7 @@ local function metricsOf(session)
 end
 
 local function sessionOf(player)
-	if not player or not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
+	if not player then
 		return nil
 	end
 	return ExpeditionManager.getSessionByPlayer(player)

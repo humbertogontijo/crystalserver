@@ -48,7 +48,7 @@ function CavebotProtocol.stateOf(player)
 		end
 	else
 		frame.state = "stopped"
-		frame.reason = CavebotService and CavebotService.stoppedReason(player) or nil
+		frame.reason = CavebotService.stoppedReason(player) or nil
 	end
 	local pausedMs = CavebotStore.pausedMs(player)
 	if pausedMs > 0 then

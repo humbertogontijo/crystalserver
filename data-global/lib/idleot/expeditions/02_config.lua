@@ -135,8 +135,6 @@ end
 -- Wait after the last stage starts before allowing "all clear" (covers spawn flash delay).
 -- Actual eligibility is max(this, raid.timeToSpawnMonsters + 2000); grace also requires a successful spawn.
 ExpeditionConfig.RAID_CLEAR_ELIGIBLE_DELAY_MS = 5000
--- Deaths / spawns recount at once; this loop only catches monsters removed without dying.
-ExpeditionConfig.RAID_WATCH_INTERVAL_MS = 10000
 ExpeditionConfig.RAID_ARENA_KIND = "raid"
 ExpeditionConfig.RAID_JOIN_HINT = "Join via Expeditions > Raids."
 -- How many shared raid instances may run at once (XML + Lua Raid.registry).
@@ -158,10 +156,10 @@ function ExpeditionConfig.raidRegionId(raidName)
 end
 
 -- Aliases to CombatAutomationConfig catalogs (owned by lib/idleot/combat_automation/).
-ExpeditionConfig.PotionEffects = CombatAutomationConfig and CombatAutomationConfig.PotionEffects or {}
-ExpeditionConfig.AllowedRunes = CombatAutomationConfig and CombatAutomationConfig.AllowedRunes or {}
-ExpeditionConfig.AllowedSpellWords = CombatAutomationConfig and CombatAutomationConfig.AllowedSpellWords or {}
-ExpeditionConfig.SpellWordsById = CombatAutomationConfig and CombatAutomationConfig.SpellWordsById or {}
+ExpeditionConfig.PotionEffects = CombatAutomationConfig.PotionEffects
+ExpeditionConfig.AllowedRunes = CombatAutomationConfig.AllowedRunes
+ExpeditionConfig.AllowedSpellWords = CombatAutomationConfig.AllowedSpellWords
+ExpeditionConfig.SpellWordsById = CombatAutomationConfig.SpellWordsById
 
 -- Catalog JSON (generated into data/canary/.../lib/idleot/expeditions/catalog.generated.json).
 -- Regenerate: bun run --filter=@idleot/asset-pipeline generate:catalog
@@ -313,7 +311,7 @@ function ExpeditionConfig.raidRole(raidId)
 	if type(raidId) ~= "string" or raidId == "" then
 		return "monster"
 	end
-	local role = ExpeditionConfig.RaidRoles and ExpeditionConfig.RaidRoles[raidId]
+	local role = ExpeditionConfig.RaidRoles[raidId]
 	if role == "boss" or role == "monster" then
 		return role
 	end
@@ -329,7 +327,7 @@ end
 function ExpeditionConfig.monsterNameByCreatureId(creatureId, fallbackName)
 	local id = tonumber(creatureId)
 
-	local info = CreatureInfo and CreatureInfo.getByCreatureId and CreatureInfo.getByCreatureId(id or creatureId)
+	local info = CreatureInfo.getByCreatureId(id or creatureId)
 	if info and type(info.name) == "string" and info.name ~= "" then
 		return info.name
 	end
@@ -345,7 +343,7 @@ function ExpeditionConfig.monsterNameByCreatureId(creatureId, fallbackName)
 		return nil
 	end
 
-	local byName = CreatureInfo and CreatureInfo.get and CreatureInfo.get(fallbackName)
+	local byName = CreatureInfo.get(fallbackName)
 	if byName and type(byName.name) == "string" and byName.name ~= "" then
 		return byName.name
 	end
@@ -452,7 +450,7 @@ end
 --- Raid instance despawn: raids.xml interval2 (minutes → ms), else Lua minGapBetween, else 24h.
 function ExpeditionConfig.raidDespawnMs(raidName, raid)
 	if type(raidName) == "string" and raidName ~= "" then
-		local fromCatalog = ExpeditionConfig.RaidIntervalsMs and ExpeditionConfig.RaidIntervalsMs[raidName]
+		local fromCatalog = ExpeditionConfig.RaidIntervalsMs[raidName]
 		local n = tonumber(fromCatalog)
 		if n and n > 0 then
 			return math.floor(n)
@@ -487,7 +485,7 @@ end
 --- Lever boss whose lever opts into the difficulty dialog.
 function ExpeditionConfig.bossDifficultyLever(catalog)
 	local lever = ExpeditionConfig.bossLever(catalog)
-	if lever and BossDifficulty and BossDifficulty.isEnabled(lever) then
+	if lever and BossDifficulty.isEnabled(lever) then
 		return lever
 	end
 	return nil

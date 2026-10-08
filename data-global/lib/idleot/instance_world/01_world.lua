@@ -112,9 +112,6 @@ local function loadJson(path)
 	end
 	local content = file:read("*a")
 	file:close()
-	if not JsonParser or not JsonParser.decode then
-		return nil
-	end
 	return JsonParser.decode(content)
 end
 
@@ -268,8 +265,7 @@ function InstanceWorld.loginRecord(player)
 	if not player then
 		return nil
 	end
-	local kv = player:kv()
-	local record = kv and kv.get and kv:get("instance_login") or nil
+	local record = player:kv():get("instance_login")
 	if type(record) == "table" and type(record.key) == "string" then
 		return record
 	end
@@ -319,7 +315,7 @@ function InstanceWorld.classify(dest)
 		end
 	end
 
-	local hunt = InstanceWorld.huntAt and InstanceWorld.huntAt(dest)
+	local hunt = InstanceWorld.huntAt(dest)
 	if hunt then
 		return { kind = "hunt", huntId = hunt.id }
 	end
@@ -365,25 +361,14 @@ local function aabbAround(center, radius)
 end
 
 InstanceWorld._boundsSent = InstanceWorld._boundsSent or {}
-InstanceWorld._boundsPending = InstanceWorld._boundsPending or {}
 
-function InstanceWorld.scheduleSendBounds(player)
-	if not player then
-		return
+--- playerOnChangeInstance: push the new identity (it depends only on the instance key).
+--- A login bind runs before the player is on the map; playerOnClientReady sends that one.
+function InstanceWorld.onChangeInstance(player)
+	if player:getTile() then
+		InstanceWorld.sendBounds(player, true)
 	end
-	local pid = player:getId()
-	if InstanceWorld._boundsPending[pid] then
-		return
-	end
-	InstanceWorld._boundsPending[pid] = true
-	addEvent(function(id)
-		InstanceWorld._boundsPending[id] = nil
-		local p = Player(id)
-		if p then
-			InstanceWorld.sendBounds(p, true)
-			IdleEvents.emit("player.instanceChanged", p)
-		end
-	end, 50, pid)
+	IdleEvents.emit("player.instanceChanged", player)
 end
 
 --- Only players change instance; C++ moves their summons along. Monsters/NPCs are
@@ -397,17 +382,6 @@ local function bindCreature(creature, instanceId)
 		return
 	end
 	player:setInstanceId(instanceId)
-	InstanceWorld.scheduleSendBounds(player)
-end
-
---- Engine moved the player to another subarea layer on crossing (walk, floor change, teleport).
-function InstanceWorld.onSubareaSwitch(creature)
-	local player = asPlayer(creature)
-	if not player then
-		return true
-	end
-	InstanceWorld.scheduleSendBounds(player)
-	return true
 end
 
 --- Region display name ("Thais Surroundings"); nil when unknown.
@@ -420,13 +394,6 @@ end
 function InstanceWorld.setInstanceInPlace(player, instanceId)
 	local p = asPlayer(player)
 	return p ~= nil and p:setInstanceId(instanceId) == true
-end
-
-local function afterAtomicBind(creature)
-	local player = asPlayer(creature)
-	if player then
-		InstanceWorld.scheduleSendBounds(player)
-	end
 end
 
 --- classify kinds that bind a public layer on arrival ("open" = non-city subarea region).
@@ -491,11 +458,11 @@ local function resolveSafeCity(player)
 end
 
 local function isGodPlayer(player)
-	return PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player)
+	return PzTeleport.isGod(player)
 end
 
 local function liveHuntSession(player)
-	if not player or not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
+	if not player then
 		return nil
 	end
 	local session = ExpeditionManager.getSessionByPlayer(player)
@@ -509,9 +476,6 @@ end
 local function livePrivateSessionById(instanceId)
 	instanceId = Instance.normalize(instanceId)
 	if not Instance.isPrivate(instanceId) then
-		return nil
-	end
-	if not ExpeditionManager or not ExpeditionManager.getSessionByInstanceId then
 		return nil
 	end
 	local byInst = ExpeditionManager.getSessionByInstanceId(instanceId)
@@ -536,25 +500,25 @@ end
 --- Delayed leave when Lua/engine travel exits a private hunt into city/settlement/hub.
 --- Only runs while the player is still on the private hunt id (no half-rebind).
 local function scheduleDelayedHuntLeave(player, huntInstanceId)
-	if not player or not ExpeditionManager or not ExpeditionManager.leave then
+	if not player then
 		return
 	end
 	if InstanceWorld._suppressHuntLeave[player:getId()] then
 		return
 	end
-	if not ExpeditionManager.isInExpedition or not ExpeditionManager.isInExpedition(player) then
+	if not ExpeditionManager.isInExpedition(player) then
 		return
 	end
 	local pid = player:getId()
 	addEvent(function()
 		local p = Player(pid)
-		if not p or not ExpeditionManager.leave then
+		if not p then
 			return
 		end
 		if InstanceWorld._suppressHuntLeave[pid] then
 			return
 		end
-		local live = ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(p)
+		local live = ExpeditionManager.getSessionByPlayer(p)
 		local liveId = live and live.instance and live.instance.instanceId or nil
 		if not liveId or liveId ~= huntInstanceId then
 			return
@@ -579,7 +543,7 @@ local function planTravelBind(creature, destPos)
 	-- on shared XY (classify prefers city/settlement). Leaving the fence is blocked;
 	-- intentional leave uses exitToOpenWorld / bindOpenWorld with _skipEngineTravel.
 	if session and ExpeditionInstance.isLive(session.instance) then
-		if ExpeditionInstance and ExpeditionInstance.contains and ExpeditionInstance.contains(session.instance, destPos) then
+		if ExpeditionInstance.contains(session.instance, destPos) then
 			return true, session.instance.instanceId, false, current, "session"
 		end
 		return false, nil, false, current, "blocked"
@@ -620,25 +584,6 @@ local function strandsOutsideFence(creature, current, destPos)
 	return not Game.canWalkInstance(player, destPos)
 end
 
-function InstanceWorld.syncCreatureInstance(creature)
-	if not creature then
-		return false
-	end
-	if not Instance.isWorld(Instance.of(creature)) then
-		return false
-	end
-	local player = asPlayer(creature)
-	if not player then
-		return false
-	end
-	local session = liveHuntSession(player)
-	if session and ExpeditionInstance.isLive(session.instance) then
-		bindCreature(creature, session.instance.instanceId)
-		return true
-	end
-	return false
-end
-
 --- Runs `fn` with engine travel routing suppressed (the caller already chose the instance).
 --- The flag is cleared even when `fn` raises; returns fn's result as a boolean.
 function InstanceWorld.withoutEngineTravel(fn)
@@ -653,6 +598,7 @@ function InstanceWorld.withoutEngineTravel(fn)
 	return result and true or false
 end
 
+--- creatureOnInstanceTravel: bind the layer `destPos` belongs to; false blocks the move.
 function InstanceWorld.onEngineTravel(creature, destPos)
 	if InstanceWorld._skipEngineTravel then
 		return true
@@ -725,16 +671,12 @@ function InstanceWorld.travel(creature, destPos)
 		scheduleDelayedHuntLeave(player, current)
 	end
 
-	local teleported = InstanceWorld.withoutEngineTravel(function()
+	return InstanceWorld.withoutEngineTravel(function()
 		if bindId and player then
 			return creature:teleportTo(destPos, false, bindId)
 		end
 		return creature:teleportTo(destPos)
 	end)
-	if teleported then
-		afterAtomicBind(creature)
-	end
-	return teleported
 end
 
 function InstanceWorld.enterInstance(creature, instanceId, destPos)
@@ -743,13 +685,9 @@ function InstanceWorld.enterInstance(creature, instanceId, destPos)
 	end
 	if destPos then
 		-- Atomic bind+move — do not call setInstanceId again afterwards.
-		local ok = InstanceWorld.withoutEngineTravel(function()
+		return InstanceWorld.withoutEngineTravel(function()
 			return creature:teleportTo(destPos, false, instanceId)
 		end)
-		if ok then
-			afterAtomicBind(creature)
-		end
-		return ok
 	end
 	-- Same-tile bind only when no destination (engine teleport refuses identical XY/Z).
 	bindCreature(creature, instanceId)
@@ -814,7 +752,7 @@ function InstanceWorld.describeCurrent(player)
 	end
 	-- Before the hunt session: a player can still hold a live expedition session while in a lobby room.
 	if parsed.kind == "lobby" then
-		return LobbyInstance and LobbyInstance.describe(player) or desc
+		return LobbyInstance.describe(player) or desc
 	end
 	local session = huntSessionFor(player, engineId)
 	if session and session.instance then
@@ -827,9 +765,6 @@ end
 
 function InstanceWorld.sendBounds(player, force)
 	if not player then
-		return false
-	end
-	if not ExpeditionProtocol or not ExpeditionProtocol.sendInstanceBounds then
 		return false
 	end
 	local desc = InstanceWorld.describeCurrent(player)
@@ -883,9 +818,7 @@ end
 
 function InstanceWorld.rescuePos(player)
 	local dest = nil
-	if ExpeditionManager and ExpeditionManager.loadReturnPos then
-		dest = ExpeditionManager.loadReturnPos(player)
-	end
+	dest = ExpeditionManager.loadReturnPos(player)
 	if not validRescueDest(dest) then
 		local town = player:getTown()
 		if town then
@@ -958,7 +891,6 @@ function InstanceWorld.bindOpenWorld(player, destPos)
 	-- Same-tile setInstanceId is only legal when already on a town-only tile.
 	if sameTile(cur, destPos) and InstanceWorld.isTownOnlyPos(cur) then
 		bindCreature(player, bindId)
-		InstanceWorld.scheduleSendBounds(player)
 		return true
 	end
 
@@ -990,9 +922,6 @@ function InstanceWorld.bindOpenWorld(player, destPos)
 			-- Never bind-only onto a hunt footprint.
 			ok = false
 		end
-	end
-	if ok then
-		afterAtomicBind(player)
 	end
 	return ok
 end
@@ -1036,7 +965,7 @@ function InstanceWorld.shouldRescue(player)
 	if not player then
 		return false
 	end
-	if ExpeditionManager and ExpeditionManager.hasPendingRestore and ExpeditionManager.hasPendingRestore(player) then
+	if ExpeditionManager.hasPendingRestore(player) then
 		return false
 	end
 	-- Waiting / starting sessions, or already placed on a live private hunt id
@@ -1076,7 +1005,7 @@ function InstanceWorld.rescueIfStranded(player)
 		return false
 	end
 	local inLobby = false
-	if LobbyManager and LobbyInstance and Alts and Alts.isRealUiClient(player) then
+	if Alts.isRealUiClient(player) then
 		local record = LobbyManager.ensureForPlayer(player)
 		inLobby = record ~= nil and LobbyInstance.enterNow(player, record, {}) == true
 	end
@@ -1091,6 +1020,7 @@ function InstanceWorld.rescueIfStranded(player)
 	return ok
 end
 
+--- playerOnInstanceBind: login / headless spawn, before the engine's open-world fallbacks.
 function InstanceWorld.bindLogin(player, loginPos)
 	if not player then
 		return
@@ -1106,7 +1036,7 @@ function InstanceWorld.bindLogin(player, loginPos)
 		bindCreature(player, byInst.instance.instanceId)
 		return
 	end
-	if LobbyInstance and LobbyInstance.restoreOnLogin(player) then
+	if LobbyInstance.restoreOnLogin(player) then
 		return
 	end
 	local pos = asWorldPos(loginPos) or player:getPosition()

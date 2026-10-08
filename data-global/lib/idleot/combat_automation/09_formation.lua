@@ -4,10 +4,10 @@
 local geo = CombatGeo
 local nowMs, sameTile, chebyshev, faceToward, tileFree, fartherFromLeash = geo.nowMs, geo.sameTile, geo.chebyshev, geo.faceToward, geo.tileFree, geo.fartherFromLeash
 local settings = CombatAutomationConfig
-local inBossFront, BOSS_FRONT_PENALTY, linesCovering, sightClear = MOVE_PRIV.inBossFront, MOVE_PRIV.BOSS_FRONT_PENALTY, MOVE_PRIV.linesCovering, MOVE_PRIV.sightClear
+local inBossFront, BOSS_FRONT_PENALTY, linesCovering = MOVE_PRIV.inBossFront, MOVE_PRIV.BOSS_FRONT_PENALTY, MOVE_PRIV.linesCovering
 local followTarget, clearFollowIfAny, bossFronts, throttled = MOVE_PRIV.followTarget, MOVE_PRIV.clearFollowIfAny, MOVE_PRIV.bossFronts, MOVE_PRIV.throttled
 local ADJUST_THROTTLE_MS, slotDistanceOf, lineDanger, directionalShape = MOVE_PRIV.ADJUST_THROTTLE_MS, MOVE_PRIV.slotDistanceOf, MOVE_PRIV.lineDanger, MOVE_PRIV.directionalShape
-local clearQueuedWalk, stepTo, autoEnabled, isExpeditionAnchor = MOVE_PRIV.clearQueuedWalk, MOVE_PRIV.stepTo, MOVE_PRIV.autoEnabled, MOVE_PRIV.isExpeditionAnchor
+local stepTo, autoEnabled, isExpeditionAnchor = MOVE_PRIV.stepTo, MOVE_PRIV.autoEnabled, MOVE_PRIV.isExpeditionAnchor
 local anchorMeleeStance = MOVE_PRIV.anchorMeleeStance
 
 -- ---------------------------------------------------------------------------
@@ -94,7 +94,7 @@ local function slotById(config, id)
 end
 
 local function rememberedAreaSlot(config, state)
-	if not state or not CombatAutomation.areaSlotHitsAt then
+	if not state then
 		return nil
 	end
 	if nowMs() - (state.areaBlockedAt or 0) > AREA_SLOT_MEMORY_MS then
@@ -116,7 +116,8 @@ end
 --- Returns nil once it cannot beat `beat`.
 local function memberTileScore(ctx, pos, beat)
 	local player = ctx.player
-	if not tileFree(pos, player) or fartherFromLeash(player, ctx.ppos, pos) then
+	local flags = ctx.mask[geo.tileKey(pos.x, pos.y)]
+	if not geo.maskFree(flags) or fartherFromLeash(player, ctx.ppos, pos) then
 		return nil
 	end
 	local tpos, apos = ctx.tpos, ctx.apos
@@ -176,11 +177,11 @@ local function memberTileScore(ctx, pos, beat)
 	if beat and score + (ctx.areaSlot and AREA_BONUS_CAP or 0) <= beat then
 		return nil
 	end
-	if (apos and not sightClear(player, pos, apos)) or (tpos and not sightClear(player, pos, tpos)) then
+	if (apos or tpos) and not geo.maskSight(flags) then
 		return nil
 	end
 	if ctx.melee then
-		local boxed = ctx.minFree + 1 - geo.freeNeighbourCount(pos, player)
+		local boxed = ctx.minFree + 1 - geo.maskFreeNeighbours(flags)
 		if boxed > 0 then
 			score = score - boxed * MELEE_ROOM_PER_TILE
 		end
@@ -225,10 +226,19 @@ local function memberCandidates(ctx)
 end
 
 --- Best candidate; nil (stay) unless it beats the current tile by TILE_MOVE_MARGIN.
+--- One tile mask covers the current tile and every candidate (free, sight of the
+--- anchor and target, free neighbours).
 local function pickTile(ctx)
+	local candidates = memberCandidates(ctx)
+	candidates[#candidates + 1] = ctx.ppos
+	local x1, y1, x2, y2 = geo.bounds(candidates)
+	local cx, cy = math.floor((x1 + x2) / 2), math.floor((y1 + y2) / 2)
+	local radius = math.max(cx - x1, x2 - cx, cy - y1, y2 - cy)
+	ctx.mask = geo.tileMask(Position(cx, cy, ctx.ppos.z), radius, ctx.player, ctx.player:getInstanceId(), { ctx.apos, ctx.tpos })
+	candidates[#candidates] = nil
 	local here = memberTileScore(ctx, ctx.ppos)
 	local best, bestScore = nil, here and (here + TILE_MOVE_MARGIN) or nil
-	for _, pos in ipairs(memberCandidates(ctx)) do
+	for _, pos in ipairs(candidates) do
 		if not sameTile(pos, ctx.ppos) then
 			local score = memberTileScore(ctx, pos, bestScore)
 			if score then
@@ -315,7 +325,6 @@ local function driveMember(player, anchor, target, config, state, home)
 		CombatAutomationMovement.queueWalkToward(player, best, false)
 		return
 	end
-	clearQueuedWalk(player)
 	local facePos = target and target:getPosition()
 	if facePos and facePos.z == ppos.z then
 		faceToward(player, facePos)

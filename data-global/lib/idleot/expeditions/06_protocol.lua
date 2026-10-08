@@ -58,9 +58,6 @@ function ExpeditionProtocol.sendBossDetail(player, creatureId, nameHint, bosstia
 	if not player then
 		return false
 	end
-	if not ExpeditionBossDetail or not ExpeditionBossDetail.build then
-		return ExpeditionProtocol.sendError(player, "Boss details are unavailable.")
-	end
 	local detail, err = ExpeditionBossDetail.build(player, creatureId, nameHint, bosstiaryClassHint)
 	if not detail then
 		return ExpeditionProtocol.send(player, {
@@ -146,11 +143,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 		status.players = type(session.playerIds) == "table" and #session.playerIds or 1
 	else
 		local memberCount = 1
-		if ExpeditionManager and ExpeditionManager.sessionMemberIds then
-			memberCount = #ExpeditionManager.sessionMemberIds(session)
-		elseif type(session.playerIds) == "table" and #session.playerIds > 0 then
-			memberCount = #session.playerIds
-		end
+		memberCount = #ExpeditionManager.sessionMemberIds(session)
 		status.players = memberCount
 		if session.anchorPlayerId then
 			status.anchorId = session.anchorPlayerId
@@ -185,7 +178,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 			or 2
 		status.lure = session.lure or CavebotConfig.LURE_DEFAULT
 		status.lureMax = lureMax
-		status.metrics = ExpeditionMetrics and ExpeditionMetrics.summary(session) or nil
+		status.metrics = ExpeditionMetrics.summary(session) or nil
 		status.cave = caveStatus(session)
 	end
 	status.stopOnInsufficientGold = session.stopOnInsufficientGold == true
@@ -203,7 +196,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 		local acceptedCount = 0
 		for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
 			local p = Player(id)
-			local isCompanion = Alts and Alts.isCompanion and Alts.isCompanion(p)
+			local isCompanion = Alts.isCompanion(p)
 			local headless = p and p:isHeadless()
 			if p and not isCompanion and not headless then
 				local name = p:getName()
@@ -259,7 +252,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 				maxHealth = p:getMaxHealth(),
 				mana = p:getMana(),
 				maxMana = p:getMaxMana(),
-				alt = Alts and Alts.isCompanion and Alts.isCompanion(p) or false,
+				alt = Alts.isCompanion(p) or false,
 			}
 		end
 	end
@@ -313,9 +306,7 @@ function ExpeditionProtocol.sendInstanceBounds(player, desc)
 		payload.expeditionName = tostring(hunt.name or hunt.id)
 	end
 	local sent = ExpeditionProtocol.send(player, payload)
-	if CavebotProtocol then
-		CavebotProtocol.sendState(player)
-	end
+	CavebotProtocol.sendState(player)
 	return sent
 end
 
@@ -330,7 +321,7 @@ function ExpeditionProtocol.openWorldHunt(player, payload)
 	local function isHunt(entry)
 		return entry and entry.role ~= "boss" and entry.role ~= "arena" and entry.kind ~= "boss"
 	end
-	for _, entry in ipairs(InstanceWorld.huntsAt and InstanceWorld.huntsAt(player:getPosition()) or {}) do
+	for _, entry in ipairs(InstanceWorld.huntsAt(player:getPosition()) or {}) do
 		if isHunt(entry) then
 			return entry
 		end
@@ -363,10 +354,8 @@ function ExpeditionProtocol.handle(player, buffer)
 		)
 		return
 	end
-	if CombatAutomationProtocol and CombatAutomationProtocol.handleAction then
-		if CombatAutomationProtocol.handleAction(player, msg) then
-			return
-		end
+	if CombatAutomationProtocol.handleAction(player, msg) then
+		return
 	end
 	-- Discovery POI FAB: exclusive walk into discovery radius (validated server-side).
 	-- Handled here so it works in and out of expeditions.
@@ -381,12 +370,8 @@ function ExpeditionProtocol.handle(player, buffer)
 	local action = msg.action
 	if action == "list" then
 		ExpeditionProtocol.sendCatalog(player)
-		if RaidInstance and RaidInstance.sendActiveRaids then
-			RaidInstance.sendActiveRaids(player)
-		end
-		if ExpeditionManager.reconcilePresence then
-			ExpeditionManager.reconcilePresence(player)
-		end
+		RaidInstance.sendActiveRaids(player)
+		ExpeditionManager.reconcilePresence(player)
 		local session = ExpeditionManager.getSessionByPlayer(player)
 		if session and ExpeditionManager.isInExpedition(player) then
 			ExpeditionProtocol.sendStatus(player, session)
@@ -394,9 +379,7 @@ function ExpeditionProtocol.handle(player, buffer)
 			-- Clear sticky client status after restart / failed leave / stale HUD.
 			ExpeditionProtocol.sendEnded(player)
 		end
-		if InstanceWorld and InstanceWorld.sendBounds then
-			InstanceWorld.sendBounds(player, true)
-		end
+		InstanceWorld.sendBounds(player, true)
 	elseif action == "join" then
 		logger.info(
 			"[Expedition] {} join id={} role={} lure={}",
@@ -412,7 +395,7 @@ function ExpeditionProtocol.handle(player, buffer)
 			if not ok then
 				ExpeditionProtocol.sendError(player, err or "Could not start the lobby.")
 			end
-		elseif role == "boss" and ExpeditionManager.prepareBoss then
+		elseif role == "boss" then
 			ExpeditionManager.prepareBoss(player, msg.id, msg.loadout, {
 				stopOnInsufficientGold = msg.stopOnInsufficientGold,
 				stopOnInsufficientCap = msg.stopOnInsufficientCap,
@@ -445,23 +428,15 @@ function ExpeditionProtocol.handle(player, buffer)
 			player:getName(),
 			tostring(msg.name or msg.id or "")
 		)
-		if RaidInstance and RaidInstance.join then
-			RaidInstance.join(player, msg.name or msg.id, msg.loadout, {
-				stopOnInsufficientGold = msg.stopOnInsufficientGold,
-				stopOnInsufficientCap = msg.stopOnInsufficientCap,
-			})
-		else
-			ExpeditionProtocol.sendError(player, "Raids are unavailable.")
-		end
+		RaidInstance.join(player, msg.name or msg.id, msg.loadout, {
+			stopOnInsufficientGold = msg.stopOnInsufficientGold,
+			stopOnInsufficientCap = msg.stopOnInsufficientCap,
+		})
 	elseif action == "joinSoulPit" then
 		logger.info("[Expedition] {} joinSoulPit", player:getName())
-		if SoulPitExpedition and SoulPitExpedition.start then
-			local ok, err = SoulPitExpedition.start(player)
-			if not ok then
-				ExpeditionProtocol.sendError(player, err or "Soul Pit failed.")
-			end
-		else
-			ExpeditionProtocol.sendError(player, "Soul Pit is unavailable.")
+		local ok, err = SoulPitExpedition.start(player)
+		if not ok then
+			ExpeditionProtocol.sendError(player, err or "Soul Pit failed.")
 		end
 	elseif action == "leave" then
 		logger.info("[Expedition] {} leave reason={}", player:getName(), tostring(msg.reason or ""))
@@ -495,16 +470,10 @@ function ExpeditionProtocol.handle(player, buffer)
 		ExpeditionManager.cancelLeave(player)
 	elseif action == "channelCancel" then
 		logger.info("[Expedition] {} channelCancel", player:getName())
-		if InstanceTeleport and InstanceTeleport.handleChannelCancel then
-			InstanceTeleport.handleChannelCancel(player)
-		elseif ExpeditionManager.cancelLeave then
-			ExpeditionManager.cancelLeave(player)
-		end
+		InstanceTeleport.handleChannelCancel(player)
 	elseif action == "ackHuntDeath" then
 		logger.info("[Expedition] {} ackHuntDeath", player:getName())
-		if ExpeditionManager.ackHuntDeath then
-			ExpeditionManager.ackHuntDeath(player)
-		end
+		ExpeditionManager.ackHuntDeath(player)
 	elseif action == "acceptTeamInvite" then
 		logger.info("[Expedition] {} acceptTeamInvite", player:getName())
 		ExpeditionManager.acceptTeamInvite(player)
@@ -519,15 +488,13 @@ function ExpeditionProtocol.handle(player, buffer)
 			stopOnInsufficientCap = msg.stopOnInsufficientCap,
 		})
 	elseif action == "listActiveRaids" then
-		if RaidInstance and RaidInstance.sendActiveRaids then
-			RaidInstance.sendActiveRaids(player)
-		end
+		RaidInstance.sendActiveRaids(player)
 	elseif action == "getBossDetail" then
 		local creatureId = tonumber(msg.id or msg.creatureId)
 		local nameHint = msg.name
 		local classHint = msg.bosstiaryClass
 		if (not nameHint or nameHint == "") and creatureId then
-			local entry = ExpeditionConfig.getById and ExpeditionConfig.getById(creatureId, "boss") or nil
+			local entry = ExpeditionConfig.getById(creatureId, "boss") or nil
 			if entry then
 				nameHint = entry.name
 				classHint = classHint or entry.bosstiaryClass

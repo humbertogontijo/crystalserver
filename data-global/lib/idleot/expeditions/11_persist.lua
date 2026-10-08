@@ -48,7 +48,7 @@ local function isCompanion(session, player)
 	if session and session.companionIds and session.companionIds[player:getId()] then
 		return true
 	end
-	return Alts and Alts.isCompanion and Alts.isCompanion(player)
+	return Alts.isCompanion(player)
 end
 
 function ExpeditionPersist.snapshotFromSession(session)
@@ -150,7 +150,7 @@ local function setMemberPointer(guid, sessionKey)
 			end
 		end
 	end
-	local online = Alts and Alts.findOnlinePlayerByGuid and Alts.findOnlinePlayerByGuid(guid)
+	local online = Alts.findOnlinePlayerByGuid(guid)
 	if online then
 		local kvStore = online:kv()
 		if kvStore then
@@ -260,7 +260,7 @@ function ExpeditionPersist.writeSession(session)
 	end
 
 	local store = huntsKv()
-	if not store or not JsonParser then
+	if not store then
 		return false
 	end
 
@@ -328,7 +328,7 @@ function ExpeditionPersist.loadAll()
 	pendingByGuid = {}
 
 	local store = huntsKv()
-	if not store or not store.keys or not JsonParser then
+	if not store or not store.keys then
 		return 0
 	end
 
@@ -430,7 +430,7 @@ end
 function ExpeditionPersist.restoreAllOnStartup()
 	local restored = 0
 	for _, snapshot in pairs(pendingByKey) do
-		if ExpeditionManager.restoreHuntOnStartup and ExpeditionManager.restoreHuntOnStartup(snapshot) then
+		if ExpeditionManager.restoreHuntOnStartup(snapshot) then
 			restored = restored + 1
 		end
 	end

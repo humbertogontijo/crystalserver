@@ -62,10 +62,7 @@ local KITNO_BOARD_KILL_COUNT = {
 }
 
 local function killCounterBase()
-	if Storage and Storage.Quest and Storage.Quest.U8_5 and Storage.Quest.U8_5.KillingInTheNameOf then
-		return Storage.Quest.U8_5.KillingInTheNameOf.MonsterKillCount.KillCount
-	end
-	return 42179
+	return Storage.Quest.U8_5.KillingInTheNameOf.MonsterKillCount.KillCount
 end
 
 local function ensureKitnoJoined(player)
@@ -278,7 +275,7 @@ local function dragonProgress(player, entry)
 end
 
 local function arenaSpecForEntry(entry)
-	if not entry or not QuestArena or not QuestArena.buildSvargrondSpec then
+	if not entry then
 		return nil
 	end
 	return QuestArena.buildSvargrondSpec(entry.arenaId)
@@ -351,7 +348,7 @@ function QuestsManager.getProgress(player, entry)
 end
 
 local function findHuntIdForHint(hint)
-	if not hint or not ExpeditionConfig or not ExpeditionConfig.Catalog then
+	if not hint then
 		return nil
 	end
 	local needle = tostring(hint):lower()
@@ -375,7 +372,7 @@ local function findHuntIdForHint(hint)
 end
 
 local function creatureIdForHint(hint)
-	if not hint or not CreatureInfo or not CreatureInfo.get then
+	if not hint then
 		return nil
 	end
 	local info = CreatureInfo.get(hint)
@@ -399,7 +396,7 @@ local function creatureIdForEntry(entry)
 		end
 	end
 	if entry.bossName then
-		local info = CreatureInfo and CreatureInfo.get and CreatureInfo.get(entry.bossName)
+		local info = CreatureInfo.get(entry.bossName)
 		if info then
 			local id = tonumber(info.creatureId)
 			if id and id > 0 then
@@ -516,7 +513,7 @@ local function normalizeRewards(entry)
 
 	if entry.handler == "arena" then
 		local uids = entry.rewardUids
-		if ChestGrant and ChestGrant.listRewards and uids then
+		if uids then
 			for _, r in ipairs(ChestGrant.listRewards(uids)) do
 				out[#out + 1] = r
 			end
@@ -542,14 +539,14 @@ function QuestsManager.listForPlayer(player, filterKind)
 		if not filterKind or entry.kind == filterKind then
 			local progress, required, status = QuestsManager.getProgress(player, entry)
 			local bossHuntId = nil
-			if entry.handler == "kitno" and entry.bossName and QuestsKitnoBoss then
+			if entry.handler == "kitno" and entry.bossName then
 				local id = QuestsKitnoBoss.expeditionIdForTaskId(entry.taskId)
 				if id and QuestsKitnoBoss.isUnlocked(player, id) then
 					bossHuntId = id
 				end
 			end
 			local huntId = findHuntIdForHint(entry.huntHint)
-			if entry.handler == "arena" and QuestArena and QuestArena.expeditionIdForArena then
+			if entry.handler == "arena" then
 				huntId = QuestArena.expeditionIdForArena(entry.arenaId) or huntId
 			end
 			local row = {
@@ -569,7 +566,7 @@ function QuestsManager.listForPlayer(player, filterKind)
 				items = normalizeRequirementItems(entry),
 				rewards = normalizeRewards(entry),
 			}
-			if entry.handler == "arena" and ChestGrant and ChestGrant.pendingChoices then
+			if entry.handler == "arena" then
 				local uids = entry.rewardUids
 				local spec = arenaSpecForEntry(entry)
 				uids = uids or (spec and spec.rewardUids)
@@ -737,7 +734,7 @@ function QuestsManager.report(player, entryId, opts)
 			player:setStorageValue(QUESTSTORAGE_BASE + entry.taskId, task.norepeatable and 2 or 0)
 			player:setStorageValue(killCounterBase() + entry.taskId, 0)
 			local bossHuntId = nil
-			if task.bossName and QuestsKitnoBoss and QuestsKitnoBoss.unlock then
+			if task.bossName then
 				bossHuntId = QuestsKitnoBoss.unlock(player, entry.taskId)
 				if bossHuntId then
 					return true, string.format(
@@ -760,8 +757,7 @@ function QuestsManager.report(player, entryId, opts)
 	if entry.handler == "spike" then
 		-- Fame storage lives under SpikeTaskQuest.Constants after quests/load.lua
 		-- remaps the datapack's flat Spike_Fame_Points key.
-		local spike = Storage and Storage.Quest and Storage.Quest.U10_20 and Storage.Quest.U10_20.SpikeTaskQuest
-		local fame = (spike and ((spike.Constants and spike.Constants.Spike_Fame_Points) or spike.Spike_Fame_Points)) or 44313
+		local fame = Storage.Quest.U10_20.SpikeTaskQuest.Constants.Spike_Fame_Points
 		player:setStorageValue(fame, math.max(0, player:getStorageValue(fame)) + 1)
 		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You have received a fame point.")
 		player:addExperience(entry.reportExp or 1000, true)
@@ -833,10 +829,7 @@ function QuestsManager.report(player, entryId, opts)
 			return false, "Arena data missing."
 		end
 		local uids = entry.rewardUids or spec.rewardUids
-		if not ChestGrant or not ChestGrant.grantUids then
-			return false, "Reward system unavailable."
-		end
-		local pending = ChestGrant.pendingChoices and ChestGrant.pendingChoices(player, uids) or {}
+		local pending = ChestGrant.pendingChoices(player, uids) or {}
 		local rewardUid = opts and tonumber(opts.rewardUid) or nil
 		if #pending > 0 and not rewardUid then
 			return false, "Choose a reward."

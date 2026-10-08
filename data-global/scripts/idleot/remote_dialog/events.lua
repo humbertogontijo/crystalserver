@@ -12,14 +12,12 @@ loginEvent:register()
 local opcodeEvent = CreatureEvent("RemoteDialogOpcode")
 
 function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
-	if not RemoteDialogConfig or opcode ~= RemoteDialogConfig.OPCODE then
+	if opcode ~= RemoteDialogConfig.OPCODE then
 		return
 	end
-	if RemoteDialog and RemoteDialog.handleOpcode then
-		local ok, err = pcall(RemoteDialog.handleOpcode, player, buffer)
-		if not ok then
-			logger.error("[RemoteDialog] opcode failed: {}", err)
-		end
+	local ok, err = pcall(RemoteDialog.handleOpcode, player, buffer)
+	if not ok then
+		logger.error("[RemoteDialog] opcode failed: {}", err)
 	end
 end
 

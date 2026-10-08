@@ -1,6 +1,7 @@
 -- Per-player automation movement, walk primitives (the per-tick driver is 10_movement).
--- Pathfinding: Creature:getPathTo + autoWalk. On stall / blocked walk, drop the
--- pending path and recalculate — same idea as client autowalk repathing.
+-- Pathfinding: Creature:getPathTo + autoWalk. A walk already queued toward the same
+-- goal is kept (Creature:getWalkDestination); the engine drops a walk whose step
+-- fails, so the next call repaths.
 -- Pending walk-then-act (Use / use-with under idle combat) is preserved so echo
 -- portal / tame FABs can finish walking adjacent. Client walk / follow input (manual
 -- control, see `isManual`) suspends all of it until the player stops.
@@ -9,14 +10,12 @@ CombatAutomationMovement = CombatAutomationMovement or {}
 --- File-local helpers shared by the movement files (06_walk .. 10_movement).
 MOVE_PRIV = MOVE_PRIV or {}
 
-local lastQueuedWalkById = {}
 local lastPathFailLogById = {}
 --- Last getPathTo failure per creature: { key = dest key, at = ms, count = in a row }.
 local lastPathFailById = {}
 
 local settings = CombatAutomationConfig
 local PATH_MAX_SEARCH = settings.PATH_MAX_SEARCH
-local WALK_DEDUPE_MS = 2500
 local PATH_FAIL_FRESH_MS = 1500
 --- Failures in a row (one per tick) before a destination counts as blocked: a
 --- path closed for a moment by a passing creature is not.
@@ -26,10 +25,10 @@ local geo = CombatGeo
 local nowMs, sameTile, chebyshev, faceToward = geo.nowMs, geo.sameTile, geo.chebyshev, geo.faceToward
 local tileFree, fartherFromLeash = geo.tileFree, geo.fartherFromLeash
 
-local function clearQueuedWalk(creature)
-	if creature then
-		lastQueuedWalkById[creature:getId()] = nil
-	end
+--- The queued walk already ends between `minReach` and `reach` tiles from `dest`.
+local function walkingWithin(creature, dest, minReach, reach)
+	local dist = chebyshev(creature:getWalkDestination(), dest)
+	return dist >= minReach and dist <= reach
 end
 
 --- Drop deferred walk-then-act so Creature:autoWalk is not permanently blocked.
@@ -113,7 +112,8 @@ function CombatAutomationMovement.walkBlocked(creature, dest)
 end
 
 --- Regular engine path only (flags = 0). Soft creature cost + hard PvP blocks apply.
---- `force` = skip dedupe and clear stuck walkTask (stall repath).
+--- `force` = repath even when the queued walk already ends there, and clear a pending
+--- walkTask.
 --- `ignoreConditions` = autoWalk despite rooted/feared (expedition route walk).
 --- `reach` = Chebyshev distance from `dest` that counts as there (default 0:
 --- the exact tile), so a creature standing on a waypoint does not block it;
@@ -133,20 +133,14 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 	minReach = math.min(reach, math.max(0, math.floor(tonumber(minReach) or 0)))
 	local dist = chebyshev(ppos, dest)
 	if dist >= minReach and dist <= reach then
-		clearQueuedWalk(creature)
+		return true
+	end
+	if not force and walkingWithin(creature, dest, minReach, reach) then
 		return true
 	end
 	local id = creature:getId()
 	local key = walkDestKey(dest)
-	local prev = lastQueuedWalkById[id]
 	local now = nowMs()
-	local pkey = walkDestKey(ppos)
-	local stuck = prev and prev.key == key and prev.posKey and prev.posKey == pkey and (now - (prev.at or 0)) >= settings.STALL_REPATH_MS
-	if not force and prev and prev.key == key then
-		if not stuck and (now - (prev.at or 0)) < WALK_DEDUPE_MS then
-			return true
-		end
-	end
 
 	-- A pending walk-then-act (Use / use-with) owns the path until it fires or fails.
 	-- Do not clear it for soft repaths — that broke echo portal / tame under idle combat.
@@ -156,16 +150,12 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 		end
 		-- Relocate / explicit force may supersede a deferred Use.
 		clearPendingWalkAction(creature)
-		clearQueuedWalk(creature)
-	elseif force or stuck then
-		clearQueuedWalk(creature)
 	end
 
 	local maxSearch = PATH_MAX_SEARCH
 	local minDist, maxDist = minReach, reach
 	if maxDist == 0 and occupiedByOther(dest, creature) then
 		notePathFail(id, key, now)
-		clearQueuedWalk(creature)
 		return false
 	end
 	local path = dirsForAutoWalkFromGetPathTo(creature:getPathTo(dest, minDist, maxDist, true, false, maxSearch))
@@ -181,14 +171,12 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 				string.format("search=%d minDist=%d maxDist=%d relocate=true", maxSearch, minDist, maxDist)
 			)
 		end
-		clearQueuedWalk(creature)
 		return false
 	end
 	lastPathFailById[id] = nil
 
-	local skipConds = (force or stuck or ignoreConditions) and true or false
+	local skipConds = (force or ignoreConditions) and true or false
 	if creature:autoWalk(path, 0, skipConds, true) == true then
-		lastQueuedWalkById[id] = { key = key, at = now, posKey = pkey }
 		return true
 	end
 
@@ -196,7 +184,6 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 	if creature:hasWalkTask() then
 		clearPendingWalkAction(creature)
 		if creature:autoWalk(path, 0, true, true) == true then
-			lastQueuedWalkById[id] = { key = key, at = now, posKey = pkey }
 			return true
 		end
 	end
@@ -204,7 +191,6 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 	if ignoreConditions and not quiet then
 		logWalkFail(creature, dest, "autoWalk refused", string.format("steps=%d relocate=true", #path))
 	end
-	clearQueuedWalk(creature)
 	return false
 end
 --- Client walk / follow input owns this player's movement (expedition idle combat):
@@ -237,9 +223,8 @@ local function autoEnabled(config)
 		and config.autoTarget.enabled == true
 end
 
---- Walk toward a moving creature: repath at most every CREATURE_REPATH_MS (or when
---- stuck) so autoWalk is not restarted every tick while the target moves.
-local CREATURE_REPATH_MS = 1000
+--- Walk toward a moving creature: repath only once the queued walk no longer ends
+--- within `reach` of it.
 local function walkTowardCreature(player, creature, reach, maxSearch)
 	if not player or not creature then
 		return false
@@ -250,31 +235,18 @@ local function walkTowardCreature(player, creature, reach, maxSearch)
 		return false
 	end
 	reach = math.max(1, math.floor(tonumber(reach) or 1))
-	if chebyshev(ppos, cpos) <= reach then
-		clearQueuedWalk(player)
-		return true
-	end
-	local id = player:getId()
-	local key = "creature:" .. tostring(creature:getId())
-	local prev = lastQueuedWalkById[id]
-	local now = nowMs()
-	local pkey = walkDestKey(ppos)
-	local stuck = prev and prev.key == key and prev.posKey == pkey and (now - (prev.at or 0)) >= settings.STALL_REPATH_MS
-	if prev and prev.key == key and not stuck and (now - (prev.at or 0)) < CREATURE_REPATH_MS then
+	if chebyshev(ppos, cpos) <= reach or walkingWithin(player, cpos, 0, reach) then
 		return true
 	end
 	local path = dirsForAutoWalkFromGetPathTo(player:getPathTo(cpos, 0, reach, true, false, tonumber(maxSearch) or PATH_MAX_SEARCH))
 	if type(path) ~= "table" or #path == 0 then
 		return false
 	end
-	if stuck then
-		player:clearWalkTask()
-	end
-	if player:autoWalk(path, 0, stuck and true or false, true) == true then
-		lastQueuedWalkById[id] = { key = key, at = now, posKey = pkey }
-		return true
-	end
-	return false
+	return player:autoWalk(path, 0, false, true) == true
+end
+
+local function sightClear(player, from, to)
+	return from:isSightClear(to, true, Instance.of(player))
 end
 
 --- Reposition attempts (danger dodges, formation steps) at most this often.
@@ -302,7 +274,6 @@ MOVE_PRIV.ADJUST_THROTTLE_MS = ADJUST_THROTTLE_MS
 MOVE_PRIV.stepTo = stepTo
 MOVE_PRIV.sightClear = sightClear
 MOVE_PRIV.clearFollowIfAny = clearFollowIfAny
-MOVE_PRIV.clearQueuedWalk = clearQueuedWalk
 MOVE_PRIV.autoEnabled = autoEnabled
 MOVE_PRIV.clearPendingWalkAction = clearPendingWalkAction
 MOVE_PRIV.walkTowardCreature = walkTowardCreature

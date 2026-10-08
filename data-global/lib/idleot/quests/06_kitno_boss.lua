@@ -45,19 +45,17 @@ function QuestsKitnoBoss.resolveMonsterName(bossName)
 	end
 	-- Prefer CreatureInfo (silent) so short kitno aliases like "Snapper" /
 	-- "Many" resolve to "The Snapper" / "The Many" without getMonsterType errors.
-	if CreatureInfo and CreatureInfo.get then
-		for i = 1, #candidates do
-			local info = CreatureInfo.get(candidates[i])
-			if info and type(info.name) == "string" and info.name ~= "" then
-				local mType = MonsterType(info.name)
-				if mType then
-					local resolved = mType:name()
-					if type(resolved) == "string" and resolved ~= "" then
-						return resolved
-					end
+	for i = 1, #candidates do
+		local info = CreatureInfo.get(candidates[i])
+		if info and type(info.name) == "string" and info.name ~= "" then
+			local mType = MonsterType(info.name)
+			if mType then
+				local resolved = mType:name()
+				if type(resolved) == "string" and resolved ~= "" then
+					return resolved
 				end
-				return info.name
 			end
+			return info.name
 		end
 	end
 	for i = 1, #candidates do
@@ -74,12 +72,9 @@ function QuestsKitnoBoss.resolveMonsterName(bossName)
 end
 
 local function templateSoloArena()
-	if not ExpeditionConfig or not ExpeditionConfig.Catalog then
-		return nil
-	end
 	for _, entry in ipairs(ExpeditionConfig.Catalog) do
 		local role = entry.role or (entry.kind == "boss" and "boss" or "monster")
-		if role == "boss" and ExpeditionConfig.isSoloBoss and ExpeditionConfig.isSoloBoss(entry) then
+		if role == "boss" and ExpeditionConfig.isSoloBoss(entry) then
 			if type(entry.center) == "table" and entry.center.x then
 				return entry
 			end
@@ -95,18 +90,12 @@ local function templateSoloArena()
 end
 
 local function alreadyInCatalog(id)
-	if not ExpeditionConfig or not ExpeditionConfig.getById then
-		return false
-	end
 	return ExpeditionConfig.getById(id, "boss") ~= nil
 end
 
 function QuestsKitnoBoss.registerExpeditions()
 	if registered then
 		return true
-	end
-	if not ExpeditionConfig or not ExpeditionConfig.Catalog then
-		return false
 	end
 	local template = templateSoloArena()
 	if not template or not template.center then
@@ -125,7 +114,7 @@ function QuestsKitnoBoss.registerExpeditions()
 				local id = QuestsKitnoBoss.expeditionIdForTaskId(taskId)
 				if id and not alreadyInCatalog(id) then
 					local levelMin = task.level and task.level[1] or 1
-					local info = CreatureInfo and CreatureInfo.get and CreatureInfo.get(monsterName)
+					local info = CreatureInfo.get(monsterName)
 					local creatureId = info and tonumber(info.creatureId) or nil
 					local center = {
 						x = template.center.x,

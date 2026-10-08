@@ -68,16 +68,6 @@ function CavebotPack.tickPack(run, anchorPos, members)
 	local releaseRadius = CavebotConfig.RELEASE_RADIUS
 	local stallMs = CavebotConfig.PULL_STALL_MS
 
-	-- Gone without a death event (despawn, teleport, instance clear); deaths are counted in onDeath.
-	for mid in pairs(run.tracked) do
-		if not Monster(mid) then
-			run.tracked[mid] = nil
-			run.engaged[mid] = nil
-			run.alive = math.max(0, (run.alive or 1) - 1)
-			disown(run, mid)
-		end
-	end
-
 	for mid, state in pairs(run.engaged) do
 		local monster = Monster(mid)
 		if not monster or monster:getHealth() <= 0 then
@@ -157,16 +147,18 @@ end
 --- member's screen with `allMembers`), each once; `chasers` (CavebotPack.chasers with the
 --- stuck ones) is filled in by Cavebot.step once the pack is tracked.
 function CavebotPack.snapshot(run, anchor, members, allMembers)
-	local vx, vy = geo.VIEWPORT_X, geo.VIEWPORT_Y
+	local memberIds = {}
+	for id in pairs(members) do
+		memberIds[#memberIds + 1] = id
+	end
 	local aggro, seen = {}, {}
 	local function scan(viewer)
-		for _, creature in ipairs(Game.getSpectators(viewer:getPosition(), false, false, vx, vx, vy, vy, viewer:getInstanceId())) do
-			local mid = creature:getId()
+		local found = Game.scanMonsters(viewer:getPosition(), { instance = viewer:getInstanceId(), noSummons = true, targeting = memberIds })
+		for _, monster in ipairs(found) do
+			local mid = monster:getId()
 			if not seen[mid] then
 				seen[mid] = true
-				if creature:isMonster() and creature:getHealth() > 0 and not creature:getMaster() and targetsMember(creature, members) then
-					aggro[#aggro + 1] = creature
-				end
+				aggro[#aggro + 1] = monster
 			end
 		end
 	end
@@ -283,7 +275,7 @@ function CavebotPack.onMonsterDeath(creature)
 		return
 	end
 	owners[mid] = nil
-	local run = CavebotService and CavebotService.getRun(runId)
+	local run = CavebotService.getRun(runId)
 	if not run then
 		return
 	end
@@ -291,6 +283,30 @@ function CavebotPack.onMonsterDeath(creature)
 end
 
 IdleEvents.on("monster.died", CavebotPack.onMonsterDeath, "CavebotPack")
+
+--- A tracked monster left the map without dying (despawn, teleport, instance clear);
+--- deaths reach noteKill through "monster.died" first.
+function CavebotPack.onMonsterRemoved(monster)
+	local mid = monster:getId()
+	local run
+	if owners[mid] then
+		run = CavebotService.getRun(owners[mid])
+	else
+		local session = ExpeditionManager.getSessionByInstanceId(monster:getInstanceId())
+		run = session and session.cave and session or nil
+	end
+	if not (run and run.tracked and run.tracked[mid]) then
+		return
+	end
+	run.tracked[mid] = nil
+	if run.engaged then
+		run.engaged[mid] = nil
+	end
+	run.alive = math.max(0, (run.alive or 1) - 1)
+	disown(run, mid)
+end
+
+IdleEvents.on("monster.removed", CavebotPack.onMonsterRemoved, "CavebotPack")
 
 --- Forget an open run's adopted monsters.
 function CavebotPack.clearOwners(runId)

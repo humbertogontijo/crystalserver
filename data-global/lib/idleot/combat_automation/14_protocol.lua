@@ -125,7 +125,7 @@ function CombatAutomationProtocol.handleAction(player, msg)
 	if not player or type(msg) ~= "table" then
 		return false
 	end
-	if CavebotProtocol and CavebotProtocol.handleAction(player, msg) then
+	if CavebotProtocol.handleAction(player, msg) then
 		return true
 	end
 	local action = msg.action
@@ -135,9 +135,7 @@ function CombatAutomationProtocol.handleAction(player, msg)
 		CombatAutomation.resetEquipStatus(player)
 		-- Client is ready (map/self loaded); force-paint the current server target.
 		CombatAutomation.resyncAttackTarget(player)
-		if CavebotProtocol then
-			CavebotProtocol.sendState(player, true)
-		end
+		CavebotProtocol.sendState(player, true)
 		return true
 	end
 	if action == "setAutomation" or action == "setBotConfig" then
@@ -155,9 +153,7 @@ function CombatAutomationProtocol.handleAction(player, msg)
 		if presets then
 			existing.attackPresets = presets
 			CombatAutomationStore.persist(player, existing)
-			if CombatAutomationStore.applyToRuntime then
-				CombatAutomationStore.applyToRuntime(player, existing)
-			end
+			CombatAutomationStore.applyToRuntime(player, existing)
 		end
 		-- Tiny ack only — never re-send full automationConfig.
 		send(player, { type = "attackPresetsSaved", ok = presets ~= nil })

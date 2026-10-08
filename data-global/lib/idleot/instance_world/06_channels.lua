@@ -17,7 +17,7 @@ InstanceWorld.CHANNEL_NEW_THRESHOLD = 0.8
 local KV_SWITCH_AT = "instance_channel_switch_at"
 
 local function capFor(kind)
-	local rules = InstanceKinds and InstanceKinds.KINDS[kind]
+	local rules = InstanceKinds.KINDS[kind]
 	return math.max(0, tonumber(rules and rules.maxPlayers) or 0)
 end
 

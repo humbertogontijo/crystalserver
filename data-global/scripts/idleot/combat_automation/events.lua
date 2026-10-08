@@ -12,6 +12,15 @@ end
 
 loginEvent:register()
 
+-- The client has self and map now; deduped attackTarget syncs before this never paint.
+local clientReadyCallback = EventCallback("CombatAutomationPlayerOnClientReady")
+
+function clientReadyCallback.playerOnClientReady(player)
+	CombatAutomation.resyncAttackTarget(player)
+end
+
+clientReadyCallback:register()
+
 local logoutEvent = CreatureEvent("CombatAutomationLogout")
 
 function logoutEvent.onLogout(player)
@@ -32,9 +41,6 @@ local targetCombat = EventCallback("TeamCreatureOnTargetCombat")
 
 function targetCombat.creatureOnTargetCombat(creature, target)
 	if not creature or not target then
-		return RETURNVALUE_NOERROR
-	end
-	if not CombatAutomation or not CombatAutomation.controllingPlayer or not CombatAutomation.isAlliedPlayer then
 		return RETURNVALUE_NOERROR
 	end
 	local attackerCtrl = CombatAutomation.controllingPlayer(creature)

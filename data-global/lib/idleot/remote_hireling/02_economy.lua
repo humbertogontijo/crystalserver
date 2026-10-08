@@ -217,7 +217,7 @@ end
 
 local function buildSellPriceMap()
 	local prices = {}
-	local catalog = (HirelingShopItems and HirelingShopItems["buy loot"]) or HirelingBuyLootItems
+	local catalog = (HirelingShopItems["buy loot"]) or HirelingBuyLootItems
 	if type(catalog) == "table" then
 		for _, entry in ipairs(catalog) do
 			local sell = math.floor(tonumber(entry.sell) or 0)
@@ -494,9 +494,6 @@ function RemoteHirelingEconomy.maybeSellForShortage(player, kind)
 		end
 	end
 
-	if not RemoteHirelingEconomy.sellLootPouch then
-		return false
-	end
 
 	local filterMode, itemIds = RemoteHirelingEconomy.getSellFilter(player)
 	if filterMode == 1 and (not itemIds or #itemIds == 0) then

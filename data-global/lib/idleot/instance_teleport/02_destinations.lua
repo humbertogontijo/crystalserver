@@ -68,7 +68,7 @@ local function fromExpeditionSafe(player, opts)
 	if opts and opts.fromExpedition then
 		return true
 	end
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
+	if ExpeditionManager.getSessionByPlayer(player) then
 		return false
 	end
 	return true
@@ -78,15 +78,9 @@ local ADVENTURERS_GUILD_POS = Position(32210, 32300, 6)
 
 --- Open-world hop shared by hometown and guild travel. Works from inside a lobby room too.
 local function executeOpenWorld(player, dest)
-	local lobbyRoom = LobbyInstance and LobbyInstance.roomForPlayer and LobbyInstance.roomForPlayer(player) or nil
+	local lobbyRoom = LobbyInstance.roomForPlayer(player) or nil
 	local ok = false
-	if InstanceWorld and InstanceWorld.exitToOpenWorld then
-		ok = InstanceWorld.exitToOpenWorld(player, dest) and true or false
-	elseif InstanceWorld and InstanceWorld.travel then
-		ok = InstanceWorld.travel(player, dest) and true or false
-	else
-		ok = player:teleportTo(dest) and true or false
-	end
+	ok = InstanceWorld.exitToOpenWorld(player, dest) and true or false
 	if lobbyRoom then
 		LobbyInstance.scheduleTeardownCheck(lobbyRoom.lobbyId)
 	end
@@ -104,7 +98,7 @@ function InstanceTeleport.executeHometown(player, opts)
 	end
 
 	local fromExpedition = opts.fromExpedition == true
-	if not fromExpedition and ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
+	if not fromExpedition and ExpeditionManager.getSessionByPlayer(player) then
 		return false, "Leave the expedition before recalling."
 	end
 
@@ -121,7 +115,7 @@ function InstanceTeleport.executeGuild(player)
 	if not player then
 		return false, "Invalid player."
 	end
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
+	if ExpeditionManager.getSessionByPlayer(player) then
 		return false, "Leave the expedition before traveling to the guild."
 	end
 
@@ -211,9 +205,6 @@ function InstanceTeleport.requestLobby(player, record, opts)
 	if not player or (not record and opts.leave ~= true) then
 		return false, "You are not in a lobby."
 	end
-	if not LobbyInstance then
-		return false, "Lobby rooms are unavailable."
-	end
 	local leaving = opts.leave == true
 	if opts.immediate == true then
 		if leaving then
@@ -228,7 +219,7 @@ function InstanceTeleport.requestLobby(player, record, opts)
 		return false, "Already channeling a teleport."
 	end
 	local forceMs = opts.forceDurationMs
-	if leaving or (LobbyInstance.roomForPlayer and LobbyInstance.roomForPlayer(player)) then
+	if leaving or (LobbyInstance.roomForPlayer(player)) then
 		forceMs = forceMs or InstanceTeleport.DURATION_PZ_MS
 	end
 	local playerId = player:getId()
@@ -254,7 +245,7 @@ function InstanceTeleport.requestLobby(player, record, opts)
 					ok, err = false, "Your lobby changed while traveling."
 				else
 					-- Called out of a solo run: that run ends as part of this hop.
-					if opts.fromExpedition and ExpeditionManager and ExpeditionManager.getSessionByPlayer(p) then
+					if opts.fromExpedition and ExpeditionManager.getSessionByPlayer(p) then
 						ExpeditionManager.leave(p, { silent = true, skipTeleport = true })
 					end
 					ok, err = LobbyInstance.enterNow(p, live, {})

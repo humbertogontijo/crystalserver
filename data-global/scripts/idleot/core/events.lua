@@ -1,5 +1,3 @@
-IdleHooks.install()
-
 local instanceRelease = EventCallback("IdleInstanceOnRelease")
 
 function instanceRelease.instanceOnRelease(instanceKey)
@@ -10,41 +8,14 @@ instanceRelease:register()
 
 local walkEnd = EventCallback("IdlePlayerOnWalkEnd")
 
--- The engine clears the walk right after this callback, so a walk started from a
--- handler would be dropped: emit on the next dispatcher tick, in the player's instance.
-function walkEnd.playerOnWalkEnd(player, completed)
-	if not IdleEvents.has("player.walkDone") then
-		return
+-- The engine clears the walk before this callback, so a handler may start the next one.
+function walkEnd.playerOnWalkEnd(player, completed, result)
+	if IdleEvents.has("player.walkDone") then
+		Game.runInInstance(player:getInstanceId(), IdleEvents.emit, "player.walkDone", player, completed, result)
 	end
-	addEvent(function(playerId)
-		local p = Player(playerId)
-		if p then
-			Game.runInInstance(p:getInstanceId(), IdleEvents.emit, "player.walkDone", p, completed)
-		end
-	end, 0, player:getId())
 end
 
 walkEnd:register()
-
-local itemAdded = EventCallback("IdleZoneOnItemAdded")
-
-function itemAdded.zoneOnItemAdded(zone, item)
-	if IdleEvents.has("zone.itemAdded") then
-		IdleEvents.emit("zone.itemAdded", zone, item)
-	end
-end
-
-itemAdded:register()
-
-local itemRemoved = EventCallback("IdleZoneOnItemRemoved")
-
-function itemRemoved.zoneOnItemRemoved(zone, item)
-	if IdleEvents.has("zone.itemRemoved") then
-		IdleEvents.emit("zone.itemRemoved", zone, item)
-	end
-end
-
-itemRemoved:register()
 
 -- Product-tracked monsters register "IdleMonsterDeath"; each owner subscribes to "monster.died".
 local monsterDeath = CreatureEvent("IdleMonsterDeath")
@@ -55,3 +26,13 @@ function monsterDeath.onDeath(creature, corpse, killer, mostDamageKiller)
 end
 
 monsterDeath:register()
+
+local monsterRemove = EventCallback("IdleMonsterOnRemove")
+
+function monsterRemove.monsterOnRemove(monster)
+	if IdleEvents.has("monster.removed") then
+		IdleEvents.emit("monster.removed", monster)
+	end
+end
+
+monsterRemove:register()

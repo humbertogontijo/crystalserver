@@ -4,7 +4,7 @@ function ExpeditionManager.onDeath(player)
 		return
 	end
 	local session = ExpeditionManager.resolveSession(player)
-	if session and session.kind == "raid" and RaidInstance and RaidInstance.onPlayerDeath then
+	if session and session.kind == "raid" then
 		RaidInstance.onPlayerDeath(player)
 		return
 	end
@@ -23,7 +23,7 @@ local function holdHeadlessForEntry(player)
 	if not player:isHeadless() then
 		return false
 	end
-	if ExpeditionPersist and ExpeditionPersist.isServerShuttingDown() then
+	if ExpeditionPersist.isServerShuttingDown() then
 		return false
 	end
 	local session = ExpeditionManager.getSessionByPlayer(player)
@@ -31,6 +31,11 @@ local function holdHeadlessForEntry(player)
 		return false
 	end
 	return os.time() - (session.startingAt or 0) < ENTRY_HOLD_LOGOUT_SEC
+end
+
+--- The body stays online without a UI; the next client gets the session HUD again.
+function ExpeditionManager.onClientDetached(player)
+	EM_PRIV.expeditionClientSynced[player:getId()] = nil
 end
 
 --- Death-screen Ok / forced logout: free the instance. Idle combat normally
@@ -65,8 +70,8 @@ function ExpeditionManager.onLogout(player)
 		return true
 	end
 
-	if ExpeditionPersist and ExpeditionPersist.isServerShuttingDown() then
-		if session.kind == "worldboss" and ActivityBoostWorldBoss and ActivityBoostWorldBoss.leave then
+	if ExpeditionPersist.isServerShuttingDown() then
+		if session.kind == "worldboss" then
 			ActivityBoostWorldBoss.leave(player, { silent = true, force = true })
 			return true
 		end
@@ -74,7 +79,7 @@ function ExpeditionManager.onLogout(player)
 			IdleSafe.call("ExpeditionPersist.writeSession", ExpeditionPersist.writeSession, session)
 			session.persistedForRestart = true
 		end
-		if Alts and Alts.getDeployment and Alts.getDeployment(player) then
+		if Alts.getDeployment(player) then
 			for _, id in ipairs(EM_PRIV.sessionMemberIds(session)) do
 				local member = Player(id)
 				if member and member:getId() ~= player:getId() and EM_PRIV.isSessionCompanion(session, member) then
@@ -89,7 +94,7 @@ function ExpeditionManager.onLogout(player)
 		return true
 	end
 
-	if Alts and Alts.getDeployment and Alts.getDeployment(player) then
+	if Alts.getDeployment(player) then
 		for _, id in ipairs(EM_PRIV.sessionMemberIds(session)) do
 			local member = Player(id)
 			if member and member:getId() ~= player:getId() and EM_PRIV.isSessionCompanion(session, member) then
@@ -102,13 +107,13 @@ function ExpeditionManager.onLogout(player)
 		IdleSafe.call("Alts.undeploy", Alts.undeploy, player)
 	end
 
-	if session.kind == "raid" and RaidInstance and RaidInstance.leave then
+	if session.kind == "raid" then
 		-- Leave the shared raid without tearing it down for other players.
 		RaidInstance.leave(player, { silent = true })
 		return true
 	end
 
-	if session.kind == "worldboss" and ActivityBoostWorldBoss and ActivityBoostWorldBoss.leave then
+	if session.kind == "worldboss" then
 		-- Clear SoftDeath before disconnect (same as voluntary leave).
 		ActivityBoostWorldBoss.leave(player, { silent = true })
 		return true
@@ -259,12 +264,10 @@ function ExpeditionManager.onClientSwitched(oldPlayer, newPlayer)
 
 	if not session.entered then
 		if newInSession then
-			if InstanceTeleport and InstanceTeleport.adoptMember then
-				local adopted = InstanceTeleport.adoptMember(oldPlayer, newPlayer)
-				local previousHost = previousHostId and Player(previousHostId) or nil
-				if not adopted and previousHost and previousHostId ~= oldId then
-					InstanceTeleport.adoptMember(previousHost, newPlayer)
-				end
+			local adopted = InstanceTeleport.adoptMember(oldPlayer, newPlayer)
+			local previousHost = previousHostId and Player(previousHostId) or nil
+			if not adopted and previousHost and previousHostId ~= oldId then
+				InstanceTeleport.adoptMember(previousHost, newPlayer)
 			end
 			-- syncSessionClientIfNeeded skips pending sessions; show "entering" on the new client.
 			ExpeditionProtocol.sendStatus(newPlayer, session)
@@ -340,7 +343,7 @@ function ExpeditionManager.onLogin(player)
 		local oldId = oldMemberId or session.playerId
 		EM_PRIV.rebindMemberId(session, oldId, player:getId(), player)
 		if session.kind == "raid" and type(session.playerIds) == "table" then
-			local active = RaidInstance and RaidInstance.getActive and RaidInstance.getActive(session.raidName)
+			local active = RaidInstance.getActive(session.raidName)
 			if active and active.memberKeys and active.memberKeys[oldId] then
 				active.memberKeys[player:getId()] = active.memberKeys[oldId]
 				active.memberKeys[oldId] = nil
@@ -392,7 +395,7 @@ function ExpeditionManager.onLogin(player)
 		local sessionKey = session.key
 		addEvent(function()
 			local p = Player(playerId)
-			if p and ExpeditionManager.getSessionByKey(sessionKey) and CombatAutomation and CombatAutomation.resyncAttackTarget then
+			if p and ExpeditionManager.getSessionByKey(sessionKey) then
 				CombatAutomation.resyncAttackTarget(p)
 			end
 		end, 1500)
@@ -401,16 +404,7 @@ function ExpeditionManager.onLogin(player)
 
 	-- Rescue after restart / deferred teardown: stranded on a dead instance.
 	ExpeditionConfig.refundBossAttemptIfMarked(player)
-	if InstanceWorld and InstanceWorld.rescueIfStranded then
-		InstanceWorld.rescueIfStranded(player)
-	elseif player:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
-		local returnPos = EM_PRIV.loadReturn(player)
-		EM_PRIV.clearActive(player)
-		ExpeditionManager.clearAreaEffects(player)
-		player:setIdleCombat(false)
-		EM_PRIV.returnToLobby(player, returnPos)
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Your expedition was interrupted. You were returned to safety.")
-	end
+	InstanceWorld.rescueIfStranded(player)
 
 	ExpeditionProtocol.sendCatalog(player)
 	RaidInstance.sendActiveRaids(player)

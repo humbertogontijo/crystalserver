@@ -216,7 +216,7 @@ function ActivityBoostConfig.bandsForBoss(boss)
 end
 
 local function resolveBossEntry(name)
-	local info = CreatureInfo and CreatureInfo.get(name)
+	local info = CreatureInfo.get(name)
 	if not info then
 		logger.warn("[ActivityBoost] world boss {} missing from creature_info", name)
 		return {

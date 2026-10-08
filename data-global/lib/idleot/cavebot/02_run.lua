@@ -130,9 +130,7 @@ function Cavebot.notify(run)
 	if host.notify then
 		host.notify(run)
 	end
-	if CavebotProtocol then
-		CavebotProtocol.sendRun(run)
-	end
+	CavebotProtocol.sendRun(run)
 end
 
 --- The run walking a cave route `player` is in: their expedition session (with a cave),
@@ -141,9 +139,9 @@ function Cavebot.runOfPlayer(player)
 	if not player then
 		return nil
 	end
-	local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+	local session = ExpeditionManager.getSessionByPlayer(player)
 	if session and session.cave then
 		return session
 	end
-	return CavebotService and CavebotService.runOfPlayer(player) or nil
+	return CavebotService.runOfPlayer(player) or nil
 end

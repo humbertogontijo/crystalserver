@@ -17,12 +17,12 @@ local function slotDistanceOf(config)
 end
 
 function CombatAutomationMovement.memberSlotDistance(player)
-	return slotDistanceOf(player and CombatAutomationStore and CombatAutomationStore.getConfig(player))
+	return slotDistanceOf(player and CombatAutomationStore.getConfig(player))
 end
 
 --- Fights from range (stance distance above melee).
 function CombatAutomationMovement.rangedStance(player)
-	local config = player and CombatAutomationStore and CombatAutomationStore.getConfig(player)
+	local config = player and CombatAutomationStore.getConfig(player)
 	return CombatAutomationConfig.stanceDistanceOf(config) > 1
 end
 

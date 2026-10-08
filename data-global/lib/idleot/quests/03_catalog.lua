@@ -75,8 +75,8 @@ local function buildStaticEntries()
 			creatures = { "demon skeleton" },
 			killsRequired = 7,
 			huntHint = "demon skeleton",
-			storageMain = Storage and Storage.Quest and Storage.Quest.U10_20 and Storage.Quest.U10_20.SpikeTaskQuest.Spike_Upper_Kill_Main or 44320,
-			storageDaily = Storage and Storage.Quest and Storage.Quest.U10_20 and Storage.Quest.U10_20.SpikeTaskQuest.Spike_Upper_Kill_Daily or 44321,
+			storageMain = Storage.Quest.U10_20.SpikeTaskQuest.Spike_Upper_Kill_Main,
+			storageDaily = Storage.Quest.U10_20.SpikeTaskQuest.Spike_Upper_Kill_Daily,
 			reportExp = 1000,
 		},
 		{
@@ -90,8 +90,8 @@ local function buildStaticEntries()
 			creatures = { "demon skeleton", "vampire", "werewolf" },
 			killsRequired = 7,
 			huntHint = "vampire",
-			storageMain = Storage and Storage.Quest and Storage.Quest.U10_20 and Storage.Quest.U10_20.SpikeTaskQuest.Spike_Middle_Kill_Main or 44328,
-			storageDaily = Storage and Storage.Quest and Storage.Quest.U10_20 and Storage.Quest.U10_20.SpikeTaskQuest.Spike_Middle_Kill_Daily or 44329,
+			storageMain = Storage.Quest.U10_20.SpikeTaskQuest.Spike_Middle_Kill_Main,
+			storageDaily = Storage.Quest.U10_20.SpikeTaskQuest.Spike_Middle_Kill_Daily,
 			reportExp = 2000,
 		},
 		{
@@ -105,8 +105,8 @@ local function buildStaticEntries()
 			creatures = { "hellspawn", "nightmare", "destroyer" },
 			killsRequired = 7,
 			huntHint = "hellspawn",
-			storageMain = Storage and Storage.Quest and Storage.Quest.U10_20 and Storage.Quest.U10_20.SpikeTaskQuest.Spike_Lower_Kill_Main or 44336,
-			storageDaily = Storage and Storage.Quest and Storage.Quest.U10_20 and Storage.Quest.U10_20.SpikeTaskQuest.Spike_Lower_Kill_Daily or 44337,
+			storageMain = Storage.Quest.U10_20.SpikeTaskQuest.Spike_Lower_Kill_Main,
+			storageDaily = Storage.Quest.U10_20.SpikeTaskQuest.Spike_Lower_Kill_Daily,
 			reportExp = 3500,
 		},
 
@@ -120,7 +120,7 @@ local function buildStaticEntries()
 			handler = "afb",
 			itemId = 11548,
 			itemCount = 1,
-			storage = Storage and Storage.Quest and Storage.Quest.U8_6 and Storage.Quest.U8_6.AFathersBurden.Sinew or 42954,
+			storage = Storage.Quest.U8_6.AFathersBurden.Sinew,
 			huntHint = "heoni",
 			reportExp = 2500,
 		},
@@ -133,7 +133,7 @@ local function buildStaticEntries()
 			handler = "afb",
 			itemId = 11547,
 			itemCount = 1,
-			storage = Storage and Storage.Quest and Storage.Quest.U8_6 and Storage.Quest.U8_6.AFathersBurden.Wood or 42955,
+			storage = Storage.Quest.U8_6.AFathersBurden.Wood,
 			reportExp = 2500,
 		},
 		{
@@ -145,7 +145,7 @@ local function buildStaticEntries()
 			handler = "afb",
 			itemId = 11546,
 			itemCount = 1,
-			storage = Storage and Storage.Quest and Storage.Quest.U8_6 and Storage.Quest.U8_6.AFathersBurden.Cloth or 42956,
+			storage = Storage.Quest.U8_6.AFathersBurden.Cloth,
 			reportExp = 2500,
 		},
 		{
@@ -157,7 +157,7 @@ local function buildStaticEntries()
 			handler = "afb",
 			itemId = 11545,
 			itemCount = 1,
-			storage = Storage and Storage.Quest and Storage.Quest.U8_6 and Storage.Quest.U8_6.AFathersBurden.Silk or 42957,
+			storage = Storage.Quest.U8_6.AFathersBurden.Silk,
 			huntHint = "spider",
 			reportExp = 2500,
 		},
@@ -170,7 +170,7 @@ local function buildStaticEntries()
 			handler = "afb",
 			itemId = 11552,
 			itemCount = 1,
-			storage = Storage and Storage.Quest and Storage.Quest.U8_6 and Storage.Quest.U8_6.AFathersBurden.Crystal or 42958,
+			storage = Storage.Quest.U8_6.AFathersBurden.Crystal,
 			reportExp = 2500,
 		},
 		{
@@ -182,7 +182,7 @@ local function buildStaticEntries()
 			handler = "afb",
 			itemId = 11551,
 			itemCount = 1,
-			storage = Storage and Storage.Quest and Storage.Quest.U8_6 and Storage.Quest.U8_6.AFathersBurden.Root or 42959,
+			storage = Storage.Quest.U8_6.AFathersBurden.Root,
 			reportExp = 2500,
 		},
 		{
@@ -194,7 +194,7 @@ local function buildStaticEntries()
 			handler = "afb",
 			itemId = 11549,
 			itemCount = 1,
-			storage = Storage and Storage.Quest and Storage.Quest.U8_6 and Storage.Quest.U8_6.AFathersBurden.Iron or 42960,
+			storage = Storage.Quest.U8_6.AFathersBurden.Iron,
 			reportExp = 2500,
 		},
 		{
@@ -206,7 +206,7 @@ local function buildStaticEntries()
 			handler = "afb",
 			itemId = 11550,
 			itemCount = 1,
-			storage = Storage and Storage.Quest and Storage.Quest.U8_6 and Storage.Quest.U8_6.AFathersBurden.Scale or 42961,
+			storage = Storage.Quest.U8_6.AFathersBurden.Scale,
 			huntHint = "glitterscale",
 			reportExp = 2500,
 		},
@@ -223,9 +223,7 @@ local function buildStaticEntries()
 			lookTypeMale = 128,
 			lookTypeFemale = 136,
 			addon = 1,
-			storageMission = Storage and Storage.OutfitQuest and Storage.OutfitQuest.Citizen and Storage.OutfitQuest.Citizen.MissionBackpack
-				or (Storage and Storage.Quest and Storage.Quest.U7_8 and Storage.Quest.U7_8.CitizenOutfits and Storage.Quest.U7_8.CitizenOutfits.MissionBackpack)
-				or 40778,
+			storageMission = Storage.Quest.U7_8.CitizenOutfits.MissionBackpack,
 			huntHint = "minotaur",
 		},
 		{
@@ -243,7 +241,7 @@ local function buildStaticEntries()
 			lookTypeMale = 128,
 			lookTypeFemale = 136,
 			addon = 2,
-			storageMission = Storage and Storage.Quest and Storage.Quest.U7_8 and Storage.Quest.U7_8.CitizenOutfits and Storage.Quest.U7_8.CitizenOutfits.AddonHat or 40777,
+			storageMission = Storage.Quest.U7_8.CitizenOutfits.AddonHat,
 			huntHint = "chicken",
 		},
 		{
@@ -275,8 +273,8 @@ local function buildStaticEntries()
 			creatures = { "dragon", "dragon lord" },
 			killsRequired = 50,
 			huntHint = "dragon",
-			storageCounter = Storage and Storage.Quest and Storage.Quest.U10_80 and Storage.Quest.U10_80.TheGreatDragonHunt and Storage.Quest.U10_80.TheGreatDragonHunt.DragonCounter or 45181,
-			storageAchievement = Storage and Storage.Quest and Storage.Quest.U10_80 and Storage.Quest.U10_80.TheGreatDragonHunt and Storage.Quest.U10_80.TheGreatDragonHunt.Achievement or 45182,
+			storageCounter = Storage.Quest.U10_80.TheGreatDragonHunt.DragonCounter,
+			storageAchievement = Storage.Quest.U10_80.TheGreatDragonHunt.Achievement,
 		},
 
 		-- Barbarian Arena (instanced pits; rewards share ChestUnique 6220–6234).

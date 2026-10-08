@@ -17,7 +17,7 @@ loginEvent:register()
 local opcodeEvent = CreatureEvent("ExpeditionExtendedOpcode")
 
 function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
-	if not ExpeditionConfig or opcode ~= ExpeditionConfig.OPCODE then
+	if opcode ~= ExpeditionConfig.OPCODE then
 		return
 	end
 	local ok, err = pcall(function()
@@ -61,27 +61,70 @@ logoutEvent:register()
 local monsterSpawnCallback = EventCallback("ExpeditionMonsterOnSpawn")
 
 function monsterSpawnCallback.monsterOnSpawn(monster, position)
-	if ExpeditionPack and ExpeditionPack.onInstanceMonsterSpawn then
-		local ok, err = pcall(ExpeditionPack.onInstanceMonsterSpawn, monster, position)
-		if not ok then
-			logger.error("[Expedition] monsterOnSpawn failed: {}", err)
-		end
+	local ok, err = pcall(ExpeditionPack.onInstanceMonsterSpawn, monster, position)
+	if not ok then
+		logger.error("[Expedition] monsterOnSpawn failed: {}", err)
 	end
 end
 
 monsterSpawnCallback:register()
 
+-- Engine think owns per-player combat cadence: playerOnIdleCombatThink (250ms) while idle
+-- combat runs, playerOnThink (1s) otherwise. Session AI is only ExpeditionAI.start's scope
+-- loop — do not call ExpeditionAI.tick here.
+local function automationThink(player, interval)
+	IdleSafe.call("PlayerErrand.think", PlayerErrand.think, player)
+	IdleSafe.call("CombatAutomation.onThink", CombatAutomation.onThink, player, interval)
+end
+
+local idleCombatThinkCallback = EventCallback("CombatAutomationPlayerOnIdleCombatThink")
+
+function idleCombatThinkCallback.playerOnIdleCombatThink(player, interval)
+	automationThink(player, interval)
+end
+
+idleCombatThinkCallback:register()
+
 local thinkCallback = EventCallback("CombatAutomationPlayerOnThink")
 
 function thinkCallback.playerOnThink(player, interval)
-	-- Engine think owns per-player combat cadence (idleCombat 250ms).
-	-- Session AI is only ExpeditionAI.start's scope loop — do not call ExpeditionAI.tick here.
-	IdleSafe.call("PlayerErrand.think", PlayerErrand.think, player)
-	IdleSafe.call("CombatAutomation.onThink", CombatAutomation.onThink, player, interval)
-	IdleSafe.call("ExpeditionManager.syncSessionClientIfNeeded", ExpeditionManager.syncSessionClientIfNeeded, player)
+	if not player:isIdleCombat() then
+		automationThink(player, interval)
+	end
 end
 
 thinkCallback:register()
+
+local clientReadyCallback = EventCallback("ExpeditionPlayerOnClientReady")
+
+function clientReadyCallback.playerOnClientReady(player)
+	IdleSafe.call("ExpeditionManager.syncSessionClientIfNeeded", ExpeditionManager.syncSessionClientIfNeeded, player)
+end
+
+clientReadyCallback:register()
+
+local clientDetachCallback = EventCallback("ExpeditionPlayerOnClientDetach")
+
+function clientDetachCallback.playerOnClientDetach(player)
+	ExpeditionManager.onClientDetached(player)
+end
+
+clientDetachCallback:register()
+
+local bossDifficultyCallback = EventCallback("BossDifficultyPlayerOnSelection")
+
+-- action: 0 = start, 1 = cancel, 2 = spinner preview.
+function bossDifficultyCallback.playerOnBossDifficulty(player, action, difficulty, _selectionContext)
+	if action == 0 then
+		BossDifficulty.onStart(player, difficulty)
+	elseif action == 2 then
+		BossDifficulty.onPreview(player, difficulty)
+	else
+		BossDifficulty.onCancel(player)
+	end
+end
+
+bossDifficultyCallback:register()
 
 local startup = GlobalEvent("ExpeditionStartup")
 

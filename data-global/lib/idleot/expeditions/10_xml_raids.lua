@@ -405,10 +405,6 @@ local function registerOne(entry, raidsRoot)
 end
 
 function XmlRaids.register()
-	if not Raid or not Encounter then
-		logger.warn("[XmlRaids] Raid/Encounter not loaded; skip XML import")
-		return 0
-	end
 	local raidsRoot = DATA_DIRECTORY .. "/raids"
 	local index = readFile(raidsRoot .. "/raids.xml")
 	if not index then

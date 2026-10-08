@@ -85,7 +85,7 @@ end
 --- Lever whose fight is run by a stock Encounter script (stages, adds, the boss spawn):
 --- the expedition runs an instance copy of that script instead of spawning the boss.
 local function encounterDriven(lever)
-	return lever and lever.encounter and EncounterInstances and EncounterInstances.has(lever.encounter) or false
+	return lever and lever.encounter and EncounterInstances.has(lever.encounter) or false
 end
 
 --- The fight plays its own immunity mechanic: a boss mechanic, or the stock encounter's stages.
@@ -126,7 +126,7 @@ end
 
 local function stopEncounterCopy(session, opts)
 	local lever = sessionLever(session)
-	if encounterDriven(lever) and session.instance and EncounterInstances then
+	if encounterDriven(lever) and session.instance then
 		EncounterInstances.stop(session.instance.instanceId, lever.encounter, opts)
 	end
 end
@@ -163,7 +163,7 @@ end
 --- BossLever:spawnForm hook: later forms of a chained lever fight join the session
 --- running that lever in the form's instance.
 local function onLeverFormSpawned(monster, lever)
-	if not monster or not ExpeditionManager then
+	if not monster then
 		return
 	end
 	local instanceId = monster:getInstanceId()
@@ -214,7 +214,7 @@ function ExpeditionBoss.rebindBossIfNeeded(session)
 				return monster
 			end
 			-- Multi-phase forms share bossRaceId (e.g. Urmahlullu); rebind after remove()+createMonster.
-			if wantRace and wantRace > 0 and ExpeditionConfig and ExpeditionConfig.creatureIdFromMonster then
+			if wantRace and wantRace > 0 then
 				local raceId = ExpeditionConfig.creatureIdFromMonster(monster)
 				if raceId == wantRace then
 					ExpeditionBoss.bindBoss(session, monster)
@@ -228,7 +228,7 @@ end
 
 local function bossSpawnPos(session)
 	local center = nil
-	local anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
+	local anchor = ExpeditionConfig.getAnchorPlayer(session)
 	if anchor then
 		center = anchor:getPosition()
 	end
@@ -262,7 +262,7 @@ local function clearArena(session)
 				end
 			end
 		end
-	end, SCHEDULER_MIN_TICKS or 50)
+	end, 50)
 end
 
 --- Shared overtime / victory end: loot delay then leave (or teardown if everyone offline).
@@ -296,10 +296,10 @@ local function finishBoss(session, opts)
 		member:setTarget(nil)
 		member:sendTextMessage(MESSAGE_EVENT_ADVANCE, midMsg)
 		ExpeditionConfig.clearBossAttempt(member)
-		if victory and lever and session.bossDifficulty and BossDifficulty then
+		if victory and lever and session.bossDifficulty then
 			BossDifficulty.unlock(member, lever, session.bossDifficulty)
 		end
-		if victory and ActivityBoostActivities and ActivityBoostActivities.onBossExpeditionVictory then
+		if victory then
 			IdleSafe.call("ActivityBoostActivities.onBossExpeditionVictory", ActivityBoostActivities.onBossExpeditionVictory, member, session)
 		end
 	end
@@ -550,9 +550,6 @@ end
 --- Lever boss session fighting in `creature`'s instance when `creature` is that lever's
 --- final boss (covers forms the session never bound, e.g. script-respawned ones).
 local function unownedFinalBossSession(creature)
-	if not ExpeditionManager.getSessionByInstanceId then
-		return nil
-	end
 	local session = ExpeditionManager.getSessionByInstanceId(creature:getInstanceId())
 	if not session or session.state ~= "hunting" then
 		return nil
@@ -605,7 +602,7 @@ function ExpeditionBoss.onMonsterDeath(creature, corpse)
 	-- onDeath) or kill a corpse-less mid-form and spawn the next one, so check on the
 	-- next tick whether any boss (or a same-race replacement form) is still alive.
 	session.alive = 0
-	ExpeditionManager.scope(session):after(SCHEDULER_MIN_TICKS or 50, function()
+	ExpeditionManager.scope(session):after(50, function()
 		if session.state ~= "hunting" or ExpeditionBoss.rebindBossIfNeeded(session) then
 			return
 		end

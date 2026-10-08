@@ -89,7 +89,7 @@ function SoftDeath.beginDowned(player, opts)
 		return false
 	end
 
-	if not opts.skipProtocol and SoftDeathProtocol and SoftDeathProtocol.sendDowned then
+	if not opts.skipProtocol then
 		SoftDeathProtocol.sendDowned(player, {
 			reason = opts.reason,
 			title = opts.title,
@@ -150,7 +150,7 @@ function SoftDeath.endDowned(player, opts)
 		end
 	end
 
-	if wasDowned and not opts.skipProtocol and SoftDeathProtocol and SoftDeathProtocol.sendRevive then
+	if wasDowned and not opts.skipProtocol then
 		SoftDeathProtocol.sendRevive(player, { reason = opts.reason or (entry and entry.reason) })
 	end
 

@@ -79,7 +79,7 @@ local function releaseMember(id)
 		return
 	end
 	CombatAutomationMovement.clearDirective(player)
-	CombatAutomationMovement.clearWalkDedupe(player)
+	CombatAutomationMovement.clearPendingWalkAction(player)
 	player:clearPathLeash()
 	if idleOwned[id] then
 		idleOwned[id] = nil

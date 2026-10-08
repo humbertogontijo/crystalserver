@@ -88,7 +88,7 @@ function LobbyInstance.ensureRoom(record)
 		return existing
 	end
 	LobbyInstance.ensureTemplate()
-	local engineId = ExpeditionInstance and ExpeditionInstance.allocate and ExpeditionInstance.allocate("lobby", 0, record.id) or nil
+	local engineId = ExpeditionInstance.allocate("lobby", 0, record.id) or nil
 	if engineId == nil then
 		return nil, "No lobby rooms available right now."
 	end
@@ -98,9 +98,7 @@ function LobbyInstance.ensureRoom(record)
 		channel = Instance.channel(engineId),
 	}
 	placeRoom(room, LobbyVariants.get(LobbyVariants.keyForRecord(record)))
-	if InstanceWorld and InstanceWorld.rememberFloors then
-		InstanceWorld.rememberFloors(engineId, { [LobbyConfig.ROOM_Z] = true })
-	end
+	InstanceWorld.rememberFloors(engineId, { [LobbyConfig.ROOM_Z] = true })
 	roomsByLobbyId[record.id] = room
 	lobbyIdByInstance[engineId] = record.id
 	logger.info("[Lobby] room built for lobby #{} instance={} variant={}", record.id, engineId, room.variantKey)
@@ -210,11 +208,7 @@ end
 
 local function moveWithin(room, creature, dest)
 	local ok
-	if InstanceWorld and InstanceWorld.enterInstance then
-		ok = InstanceWorld.enterInstance(creature, room.instanceId, dest)
-	else
-		ok = creature:teleportTo(dest, false, room.instanceId)
-	end
+	ok = InstanceWorld.enterInstance(creature, room.instanceId, dest)
 	if ok then
 		Game.runInInstance(room.instanceId, function()
 			dest:sendMagicEffect(CONST_ME_TELEPORT)
@@ -312,7 +306,7 @@ function LobbyInstance.applyVariant(record)
 		local dest = placed[i] or nearestFree(room, to.x + move.dx, to.y + move.dy, taken) or room.entry
 		taken[dest.x .. ":" .. dest.y] = true
 		moveWithin(room, move.creature, dest)
-		if not move.summon and InstanceWorld and InstanceWorld.sendBounds then
+		if not move.summon then
 			InstanceWorld.sendBounds(move.creature, true)
 		end
 	end
@@ -355,7 +349,7 @@ local function saveReturnPos(player)
 	if LobbyInstance.isLobbyPosition(pos) then
 		return
 	end
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
+	if ExpeditionManager.getSessionByPlayer(player) then
 		return
 	end
 	-- Hunt / raid tiles are never a place to come back to.
@@ -402,11 +396,7 @@ function LobbyInstance.enterNow(creature, record, opts)
 	local dest = opts.position or LobbyInstance.arrivalPosition(room, record, player)
 	local previousLobbyRoom = LobbyInstance.roomForPlayer(player)
 	local ok = false
-	if InstanceWorld and InstanceWorld.enterInstance then
-		ok = InstanceWorld.enterInstance(creature, room.instanceId, dest) and true or false
-	else
-		ok = creature:teleportTo(dest, false, room.instanceId) and true or false
-	end
+	ok = InstanceWorld.enterInstance(creature, room.instanceId, dest) and true or false
 	if not ok then
 		LobbyInstance.scheduleTeardownCheck(record.id)
 		return false, "Failed to enter the lobby room."
@@ -414,26 +404,18 @@ function LobbyInstance.enterNow(creature, record, opts)
 	if previousLobbyRoom and previousLobbyRoom.lobbyId ~= record.id then
 		LobbyInstance.scheduleTeardownCheck(previousLobbyRoom.lobbyId)
 	end
-	if InstanceTeleport and InstanceTeleport.sendArrivalEffect then
-		InstanceTeleport.sendArrivalEffect(creature, InstanceTeleport.KIND_LOBBY)
-	end
-	if InstanceWorld and InstanceWorld.sendBounds then
-		InstanceWorld.sendBounds(player, true)
-	end
-	if LobbyStart and LobbyStart.onEnteredRoom then
-		-- Deferred: the start flow may launch the expedition from here.
-		local pid, lobbyId = player:getId(), record.id
-		addEvent(function()
-			local p = Player(pid)
-			local live = LobbyStore.get(lobbyId)
-			if p and live and LobbyInstance.isInRoom(p, live) then
-				LobbyStart.onEnteredRoom(p, live)
-			end
-		end, 0)
-	end
-	if LobbyProtocol and LobbyProtocol.broadcast then
-		LobbyProtocol.broadcast(LobbyStore.get(record.id))
-	end
+	InstanceTeleport.sendArrivalEffect(creature, InstanceTeleport.KIND_LOBBY)
+	InstanceWorld.sendBounds(player, true)
+	-- Deferred: the start flow may launch the expedition from here.
+	local pid, lobbyId = player:getId(), record.id
+	addEvent(function()
+		local p = Player(pid)
+		local live = LobbyStore.get(lobbyId)
+		if p and live and LobbyInstance.isInRoom(p, live) then
+			LobbyStart.onEnteredRoom(p, live)
+		end
+	end, 0)
+	LobbyProtocol.broadcast(LobbyStore.get(record.id))
 	return true
 end
 
@@ -442,26 +424,16 @@ function LobbyInstance.leaveNow(player, dest)
 	local room = LobbyInstance.roomForPlayer(player)
 	dest = dest or LobbyInstance.loadReturnPos(player)
 	local ok
-	if InstanceWorld and InstanceWorld.exitToOpenWorld then
-		ok = InstanceWorld.exitToOpenWorld(player, dest) and true or false
-	else
-		ok = player:teleportTo(dest) and true or false
-	end
+	ok = InstanceWorld.exitToOpenWorld(player, dest) and true or false
 	if room then
 		LobbyInstance.scheduleTeardownCheck(room.lobbyId)
 	end
 	if not ok then
 		return false, "Failed to leave the lobby room."
 	end
-	if InstanceTeleport and InstanceTeleport.sendArrivalEffect then
-		InstanceTeleport.sendArrivalEffect(player, InstanceTeleport.KIND_HOMETOWN)
-	end
-	if InstanceWorld and InstanceWorld.sendBounds then
-		InstanceWorld.sendBounds(player, true)
-	end
-	if LobbyProtocol and LobbyProtocol.broadcast then
-		LobbyProtocol.broadcast(LobbyStore.getForPlayer(player))
-	end
+	InstanceTeleport.sendArrivalEffect(player, InstanceTeleport.KIND_HOMETOWN)
+	InstanceWorld.sendBounds(player, true)
+	LobbyProtocol.broadcast(LobbyStore.getForPlayer(player))
 	return true
 end
 
@@ -483,13 +455,11 @@ end
 --- Logout inside a room: remember it so login restores into the lobby.
 function LobbyInstance.onLogout(player)
 	local room = LobbyInstance.roomForPlayer(player)
-	if LobbyServices and LobbyServices.onLeave then
-		LobbyServices.onLeave(player)
-	end
+	LobbyServices.onLeave(player)
 	if not room then
 		return
 	end
-	if not (Alts and Alts.isCompanion and Alts.isCompanion(player)) then
+	if not (Alts.isCompanion(player)) then
 		player:kv():set(LobbyConfig.KV_INSIDE_LOBBY, tostring(room.lobbyId))
 	end
 	LobbyInstance.scheduleTeardownCheck(room.lobbyId)
@@ -517,25 +487,17 @@ function LobbyInstance.restoreOnLogin(player)
 		if not LobbyInstance.roomForPlayer(player) then
 			local record = LobbyStore.get(current.lobbyId)
 			local dest = record and LobbyInstance.arrivalPosition(current, record, player) or current.entry
-			if InstanceWorld and InstanceWorld.enterInstance then
-				InstanceWorld.enterInstance(player, current.instanceId, dest)
-			else
-				player:teleportTo(dest, false, current.instanceId)
-			end
+			InstanceWorld.enterInstance(player, current.instanceId, dest)
 		end
 		return true
 	end
-	local record = LobbyManager and LobbyManager.ensureForPlayer and LobbyManager.ensureForPlayer(player) or nil
+	local record = LobbyManager.ensureForPlayer(player) or nil
 	if record and LobbyInstance.enterNow(player, record, {}) then
 		return true
 	end
 	local town = player:getTown()
 	local temple = town and town:getTemplePosition() or Position(32369, 32241, 7)
-	if InstanceWorld and InstanceWorld.exitToOpenWorld then
-		InstanceWorld.exitToOpenWorld(player, temple)
-	else
-		player:teleportTo(temple)
-	end
+	InstanceWorld.exitToOpenWorld(player, temple)
 	return true
 end
 

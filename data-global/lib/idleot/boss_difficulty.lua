@@ -1,6 +1,7 @@
 -- Boss difficulty owned by the BossLever config (`difficulty = { max, hpPerLevel, dmgPerLevel }`).
--- Only levers that declare it open the native 0x2F dialog; the reply is routed here by C++
--- (BossDifficulty.onStart / onPreview / onCancel). Clearing difficulty D unlocks D + 1.
+-- Only levers that declare it open the native 0x2F dialog; the reply arrives as
+-- playerOnBossDifficulty (scripts/idleot/expeditions/events.lua). Clearing difficulty D
+-- unlocks D + 1.
 BossDifficulty = BossDifficulty or {}
 
 BossDifficulty.DEFAULTS = {
@@ -73,7 +74,7 @@ end
 function BossDifficulty.groupMax(players, lever)
 	local best = nil
 	for _, p in ipairs(players or {}) do
-		local skip = (Alts and Alts.isCompanion and Alts.isCompanion(p)) or p:isHeadless()
+		local skip = (Alts.isCompanion(p)) or p:isHeadless()
 		if not skip then
 			local unlocked = BossDifficulty.personalMax(p, lever)
 			if not best or unlocked < best then
@@ -187,8 +188,8 @@ function BossDifficulty.isPending(player)
 	return player ~= nil and pendingByPlayerId[player:getId()] ~= nil
 end
 
-function BossDifficulty.onStart(player, difficulty, _selectionContext)
-	local pending = player and pendingByPlayerId[player:getId()]
+function BossDifficulty.onStart(player, difficulty)
+	local pending = pendingByPlayerId[player:getId()]
 	if not pending then
 		return
 	end
@@ -199,8 +200,8 @@ function BossDifficulty.onStart(player, difficulty, _selectionContext)
 	end
 end
 
-function BossDifficulty.onPreview(player, difficulty, _selectionContext)
-	local pending = player and pendingByPlayerId[player:getId()]
+function BossDifficulty.onPreview(player, difficulty)
+	local pending = pendingByPlayerId[player:getId()]
 	if not pending then
 		return
 	end
@@ -209,7 +210,7 @@ function BossDifficulty.onPreview(player, difficulty, _selectionContext)
 end
 
 function BossDifficulty.onCancel(player)
-	local pending = player and pendingByPlayerId[player:getId()]
+	local pending = pendingByPlayerId[player:getId()]
 	if not pending then
 		return
 	end

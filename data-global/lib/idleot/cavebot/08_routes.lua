@@ -127,7 +127,7 @@ end
 local function catalogRoute(anchor, instanceKey)
 	local pos = anchor:getPosition()
 	local desc = { kind = Instance.kind(instanceKey), key = instanceKey, subareaId = Instance.subareaId(instanceKey) }
-	local hunt = ExpeditionProtocol and ExpeditionProtocol.openWorldHunt and ExpeditionProtocol.openWorldHunt(anchor, desc)
+	local hunt = ExpeditionProtocol.openWorldHunt(anchor, desc)
 	local route = hunt and ExpeditionConfig.caveRoute(hunt)
 	local waypoints = route and floorWaypoints(route, pos.z)
 	if not waypoints or not catalogWalkable(hunt, waypoints, pos, instanceKey) then

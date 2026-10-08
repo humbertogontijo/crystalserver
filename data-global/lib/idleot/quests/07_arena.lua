@@ -9,12 +9,8 @@ QuestArena.ID_BASE = 920000
 local monsterOwners = {}
 local registered = false
 
-local function isPrivateInstance(thing)
-	return thing ~= nil and Instance.isPrivate(Instance.of(thing))
-end
-
 local function barb()
-	return Storage and Storage.Quest and Storage.Quest.U8_0 and Storage.Quest.U8_0.BarbarianArena or nil
+	return Storage.Quest.U8_0.BarbarianArena
 end
 
 local function copyPos(p)
@@ -94,7 +90,7 @@ local function bindPitGeometry(session, pitIndex)
 	local floors, floorSet = ExpeditionInstance.floorsFromSpec({ floors = { pit.center.z } }, pit.center.z)
 	instance.floors = floors
 	instance.floorSet = floorSet
-	if InstanceWorld and InstanceWorld.rememberFloors and instance.instanceId then
+	if instance.instanceId then
 		InstanceWorld.rememberFloors(instance.instanceId, floorSet)
 	end
 	session.pitIndex = pitIndex
@@ -104,21 +100,10 @@ local function bindPitGeometry(session, pitIndex)
 end
 
 local function clearEvents(session)
-	if not session then
-		return
-	end
-	if session.arenaKickEvent then
-		stopEvent(session.arenaKickEvent)
-		session.arenaKickEvent = nil
-	end
-	if session.arenaSpawnEvent then
-		stopEvent(session.arenaSpawnEvent)
-		session.arenaSpawnEvent = nil
-	end
-	if session.arenaFlashEvent then
-		stopEvent(session.arenaFlashEvent)
-		session.arenaFlashEvent = nil
-	end
+	local scope = ExpeditionManager.scope(session)
+	scope:cancel("arenaKick")
+	scope:cancel("arenaSpawn")
+	scope:cancel("arenaFlash")
 end
 
 local function removeOwnedMonsters(session)
@@ -139,27 +124,18 @@ local function removeOwnedMonsters(session)
 end
 
 local function scheduleKick(session)
-	if not session then
-		return
-	end
-	if session.arenaKickEvent then
-		stopEvent(session.arenaKickEvent)
-		session.arenaKickEvent = nil
-	end
-	local kickSec = tonumber(session.arenaSpec and session.arenaSpec.kickTimeSec) or 600
-	local key = session.key
-	session.arenaKickEvent = addEvent(function()
-		local s = ExpeditionManager and ExpeditionManager.getSessionByKey and ExpeditionManager.getSessionByKey(key)
-		if not s or s.state == "ended" or s.state == "cleared" then
+	local kickSec = tonumber(session.arenaSpec.kickTimeSec) or 600
+	ExpeditionManager.scope(session):timer("arenaKick", kickSec * 1000, function()
+		if session.state == "ended" or session.state == "cleared" then
 			return
 		end
-		local player = s.playerId and Player(s.playerId) or nil
+		local player = session.playerId and Player(session.playerId)
 		if player then
 			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Your time ran out!")
 		end
-		QuestArena.abandon(s, "timeout")
-		ExpeditionManager.leaveAll(s, { silent = true })
-	end, kickSec * 1000)
+		QuestArena.abandon(session, "timeout")
+		ExpeditionManager.leaveAll(session, { silent = true })
+	end)
 end
 
 local function teleportToPit(session, pit)
@@ -197,19 +173,15 @@ local function spawnPitMonster(session)
 	Game.runInInstance(session.instance.instanceId, function()
 		pos:sendMagicEffect(CONST_ME_TELEPORT)
 	end)
-	local monster = ExpeditionInstance.createMonsterExclusive
-			and ExpeditionInstance.createMonsterExclusive(name, pos, session.instance)
-		or (ExpeditionInstance.isLive(session.instance) and Game.createMonster(name, pos, false, true, nil, session.instance.instanceId))
+	local monster = ExpeditionInstance.createMonsterExclusive(name, pos, session.instance)
 	if not monster then
 		logger.warn("[QuestArena] failed to spawn '{}' at pit {}", name, pitIndex)
 		session.state = "waiting"
-		local key = session.key
-		session.arenaSpawnEvent = addEvent(function()
-			local s = ExpeditionManager.getSessionByKey(key)
-			if s and s.state ~= "ended" then
-				spawnPitMonster(s)
+		ExpeditionManager.scope(session):timer("arenaSpawn", 1500, function()
+			if session.state ~= "ended" then
+				spawnPitMonster(session)
 			end
-		end, 1500)
+		end)
 		return
 	end
 	monster:runHealth(0)
@@ -222,7 +194,6 @@ local function spawnPitMonster(session)
 	session.alive = 1
 	session.state = "hunting"
 	session.reconciling = nil
-	session.arenaSpawnEvent = nil
 	scheduleKick(session)
 	ExpeditionManager.broadcastStatus(session)
 	local player = session.playerId and Player(session.playerId) or nil
@@ -258,32 +229,27 @@ local function prepareAndSpawn(session, pitIndex)
 	session.reconciling = nil
 	session.state = "waiting"
 	clearEvents(session)
-	-- Keep kick armed across pits from first enter; re-arm on each spawn.
-	local key = session.key
-	local flashes = 2
-	local interval = 700
+	-- Two teleport flashes on the summon tile, then the pit monster (the kick timer
+	-- is re-armed on each spawn).
+	local scope = ExpeditionManager.scope(session)
+	local summon = pit.summon or pit.center
+	local pos = Position(summon.x, summon.y, summon.z)
 	local function flash(remaining)
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s or s.state == "ended" then
+		if session.state == "ended" then
 			return
 		end
-		local summon = pit.summon or pit.center
-		local pos = Position(summon.x, summon.y, summon.z)
-		Game.runInInstance(s.instance.instanceId, function()
-			pos:sendMagicEffect(CONST_ME_TELEPORT)
-		end)
+		pos:sendMagicEffect(CONST_ME_TELEPORT)
 		if remaining <= 1 then
-			s.arenaFlashEvent = nil
-			spawnPitMonster(s)
+			spawnPitMonster(session)
 			return
 		end
-		s.arenaFlashEvent = addEvent(function()
+		scope:timer("arenaFlash", 700, function()
 			flash(remaining - 1)
-		end, interval)
+		end)
 	end
-	session.arenaFlashEvent = addEvent(function()
-		flash(flashes)
-	end, 400)
+	scope:timer("arenaFlash", 400, function()
+		flash(2)
+	end)
 	ExpeditionManager.broadcastStatus(session)
 end
 
@@ -411,27 +377,21 @@ function QuestArena.onMonsterDeath(session, creature)
 			QuestArena.markComplete(player, spec)
 		end
 		ExpeditionManager.broadcastStatus(session)
-		local key = session.key
-		addEvent(function()
-			local s = ExpeditionManager.getSessionByKey(key)
-			if s then
-				ExpeditionManager.leaveAll(s, { silent = false, victory = true })
-			end
-		end, 1200)
+		ExpeditionManager.scope(session):after(1200, function()
+			ExpeditionManager.leaveAll(session, { silent = false, victory = true })
+		end)
 		return true
 	end
 
-	local key = session.key
 	local nextPit = pitIndex + 1
 	session.state = "relocating"
 	ExpeditionManager.broadcastStatus(session)
 	logger.info("[QuestArena] pit {} cleared, advancing to pit {}/{}", pitIndex, nextPit, total)
-	session.arenaSpawnEvent = addEvent(function()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if s and s.state ~= "ended" and s.state ~= "cleared" then
-			prepareAndSpawn(s, nextPit)
+	ExpeditionManager.scope(session):timer("arenaSpawn", 900, function()
+		if session.state ~= "ended" and session.state ~= "cleared" then
+			prepareAndSpawn(session, nextPit)
 		end
-	end, 900)
+	end)
 	return true
 end
 
@@ -578,18 +538,12 @@ function QuestArena.specForExpeditionId(expeditionId)
 end
 
 local function alreadyInCatalog(id)
-	if not ExpeditionConfig or not ExpeditionConfig.getById then
-		return false
-	end
 	return ExpeditionConfig.getById(id, "arena") ~= nil or ExpeditionConfig.getById(id) ~= nil
 end
 
 function QuestArena.registerExpeditions()
 	if registered then
 		return true
-	end
-	if not ExpeditionConfig or not ExpeditionConfig.Catalog then
-		return false
 	end
 	if type(ARENA) ~= "table" or type(PITS) ~= "table" then
 		logger.warn("[QuestArena] stock ARENA/PITS missing — skip registration")
@@ -604,7 +558,7 @@ function QuestArena.registerExpeditions()
 			local center = pit1 and pit1.center or { x = 32210, y = 31098, z = 7 }
 			local boundary = pit1 and pitBoundary(pit1) or nil
 			local firstCreature = spec.creatures[1]
-			local info = firstCreature and CreatureInfo and CreatureInfo.get and CreatureInfo.get(firstCreature)
+			local info = firstCreature and CreatureInfo.get(firstCreature)
 			local creatureId = info and tonumber(info.creatureId) or nil
 			local entry = {
 				id = id,
@@ -689,87 +643,4 @@ function QuestArena.isActive(player, arenaId)
 	end
 	local pit = player:getStorageValue(stor.pitDoor)
 	return pit >= 1 and pit <= 10
-end
-
--- Patch stock helpers so private-instance creatures are ignored on shared tiles.
-function QuestArena.patchStockHelpers()
-	if not SvargrondArena then
-		return
-	end
-	if SvargrondArena._idleotPatched then
-		return
-	end
-	SvargrondArena._idleotPatched = true
-
-	local oldGet = SvargrondArena.getPitCreatures
-	function SvargrondArena.getPitCreatures(pitId)
-		local list = oldGet and oldGet(pitId) or {}
-		local out = {}
-		for i = 1, #list do
-			local c = list[i]
-			if c and not isPrivateInstance(c) then
-				out[#out + 1] = c
-			end
-		end
-		return out
-	end
-
-	local oldReset = SvargrondArena.resetPit
-	function SvargrondArena.resetPit(pitId)
-		if not PITS or not PITS[pitId] then
-			return
-		end
-		for x = PITS[pitId].fromPos.x, PITS[pitId].toPos.x do
-			for y = PITS[pitId].fromPos.y, PITS[pitId].toPos.y do
-				for z = PITS[pitId].fromPos.z, PITS[pitId].toPos.z do
-					local tile = Tile({ x = x, y = y, z = z })
-					if tile then
-						local movableItem = tile:getThing(255)
-						if movableItem and movableItem:isItem() then
-							local itemType = ItemType(movableItem:getId())
-							local skipItem = false
-							if isPrivateInstance(movableItem) then
-								skipItem = true
-							end
-							if not skipItem and itemType and itemType:isMovable() and not table.contains(SvargrondArena.itemsNotErasable, movableItem:getId()) then
-								movableItem:remove()
-							end
-						end
-						local creatures = tile:getCreatures()
-						if type(creatures) == "table" then
-							for _, creature in ipairs(creatures) do
-								if creature and creature:isMonster() and not isPrivateInstance(creature) then
-									creature:remove()
-								end
-							end
-						else
-							local creature = tile:getTopCreature()
-							if creature and creature:isMonster() and not isPrivateInstance(creature) then
-								creature:remove()
-							end
-						end
-					end
-				end
-			end
-		end
-
-		local pillarTile = Tile(PITS[pitId].pillar)
-		if pillarTile then
-			local teleportItem = pillarTile:getItemById(SvargrondArena.itemTeleport)
-			if teleportItem then
-				if not isPrivateInstance(teleportItem) then
-					teleportItem:remove()
-				end
-			end
-			local pillarItem = pillarTile:getItemById(SvargrondArena.itemPillar)
-			if not pillarItem then
-				-- The pillar is a map-template item shared by every open-world channel.
-				Game.createItem(SvargrondArena.itemPillar, 1, PITS[pitId].pillar, Instance.WORLD)
-			end
-		end
-	end
-
-	-- Stock SvargrondArenaBossDeath cannot be replaced via CreatureEvent:register()
-	-- after load (Crystal keeps the first loaded script). Private-instance guard lives
-	-- in idleot/.../creaturescripts_arena_kill.lua.patch instead.
 end

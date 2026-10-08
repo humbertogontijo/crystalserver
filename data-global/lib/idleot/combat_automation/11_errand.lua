@@ -4,10 +4,10 @@
 -- player alone (CombatAutomationMovement.tick, ExpeditionAI catch-up); targeting, spells
 -- and healing keep running. Manual walk / follow input (idle combat) ends it.
 --
--- An errand advances on the player's think (playerOnThink, in the player's instance) and as
--- soon as its walk ends (player.walkDone); one shared watchdog, running only while errands
--- exist, ends those of players that logged out or ran past their ttl. Start errands from
--- the player's instance (scripts and boss mechanics run there).
+-- An errand advances on the player's think (playerOnIdleCombatThink / playerOnThink) and as
+-- soon as its walk ends (player.walkDone); a timer at its ttl ends it ("gone" when the
+-- player logged out meanwhile). Start errands from the player's instance (scripts and boss
+-- mechanics run there).
 --
 -- Every errand takes `opts`:
 --   ttlMs      give up after this long (default 30s)
@@ -19,13 +19,11 @@
 
 PlayerErrand = PlayerErrand or {}
 
-local WATCHDOG_MS = 1000
 local DEFAULT_TTL_MS = 30000
 local STEP_RETRY_MS = 1500
 
 local geo = CombatGeo
 local errands = {}
-local watchdog = nil
 
 local DIRECTION_BY_OFFSET = {
 	[-1] = { [-1] = DIRECTION_NORTHWEST, [0] = DIRECTION_WEST, [1] = DIRECTION_SOUTHWEST },
@@ -43,9 +41,10 @@ local function finish(errand, ok, reason)
 		return
 	end
 	errands[errand.playerId] = nil
+	stopEvent(errand.deadlineEvent)
 	local player = Player(errand.playerId)
 	if player then
-		CombatAutomationMovement.clearWalkDedupe(player)
+		CombatAutomationMovement.clearPendingWalkAction(player)
 	end
 	if errand.onDone then
 		local called, err = pcall(errand.onDone, player, ok, reason)
@@ -110,24 +109,6 @@ end
 
 IdleEvents.on("player.walkDone", PlayerErrand.think, "PlayerErrand")
 
-local function watch()
-	watchdog = nil
-	local now, ended = geo.nowMs(), {}
-	for id, errand in pairs(errands) do
-		if not Player(id) then
-			ended[#ended + 1] = { errand, "gone" }
-		elseif now >= errand.deadline then
-			ended[#ended + 1] = { errand, "timeout" }
-		end
-	end
-	for _, entry in ipairs(ended) do
-		finish(entry[1], false, entry[2])
-	end
-	if next(errands) then
-		watchdog = addEvent(watch, WATCHDOG_MS)
-	end
-end
-
 local function start(player, errand, opts)
 	if not player or not errand.dest then
 		return false
@@ -140,17 +121,18 @@ local function start(player, errand, opts)
 	errand.playerId = player:getId()
 	errand.dest = Position(errand.dest.x, errand.dest.y, errand.dest.z)
 	errand.minReach = math.min(errand.minReach or 0, errand.reach)
+	local ttlMs = opts.ttlMs or DEFAULT_TTL_MS
 	errand.startedAt = geo.nowMs()
-	errand.deadline = errand.startedAt + (opts.ttlMs or DEFAULT_TTL_MS)
+	errand.deadline = errand.startedAt + ttlMs
 	errand.onDone = opts.onDone
 	errand.keepGoing = opts.keepGoing
 	errands[errand.playerId] = errand
 	if player:getFollowCreature() then
 		player:setFollowCreature(nil)
 	end
-	if not watchdog then
-		watchdog = addEvent(watch, WATCHDOG_MS)
-	end
+	errand.deadlineEvent = addEvent(function()
+		finish(errand, false, Player(errand.playerId) and "timeout" or "gone")
+	end, ttlMs)
 	step(errand, player)
 	return true
 end

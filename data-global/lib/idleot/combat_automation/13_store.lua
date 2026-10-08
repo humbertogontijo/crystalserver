@@ -45,7 +45,7 @@ local function coerceCondition(slot)
 		end
 		slot.triggerPercent = math.max(1, math.min(99, slot.triggerPercent))
 	elseif kind == "spell" then
-		local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
+		local group = CombatAutomationConfig.SpellGroupById[slot.spellId]
 		local lowerWords = tostring(slot.words or ""):lower()
 		local isCripple = lowerWords == "exori kor tempo" or lowerWords == "exori moe tempo"
 		if group == "attack" or group == "stance" or isCripple then
@@ -184,7 +184,7 @@ local function carriesCondition(slot)
 	if slot.kind ~= "spell" then
 		return true
 	end
-	local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
+	local group = CombatAutomationConfig.SpellGroupById[slot.spellId]
 	return group ~= "support" and group ~= "stance"
 end
 
@@ -404,19 +404,17 @@ function CombatAutomationStore.applyToRuntime(player, config)
 	local nextAuto = nextCfg.autoTarget and nextCfg.autoTarget.enabled == true
 	local autoResumed = nextAuto and not prevAuto and prevCfg ~= nil
 	state.config = nextCfg
-	local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
-	if session and ExpeditionAI then
+	local session = ExpeditionManager.getSessionByPlayer(player)
+	if session then
 		if autoResumed then
 			ExpeditionAI.onAutoResumed(player)
 		else
 			ExpeditionAI.enablePersistence(player)
 		end
-	elseif autoResumed and CombatAutomationMovement then
+	elseif autoResumed then
 		CombatAutomationMovement.onAutoResumed(player)
 	end
-	if CavebotStore then
-		CavebotStore.onConfigChanged(player)
-	end
+	CavebotStore.onConfigChanged(player)
 end
 
 function CombatAutomationStore.setConfig(player, raw)
@@ -432,9 +430,7 @@ function CombatAutomationStore.setConfig(player, raw)
 	elseif type(raw) == "table" and type(raw.autoTarget) == "table" and raw.autoTarget.cavebot == nil and existing.autoTarget then
 		config.autoTarget.cavebot = existing.autoTarget.cavebot == true
 	end
-	if CavebotStore then
-		CavebotStore.filterConfig(player, config, existing)
-	end
+	CavebotStore.filterConfig(player, config, existing)
 	-- Preserve ammo when payloads omit it (slot-only updates).
 	if type(raw) == "table" and raw.ammoTypeId == nil then
 		local loadout = raw.loadout
@@ -482,15 +478,6 @@ function CombatAutomationStore.onLogin(player)
 	config._loaded = true
 	CombatAutomationStore.applyToRuntime(player, config)
 	CombatAutomationProtocol.sendConfig(player, config, { includePresets = true })
-	-- Delayed resync: early login ticks can fire before the client has self/map,
-	-- and deduped attackTarget syncs would then never paint the red square.
-	local playerId = player:getId()
-	addEvent(function()
-		local p = Player(playerId)
-		if p and CombatAutomation and CombatAutomation.resyncAttackTarget then
-			CombatAutomation.resyncAttackTarget(p)
-		end
-	end, 1500)
 end
 
 function CombatAutomationStore.onLogout(player)

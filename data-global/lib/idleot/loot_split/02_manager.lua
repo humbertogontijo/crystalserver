@@ -112,7 +112,7 @@ local function partyMembers(party)
 end
 
 local function partyOnExpedition(party)
-	if not party or not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
+	if not party then
 		return false
 	end
 	for _, member in ipairs(partyMembers(party)) do
@@ -186,9 +186,6 @@ local function trySellForInsufficientCap(player, corpse, isBoss)
 	if not player or not corpse then
 		return false
 	end
-	if not RemoteHirelingEconomy or not RemoteHirelingEconomy.maybeSellForShortage then
-		return false
-	end
 	if not autoLootEnabled(player, isBoss == true) then
 		return false
 	end
@@ -230,7 +227,7 @@ local function deliverItem(destPlayer, item, statsPlayer)
 	if isCoinItem(item) and worth > 0 then
 		item:remove()
 		destPlayer:addMoney(worth)
-		local goldId = (LootSplitConfig and LootSplitConfig.GOLD_COIN_ID) or 3031
+		local goldId = (LootSplitConfig.GOLD_COIN_ID) or 3031
 		local remaining = worth
 		while remaining > 0 do
 			local chunk = math.min(remaining, 100)
@@ -294,7 +291,7 @@ end
 
 --- Split corpse among party seats. Each seat → that member's account pouch + analyser credit.
 function LootSplit.splitCorpse(monster, corpse, owner)
-	if not LootSplitConfig or LootSplitConfig.ENABLED == false then
+	if LootSplitConfig.ENABLED == false then
 		return false
 	end
 	if not monster or not corpse or not owner then
@@ -395,7 +392,7 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 			end
 		end
 
-		local goldId = (LootSplitConfig and LootSplitConfig.GOLD_COIN_ID) or 3031
+		local goldId = (LootSplitConfig.GOLD_COIN_ID) or 3031
 		for gi, seatMember in ipairs(goldSeatMembers) do
 			local amount = share
 			if remainderSeatIdx and gi == remainderSeatIdx then
@@ -431,18 +428,16 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 					delivered = true
 					break
 				end
-				if ExpeditionSafety and ExpeditionSafety.handleShortage then
-					local recovered = ExpeditionSafety.handleShortage(
-						seatMember,
-						"cap",
-						tryDeliver,
-						string.format("%s has insufficient capacity for loot. Expedition stopped.", seatMember:getName())
-					)
-					if recovered then
-						rrCursorByLeader[leaderGuid] = (start + offset + 1) % seatCount
-						delivered = true
-						break
-					end
+				local recovered = ExpeditionSafety.handleShortage(
+					seatMember,
+					"cap",
+					tryDeliver,
+					string.format("%s has insufficient capacity for loot. Expedition stopped.", seatMember:getName())
+				)
+				if recovered then
+					rrCursorByLeader[leaderGuid] = (start + offset + 1) % seatCount
+					delivered = true
+					break
 				end
 			end
 		end

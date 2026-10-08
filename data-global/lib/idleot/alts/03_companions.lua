@@ -266,12 +266,14 @@ function Alts.forceJoinToParty(host, member)
 	return true
 end
 
--- Lua onDeath precedes C++ death penalties; wait for HP restore before save+logout.
+-- Lua onDeath precedes C++ death penalties; a downed companion logs out once it revives
+-- (playerOnRevive), or when the wait runs out.
 local COMPANION_LOGOUT_DEFER_MS = 350
 local COMPANION_LOGOUT_MAX_WAIT_MS = 3000
-local COMPANION_LOGOUT_POLL_MS = 100
 -- playerId -> generation; bumping cancels an in-flight deferred logout (switch redeploy).
 local pendingCompanionLogoutGen = {}
+-- playerId -> fn: deferred logout waiting for the companion to revive.
+local logoutOnRevive = {}
 
 local function parkCompanionBeforeLogout(companion)
 	if not companion then
@@ -279,10 +281,10 @@ local function parkCompanionBeforeLogout(companion)
 	end
 	local pos = companion:getPosition()
 	local needPark = Instance.isPrivate(Instance.of(companion))
-	if not needPark and ExpeditionConfig and companion:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
+	if not needPark and companion:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
 		needPark = true
 	end
-	if not needPark and pos and InstanceWorld and InstanceWorld.classify then
+	if not needPark and pos then
 		local kind = InstanceWorld.classify(pos).kind
 		if kind == "hunt" or kind == "blocked" then
 			needPark = true
@@ -292,12 +294,8 @@ local function parkCompanionBeforeLogout(companion)
 		return
 	end
 	-- Persist open-world loginPosition: C++ logout saves getPosition().
-	local returnPos = ExpeditionManager and ExpeditionManager.loadReturnPos and ExpeditionManager.loadReturnPos(companion) or nil
-	if InstanceWorld and InstanceWorld.exitToOpenWorld then
-		IdleSafe.call("InstanceWorld.exitToOpenWorld", InstanceWorld.exitToOpenWorld, companion, returnPos)
-	elseif returnPos then
-		companion:teleportTo(returnPos)
-	end
+	local returnPos = ExpeditionManager.loadReturnPos(companion) or nil
+	IdleSafe.call("InstanceWorld.exitToOpenWorld", InstanceWorld.exitToOpenWorld, companion, returnPos)
 end
 
 local function safeLogoutCompanion(companion, deferMs)
@@ -330,14 +328,19 @@ local function safeLogoutCompanion(companion, deferMs)
 		local c = Player(playerId)
 		if not c or not isHeadlessCompanion(c) then
 			pendingCompanionLogoutGen[playerId] = nil
+			logoutOnRevive[playerId] = nil
 			return
 		end
-		local hp = c:getHealth() or 0
-		if hp <= 0 and (CombatGeo.nowMs() - startedMs) < COMPANION_LOGOUT_MAX_WAIT_MS then
-			addEvent(tryLogout, COMPANION_LOGOUT_POLL_MS)
+		local waited = CombatGeo.nowMs() - startedMs
+		if c:getHealth() <= 0 and waited < COMPANION_LOGOUT_MAX_WAIT_MS then
+			if logoutOnRevive[playerId] ~= tryLogout then
+				logoutOnRevive[playerId] = tryLogout
+				addEvent(tryLogout, COMPANION_LOGOUT_MAX_WAIT_MS - waited)
+			end
 			return
 		end
 		pendingCompanionLogoutGen[playerId] = nil
+		logoutOnRevive[playerId] = nil
 		logoutNow()
 	end
 
@@ -357,6 +360,14 @@ end
 
 function Alts.safeLogoutCompanion(companion, deferMs)
 	safeLogoutCompanion(companion, deferMs)
+end
+
+--- playerOnRevive: finish a logout deferred while the companion was down.
+function Alts.onRevive(player)
+	local pending = logoutOnRevive[player:getId()]
+	if pending then
+		pending()
+	end
 end
 
 --- Cancel a deferred companion logout (e.g. leave->switch redeploy reused the same creature).
@@ -410,7 +421,7 @@ function Alts.companionNamesFor(controller)
 end
 
 local function applyCompanionAutoRebuy(companion)
-	if not companion or not RemoteBlessings or not RemoteBlessings.tryAutoRebuy then
+	if not companion then
 		return
 	end
 	local companionId = companion:getId()

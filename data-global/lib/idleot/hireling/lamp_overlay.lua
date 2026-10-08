@@ -1,6 +1,6 @@
 -- Thin overlay on stock data/libs/systems/hireling.lua (do NOT full-copy core/).
 -- Product deltas: deep lamp find, no duplicate lamps, register hireling if lamp add fails.
--- Loaded after stock hireling via scripts/idleot/hireling/lamp_overlay.lua.
+-- data/core.lua loads the stock libs (and Hireling) before the product libs.
 
 local function lampHirelingId(item)
 	if not item or item:getId() ~= HIRELING_LAMP then

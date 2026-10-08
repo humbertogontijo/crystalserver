@@ -30,7 +30,7 @@ function LobbyTravel.requestLeave(player)
 	if not LobbyInstance.roomForPlayer(player) then
 		return false, "You are not in a lobby room."
 	end
-	if record and LobbyStart and LobbyStart.isActive(record) then
+	if record and LobbyStart.isActive(record) then
 		return false, "Your lobby is starting an expedition."
 	end
 	return InstanceTeleport.requestLobby(player, record, { leave = true })

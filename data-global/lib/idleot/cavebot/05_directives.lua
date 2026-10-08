@@ -45,7 +45,7 @@ function Cavebot.syncManual(run, onChange)
 			IdleEvents.emit("member.resumed", run, player)
 		end
 	end
-	if changed and CavebotProtocol then
+	if changed then
 		CavebotProtocol.sendRun(run)
 	end
 end
@@ -56,7 +56,7 @@ end
 --- is paused, the others form on it wherever it stands. `opts.noAnchor`: no anchor at
 --- all (raids), every member fights by its own stance.
 function Cavebot.syncDirectives(run, opts)
-	if not run or not CombatAutomationMovement then
+	if not run then
 		return
 	end
 	opts = opts or {}

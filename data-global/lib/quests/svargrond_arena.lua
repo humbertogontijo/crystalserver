@@ -198,7 +198,9 @@ function SvargrondArena.getPitCreatures(pitId)
 	local ret = {}
 	local specs = Game.getSpectators(PITS[pitId].center, false, false, 5, 5, 5, 5)
 	for i = 1, #specs do
-		ret[#ret + 1] = specs[i]
+		if not Instance.isPrivate(Instance.of(specs[i])) then
+			ret[#ret + 1] = specs[i]
+		end
 	end
 
 	return ret
@@ -215,16 +217,17 @@ function SvargrondArena.resetPit(pitId)
 				local tile = Tile({ x = x, y = y, z = z })
 				if tile then
 					local movableItem = tile:getThing(255)
-					if movableItem and movableItem:isItem() then
+					if movableItem and movableItem:isItem() and not Instance.isPrivate(Instance.of(movableItem)) then
 						local itemType = ItemType(movableItem:getId())
 						if itemType and itemType:isMovable() and not table.contains(SvargrondArena.itemsNotErasable, movableItem:getId()) then
 							movableItem:remove()
 						end
 					end
 
-					local creature = tile:getTopCreature()
-					if creature and creature:isMonster() then
-						creature:remove()
+					for _, creature in ipairs(tile:getCreatures() or {}) do
+						if creature:isMonster() and not Instance.isPrivate(Instance.of(creature)) then
+							creature:remove()
+						end
 					end
 				end
 			end
@@ -234,13 +237,14 @@ function SvargrondArena.resetPit(pitId)
 	local pillarTile = Tile(PITS[pitId].pillar)
 	if pillarTile then
 		local teleportItem = pillarTile:getItemById(SvargrondArena.itemTeleport)
-		if teleportItem then
+		if teleportItem and not Instance.isPrivate(Instance.of(teleportItem)) then
 			teleportItem:remove()
 		end
 
 		local pillarItem = pillarTile:getItemById(SvargrondArena.itemPillar)
 		if not pillarItem then
-			Game.createItem(SvargrondArena.itemPillar, 1, PITS[pitId].pillar)
+			-- Map-template item shared by every open-world channel.
+			Game.createItem(SvargrondArena.itemPillar, 1, PITS[pitId].pillar, Instance.WORLD)
 		end
 	end
 end

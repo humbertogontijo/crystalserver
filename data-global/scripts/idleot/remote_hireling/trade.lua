@@ -66,7 +66,7 @@ local function reply(player, payload)
 end
 
 local function pushStatus(player)
-	if not player or not RemoteHirelingEconomy then
+	if not player then
 		return
 	end
 	local fields = RemoteHirelingEconomy.statusFields(player)
@@ -79,19 +79,13 @@ function RemoteHirelingPushStatus(player)
 end
 
 local function handleSellAll(player, payload)
-	if not RemoteHirelingEconomy or not RemoteHirelingEconomy.sellAll then
-		reply(player, { type = "error", message = "Auto-sell is unavailable." })
-		return
-	end
 
 	local ignoreEquipped = payload.ignoreEquipped ~= false
 	local filterMode = tonumber(payload.filterMode) == 1 and 1 or 0
 	local itemIds = IdleUtil.toItemIds(payload.itemIds)
 
 	local gold, items, taxPercent = RemoteHirelingEconomy.sellAll(player, ignoreEquipped, filterMode, itemIds)
-	if RemoteHirelingEconomy.setSellFilter then
-		RemoteHirelingEconomy.setSellFilter(player, filterMode, itemIds)
-	end
+	RemoteHirelingEconomy.setSellFilter(player, filterMode, itemIds)
 	if items <= 0 or gold <= 0 then
 		-- Silent when empty (auto-sell polls often).
 		pushStatus(player)
@@ -110,9 +104,6 @@ local function handleSellAll(player, payload)
 end
 
 local function handleSetAutoSell(player, payload)
-	if not RemoteHirelingEconomy then
-		return
-	end
 	local enabled = payload.enabled == true or payload.enabled == 1 or payload.enabled == "true"
 	RemoteHirelingEconomy.setAutoSell(player, enabled)
 	pushStatus(player)
@@ -122,9 +113,6 @@ local function handleSetAutoSell(player, payload)
 end
 
 local function handleSetAutoSellConfig(player, payload)
-	if not RemoteHirelingEconomy then
-		return
-	end
 	if payload.sellOnNoGold ~= nil then
 		RemoteHirelingEconomy.setSellOnNoGold(player, payload.sellOnNoGold == true or payload.sellOnNoGold == 1)
 	end
@@ -183,7 +171,7 @@ local function openRemoteHirelingTrade(player)
 		return
 	end
 
-	if not HirelingShopItems or not (HirelingShopItems["buy loot"] or HirelingShopItems["various"]) then
+	if not (HirelingShopItems["buy loot"] or HirelingShopItems["various"]) then
 		local msg = "Hireling shop catalog is unavailable."
 		player:sendTextMessage(MESSAGE_FAILURE, msg)
 		reply(player, { type = "error", message = msg })
@@ -198,12 +186,6 @@ local function openRemoteHirelingTrade(player)
 		return
 	end
 
-	if not RemoteDialog or not RemoteDialog.open then
-		local msg = "Remote dialog system is unavailable."
-		player:sendTextMessage(MESSAGE_FAILURE, msg)
-		reply(player, { type = "error", message = msg })
-		return
-	end
 
 	-- Bind the real hireling NPC: say → PRIVATE_PN → NpcHandler; replies are PRIVATE_NP.
 	RemoteDialog.open(player, {
@@ -280,10 +262,6 @@ end
 
 --- Manual SELL / Sell All: same filtered hireling-catalog path as emergency auto-sell.
 local function handleSellLootPouch(player)
-	if not RemoteHirelingEconomy or not RemoteHirelingEconomy.sellLootPouch then
-		reply(player, { type = "error", message = "Auto-sell is unavailable." })
-		return
-	end
 
 	local filterMode, itemIds = RemoteHirelingEconomy.getSellFilter(player)
 	if filterMode == 1 and (not itemIds or #itemIds == 0) then
@@ -318,18 +296,18 @@ local loginEvent = CreatureEvent("RemoteHirelingLogin")
 
 function loginEvent.onLogin(player)
 	player:registerEvent("RemoteHirelingOpcode")
-	local pid = player:getId()
-	-- Defer status so client opcode handlers are registered.
-	addEvent(function()
-		local p = Player(pid)
-		if p then
-			pushStatus(p)
-		end
-	end, 500)
 	return true
 end
 
 loginEvent:register()
+
+local clientReadyCallback = EventCallback("RemoteHirelingPlayerOnClientReady")
+
+function clientReadyCallback.playerOnClientReady(player)
+	pushStatus(player)
+end
+
+clientReadyCallback:register()
 
 local actionHandlers = {
 	openRemoteHirelingTrade = function(player)

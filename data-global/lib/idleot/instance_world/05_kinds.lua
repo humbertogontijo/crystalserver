@@ -73,7 +73,7 @@ end
 
 function InstanceKinds.respawnSec(kind)
 	local rules = InstanceKinds.KINDS[kind] or {}
-	return math.max(1, tonumber(rules.respawnSec) or (SoftDeathConfig and SoftDeathConfig.DEFAULT_DURATION_SEC) or 10)
+	return math.max(1, tonumber(rules.respawnSec) or (SoftDeathConfig.DEFAULT_DURATION_SEC) or 10)
 end
 
 local function knockout(player, kind)
@@ -81,9 +81,6 @@ local function knockout(player, kind)
 	local hooks = InstanceKinds._hooks[kind] or {}
 	if hooks.beforeKnockout then
 		IdleSafe.call("InstanceKinds.beforeKnockout", hooks.beforeKnockout, player)
-	end
-	if not (SoftDeath and SoftDeath.beginDowned) then
-		return false
 	end
 	local ok = SoftDeath.beginDowned(player, {
 		reason = kind,
@@ -112,7 +109,7 @@ function InstanceKinds.onHealthChange(creature, attacker, primaryDamage, primary
 	if rules.deathPenalty ~= false then
 		return primaryDamage, primaryType, secondaryDamage, secondaryType
 	end
-	if SoftDeath and SoftDeath.isDowned and SoftDeath.isDowned(player) then
+	if SoftDeath.isDowned(player) then
 		return 0, primaryType, 0, secondaryType
 	end
 

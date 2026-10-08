@@ -1066,14 +1066,10 @@ end
 discoveryTick:interval(1000)
 discoveryTick:register()
 
-local discoveryLogin = CreatureEvent("DiscoverySystemLogin")
-discoveryLogin:type("login")
+local discoveryClientReady = EventCallback("DiscoverySystemPlayerOnClientReady")
 
---- Login and headless-body reclaim (Alts.onClientAttached) both land here.
-function DiscoverySystem.onClientAttached(player)
-	if not hasClient(player) then
-		return
-	end
+--- Fresh login or a client reattached to a headless body.
+function discoveryClientReady.playerOnClientReady(player)
 	local store = kv(player)
 	if store:get("geom-version") ~= GEOMETRY_VERSION then
 		for _, def in ipairs(SUBAREA_LIST) do
@@ -1085,12 +1081,7 @@ function DiscoverySystem.onClientAttached(player)
 	DiscoverySystem.sendDonations(player)
 end
 
-function discoveryLogin.onLogin(player)
-	DiscoverySystem.onClientAttached(player)
-	return true
-end
-
-discoveryLogin:register()
+discoveryClientReady:register()
 
 local discoveryStartup = GlobalEvent("DiscoverySystemStartup")
 

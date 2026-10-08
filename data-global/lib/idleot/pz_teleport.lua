@@ -22,7 +22,7 @@ function PzTeleport.isInSafeZone(player)
 	if not player then
 		return false
 	end
-	if LobbyInstance and LobbyInstance.roomForPlayer(player) then
+	if LobbyInstance.roomForPlayer(player) then
 		return true
 	end
 	local tile = Tile(player:getPosition())

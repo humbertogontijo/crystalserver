@@ -28,7 +28,7 @@ local function footprint(hunt)
 end
 
 local function huntFloors(hunt)
-	local floors = ExpeditionInstance and ExpeditionInstance.floorsFromSpec and ExpeditionInstance.floorsFromSpec(hunt) or nil
+	local floors = ExpeditionInstance.floorsFromSpec(hunt) or nil
 	if type(floors) == "table" and #floors > 0 then
 		return floors
 	end
@@ -41,7 +41,7 @@ end
 
 local function build()
 	index = {}
-	indexedCatalog = ExpeditionConfig and ExpeditionConfig.Catalog or nil
+	indexedCatalog = ExpeditionConfig.Catalog or nil
 	for order, hunt in ipairs(indexedCatalog or {}) do
 		local x1, y1, x2, y2, occ = footprint(hunt)
 		if x1 then
@@ -69,7 +69,7 @@ local function build()
 end
 
 local function ensureIndex()
-	if not index or indexedCatalog ~= (ExpeditionConfig and ExpeditionConfig.Catalog or nil) then
+	if not index or indexedCatalog ~= (ExpeditionConfig.Catalog or nil) then
 		build()
 	end
 end

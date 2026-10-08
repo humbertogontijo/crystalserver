@@ -62,9 +62,7 @@ function instanceCommand.onSay(player, words, param)
 		return true
 	end
 
-	if ExpeditionProtocol and ExpeditionProtocol.sendGodFlags then
-		ExpeditionProtocol.sendGodFlags(player)
-	end
+	ExpeditionProtocol.sendGodFlags(player)
 	player:sendTextMessage(MESSAGE_ADMINISTRATOR, string.format("Channel %s -> %s.", channelLabel(parsed.channel), describe(player)))
 	return true
 end

@@ -1,20 +1,14 @@
 -- Expedition session AI: the single session tick (CombatAutomationConfig.TICK_MS), persistence,
 -- movement directives, catch-up and manual control (players may walk themselves;
 -- the AI takes over again once they stop). Targeting / stance / casting live in
--- CombatAutomation (per player, playerOnThink).
+-- CombatAutomation (per player, playerOnIdleCombatThink).
 
 ExpeditionAI = ExpeditionAI or {}
 
 local geo = CombatGeo
 
 local function memberIds(session)
-	if ExpeditionManager and ExpeditionManager.sessionMemberIds then
-		return ExpeditionManager.sessionMemberIds(session)
-	end
-	if session and session.playerId then
-		return { session.playerId }
-	end
-	return {}
+	return ExpeditionManager.sessionMemberIds(session)
 end
 
 function ExpeditionAI.sessionKind(session)
@@ -26,11 +20,9 @@ function ExpeditionAI.enablePersistence(player)
 	if not player then
 		return
 	end
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer then
-		local session = ExpeditionManager.getSessionByPlayer(player)
-		if session and session.state == "ended" then
-			return
-		end
+	local session = ExpeditionManager.getSessionByPlayer(player)
+	if session and session.state == "ended" then
+		return
 	end
 	if PzTeleport.isGod(player) then
 		if player:isIdleCombat() then
@@ -53,17 +45,13 @@ function ExpeditionAI.onAutoResumed(player)
 	if not player then
 		return
 	end
-	if CombatAutomationMovement and CombatAutomationMovement.onAutoResumed then
-		CombatAutomationMovement.onAutoResumed(player)
-	else
-		player:clearWalkTask()
-	end
+	CombatAutomationMovement.onAutoResumed(player)
 	ExpeditionAI.enablePersistence(player)
 end
 
 --- Suggest AUTO on once at hunt start (do not force-lock; player may toggle off).
 local function suggestAutoOn(player)
-	if not player or not CombatAutomationStore then
+	if not player then
 		return
 	end
 	local config = CombatAutomationStore.getConfig(player)
@@ -78,9 +66,7 @@ local function suggestAutoOn(player)
 		config.autoTarget.enabled = true
 		CombatAutomationStore.persist(player, config)
 		CombatAutomationStore.applyToRuntime(player, config)
-		if CombatAutomationProtocol and CombatAutomationProtocol.sendConfig then
-			CombatAutomationProtocol.sendConfig(player, config)
-		end
+		CombatAutomationProtocol.sendConfig(player, config)
 	end
 end
 
@@ -92,15 +78,11 @@ local function clearPlayerCombat(player)
 		player:setFollowCreature(nil)
 	end
 	player:setTarget(nil)
-	if CombatAutomation and CombatAutomation.resyncAttackTarget then
-		CombatAutomation.resyncAttackTarget(player)
-	end
+	CombatAutomation.resyncAttackTarget(player)
 	player:setIdleCombat(false)
 	player:removeCondition(CONDITION_INFIGHT)
-	if CombatAutomationMovement then
-		CombatAutomationMovement.clearDirective(player)
-		CombatAutomationMovement.clearWalkDedupe(player)
-	end
+	CombatAutomationMovement.clearDirective(player)
+	CombatAutomationMovement.clearPendingWalkAction(player)
 	player:clearPathLeash()
 	-- Think pipeline stops when idleCombat clears; do not re-arm combat here.
 end
@@ -127,9 +109,7 @@ end
 
 local function teleportNearAnchor(session, player, anchor)
 	player:teleportTo(findCatchUpTile(player, anchor))
-	if CombatAutomationMovement then
-		CombatAutomationMovement.clearWalkDedupe(player)
-	end
+	CombatAutomationMovement.clearPendingWalkAction(player)
 	session.catchUpTeleports = (session.catchUpTeleports or 0) + 1
 end
 
@@ -226,9 +206,9 @@ function ExpeditionAI.syncPathLeash(session)
 	if not session then
 		return
 	end
-	local radius = ExpeditionConfig.anchorPathBiasRadius and ExpeditionConfig.anchorPathBiasRadius() or 0
+	local radius = ExpeditionConfig.anchorPathBiasRadius() or 0
 	local anchor = nil
-	if radius > 0 and ExpeditionConfig.getAnchorPlayer then
+	if radius > 0 then
 		anchor = ExpeditionConfig.getAnchorPlayer(session)
 	end
 	local anchorId = anchor and anchor:getId() or 0
@@ -253,7 +233,7 @@ function ExpeditionAI.tick(session)
 	if session.state == "ended" or session.endedByDeath then
 		return
 	end
-	if session.companionIds and ExpeditionManager and ExpeditionManager.notifyHuntMemberDeath then
+	if session.companionIds then
 		for companionId in pairs(session.companionIds) do
 			local companion = Player(companionId)
 			if not companion or companion:getHealth() <= 0 then
@@ -271,17 +251,15 @@ function ExpeditionAI.tick(session)
 		end
 	end
 	if not anyOnline then
-		if ExpeditionManager.endIfNoPlayers then
-			ExpeditionManager.endIfNoPlayers(session, { immediate = true })
-		end
+		ExpeditionManager.endIfNoPlayers(session, { immediate = true })
 		return
 	end
-	if ExpeditionManager.endIfNoPlayers and ExpeditionManager.endIfNoPlayers(session) then
+	if ExpeditionManager.endIfNoPlayers(session) then
 		return
 	end
 
 	local role = session.role or (session.catalog and session.catalog.role) or "monster"
-	if role == "boss" and ExpeditionBoss and ExpeditionBoss.ensureKillableSession then
+	if role == "boss" then
 		ExpeditionBoss.ensureKillableSession(session)
 	end
 
@@ -295,28 +273,25 @@ function ExpeditionAI.tick(session)
 
 	local anchor = nil
 	if sessionKind(session) ~= "raid" then
-		anchor = ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
+		anchor = ExpeditionConfig.getAnchorPlayer(session)
 	end
 
+	-- Members bound elsewhere are reconciled on player.instanceChanged (07a_session).
+	local instanceId = session.instance and session.instance.instanceId
 	for _, id in ipairs(ids) do
 		local player = Player(id)
-		if player then
-			if ExpeditionManager.reconcilePresence and not ExpeditionManager.reconcilePresence(player) then
-				-- left area
-			elseif PzTeleport.isGod(player) then
-				-- spectate
-			else
-				ExpeditionAI.enablePersistence(player)
-				if anchor then
-					catchUpMember(session, player, anchor)
-				end
+		local inside = player and (not session.entered or player:getInstanceId() == instanceId)
+		if inside and not PzTeleport.isGod(player) then
+			ExpeditionAI.enablePersistence(player)
+			if anchor then
+				catchUpMember(session, player, anchor)
 			end
 		end
 	end
 end
 
 --- Sole session-tick driver every CombatAutomationConfig.TICK_MS. Do not also schedule from
---- playerOnThink / CombatAutomation.onThink — those own per-player combat only.
+--- playerOnIdleCombatThink / CombatAutomation.onThink — those own per-player combat only.
 function ExpeditionAI.start(session)
 	if not session or session.state == "ended" then
 		return

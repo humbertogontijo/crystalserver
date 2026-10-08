@@ -12,7 +12,7 @@ loginEvent:register()
 local opcodeEvent = CreatureEvent("QuestsOpcode")
 
 function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
-	if not QuestsConfig or opcode ~= QuestsConfig.OPCODE then
+	if opcode ~= QuestsConfig.OPCODE then
 		return
 	end
 	local ok, err = pcall(function()
@@ -30,9 +30,8 @@ local startup = GlobalEvent("QuestsStartup")
 function startup.onStartup()
 	QuestsCatalog.rebuild()
 	QuestsKitnoBoss.registerExpeditions()
-	QuestArena.patchStockHelpers()
 	QuestArena.registerExpeditions()
-	logger.info("[Quests] idle Quests & Tasks ready (opcode {})", QuestsConfig and QuestsConfig.OPCODE or 118)
+	logger.info("[Quests] idle Quests & Tasks ready (opcode {})", QuestsConfig.OPCODE or 118)
 	return true
 end
 

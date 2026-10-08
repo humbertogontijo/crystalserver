@@ -12,7 +12,7 @@ loginEvent:register()
 local opcodeEvent = CreatureEvent("TokenServicesOpcode")
 
 function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
-	if not TokenServicesConfig or opcode ~= TokenServicesConfig.OPCODE then
+	if opcode ~= TokenServicesConfig.OPCODE then
 		return
 	end
 	local ok, err = pcall(TokenServices.handleOpcode, player, buffer)

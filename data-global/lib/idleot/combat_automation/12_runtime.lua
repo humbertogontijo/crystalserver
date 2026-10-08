@@ -15,7 +15,7 @@ local function spellGroup(slot)
 	if not slot or slot.kind ~= "spell" then
 		return nil
 	end
-	return CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
+	return CombatAutomationConfig.SpellGroupById[slot.spellId]
 end
 
 local function isHasteSpell(slot)
@@ -93,7 +93,7 @@ local function isManaShieldPotion(slot)
 	if not slot or slot.kind ~= "potion" then
 		return false
 	end
-	local effect = CombatAutomationConfig.PotionEffects and CombatAutomationConfig.PotionEffects[slot.potionTypeId]
+	local effect = CombatAutomationConfig.PotionEffects[slot.potionTypeId]
 	return effect ~= nil and effect.manashield == true
 end
 
@@ -156,7 +156,7 @@ local function isPartyHealSlot(slot)
 	if not slot or slot.kind ~= "spell" then
 		return false
 	end
-	local area = CombatAutomationConfig.SpellAreaById and CombatAutomationConfig.SpellAreaById[slot.spellId]
+	local area = CombatAutomationConfig.SpellAreaById[slot.spellId]
 	if area and area.kind == "friend" then
 		return true
 	end
@@ -169,11 +169,11 @@ local function isAreaHealSlot(slot)
 	if not slot or slot.kind ~= "spell" then
 		return false
 	end
-	local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
+	local group = CombatAutomationConfig.SpellGroupById[slot.spellId]
 	if group ~= "healing" then
 		return false
 	end
-	local area = CombatAutomationConfig.SpellAreaById and CombatAutomationConfig.SpellAreaById[slot.spellId]
+	local area = CombatAutomationConfig.SpellAreaById[slot.spellId]
 	if not area or area.kind ~= "self" then
 		return false
 	end
@@ -241,9 +241,6 @@ local function sameParty(a, b)
 end
 
 local function sameExpedition(a, b)
-	if not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
-		return false
-	end
 	local sa = ExpeditionManager.getSessionByPlayer(a)
 	local sb = ExpeditionManager.getSessionByPlayer(b)
 	if not sa or not sb or sa ~= sb then
@@ -265,30 +262,22 @@ local function isPvpRival(player, creature)
 end
 
 local function sameTeamDeployment(a, b)
-	if not Alts then
-		return false
-	end
 	local aid, bid = a:getId(), b:getId()
-	if Alts.getDeployment then
-		local da = Alts.getDeployment(a)
-		if da then
-			for _, id in ipairs(da.companionIds or {}) do
-				if id == bid then
-					return true
-				end
-			end
-		end
-		local db = Alts.getDeployment(b)
-		if db then
-			for _, id in ipairs(db.companionIds or {}) do
-				if id == aid then
-					return true
-				end
+	local da = Alts.getDeployment(a)
+	if da then
+		for _, id in ipairs(da.companionIds or {}) do
+			if id == bid then
+				return true
 			end
 		end
 	end
-	if not AltsConfig then
-		return false
+	local db = Alts.getDeployment(b)
+	if db then
+		for _, id in ipairs(db.companionIds or {}) do
+			if id == aid then
+				return true
+			end
+		end
 	end
 	local key = AltsConfig.STORAGE_COMPANION_CONTROLLER
 	local ga = a:getStorageValue(key)
@@ -348,7 +337,7 @@ end
 --- Config price 0 = free (still succeeds). Missing price = refuse.
 --- Supplies priced in tokens rather than NPC gold (e.g. Cledwyn's magic shield potion).
 local function supplyTokenPrice(typeId)
-	local effect = CombatAutomationConfig.PotionEffects and CombatAutomationConfig.PotionEffects[typeId]
+	local effect = CombatAutomationConfig.PotionEffects[typeId]
 	return effect and effect.tokenPrice or nil
 end
 
@@ -357,7 +346,7 @@ local function chargeNpcBuyPrice(player, typeId)
 	if tokenPrice then
 		return TokenMarket ~= nil and TokenMarket.acquire(player, tokenPrice.id, tokenPrice.count) == true
 	end
-	local price = CombatAutomationConfig.NpcBuyPriceByTypeId and CombatAutomationConfig.NpcBuyPriceByTypeId[typeId]
+	local price = CombatAutomationConfig.NpcBuyPriceByTypeId[typeId]
 	-- Prefer live NPC shop registry when available (clientId == typeId for these supplies),
 	-- unless config explicitly marks the supply free (price 0).
 	if price ~= 0 and NpcPriceChecker and NpcPriceChecker[typeId] and NpcPriceChecker[typeId].buy then
@@ -379,7 +368,7 @@ local function chargeNpcBuyPrice(player, typeId)
 end
 
 local function expeditionSession(player)
-	if not player or not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
+	if not player then
 		return nil
 	end
 	return ExpeditionManager.getSessionByPlayer(player)
@@ -392,13 +381,10 @@ local function supplyAvailable(player, typeId)
 	end
 	local tokenPrice = supplyTokenPrice(typeId)
 	if tokenPrice then
-		if not TokenMarket then
-			return false
-		end
 		local quote = TokenMarket.quote(player, tokenPrice.id, tokenPrice.count)
 		return quote.gold <= (player:getMoney() or 0) + (player:getBankBalance() or 0)
 	end
-	local price = CombatAutomationConfig.NpcBuyPriceByTypeId and CombatAutomationConfig.NpcBuyPriceByTypeId[typeId]
+	local price = CombatAutomationConfig.NpcBuyPriceByTypeId[typeId]
 	if price ~= 0 and NpcPriceChecker and NpcPriceChecker[typeId] and NpcPriceChecker[typeId].buy then
 		price = NpcPriceChecker[typeId].buy
 	end
@@ -572,7 +558,7 @@ end
 --- Keep configured ammo ready for distance attacks.
 --- Inventory first for that typeId only; if missing, charge NPC buy price then spawn one.
 local function ensureAmmo(player, config)
-	if not player or not CombatAutomationCatalog or not CombatAutomationCatalog.isPaladin(player) then
+	if not player or not CombatAutomationCatalog.isPaladin(player) then
 		return
 	end
 	local configured = preferredAmmoTypeId(config)
@@ -599,16 +585,14 @@ local function ensureAmmo(player, config)
 	-- No physical ammo of this type: charge this character's gold, then equip one.
 	-- Do not use consumeSupply - that would double-count supply tracker when the weapon consumes it.
 	if respectCap and not canCarryAmmo(player, typeId, 1) then
-		if ExpeditionSafety and ExpeditionSafety.handleShortage then
-			ExpeditionSafety.handleShortage(
-				player,
-				"cap",
-				function()
-					return canCarryAmmo(player, typeId, 1)
-				end,
-				string.format("%s has insufficient capacity for ammo. Expedition stopped.", player:getName())
-			)
-		end
+		ExpeditionSafety.handleShortage(
+			player,
+			"cap",
+			function()
+				return canCarryAmmo(player, typeId, 1)
+			end,
+			string.format("%s has insufficient capacity for ammo. Expedition stopped.", player:getName())
+		)
 		if not canCarryAmmo(player, typeId, 1) then
 			return
 		end
@@ -630,7 +614,7 @@ local function ensureAmmo(player, config)
 	end
 	-- Default: ignore cap (gold-gated). stopOnInsufficientCap → already verified weight above.
 	if not placeConfiguredAmmo(player, typeId, true, 1, not respectCap) then
-		if respectCap and ExpeditionSafety and ExpeditionSafety.handleShortage then
+		if respectCap then
 			ExpeditionSafety.handleShortage(
 				player,
 				"cap",
@@ -644,7 +628,7 @@ local function ensureAmmo(player, config)
 end
 
 local function usePotion(player, typeId)
-	local effect = CombatAutomationConfig.PotionEffects and CombatAutomationConfig.PotionEffects[typeId]
+	local effect = CombatAutomationConfig.PotionEffects[typeId]
 	if not effect then
 		return false
 	end
@@ -727,7 +711,7 @@ local function spellExhaustMs(words)
 			return cd
 		end
 	end
-	local mapped = CombatAutomationConfig.SpellCooldownMsByWords and CombatAutomationConfig.SpellCooldownMsByWords[words]
+	local mapped = CombatAutomationConfig.SpellCooldownMsByWords[words]
 	if type(mapped) == "number" and mapped > 0 then
 		return mapped
 	end
@@ -781,7 +765,7 @@ local function tryCastSpellWords(player, words, param)
 	end
 	-- Fail closed on vocation/level even if a stale slot slipped into KV.
 	local catalogId = catalogSpellIdForWords(words)
-	if catalogId and CombatAutomationCatalog and CombatAutomationCatalog.spellAllowedForPlayer then
+	if catalogId then
 		if not CombatAutomationCatalog.spellAllowedForPlayer(catalogId, player) then
 			return "skip"
 		end
@@ -841,8 +825,8 @@ local function notifyAutomationCast(player, slot, words, label, exhaustMs)
 	end
 	sendCast(player)
 	-- Headless companions have no client; relay to expedition host so the cast flash is visible.
-	if Alts and Alts.isCompanion and Alts.isCompanion(player) then
-		local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+	if Alts.isCompanion(player) then
+		local session = ExpeditionManager.getSessionByPlayer(player)
 		if session and session.playerId and session.playerId ~= player:getId() then
 			sendCast(Player(session.playerId))
 		end
@@ -851,13 +835,11 @@ end
 
 --- aim: optional Position for area runes (best tile); defaults to the current target.
 local function useRune(player, typeId, aim)
-	if not CombatAutomationConfig.AllowedRunes or not CombatAutomationConfig.AllowedRunes[typeId] then
+	if not CombatAutomationConfig.AllowedRunes[typeId] then
 		return false
 	end
-	if CombatAutomationCatalog and CombatAutomationCatalog.runeAllowedForPlayer then
-		if not CombatAutomationCatalog.runeAllowedForPlayer(typeId, player) then
-			return false
-		end
+	if not CombatAutomationCatalog.runeAllowedForPlayer(typeId, player) then
+		return false
 	end
 	local target = player:getTarget()
 	if not target then
@@ -885,13 +867,11 @@ end
 --- Returns: "cast" | "skip" | "fail"
 --- skip = not ready / gated (no attempt). fail = engine/script rejected (silent).
 local function tryUseRune(player, typeId, aim)
-	if not CombatAutomationConfig.AllowedRunes or not CombatAutomationConfig.AllowedRunes[typeId] then
+	if not CombatAutomationConfig.AllowedRunes[typeId] then
 		return "skip"
 	end
-	if CombatAutomationCatalog and CombatAutomationCatalog.runeAllowedForPlayer then
-		if not CombatAutomationCatalog.runeAllowedForPlayer(typeId, player) then
-			return "skip"
-		end
+	if not CombatAutomationCatalog.runeAllowedForPlayer(typeId, player) then
+		return "skip"
 	end
 	if not player:getTarget() then
 		return "skip"
@@ -903,7 +883,7 @@ local function tryUseRune(player, typeId, aim)
 end
 
 local function spellRank(slot)
-	local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
+	local group = CombatAutomationConfig.SpellGroupById[slot.spellId]
 	if group == "healing" then
 		return 0
 	end
@@ -1110,7 +1090,7 @@ function CombatAutomation.isValidAttackTarget(player, creature)
 		if creature:getId() == player:getId() then
 			return false
 		end
-		if SoftDeath and SoftDeath.isDowned and SoftDeath.isDowned(creature) then
+		if SoftDeath.isDowned(creature) then
 			return false
 		end
 		if not isPvpRival(player, creature) then
@@ -1146,17 +1126,10 @@ end
 -- Spectator scan shared by every check in the running tick.
 local tickVisibleMonsters = nil
 
+-- Pick pool is monsters only (the monster rules of isValidAttackTarget, in the engine);
+-- rival players are sticky via getTarget(), never auto-picked.
 local function computeVisibleMonsters(player)
-	local result = {}
-	local playerPos = player:getPosition()
-	local spectators = Game.getSpectators(playerPos, false, false, CombatGeo.VIEWPORT_X, CombatGeo.VIEWPORT_X, CombatGeo.VIEWPORT_Y, CombatGeo.VIEWPORT_Y, player:getInstanceId())
-	for _, creature in ipairs(spectators) do
-		-- Pick pool is monsters only; rival players are sticky via getTarget(), never auto-picked.
-		if creature and creature:isMonster() and CombatAutomation.isValidAttackTarget(player, creature) then
-			result[#result + 1] = creature
-		end
-	end
-	return result
+	return player:combatScan()
 end
 
 local function visibleMonsters(player)
@@ -1256,7 +1229,7 @@ local function monsterIsFocusBoss(player, monster, session)
 	if monsterIsRewardBoss(monster) then
 		return true
 	end
-	if not session and player and ExpeditionManager and ExpeditionManager.getSessionByPlayer then
+	if not session and player then
 		session = ExpeditionManager.getSessionByPlayer(player)
 	end
 	if not session then
@@ -1266,7 +1239,7 @@ local function monsterIsFocusBoss(player, monster, session)
 		return true
 	end
 	if session.kind == "worldboss" then
-		local wb = ActivityBoostWorldBoss and ActivityBoostWorldBoss.active and ActivityBoostWorldBoss.active[session.bandId]
+		local wb = ActivityBoostWorldBoss.active[session.bandId]
 		if wb and wb.bossCreatureId and monster:getId() == wb.bossCreatureId then
 			return true
 		end
@@ -1297,7 +1270,7 @@ end
 
 --- Soft-despawned (knocked out): pause AUTO until softSpawn.
 local function isSoftDespawnedPlayer(player)
-	return SoftDeath and SoftDeath.isDowned and SoftDeath.isDowned(player)
+	return SoftDeath.isDowned(player)
 end
 
 --- Balanced Brawl directional footprint (matches support/balanced_brawl.lua matrix).
@@ -1592,7 +1565,7 @@ local function areaHealShouldFire(player, slot, casterHpPercent, casterManaPerce
 	if casterHpPercent <= threshold then
 		return true
 	end
-	local area = CombatAutomationConfig.SpellAreaById and CombatAutomationConfig.SpellAreaById[slot.spellId]
+	local area = CombatAutomationConfig.SpellAreaById[slot.spellId]
 	if type(area) ~= "table" then
 		return false
 	end
@@ -1678,7 +1651,7 @@ local function areaAttackOf(slot)
 	if slot.kind ~= "spell" then
 		return nil
 	end
-	local area = CombatAutomationConfig.SpellAreaById and CombatAutomationConfig.SpellAreaById[slot.spellId]
+	local area = CombatAutomationConfig.SpellAreaById[slot.spellId]
 	if type(area) ~= "table" then
 		return nil
 	end
@@ -1877,7 +1850,7 @@ local function combatSlotWillCast(player, state, slot, t)
 	end
 	if slot.kind == "spell" then
 		local words = slot.words or ""
-		if words == "" or not (CombatAutomationConfig.AllowedSpellWords and CombatAutomationConfig.AllowedSpellWords[words]) then
+		if words == "" or not (CombatAutomationConfig.AllowedSpellWords[words]) then
 			return false
 		end
 		if not player:canCastSpell(words) then
@@ -2072,7 +2045,7 @@ end
 --- Cave-walk targeting context for a cave run member (expedition or open world), nil
 --- outside a cave walk: `{ walking, range, ahead = tile one step along the route, blockerId }`.
 local function luringContext(player)
-	local run = Cavebot and Cavebot.runOfPlayer(player)
+	local run = Cavebot.runOfPlayer(player)
 	if not run or not run.cave then
 		return nil
 	end
@@ -2102,7 +2075,7 @@ local function targetAreaAttacks(config)
 			out[#out + 1] = area
 		end
 	end
-	local ammoArea = CombatAutomationConfig.AmmoAreaByTypeId and CombatAutomationConfig.AmmoAreaByTypeId[preferredAmmoTypeId(config)]
+	local ammoArea = CombatAutomationConfig.AmmoAreaByTypeId[preferredAmmoTypeId(config)]
 	if ammoArea then
 		out[#out + 1] = ammoArea
 	end
@@ -2235,7 +2208,7 @@ local function pickTarget(player, monsters, config, state)
 		melee = CombatAutomationConfig.stanceDistanceOf(config) <= 1,
 		shootRange = CombatAutomation.weaponShootRange(player),
 		areas = targetAreaAttacks(config),
-		session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) or nil,
+		session = ExpeditionManager.getSessionByPlayer(player) or nil,
 		scores = {},
 	}
 	local best, bestScore, bestDist = nil, nil, nil
@@ -2317,7 +2290,7 @@ end
 
 --- `replacing`: a previous target is dropped (counted as a switch in the metrics).
 local function switchTarget(player, state, pick, replacing)
-	if replacing and ExpeditionMetrics and ExpeditionMetrics.onTargetSwitch then
+	if replacing then
 		ExpeditionMetrics.onTargetSwitch(player)
 	end
 	player:setTarget(pick)
@@ -2709,7 +2682,7 @@ function CombatAutomation.tick(player)
 	local usedPotionHealth, usedPotionMana = false, false
 	local function tryPotionSlot(slot)
 		if slotShouldFire(slot, hpPercent, manaPercent, player) then
-			local effect = CombatAutomationConfig.PotionEffects and CombatAutomationConfig.PotionEffects[slot.potionTypeId]
+			local effect = CombatAutomationConfig.PotionEffects[slot.potionTypeId]
 			local givesHealth = effect and effect.health ~= nil
 			local givesMana = effect and effect.mana ~= nil
 			if effect and not ((givesHealth and usedPotionHealth) or (givesMana and usedPotionMana)) then
@@ -2812,7 +2785,7 @@ function CombatAutomation.tick(player)
 				and slotPassesSituationalGates(player, slot)
 			then
 				local castOk = false
-				local castArea = ExpeditionMetrics and areaAttackOf(slot)
+				local castArea = areaAttackOf(slot)
 				local castHits = castArea and countAreaHits(player, castArea, player:getPosition(), player:getDirection())
 				if slot.kind == "spell" then
 					local words = slot.words or ""
@@ -2864,17 +2837,17 @@ end
 
 --- (session, frozen) for the think loop: nil once the player left the expedition area.
 local function activeExpeditionSession(player)
-	if not player or not ExpeditionManager then
+	if not player then
 		return nil, false
 	end
-	local session = ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+	local session = ExpeditionManager.getSessionByPlayer(player)
 	if session and isHuntFrozen(session) then
 		return session, true
 	end
-	if ExpeditionManager.reconcilePresence and not ExpeditionManager.reconcilePresence(player) then
+	if not ExpeditionManager.reconcilePresence(player) then
 		return nil, false
 	end
-	if ExpeditionManager.isInExpedition and not ExpeditionManager.isInExpedition(player) then
+	if not ExpeditionManager.isInExpedition(player) then
 		return nil, false
 	end
 	return session, false
@@ -2898,7 +2871,7 @@ local function shouldRunLoop(player, state, session, frozen)
 	return hasSlots or hasAutoTarget
 end
 
---- Driven by Player::onThink / idle-combat 250ms cycle (EventCallback playerOnThink).
+--- Driven by playerOnIdleCombatThink (250ms) / playerOnThink (scripts/idleot/expeditions/events.lua).
 --- Do not schedule addEvent here — engine think owns cadence.
 function CombatAutomation.onThink(player, _interval)
 	if not player then

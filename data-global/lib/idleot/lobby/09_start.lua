@@ -89,7 +89,7 @@ local function isSoloOnly(catalog)
 		return true
 	end
 	local isBoss = catalog.role == "boss" or catalog.kind == "boss"
-	return isBoss and ExpeditionConfig.isSoloBoss and ExpeditionConfig.isSoloBoss(catalog) or false
+	return isBoss and ExpeditionConfig.isSoloBoss(catalog) or false
 end
 
 --- Boss cooldown blocking the lobby expedition: remainingSec, blockerName (0, nil when clear).

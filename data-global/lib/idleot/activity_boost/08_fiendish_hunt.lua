@@ -21,7 +21,7 @@ end
 function ActivityBoostFiendishHunt.fiendishCombatPower(creatureIdOrInfo)
 	local info = creatureIdOrInfo
 	if type(creatureIdOrInfo) ~= "table" then
-		info = CreatureInfo and CreatureInfo.getByCreatureId and CreatureInfo.getByCreatureId(creatureIdOrInfo)
+		info = CreatureInfo.getByCreatureId(creatureIdOrInfo)
 	end
 	if type(info) ~= "table" then
 		return 0
@@ -29,7 +29,7 @@ function ActivityBoostFiendishHunt.fiendishCombatPower(creatureIdOrInfo)
 	local baseCp = tonumber(info.combatPower) or 0
 	local hp = tonumber(info.hp) or 0
 	local expectedDps = tonumber(info.expectedDps) or 0
-	if expectedDps > 0 and hp > 0 and CreatureInfo and CreatureInfo.computeCombatPower then
+	if expectedDps > 0 and hp > 0 then
 		local traits = {
 			hp = hp * fiendishHpMult(),
 			health = hp * fiendishHpMult(),
@@ -55,15 +55,12 @@ function ActivityBoostFiendishHunt.fiendishRecommendedLevel(creatureIdOrInfo)
 	if cp <= 0 then
 		return 1
 	end
-	if CreatureInfo and CreatureInfo.levelsFromCombatPower then
-		local levels = CreatureInfo.levelsFromCombatPower(cp, true)
-		return tonumber(levels and levels.recommendedLevel) or 1
-	end
-	return 1
+	local levels = CreatureInfo.levelsFromCombatPower(cp, true)
+	return tonumber(levels and levels.recommendedLevel) or 1
 end
 
 local function creatureNameForId(creatureId)
-	local info = CreatureInfo and CreatureInfo.getByCreatureId and CreatureInfo.getByCreatureId(creatureId)
+	local info = CreatureInfo.getByCreatureId(creatureId)
 	if info and info.name then
 		return tostring(info.name)
 	end
@@ -76,7 +73,7 @@ local function eligibleCreaturesForHunt(hunt, playerLevel)
 	for _, row in ipairs(creatures) do
 		local creatureId = tonumber(row.creatureId) or tonumber(row.raceId)
 		if creatureId and creatureId > 0 then
-			local info = CreatureInfo and CreatureInfo.getByCreatureId and CreatureInfo.getByCreatureId(creatureId)
+			local info = CreatureInfo.getByCreatureId(creatureId)
 			if info and not info.isBoss then
 				local rec = ActivityBoostFiendishHunt.fiendishRecommendedLevel(info)
 				if rec <= playerLevel then
@@ -94,7 +91,7 @@ local function eligibleCreaturesForHunt(hunt, playerLevel)
 	if #out == 0 then
 		local creatureId = tonumber(hunt.creatureId)
 		if creatureId and creatureId > 0 then
-			local info = CreatureInfo and CreatureInfo.getByCreatureId and CreatureInfo.getByCreatureId(creatureId)
+			local info = CreatureInfo.getByCreatureId(creatureId)
 			if info and not info.isBoss then
 				local rec = ActivityBoostFiendishHunt.fiendishRecommendedLevel(info)
 				if rec <= playerLevel then
@@ -112,7 +109,7 @@ local function eligibleCreaturesForHunt(hunt, playerLevel)
 end
 
 local function buildEligibleOffers(player)
-	local catalog = ExpeditionConfig and ExpeditionConfig.Catalog or {}
+	local catalog = ExpeditionConfig.Catalog or {}
 	local level = player:getLevel()
 	local offers = {}
 	for _, entry in ipairs(catalog) do
@@ -147,9 +144,7 @@ local function offerStillValid(player, data)
 	end
 	local level = player:getLevel()
 	local hunt = nil
-	if ExpeditionConfig and ExpeditionConfig.getById then
-		hunt = ExpeditionConfig.getById(data.expeditionId, "monster")
-	end
+	hunt = ExpeditionConfig.getById(data.expeditionId, "monster")
 	if not hunt then
 		return false
 	end
@@ -206,7 +201,7 @@ function ActivityBoostFiendishHunt.get(player)
 	if not store then
 		return nil
 	end
-	if ActivityBoostActivities and ActivityBoostActivities.isComplete
+	if ActivityBoostActivities.isComplete
 		and ActivityBoostActivities.isComplete(player, "fiendish_hunt") then
 		local data = IdleUtil.decodeTable(store:get(KV_KEY)) or {}
 		if type(data) == "table" and data.expeditionId then
@@ -237,7 +232,7 @@ function ActivityBoostFiendishHunt.canJoin(player)
 	if not player then
 		return false, "Invalid player."
 	end
-	if ActivityBoostActivities and ActivityBoostActivities.isComplete
+	if ActivityBoostActivities.isComplete
 		and ActivityBoostActivities.isComplete(player, "fiendish_hunt") then
 		return false, "Fiendish Hunt already completed today."
 	end
@@ -254,13 +249,10 @@ function ActivityBoostFiendishHunt.join(player)
 		return false, dataOrErr
 	end
 	local data = dataOrErr
-	if not ExpeditionManager or not ExpeditionManager.join then
-		return false, "Expeditions unavailable."
-	end
 	-- Forced-Fiendish options are injected in ExpeditionManager.join when the catalog
 	-- id matches today's offer.
 	ExpeditionManager.join(player, data.expeditionId, "monster")
-	local session = ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+	local session = ExpeditionManager.getSessionByPlayer(player)
 	local catalogId = session and session.catalog and session.catalog.id
 	if not session or tostring(catalogId) ~= tostring(data.expeditionId) or not session.forceFiendishCreatureId then
 		return false, "Could not start Fiendish Hunt."
@@ -287,7 +279,7 @@ function ActivityBoostFiendishHunt.onClear(player, session)
 		return
 	end
 	ActivityBoostActivities.addProgress(player, "fiendish_hunt", 1)
-	if ActivityBoostActivities and ActivityBoostActivities.isComplete
+	if ActivityBoostActivities.isComplete
 		and ActivityBoostActivities.isComplete(player, "fiendish_hunt") then
 		save(player, nil)
 		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Fiendish Hunt: daily goal reached.")

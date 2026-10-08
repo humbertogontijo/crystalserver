@@ -58,7 +58,7 @@ end
 CombatAutomationConfig.STANCE_DISTANCE = { melee = 1, close = 1, ranged = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT }
 
 local function vocationKey(player)
-	if player and CombatAutomationCatalog and CombatAutomationCatalog.baseVocationKey then
+	if player then
 		return CombatAutomationCatalog.baseVocationKey(player) or ""
 	end
 	return ""
@@ -102,18 +102,14 @@ end
 --- Persisted automation stance for a player (vocation-validated): role, rangedDistance.
 function CombatAutomationConfig.configuredStanceForPlayer(player)
 	local at = nil
-	if CombatAutomationStore and CombatAutomationStore.getConfig then
-		local cfg = CombatAutomationStore.getConfig(player)
-		at = cfg and cfg.autoTarget
-	end
+	local cfg = CombatAutomationStore.getConfig(player)
+	at = cfg and cfg.autoTarget
 	return CombatAutomationConfig.normalizeStanceForPlayer(player, at and at.stance)
 end
 
 -- Movement (CombatAutomationMovement). Path search radius (Chebyshev) of directive
 -- walks: getPathMatchingCond, without the 100-node hard stop.
 CombatAutomationConfig.PATH_MAX_SEARCH = 128
--- Repath a walk stuck on the same tile this long; avoids multi-second walk dedupe pauses.
-CombatAutomationConfig.STALL_REPATH_MS = 400
 -- Client walk / follow input pauses the AI's movement for that member; the AI takes
 -- over again this long after the last manual step (or at once via "Resume Auto").
 CombatAutomationConfig.MANUAL_CONTROL_MS = 3000

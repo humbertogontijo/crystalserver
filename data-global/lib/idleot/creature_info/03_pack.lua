@@ -8,17 +8,15 @@ function CreatureInfo.getByCreatureId(creatureId)
 	if not id or id <= 0 then
 		return nil
 	end
-	local info = CreatureInfo.ByCreatureId and CreatureInfo.ByCreatureId[id] or nil
+	local info = CreatureInfo.ByCreatureId[id] or nil
 	if not info then
 		return nil
 	end
 	if type(info.name) ~= "string" or info.name == "" then
-		if CreatureInfo.ByName then
-			for _, entry in pairs(CreatureInfo.ByName) do
-				if tonumber(entry.creatureId) == id and type(entry.name) == "string" and entry.name ~= "" then
-					info.name = entry.name
-					break
-				end
+		for _, entry in pairs(CreatureInfo.ByName) do
+			if tonumber(entry.creatureId) == id and type(entry.name) == "string" and entry.name ~= "" then
+				info.name = entry.name
+				break
 			end
 		end
 	end
@@ -41,9 +39,7 @@ function CreatureInfo.huntCombatPowerFromMix(creatures, creatureDensity)
 		dens = 0
 	end
 	local exp = 0
-	if CreatureInfo.huntDensityExp then
-		exp = tonumber(CreatureInfo.huntDensityExp()) or 0
-	end
+	exp = tonumber(CreatureInfo.huntDensityExp()) or 0
 	local countSum = 0
 	local parts = {}
 	for _, row in ipairs(creatures) do

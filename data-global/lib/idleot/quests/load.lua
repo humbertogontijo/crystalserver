@@ -5,9 +5,9 @@
 -- datapack flattens those keys onto SpikeTaskQuest. Move the key under
 -- Constants (do not keep both) so fame helpers work and Storage duplicate
 -- checks stay clean.
-local spike = Storage and Storage.Quest and Storage.Quest.U10_20 and Storage.Quest.U10_20.SpikeTaskQuest
-if spike and not spike.Constants then
-	local fame = spike.Spike_Fame_Points or 44313
+local spike = Storage.Quest.U10_20.SpikeTaskQuest
+if not spike.Constants then
+	local fame = spike.Spike_Fame_Points
 	spike.Constants = {
 		Spike_Fame_Points = fame,
 	}

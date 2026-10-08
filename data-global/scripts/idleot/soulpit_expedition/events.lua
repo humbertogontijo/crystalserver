@@ -3,9 +3,7 @@
 local startup = GlobalEvent("SoulPitExpeditionStartup")
 
 function startup.onStartup()
-	if SoulPitExpedition then
-		logger.info("[SoulPitExpedition] ready (join via expedition opcode joinSoulPit)")
-	end
+	logger.info("[SoulPitExpedition] ready (join via expedition opcode joinSoulPit)")
 	return true
 end
 

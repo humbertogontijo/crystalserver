@@ -59,7 +59,7 @@ end
 --- Lever-boss levers referenced by the catalog, sorted by boss name.
 local function catalogLevers()
 	local seen, list = {}, {}
-	for _, entry in ipairs(ExpeditionConfig and ExpeditionConfig.Catalog or {}) do
+	for _, entry in ipairs(ExpeditionConfig.Catalog or {}) do
 		if isLeverEncounter(entry) then
 			local lever = ExpeditionConfig.bossLever(entry)
 			if lever and not seen[lever.name] then

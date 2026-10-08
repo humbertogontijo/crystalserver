@@ -13,7 +13,7 @@ local function catalogRole(entry)
 end
 
 function ExpeditionConfig.enrichCatalogEntry(entry)
-	if not CreatureInfo or type(entry) ~= "table" then
+	if type(entry) ~= "table" then
 		return entry
 	end
 
@@ -52,22 +52,13 @@ function ExpeditionConfig.enrichCatalogEntry(entry)
 end
 
 function ExpeditionConfig.enrichCatalogFromCreatureInfo()
-	if not CreatureInfo or not CreatureInfo.ByCreatureId then
-		logger.warn("[Expedition] CreatureInfo unavailable - catalog levels unchanged")
-		return
-	end
 	for _, entry in ipairs(ExpeditionConfig.Catalog or {}) do
 		ExpeditionConfig.enrichCatalogEntry(entry)
 	end
-	if ExpeditionConfig.sortCatalogForDisplay then
-		ExpeditionConfig.sortCatalogForDisplay(ExpeditionConfig.Catalog)
-	end
+	ExpeditionConfig.sortCatalogForDisplay(ExpeditionConfig.Catalog)
 end
 
 function ExpeditionConfig.enrichRaidLevelsFromCreatureInfo()
-	if not CreatureInfo or not CreatureInfo.ByCreatureId then
-		return
-	end
 	for _, row in pairs(ExpeditionConfig.RaidLevels or {}) do
 		if type(row) == "table" then
 			local levels = CreatureInfo.levelsForBoss(row.creatureId, row.name)

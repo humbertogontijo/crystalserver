@@ -104,7 +104,7 @@ function ExpeditionProtocol.catalogRows(player)
 				and QuestsKitnoBoss.isUnlocked
 				and QuestsKitnoBoss.isUnlocked(player, entry.id)
 		elseif entry.exclusiveArena then
-			include = player and QuestArena and QuestArena.canJoin and select(1, QuestArena.canJoin(player, entry))
+			include = player and select(1, QuestArena.canJoin(player, entry))
 		end
 		if include then
 			local role = entry.role
@@ -185,7 +185,7 @@ function ExpeditionProtocol.catalogRows(player)
 							crow.count = amt
 						end
 						local cname = c.name
-						if (not cname or cname == "") and CreatureInfo and CreatureInfo.getByCreatureId then
+						if (not cname or cname == "") then
 							local info = CreatureInfo.getByCreatureId(cid)
 							cname = info and info.name or nil
 						end

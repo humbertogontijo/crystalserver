@@ -13,21 +13,11 @@ local function vocationNameById(vocationId)
 end
 
 local function isInHunt(player)
-	if not (ExpeditionManager and ExpeditionManager.getSessionByPlayer) then
-		return false
-	end
-	local ok, session = pcall(ExpeditionManager.getSessionByPlayer, player)
-	return ok and session ~= nil
+	return ExpeditionManager.getSessionByPlayer(player) ~= nil
 end
 
 local function countAccountOnline(accountId)
-	local count = 0
-	for _, online in ipairs(Game.getPlayers()) do
-		if online:getAccountId() == accountId then
-			count = count + 1
-		end
-	end
-	return count
+	return #Game.getAccountPlayers(accountId)
 end
 
 local function sendError(player, message)
@@ -99,11 +89,9 @@ local function performAltSwitch(playerId, targetId)
 		return
 	end
 	logger.info("[Alts] client switched {} -> {}", player:getName(), target:getName())
-	if ExpeditionManager and ExpeditionManager.onClientSwitched then
-		local ok, err = pcall(ExpeditionManager.onClientSwitched, player, target)
-		if not ok then
-			logger.error("[Alts] expedition handoff failed {} -> {}: {}", player:getName(), target:getName(), err)
-		end
+	local ok, err = pcall(ExpeditionManager.onClientSwitched, player, target)
+	if not ok then
+		logger.error("[Alts] expedition handoff failed {} -> {}: {}", player:getName(), target:getName(), err)
 	end
 end
 

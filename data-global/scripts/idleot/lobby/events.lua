@@ -8,17 +8,18 @@ function loginEvent.onLogin(player)
 	if not ok then
 		logger.error("[Lobby] onLogin failed for {}: {}", player:getName(), err)
 	end
-	-- Defer the wire so the client has finished entering the game world.
-	addEvent(function(pid)
-		local p = Player(pid)
-		if p then
-			LobbyProtocol.sendLobby(p)
-		end
-	end, 500, player:getId())
 	return true
 end
 
 loginEvent:register()
+
+local clientReadyCallback = EventCallback("LobbyPlayerOnClientReady")
+
+function clientReadyCallback.playerOnClientReady(player)
+	LobbyProtocol.sendLobby(player)
+end
+
+clientReadyCallback:register()
 
 local opcodeEvent = CreatureEvent("LobbyOpcode")
 
@@ -45,7 +46,7 @@ function logoutEvent.onLogout(player)
 	if Alts.getDeployment(player) then
 		local ok, err = pcall(function()
 			-- Controller disconnect: alts must not stay online headless.
-			local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+			local session = ExpeditionManager.getSessionByPlayer(player)
 			if session then
 				for _, member in ipairs(ExpeditionManager.onlinePlayers(session)) do
 					if member:getId() ~= player:getId() and Alts.isCompanion(member) then

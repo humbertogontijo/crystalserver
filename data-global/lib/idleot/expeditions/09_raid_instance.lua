@@ -4,8 +4,6 @@
 RaidInstance = RaidInstance or {}
 RaidInstance.active = RaidInstance.active or {}
 
-local hooksInstalled = false
-
 local function displayName(raidName)
 	if type(raidName) ~= "string" or raidName == "" then
 		return "Raid"
@@ -86,7 +84,7 @@ function RaidInstance.listActive()
 	for name, session in pairs(RaidInstance.active) do
 		-- Cleared (loot grace) and tearing-down raids are not listed / joinable.
 		if session and not session.tearingDown and not session.graceStarted then
-			local levels = ExpeditionConfig.RaidLevels and ExpeditionConfig.RaidLevels[name]
+			local levels = ExpeditionConfig.RaidLevels[name]
 			local levelMin = levels and levels.levelMin or nil
 			local recommendedLevel = levels and levels.recommendedLevel or nil
 			local creatureId = session.bossRaceId
@@ -108,8 +106,8 @@ function RaidInstance.listActive()
 		end
 	end
 	table.sort(out, function(a, b)
-		local levelsA = ExpeditionConfig.RaidLevels and ExpeditionConfig.RaidLevels[a.name]
-		local levelsB = ExpeditionConfig.RaidLevels and ExpeditionConfig.RaidLevels[b.name]
+		local levelsA = ExpeditionConfig.RaidLevels[a.name]
+		local levelsB = ExpeditionConfig.RaidLevels[b.name]
 		local cpA = tonumber(levelsA and levelsA.combatPower) or 0
 		local cpB = tonumber(levelsB and levelsB.combatPower) or 0
 		if cpA ~= cpB then
@@ -222,7 +220,7 @@ function RaidInstance.provision(raid)
 
 	local kind = ExpeditionConfig.RAID_ARENA_KIND or "raid"
 	local region = ExpeditionConfig.raidRegionId(raid.name)
-	local center = region and ExpeditionConfig.RaidArenaCenters and ExpeditionConfig.RaidArenaCenters[region] or nil
+	local center = region and ExpeditionConfig.RaidArenaCenters[region] or nil
 	if not center and raid._raidSpawnCenter and raid._raidSpawnCenter.x then
 		center = raid._raidSpawnCenter
 	end
@@ -283,7 +281,7 @@ function RaidInstance.provision(raid)
 	raid._raidSpawnReserved = {}
 	-- Keep world zones so raid scripts spawn at real coordinates.
 
-	local levels = ExpeditionConfig.RaidLevels and ExpeditionConfig.RaidLevels[raid.name]
+	local levels = ExpeditionConfig.RaidLevels[raid.name]
 	local seedRaceId = levels and tonumber(levels.creatureId) or nil
 	if seedRaceId and seedRaceId <= 0 then
 		seedRaceId = nil
@@ -318,7 +316,6 @@ function RaidInstance.provision(raid)
 		end,
 	})
 	RaidInstance.active[raid.name] = session
-	RaidInstance.startWatcher(session)
 	RaidInstance.scheduleDespawn(session)
 
 	logger.info("[RaidInstance] provisioned shared instance for {} id={}", raid.name, instanceId)
@@ -394,13 +391,7 @@ function RaidInstance.teardown(raidName, opts)
 			ExpeditionManager.clearActiveFlag(player)
 			local returnPos = ExpeditionManager.loadReturnPos(player)
 			if player:getHealth() > 0 then
-				if InstanceWorld and InstanceWorld.exitToOpenWorld then
-					InstanceWorld.exitToOpenWorld(player, returnPos)
-				elseif InstanceWorld and InstanceWorld.travel then
-					InstanceWorld.travel(player, returnPos)
-				else
-					player:teleportTo(returnPos)
-				end
+				InstanceWorld.exitToOpenWorld(player, returnPos)
 				local now = player:getPosition()
 				if now then
 					now:sendMagicEffect(CONST_ME_TELEPORT)
@@ -588,7 +579,7 @@ local function beginGrace(session)
 end
 
 --- Recount, push the count to members and start the loot grace once the last stage is
---- cleared. Runs on deaths / spawns (requestCount) and a slow fallback loop.
+--- cleared. Runs on spawns and removals (requestCount) and when the clear gate opens.
 function RaidInstance.watchTick(session)
 	if not session or session.tearingDown or session.graceStarted or not session.raid then
 		return
@@ -615,16 +606,6 @@ function RaidInstance.requestCount(session)
 	end)
 end
 
---- Fallback for monsters removed without dying (no "monster.died").
-function RaidInstance.startWatcher(session)
-	if not session then
-		return
-	end
-	session.scope:every(ExpeditionConfig.RAID_WATCH_INTERVAL_MS, function()
-		RaidInstance.watchTick(session)
-	end, "watch")
-end
-
 local function sessionOfInstance(instanceId)
 	local key = Instance.normalize(instanceId)
 	for _, session in pairs(RaidInstance.active) do
@@ -635,7 +616,8 @@ local function sessionOfInstance(instanceId)
 	return nil
 end
 
-IdleEvents.on("monster.died", function(monster)
+-- Deaths, despawns and timeLimit removals alike.
+IdleEvents.on("monster.removed", function(monster)
 	local session = sessionOfInstance(monster:getInstanceId())
 	if session then
 		RaidInstance.requestCount(session)
@@ -674,11 +656,11 @@ function RaidInstance.join(player, raidName, loadout, options)
 	if not player then
 		return
 	end
-	if ExpeditionSafety and not ExpeditionSafety.hasStamina(player) then
+	if not ExpeditionSafety.hasStamina(player) then
 		ExpeditionProtocol.sendError(player, "You need stamina to enter an expedition.")
 		return
 	end
-	if PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(player)
+	if PzTeleport.isCombatLocked(player)
 		and not PzTeleport.isGod(player)
 	then
 		ExpeditionProtocol.sendError(player, PzTeleport.PZ_LOCKED_MESSAGE or "You cannot teleport while PZ-locked.")
@@ -715,13 +697,13 @@ function RaidInstance.join(player, raidName, loadout, options)
 	local stopOpts = ExpeditionConfig.normalizeStopOptions(options)
 	local contentRole = session.role or ExpeditionConfig.raidRole(raidName)
 	local raceId = session.bossRaceId
-		or (ExpeditionConfig.RaidLevels and ExpeditionConfig.RaidLevels[raidName] and ExpeditionConfig.RaidLevels[raidName].creatureId)
+		or (ExpeditionConfig.RaidLevels[raidName] and ExpeditionConfig.RaidLevels[raidName].creatureId)
 		or nil
 	-- MonsterType / boss cooldown need the real monster name ("The Evil Eye"),
 	-- not the raid display label ("Abdendriel Theevileye"). raceId alone is enough
 	-- when CreatureInfo indexes that id (fallbackName intentionally omitted).
 	local bossName = nil
-	if ExpeditionConfig.monsterNameByCreatureId and raceId then
+	if raceId then
 		bossName = ExpeditionConfig.monsterNameByCreatureId(raceId)
 	end
 	local key = "raid:" .. raidName .. ":p" .. player:getGuid()
@@ -769,17 +751,11 @@ function RaidInstance.join(player, raidName, loadout, options)
 		end
 		local instance = s.instance
 		if not instance or not instance.entry then
-			if RaidInstance.leave then
-				RaidInstance.leave(p, { silent = true })
-			end
+			RaidInstance.leave(p, { silent = true })
 			ExpeditionProtocol.sendError(p, "Raid instance is not ready.")
 			return
 		end
 		p:setFollowCreature(nil)
-		if not (InstanceWorld and InstanceWorld.enterInstance) then
-			logger.error("[RaidInstance] InstanceWorld.enterInstance missing — cannot enter raid")
-			return
-		end
 		local entry = instance.entry
 		if entry and not isGroundWalkable(entry, instance.instanceId) then
 			entry = resolveRaidSpawnPosition(s.raid, entry) or entry
@@ -797,9 +773,7 @@ function RaidInstance.join(player, raidName, loadout, options)
 				entry and entry.y or 0,
 				entry and entry.z or 0
 			)
-			if RaidInstance.leave then
-				RaidInstance.leave(p, { silent = true })
-			end
+			RaidInstance.leave(p, { silent = true })
 			ExpeditionProtocol.sendError(p, "Could not enter the raid arena.")
 			return
 		end
@@ -818,9 +792,7 @@ function RaidInstance.join(player, raidName, loadout, options)
 				pos and pos.z or 0,
 				instance.instanceId or 0
 			)
-			if RaidInstance.leave then
-				RaidInstance.leave(p, { silent = true })
-			end
+			RaidInstance.leave(p, { silent = true })
 			ExpeditionProtocol.sendError(p, "Could not enter the raid arena.")
 			return
 		end
@@ -850,47 +822,19 @@ function RaidInstance.join(player, raidName, loadout, options)
 		end, ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500)
 	end
 
-	local function armRaidEnter()
-		if not InstanceTeleport or not InstanceTeleport.armSoloExpedition then
-			finishRaidEnter(player)
-			return
-		end
-		local ok, groupKeyOrErr = InstanceTeleport.armSoloExpedition(player, {
-			holdUntilReady = true,
-			onComplete = finishRaidEnter,
-			onCancel = function(p)
-				if p and RaidInstance.leave then
-					RaidInstance.leave(p, { silent = true })
-				end
-			end,
-		})
-		if not ok then
-			ExpeditionProtocol.sendError(player, groupKeyOrErr or "Could not start raid teleport.")
-			if RaidInstance.leave then
-				RaidInstance.leave(player, { silent = true })
+	local ok, err = InstanceTeleport.armSoloExpedition(player, {
+		onComplete = finishRaidEnter,
+		onCancel = function(p)
+			if p then
+				RaidInstance.leave(p, { silent = true })
 			end
-			return
-		end
-		local groupKey = groupKeyOrErr
-		local attempts = 0
-		local function waitGroundReady()
-			attempts = attempts + 1
-			local s = RaidInstance.active[raidName]
-			local p = Player(member.playerId)
-			if not s or not p then
-				return
-			end
-			local instance = s.instance
-			if instance and instance.entry and not ExpeditionInstance.hasGround(instance.entry) and attempts < 16 then
-				addEvent(waitGroundReady, 250)
-				return
-			end
-			InstanceTeleport.markReady(groupKey)
-		end
-		addEvent(waitGroundReady, 0)
+		end,
+	})
+	if not ok then
+		ExpeditionProtocol.sendError(player, err or "Could not start raid teleport.")
+		RaidInstance.leave(player, { silent = true })
+		return
 	end
-
-	armRaidEnter()
 	ExpeditionProtocol.sendStatus(player, member)
 end
 
@@ -934,22 +878,14 @@ function RaidInstance.leave(player, opts)
 	end
 
 	local returnPos = ExpeditionManager.loadReturnPos(player)
-	if ExpeditionManager.clearAreaEffects then
-		ExpeditionManager.clearAreaEffects(player)
-	end
+	ExpeditionManager.clearAreaEffects(player)
 	if player:getHealth() > 0 then
 		local wentHometown = false
-		if opts.goHometown and InstanceTeleport and InstanceTeleport.executeHometown then
+		if opts.goHometown then
 			wentHometown = InstanceTeleport.executeHometown(player, { fromExpedition = true }) and true or false
 		end
 		if not wentHometown then
-			if InstanceWorld and InstanceWorld.exitToOpenWorld then
-				InstanceWorld.exitToOpenWorld(player, returnPos)
-			elseif InstanceWorld and InstanceWorld.travel then
-				InstanceWorld.travel(player, returnPos)
-			else
-				player:teleportTo(returnPos)
-			end
+			InstanceWorld.exitToOpenWorld(player, returnPos)
 		end
 		local now = player:getPosition()
 		if now then
@@ -979,17 +915,8 @@ function RaidInstance.onPlayerDeath(player)
 	RaidInstance.leave(player, { silent = true })
 end
 
---- Install Encounter/Raid hooks once libs are loaded.
-function RaidInstance.installHooks()
-	if hooksInstalled then
-		return
-	end
-	if not Raid or not Encounter then
-		-- Lib load can run before Raid/Encounter; ExpeditionStartup retries via onStartup.
-		return
-	end
-	hooksInstalled = true
-
+-- Raid / Encounter (data/libs) are recreated on every core reload, before the product libs.
+do
 	function Raid:tryStart(force)
 		if not force and not self:canStart() then
 			return false
@@ -1127,12 +1054,10 @@ function RaidInstance.installHooks()
 						spawnPos = resolveRaidSpawnPosition(raid, nil) or spawnPos
 					end
 					local monster = nil
-					if ExpeditionInstance and ExpeditionInstance.createMonsterExclusive then
-						monster = ExpeditionInstance.createMonsterExclusive(monsterName, spawnPos, inst)
-					end
+					monster = ExpeditionInstance.createMonsterExclusive(monsterName, spawnPos, inst)
 					if not monster then
 						monster = Game.createMonster(monsterName, spawnPos, true, true, nil, scheduledKey)
-						if monster and InstanceWorld and InstanceWorld.applyOpenWorldForge then
+						if monster then
 							InstanceWorld.applyOpenWorldForge(monster)
 						end
 					end
@@ -1189,10 +1114,6 @@ function RaidInstance.installHooks()
 							local m = Monster(monsterId)
 							if m then
 								m:remove()
-								local s = RaidInstance.active[raidName]
-								if s then
-									RaidInstance.requestCount(s)
-								end
 							end
 						end, timeLimit, monster:getID())
 					end
@@ -1200,15 +1121,10 @@ function RaidInstance.installHooks()
 			end
 		end
 	end
-
-	logger.info("[RaidInstance] Encounter/Raid hooks installed")
 end
 
 function RaidInstance.onStartup()
 	RaidInstance.active = {}
-	RaidInstance.installHooks()
 	XmlRaids.register()
 	logger.info("[RaidInstance] ready (Lua + XML raids → shared expedition instances)")
 end
-
--- Hooks install from ExpeditionStartup once Raid/Encounter exist (lib load is too early).

@@ -36,7 +36,7 @@ local function isLureHunt(session)
 end
 
 local function anchorOf(session)
-	return ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session) or nil
+	return ExpeditionConfig.getAnchorPlayer(session) or nil
 end
 
 local function resetPack(session)
@@ -149,14 +149,14 @@ function ExpeditionPack.onInstanceMonsterSpawn(monster, _position)
 	if not Instance.isPrivate(instanceId) then
 		return
 	end
-	local session = ExpeditionManager.getSessionByInstanceId and ExpeditionManager.getSessionByInstanceId(instanceId)
+	local session = ExpeditionManager.getSessionByInstanceId(instanceId)
 	if not session or huntEnded(session) or not session.spawnsCreated or not isLureHunt(session) then
 		return
 	end
 
 	monster:runHealth(0)
 	monster:setTargetKeepRange(ExpeditionConfig.TARGET_KEEP_SQM)
-	if session.skipOpenWorldForge ~= true and InstanceWorld and InstanceWorld.applyOpenWorldForge then
+	if session.skipOpenWorldForge ~= true then
 		InstanceWorld.applyOpenWorldForge(monster)
 	end
 	monster:registerEvent("IdleMonsterDeath")
@@ -184,9 +184,7 @@ function ExpeditionPack.finishFiendishHunt(session)
 
 	for _, member in ipairs(ExpeditionManager.onlinePlayers(session)) do
 		member:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Fiendish slain - hunt complete!")
-		if ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.onClear then
-			IdleSafe.call("ActivityBoostFiendishHunt.onClear", ActivityBoostFiendishHunt.onClear, member, session)
-		end
+		IdleSafe.call("ActivityBoostFiendishHunt.onClear", ActivityBoostFiendishHunt.onClear, member, session)
 	end
 
 	ExpeditionManager.scheduleSessionExit(session, {

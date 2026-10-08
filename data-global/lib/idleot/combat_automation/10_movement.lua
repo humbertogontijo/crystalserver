@@ -6,7 +6,7 @@ local geo = CombatGeo
 local nowMs, sameTile, chebyshev, faceToward, walkDestKey = geo.nowMs, geo.sameTile, geo.chebyshev, geo.faceToward, geo.posKey
 local settings = CombatAutomationConfig
 local isManual = CombatAutomationMovement.isManual
-local clearFollowIfAny, clearQueuedWalk, clearPendingWalkAction, walkTowardCreature = MOVE_PRIV.clearFollowIfAny, MOVE_PRIV.clearQueuedWalk, MOVE_PRIV.clearPendingWalkAction, MOVE_PRIV.walkTowardCreature
+local clearFollowIfAny, clearPendingWalkAction, walkTowardCreature = MOVE_PRIV.clearFollowIfAny, MOVE_PRIV.clearPendingWalkAction, MOVE_PRIV.walkTowardCreature
 local driveMember, autoEnabled, applyCreatureStance, haltStep = MOVE_PRIV.driveMember, MOVE_PRIV.autoEnabled, MOVE_PRIV.applyCreatureStance, MOVE_PRIV.haltStep
 
 local FOCUS_GRACE_MS = 1000
@@ -78,8 +78,8 @@ function CombatAutomationMovement.clearDirective(player, kind)
 	end
 end
 
-function CombatAutomationMovement.clearWalkDedupe(player)
-	clearQueuedWalk(player)
+--- Drop a deferred walk-then-act (Use / use-with) so automation can walk again.
+function CombatAutomationMovement.clearPendingWalkAction(player)
 	clearPendingWalkAction(player)
 end
 
@@ -100,7 +100,6 @@ local function driveCatchUp(player, anchor, state)
 	if state.catchingUp then
 		if dist <= math.floor(walkSqm / 2) then
 			state.catchingUp = nil
-			clearQueuedWalk(player)
 			return false
 		end
 	elseif dist > walkSqm or not geo.isInViewport(apos, ppos) then
@@ -205,7 +204,6 @@ function CombatAutomationMovement.tick(player, config)
 			if relocatePriority then
 				CombatAutomationMovement.queueWalkToward(player, hold, false, true, directive.reach, directive.quiet)
 			else
-				clearQueuedWalk(player)
 				if hasFocus then
 					if not (directive.halt and autoOn and haltStep(player, target, config, state)) then
 						faceToward(player, target:getPosition())
@@ -224,11 +222,10 @@ function CombatAutomationMovement.tick(player, config)
 			clearFollowIfAny(player)
 			if autoOn or relocatePriority then
 				if not sameTile(player:getPosition(), hold) then
-					-- Do not force-repath every tick; stuck detection inside
-					-- queueWalkToward retries after ~400ms.
+					-- Do not force-repath every tick: queueWalkToward keeps a walk that
+					-- already ends there.
 					CombatAutomationMovement.queueWalkToward(player, hold, false, relocatePriority, directive.reach, directive.quiet)
 				else
-					clearQueuedWalk(player)
 					-- Tank waits facing where the pack comes from.
 					local front = directive.front
 					if not hasFocus and type(front) == "table" then
@@ -259,7 +256,6 @@ function CombatAutomationMovement.onManualControl(player)
 	if not player then
 		return
 	end
-	clearQueuedWalk(player)
 	local state = CombatAutomation.getState(player)
 	if state then
 		state.pendingAreaCast = nil
@@ -272,7 +268,6 @@ function CombatAutomationMovement.onAutoResumed(player)
 	if not player then
 		return
 	end
-	clearQueuedWalk(player)
 	clearPendingWalkAction(player)
 	clearFollowIfAny(player)
 	local state = CombatAutomation.getState(player)

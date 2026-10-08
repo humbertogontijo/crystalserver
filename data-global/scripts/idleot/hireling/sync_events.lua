@@ -12,9 +12,6 @@ startup:register()
 local loginEvent = CreatureEvent("ProductHirelingSyncLogin")
 
 function loginEvent.onLogin(player)
-	if not ProductHirelingSync then
-		return true
-	end
 	-- Load hireling rows for runtime when DB hirelings exist (legacy / store purchases).
 	ProductHirelingSync.ensurePlayerHirelingsLoaded(player)
 	return true

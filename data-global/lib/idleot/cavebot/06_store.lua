@@ -27,7 +27,7 @@ local function autoTargetOf(player)
 end
 
 local function inExpedition(player)
-	local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+	local session = ExpeditionManager.getSessionByPlayer(player)
 	return session ~= nil and session.state ~= "ended"
 end
 CavebotStore.inExpedition = inExpedition
@@ -118,7 +118,5 @@ end
 
 --- applyToRuntime hook: the flag or AUTO attack may have changed.
 function CavebotStore.onConfigChanged(player)
-	if CavebotService then
-		CavebotService.refresh(player)
-	end
+	CavebotService.refresh(player)
 end

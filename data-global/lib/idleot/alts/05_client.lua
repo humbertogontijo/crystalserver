@@ -1,4 +1,4 @@
--- Client attach / detach hooks called from C++ (ProtocolGame connect / detach).
+-- Client attach / detach (scripts/idleot/alts/events.lua).
 Alts = Alts or {}
 
 --- Same-account controller that should own this headless body (lobby host).
@@ -24,38 +24,19 @@ function Alts.onAttachedClient(player)
 	end
 	-- Drop sticky expedition companion flag so hunt-death / accept UX treats this
 	-- client as a human viewer (storage mark alone is not enough).
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer then
-		local session = ExpeditionManager.getSessionByPlayer(player)
-		if session and session.companionIds then
-			session.companionIds[player:getId()] = nil
-		end
+	local session = ExpeditionManager.getSessionByPlayer(player)
+	if session and session.companionIds then
+		session.companionIds[player:getId()] = nil
 	end
 end
 
---- Called from C++ ProtocolGame::connect after a real client attaches.
+--- playerOnClientAttach: a real client took over a body that stayed online. Per-module UI
+--- state is pushed by the playerOnClientReady handlers that follow.
 function Alts.onClientAttached(player)
-	if not player then
-		return
-	end
 	Alts.onAttachedClient(player)
-
-	if LobbyManager and LobbyManager.onClientAttached then
-		IdleSafe.call("LobbyManager.onClientAttached", LobbyManager.onClientAttached, player)
-	end
-	if LobbyServices and LobbyServices.onClientAttached then
-		IdleSafe.call("LobbyServices.onClientAttached", LobbyServices.onClientAttached, player)
-	end
-	if ExpeditionManager and ExpeditionManager.syncSessionClientIfNeeded then
-		IdleSafe.call("ExpeditionManager.syncSessionClientIfNeeded", ExpeditionManager.syncSessionClientIfNeeded, player)
-	end
-	-- Attached bodies are already bound, so the login-time instance bind never pushes identity.
-	if InstanceWorld and InstanceWorld.scheduleSendBounds then
-		IdleSafe.call("InstanceWorld.scheduleSendBounds", InstanceWorld.scheduleSendBounds, player)
-	end
-	-- Discovery skips clientless logins; push cyclopedia map state now that a UI exists.
-	if DiscoverySystem and DiscoverySystem.onClientAttached then
-		IdleSafe.call("DiscoverySystem.onClientAttached", DiscoverySystem.onClientAttached, player)
-	end
+	-- Lobby handoff needs the companion mark cleared first.
+	IdleSafe.call("LobbyManager.onClientAttached", LobbyManager.onClientAttached, player)
+	IdleSafe.call("LobbyServices.onClientAttached", LobbyServices.onClientAttached, player)
 end
 
 --- A real client detached and the creature stays online as headless.
@@ -71,27 +52,20 @@ function Alts.onBecameHeadless(player)
 	end
 	Alts.markCompanion(player, host)
 	-- Keep expedition session membership as companion (blocks accept prompts).
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer then
-		local session = ExpeditionManager.getSessionByPlayer(player) or ExpeditionManager.getSessionByPlayer(host)
-		if session then
-			session.companionIds = session.companionIds or {}
-			session.companionIds[player:getId()] = true
-			if session.memberGuids then
-				session.memberGuids[player:getGuid()] = player:getId()
-			end
+	local session = ExpeditionManager.getSessionByPlayer(player) or ExpeditionManager.getSessionByPlayer(host)
+	if session then
+		session.companionIds = session.companionIds or {}
+		session.companionIds[player:getId()] = true
+		if session.memberGuids then
+			session.memberGuids[player:getGuid()] = player:getId()
 		end
 	end
 	logger.info("[Alts] {} became headless companion under {}", player:getName(), host:getName())
 end
 
---- Called from C++ ProtocolGame::release when the creature stays online without a UI.
+--- playerOnClientDetach: the client left and the creature stays online without a UI.
 function Alts.onClientDetached(player)
-	if not player then
-		return
-	end
 	-- Lobby handoff first so the headless body is re-marked under the new host.
-	if LobbyManager and LobbyManager.onClientDetached then
-		IdleSafe.call("LobbyManager.onClientDetached", LobbyManager.onClientDetached, player)
-	end
+	IdleSafe.call("LobbyManager.onClientDetached", LobbyManager.onClientDetached, player)
 	Alts.onBecameHeadless(player)
 end

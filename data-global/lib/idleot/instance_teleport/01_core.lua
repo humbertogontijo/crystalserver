@@ -41,10 +41,10 @@ function InstanceTeleport.durationMsFor(player, opts)
 	if forced and forced > 0 then
 		return math.floor(forced)
 	end
-	if ExpeditionManager and ExpeditionManager.isInExpedition and ExpeditionManager.isInExpedition(player) then
+	if ExpeditionManager.isInExpedition(player) then
 		return InstanceTeleport.DURATION_PZ_MS
 	end
-	if PzTeleport and PzTeleport.isInSafeZone and PzTeleport.isInSafeZone(player) then
+	if PzTeleport.isInSafeZone(player) then
 		return InstanceTeleport.DURATION_PZ_MS
 	end
 	return InstanceTeleport.DURATION_WILD_MS
@@ -198,7 +198,7 @@ function InstanceTeleport.beginGroup(opts)
 	local checkCombatLock = opts.ignoreCombatLock ~= true
 	for _, id in ipairs(memberIds) do
 		local p = Player(id)
-		if checkCombatLock and p and PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(p) and not (PzTeleport.isGod and PzTeleport.isGod(p)) then
+		if checkCombatLock and p and PzTeleport.isCombatLocked(p) and not (PzTeleport.isGod(p)) then
 			return false, PzTeleport.PZ_LOCKED_MESSAGE
 		end
 		if p and InstanceTeleport.isPending(p) then

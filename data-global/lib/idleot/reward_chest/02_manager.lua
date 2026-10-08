@@ -1,17 +1,15 @@
 RewardChest = RewardChest or {}
 
 local function decodePayload(buffer)
-	if JsonParser and JsonParser.decode then
-		local ok, decoded = pcall(JsonParser.decode, buffer)
-		if ok and type(decoded) == "table" then
-			return decoded
-		end
+	local ok, decoded = pcall(JsonParser.decode, buffer)
+	if ok and type(decoded) == "table" then
+		return decoded
 	end
 	return nil
 end
 
 local function reply(player, payloadJson)
-	if player and RewardChestConfig then
+	if player then
 		player:sendExtendedOpcode(RewardChestConfig.OPCODE, payloadJson)
 	end
 end

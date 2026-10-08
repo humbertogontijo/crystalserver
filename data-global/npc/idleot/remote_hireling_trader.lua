@@ -50,15 +50,11 @@ local GOODS_TEXT =
 
 local function openSellShop(npc, player, catalog, applyRemoteTax)
 	local shop = catalog
-	if HirelingShopItems.filterSellCatalogForPlayer then
-		shop = HirelingShopItems.filterSellCatalogForPlayer(player, catalog)
-	elseif HirelingShopItems.buildDefaultTradeShop then
-		shop = HirelingShopItems.buildDefaultTradeShop(player)
-	end
+	shop = HirelingShopItems.filterSellCatalogForPlayer(player, catalog)
 	shop = shop or HirelingShopItems["various"]
 	-- Remote path (top-bar / RemoteDialog): bake tax into sell prices so stock
 	-- Sell / Sell all pay net gold. In-home talks leave applyRemoteTax false.
-	if applyRemoteTax and RemoteHirelingEconomy and shop then
+	if applyRemoteTax and shop then
 		local tax = RemoteHirelingEconomy.getTaxPercent(player)
 		if tax > 0 then
 			shop = RemoteHirelingEconomy.applyTaxToCatalog(shop, tax)
@@ -147,7 +143,7 @@ local function creatureSayCallback(npc, creature, type, message)
 		)
 		-- "buy loot" is ~1350 sell rows; only send what the player can sell.
 		if lower == "buy loot" then
-			local remote = RemoteDialog and RemoteDialog.isOpen and RemoteDialog.isOpen(player)
+			local remote = RemoteDialog.isOpen(player)
 			openSellShop(npc, player, categoryTable, remote == true)
 		else
 			npc:openShopWindowTable(player, categoryTable)
@@ -161,7 +157,7 @@ end
 
 -- After greet, "trade"/"offers" opens the sell-focused loot shop (same as saying {buy loot}).
 npcHandler:setCallback(CALLBACK_ON_TRADE_REQUEST, function(npc, player, message)
-	local remote = RemoteDialog and RemoteDialog.isOpen and RemoteDialog.isOpen(player)
+	local remote = RemoteDialog.isOpen(player)
 	openDefaultShop(npc, player, remote == true)
 	npcHandler:say(GOODS_TEXT, npc, player)
 	return false
@@ -180,8 +176,8 @@ npcType.onBuyItem = function(npc, player, itemId, subType, amount, ignore, inBac
 end
 
 npcType.onSellItem = function(npc, player, itemId, subtype, amount, ignore, name, totalCost)
-	local remote = RemoteDialog and RemoteDialog.isOpen and RemoteDialog.isOpen(player)
-	if remote and RemoteHirelingEconomy and totalCost and totalCost > 0 then
+	local remote = RemoteDialog.isOpen(player)
+	if remote and totalCost and totalCost > 0 then
 		if not RemoteHirelingEconomy.isOnCooldown(player) then
 			-- First free remote shop sell starts the hour cooldown. Remaining
 			-- chunks in the same Sell all keep the open (free) shop vector.

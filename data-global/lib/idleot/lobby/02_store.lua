@@ -65,7 +65,7 @@ local function normalizeRecord(raw)
 		created = math.floor(tonumber(raw.created) or os.time()),
 	}
 	-- Picked expedition dropped from the catalog since the lobby was saved.
-	if record.expeditionId ~= "" and ExpeditionConfig and ExpeditionConfig.getById
+	if record.expeditionId ~= "" and ExpeditionConfig.getById
 		and type(ExpeditionConfig.Catalog) == "table" and #ExpeditionConfig.Catalog > 0
 		and not ExpeditionConfig.getById(record.expeditionId, record.role)
 	then
@@ -187,7 +187,7 @@ local function nextLobbyId()
 end
 
 local function vocationName(player)
-	return Alts and Alts.vocationName and Alts.vocationName(player) or ""
+	return Alts.vocationName(player) or ""
 end
 
 local function snapshotProfile(entry, player)
@@ -198,9 +198,7 @@ local function snapshotProfile(entry, player)
 	entry.accountId = player:getAccountId()
 	entry.level = player:getLevel() or entry.level
 	entry.vocation = vocationName(player)
-	if Alts and Alts.outfitFrom then
-		entry.outfit = Alts.outfitFrom(player) or entry.outfit
-	end
+	entry.outfit = Alts.outfitFrom(player) or entry.outfit
 end
 LobbyStore.snapshotProfile = snapshotProfile
 
@@ -281,7 +279,7 @@ function LobbyStore.isAltEntry(record, entry)
 	if record.hostAccountId <= 0 or entry.accountId ~= record.hostAccountId then
 		return false
 	end
-	return not (Alts and Alts.isRealOnlineClient and Alts.isRealOnlineClient(entry.guid))
+	return not (Alts.isRealOnlineClient(entry.guid))
 end
 
 function LobbyStore.humans(record)

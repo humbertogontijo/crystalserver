@@ -17,12 +17,11 @@
 --   monster.died (monster, corpse, killer, mostDamageKiller)
 --                                                      a monster registered with "IdleMonsterDeath" died
 --                                                      (hunts, bosses, arenas, soul pits, raids, cave runs)
---   zone.itemAdded (zone, item)                        item placed inside a zone
---   zone.itemRemoved (zone, item)                      item removed from a zone (transform: removed then added)
+--   monster.removed (monster)                          any monster left the map (death, despawn, remove)
 --   player.instanceChanged (player)                    player bound to another instance / layer (or its
 --                                                      client re-attached); InstanceWorld bounds hook
---   player.walkDone (player, completed)                the player's queued walk ran out or was cancelled
---                                                      (next tick; any walk, scripted or client)
+--   player.walkDone (player, completed, result)        the player's queued walk ran out, was cancelled or
+--                                                      a step failed (result: ReturnValue; any walk)
 --
 -- Prefer Scope:on (02_scope.lua) in session / instance code: it unsubscribes on dispose.
 

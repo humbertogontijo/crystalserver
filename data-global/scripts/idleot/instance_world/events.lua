@@ -1,35 +1,61 @@
-InstanceStorage.install()
-
 local startup = GlobalEvent("InstanceWorldStartup")
 
 function startup.onStartup()
-	if InstanceWorld and InstanceWorld.onStartup then
-		local ok, err = pcall(InstanceWorld.onStartup)
-		if not ok then
-			logger.error("[InstanceWorld] onStartup failed: {}", err)
-		end
+	local ok, err = pcall(InstanceWorld.onStartup)
+	if not ok then
+		logger.error("[InstanceWorld] onStartup failed: {}", err)
 	end
 	return true
 end
 
 startup:register()
 
+local bindCallback = EventCallback("InstanceWorldPlayerOnInstanceBind")
+
+function bindCallback.playerOnInstanceBind(player, position)
+	InstanceWorld.bindLogin(player, position)
+end
+
+bindCallback:register()
+
+local travelCallback = EventCallback("InstanceWorldCreatureOnInstanceTravel")
+
+function travelCallback.creatureOnInstanceTravel(creature, destination)
+	return InstanceWorld.onEngineTravel(creature, destination)
+end
+
+travelCallback:register()
+
+local changeCallback = EventCallback("InstanceWorldPlayerOnChangeInstance")
+
+function changeCallback.playerOnChangeInstance(player, _fromKey, _toKey)
+	InstanceWorld.onChangeInstance(player)
+end
+
+changeCallback:register()
+
+-- A reattached client never saw the bind, so identity is pushed whenever a client is ready.
+local clientReadyCallback = EventCallback("InstanceWorldPlayerOnClientReady")
+
+function clientReadyCallback.playerOnClientReady(player)
+	InstanceWorld.sendBounds(player, true)
+end
+
+clientReadyCallback:register()
+
 local loginEvent = CreatureEvent("InstanceWorldLogin")
 
 function loginEvent.onLogin(player)
 	local ok, err = pcall(function()
-		InstanceWorld.bindLogin(player)
-		if InstanceWorld and InstanceWorld.rescueIfStranded then
-			InstanceWorld.rescueIfStranded(player)
-			local pid = player:getId()
-			for _, delay in ipairs({ 100, 750 }) do
-				addEvent(function()
-					local p = Player(pid)
-					if p then
-						InstanceWorld.rescueIfStranded(p)
-					end
-				end, delay)
-			end
+		InstanceWorld.rescueIfStranded(player)
+		local pid = player:getId()
+		for _, delay in ipairs({ 100, 750 }) do
+			addEvent(function()
+				local p = Player(pid)
+				if p then
+					InstanceWorld.rescueIfStranded(p)
+				end
+			end, delay)
 		end
 	end)
 	if not ok then
@@ -73,9 +99,6 @@ kindsPrepareDeath:register()
 local moveCreatureCallback = EventCallback("InstanceWorldPlayerOnMoveCreature")
 
 function moveCreatureCallback.playerOnMoveCreature(player, creature, fromPosition, toPosition)
-	if not InstanceWorld or not InstanceWorld.canMoveCreature then
-		return true
-	end
 	if InstanceWorld.canMoveCreature(player, creature, fromPosition, toPosition) then
 		return true
 	end
@@ -90,9 +113,6 @@ moveCreatureCallback:register()
 local moveItemCallback = EventCallback("InstanceWorldPlayerOnMoveItem")
 
 function moveItemCallback.playerOnMoveItem(player, _item, _count, fromPosition, toPosition)
-	if not InstanceWorld or not InstanceWorld.canWalk then
-		return true
-	end
 	-- Inventory / open containers use 0xFFFF — not map tiles; occupancy does not apply.
 	-- (Without this skip, ground→backpack always fails with "Sorry, not possible.")
 	if toPosition and toPosition.x ~= 0xFFFF and not InstanceWorld.canWalk(player, toPosition) then

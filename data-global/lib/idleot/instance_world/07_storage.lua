@@ -7,8 +7,8 @@
 -- writes the key, and the layer is dropped when the instance is released. World code is
 -- unchanged.
 --
--- Game.getStorageValue/setStorageValue are defined in data/libs (loaded after product
--- libs), so install() runs from scripts/idleot. Layers drop on "instance.released".
+-- Wraps the data/libs Game.getStorageValue/setStorageValue, which every core reload
+-- redefines before the product libs run. Layers drop on "instance.released".
 
 InstanceStorage = InstanceStorage or { layers = {} }
 
@@ -29,32 +29,26 @@ function InstanceStorage.clear(instanceId)
 	end
 end
 
-function InstanceStorage.install()
-	if InstanceStorage.installed then
-		return
-	end
-	InstanceStorage.installed = true
-	local layers = InstanceStorage.layers
-	local getWorld, setWorld = Game.getStorageValue, Game.setStorageValue
+local layers = InstanceStorage.layers
+local getWorld, setWorld = Game.getStorageValue, Game.setStorageValue
 
-	function Game.getStorageValue(key)
-		local id = privateScope()
-		local layer = id and layers[id]
-		local value = layer and layer[key]
-		if value == nil then
-			return getWorld(key)
-		end
-		return value == UNSET and -1 or value
+function Game.getStorageValue(key)
+	local id = privateScope()
+	local layer = id and layers[id]
+	local value = layer and layer[key]
+	if value == nil then
+		return getWorld(key)
 	end
+	return value == UNSET and -1 or value
+end
 
-	function Game.setStorageValue(key, value)
-		local id = privateScope()
-		if not id or key == nil then
-			return setWorld(key, value)
-		end
-		layers[id] = layers[id] or {}
-		layers[id][key] = (value == -1 or value == nil) and UNSET or value
+function Game.setStorageValue(key, value)
+	local id = privateScope()
+	if not id or key == nil then
+		return setWorld(key, value)
 	end
+	layers[id] = layers[id] or {}
+	layers[id][key] = (value == -1 or value == nil) and UNSET or value
 end
 
 IdleEvents.on("instance.released", InstanceStorage.clear, "InstanceStorage")

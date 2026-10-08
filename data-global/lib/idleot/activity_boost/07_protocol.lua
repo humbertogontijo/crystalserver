@@ -8,12 +8,10 @@ function ActivityBoostProtocol.sendState(player)
 	end
 	local ok, err = pcall(function()
 		ActivityBoostLedger.reconcileWithEngine(player)
-		local fiendishHunt = ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.get(player) or nil
+		local fiendishHunt = ActivityBoostFiendishHunt.get(player) or nil
 		local activities = ActivityBoostActivities.list(player, { fiendishHunt = fiendishHunt })
 		local fragsToday = 0
-		if ActivityBoostActivities and ActivityBoostActivities.getWorldBossFragsToday then
-			fragsToday = ActivityBoostActivities.getWorldBossFragsToday(player)
-		end
+		fragsToday = ActivityBoostActivities.getWorldBossFragsToday(player)
 		local cap = tonumber(ActivityBoostConfig.WORLD_BOSS_DAILY_CAP) or 3
 		ActivityBoostProtocol.send(player, {
 			type = "state",
@@ -42,7 +40,7 @@ function ActivityBoostProtocol.sendProgress(player)
 	end
 	local ok, err = pcall(function()
 		ActivityBoostLedger.reconcileWithEngine(player)
-		local fiendishHunt = ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.get(player) or nil
+		local fiendishHunt = ActivityBoostFiendishHunt.get(player) or nil
 		ActivityBoostProtocol.send(player, {
 			type = "progress",
 			boost = ActivityBoostLedger.getStatus(player),
@@ -58,7 +56,7 @@ function ActivityBoostProtocol.handle(player, buffer)
 	if not player then
 		return
 	end
-	local data = JsonParser and JsonParser.decode and JsonParser.decode(buffer) or nil
+	local data = JsonParser.decode(buffer) or nil
 	if type(data) ~= "table" then
 		return
 	end
@@ -83,10 +81,6 @@ function ActivityBoostProtocol.handle(player, buffer)
 		return
 	end
 	if action == "joinFiendishHunt" then
-		if not ActivityBoostFiendishHunt or not ActivityBoostFiendishHunt.join then
-			ActivityBoostProtocol.send(player, { type = "error", message = "Fiendish Hunt unavailable." })
-			return
-		end
 		local ok, err = ActivityBoostFiendishHunt.join(player)
 		if ok then
 			ActivityBoostProtocol.sendState(player)

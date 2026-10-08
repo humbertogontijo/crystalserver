@@ -29,7 +29,7 @@ local function collectNames(raw)
 	if type(raw) ~= "table" then
 		return out
 	end
-	local maxNames = (HuntFinderConfig and HuntFinderConfig.MAX_NAMES) or 64
+	local maxNames = (HuntFinderConfig.MAX_NAMES) or 64
 	for _, value in ipairs(raw) do
 		if type(value) == "string" then
 			local name = value:match("^%s*(.-)%s*$") or ""
@@ -67,7 +67,7 @@ local function monsterInfo(name)
 	-- Prefer race-id lookup (no error log on miss). Skip unknown names entirely so
 	-- hunt place titles ("Exotic Cave") never hit Monsters::getMonsterType.
 	local mType = nil
-	local info = CreatureInfo and CreatureInfo.get and CreatureInfo.get(name)
+	local info = CreatureInfo.get(name)
 	local raceId = info and tonumber(info.creatureId)
 	if raceId and raceId > 0 and MonsterType then
 		mType = MonsterType(raceId)

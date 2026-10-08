@@ -109,7 +109,7 @@ function ExpeditionInstance.hasLivingPlayers(instance, opts)
 			local id = player:getId()
 			if opts.excludeIds and opts.excludeIds[id] then
 				-- skip
-			elseif opts.excludeCompanions and Alts and Alts.isCompanion and Alts.isCompanion(player) then
+			elseif opts.excludeCompanions and Alts.isCompanion(player) then
 				-- skip
 			else
 				return true
@@ -128,14 +128,14 @@ local function loadOccupancy(opts)
 	end
 	-- Prefer masks already registered at InstanceWorld startup.
 	local huntId = tonumber(opts.id)
-	if huntId and InstanceWorld and InstanceWorld.occupancyByHuntId then
+	if huntId then
 		local cached = InstanceWorld.occupancyByHuntId[huntId]
 		if cached then
 			return cached
 		end
 	end
 	local subareaId = tonumber(opts.subareaId) or huntId
-	if subareaId and InstanceWorld and InstanceWorld.occupancyBySubarea then
+	if subareaId then
 		local cached = InstanceWorld.occupancyBySubarea[subareaId]
 		if cached then
 			return cached
@@ -150,7 +150,7 @@ local function loadOccupancy(opts)
 	if not ox or not oy then
 		return nil
 	end
-	local path = ExpeditionConfig.subareaMaskPath and ExpeditionConfig.subareaMaskPath(file)
+	local path = ExpeditionConfig.subareaMaskPath(file)
 	if not path then
 		return nil
 	end
@@ -169,7 +169,7 @@ local function resolveCenter(opts)
 		return opts.center
 	end
 	local region = opts.region or opts.id
-	if region and ExpeditionConfig.RaidArenaCenters and ExpeditionConfig.RaidArenaCenters[region] then
+	if region and ExpeditionConfig.RaidArenaCenters[region] then
 		return ExpeditionConfig.RaidArenaCenters[region]
 	end
 	if opts.id then
@@ -204,9 +204,7 @@ function ExpeditionInstance.build(instanceId, opts, _seed, _kind)
 	local entry = Position(center.x, center.y, center.z)
 	local region = type(opts) == "table" and (opts.region or opts.id) or nil
 	local floors, floorSet = ExpeditionInstance.floorsFromSpec(opts, center.z)
-	if InstanceWorld and InstanceWorld.rememberFloors then
-		InstanceWorld.rememberFloors(instanceId, floorSet)
-	end
+	InstanceWorld.rememberFloors(instanceId, floorSet)
 
 	local instance = {
 		instanceId = instanceId,
@@ -493,7 +491,7 @@ end
 -- call setInstanceId here (on-map remap is a client-ghost source).
 local function afterCreateMonster(monster, instance)
 	local session = nil
-	if instance and instance.instanceId and ExpeditionManager and ExpeditionManager.getSessionByInstanceId then
+	if instance and instance.instanceId then
 		session = ExpeditionManager.getSessionByInstanceId(instance.instanceId)
 	end
 	local skipForge = session and session.skipOpenWorldForge == true

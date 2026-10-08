@@ -35,9 +35,7 @@ function EM_PRIV.beginExpeditionHunt(session, contentRole)
 	end
 	EM_PRIV.syncClientMaps(session)
 	if contentRole == "arena" then
-		if QuestArena and QuestArena.begin then
-			QuestArena.begin(session)
-		end
+		QuestArena.begin(session)
 	elseif contentRole == "boss" then
 		ExpeditionBoss.spawn(session)
 	else
@@ -45,9 +43,7 @@ function EM_PRIV.beginExpeditionHunt(session, contentRole)
 	end
 	ExpeditionAI.start(session)
 	for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
-		if ActivityBoostLedger and ActivityBoostLedger.applyOnExpeditionJoin then
-			IdleSafe.call("ActivityBoostLedger.applyOnExpeditionJoin", ActivityBoostLedger.applyOnExpeditionJoin, p)
-		end
+		IdleSafe.call("ActivityBoostLedger.applyOnExpeditionJoin", ActivityBoostLedger.applyOnExpeditionJoin, p)
 	end
 end
 
@@ -124,13 +120,13 @@ function ExpeditionManager.resolveSession(player)
 		-- Headless companions may logout before removeHuntMember; humans must not
 		-- re-bind via pending death after they have already left the session.
 		if s.pendingHuntDeath and s.pendingHuntDeath.id == player:getId() then
-			if Alts and Alts.isCompanion and Alts.isCompanion(player) then
+			if Alts.isCompanion(player) then
 				return s
 			end
 		end
 	end
-	if Alts and Alts.isCompanion and Alts.isCompanion(player) then
-		local controller = Alts.getCompanionController and Alts.getCompanionController(player)
+	if Alts.isCompanion(player) then
+		local controller = Alts.getCompanionController(player)
 		if controller then
 			return EM_PRIV.sessionsByPlayerId[controller:getId()]
 		end
@@ -188,7 +184,7 @@ function ExpeditionManager.reconcilePresence(player)
 		tostring(session.instance and ExpeditionInstance.contains(session.instance, pos) or false)
 	)
 	session.reconciling = true
-	if session.kind == "raid" and RaidInstance and RaidInstance.leave then
+	if session.kind == "raid" then
 		RaidInstance.leave(player, { silent = true })
 		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You left the raid area.")
 	else
@@ -197,6 +193,21 @@ function ExpeditionManager.reconcilePresence(player)
 	end
 	return false
 end
+
+-- A member bound to another instance left its session. Deferred: the engine reports the
+-- change mid-move, and leaving teleports again.
+IdleEvents.on("player.instanceChanged", function(player)
+	local session = ExpeditionManager.getSessionByPlayer(player)
+	if not session or not session.entered or session.state == "ended" then
+		return
+	end
+	addEvent(function(pid)
+		local p = Player(pid)
+		if p then
+			ExpeditionManager.reconcilePresence(p)
+		end
+	end, 0, player:getId())
+end, "ExpeditionPresence")
 
 -- Solo sessions use session.playerId; party hunts/bosses use session.playerIds.
 function ExpeditionManager.sessionMemberIds(session)
@@ -244,22 +255,7 @@ function EM_PRIV.isOpenWorldReturnPos(pos)
 	if not pos then
 		return false
 	end
-	if InstanceWorld and InstanceWorld.isTownOnlyPos then
-		return InstanceWorld.isTownOnlyPos(pos)
-	end
-	if not InstanceWorld or not InstanceWorld.classify then
-		return true
-	end
-	local kind = InstanceWorld.classify(pos).kind
-	if kind ~= "city" and kind ~= "settlement" and kind ~= "hub" then
-		return false
-	end
-	-- City occupancy can win over hunt masks on shared XY (graves, etc.). Reject
-	-- any tile that is also a hunt footprint so leave never parks on the hold.
-	if kind ~= "hub" and InstanceWorld.isHuntTile and InstanceWorld.isHuntTile(pos) then
-		return false
-	end
-	return true
+	return InstanceWorld.isTownOnlyPos(pos)
 end
 
 function EM_PRIV.saveReturn(player, pos)
@@ -308,28 +304,22 @@ function EM_PRIV.returnToLobby(player, returnPos)
 	if not player then
 		return false
 	end
-	local companion = Alts and Alts.isCompanion(player) and not Alts.isRealUiClient(player)
-	if not companion and LobbyManager and LobbyInstance then
+	local companion = Alts.isCompanion(player) and not Alts.isRealUiClient(player)
+	if not companion then
 		local record = LobbyManager.ensureForPlayer(player)
 		if record and LobbyInstance.enterNow(player, record, {}) then
 			return true
 		end
 	end
 	returnPos = returnPos or EM_PRIV.loadReturn(player)
-	if InstanceWorld and InstanceWorld.exitToOpenWorld then
-		return InstanceWorld.exitToOpenWorld(player, returnPos)
-	end
-	if InstanceWorld and InstanceWorld.travel then
-		return InstanceWorld.travel(player, returnPos)
-	end
-	return player:teleportTo(returnPos) and true or false
+	return InstanceWorld.exitToOpenWorld(player, returnPos)
 end
 
 --- After expedition cleanup: hometown temple (recall) or back to the lobby room.
 --- Always immediate — the IT channel already completed before leave/abort.
 function EM_PRIV.teleportAfterLeave(player, returnPos, opts)
 	opts = opts or {}
-	if opts.goHometown and InstanceTeleport and InstanceTeleport.executeHometown then
+	if opts.goHometown then
 		local ok, err = InstanceTeleport.executeHometown(player, { fromExpedition = true })
 		if ok then
 			return true
@@ -351,7 +341,7 @@ function EM_PRIV.expeditionTeleportCombatOk(player)
 	if PzTeleport.isGod(player) then
 		return true
 	end
-	if PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(player) then
+	if PzTeleport.isCombatLocked(player) then
 		return false, PzTeleport.PZ_LOCKED_MESSAGE or "You cannot teleport while PZ-locked."
 	end
 	return true
@@ -394,30 +384,22 @@ function ExpeditionManager.clearAreaEffects(player)
 end
 
 function ExpeditionManager.sanitizeAutomation(loadout, player)
-	if CombatAutomationStore and CombatAutomationStore.sanitize then
-		local config = CombatAutomationStore.sanitize(loadout, player)
-		return { slots = config.slots or {} }
-	end
-	return { slots = {} }
+	local config = CombatAutomationStore.sanitize(loadout, player)
+	return { slots = config.slots or {} }
 end
 
 function EM_PRIV.persistAutomation(player, automation)
-	if CombatAutomationStore and CombatAutomationStore.persist then
-		local state = CombatAutomation and CombatAutomation.getState and CombatAutomation.getState(player)
-		CombatAutomationStore.persist(player, {
-			slots = automation and automation.slots or {},
-			autoTarget = state and state.config and state.config.autoTarget or nil,
-		})
-		return
-	end
+	local state = CombatAutomation.getState(player)
+	CombatAutomationStore.persist(player, {
+		slots = automation and automation.slots or {},
+		autoTarget = state and state.config and state.config.autoTarget or nil,
+	})
+	return
 end
 
 function EM_PRIV.loadPersistedAutomation(player)
-	if CombatAutomationStore and CombatAutomationStore.getConfig then
-		local config = CombatAutomationStore.getConfig(player)
-		return { slots = config.slots or {} }
-	end
-	return { slots = {} }
+	local config = CombatAutomationStore.getConfig(player)
+	return { slots = config.slots or {} }
 end
 
 function ExpeditionManager.bindSession(session)
@@ -502,15 +484,13 @@ function ExpeditionManager.setAutomation(player, loadout)
 	if not player then
 		return
 	end
-	if CombatAutomationStore and CombatAutomationStore.setConfig then
-		local raw = loadout
-		if type(loadout) == "table" and loadout.slots == nil and loadout.loadout == nil then
-			-- Accept bare { slots } or array; preserve auto-target when omitted.
-			raw = { slots = type(loadout.slots) == "table" and loadout.slots or loadout }
-		end
-		CombatAutomationStore.setConfig(player, raw)
-		return
+	local raw = loadout
+	if type(loadout) == "table" and loadout.slots == nil and loadout.loadout == nil then
+		-- Accept bare { slots } or array; preserve auto-target when omitted.
+		raw = { slots = type(loadout.slots) == "table" and loadout.slots or loadout }
 	end
+	CombatAutomationStore.setConfig(player, raw)
+	return
 end
 
 function EM_PRIV.meetsExpeditionLevel(player, levelMin)
@@ -532,28 +512,14 @@ function ExpeditionManager.underleveled(players, levelMin)
 end
 
 function EM_PRIV.playerHasExpeditionStamina(player)
-	if ExpeditionSafety and ExpeditionSafety.hasStamina then
-		return ExpeditionSafety.hasStamina(player)
-	end
-	if not configManager.getBoolean(configKeys.STAMINA_SYSTEM) then
-		return true
-	end
-	return player and player:getStamina() > 0
+	return ExpeditionSafety.hasStamina(player)
 end
 
 --- nil when all have stamina; otherwise error naming the first blocked player.
 function EM_PRIV.partyStaminaError(players)
-	if ExpeditionSafety and ExpeditionSafety.firstWithoutStamina then
-		local blocked = ExpeditionSafety.firstWithoutStamina(players)
-		if blocked then
-			return string.format("%s needs stamina to enter an expedition.", blocked:getName())
-		end
-		return nil
-	end
-	for _, p in ipairs(players or {}) do
-		if p and not EM_PRIV.playerHasExpeditionStamina(p) then
-			return string.format("%s needs stamina to enter an expedition.", p:getName())
-		end
+	local blocked = ExpeditionSafety.firstWithoutStamina(players)
+	if blocked then
+		return string.format("%s needs stamina to enter an expedition.", blocked:getName())
 	end
 	return nil
 end
@@ -604,7 +570,7 @@ function EM_PRIV.isSessionCompanion(session, player)
 	if session and session.companionIds and session.companionIds[player:getId()] then
 		return true
 	end
-	return Alts and Alts.isCompanion and Alts.isCompanion(player)
+	return Alts.isCompanion(player)
 end
 
 --- True when the player has a live ProtocolGame UI (not headless).
@@ -615,7 +581,7 @@ function EM_PRIV.hasUiClient(player)
 	if player:isHeadless() then
 		return false
 	end
-	if player.getProtocolVersion and player:getProtocolVersion() == 0 then
+	if player:getProtocolVersion() == 0 then
 		return false
 	end
 	return true
@@ -677,7 +643,7 @@ function EM_PRIV.applyEntryBossCooldown(session, memberIds)
 end
 
 function EM_PRIV.refundBossCooldownForSession(session)
-	if not session or session.role ~= "boss" or not ExpeditionConfig.bossTypeName or not ExpeditionConfig.clearBossCooldown then
+	if not session or session.role ~= "boss" then
 		return
 	end
 	local bossName = ExpeditionConfig.bossTypeName(session.catalog)
@@ -688,26 +654,23 @@ function EM_PRIV.refundBossCooldownForSession(session)
 end
 
 function EM_PRIV.syncHuntPersist(session)
-	if not session or not ExpeditionPersist then
+	if not session then
 		return
 	end
 	if ExpeditionPersist.isPersistableHunt(session) then
 		IdleSafe.call("ExpeditionPersist.writeSession", ExpeditionPersist.writeSession, session)
-	elseif ExpeditionPersist.clearSession and not ExpeditionPersist.isServerShuttingDown() then
+	elseif not ExpeditionPersist.isServerShuttingDown() then
 		IdleSafe.call("ExpeditionPersist.clearSession", ExpeditionPersist.clearSession, session)
 	end
 end
 
 function ExpeditionManager.hasPendingRestore(player)
-	return ExpeditionPersist and ExpeditionPersist.hasPendingRestore and ExpeditionPersist.hasPendingRestore(player)
+	return ExpeditionPersist.hasPendingRestore(player)
 end
 
 --- Refresh the lobbies of these players (presence: in expedition / busy / back in lobby).
 --- Deferred so the session bind/unbind has settled before presence is read.
 function EM_PRIV.notifyLobbies(playerIds)
-	if not (LobbyStore and LobbyProtocol) then
-		return
-	end
 	local guids = {}
 	for _, id in ipairs(playerIds or {}) do
 		local p = Player(id)
@@ -733,7 +696,7 @@ end
 --- Lobby whose members join this start; nil for solo runs (scope ~= "lobby").
 function EM_PRIV.startLobby(host, options)
 	options = options or {}
-	if not host or options.scope ~= "lobby" or not LobbyStore then
+	if not host or options.scope ~= "lobby" then
 		return nil
 	end
 	local record = options.lobbyId and LobbyStore.get(options.lobbyId) or LobbyStore.getForPlayer(host)
@@ -751,7 +714,7 @@ function EM_PRIV.collectExpectedHumanTeammates(host, options)
 	end
 	local list = {}
 	for _, p in ipairs(LobbyManager.onlineHumans(record, host:getGuid())) do
-		if EM_PRIV.hasUiClient(p) and not (Alts and Alts.isCompanion(p)) and LobbyInstance.isInRoom(p, record) then
+		if EM_PRIV.hasUiClient(p) and not (Alts.isCompanion(p)) and LobbyInstance.isInRoom(p, record) then
 			list[#list + 1] = p
 		end
 	end
@@ -937,14 +900,12 @@ function EM_PRIV.prepareMemberAutomation(member, loadout, isHost)
 			automation = EM_PRIV.loadPersistedAutomation(member)
 		else
 			EM_PRIV.persistAutomation(member, automation)
-			if CombatAutomationStore and CombatAutomationStore.applyToRuntime then
-				local state = CombatAutomation.getState(member)
-				CombatAutomationStore.applyToRuntime(member, {
-					slots = automation.slots,
-					autoTarget = state and state.config and state.config.autoTarget or nil,
-					_loaded = true,
-				})
-			end
+			local state = CombatAutomation.getState(member)
+			CombatAutomationStore.applyToRuntime(member, {
+				slots = automation.slots,
+				autoTarget = state and state.config and state.config.autoTarget or nil,
+				_loaded = true,
+			})
 		end
 	else
 		automation = EM_PRIV.loadPersistedAutomation(member)
@@ -987,20 +948,16 @@ function EM_PRIV.registerSessionMember(session, member, host, opts)
 	session.companionIds = session.companionIds or {}
 	local fromDeploy = companionById[memberId] == true
 	local isCompanion = fromDeploy
-		or (Alts and Alts.isCompanion and Alts.isCompanion(member))
+		or (Alts.isCompanion(member))
 	if isCompanion then
 		session.companionIds[memberId] = true
-		if Alts and Alts.markCompanion then
-			IdleSafe.call("Alts.markCompanion", Alts.markCompanion, member, host)
-		end
+		IdleSafe.call("Alts.markCompanion", Alts.markCompanion, member, host)
 		EM_PRIV.saveReturn(member, hostWorldPos)
 	else
 		EM_PRIV.saveReturn(member)
 	end
 	EM_PRIV.markActive(member, catalog and catalog.id or "")
-	if SampleSpells and SampleSpells.ensure then
-		SampleSpells.ensure(member)
-	end
+	SampleSpells.ensure(member)
 	member:registerEvent("ExpeditionPlayerDeath")
 	ExpeditionAI.enablePersistence(member)
 	EM_PRIV.sessionsByPlayerId[memberId] = session

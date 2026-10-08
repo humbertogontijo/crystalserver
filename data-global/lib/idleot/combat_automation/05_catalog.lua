@@ -133,7 +133,7 @@ end
 
 function CombatAutomationCatalog.ammoAllowedForPlayer(typeId, player)
 	local id = math.floor(tonumber(typeId) or 0)
-	local entry = CombatAutomationConfig.AllowedAmmo and CombatAutomationConfig.AllowedAmmo[id]
+	local entry = CombatAutomationConfig.AllowedAmmo[id]
 	if not entry then
 		return false
 	end

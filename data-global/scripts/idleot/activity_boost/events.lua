@@ -1,22 +1,32 @@
 -- Activity Boost: daily activities, XP boost bank, world bosses (opcode 125).
 
-logger.info("[ActivityBoost] ready (opcode {})", ActivityBoostConfig and ActivityBoostConfig.OPCODE or 125)
+logger.info("[ActivityBoost] ready (opcode {})", ActivityBoostConfig.OPCODE or 125)
 
 local loginEvent = CreatureEvent("ActivityBoostLogin")
 
 function loginEvent.onLogin(player)
 	player:registerEvent("ActivityBoostOpcode")
 	IdleSafe.call("ActivityBoostActivities.onLogin", ActivityBoostActivities.onLogin, player)
-	addEvent(function()
-		local p = Player(player:getId())
-		if p and ActivityBoostProtocol and ActivityBoostProtocol.sendState then
-			ActivityBoostProtocol.sendState(p)
-		end
-	end, 1500)
 	return true
 end
 
 loginEvent:register()
+
+local clientReadyCallback = EventCallback("ActivityBoostPlayerOnClientReady")
+
+function clientReadyCallback.playerOnClientReady(player)
+	ActivityBoostProtocol.sendState(player)
+end
+
+clientReadyCallback:register()
+
+local bountyCallback = EventCallback("ActivityBoostPlayerOnBountyTaskClaimed")
+
+function bountyCallback.playerOnBountyTaskClaimed(player)
+	ActivityBoostActivities.onBountyTaskClaimed(player)
+end
+
+bountyCallback:register()
 
 local logoutEvent = CreatureEvent("ActivityBoostLogout")
 
@@ -38,7 +48,7 @@ killCallback:register()
 local opcodeEvent = CreatureEvent("ActivityBoostOpcode")
 
 function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
-	if not ActivityBoostConfig or opcode ~= ActivityBoostConfig.OPCODE then
+	if opcode ~= ActivityBoostConfig.OPCODE then
 		return
 	end
 	local ok, err = pcall(function()
@@ -54,30 +64,18 @@ opcodeEvent:register()
 local bossHealth = CreatureEvent("ActivityBoostWorldBossHealth")
 
 function bossHealth.onHealthChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
-	if ActivityBoostWorldBoss and ActivityBoostWorldBoss.onHealthChange then
-		return ActivityBoostWorldBoss.onHealthChange(
-			creature,
-			attacker,
-			primaryDamage,
-			primaryType,
-			secondaryDamage,
-			secondaryType,
-			origin
-		)
-	end
-	return primaryDamage, primaryType, secondaryDamage, secondaryType
+	return ActivityBoostWorldBoss.onHealthChange(
+		creature,
+		attacker,
+		primaryDamage,
+		primaryType,
+		secondaryDamage,
+		secondaryType,
+		origin
+	)
 end
 
 bossHealth:register()
-
-local bossDeath = CreatureEvent("ActivityBoostWorldBossDeath")
-
-function bossDeath.onDeath(creature, corpse, killer, mostDamageKiller, lastHitUnjustified, mostDamageUnjustified)
-	IdleSafe.call("ActivityBoostWorldBoss.onBossDeath", ActivityBoostWorldBoss.onBossDeath, creature)
-	return true
-end
-
-bossDeath:register()
 
 local think = GlobalEvent("ActivityBoostThink")
 
@@ -85,7 +83,6 @@ function think.onThink(interval)
 	for _, player in ipairs(Game.getPlayers()) do
 		IdleSafe.call("ActivityBoostLedger.reconcileWithEngine", ActivityBoostLedger.reconcileWithEngine, player)
 	end
-	IdleSafe.call("ActivityBoostWorldBoss.tick", ActivityBoostWorldBoss.tick)
 	return true
 end
 
@@ -113,7 +110,7 @@ local function registerWorldBossClock(index, clock)
 end
 
 do
-	local times = (ActivityBoostConfig and ActivityBoostConfig.WORLD_BOSS_SESSION_TIMES) or { "12:00", "20:00" }
+	local times = (ActivityBoostConfig.WORLD_BOSS_SESSION_TIMES) or { "12:00", "20:00" }
 	for index, clock in ipairs(times) do
 		registerWorldBossClock(index, clock)
 	end

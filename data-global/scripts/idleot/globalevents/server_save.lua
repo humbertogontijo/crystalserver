@@ -23,9 +23,7 @@ function IdleotServerSave.runHooks()
 	if DiscoverySystem and DiscoverySystem.onServerSave then
 		IdleSafe.call("DiscoverySystem.onServerSave", DiscoverySystem.onServerSave)
 	end
-	if EchoWarden and EchoWarden.onServerSave then
-		IdleSafe.call("EchoWarden.onServerSave", EchoWarden.onServerSave)
-	end
+	IdleSafe.call("EchoWarden.onServerSave", EchoWarden.onServerSave)
 end
 
 local saveEvent = GlobalEvent("IdleotServerSave")

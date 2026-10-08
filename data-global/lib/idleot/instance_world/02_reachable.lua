@@ -50,7 +50,7 @@ local function buildIndex()
 		addMaskFence(sid and InstanceWorld.occupancyBySettlementId[sid], settlement.boundary, nil)
 	end
 
-	local hub = InstanceWorld.hubs and InstanceWorld.hubs[1]
+	local hub = InstanceWorld.hubs[1]
 	if hub and hub.center then
 		local r = InstanceWorld.HUB_WALK_RADIUS
 		addFence(hub.center.x - r, hub.center.y - r, hub.center.x + r, hub.center.y + r, select(2, ExpeditionInstance.floorsFromSpec(hub, hub.center.z)), nil)
@@ -58,13 +58,11 @@ local function buildIndex()
 
 	-- Hunt footprints come from InstanceWorld.isHuntTile; only boundary-less hunts
 	-- (center-only bosses) need a box around the center here.
-	if ExpeditionConfig and ExpeditionConfig.Catalog and ExpeditionInstance then
-		for _, hunt in ipairs(ExpeditionConfig.Catalog) do
-			local center = hunt.center
-			if center and center.x and not hunt.boundary and not InstanceWorld.occupancyByHuntId[hunt.id] then
-				local _, floorSet = ExpeditionInstance.floorsFromSpec(hunt, center.z)
-				addFence(center.x - 8, center.y - 8, center.x + 8, center.y + 8, floorSet, nil)
-			end
+	for _, hunt in ipairs(ExpeditionConfig.Catalog) do
+		local center = hunt.center
+		if center and center.x and not hunt.boundary and not InstanceWorld.occupancyByHuntId[hunt.id] then
+			local _, floorSet = ExpeditionInstance.floorsFromSpec(hunt, center.z)
+			addFence(center.x - 8, center.y - 8, center.x + 8, center.y + 8, floorSet, nil)
 		end
 	end
 end

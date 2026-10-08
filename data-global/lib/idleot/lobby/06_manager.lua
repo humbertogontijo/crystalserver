@@ -15,15 +15,11 @@ local function isRealUi(player)
 end
 
 local function notify(record)
-	if LobbyProtocol and LobbyProtocol.broadcast then
-		LobbyProtocol.broadcast(record)
-	end
+	LobbyProtocol.broadcast(record)
 end
 
 local function sendLobby(player)
-	if LobbyProtocol and LobbyProtocol.sendLobby then
-		LobbyProtocol.sendLobby(player)
-	end
+	LobbyProtocol.sendLobby(player)
 end
 
 -- Team channel ---------------------------------------------------------------
@@ -44,7 +40,7 @@ end
 
 -- Sent ahead of the channel packet (same stream) so the client knows not to focus the tab.
 local function sendChannelHint(record, player)
-	if LobbyProtocol and LobbyProtocol.send then
+	if LobbyProtocol.send then
 		LobbyProtocol.send(player, { type = "lobbyChannel", name = LobbyManager.channelName(record) })
 	end
 end
@@ -81,10 +77,7 @@ end
 -- Presence / state -------------------------------------------------------------
 
 local function sessionOf(player)
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer then
-		return ExpeditionManager.getSessionByPlayer(player)
-	end
-	return nil
+	return ExpeditionManager.getSessionByPlayer(player)
 end
 
 --- inLobby | inExpedition | busy | away | offline, plus the session when hunting.
@@ -247,9 +240,7 @@ local function detachMember(record, guid, opts)
 	if p then
 		LobbyBonus.clearCombatCache(p)
 	end
-	if LobbyStart and LobbyStart.onMemberRemoved then
-		LobbyStart.onMemberRemoved(record, guid)
-	end
+	LobbyStart.onMemberRemoved(record, guid)
 	notify(record)
 	return true
 end
@@ -327,7 +318,7 @@ function LobbyManager.join(player, lobbyId, viaInvite)
 		return false, err
 	end
 	local current = LobbyStore.getForPlayer(player)
-	if current and LobbyStart and LobbyStart.isActive(current) then
+	if current and LobbyStart.isActive(current) then
 		return false, "Your lobby is starting an expedition."
 	end
 	if current and LobbyManager.state(current) == LobbyConfig.STATE_RUNNING then
@@ -355,7 +346,7 @@ function LobbyManager.leave(player)
 	if not record then
 		return false, "You are not in a lobby."
 	end
-	if LobbyStart and LobbyStart.isActive(record) then
+	if LobbyStart.isActive(record) then
 		return false, "The lobby is starting an expedition."
 	end
 	if LobbyManager.state(record) == LobbyConfig.STATE_RUNNING then
@@ -396,7 +387,7 @@ function LobbyManager.kick(host, guid)
 	if not entry then
 		return false, "That character is not in your lobby."
 	end
-	if LobbyStart and LobbyStart.isActive(record) then
+	if LobbyStart.isActive(record) then
 		return false, "The lobby is starting an expedition."
 	end
 	if LobbyManager.state(record) == LobbyConfig.STATE_RUNNING then
@@ -435,7 +426,7 @@ function LobbyManager.passLeader(host, guid)
 	if not target or not isRealUi(target) then
 		return false, entry.name .. " must be online to lead the lobby."
 	end
-	if LobbyStart and LobbyStart.isActive(record) then
+	if LobbyStart.isActive(record) then
 		return false, "The lobby is starting an expedition."
 	end
 	LobbyManager.transferHost(record, entry, "pass")
@@ -470,7 +461,7 @@ function LobbyManager.update(host, opts)
 			record.expeditionId, record.role, record.expeditionName, record.creatureId = "", "", "", nil
 			record.bossDifficulty = nil
 		else
-			local catalog = ExpeditionConfig and ExpeditionConfig.getById and ExpeditionConfig.getById(id, opts.role) or nil
+			local catalog = ExpeditionConfig.getById(id, opts.role) or nil
 			if not catalog then
 				return false, "Unknown expedition."
 			end
@@ -501,7 +492,7 @@ function LobbyManager.update(host, opts)
 		end
 	end
 	LobbyStore.save(record)
-	if opts.expeditionId ~= nil and LobbyInstance and LobbyInstance.applyVariant then
+	if opts.expeditionId ~= nil then
 		LobbyInstance.applyVariant(record)
 	end
 	if LobbyManager.channelName(record) ~= previousChannelName then
@@ -528,7 +519,7 @@ function LobbyManager.invite(host, name)
 	if target:getGuid() == host:getGuid() or LobbyStore.member(record, target:getGuid()) then
 		return false, target:getName() .. " is already in your lobby."
 	end
-	if not (FriendsStore and FriendsStore.isFriend and FriendsStore.isFriend(host, target:getGuid())) then
+	if not (FriendsStore.isFriend(host, target:getGuid())) then
 		return false, "You can only invite friends."
 	end
 	invitesByTarget[target:getGuid()] = {
@@ -538,9 +529,7 @@ function LobbyManager.invite(host, name)
 		title = record.title,
 		expires = os.time() + LobbyConfig.INVITE_TTL_SEC,
 	}
-	if LobbyProtocol and LobbyProtocol.sendInvite then
-		LobbyProtocol.sendInvite(target, invitesByTarget[target:getGuid()])
-	end
+	LobbyProtocol.sendInvite(target, invitesByTarget[target:getGuid()])
 	target:sendTextMessage(MESSAGE_EVENT_ADVANCE, string.format("%s invited you to lobby #%d.", host:getName(), record.id))
 	return true
 end
@@ -615,7 +604,7 @@ function LobbyManager.removeAlt(host, nameOrGuid)
 	if not entry then
 		return false, "That alt is not in your lobby."
 	end
-	if LobbyStart and LobbyStart.isActive(record) then
+	if LobbyStart.isActive(record) then
 		return false, "The lobby is starting an expedition."
 	end
 	LobbyStore.removeMember(record, entry.guid)
@@ -650,9 +639,7 @@ end
 
 function LobbyManager.onLogout(player)
 	invitesByTarget[player:getGuid()] = nil
-	if LobbyStart and LobbyStart.onMemberLogout then
-		LobbyStart.onMemberLogout(player)
-	end
+	LobbyStart.onMemberLogout(player)
 	LobbyInstance.onLogout(player)
 	local record = LobbyStore.getForPlayer(player)
 	if not record then
@@ -696,8 +683,8 @@ function LobbyManager.onClientAttached(player)
 		return
 	end
 	-- Not in an account lobby: adopt the one hosted by a now-headless sibling, if any.
-	for _, other in ipairs(Game.getPlayers()) do
-		if other:getGuid() ~= player:getGuid() and other:getAccountId() == player:getAccountId() and not isRealUi(other) then
+	for _, other in ipairs(Game.getAccountPlayers(player:getAccountId())) do
+		if other:getGuid() ~= player:getGuid() and not isRealUi(other) then
 			local theirs = LobbyStore.getForPlayer(other)
 			if theirs and theirs.hostGuid == other:getGuid() and not LobbyStore.isPristine(theirs) then
 				if record then
@@ -752,9 +739,7 @@ Alts.controllerResolver = function(player)
 end
 
 Alts.errorSink = function(player, message)
-	if LobbyProtocol and LobbyProtocol.sendError then
-		LobbyProtocol.sendError(player, message)
-	end
+	LobbyProtocol.sendError(player, message)
 end
 
 -- Expedition helpers ------------------------------------------------------------------

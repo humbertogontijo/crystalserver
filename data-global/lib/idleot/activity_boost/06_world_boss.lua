@@ -82,12 +82,10 @@ local function creatureIdForBossName(bossName)
 			break
 		end
 	end
-	if CreatureInfo and CreatureInfo.get then
-		local info = CreatureInfo.get(bossName)
-		local id = info and tonumber(info.creatureId)
-		if id and id > 0 then
-			return id
-		end
+	local info = CreatureInfo.get(bossName)
+	local id = info and tonumber(info.creatureId)
+	if id and id > 0 then
+		return id
 	end
 	local mType = MonsterType(bossName)
 	if mType then
@@ -96,13 +94,11 @@ local function creatureIdForBossName(bossName)
 			return id
 		end
 	end
-	if ExpeditionConfig and ExpeditionConfig.Catalog then
-		for _, entry in ipairs(ExpeditionConfig.Catalog) do
-			if entry.name and tostring(entry.name):lower() == key then
-				local id = tonumber(entry.creatureId) or tonumber(entry.bossRaceId)
-				if id and id > 0 then
-					return id
-				end
+	for _, entry in ipairs(ExpeditionConfig.Catalog) do
+		if entry.name and tostring(entry.name):lower() == key then
+			local id = tonumber(entry.creatureId) or tonumber(entry.bossRaceId)
+			if id and id > 0 then
+				return id
 			end
 		end
 	end
@@ -110,10 +106,7 @@ local function creatureIdForBossName(bossName)
 end
 
 local function isFraggedToday(player)
-	if ActivityBoostActivities and ActivityBoostActivities.worldBossCapReached then
-		return ActivityBoostActivities.worldBossCapReached(player)
-	end
-	return false
+	return ActivityBoostActivities.worldBossCapReached(player)
 end
 
 local function noteWorldBossFrag(player)
@@ -168,7 +161,7 @@ local function broadcastMeter(session)
 	}
 	for _, pid in ipairs(session.playerIds or {}) do
 		local p = Player(pid)
-		if p and ActivityBoostProtocol and ActivityBoostProtocol.send then
+		if p and ActivityBoostProtocol.send then
 			ActivityBoostProtocol.send(p, payload)
 		end
 	end
@@ -215,6 +208,7 @@ local function teardownSession(session, reason)
 		return
 	end
 	session.tearingDown = true
+	session.scope:dispose()
 	if session.bossCreatureId then
 		local monster = Monster(session.bossCreatureId)
 		if monster then
@@ -231,11 +225,7 @@ local function teardownSession(session, reason)
 		end
 	end
 	if session.instance then
-		if ExpeditionInstance and ExpeditionInstance.teardown then
-			ExpeditionInstance.teardown(session.instance)
-		elseif session.instance.instanceId and ExpeditionInstance and ExpeditionInstance.free then
-			ExpeditionInstance.free(session.instance.instanceId)
-		end
+		ExpeditionInstance.teardown(session.instance)
 	end
 	if ActivityBoostWorldBoss.active[session.bandId] == session then
 		ActivityBoostWorldBoss.active[session.bandId] = nil
@@ -349,6 +339,8 @@ function ActivityBoostWorldBoss.broadcastSchedule()
 	end
 end
 
+local onBossDeath
+
 local function startBandSession(band, bossName)
 	if ActivityBoostWorldBoss.active[band.id] then
 		teardownSession(ActivityBoostWorldBoss.active[band.id], "replaced")
@@ -399,6 +391,13 @@ local function startBandSession(band, bossName)
 		bossDead = false,
 		tearingDown = false,
 	}
+	session.scope = Scope.new({
+		name = "worldboss:" .. tostring(band.id),
+		instanceId = instanceId,
+		alive = function()
+			return isCurrentSession(session)
+		end,
+	})
 	ActivityBoostWorldBoss.active[band.id] = session
 
 	local spawnPos = Position(
@@ -413,43 +412,31 @@ local function startBandSession(band, bossName)
 	if monster then
 		monster:setDropLoot(false)
 		monster:registerEvent("ActivityBoostWorldBossHealth")
-		monster:registerEvent("ActivityBoostWorldBossDeath")
+		monster:registerEvent("IdleMonsterDeath")
 		session.bossCreatureId = monster:getId()
+		session.scope:on("monster.died", function(dead)
+			if dead:getId() == session.bossCreatureId then
+				onBossDeath(session)
+			end
+		end)
 	else
 		logger.error("[ActivityBoost] failed to spawn world boss {}", bossName)
 	end
 
-	addEvent(function()
-		if isCurrentSession(session) and not session.bossDead then
-			Game.broadcastMessage(
-				string.format("World Boss (%s): time expired - %s escaped.", band.name, session.bossName or "boss"),
-				MESSAGE_EVENT_ADVANCE
-			)
-			teardownSession(session, "timeout")
-			addEvent(function()
-				ActivityBoostWorldBoss.broadcastSchedule()
-			end, 2000)
+	session.scope:after((ActivityBoostConfig.WORLD_BOSS_FIGHT_SEC or 1200) * 1000, function()
+		if session.bossDead then
+			return
 		end
-	end, (ActivityBoostConfig.WORLD_BOSS_FIGHT_SEC or 1200) * 1000)
+		Game.broadcastMessage(
+			string.format("World Boss (%s): time expired - %s escaped.", band.name, session.bossName or "boss"),
+			MESSAGE_EVENT_ADVANCE
+		)
+		teardownSession(session, "timeout")
+	end)
 end
 
 function ActivityBoostWorldBoss.ensureAllBands()
 	ActivityBoostWorldBoss.broadcastSchedule()
-end
-
-function ActivityBoostWorldBoss.tick()
-	-- Lazy spawn: sessions start on join. Tick only refreshes clients when cooldowns expire.
-	local now = os.time()
-	local changed = false
-	for key, untilTs in pairs(ActivityBoostWorldBoss.bossCooldownUntil) do
-		if type(untilTs) == "number" and untilTs > 0 and untilTs <= now then
-			ActivityBoostWorldBoss.bossCooldownUntil[key] = nil
-			changed = true
-		end
-	end
-	if changed then
-		ActivityBoostWorldBoss.broadcastSchedule()
-	end
 end
 
 function ActivityBoostWorldBoss.startSession(sessionIndex)
@@ -475,7 +462,7 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 		local cap = tonumber(ActivityBoostConfig.WORLD_BOSS_DAILY_CAP) or 3
 		return false, string.format("You already claimed %d world bosses today. Come back after server save.", cap)
 	end
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
+	if ExpeditionManager.getSessionByPlayer(player) then
 		return false, "Leave your current expedition first."
 	end
 	local band = nil
@@ -488,7 +475,7 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 	if not band then
 		return false, "Unknown level band."
 	end
-	if not (PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player)) then
+	if not (PzTeleport.isGod(player)) then
 		local level = player:getLevel()
 		if level < (band.levelMin or 0) or level > (band.levelMax or 99999) then
 			return false, string.format("This world boss is for levels %d–%d.", band.levelMin, band.levelMax)
@@ -528,8 +515,8 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 	if bossOnCooldown(bandId, session.bossName) then
 		return false, "World boss is recovering (30 minute cooldown after defeat)."
 	end
-	if PzTeleport and PzTeleport.isCombatLocked and PzTeleport.isCombatLocked(player)
-		and not (PzTeleport.isGod and PzTeleport.isGod(player))
+	if PzTeleport.isCombatLocked(player)
+		and not (PzTeleport.isGod(player))
 	then
 		return false, PzTeleport.PZ_LOCKED_MESSAGE or "You cannot teleport while PZ-locked."
 	end
@@ -575,10 +562,6 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 			return false, "That world boss is not available right now."
 		end
 		local instance = liveSession.instance
-		if not (InstanceWorld and InstanceWorld.enterInstance) then
-			logger.error("[ActivityBoost] InstanceWorld.enterInstance missing — cannot join world boss")
-			return false
-		end
 		if not InstanceWorld.enterInstance(p, instance.instanceId, instance.entry) then
 			logger.error("[ActivityBoost] enterInstance failed for {} into world boss {}", p:getName(), liveSession.bossName)
 			ActivityBoostWorldBoss.leave(p, { silent = true, force = true })
@@ -595,35 +578,27 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 		return true
 	end
 
-	if InstanceTeleport and InstanceTeleport.armSoloExpedition then
-		local ok, err = InstanceTeleport.armSoloExpedition(player, {
-			onComplete = function(p)
-				finishWorldBossEnter(p)
-			end,
-			onCancel = function(p)
-				if p then
-					ActivityBoostWorldBoss.leave(p, { silent = true, force = true })
-				end
-			end,
-		})
-		if not ok then
-			ActivityBoostWorldBoss.leave(player, { silent = true, force = true })
-			return false, err or "Could not start world boss teleport."
-		end
-		ExpeditionProtocol.sendStatus(player, member)
-		return true
+	local ok, err = InstanceTeleport.armSoloExpedition(player, {
+		onComplete = function(p)
+			finishWorldBossEnter(p)
+		end,
+		onCancel = function(p)
+			if p then
+				ActivityBoostWorldBoss.leave(p, { silent = true, force = true })
+			end
+		end,
+	})
+	if not ok then
+		ActivityBoostWorldBoss.leave(player, { silent = true, force = true })
+		return false, err or "Could not start world boss teleport."
 	end
-
-	local enteredOk = finishWorldBossEnter(player)
-	if not enteredOk then
-		return false
-	end
+	ExpeditionProtocol.sendStatus(player, member)
 	return true
 end
 
 function ActivityBoostWorldBoss.withdrawDamage(player)
 	local session = nil
-	local member = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+	local member = ExpeditionManager.getSessionByPlayer(player)
 	if member and member.kind == "worldboss" then
 		session = ActivityBoostWorldBoss.active[member.bandId]
 	end
@@ -665,10 +640,8 @@ InstanceKinds.setHooks("worldboss", {
 })
 
 local function endWorldBossKnockout(player)
-	if SoftDeath and SoftDeath.endDowned then
-		-- Mid-knockout leave / eject: softSpawn at temple (not arena), no revive toast.
-		SoftDeath.endDowned(player, { reason = "worldboss", revive = false, runCallback = false })
-	end
+	-- Mid-knockout leave / eject: softSpawn at temple (not arena), no revive toast.
+	SoftDeath.endDowned(player, { reason = "worldboss", revive = false, runCallback = false })
 end
 
 function ActivityBoostWorldBoss.leave(player, opts)
@@ -676,7 +649,7 @@ function ActivityBoostWorldBoss.leave(player, opts)
 	if not player then
 		return
 	end
-	local member = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+	local member = ExpeditionManager.getSessionByPlayer(player)
 	if not member or member.kind ~= "worldboss" then
 		return
 	end
@@ -704,11 +677,7 @@ function ActivityBoostWorldBoss.leave(player, opts)
 	ExpeditionManager.clearAreaEffects(player)
 	local returnPos = ExpeditionManager.loadReturnPos(player)
 	-- Atomic exit — never setInstanceId(0) then teleport (client ghosts).
-	if InstanceWorld and InstanceWorld.exitToOpenWorld then
-		InstanceWorld.exitToOpenWorld(player, returnPos)
-	elseif returnPos then
-		player:teleportTo(returnPos)
-	end
+	InstanceWorld.exitToOpenWorld(player, returnPos)
 	ExpeditionProtocol.sendEnded(player)
 	if not opts.silent then
 		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, opts.reason or "Left world boss.")
@@ -778,18 +747,8 @@ function ActivityBoostWorldBoss.onHealthChange(creature, attacker, primaryDamage
 	return primaryDamage, primaryType, secondaryDamage, secondaryType
 end
 
-function ActivityBoostWorldBoss.onBossDeath(creature)
-	if not creature then
-		return
-	end
-	local session = nil
-	for _, s in pairs(ActivityBoostWorldBoss.active) do
-		if s.bossCreatureId == creature:getId() then
-			session = s
-			break
-		end
-	end
-	if not session or session.bossDead then
+onBossDeath = function(session)
+	if session.bossDead then
 		return
 	end
 	session.bossDead = true
@@ -826,9 +785,7 @@ function ActivityBoostWorldBoss.onBossDeath(creature)
 			rollLootForPlayer(p, session.bossName, row.lootMult)
 			noteWorldBossFrag(p)
 			local frags = 0
-			if ActivityBoostActivities and ActivityBoostActivities.getWorldBossFragsToday then
-				frags = ActivityBoostActivities.getWorldBossFragsToday(p)
-			end
+			frags = ActivityBoostActivities.getWorldBossFragsToday(p)
 			local cap = tonumber(ActivityBoostConfig.WORLD_BOSS_DAILY_CAP) or 3
 			p:sendTextMessage(
 				MESSAGE_EVENT_ADVANCE,
@@ -848,16 +805,12 @@ function ActivityBoostWorldBoss.onBossDeath(creature)
 		MESSAGE_EVENT_ADVANCE
 	)
 
+	-- Loot window, then the arena closes; clients refresh again once the cooldown ends.
 	local cooldownSec = ActivityBoostConfig.WORLD_BOSS_COOLDOWN_SEC or 1800
-	addEvent(function()
-		if isCurrentSession(session) then
-			teardownSession(session, "cleared")
-		end
-		ActivityBoostWorldBoss.broadcastSchedule()
-	end, 8000)
-	addEvent(function()
-		ActivityBoostWorldBoss.broadcastSchedule()
-	end, (cooldownSec + 8) * 1000)
+	session.scope:after(8000, function()
+		teardownSession(session, "cleared")
+	end)
+	addEvent(ActivityBoostWorldBoss.broadcastSchedule, (cooldownSec + 1) * 1000)
 end
 
 function ActivityBoostWorldBoss.onServerSave()

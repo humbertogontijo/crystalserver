@@ -86,9 +86,6 @@ function ProductHirelingSync.loadAllFromDatabase()
 	Result.free(resultId)
 
 	ProductHirelingSync._loadedAll = true
-	if spawnNPCs and HIRELINGS and #HIRELINGS > 0 then
-		spawnNPCs()
-	end
 end
 
 function ProductHirelingSync.ensurePlayerHirelingsLoaded(player)

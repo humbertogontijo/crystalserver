@@ -12,10 +12,7 @@ local function resolveQuestTarget(controller, nameOrGuid, requireOnline)
 	if tostring(nameOrGuid):lower() == controller:getName():lower() then
 		return controller
 	end
-	if not Alts or not Alts.resolveAccountMember then
-		return nil, "Alt quests require alts support."
-	end
-	if requireOnline and Alts.ensureOnlineMember then
+	if requireOnline then
 		local online, onlineErr = Alts.ensureOnlineMember(controller, nameOrGuid)
 		if not online then
 			return nil, onlineErr or "Character must be online."
@@ -110,20 +107,20 @@ function QuestsProtocol.handle(player, buffer)
 		local huntId = nil
 		local huntHint = entry.huntHint
 		-- After report, prefer exclusive Paw & Fur solo boss when unlocked.
-		if entry.handler == "kitno" and entry.bossName and QuestsKitnoBoss then
+		if entry.handler == "kitno" and entry.bossName then
 			local bossId = QuestsKitnoBoss.expeditionIdForTaskId(entry.taskId)
 			if bossId and QuestsKitnoBoss.isUnlocked(target, bossId) then
 				huntId = bossId
 				huntHint = QuestsKitnoBoss.resolveMonsterName(entry.bossName) or entry.bossName
 			end
 		end
-		if entry.handler == "arena" and QuestArena and QuestArena.expeditionIdForArena then
+		if entry.handler == "arena" then
 			huntId = QuestArena.expeditionIdForArena(entry.arenaId)
 			huntHint = entry.huntHint
 			-- Fee-paid exclusive rows only appear after accept; refresh client catalog.
 			ExpeditionProtocol.sendCatalog(player)
 		end
-		if not huntId and ExpeditionConfig and ExpeditionConfig.Catalog then
+		if not huntId then
 			local hint = entry.huntHint
 			if hint then
 				local needle = tostring(hint):lower()

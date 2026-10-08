@@ -33,9 +33,7 @@ local function resolveWeights(weights)
 		end
 	end
 	-- Prefer live densityExp from 02_levels when present.
-	if CreatureInfo.huntDensityExp then
-		w.densityExp = tonumber(CreatureInfo.huntDensityExp()) or w.densityExp
-	end
+	w.densityExp = tonumber(CreatureInfo.huntDensityExp()) or w.densityExp
 	return w
 end
 
@@ -150,7 +148,7 @@ function CreatureInfo.getCombatPower(ref)
 		if mType then
 			return CreatureInfo.roundCombatPower(mType:getCombatPower() or 0)
 		end
-		local info = CreatureInfo.getByCreatureId and CreatureInfo.getByCreatureId(ref)
+		local info = CreatureInfo.getByCreatureId(ref)
 		if info and info.name then
 			mType = MonsterType(info.name)
 			if mType then

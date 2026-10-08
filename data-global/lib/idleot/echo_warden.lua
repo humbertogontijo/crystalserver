@@ -1,8 +1,9 @@
 -- ============================================================================
--- Echo Raids / Echo Wardens - shared library (pure Lua)
+-- Echo Raids / Echo Wardens
 -- CIP-aligned: three raid outcomes, 3× Warden HP, empower aura, World-layer
 -- subarea portals with door-style per-instance claim, 10 min raid TTL.
--- Loaded from data-global/lib/core/load.lua before revscriptsys scripts.
+-- Each raid owns a Scope (spawn trickle, aura, TTL despawn) that ends once its last
+-- creature leaves the map; the outline is engine state (monster:setEchoGlow).
 -- ============================================================================
 
 EchoWarden = EchoWarden or {}
@@ -54,13 +55,11 @@ EchoWarden.BASIC_SCROLL_MIN, EchoWarden.BASIC_SCROLL_MAX = 53751, 53774
 
 EchoWarden.STATE_WARDEN = 0
 EchoWarden.STATE_EMPOWERED = 1
-EchoWarden.GLOW_RANGE = 11
-EchoWarden.GLOW_REFRESH_MS = 400
 
+-- warden monster id -> kind name (trigger.lua reads it on death)
 EchoWarden.activeWardens = EchoWarden.activeWardens or {}
-EchoWarden.activeEmpowered = EchoWarden.activeEmpowered or {}
-EchoWarden.activeRaidCreatures = EchoWarden.activeRaidCreatures or {}
-EchoWarden._glowLoop = false
+-- monster id -> raid; raid = { scope, creatures = { [id] = true }, spawning = n }
+local raidOf = {}
 EchoWarden._subareaArmed = EchoWarden._subareaArmed or {} -- placeId -> {x,y,z,expires}
 
 function EchoWarden.createRaidMonster(kindName, pos, instanceId)
@@ -77,54 +76,59 @@ function EchoWarden.createRaidMonster(kindName, pos, instanceId)
 	return monster
 end
 
-function EchoWarden.trackRaidCreature(m, raidToken)
-	if not m then
-		return
-	end
-	EchoWarden.activeRaidCreatures[m:getId()] = raidToken or true
-	EchoWarden.registerExpeditionDeath(m)
+local function track(raid, m)
+	raid.creatures[m:getId()] = true
+	raidOf[m:getId()] = raid
+	m:registerEvent("IdleMonsterDeath")
 	m:registerEvent("EchoWardenEmpowerDodge")
-	-- Same bind as ExpeditionPack instance spawns when inside a private hunt shard.
 	EchoWarden.applyExpeditionMonsterBind(m)
 end
 
 --- Match ExpeditionPack.onInstanceMonsterSpawn: never flee; the raid
 --- monster has no spawn, so its home is where the anchor stands when it appears.
 function EchoWarden.applyExpeditionMonsterBind(m)
-	if not m then
-		return
-	end
 	m:runHealth(0)
 	local instanceId = Instance.of(m)
 	if not Instance.isPrivate(instanceId) then
 		return
 	end
-	local session = ExpeditionManager and ExpeditionManager.getSessionByInstanceId and ExpeditionManager.getSessionByInstanceId(instanceId)
+	local session = ExpeditionManager.getSessionByInstanceId(instanceId)
 	if not session then
 		return
 	end
-	local anchor = ExpeditionConfig and ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
+	local anchor = ExpeditionConfig.getAnchorPlayer(session)
 	local home = (anchor and anchor:getPosition()) or session.holdPos or (session.instance and session.instance.entry)
 	if home then
 		m:setMasterPos(Position(home.x, home.y, home.z))
 	end
 end
 
-function EchoWarden.scheduleRaidDespawn(raidToken, instanceId)
-	addEvent(function(token, iid)
-		for cid, t in pairs(EchoWarden.activeRaidCreatures) do
-			if t == token then
-				local m = Monster(cid)
-				if m and not m:isRemoved() then
-					m:remove()
-				end
-				EchoWarden.activeRaidCreatures[cid] = nil
-				EchoWarden.activeWardens[cid] = nil
-				EchoWarden.activeEmpowered[cid] = nil
-			end
+local function endRaid(raid)
+	for cid in pairs(raid.creatures) do
+		raidOf[cid] = nil
+		EchoWarden.activeWardens[cid] = nil
+		local m = Monster(cid)
+		if m then
+			m:remove()
 		end
-	end, EchoWarden.RAID_TTL_MS, raidToken, Instance.normalize(instanceId))
+	end
+	raid.creatures = {}
+	raid.scope:dispose()
 end
+
+IdleEvents.on("monster.removed", function(monster)
+	local cid = monster:getId()
+	local raid = raidOf[cid]
+	if not raid then
+		return
+	end
+	raidOf[cid] = nil
+	raid.creatures[cid] = nil
+	EchoWarden.activeWardens[cid] = nil
+	if raid.spawning == 0 and not next(raid.creatures) then
+		raid.scope:dispose()
+	end
+end, "EchoWarden")
 
 function EchoWarden.findItemOnTile(tile, itemId, instanceId)
 	if not tile then
@@ -246,138 +250,65 @@ function EchoWarden.pickTile(center, radius)
 	return center
 end
 
-function EchoWarden.registerExpeditionDeath(m)
-	if m then
-		m:registerEvent("IdleMonsterDeath")
-	end
-end
-
 function EchoWarden.makeEmpowered(m)
-	if not m then
-		return
-	end
-	if m:getStorageValue(EchoWarden.STORAGE_IS_EMPOWERED) ~= 1 then
-		m:setStorageValue(EchoWarden.STORAGE_IS_EMPOWERED, 1)
-	end
-	EchoWarden.activeEmpowered[m:getId()] = true
-	EchoWarden.sendCreatureGlow(m, EchoWarden.STATE_EMPOWERED)
-	EchoWarden.ensureGlowLoop()
+	m:setStorageValue(EchoWarden.STORAGE_IS_EMPOWERED, 1)
+	m:setEchoGlow(EchoWarden.STATE_EMPOWERED)
 end
 
 function EchoWarden.makeInfluenced(m, stacks)
-	if not m then
-		return
-	end
 	stacks = math.max(1, math.min(5, math.floor(tonumber(stacks) or math.random(1, 5))))
 	m:setForgeStack(stacks)
 	Game.addInfluencedMonster(m)
 	EchoWarden.makeEmpowered(m)
 end
 
----@param creature Creature
----@param state number 0=Echo Warden, 1=Empowered
-function EchoWarden.sendCreatureGlow(creature, state)
-	if not creature then
-		return
-	end
-	local cid = creature:getId()
-	local pos = creature:getPosition()
-	if not pos then
-		return
-	end
-	local r = EchoWarden.GLOW_RANGE
-	local instanceId = Instance.of(creature)
-	for _, spec in ipairs(Game.getSpectators(pos, false, true, r, r, r, r, instanceId)) do
-		local msg = NetworkMessage()
-		msg:addByte(0x8B)
-		msg:addU32(cid)
-		msg:addByte(0x0f)
-		msg:addByte(1)
-		msg:addByte(state)
-		msg:sendToPlayer(spec)
-	end
-end
-
-function EchoWarden.glowRefresh()
-	local any = false
-	for id in pairs(EchoWarden.activeWardens) do
-		local w = Monster(id)
-		if w and not w:isRemoved() and w:getHealth() > 0 then
-			EchoWarden.sendCreatureGlow(w, EchoWarden.STATE_WARDEN)
-			any = true
-		else
-			EchoWarden.activeWardens[id] = nil
-		end
-	end
-	for id in pairs(EchoWarden.activeEmpowered) do
-		local m = Monster(id)
-		if m and not m:isRemoved() and m:getHealth() > 0 then
-			EchoWarden.sendCreatureGlow(m, EchoWarden.STATE_EMPOWERED)
-			any = true
-		else
-			EchoWarden.activeEmpowered[id] = nil
-		end
-	end
-	if any then
-		addEvent(EchoWarden.glowRefresh, EchoWarden.GLOW_REFRESH_MS)
-	else
-		EchoWarden._glowLoop = false
-	end
-end
-
-function EchoWarden.ensureGlowLoop()
-	if not EchoWarden._glowLoop then
-		EchoWarden._glowLoop = true
-		EchoWarden.glowRefresh()
-	end
-end
-
-function EchoWarden.makeWarden(w, kindName, raidToken)
-	if not w then
-		return
-	end
+local function makeWarden(raid, w, kindName)
 	w:applyEchoWarden(EchoWarden.WARDEN_HP_MULT, EchoWarden.WARDEN_ATK_MULT)
 	w:removeIcon("warden")
 	w:setStorageValue(EchoWarden.STORAGE_IS_WARDEN, 1)
 	EchoWarden.activeWardens[w:getId()] = kindName
-	EchoWarden.trackRaidCreature(w, raidToken)
-	EchoWarden.sendCreatureGlow(w, EchoWarden.STATE_WARDEN)
-	EchoWarden.ensureGlowLoop()
+	track(raid, w)
+	w:setEchoGlow(EchoWarden.STATE_WARDEN)
 end
 
 --- Aura: empower nearby same-name creatures (glow + dodge; no 1.5× HP convert).
-function EchoWarden.aura(wardenId, kindName)
-	local w = Monster(wardenId)
-	if not w or w:isRemoved() or w:getHealth() <= 0 then
-		EchoWarden.activeWardens[wardenId] = nil
-		return
-	end
-	local p = w:getPosition()
-	local r = EchoWarden.AURA_RANGE
-	local instanceId = Instance.of(w)
-	for _, c in ipairs(Game.getSpectators(p, false, false, r, r, r, r, instanceId)) do
-		local m = c:getMonster()
-		if m and m:getId() ~= wardenId and m:getName() == kindName and m:getStorageValue(EchoWarden.STORAGE_IS_WARDEN) ~= 1 then
-			EchoWarden.makeEmpowered(m)
+local function startAura(raid, wardenId, kindName)
+	local handle
+	handle = raid.scope:every(EchoWarden.AURA_MS, function()
+		local w = Monster(wardenId)
+		if not w or w:getHealth() <= 0 then
+			raid.scope:cancel(handle)
+			return
 		end
-	end
-	addEvent(EchoWarden.aura, EchoWarden.AURA_MS, wardenId, kindName)
+		local r = EchoWarden.AURA_RANGE
+		for _, c in ipairs(Game.getSpectators(w:getPosition(), false, false, r, r, r, r, Instance.of(w))) do
+			local m = c:getMonster()
+			if m and m:getId() ~= wardenId and m:getName() == kindName and m:getStorageValue(EchoWarden.STORAGE_IS_WARDEN) ~= 1 then
+				EchoWarden.makeEmpowered(m)
+			end
+		end
+	end)
 end
 
-function EchoWarden.trickleSpawn(kindName, cx, cy, cz, remaining, stepMs, instanceId, mode, raidToken)
-	if remaining <= 0 then
-		return
-	end
-	local m = EchoWarden.createRaidMonster(kindName, Position(cx, cy, cz), instanceId)
-	if m then
-		EchoWarden.trackRaidCreature(m, raidToken)
-		if mode == "influenced" then
-			EchoWarden.makeInfluenced(m, math.random(1, 5))
-		elseif mode == "empowered" then
-			EchoWarden.makeEmpowered(m)
+--- `count` raid monsters, one every SPAWN_STEP_MS.
+local function trickleSpawn(raid, kindName, center, instanceId, count, mode)
+	raid.spawning = raid.spawning + count
+	local function spawnNext()
+		raid.spawning = raid.spawning - 1
+		local m = EchoWarden.createRaidMonster(kindName, center, instanceId)
+		if m then
+			track(raid, m)
+			if mode == "influenced" then
+				EchoWarden.makeInfluenced(m, math.random(1, 5))
+			elseif mode == "empowered" then
+				EchoWarden.makeEmpowered(m)
+			end
+		end
+		if raid.spawning > 0 then
+			raid.scope:after(EchoWarden.SPAWN_STEP_MS, spawnNext)
 		end
 	end
-	addEvent(EchoWarden.trickleSpawn, stepMs, kindName, cx, cy, cz, remaining - 1, stepMs, instanceId, mode, raidToken)
+	spawnNext()
 end
 
 function EchoWarden.playerCompletedBestiary(player, kindName)
@@ -423,25 +354,29 @@ function EchoWarden.runRaid(kindName, center, instanceId, player)
 	if not kindName or kindName == "" then
 		return
 	end
-	local cx, cy, cz = center.x, center.y, center.z
-	local step = EchoWarden.SPAWN_STEP_MS
 	local id = Instance.normalize(instanceId)
+	local pos = Position(center.x, center.y, center.z)
+	local raid = {
+		scope = Scope.new({ name = string.format("echo:%s:%d:%d:%d", id, pos.x, pos.y, pos.z), instanceId = id }),
+		creatures = {},
+		spawning = 0,
+	}
+	raid.scope:after(EchoWarden.RAID_TTL_MS, function()
+		endRaid(raid)
+	end)
 	local outcome = EchoWarden.rollOutcome(player, kindName)
-	local raidToken = string.format("%s:%d:%d:%d:%d", id, cx, cy, cz, os.time())
 	if outcome == "warden" then
-		local w = EchoWarden.createRaidMonster(kindName, Position(cx, cy, cz), id)
+		local w = EchoWarden.createRaidMonster(kindName, pos, id)
 		if w then
-			EchoWarden.makeWarden(w, kindName, raidToken)
-			addEvent(EchoWarden.aura, EchoWarden.AURA_MS, w:getId(), kindName)
+			makeWarden(raid, w, kindName)
+			startAura(raid, w:getId(), kindName)
 		end
-		EchoWarden.trickleSpawn(kindName, cx, cy, cz, EchoWarden.WARDEN_SUPPORT_SIZE, step, id, "empowered", raidToken)
+		trickleSpawn(raid, kindName, pos, id, EchoWarden.WARDEN_SUPPORT_SIZE, "empowered")
 	elseif outcome == "influenced" then
-		EchoWarden.trickleSpawn(kindName, cx, cy, cz, EchoWarden.INFLUENCED_PACK_SIZE, step, id, "influenced", raidToken)
+		trickleSpawn(raid, kindName, pos, id, EchoWarden.INFLUENCED_PACK_SIZE, "influenced")
 	else
-		EchoWarden.trickleSpawn(kindName, cx, cy, cz, EchoWarden.REGULAR_PACK_SIZE, step, id, "regular", raidToken)
+		trickleSpawn(raid, kindName, pos, id, EchoWarden.REGULAR_PACK_SIZE, "regular")
 	end
-
-	EchoWarden.scheduleRaidDespawn(raidToken, id)
 end
 
 function EchoWarden.spawnPortal(px, py, pz, kindName, instanceId, shared)
@@ -481,7 +416,7 @@ end
 
 function EchoWarden.kindNameFromRaceId(raceId)
 	raceId = tonumber(raceId) or 0
-	if raceId <= 0 or not MonsterType then
+	if raceId <= 0 then
 		return nil
 	end
 	local mt = MonsterType(raceId)
@@ -510,29 +445,18 @@ function EchoWarden.pickKindAndPosFromCatalog(entry)
 	return kind, pos
 end
 
+--- Arm the World-layer portal of hunt place `placeId`; `reschedule` (default true)
+--- queues its next arm.
 function EchoWarden.armSubareaEcho(placeId, reschedule)
-	placeId = tostring(placeId or "")
-	if reschedule == nil then
-		reschedule = true
-	end
-	if placeId == "" or not ExpeditionConfig or not ExpeditionConfig.getById then
-		if reschedule then
-			EchoWarden.scheduleNextSubareaArm(placeId)
-		end
-		return
+	if reschedule ~= false then
+		EchoWarden.scheduleNextSubareaArm(placeId)
 	end
 	local entry = ExpeditionConfig.getById(placeId, "monster") or ExpeditionConfig.getById(placeId)
 	if not entry or entry.role == "boss" or entry.kind == "boss" then
-		if reschedule then
-			EchoWarden.scheduleNextSubareaArm(placeId)
-		end
 		return
 	end
 	local kind, pos = EchoWarden.pickKindAndPosFromCatalog(entry)
-	if not kind or not pos then
-		if reschedule then
-			EchoWarden.scheduleNextSubareaArm(placeId)
-		end
+	if not kind then
 		return
 	end
 	-- Clear prior World-layer portal for this place if we tracked it
@@ -543,46 +467,28 @@ function EchoWarden.armSubareaEcho(placeId, reschedule)
 			it:remove()
 		end
 	end
-	if EchoWarden.spawnPortal(pos.x, pos.y, pos.z, kind, 0, true) then
+	if EchoWarden.spawnPortal(pos.x, pos.y, pos.z, kind, Instance.WORLD, true) then
 		EchoWarden._subareaArmed[placeId] = { x = pos.x, y = pos.y, z = pos.z, kind = kind }
-	end
-	if reschedule then
-		EchoWarden.scheduleNextSubareaArm(placeId)
 	end
 end
 
 function EchoWarden.scheduleNextSubareaArm(placeId)
-	placeId = tostring(placeId or "")
-	if placeId == "" then
-		return
-	end
 	local delay = math.random(EchoWarden.SUBAREA_INTERVAL_MIN_MS, EchoWarden.SUBAREA_INTERVAL_MAX_MS)
 	addEvent(EchoWarden.armSubareaEcho, delay, placeId)
 end
 
 function EchoWarden.startSubareaScheduler()
-	if not ExpeditionConfig or type(ExpeditionConfig.Catalog) ~= "table" then
-		logger.warn("[EchoWarden] subarea scheduler skipped: no ExpeditionConfig.Catalog")
-		return
-	end
-	local n = 0
 	for _, entry in ipairs(ExpeditionConfig.Catalog) do
-		if entry and entry.role ~= "boss" and entry.kind ~= "boss" and type(entry.spawns) == "table" and #entry.spawns > 0 then
-			local placeId = tostring(entry.id)
-			local delay = math.random(EchoWarden.SUBAREA_INTERVAL_MIN_MS, EchoWarden.SUBAREA_INTERVAL_MAX_MS)
-			addEvent(EchoWarden.armSubareaEcho, delay, placeId)
-			n = n + 1
+		if entry.role ~= "boss" and entry.kind ~= "boss" and type(entry.spawns) == "table" and #entry.spawns > 0 then
+			EchoWarden.scheduleNextSubareaArm(tostring(entry.id))
 		end
 	end
 end
 
 function EchoWarden.onServerSave()
-	if not ExpeditionConfig or type(ExpeditionConfig.Catalog) ~= "table" then
-		return
-	end
 	local n = 0
 	for _, entry in ipairs(ExpeditionConfig.Catalog) do
-		if entry and entry.role ~= "boss" and entry.kind ~= "boss" and type(entry.spawns) == "table" and #entry.spawns > 0 then
+		if entry.role ~= "boss" and entry.kind ~= "boss" and type(entry.spawns) == "table" and #entry.spawns > 0 then
 			n = n + 1
 			if n <= 40 then
 				addEvent(EchoWarden.armSubareaEcho, 5000 + n * 250, tostring(entry.id), false)
@@ -599,7 +505,7 @@ function EchoWarden.onViewpointDiscovered(player)
 	local kv = player:kv():scoped(EchoWarden.KV_SCOPE)
 	kv:set(EchoWarden.KV_DISC_ARM, true)
 	-- Prefer immediate arm of a hunt place near the player if catalog is up.
-	if ExpeditionConfig and type(ExpeditionConfig.Catalog) == "table" then
+	do
 		local pos = player:getPosition()
 		local best, bestDist = nil, nil
 		for _, entry in ipairs(ExpeditionConfig.Catalog) do

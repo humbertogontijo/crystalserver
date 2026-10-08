@@ -96,12 +96,10 @@ function SoulPitExpedition.spawnWave(session)
 		end
 	end
 	session.alive = (session.alive or 0) + spawned
-	if ExpeditionProtocol and ExpeditionProtocol.sendStatus then
-		for _, pid in ipairs(session.playerIds or { session.playerId }) do
-			local p = Player(pid)
-			if p then
-				ExpeditionProtocol.sendStatus(p, session)
-			end
+	for _, pid in ipairs(session.playerIds or { session.playerId }) do
+		local p = Player(pid)
+		if p then
+			ExpeditionProtocol.sendStatus(p, session)
 		end
 	end
 end
@@ -144,13 +142,13 @@ IdleEvents.on("monster.died", function(monster)
 end, "SoulPitExpedition")
 
 function SoulPitExpedition.start(player)
-	if not player or not ExpeditionManager or not ExpeditionInstance then
+	if not player then
 		return false, "Expeditions unavailable."
 	end
-	if ExpeditionSafety and not ExpeditionSafety.hasStamina(player) then
+	if not ExpeditionSafety.hasStamina(player) then
 		return false, "You need stamina to enter an expedition."
 	end
-	if PzTeleport and PzTeleport.isGod and PzTeleport.isGod(player) then
+	if PzTeleport.isGod(player) then
 		-- GOD may enter Soul Pit regardless of level.
 	elseif player:getLevel() < ((SoulPit and SoulPit.requiredLevel) or 8) then
 		return false, string.format("Need level %d.", (SoulPit and SoulPit.requiredLevel) or 8)
@@ -158,11 +156,9 @@ function SoulPitExpedition.start(player)
 	if ExpeditionManager.getSessionByPlayer(player) then
 		return false, "Already on an expedition."
 	end
-	if PzTeleport and PzTeleport.isAllowed then
-		local allowed, pzErr = PzTeleport.isAllowed(player)
-		if not allowed then
-			return false, pzErr or "You can only start Soul Pit from a protection zone."
-		end
+	local allowed, pzErr = PzTeleport.isAllowed(player)
+	if not allowed then
+		return false, pzErr or "You can only start Soul Pit from a protection zone."
 	end
 
 	local core = findSoulCore(player)

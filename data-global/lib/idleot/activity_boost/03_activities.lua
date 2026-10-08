@@ -136,7 +136,7 @@ function ActivityBoostActivities.list(player, opts)
 		local description = def.description
 		if def.id == "fiendish_hunt" then
 			local offer = opts.fiendishHunt
-			if offer == nil and ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.get then
+			if offer == nil then
 				offer = ActivityBoostFiendishHunt.get(player)
 			end
 			if offer and offer.huntName and not offer.complete then
@@ -241,15 +241,13 @@ function ActivityBoostActivities.onBossExpeditionVictory(player, session)
 	if not catalog then
 		return
 	end
-	if ExpeditionConfig and ExpeditionConfig.isSoloBoss then
-		if not ExpeditionConfig.isSoloBoss(catalog) then
-			return
-		end
+	if not ExpeditionConfig.isSoloBoss(catalog) then
+		return
 	end
 	ActivityBoostActivities.addProgress(player, "solo_boss", 1)
 end
 
---- Task Board daily bounty claim (hooked from CrystalServer game.cpp).
+--- Task Board daily bounty claim (playerOnBountyTaskClaimed).
 function ActivityBoostActivities.onBountyTaskClaimed(player)
 	ActivityBoostActivities.addProgress(player, "bounty_hunter", 1)
 end

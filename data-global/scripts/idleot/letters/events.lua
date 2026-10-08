@@ -8,17 +8,18 @@ function loginEvent.onLogin(player)
 	if not ok then
 		logger.error("[Letters] delivery failed for {}: {}", player:getName(), err)
 	end
-	local playerId = player:getId()
-	addEvent(function()
-		local target = Player(playerId)
-		if target then
-			Letters.sendStatus(target)
-		end
-	end, 1500)
 	return true
 end
 
 loginEvent:register()
+
+local clientReadyCallback = EventCallback("LetterPlayerOnClientReady")
+
+function clientReadyCallback.playerOnClientReady(player)
+	Letters.sendStatus(player)
+end
+
+clientReadyCallback:register()
 
 local logoutEvent = CreatureEvent("LetterLogout")
 

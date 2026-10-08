@@ -5,7 +5,7 @@
 ExpeditionSafety = ExpeditionSafety or {}
 
 local function sessionFor(player)
-	if not player or not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
+	if not player then
 		return nil
 	end
 	return ExpeditionManager.getSessionByPlayer(player)
@@ -60,9 +60,6 @@ function ExpeditionSafety.onStaminaDepleted(player)
 	if not session or session.aborting or session.endedByDeath then
 		return
 	end
-	if not ExpeditionManager or not ExpeditionManager.abort then
-		return
-	end
 	local name = player:getName() or "Adventurer"
 	ExpeditionManager.abort(session, string.format("%s ran out of stamina. Expedition stopped.", name))
 end
@@ -86,7 +83,7 @@ function ExpeditionSafety.handleShortage(player, kind, retryFn, abortReason)
 	end
 
 	local session = sessionFor(player)
-	if shouldStop(session, kind) and ExpeditionManager and ExpeditionManager.abort then
+	if shouldStop(session, kind) then
 		local name = player:getName() or "Adventurer"
 		local reason = abortReason
 		if not reason or reason == "" then
