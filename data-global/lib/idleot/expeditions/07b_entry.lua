@@ -578,10 +578,6 @@ function EM_PRIV.teleportPlayerIntoRunningHunt(player, session)
 		return true
 	end
 	player:setFollowCreature(nil)
-	if not (InstanceWorld and InstanceWorld.enterInstance) then
-		logger.error("[Expedition] InstanceWorld.enterInstance missing — cannot enter hunt")
-		return false
-	end
 	local entered = InstanceWorld.enterInstance(player, instanceId, session.instance.entry)
 	if not entered then
 		return false
@@ -1110,12 +1106,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 					atEntry = true
 				end
 				if not atEntry then
-					local ok = false
-					if not (InstanceWorld and InstanceWorld.enterInstance) then
-						logger.error("[Expedition] InstanceWorld.enterInstance missing — cannot enter hunt")
-					else
-						ok = InstanceWorld.enterInstance(p, instance.instanceId, instance.entry)
-					end
+					local ok = InstanceWorld.enterInstance(p, instance.instanceId, instance.entry)
 					if not ok then
 						logger.error(
 							"[Expedition] {} teleport failed to {},{},{} ({})",
@@ -1745,12 +1736,6 @@ function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 		local inst = live.instance
 		if not inst or not inst.entry then
 			ExpeditionProtocol.sendError(p, "Failed to enter expedition (instance missing).")
-			ExpeditionManager.leave(p, { silent = true })
-			return
-		end
-		if not (InstanceWorld and InstanceWorld.enterInstance) then
-			logger.error("[Expedition] InstanceWorld.enterInstance missing — cannot accept invite")
-			ExpeditionProtocol.sendError(p, "Failed to enter expedition (instance API missing).")
 			ExpeditionManager.leave(p, { silent = true })
 			return
 		end

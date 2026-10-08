@@ -44,26 +44,11 @@ local function monsterNameFromCore(item)
 	end
 	local name = item:getName() or ""
 	local monsterName = name:gsub("[Ss]oul [Cc]ore", ""):gsub("^%s+", ""):gsub("%s+$", "")
-	if SoulPit and SoulPit.getMonsterVariationNameBySoulCore then
-		local variation = SoulPit.getMonsterVariationNameBySoulCore(name:lower())
-		if variation then
-			monsterName = variation
-		end
+	local variation = SoulPit.getMonsterVariationNameBySoulCore(name:lower())
+	if variation then
+		monsterName = variation
 	end
 	return monsterName
-end
-
-local function waveStacks()
-	if SoulPit and SoulPit.waves then
-		return SoulPit.waves
-	end
-	-- Fallback if SoulPit lib not loaded.
-	return {
-		[1] = { stacks = { [1] = 7 } },
-		[2] = { stacks = { [1] = 4, [5] = 3 } },
-		[3] = { stacks = { [1] = 5, [15] = 2 } },
-		[4] = { stacks = { [1] = 3, [5] = 3, [40] = 1 } },
-	}
 end
 
 function SoulPitExpedition.spawnWave(session)
@@ -74,7 +59,7 @@ function SoulPitExpedition.spawnWave(session)
 	if not Instance.isLive(session.instance.instanceId) or session.state == "ended" then
 		return
 	end
-	local waves = waveStacks()
+	local waves = SoulPit.waves
 	local stage = (session.wave or 0) + 1
 	local wave = waves[stage]
 	if not wave then
@@ -132,7 +117,7 @@ function SoulPitExpedition.onMonsterDeath(session)
 	session.alive = math.max(0, (session.alive or 1) - 1)
 	session.kills = (session.kills or 0) + 1
 	if session.alive <= 0 then
-		local waves = waveStacks()
+		local waves = SoulPit.waves
 		if session.wave >= #waves then
 			session.state = "cleared"
 			-- Grant animus mastery like stock Soul Pit.
