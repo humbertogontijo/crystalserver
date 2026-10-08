@@ -104,6 +104,5 @@ spell:blockWalls(true)
 spell:cooldown(4 * 1000)
 spell:groupCooldown(2 * 1000)
 spell:needLearn(false)
-
 spell:vocation("knight;true", "elite knight;true")
 spell:register()
