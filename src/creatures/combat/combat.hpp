@@ -175,6 +175,9 @@ public:
 	void setupExtArea(const std::list<uint32_t> &list, uint32_t rows);
 	void clear();
 
+	// Tiles of the area facing `dir`, as (dx, dy) from its centre (the target tile).
+	std::vector<std::pair<int32_t, int32_t>> getOffsets(Direction dir) const;
+
 	std::unique_ptr<AreaCombat> clone() const;
 
 private:
@@ -234,6 +237,7 @@ public:
 	bool setParam(CombatParam_t param, uint32_t value);
 	void setArea(std::unique_ptr<AreaCombat> &newArea);
 	bool hasArea() const;
+	const std::unique_ptr<AreaCombat> &getArea() const;
 	void addCondition(const std::shared_ptr<Condition> &condition);
 	void setPlayerCombatValues(formulaType_t formulaType, double mina, double minb, double maxa, double maxb);
 	void postCombatEffects(const std::shared_ptr<Creature> &caster, const Position &origin, const Position &pos) const;

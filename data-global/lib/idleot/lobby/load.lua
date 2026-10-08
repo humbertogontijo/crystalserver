@@ -4,6 +4,7 @@ local files = {
 	"01_config.lua",
 	"02_store.lua",
 	"03_bonus.lua",
+	"03_variants.lua",
 	"04_instance.lua",
 	"05_services.lua",
 	"06_manager.lua",

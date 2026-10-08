@@ -23,6 +23,7 @@
 #include "lua/functions/map/teleport_functions.hpp"
 #include "lua/functions/map/tile_functions.hpp"
 #include "lua/functions/map/town_functions.hpp"
+#include "lua/functions/map/walk_grid_functions.hpp"
 
 class MapFunctions final : LuaScriptInterface {
 public:
@@ -38,5 +39,6 @@ public:
 		TeleportFunctions::init(L);
 		TileFunctions::init(L);
 		TownFunctions::init(L);
+		WalkGridFunctions::init(L);
 	}
 };

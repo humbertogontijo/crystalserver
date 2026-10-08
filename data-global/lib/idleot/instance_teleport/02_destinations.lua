@@ -386,6 +386,33 @@ function InstanceTeleport.requestLobbyGroup(opts)
 	return InstanceTeleport.beginGroup(opts)
 end
 
+--- Solo open-world channel switch cast; opts.onComplete(player) performs the switch.
+--- Capped at CHANNEL_SWITCH_MAX_MS so a wild-area switch is not a full recall.
+function InstanceTeleport.requestChannel(player, opts)
+	opts = opts or {}
+	if not player then
+		return false, "Invalid player."
+	end
+	if InstanceTeleport.isPending(player) then
+		return false, "Already channeling a teleport."
+	end
+	local playerId = player:getId()
+	return InstanceTeleport.begin(player, {
+		kind = InstanceTeleport.KIND_CHANNEL,
+		destination = InstanceTeleport.DEST_OPEN_WORLD,
+		opcode = TRAVEL_OPCODE(),
+		forceDurationMs = math.min(InstanceTeleport.durationMsFor(player, {}), InstanceTeleport.CHANNEL_SWITCH_MAX_MS),
+		cancelPolicy = InstanceTeleport.CANCEL_INITIATOR,
+		send = InstanceTeleport.notifyTravel,
+		onComplete = function(memberIds)
+			local p = Player(memberIds and memberIds[1] or playerId)
+			if p and opts.onComplete then
+				opts.onComplete(p)
+			end
+		end,
+	})
+end
+
 --- Group hometown channel (team recall leave). Caller supplies onComplete / onCancel.
 function InstanceTeleport.requestHometownGroup(opts)
 	opts = opts or {}

@@ -1570,6 +1570,10 @@ int32_t Tile::getThingIndex(const std::shared_ptr<Thing> &thing) const {
 	return -1;
 }
 
+bool Tile::countsTowardClientStack(const std::shared_ptr<Player> &player, const std::shared_ptr<Creature> &creature) {
+	return creature && !creature->isRemoved() && player->canSeeCreature(creature);
+}
+
 int32_t Tile::getClientIndexOfCreature(const std::shared_ptr<Player> &player, const std::shared_ptr<Creature> &creature) const {
 	const InstanceId viewerInstanceId = player->getInstanceId();
 	int32_t n = (ground && ground->countsTowardClientMapStack(viewerInstanceId)) ? 1 : 0;
@@ -1585,14 +1589,10 @@ int32_t Tile::getClientIndexOfCreature(const std::shared_ptr<Player> &player, co
 
 	if (const CreatureVector* creatures = getCreatures()) {
 		for (const auto &reverseCreature : std::ranges::reverse_view(*creatures)) {
-			// Before the dead/removed skip: a dying creature still needs its index to be removed.
 			if (reverseCreature == creature) {
 				return n;
 			}
-			if (!reverseCreature || reverseCreature->isRemoved() || !reverseCreature->isAlive()) {
-				continue;
-			}
-			if (player->canSeeCreature(reverseCreature)) {
+			if (countsTowardClientStack(player, reverseCreature)) {
 				++n;
 			}
 		}
@@ -1618,14 +1618,10 @@ int32_t Tile::getStackposOfCreature(const std::shared_ptr<Player> &player, const
 
 	if (const CreatureVector* creatures = getCreatures()) {
 		for (const auto &reverseCreature : std::ranges::reverse_view(*creatures)) {
-			// Before the dead/removed skip: a dying creature still needs its stackpos to be removed.
 			if (reverseCreature == creature) {
 				return n;
 			}
-			if (!reverseCreature || reverseCreature->isRemoved() || !reverseCreature->isAlive()) {
-				continue;
-			}
-			if (player->canSeeCreature(reverseCreature)) {
+			if (countsTowardClientStack(player, reverseCreature)) {
 				if (++n >= 10) {
 					return -1;
 				}
@@ -1678,10 +1674,7 @@ int32_t Tile::getStackposOfItem(const std::shared_ptr<Player> &player, const std
 
 	if (const CreatureVector* creatures = getCreatures()) {
 		for (const auto &creature : *creatures) {
-			if (!creature || creature->isRemoved() || !creature->isAlive()) {
-				continue;
-			}
-			if (player->canSeeCreature(creature)) {
+			if (countsTowardClientStack(player, creature)) {
 				if (++n >= 10) {
 					return -1;
 				}
@@ -1721,10 +1714,7 @@ bool Tile::fillsClientStack(const std::shared_ptr<Player> &player) const {
 
 	if (const CreatureVector* creatures = getCreatures()) {
 		for (const auto &creature : *creatures) {
-			if (!creature || creature->isRemoved() || !creature->isAlive()) {
-				continue;
-			}
-			if (player->canSeeCreature(creature) && ++n >= 10) {
+			if (countsTowardClientStack(player, creature) && ++n >= 10) {
 				return true;
 			}
 		}

@@ -134,6 +134,7 @@ class PlayerFunctions {
 	static int luaPlayerIsSoftDespawned(lua_State* L);
 	static int luaPlayerHasWalkTask(lua_State* L);
 	static int luaPlayerClearWalkTask(lua_State* L);
+	static int luaPlayerUseItem(lua_State* L);
 	static int luaPlayerIsHeadless(lua_State* L);
 	static int luaPlayerSetHeadless(lua_State* L);
 	static int luaPlayerSwitchClientTo(lua_State* L);

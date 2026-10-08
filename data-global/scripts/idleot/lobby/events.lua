@@ -73,7 +73,8 @@ logoutEvent:register()
 local moveItemCallback = EventCallback("LobbyPlayerOnMoveItem")
 
 function moveItemCallback.playerOnMoveItem(player, item, _count, fromPosition, toPosition)
-	if item and item:getActionId() == LobbyConfig.FIXTURE_ACTION_ID then
+	local aid = item and item:getActionId()
+	if aid == LobbyConfig.FIXTURE_ACTION_ID or aid == LobbyConfig.LEVER_ACTION_ID then
 		player:sendCancelMessage(RETURNVALUE_NOTMOVABLE)
 		return false
 	end

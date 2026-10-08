@@ -948,16 +948,15 @@ local function spellRank(slot)
 	return 2
 end
 
---- Healing page (heals, potions, magic shield): the only slots that keep running with AUTO off.
+--- AUTO off only stops attacking: heals, potions and support keep running, except the
+--- support spells that pull monsters (AttackOnlySupportWords).
 local function runsWithAutoOff(slot)
 	if slot.kind == "potion" then
 		return true
 	end
-	local group = spellGroup(slot)
-	if group then
-		return group == "healing" or group == "shield"
-	end
-	return spellRank(slot) == 0 or tostring(slot.words or ""):lower() == "utamo vita"
+	local words = tostring(slot.words or ""):lower()
+	local attackOnly = CombatAutomationConfig.AttackOnlySupportWords or {}
+	return spellRank(slot) < 2 and not attackOnly[words]
 end
 
 -- Crystal stance spells toggle off when re-cast. Map words → channel + Stance_t value
@@ -1997,12 +1996,21 @@ local function combatSlotCastableNow(player, state, slot, hpPercent, manaPercent
 	return slotHasEnoughMonsters(player, slot)
 end
 
+--- Steps of one multi-action slot share this key (one goes out per tick); every step of
+--- a side slot (stance, equipment) is its own.
+local function groupKeyOf(slot)
+	if slot.group and not CombatAutomationConfig.SIDE_GROUPS[slot.group] then
+		return slot.group
+	end
+	return slot.id
+end
+
 --- Multi-action slots: each group (bar slot) offers only its lowest castable step.
---- Returns those slots in `slots` order, plus group -> chosen step.
+--- Returns those slots in `slots` order, plus group key -> chosen step.
 local function firstCastableByGroup(player, state, slots, hpPercent, manaPercent, t)
 	local chosen = {}
 	for _, slot in ipairs(slots) do
-		local key = slot.group or slot.id
+		local key = groupKeyOf(slot)
 		local current = chosen[key]
 		if (not current or (slot.step or 1) < (current.step or 1)) and combatSlotCastableNow(player, state, slot, hpPercent, manaPercent, t) then
 			chosen[key] = slot
@@ -2010,7 +2018,7 @@ local function firstCastableByGroup(player, state, slots, hpPercent, manaPercent
 	end
 	local out = {}
 	for _, slot in ipairs(slots) do
-		if chosen[slot.group or slot.id] == slot then
+		if chosen[groupKeyOf(slot)] == slot then
 			out[#out + 1] = slot
 		end
 	end
@@ -2082,7 +2090,7 @@ local function positionBlockedAreaSlot(player, state, config, hpPercent, manaPer
 	local _, chosen = firstCastableByGroup(player, state, slots, hpPercent, manaPercent, t)
 	for _, slot in ipairs(stanceElementOrder(player, slots)) do
 		-- A lower step of the same group goes out from here first.
-		local lower = chosen[slot.group or slot.id]
+		local lower = chosen[groupKeyOf(slot)]
 		if slot.kind == "spell" and not (lower and (lower.step or 1) < (slot.step or 1)) then
 			local area = areaAttackOf(slot)
 			if
@@ -2116,22 +2124,22 @@ local function anchorPosOf(state)
 	return anchor and anchor:getPosition() or nil
 end
 
---- Cave-walk targeting context for an expedition member, nil outside a cave walk:
---- `{ walking, range, ahead = tile one step along the route, blockerId }`.
+--- Cave-walk targeting context for a cave run member (expedition or open world), nil
+--- outside a cave walk: `{ walking, range, ahead = tile one step along the route, blockerId }`.
 local function luringContext(player)
-	local session = expeditionSession(player)
-	if not session or not session.cave or not ExpeditionCavebot then
+	local run = Cavebot and Cavebot.runOfPlayer(player)
+	if not run or not run.cave then
 		return nil
 	end
-	local walking = ExpeditionCavebot.isWalking(session)
-	local blockerId = ExpeditionCavebot.blockerId(session)
+	local walking = Cavebot.isWalking(run)
+	local blockerId = Cavebot.blockerId(run)
 	if not walking and not blockerId then
 		return nil
 	end
 	local ctx = { walking = walking, blockerId = blockerId }
 	if walking then
 		local ppos = player:getPosition()
-		local front = ExpeditionCavebot.travelFront(session, ppos)
+		local front = Cavebot.travelFront(run, ppos)
 		ctx.range = CombatAutomation.weaponShootRange(player)
 		ctx.ahead = front and Position(ppos.x + front[1], ppos.y + front[2], ppos.z) or nil
 	end
@@ -2543,6 +2551,152 @@ function CombatAutomation.clearState(player)
 	statesByPlayerId[id] = nil
 end
 
+-- ---------------------------------------------------------------------------
+-- Equip slots: wear a ring / amulet the player owns at or below triggerPercent HP /
+-- mana, until the stat is back at releasePercent; then put back what it replaced.
+-- Per body slot the active rule first in bar order wins. Run with AUTO off too.
+-- ---------------------------------------------------------------------------
+
+local EQUIP_BODY_SLOTS = { ring = CONST_SLOT_RING, necklace = CONST_SLOT_NECKLACE }
+
+--- `item` is `typeId` or its equipped form (transformEquipTo).
+local function isEquipForm(item, typeId)
+	if not item then
+		return false
+	end
+	local id = item:getId()
+	if id == typeId then
+		return true
+	end
+	local it = ItemType(typeId)
+	return it ~= nil and it.getTransformEquipId ~= nil and it:getTransformEquipId() == id
+end
+
+--- Unequipped id of a worn item (the id it turns back into in the backpack).
+local function unequippedId(item)
+	local id = item:getId()
+	local it = ItemType(id)
+	local back = it and it.getTransformDeEquipId and it:getTransformDeEquipId() or 0
+	return back > 0 and back or id
+end
+
+local function moveToBackpack(player, item)
+	local bp = player:getSlotItem(CONST_SLOT_BACKPACK)
+	return bp ~= nil and item:moveTo(bp) == true
+end
+
+local function setEquipStatus(player, state, slot, owned)
+	state.equipStatus = state.equipStatus or {}
+	local status = owned and "ok" or "missing"
+	if state.equipStatus[slot.id] ~= status then
+		state.equipStatus[slot.id] = status
+		CombatAutomationProtocol.sendSlotStatus(player, slot.id, status)
+	end
+end
+
+--- Wear `rule`'s item on `body` (nil rule: release what a rule put there).
+--- `state.equipHeld[body]` = { slotId, typeId, restoreId } while a rule owns the slot.
+local function applyEquip(player, state, body, rule, t)
+	local held = state.equipHeld[body]
+	local current = player:getSlotItem(body)
+	if held and current and not isEquipForm(current, held.typeId) then
+		-- The player changed the slot by hand: it is theirs again.
+		state.equipHeld[body] = nil
+		held = nil
+	end
+	if rule and current and isEquipForm(current, rule.equipTypeId) then
+		-- Already worn: by hand (left alone) or for another rule (handed over).
+		if held and held.slotId ~= rule.id then
+			state.equipHeld[body] = { slotId = rule.id, typeId = rule.equipTypeId, restoreId = held.restoreId }
+		end
+		return
+	end
+	if not rule and not held then
+		return
+	end
+	local swapMs = CombatAutomationConfig.EQUIP_SWAP_MS or 1000
+	if t - (state.equipSwapAt[body] or 0) < swapMs then
+		return
+	end
+	state.equipSwapAt[body] = t
+
+	if rule then
+		local item = player:getItemById(rule.equipTypeId, true)
+		if not item then
+			return
+		end
+		local restoreId = held and held.restoreId or (current and unequippedId(current)) or nil
+		if current and not moveToBackpack(player, current) then
+			return
+		end
+		if item:moveToSlot(player, body) ~= true then
+			-- Refused (level / vocation / cap): put the old item back.
+			local old = restoreId and player:getItemById(restoreId, true)
+			if old then
+				old:moveToSlot(player, body)
+			end
+			return
+		end
+		state.equipHeld[body] = { slotId = rule.id, typeId = rule.equipTypeId, restoreId = restoreId }
+		local name = ItemType(rule.equipTypeId):getName()
+		markFired(state, player, rule, "", name, 0, t, false)
+		return
+	end
+
+	-- Release: the rule item comes off (or already expired) and the replaced item goes back.
+	if current and not moveToBackpack(player, current) then
+		return
+	end
+	state.equipHeld[body] = nil
+	local restore = held.restoreId and player:getItemById(held.restoreId, true)
+	if restore then
+		restore:moveToSlot(player, body)
+	end
+end
+
+local function runEquipRules(player, state, config, hpPercent, manaPercent, t)
+	state.equipHeld = state.equipHeld or {}
+	state.equipActive = state.equipActive or {}
+	state.equipSwapAt = state.equipSwapAt or {}
+	local want, any = {}, next(state.equipHeld) ~= nil
+	for _, slot in ipairs(config.slots or {}) do
+		local entry = slot.kind == "equip" and CombatAutomationConfig.EquipItems[slot.equipTypeId]
+		local body = entry and EQUIP_BODY_SLOTS[entry.slot]
+		if body then
+			any = true
+			local pct = slot.triggerStat == "mana" and manaPercent or hpPercent
+			local active = false
+			if slot.enabled ~= false then
+				if state.equipActive[slot.id] then
+					active = pct < (slot.releasePercent or 100)
+				else
+					active = pct <= (slot.triggerPercent or 0)
+				end
+			end
+			state.equipActive[slot.id] = active or nil
+			local owned = isEquipForm(player:getSlotItem(body), slot.equipTypeId) or player:getItemById(slot.equipTypeId, true) ~= nil
+			setEquipStatus(player, state, slot, owned)
+			if active and owned and not want[body] then
+				want[body] = slot
+			end
+		end
+	end
+	if not any then
+		return
+	end
+	for _, body in pairs(EQUIP_BODY_SLOTS) do
+		applyEquip(player, state, body, want[body], t)
+	end
+end
+
+--- Forget the equip statuses sent so far (the client asked for a full resync).
+function CombatAutomation.resetEquipStatus(player)
+	local state = player and CombatAutomation.getState(player)
+	if state then
+		state.equipStatus = nil
+	end
+end
+
 --- Run one automation tick for the player.
 --- AUTO off: clear target and skip attack/rune/support/stance slots; only the healing page still runs.
 function CombatAutomation.tick(player)
@@ -2597,6 +2751,8 @@ function CombatAutomation.tick(player)
 
 	-- Paladin distance ammo: equip preferred type; charge gold when inventory is empty.
 	ensureAmmo(player, config)
+
+	runEquipRules(player, state, config, hpPercent, manaPercent, t)
 
 	local slots = config.slots
 	if type(slots) ~= "table" or #slots == 0 then
@@ -2664,7 +2820,7 @@ function CombatAutomation.tick(player)
 	-- Multi-action slots: the first step that goes out consumes its group for this tick.
 	local groupFired = {}
 	for _, slot in ipairs(sustainSlots) do
-		local groupKey = slot.group or slot.id
+		local groupKey = groupKeyOf(slot)
 		local partyTarget = nil
 		local shouldFire = false
 		if groupFired[groupKey] then

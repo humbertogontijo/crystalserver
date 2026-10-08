@@ -698,6 +698,26 @@ TileAction = {
 			{ x = 32054, y = 31892, z = 5 },
 		},
 	},
+	-- Faceless Bane arena iron floors (step on them to break her immortality)
+	-- Tiles data-global\scripts\quests\the_dream_courts\movements_faceless_tiles.lua
+	[23108] = {
+		itemId = 8284,
+		itemPos = {
+			{ x = 33610, y = 32561, z = 13 },
+			{ x = 33611, y = 32558, z = 13 },
+			{ x = 33611, y = 32563, z = 13 },
+			{ x = 33613, y = 32567, z = 13 },
+			{ x = 33614, y = 32557, z = 13 },
+			{ x = 33615, y = 32567, z = 13 },
+			{ x = 33617, y = 32558, z = 13 },
+			{ x = 33619, y = 32567, z = 13 },
+			{ x = 33620, y = 32557, z = 13 },
+			{ x = 33621, y = 32567, z = 13 },
+			{ x = 33623, y = 32558, z = 13 },
+			{ x = 33623, y = 32563, z = 13 },
+			{ x = 33624, y = 32561, z = 13 },
+		},
+	},
 	-- iron floor
 	[23698] = {
 		itemId = 8282,

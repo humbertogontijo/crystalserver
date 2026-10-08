@@ -172,6 +172,9 @@ public:
 		targetKeepRange = std::max<int32_t>(0, range);
 	}
 	bool canKeepTarget(const Position &pos) override;
+	/// New opponents are only picked up on the classic client screen; canSee stays wider
+	/// (widescreen streaming) for friends, idle status and keeping a target.
+	bool canAcquireTarget(const Position &pos);
 	bool getDistanceStep(const Position &targetPos, Direction &direction, bool flee = false);
 	bool isTargetNearby() const;
 	bool isIgnoringFieldDamage() const;

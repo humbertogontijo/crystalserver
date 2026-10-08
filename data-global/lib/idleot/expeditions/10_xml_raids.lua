@@ -169,6 +169,49 @@ local function spawnFloors(events)
 	return list
 end
 
+--- XML areaspawn rectangle as {minX, maxX, minY, maxY, z}; nil when incomplete.
+local function areaspawnRect(event)
+	local x1, x2 = event.fromX, event.toX
+	local y1, y2 = event.fromY, event.toY
+	local z = event.fromZ or event.toZ
+	if not (x1 and x2 and y1 and y2 and z) then
+		return nil
+	end
+	return {
+		minX = math.min(x1, x2),
+		maxX = math.max(x1, x2),
+		minY = math.min(y1, y2),
+		maxY = math.max(y1, y2),
+		z = z,
+	}
+end
+
+--- XY bounding box of every spawn point and areaspawn rectangle (the raid's world area).
+local function spawnArea(events)
+	local area = nil
+	local function extend(minX, maxX, minY, maxY)
+		if not area then
+			area = { minX = minX, maxX = maxX, minY = minY, maxY = maxY }
+			return
+		end
+		area.minX = math.min(area.minX, minX)
+		area.maxX = math.max(area.maxX, maxX)
+		area.minY = math.min(area.minY, minY)
+		area.maxY = math.max(area.maxY, maxY)
+	end
+	for _, event in ipairs(events or {}) do
+		if event.kind == "singlespawn" then
+			extend(event.x, event.x, event.y, event.y)
+		elseif event.kind == "areaspawn" then
+			local rect = areaspawnRect(event)
+			if rect then
+				extend(rect.minX, rect.maxX, rect.minY, rect.maxY)
+			end
+		end
+	end
+	return area
+end
+
 --- Arena entry: prefer last singlespawn (Crystal XML puts the boss last).
 --- Averaging XY across all points with first-z wrongly parks players on filler
 --- floors (e.g. Insect Swarm z=8 while Fleabringer is on z=7) → immediate kick.
@@ -230,11 +273,13 @@ local function groupByDelay(events)
 				position = Position(event.x, event.y, event.z),
 			}
 		elseif event.kind == "areaspawn" then
+			local rect = areaspawnRect(event)
 			for _, monster in ipairs(event.monsters or {}) do
 				local cap = ExpeditionConfig.RAID_XML_MAX_AMOUNT or 8
 				group.spawns[#group.spawns + 1] = {
 					name = monster.name,
 					amount = math.min(monster.amount, cap),
+					area = rect,
 				}
 			end
 		end
@@ -349,6 +394,7 @@ local function registerOne(entry, raidsRoot)
 		minGapBetween = tostring(marginMin) .. "m",
 	})
 	raid._raidSpawnCenter = center
+	raid._raidSpawnArea = spawnArea(events)
 	local floors = spawnFloors(events)
 	if #floors > 0 then
 		raid._raidSpawnFloors = floors

@@ -43,6 +43,32 @@ local function zoneAABB(zone)
 	return { minX = minX, minY = minY, maxX = maxX, maxY = maxY, z = z }
 end
 
+local RAID_MIN_HALF_EXTENT = 8
+
+--- Instance fence {x, y, w, h}: the raid's world area (XML spawn rectangles / Lua zones),
+--- never smaller than a 17x17 box around the arena center.
+local function raidBoundary(raid, center)
+	local minX, maxX = center.x - RAID_MIN_HALF_EXTENT, center.x + RAID_MIN_HALF_EXTENT
+	local minY, maxY = center.y - RAID_MIN_HALF_EXTENT, center.y + RAID_MIN_HALF_EXTENT
+	local function extend(area)
+		if type(area) ~= "table" or not area.minX then
+			return
+		end
+		minX = math.min(minX, area.minX)
+		maxX = math.max(maxX, area.maxX)
+		minY = math.min(minY, area.minY)
+		maxY = math.max(maxY, area.maxY)
+	end
+	extend(raid._raidSpawnArea)
+	if raid.zone then
+		extend(zoneAABB(Zone(raid.zone)))
+	end
+	if raid.spawnZone and raid.spawnZone ~= raid.zone then
+		extend(zoneAABB(Zone(raid.spawnZone)))
+	end
+	return { x = minX, y = minY, z = center.z, w = maxX - minX + 1, h = maxY - minY + 1 }
+end
+
 local function isRaidEncounter(encounter)
 	return encounter and Raid and Raid.registry and Raid.registry[encounter.name] == encounter
 end
@@ -165,7 +191,7 @@ local function remapPosition(raid, pos)
 	return claimRaidSpawn(raid, resolved or mapped)
 end
 
-local function resolveRaidSpawnPosition(raid, preferred)
+local function resolveRaidSpawnPosition(raid, preferred, area)
 	local instance = raid._raidInstance
 	local reserved = raidSpawnReserved(raid)
 	local preferredKey = preferred and ExpeditionInstance.posKey(preferred)
@@ -180,7 +206,7 @@ local function resolveRaidSpawnPosition(raid, preferred)
 	if not instance then
 		return preferred
 	end
-	local resolved = ExpeditionInstance.randomWalkable(instance, instance.entry, reserved)
+	local resolved = ExpeditionInstance.randomWalkable(instance, instance.entry, reserved, area)
 		or ExpeditionInstance.randomAttackRangeWalkable(instance, instance.entry, 1, reserved)
 		or preferred
 	return claimRaidSpawn(raid, resolved)
@@ -236,6 +262,7 @@ function RaidInstance.provision(raid)
 		region = region,
 		kind = kind,
 		center = center,
+		boundary = raidBoundary(raid, center),
 	}
 	-- XML raids may span multiple floors; keep all spawn zs so falling/stairs
 	-- do not trip reconcilePresence ("You left the raid area.").
@@ -247,9 +274,6 @@ function RaidInstance.provision(raid)
 		ExpeditionInstance.free(instanceId)
 		logger.error("[RaidInstance] failed to build arena for {}: {}", raid.name, err or "unknown")
 		return false
-	end
-	if ExpeditionInstance.openDoors then
-		ExpeditionInstance.openDoors(instance)
 	end
 
 	local aabb = zoneAABB(Zone(worldZoneName))
@@ -1070,7 +1094,7 @@ function RaidInstance.installHooks()
 				else
 					-- Prefer instance walkables. Zone:randomPosition → Tile:isWalkable(..., proj)
 					-- can nil-crash on getItems() for stamped/border tiles; never insert nil.
-					table.insert(positions, resolveRaidSpawnPosition(self, nil))
+					table.insert(positions, resolveRaidSpawnPosition(self, nil, config.area))
 				end
 			end
 		elseif positions then
@@ -1147,6 +1171,21 @@ function RaidInstance.installHooks()
 							spawnPos.z,
 							inst and inst.instanceId or 0
 						)
+						return false
+					end
+					-- Extended/forced placement may step past the fence where nobody can reach it.
+					local placed = monster:getPosition()
+					if not ExpeditionInstance.contains(inst, placed) then
+						logger.warn(
+							"[RaidInstance] {} landed outside raid fence at {},{},{} (instance={})",
+							monsterName,
+							placed.x,
+							placed.y,
+							placed.z,
+							inst.instanceId or 0
+						)
+						monster:setDropLoot(false)
+						monster:remove()
 						return false
 					end
 					monster:setRewardBoss()

@@ -58,32 +58,12 @@ function instanceCommand.onSay(player, words, param)
 	end
 
 	local parsed = Instance.parse(current)
-	local channel = display - 1
-	if channel == parsed.channel then
-		player:sendCancelMessage("You are already on channel " .. channelLabel(channel) .. ".")
+	local key, err = InstanceWorld.switchChannelNow(player, display - 1, { bypass = true })
+	if not key then
+		player:sendCancelMessage(err)
 		return true
 	end
 
-	local target = Instance.withChannel(current, channel)
-	if not Instance.isLive(target) then
-		if Instance.isPrivate(current) then
-			player:sendCancelMessage("Channel " .. channelLabel(channel) .. " is not open for " .. parsed.kind .. ".")
-			return true
-		end
-		-- Opens the public channel on demand (gods bypass the player cap).
-		target = Game.pickInstanceChannel(parsed.kind, parsed.subareaId, channel, player)
-		if not target then
-			player:sendCancelMessage("Could not open channel " .. channelLabel(channel) .. ".")
-			return true
-		end
-	end
-
-	if not InstanceWorld.setInstanceInPlace(player, target) then
-		player:sendCancelMessage("Could not switch to channel " .. channelLabel(channel) .. ".")
-		return true
-	end
-
-	InstanceWorld.sendBounds(player, true)
 	if ExpeditionProtocol and ExpeditionProtocol.sendGodFlags then
 		ExpeditionProtocol.sendGodFlags(player)
 	end

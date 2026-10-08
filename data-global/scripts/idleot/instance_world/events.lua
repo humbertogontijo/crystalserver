@@ -1,3 +1,5 @@
+InstanceStorage.install()
+
 local startup = GlobalEvent("InstanceWorldStartup")
 
 function startup.onStartup()

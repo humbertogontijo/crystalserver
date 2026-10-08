@@ -12,13 +12,18 @@
 --   standable = function(x, y) -> bool,          -- ground a player can fight on
 --   sightClear = function(x, y, tx, ty) -> bool,  -- optional (default: clear)
 --   adjust = function(x, y) -> number,            -- optional score added per tile
+--   passable = function(x, y) -> bool,            -- optional: tiles the search walks
+--                                                 -- over and picks (default standable;
+--                                                 -- the ring still counts standable)
 -- }
 
 AnchorSpot = AnchorSpot or {}
 
---- Per standable neighbour (room for the monster ring, up to 8): the leading term,
---- one tile outweighs a corridor's walkway and lanes.
-AnchorSpot.RING_TILE = 20
+--- Per standable neighbour (room for the monster ring, up to 8): the leading term.
+--- One tile outweighs the whole team term (walkway + slots + lanes, down to every
+--- member unserved, for up to 5 members) plus walking steps, so the team only
+--- breaks ties between tiles with the same ring.
+AnchorSpot.RING_TILE = 250
 --- Per standable tile at distance 2 (walkway around the box).
 AnchorSpot.WALKWAY_TILE = 2
 --- Per member with a slot at its slot distance, in sight of the anchor...
@@ -68,6 +73,7 @@ function AnchorSpot.context(env, team)
 		end,
 		sightClear = env.sightClear,
 		adjust = env.adjust,
+		passable = env.passable,
 		team = {},
 		maxSlot = 2,
 	}
@@ -237,11 +243,17 @@ function AnchorSpot.score(ctx, x, y, steps, beat)
 	return score, ring, unserved
 end
 
---- Best scoring standable tile within `maxSteps` walking steps (8-connected, over
---- standable tiles) of (ox, oy); ties go to the nearer tile. `exclude`: set of
+--- Best scoring passable tile within `maxSteps` walking steps (8-connected, over
+--- passable tiles) of (ox, oy); ties go to the nearer tile. `exclude`: set of
 --- `tileKey` keys never picked. Returns x, y, score, ring, unserved (nil: none).
 function AnchorSpot.best(ctx, ox, oy, maxSteps, exclude)
 	local standable = ctx.standable
+	if ctx.passable then
+		local passable = ctx.passable
+		standable = function(x, y)
+			return ctx.standable(x, y) and passable(x, y)
+		end
+	end
 	exclude = exclude or {}
 	local bx, by, bestScore, bestRing, bestUnserved
 	local function consider(x, y, steps)

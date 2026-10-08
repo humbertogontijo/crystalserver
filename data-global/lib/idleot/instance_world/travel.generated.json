@@ -135,8 +135,7 @@
         "y": 32853,
         "z": 1
       },
-      "kind": "hunt",
-      "huntId": 2138168
+      "kind": "stay"
     },
     {
       "from": {
@@ -254,7 +253,7 @@
         "z": 2
       },
       "kind": "hunt",
-      "huntId": 2968417
+      "huntId": 2792348
     },
     {
       "from": {
@@ -267,8 +266,7 @@
         "y": 32425,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2545504
+      "kind": "stay"
     },
     {
       "from": {
@@ -282,7 +280,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 437
+      "huntId": 2215091
     },
     {
       "from": {
@@ -296,7 +294,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 437
+      "huntId": 2215091
     },
     {
       "from": {
@@ -309,8 +307,7 @@
         "y": 31114,
         "z": 2
       },
-      "kind": "hunt",
-      "huntId": 2314653
+      "kind": "stay"
     },
     {
       "from": {
@@ -323,8 +320,7 @@
         "y": 32115,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 104
+      "kind": "blocked"
     },
     {
       "from": {
@@ -337,8 +333,7 @@
         "y": 31119,
         "z": 3
       },
-      "kind": "hunt",
-      "huntId": 2844232
+      "kind": "stay"
     },
     {
       "from": {
@@ -352,7 +347,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2716341
+      "huntId": 2172161
     },
     {
       "from": {
@@ -378,8 +373,7 @@
         "y": 31145,
         "z": 3
       },
-      "kind": "hunt",
-      "huntId": 2904021
+      "kind": "stay"
     },
     {
       "from": {
@@ -392,8 +386,7 @@
         "y": 31831,
         "z": 3
       },
-      "kind": "hunt",
-      "huntId": 2392635
+      "kind": "stay"
     },
     {
       "from": {
@@ -461,8 +454,7 @@
         "y": 32583,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2466044
+      "kind": "blocked"
     },
     {
       "from": {
@@ -503,7 +495,7 @@
         "z": 1
       },
       "kind": "hunt",
-      "huntId": 2809669
+      "huntId": 2421867
     },
     {
       "from": {
@@ -516,8 +508,7 @@
         "y": 31832,
         "z": 3
       },
-      "kind": "hunt",
-      "huntId": 2392635
+      "kind": "stay"
     },
     {
       "from": {
@@ -544,8 +535,7 @@
         "y": 31938,
         "z": 5
       },
-      "kind": "hunt",
-      "huntId": 2489057
+      "kind": "blocked"
     },
     {
       "from": {
@@ -585,8 +575,7 @@
         "y": 31951,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2717094
+      "kind": "stay"
     },
     {
       "from": {
@@ -693,8 +682,7 @@
         "y": 32605,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2023305
+      "kind": "blocked"
     },
     {
       "from": {
@@ -937,8 +925,7 @@
         "y": 32153,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2253430
+      "kind": "stay"
     },
     {
       "from": {
@@ -978,8 +965,7 @@
         "y": 32425,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2545504
+      "kind": "stay"
     },
     {
       "from": {
@@ -1020,8 +1006,7 @@
         "y": 31446,
         "z": 4
       },
-      "kind": "hunt",
-      "huntId": 116
+      "kind": "stay"
     },
     {
       "from": {
@@ -1060,8 +1045,7 @@
         "y": 32340,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2791897
+      "kind": "stay"
     },
     {
       "from": {
@@ -1074,8 +1058,7 @@
         "y": 31120,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 131
+      "kind": "stay"
     },
     {
       "from": {
@@ -1088,8 +1071,7 @@
         "y": 31120,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 131
+      "kind": "stay"
     },
     {
       "from": {
@@ -1128,8 +1110,7 @@
         "y": 32425,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2545504
+      "kind": "stay"
     },
     {
       "from": {
@@ -1142,8 +1123,7 @@
         "y": 32597,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2314050
+      "kind": "blocked"
     },
     {
       "from": {
@@ -1157,7 +1137,7 @@
         "z": 7
       },
       "kind": "hunt",
-      "huntId": 2314050
+      "huntId": 90
     },
     {
       "from": {
@@ -1211,7 +1191,7 @@
         "z": 7
       },
       "kind": "hunt",
-      "huntId": 2968417
+      "huntId": 2792348
     },
     {
       "from": {
@@ -1250,8 +1230,7 @@
         "y": 32530,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2371429
+      "kind": "stay"
     },
     {
       "from": {
@@ -1264,8 +1243,7 @@
         "y": 31500,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 143
+      "kind": "stay"
     },
     {
       "from": {
@@ -1304,8 +1282,7 @@
         "y": 31867,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2575553
+      "kind": "stay"
     },
     {
       "from": {
@@ -1319,7 +1296,7 @@
         "z": 7
       },
       "kind": "hunt",
-      "huntId": 2511926
+      "huntId": 208
     },
     {
       "from": {
@@ -1347,7 +1324,7 @@
         "z": 7
       },
       "kind": "hunt",
-      "huntId": 214
+      "huntId": 2252292
     },
     {
       "from": {
@@ -1360,8 +1337,7 @@
         "y": 32006,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 213
+      "kind": "stay"
     },
     {
       "from": {
@@ -1375,7 +1351,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 439
+      "huntId": 2184981
     },
     {
       "from": {
@@ -1428,7 +1404,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 442
+      "huntId": 2287180
     },
     {
       "from": {
@@ -1496,7 +1472,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2225145
+      "huntId": 2091157
     },
     {
       "from": {
@@ -1576,8 +1552,7 @@
         "y": 32078,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 104
+      "kind": "blocked"
     },
     {
       "from": {
@@ -1604,8 +1579,7 @@
         "y": 32103,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 34
+      "kind": "blocked"
     },
     {
       "from": {
@@ -1618,8 +1592,7 @@
         "y": 32680,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2170378
+      "kind": "stay"
     },
     {
       "from": {
@@ -1632,8 +1605,7 @@
         "y": 32558,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2026437
+      "kind": "stay"
     },
     {
       "from": {
@@ -1646,8 +1618,7 @@
         "y": 31043,
         "z": 6
       },
-      "kind": "hunt",
-      "huntId": 2811664
+      "kind": "stay"
     },
     {
       "from": {
@@ -1660,8 +1631,7 @@
         "y": 32659,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2652020
+      "kind": "stay"
     },
     {
       "from": {
@@ -1674,8 +1644,7 @@
         "y": 32659,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2652020
+      "kind": "stay"
     },
     {
       "from": {
@@ -1688,8 +1657,7 @@
         "y": 31706,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 280
+      "kind": "stay"
     },
     {
       "from": {
@@ -1757,8 +1725,7 @@
         "y": 31937,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2213854
+      "kind": "stay"
     },
     {
       "from": {
@@ -1839,8 +1806,7 @@
         "y": 32146,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2253430
+      "kind": "stay"
     },
     {
       "from": {
@@ -1854,7 +1820,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 2729910
+      "huntId": 2014459
     },
     {
       "from": {
@@ -1867,8 +1833,7 @@
         "y": 31719,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2028932
+      "kind": "blocked"
     },
     {
       "from": {
@@ -1881,8 +1846,7 @@
         "y": 31719,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2028932
+      "kind": "blocked"
     },
     {
       "from": {
@@ -1895,8 +1859,7 @@
         "y": 32264,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2193541
+      "kind": "stay"
     },
     {
       "from": {
@@ -1910,7 +1873,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 2028932
+      "huntId": 2832441
     },
     {
       "from": {
@@ -1923,8 +1886,7 @@
         "y": 31627,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2028932
+      "kind": "stay"
     },
     {
       "from": {
@@ -1991,8 +1953,7 @@
         "y": 32714,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2600300
+      "kind": "blocked"
     },
     {
       "from": {
@@ -2005,8 +1966,7 @@
         "y": 32331,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2532646
+      "kind": "blocked"
     },
     {
       "from": {
@@ -2019,8 +1979,7 @@
         "y": 32113,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 104
+      "kind": "blocked"
     },
     {
       "from": {
@@ -2073,8 +2032,7 @@
         "y": 32268,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2280874
+      "kind": "stay"
     },
     {
       "from": {
@@ -2100,8 +2058,7 @@
         "y": 31166,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2051498
+      "kind": "stay"
     },
     {
       "from": {
@@ -2114,8 +2071,7 @@
         "y": 31173,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2051498
+      "kind": "stay"
     },
     {
       "from": {
@@ -2128,8 +2084,7 @@
         "y": 31173,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2051498
+      "kind": "stay"
     },
     {
       "from": {
@@ -2142,8 +2097,7 @@
         "y": 31173,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2051498
+      "kind": "stay"
     },
     {
       "from": {
@@ -2156,8 +2110,7 @@
         "y": 31173,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2051498
+      "kind": "stay"
     },
     {
       "from": {
@@ -2170,8 +2123,7 @@
         "y": 31173,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2051498
+      "kind": "stay"
     },
     {
       "from": {
@@ -2184,8 +2136,7 @@
         "y": 31173,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2051498
+      "kind": "stay"
     },
     {
       "from": {
@@ -2198,8 +2149,7 @@
         "y": 31173,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2051498
+      "kind": "stay"
     },
     {
       "from": {
@@ -2225,8 +2175,7 @@
         "y": 32694,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2716341
+      "kind": "blocked"
     },
     {
       "from": {
@@ -2239,8 +2188,7 @@
         "y": 31241,
         "z": 9
       },
-      "kind": "hunt",
-      "huntId": 2273879
+      "kind": "stay"
     },
     {
       "from": {
@@ -2253,8 +2201,7 @@
         "y": 31114,
         "z": 4
       },
-      "kind": "hunt",
-      "huntId": 2669046
+      "kind": "stay"
     },
     {
       "from": {
@@ -2281,8 +2228,7 @@
         "y": 31028,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2224959
+      "kind": "stay"
     },
     {
       "from": {
@@ -2323,8 +2269,7 @@
         "y": 32661,
         "z": 9
       },
-      "kind": "hunt",
-      "huntId": 2723264
+      "kind": "blocked"
     },
     {
       "from": {
@@ -2350,8 +2295,7 @@
         "y": 32988,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 475
+      "kind": "stay"
     },
     {
       "from": {
@@ -2365,7 +2309,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 475
+      "huntId": 2621318
     },
     {
       "from": {
@@ -2392,8 +2336,7 @@
         "y": 31186,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 149
+      "kind": "stay"
     },
     {
       "from": {
@@ -2407,7 +2350,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 2608144
+      "huntId": 2609505
     },
     {
       "from": {
@@ -2435,7 +2378,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 2810327
+      "huntId": 2315274
     },
     {
       "from": {
@@ -2448,8 +2391,7 @@
         "y": 31368,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2161817
+      "kind": "stay"
     },
     {
       "from": {
@@ -2462,8 +2404,7 @@
         "y": 31197,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 149
+      "kind": "stay"
     },
     {
       "from": {
@@ -2517,8 +2458,7 @@
         "y": 32531,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2704285
+      "kind": "stay"
     },
     {
       "from": {
@@ -2531,8 +2471,7 @@
         "y": 32110,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2853382
+      "kind": "stay"
     },
     {
       "from": {
@@ -2588,7 +2527,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 319
+      "huntId": 2625545
     },
     {
       "from": {
@@ -2711,8 +2650,7 @@
         "y": 32105,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2262973
+      "kind": "stay"
     },
     {
       "from": {
@@ -2725,8 +2663,7 @@
         "y": 32105,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2262973
+      "kind": "stay"
     },
     {
       "from": {
@@ -2739,8 +2676,7 @@
         "y": 32040,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2700118
+      "kind": "stay"
     },
     {
       "from": {
@@ -2793,7 +2729,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 439
+      "huntId": 2184981
     },
     {
       "from": {
@@ -2807,7 +2743,7 @@
         "z": 7
       },
       "kind": "hunt",
-      "huntId": 442
+      "huntId": 2287180
     },
     {
       "from": {
@@ -2889,7 +2825,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 2199207
+      "huntId": 2010905
     },
     {
       "from": {
@@ -2931,7 +2867,7 @@
         "z": 1
       },
       "kind": "hunt",
-      "huntId": 2509362
+      "huntId": 2912525
     },
     {
       "from": {
@@ -2945,7 +2881,7 @@
         "z": 1
       },
       "kind": "hunt",
-      "huntId": 2509362
+      "huntId": 2912525
     },
     {
       "from": {
@@ -2959,7 +2895,7 @@
         "z": 1
       },
       "kind": "hunt",
-      "huntId": 2509362
+      "huntId": 2912525
     },
     {
       "from": {
@@ -2986,8 +2922,7 @@
         "y": 31043,
         "z": 6
       },
-      "kind": "hunt",
-      "huntId": 2811664
+      "kind": "stay"
     },
     {
       "from": {
@@ -3014,8 +2949,7 @@
         "y": 32781,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2201759
+      "kind": "stay"
     },
     {
       "from": {
@@ -3054,8 +2988,7 @@
         "y": 32794,
         "z": 9
       },
-      "kind": "hunt",
-      "huntId": 2074736
+      "kind": "blocked"
     },
     {
       "from": {
@@ -3068,8 +3001,7 @@
         "y": 31988,
         "z": 9
       },
-      "kind": "hunt",
-      "huntId": 2725137
+      "kind": "blocked"
     },
     {
       "from": {
@@ -3109,8 +3041,7 @@
         "y": 31245,
         "z": 9
       },
-      "kind": "hunt",
-      "huntId": 2273879
+      "kind": "stay"
     },
     {
       "from": {
@@ -3124,7 +3055,7 @@
         "z": 7
       },
       "kind": "hunt",
-      "huntId": 2578375
+      "huntId": 235
     },
     {
       "from": {
@@ -3152,7 +3083,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2224959
+      "huntId": 2191601
     },
     {
       "from": {
@@ -3166,7 +3097,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2870439
+      "huntId": 2172161
     },
     {
       "from": {
@@ -3206,8 +3137,7 @@
         "y": 32661,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2723264
+      "kind": "blocked"
     },
     {
       "from": {
@@ -3221,7 +3151,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2810327
+      "huntId": 2565331
     },
     {
       "from": {
@@ -3235,7 +3165,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2810327
+      "huntId": 2565331
     },
     {
       "from": {
@@ -3249,7 +3179,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2575553
+      "huntId": 2321051
     },
     {
       "from": {
@@ -3290,8 +3220,7 @@
         "y": 32483,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2956586
+      "kind": "stay"
     },
     {
       "from": {
@@ -3304,8 +3233,7 @@
         "y": 31748,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2665857
+      "kind": "blocked"
     },
     {
       "from": {
@@ -3319,7 +3247,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 2743187
+      "huntId": 2233247
     },
     {
       "from": {
@@ -3332,8 +3260,7 @@
         "y": 32317,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -3346,8 +3273,7 @@
         "y": 31453,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2022132
+      "kind": "stay"
     },
     {
       "from": {
@@ -3388,7 +3314,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2985811
+      "huntId": 2625545
     },
     {
       "from": {
@@ -3402,7 +3328,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2985811
+      "huntId": 2625545
     },
     {
       "from": {
@@ -3470,7 +3396,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2487231
+      "huntId": 2474158
     },
     {
       "from": {
@@ -3591,7 +3517,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 167
+      "huntId": 2623034
     },
     {
       "from": {
@@ -3605,7 +3531,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 439
+      "huntId": 2184981
     },
     {
       "from": {
@@ -3810,8 +3736,7 @@
         "y": 32389,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2501250
+      "kind": "blocked"
     },
     {
       "from": {
@@ -3824,8 +3749,7 @@
         "y": 31892,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2303209
+      "kind": "stay"
     },
     {
       "from": {
@@ -3918,8 +3842,7 @@
         "y": 31509,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2624502
+      "kind": "stay"
     },
     {
       "from": {
@@ -3946,8 +3869,7 @@
         "y": 31787,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2778347
+      "kind": "blocked"
     },
     {
       "from": {
@@ -3974,7 +3896,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2432772
+      "huntId": 2318673
     },
     {
       "from": {
@@ -4026,8 +3948,7 @@
         "y": 31756,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2981823
+      "kind": "blocked"
     },
     {
       "from": {
@@ -4066,8 +3987,7 @@
         "y": 32735,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2623112
+      "kind": "blocked"
     },
     {
       "from": {
@@ -4080,8 +4000,7 @@
         "y": 32713,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2623112
+      "kind": "blocked"
     },
     {
       "from": {
@@ -4094,8 +4013,7 @@
         "y": 32290,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2280874
+      "kind": "stay"
     },
     {
       "from": {
@@ -4109,7 +4027,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2243663
+      "huntId": 2021282
     },
     {
       "from": {
@@ -4122,8 +4040,7 @@
         "y": 32268,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2280874
+      "kind": "stay"
     },
     {
       "from": {
@@ -4178,7 +4095,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2716341
+      "huntId": 2172161
     },
     {
       "from": {
@@ -4206,7 +4123,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2716341
+      "huntId": 2172161
     },
     {
       "from": {
@@ -4219,8 +4136,7 @@
         "y": 31781,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 38
+      "kind": "stay"
     },
     {
       "from": {
@@ -4260,7 +4176,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2575553
+      "huntId": 2620325
     },
     {
       "from": {
@@ -4274,7 +4190,7 @@
         "z": 10
       },
       "kind": "hunt",
-      "huntId": 2575553
+      "huntId": 2620325
     },
     {
       "from": {
@@ -4288,7 +4204,7 @@
         "z": 10
       },
       "kind": "hunt",
-      "huntId": 2575553
+      "huntId": 2620325
     },
     {
       "from": {
@@ -4301,8 +4217,7 @@
         "y": 31479,
         "z": 11
       },
-      "kind": "hunt",
-      "huntId": 2909506
+      "kind": "stay"
     },
     {
       "from": {
@@ -4316,7 +4231,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2575553
+      "huntId": 2620325
     },
     {
       "from": {
@@ -4344,7 +4259,7 @@
         "z": 10
       },
       "kind": "hunt",
-      "huntId": 2873650
+      "huntId": 2475811
     },
     {
       "from": {
@@ -4370,8 +4285,7 @@
         "y": 32119,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2253430
+      "kind": "stay"
     },
     {
       "from": {
@@ -4490,8 +4404,7 @@
         "y": 31506,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 356
+      "kind": "stay"
     },
     {
       "from": {
@@ -4518,8 +4431,7 @@
         "y": 31504,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 356
+      "kind": "stay"
     },
     {
       "from": {
@@ -4532,8 +4444,7 @@
         "y": 31471,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 356
+      "kind": "stay"
     },
     {
       "from": {
@@ -4546,8 +4457,7 @@
         "y": 31537,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 356
+      "kind": "stay"
     },
     {
       "from": {
@@ -4560,8 +4470,7 @@
         "y": 31634,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2574597
+      "kind": "stay"
     },
     {
       "from": {
@@ -4659,7 +4568,7 @@
         "z": 10
       },
       "kind": "hunt",
-      "huntId": 213
+      "huntId": 2972706
     },
     {
       "from": {
@@ -4825,8 +4734,7 @@
         "y": 31281,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 116
+      "kind": "stay"
     },
     {
       "from": {
@@ -4866,8 +4774,7 @@
         "y": 32552,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2026437
+      "kind": "stay"
     },
     {
       "from": {
@@ -4880,8 +4787,7 @@
         "y": 31380,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2901446
+      "kind": "stay"
     },
     {
       "from": {
@@ -4908,8 +4814,7 @@
         "y": 31240,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2904021
+      "kind": "blocked"
     },
     {
       "from": {
@@ -5041,8 +4946,7 @@
         "y": 32156,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2676693
+      "kind": "blocked"
     },
     {
       "from": {
@@ -5095,7 +4999,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2981823
+      "huntId": 2434813
     },
     {
       "from": {
@@ -5109,7 +5013,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2243663
+      "huntId": 2021282
     },
     {
       "from": {
@@ -5122,8 +5026,7 @@
         "y": 31813,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 192
+      "kind": "blocked"
     },
     {
       "from": {
@@ -5137,7 +5040,7 @@
         "z": 8
       },
       "kind": "hunt",
-      "huntId": 2578375
+      "huntId": 235
     },
     {
       "from": {
@@ -5151,7 +5054,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2716341
+      "huntId": 2172161
     },
     {
       "from": {
@@ -5178,8 +5081,7 @@
         "y": 32659,
         "z": 11
       },
-      "kind": "hunt",
-      "huntId": 2688425
+      "kind": "blocked"
     },
     {
       "from": {
@@ -5220,7 +5122,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2716341
+      "huntId": 2172161
     },
     {
       "from": {
@@ -5234,7 +5136,7 @@
         "z": 10
       },
       "kind": "hunt",
-      "huntId": 2716341
+      "huntId": 2172161
     },
     {
       "from": {
@@ -5247,8 +5149,7 @@
         "y": 32772,
         "z": 9
       },
-      "kind": "hunt",
-      "huntId": 2037230
+      "kind": "blocked"
     },
     {
       "from": {
@@ -5262,7 +5163,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 69
+      "huntId": 2167504
     },
     {
       "from": {
@@ -5276,7 +5177,7 @@
         "z": 10
       },
       "kind": "hunt",
-      "huntId": 2716341
+      "huntId": 2172161
     },
     {
       "from": {
@@ -5290,7 +5191,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2243663
+      "huntId": 2021282
     },
     {
       "from": {
@@ -5331,7 +5232,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2575553
+      "huntId": 2620325
     },
     {
       "from": {
@@ -5358,8 +5259,7 @@
         "y": 31697,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2223694
+      "kind": "stay"
     },
     {
       "from": {
@@ -5385,8 +5285,7 @@
         "y": 31481,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2909506
+      "kind": "stay"
     },
     {
       "from": {
@@ -5399,8 +5298,7 @@
         "y": 32079,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2804820
+      "kind": "blocked"
     },
     {
       "from": {
@@ -5414,7 +5312,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2025853
+      "huntId": 2713669
     },
     {
       "from": {
@@ -5428,7 +5326,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2575553
+      "huntId": 2620325
     },
     {
       "from": {
@@ -5442,7 +5340,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2829701
+      "huntId": 2141459
     },
     {
       "from": {
@@ -5484,7 +5382,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2559812
+      "huntId": 2919528
     },
     {
       "from": {
@@ -5511,8 +5409,7 @@
         "y": 32908,
         "z": 11
       },
-      "kind": "hunt",
-      "huntId": 2281730
+      "kind": "stay"
     },
     {
       "from": {
@@ -5526,7 +5423,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2559812
+      "huntId": 2919528
     },
     {
       "from": {
@@ -5539,8 +5436,7 @@
         "y": 32323,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -5580,8 +5476,7 @@
         "y": 31182,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2495030
+      "kind": "stay"
     },
     {
       "from": {
@@ -5608,7 +5503,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 167
+      "huntId": 2431680
     },
     {
       "from": {
@@ -5649,7 +5544,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2888134
+      "huntId": 2623034
     },
     {
       "from": {
@@ -5675,8 +5570,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -5717,8 +5611,7 @@
         "y": 32036,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2700118
+      "kind": "stay"
     },
     {
       "from": {
@@ -5744,8 +5637,7 @@
         "y": 32323,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2876603
+      "kind": "stay"
     },
     {
       "from": {
@@ -5758,8 +5650,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -5898,7 +5789,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 116
+      "huntId": 2985816
     },
     {
       "from": {
@@ -5951,7 +5842,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 2960401
+      "huntId": 2284745
     },
     {
       "from": {
@@ -5964,8 +5855,7 @@
         "y": 31864,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2422963
+      "kind": "stay"
     },
     {
       "from": {
@@ -5978,8 +5868,7 @@
         "y": 31858,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2422963
+      "kind": "stay"
     },
     {
       "from": {
@@ -5992,8 +5881,7 @@
         "y": 31027,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2214555
+      "kind": "blocked"
     },
     {
       "from": {
@@ -6019,8 +5907,7 @@
         "y": 31927,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2477604
+      "kind": "stay"
     },
     {
       "from": {
@@ -6033,8 +5920,7 @@
         "y": 32212,
         "z": 11
       },
-      "kind": "hunt",
-      "huntId": 2676693
+      "kind": "blocked"
     },
     {
       "from": {
@@ -6117,8 +6003,7 @@
         "y": 31915,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2413690
+      "kind": "blocked"
     },
     {
       "from": {
@@ -6131,8 +6016,7 @@
         "y": 31609,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 53
+      "kind": "stay"
     },
     {
       "from": {
@@ -6160,7 +6044,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2280874
+      "huntId": 2510679
     },
     {
       "from": {
@@ -6201,8 +6085,7 @@
         "y": 32453,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2545504
+      "kind": "stay"
     },
     {
       "from": {
@@ -6257,8 +6140,7 @@
         "y": 32297,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2280874
+      "kind": "stay"
     },
     {
       "from": {
@@ -6271,8 +6153,7 @@
         "y": 32328,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2180915
+      "kind": "stay"
     },
     {
       "from": {
@@ -6342,7 +6223,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 69
+      "huntId": 2167504
     },
     {
       "from": {
@@ -6356,7 +6237,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2578375
+      "huntId": 2275911
     },
     {
       "from": {
@@ -6426,7 +6307,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2575553
+      "huntId": 2620325
     },
     {
       "from": {
@@ -6440,7 +6321,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2575553
+      "huntId": 2620325
     },
     {
       "from": {
@@ -6453,8 +6334,7 @@
         "y": 31911,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2575553
+      "kind": "stay"
     },
     {
       "from": {
@@ -6468,7 +6348,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2810327
+      "huntId": 2302448
     },
     {
       "from": {
@@ -6481,8 +6361,7 @@
         "y": 32004,
         "z": 11
       },
-      "kind": "hunt",
-      "huntId": 2804820
+      "kind": "blocked"
     },
     {
       "from": {
@@ -6496,7 +6375,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2968417
+      "huntId": 2792348
     },
     {
       "from": {
@@ -6510,7 +6389,7 @@
         "z": 9
       },
       "kind": "hunt",
-      "huntId": 2575553
+      "huntId": 2620325
     },
     {
       "from": {
@@ -6523,8 +6402,7 @@
         "y": 32642,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2505698
+      "kind": "stay"
     },
     {
       "from": {
@@ -6538,7 +6416,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2829701
+      "huntId": 2141459
     },
     {
       "from": {
@@ -6551,8 +6429,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -6566,7 +6443,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2559812
+      "huntId": 2919528
     },
     {
       "from": {
@@ -6580,7 +6457,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2559812
+      "huntId": 2919528
     },
     {
       "from": {
@@ -6719,8 +6596,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -6734,7 +6610,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2522889
+      "huntId": 208
     },
     {
       "from": {
@@ -6747,8 +6623,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -6762,7 +6637,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2522889
+      "huntId": 208
     },
     {
       "from": {
@@ -6788,8 +6663,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -6843,8 +6717,7 @@
         "y": 32036,
         "z": 11
       },
-      "kind": "hunt",
-      "huntId": 2700118
+      "kind": "stay"
     },
     {
       "from": {
@@ -6900,7 +6773,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2522889
+      "huntId": 208
     },
     {
       "from": {
@@ -6913,8 +6786,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -6928,7 +6800,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2522889
+      "huntId": 208
     },
     {
       "from": {
@@ -6955,7 +6827,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 2656384
+      "huntId": 2251528
     },
     {
       "from": {
@@ -6982,8 +6854,7 @@
         "y": 32039,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2049951
+      "kind": "stay"
     },
     {
       "from": {
@@ -7024,8 +6895,7 @@
         "y": 32781,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2201759
+      "kind": "stay"
     },
     {
       "from": {
@@ -7051,8 +6921,7 @@
         "y": 32035,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 295
+      "kind": "stay"
     },
     {
       "from": {
@@ -7065,8 +6934,7 @@
         "y": 32026,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 295
+      "kind": "stay"
     },
     {
       "from": {
@@ -7079,8 +6947,7 @@
         "y": 31943,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2991473
+      "kind": "stay"
     },
     {
       "from": {
@@ -7094,7 +6961,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2960401
+      "huntId": 2284745
     },
     {
       "from": {
@@ -7107,8 +6974,7 @@
         "y": 31026,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2214555
+      "kind": "blocked"
     },
     {
       "from": {
@@ -7121,8 +6987,7 @@
         "y": 31449,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 138
+      "kind": "stay"
     },
     {
       "from": {
@@ -7149,8 +7014,7 @@
         "y": 32366,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2180915
+      "kind": "stay"
     },
     {
       "from": {
@@ -7191,7 +7055,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2968417
+      "huntId": 2792348
     },
     {
       "from": {
@@ -7204,8 +7068,7 @@
         "y": 31099,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2357248
+      "kind": "stay"
     },
     {
       "from": {
@@ -7218,8 +7081,7 @@
         "y": 32566,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2445383
+      "kind": "stay"
     },
     {
       "from": {
@@ -7232,8 +7094,7 @@
         "y": 32868,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2876072
+      "kind": "stay"
     },
     {
       "from": {
@@ -7246,8 +7107,7 @@
         "y": 31937,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2556712
+      "kind": "blocked"
     },
     {
       "from": {
@@ -7260,8 +7120,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -7274,8 +7133,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -7289,7 +7147,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 2559812
+      "huntId": 2919528
     },
     {
       "from": {
@@ -7303,7 +7161,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2829701
+      "huntId": 2467685
     },
     {
       "from": {
@@ -7316,8 +7174,7 @@
         "y": 32705,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -7330,8 +7187,7 @@
         "y": 31671,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2665857
+      "kind": "blocked"
     },
     {
       "from": {
@@ -7345,7 +7201,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2559812
+      "huntId": 2919528
     },
     {
       "from": {
@@ -7358,8 +7214,7 @@
         "y": 32836,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2663112
+      "kind": "stay"
     },
     {
       "from": {
@@ -7372,8 +7227,7 @@
         "y": 32644,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2283317
+      "kind": "stay"
     },
     {
       "from": {
@@ -7414,8 +7268,7 @@
         "y": 32744,
         "z": 10
       },
-      "kind": "hunt",
-      "huntId": 2663112
+      "kind": "stay"
     },
     {
       "from": {
@@ -7428,8 +7281,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -7442,8 +7294,7 @@
         "y": 32469,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2476725
+      "kind": "stay"
     },
     {
       "from": {
@@ -7456,8 +7307,7 @@
         "y": 32466,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2476725
+      "kind": "stay"
     },
     {
       "from": {
@@ -7471,7 +7321,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2620116
+      "huntId": 2175354
     },
     {
       "from": {
@@ -7485,7 +7335,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2596913
+      "huntId": 2740570
     },
     {
       "from": {
@@ -7498,8 +7348,7 @@
         "y": 31819,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 38
+      "kind": "stay"
     },
     {
       "from": {
@@ -7526,8 +7375,7 @@
         "y": 31819,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 38
+      "kind": "stay"
     },
     {
       "from": {
@@ -7567,8 +7415,7 @@
         "y": 32366,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2669655
+      "kind": "stay"
     },
     {
       "from": {
@@ -7581,8 +7428,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -7609,8 +7455,7 @@
         "y": 31918,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2367128
+      "kind": "stay"
     },
     {
       "from": {
@@ -7624,7 +7469,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2620116
+      "huntId": 2175354
     },
     {
       "from": {
@@ -7637,8 +7482,7 @@
         "y": 31690,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2665857
+      "kind": "blocked"
     },
     {
       "from": {
@@ -7651,8 +7495,7 @@
         "y": 31690,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2665857
+      "kind": "blocked"
     },
     {
       "from": {
@@ -7666,7 +7509,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2446505
+      "huntId": 2320527
     },
     {
       "from": {
@@ -7680,7 +7523,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2446505
+      "huntId": 2320527
     },
     {
       "from": {
@@ -7693,8 +7536,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -7707,8 +7549,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -7721,8 +7562,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -7735,8 +7575,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -7762,8 +7601,7 @@
         "y": 31918,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2367128
+      "kind": "stay"
     },
     {
       "from": {
@@ -7790,7 +7628,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 2522889
+      "huntId": 208
     },
     {
       "from": {
@@ -7804,7 +7642,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 2522889
+      "huntId": 208
     },
     {
       "from": {
@@ -7818,7 +7656,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 2951250
+      "huntId": 208
     },
     {
       "from": {
@@ -7832,7 +7670,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 2951250
+      "huntId": 208
     },
     {
       "from": {
@@ -7860,7 +7698,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 2951250
+      "huntId": 208
     },
     {
       "from": {
@@ -7874,7 +7712,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 2951250
+      "huntId": 208
     },
     {
       "from": {
@@ -7913,8 +7751,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -7983,8 +7820,7 @@
         "y": 32842,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2138168
+      "kind": "stay"
     },
     {
       "from": {
@@ -7997,8 +7833,7 @@
         "y": 32858,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2138168
+      "kind": "stay"
     },
     {
       "from": {
@@ -8011,8 +7846,7 @@
         "y": 32859,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2551369
+      "kind": "stay"
     },
     {
       "from": {
@@ -8025,8 +7859,7 @@
         "y": 32842,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2551369
+      "kind": "stay"
     },
     {
       "from": {
@@ -8039,8 +7872,7 @@
         "y": 32858,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2551369
+      "kind": "stay"
     },
     {
       "from": {
@@ -8053,8 +7885,7 @@
         "y": 32859,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2551369
+      "kind": "stay"
     },
     {
       "from": {
@@ -8067,8 +7898,7 @@
         "y": 31924,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2547618
+      "kind": "stay"
     },
     {
       "from": {
@@ -8096,7 +7926,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2541054
+      "huntId": 2318673
     },
     {
       "from": {
@@ -8122,8 +7952,7 @@
         "y": 31376,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 290
+      "kind": "stay"
     },
     {
       "from": {
@@ -8149,8 +7978,7 @@
         "y": 31347,
         "z": 11
       },
-      "kind": "hunt",
-      "huntId": 2116380
+      "kind": "stay"
     },
     {
       "from": {
@@ -8164,7 +7992,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 290
+      "huntId": 2985092
     },
     {
       "from": {
@@ -8177,8 +8005,7 @@
         "y": 31358,
         "z": 11
       },
-      "kind": "hunt",
-      "huntId": 2116380
+      "kind": "stay"
     },
     {
       "from": {
@@ -8191,8 +8018,7 @@
         "y": 31358,
         "z": 11
       },
-      "kind": "hunt",
-      "huntId": 2116380
+      "kind": "stay"
     },
     {
       "from": {
@@ -8205,8 +8031,7 @@
         "y": 31372,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 290
+      "kind": "stay"
     },
     {
       "from": {
@@ -8233,8 +8058,7 @@
         "y": 31290,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 290
+      "kind": "stay"
     },
     {
       "from": {
@@ -8248,7 +8072,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 290
+      "huntId": 2867472
     },
     {
       "from": {
@@ -8261,8 +8085,7 @@
         "y": 31384,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2901446
+      "kind": "stay"
     },
     {
       "from": {
@@ -8289,8 +8112,7 @@
         "y": 31320,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 116
+      "kind": "stay"
     },
     {
       "from": {
@@ -8303,8 +8125,7 @@
         "y": 31293,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2379702
+      "kind": "stay"
     },
     {
       "from": {
@@ -8317,8 +8138,7 @@
         "y": 31372,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 290
+      "kind": "stay"
     },
     {
       "from": {
@@ -8332,7 +8152,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 290
+      "huntId": 2985092
     },
     {
       "from": {
@@ -8346,7 +8166,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 290
+      "huntId": 2985092
     },
     {
       "from": {
@@ -8359,8 +8179,7 @@
         "y": 31376,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 290
+      "kind": "stay"
     },
     {
       "from": {
@@ -8373,8 +8192,7 @@
         "y": 31093,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 109
+      "kind": "stay"
     },
     {
       "from": {
@@ -8387,8 +8205,7 @@
         "y": 31376,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 290
+      "kind": "stay"
     },
     {
       "from": {
@@ -8401,8 +8218,7 @@
         "y": 31321,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 290
+      "kind": "stay"
     },
     {
       "from": {
@@ -8415,8 +8231,7 @@
         "y": 31093,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 109
+      "kind": "stay"
     },
     {
       "from": {
@@ -8429,8 +8244,7 @@
         "y": 31375,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2901446
+      "kind": "stay"
     },
     {
       "from": {
@@ -8443,8 +8257,7 @@
         "y": 31321,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 290
+      "kind": "stay"
     },
     {
       "from": {
@@ -8457,8 +8270,7 @@
         "y": 31375,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2901446
+      "kind": "stay"
     },
     {
       "from": {
@@ -8485,8 +8297,7 @@
         "y": 32888,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2397116
+      "kind": "blocked"
     },
     {
       "from": {
@@ -8499,8 +8310,7 @@
         "y": 32888,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2397116
+      "kind": "blocked"
     },
     {
       "from": {
@@ -8540,8 +8350,7 @@
         "y": 32344,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2749374
+      "kind": "stay"
     },
     {
       "from": {
@@ -8568,8 +8377,7 @@
         "y": 32387,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2807172
+      "kind": "stay"
     },
     {
       "from": {
@@ -8595,8 +8403,7 @@
         "y": 32289,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2280874
+      "kind": "stay"
     },
     {
       "from": {
@@ -8609,8 +8416,7 @@
         "y": 32871,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2375400
+      "kind": "blocked"
     },
     {
       "from": {
@@ -8623,8 +8429,7 @@
         "y": 32289,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2280874
+      "kind": "stay"
     },
     {
       "from": {
@@ -8637,8 +8442,7 @@
         "y": 32347,
         "z": 9
       },
-      "kind": "hunt",
-      "huntId": 2749374
+      "kind": "stay"
     },
     {
       "from": {
@@ -8651,8 +8455,7 @@
         "y": 32327,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2280874
+      "kind": "stay"
     },
     {
       "from": {
@@ -8665,8 +8468,7 @@
         "y": 31178,
         "z": 9
       },
-      "kind": "hunt",
-      "huntId": 2051498
+      "kind": "stay"
     },
     {
       "from": {
@@ -8692,8 +8494,7 @@
         "y": 32871,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2375400
+      "kind": "blocked"
     },
     {
       "from": {
@@ -8719,8 +8520,7 @@
         "y": 32331,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2280874
+      "kind": "stay"
     },
     {
       "from": {
@@ -8733,8 +8533,7 @@
         "y": 32273,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2280874
+      "kind": "stay"
     },
     {
       "from": {
@@ -8762,7 +8561,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2182819
+      "huntId": 2727555
     },
     {
       "from": {
@@ -8776,7 +8575,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2182819
+      "huntId": 2727555
     },
     {
       "from": {
@@ -8789,8 +8588,7 @@
         "y": 32725,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2716341
+      "kind": "blocked"
     },
     {
       "from": {
@@ -8803,8 +8601,7 @@
         "y": 31664,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2970738
+      "kind": "stay"
     },
     {
       "from": {
@@ -8817,8 +8614,7 @@
         "y": 31668,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2970738
+      "kind": "stay"
     },
     {
       "from": {
@@ -8831,8 +8627,7 @@
         "y": 32691,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2716341
+      "kind": "blocked"
     },
     {
       "from": {
@@ -8845,8 +8640,7 @@
         "y": 31097,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2357248
+      "kind": "stay"
     },
     {
       "from": {
@@ -8859,8 +8653,7 @@
         "y": 32642,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2505698
+      "kind": "stay"
     },
     {
       "from": {
@@ -8873,8 +8666,7 @@
         "y": 32610,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2023305
+      "kind": "stay"
     },
     {
       "from": {
@@ -8887,8 +8679,7 @@
         "y": 31620,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2193119
+      "kind": "stay"
     },
     {
       "from": {
@@ -8901,8 +8692,7 @@
         "y": 32569,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2023305
+      "kind": "stay"
     },
     {
       "from": {
@@ -8915,8 +8705,7 @@
         "y": 32635,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2023305
+      "kind": "stay"
     },
     {
       "from": {
@@ -8942,8 +8731,7 @@
         "y": 32736,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2158431
+      "kind": "stay"
     },
     {
       "from": {
@@ -8956,8 +8744,7 @@
         "y": 32760,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2158431
+      "kind": "stay"
     },
     {
       "from": {
@@ -8970,8 +8757,7 @@
         "y": 32705,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -8998,8 +8784,7 @@
         "y": 31941,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2556712
+      "kind": "blocked"
     },
     {
       "from": {
@@ -9038,8 +8823,7 @@
         "y": 32707,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9052,8 +8836,7 @@
         "y": 32671,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9066,8 +8849,7 @@
         "y": 32693,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9080,8 +8862,7 @@
         "y": 32679,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9094,8 +8875,7 @@
         "y": 32699,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9108,8 +8888,7 @@
         "y": 32704,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9122,8 +8901,7 @@
         "y": 32685,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9136,8 +8914,7 @@
         "y": 32674,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9150,8 +8927,7 @@
         "y": 32692,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9164,8 +8940,7 @@
         "y": 32682,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9178,8 +8953,7 @@
         "y": 32700,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9192,8 +8966,7 @@
         "y": 32694,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9206,8 +8979,7 @@
         "y": 32685,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2308260
+      "kind": "stay"
     },
     {
       "from": {
@@ -9220,8 +8992,7 @@
         "y": 32671,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9234,8 +9005,7 @@
         "y": 32677,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -9249,7 +9019,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2022132
+      "huntId": 2085408
     },
     {
       "from": {
@@ -9262,8 +9032,7 @@
         "y": 32577,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2445383
+      "kind": "stay"
     },
     {
       "from": {
@@ -9277,7 +9046,7 @@
         "z": 13
       },
       "kind": "hunt",
-      "huntId": 2068250
+      "huntId": 2500886
     },
     {
       "from": {
@@ -9291,7 +9060,7 @@
         "z": 11
       },
       "kind": "hunt",
-      "huntId": 2559812
+      "huntId": 2919528
     },
     {
       "from": {
@@ -9319,7 +9088,7 @@
         "z": 10
       },
       "kind": "hunt",
-      "huntId": 2620116
+      "huntId": 2175354
     },
     {
       "from": {
@@ -9346,8 +9115,7 @@
         "y": 32744,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2663112
+      "kind": "stay"
     },
     {
       "from": {
@@ -9403,7 +9171,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2620116
+      "huntId": 2447274
     },
     {
       "from": {
@@ -9457,8 +9225,7 @@
         "y": 32469,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2476725
+      "kind": "stay"
     },
     {
       "from": {
@@ -9485,8 +9252,7 @@
         "y": 32282,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2985034
+      "kind": "stay"
     },
     {
       "from": {
@@ -9513,8 +9279,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -9553,8 +9318,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -9567,8 +9331,7 @@
         "y": 32340,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2669655
+      "kind": "stay"
     },
     {
       "from": {
@@ -9633,8 +9396,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -9701,8 +9463,7 @@
         "y": 32338,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2669655
+      "kind": "stay"
     },
     {
       "from": {
@@ -9715,8 +9476,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -9840,7 +9600,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 210
+      "huntId": 2960935
     },
     {
       "from": {
@@ -10102,8 +9862,7 @@
         "y": 32843,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2402789
+      "kind": "stay"
     },
     {
       "from": {
@@ -10116,8 +9875,7 @@
         "y": 32850,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2402789
+      "kind": "stay"
     },
     {
       "from": {
@@ -10130,8 +9888,7 @@
         "y": 32844,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2551369
+      "kind": "stay"
     },
     {
       "from": {
@@ -10144,8 +9901,7 @@
         "y": 32850,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2551369
+      "kind": "stay"
     },
     {
       "from": {
@@ -10159,7 +9915,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2049951
+      "huntId": 2251528
     },
     {
       "from": {
@@ -10213,7 +9969,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 290
+      "huntId": 2985092
     },
     {
       "from": {
@@ -10226,8 +9982,7 @@
         "y": 31870,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 38
+      "kind": "stay"
     },
     {
       "from": {
@@ -10240,8 +9995,7 @@
         "y": 31870,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 38
+      "kind": "stay"
     },
     {
       "from": {
@@ -10254,8 +10008,7 @@
         "y": 32084,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 295
+      "kind": "stay"
     },
     {
       "from": {
@@ -10268,8 +10021,7 @@
         "y": 32084,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 295
+      "kind": "stay"
     },
     {
       "from": {
@@ -10282,8 +10034,7 @@
         "y": 32075,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 295
+      "kind": "stay"
     },
     {
       "from": {
@@ -10296,8 +10047,7 @@
         "y": 31891,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2303209
+      "kind": "stay"
     },
     {
       "from": {
@@ -10323,8 +10073,7 @@
         "y": 31845,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 38
+      "kind": "stay"
     },
     {
       "from": {
@@ -10337,8 +10086,7 @@
         "y": 31905,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2303209
+      "kind": "stay"
     },
     {
       "from": {
@@ -10364,8 +10112,7 @@
         "y": 31855,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 38
+      "kind": "stay"
     },
     {
       "from": {
@@ -10378,8 +10125,7 @@
         "y": 31846,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 38
+      "kind": "blocked"
     },
     {
       "from": {
@@ -10518,8 +10264,7 @@
         "y": 31625,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2729910
+      "kind": "stay"
     },
     {
       "from": {
@@ -10572,8 +10317,7 @@
         "y": 32503,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2208091
+      "kind": "stay"
     },
     {
       "from": {
@@ -10586,8 +10330,7 @@
         "y": 31490,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2541054
+      "kind": "stay"
     },
     {
       "from": {
@@ -10656,8 +10399,7 @@
         "y": 31490,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2541054
+      "kind": "stay"
     },
     {
       "from": {
@@ -10684,8 +10426,7 @@
         "y": 32386,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2807172
+      "kind": "stay"
     },
     {
       "from": {
@@ -10712,8 +10453,7 @@
         "y": 32124,
         "z": 9
       },
-      "kind": "hunt",
-      "huntId": 2139960
+      "kind": "blocked"
     },
     {
       "from": {
@@ -10740,8 +10480,7 @@
         "y": 32344,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2749374
+      "kind": "stay"
     },
     {
       "from": {
@@ -10769,7 +10508,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2280874
+      "huntId": 2731262
     },
     {
       "from": {
@@ -10809,8 +10548,7 @@
         "y": 32328,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2180915
+      "kind": "stay"
     },
     {
       "from": {
@@ -10823,8 +10561,7 @@
         "y": 32309,
         "z": 12
       },
-      "kind": "hunt",
-      "huntId": 2280874
+      "kind": "stay"
     },
     {
       "from": {
@@ -10837,8 +10574,7 @@
         "y": 32328,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2180915
+      "kind": "stay"
     },
     {
       "from": {
@@ -10921,8 +10657,7 @@
         "y": 31780,
         "z": 11
       },
-      "kind": "hunt",
-      "huntId": 106
+      "kind": "stay"
     },
     {
       "from": {
@@ -10935,8 +10670,7 @@
         "y": 32858,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2551369
+      "kind": "stay"
     },
     {
       "from": {
@@ -10992,7 +10726,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2392635
+      "huntId": 2545517
     },
     {
       "from": {
@@ -11020,7 +10754,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2357248
+      "huntId": 2792348
     },
     {
       "from": {
@@ -11033,8 +10767,7 @@
         "y": 31867,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2575553
+      "kind": "stay"
     },
     {
       "from": {
@@ -11048,7 +10781,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2357248
+      "huntId": 2792348
     },
     {
       "from": {
@@ -11075,7 +10808,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2392635
+      "huntId": 2545517
     },
     {
       "from": {
@@ -11089,7 +10822,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2810327
+      "huntId": 2315274
     },
     {
       "from": {
@@ -11102,8 +10835,7 @@
         "y": 31780,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2449012
+      "kind": "blocked"
     },
     {
       "from": {
@@ -11143,7 +10875,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2392635
+      "huntId": 2545517
     },
     {
       "from": {
@@ -11170,7 +10902,7 @@
         "z": 7
       },
       "kind": "hunt",
-      "huntId": 2015890
+      "huntId": 2407322
     },
     {
       "from": {
@@ -11183,8 +10915,7 @@
         "y": 31867,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2575553
+      "kind": "stay"
     },
     {
       "from": {
@@ -11197,8 +10928,7 @@
         "y": 31781,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2302223
+      "kind": "blocked"
     },
     {
       "from": {
@@ -11212,7 +10942,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2644758
+      "huntId": 2217787
     },
     {
       "from": {
@@ -11226,7 +10956,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2968417
+      "huntId": 2792348
     },
     {
       "from": {
@@ -11240,7 +10970,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 2357248
+      "huntId": 2792348
     },
     {
       "from": {
@@ -11308,8 +11038,7 @@
         "y": 31542,
         "z": 9
       },
-      "kind": "hunt",
-      "huntId": 2624502
+      "kind": "stay"
     },
     {
       "from": {
@@ -11322,8 +11051,7 @@
         "y": 32665,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2298328
+      "kind": "stay"
     },
     {
       "from": {
@@ -11336,8 +11064,7 @@
         "y": 32781,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2025853
+      "kind": "stay"
     },
     {
       "from": {
@@ -11350,8 +11077,7 @@
         "y": 32566,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2445383
+      "kind": "stay"
     },
     {
       "from": {
@@ -11418,8 +11144,7 @@
         "y": 32592,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2445383
+      "kind": "stay"
     },
     {
       "from": {
@@ -11433,7 +11158,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2644758
+      "huntId": 2128936
     },
     {
       "from": {
@@ -11502,8 +11227,7 @@
         "y": 31689,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2665857
+      "kind": "blocked"
     },
     {
       "from": {
@@ -11544,8 +11268,7 @@
         "y": 32657,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2505698
+      "kind": "stay"
     },
     {
       "from": {
@@ -11585,8 +11308,7 @@
         "y": 32503,
         "z": 8
       },
-      "kind": "hunt",
-      "huntId": 2208091
+      "kind": "stay"
     },
     {
       "from": {
@@ -11599,8 +11321,7 @@
         "y": 32627,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2505698
+      "kind": "stay"
     },
     {
       "from": {
@@ -11640,8 +11361,7 @@
         "y": 31719,
         "z": 14
       },
-      "kind": "hunt",
-      "huntId": 2665857
+      "kind": "blocked"
     },
     {
       "from": {
@@ -11654,8 +11374,7 @@
         "y": 31649,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2829701
+      "kind": "blocked"
     },
     {
       "from": {
@@ -11668,8 +11387,7 @@
         "y": 31670,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2015890
+      "kind": "blocked"
     },
     {
       "from": {
@@ -11682,8 +11400,7 @@
         "y": 31670,
         "z": 7
       },
-      "kind": "hunt",
-      "huntId": 2015890
+      "kind": "blocked"
     },
     {
       "from": {
@@ -11710,8 +11427,7 @@
         "y": 31938,
         "z": 5
       },
-      "kind": "hunt",
-      "huntId": 2489057
+      "kind": "blocked"
     },
     {
       "from": {
@@ -11724,8 +11440,7 @@
         "y": 32460,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2476725
+      "kind": "stay"
     },
     {
       "from": {
@@ -11805,7 +11520,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2951250
+      "huntId": 208
     },
     {
       "from": {
@@ -11819,7 +11534,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2951250
+      "huntId": 208
     },
     {
       "from": {
@@ -11847,7 +11562,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2951250
+      "huntId": 208
     },
     {
       "from": {
@@ -11913,8 +11628,7 @@
         "y": 32318,
         "z": 13
       },
-      "kind": "hunt",
-      "huntId": 2596913
+      "kind": "stay"
     },
     {
       "from": {
@@ -11928,7 +11642,7 @@
         "z": 15
       },
       "kind": "hunt",
-      "huntId": 2716117
+      "huntId": 2807754
     },
     {
       "from": {
@@ -11968,7 +11682,7 @@
         "z": 1
       },
       "kind": "hunt",
-      "huntId": 2509362
+      "huntId": 2912525
     },
     {
       "from": {
@@ -11981,8 +11695,7 @@
         "y": 32111,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2853382
+      "kind": "stay"
     },
     {
       "from": {
@@ -11995,8 +11708,7 @@
         "y": 32111,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2853382
+      "kind": "stay"
     },
     {
       "from": {
@@ -12009,8 +11721,7 @@
         "y": 32318,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2876603
+      "kind": "stay"
     },
     {
       "from": {
@@ -12023,8 +11734,7 @@
         "y": 32055,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 213
+      "kind": "stay"
     },
     {
       "from": {
@@ -12051,7 +11761,7 @@
         "z": 12
       },
       "kind": "hunt",
-      "huntId": 2951250
+      "huntId": 208
     },
     {
       "from": {
@@ -12064,8 +11774,7 @@
         "y": 32318,
         "z": 15
       },
-      "kind": "hunt",
-      "huntId": 2876603
+      "kind": "stay"
     },
     {
       "from": {
@@ -12092,7 +11801,7 @@
         "z": 14
       },
       "kind": "hunt",
-      "huntId": 210
+      "huntId": 2960935
     },
     {
       "from": {

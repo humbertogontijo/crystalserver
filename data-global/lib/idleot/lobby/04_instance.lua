@@ -1,134 +1,34 @@
--- Lobby room: shared stamped footprint (world template) + one reserved engine channel of the
--- lobby place ("lobby:0:<channel>") per live lobby. Built when the first member enters, torn
--- down when empty. Never saved.
+-- Lobby room: stamped variant footprints (world template, see 03_variants.lua) + one reserved
+-- engine channel of the lobby place ("lobby:0:<channel>") per live lobby, fenced on the
+-- variant matching the lobby's expedition. Built when the first member enters, torn down
+-- when empty. Never saved.
 LobbyInstance = LobbyInstance or {}
 
 local templateReady = false
--- lobbyId -> room { lobbyId, instanceId, channel, origin, floorOrigin, entry, ... }
+-- lobbyId -> room { lobbyId, instanceId, channel, variantKey, origin, floorOrigin, entry, slots, ... }
 local roomsByLobbyId = {}
 -- engine instance key -> lobbyId
 local lobbyIdByInstance = {}
 
-local function outerW()
-	return LobbyConfig.ROOM_FLOOR_W + 2
-end
-
-local function outerH()
-	return LobbyConfig.ROOM_FLOOR_H + 2
-end
-
-local function origin()
-	return Position(LobbyConfig.ROOM_BASE_X, LobbyConfig.ROOM_BASE_Y, LobbyConfig.ROOM_Z)
-end
-
-local function floorOrigin()
-	return Position(LobbyConfig.ROOM_BASE_X + 1, LobbyConfig.ROOM_BASE_Y + 1, LobbyConfig.ROOM_Z)
-end
-
-local function wallId(lx, ly)
-	local maxX, maxY = outerW() - 1, outerH() - 1
-	local onN, onS = ly == 0, ly == maxY
-	local onW, onE = lx == 0, lx == maxX
-	if onN and onW then
-		return LobbyConfig.ROOM_WALL_TL
-	elseif onN and onE then
-		return LobbyConfig.ROOM_WALL_TR
-	elseif onS and onW then
-		return LobbyConfig.ROOM_WALL_BL
-	elseif onS and onE then
-		return LobbyConfig.ROOM_WALL_BR
-	elseif onN or onS then
-		return LobbyConfig.ROOM_WALL_H
-	elseif onW or onE then
-		return LobbyConfig.ROOM_WALL_V
-	end
-	return nil
-end
-
-local function ensureTile(pos)
-	return Tile(pos) or Game.createTile(pos, false)
-end
-
-local function ensureGround(pos, itemId)
-	local tile = ensureTile(pos)
-	if not tile then
-		return nil
-	end
-	local ground = tile:getGround()
-	if not ground then
-		Game.createItem(itemId, 1, pos)
-	elseif ground:getId() ~= itemId then
-		ground:transform(itemId)
-	end
-	return Tile(pos)
-end
-
-local function ensureItem(pos, itemId, actionId)
-	local tile = ensureTile(pos)
-	if not tile then
-		return nil
-	end
-	local item = tile:getItemById(itemId)
-	if not item then
-		item = Game.createItem(itemId, 1, pos)
-	end
-	if item and actionId then
-		item:setActionId(actionId)
-	end
-	return item
-end
-
---- Stamp the shared room on instance 0 once (floor, walls, PZ flags, fixtures).
+--- Stamp every room variant on instance 0 once (floor, walls, PZ flags, fixtures, lever rooms).
 function LobbyInstance.ensureTemplate()
 	if templateReady then
 		return true
 	end
-	local o = origin()
-	local fo = floorOrigin()
-	local floorId = LobbyConfig.ROOM_FLOOR_ID
-
-	for ly = 0, LobbyConfig.ROOM_FLOOR_H - 1 do
-		for lx = 0, LobbyConfig.ROOM_FLOOR_W - 1 do
-			local tile = ensureGround(Position(fo.x + lx, fo.y + ly, fo.z), floorId)
-			if tile and tile.setFlag then
-				tile:setFlag(TILESTATE_PROTECTIONZONE)
-			end
-		end
-	end
-
-	local maxX, maxY = outerW() - 1, outerH() - 1
-	for ly = 0, maxY do
-		for lx = 0, maxX do
-			local id = wallId(lx, ly)
-			if id then
-				local pos = Position(o.x + lx, o.y + ly, o.z)
-				-- The NE / SW corner sprites are drawn without floor beneath them.
-				local bare = (lx == maxX and ly == 0) or (lx == 0 and ly == maxY)
-				if bare then
-					ensureTile(pos)
-				else
-					ensureGround(pos, floorId)
-				end
-				ensureItem(pos, id)
-			end
-		end
-	end
-
-	for _, spec in ipairs(LobbyConfig.fixtureLayout()) do
-		ensureItem(Position(fo.x + spec.dx, fo.y + spec.dy, fo.z), spec.id, LobbyConfig.FIXTURE_ACTION_ID)
-	end
-
+	LobbyVariants.stampAll()
 	templateReady = true
-	logger.info("[Lobby] room template stamped at {},{},{}", o.x, o.y, o.z)
+	logger.info("[Lobby] room template stamped at {},{},{}", LobbyConfig.ROOM_BASE_X, LobbyConfig.ROOM_BASE_Y, LobbyConfig.ROOM_Z)
 	return true
 end
 
+--- Any stamped lobby room tile (walls included), whichever variant.
 function LobbyInstance.isLobbyPosition(pos)
-	if not pos then
-		return false
-	end
-	local o = origin()
-	return pos.z == o.z and pos.x >= o.x and pos.x < o.x + outerW() and pos.y >= o.y and pos.y < o.y + outerH()
+	return LobbyVariants.atPosition(pos) ~= nil
+end
+
+local function inRoomRect(room, pos)
+	local o = room.origin
+	return pos.z == o.z and pos.x >= o.x and pos.x < o.x + room.width and pos.y >= o.y and pos.y < o.y + room.height
 end
 
 function LobbyInstance.getRoom(record)
@@ -140,13 +40,13 @@ function LobbyInstance.roomByInstanceId(instanceId)
 	return lobbyId and roomsByLobbyId[lobbyId] or nil
 end
 
---- Room the player is standing in (by engine instance id), if any.
+--- Room the player is standing in (by engine instance id and the room's current variant), if any.
 function LobbyInstance.roomForPlayer(player)
 	if not player or not player.getInstanceId then
 		return nil
 	end
 	local room = LobbyInstance.roomByInstanceId(player:getInstanceId())
-	if room and LobbyInstance.isLobbyPosition(player:getPosition()) then
+	if room and inRoomRect(room, player:getPosition()) then
 		return room
 	end
 	return nil
@@ -157,6 +57,26 @@ function LobbyInstance.isInRoom(player, record)
 	return room ~= nil and record ~= nil and room.lobbyId == record.id
 end
 
+--- Point the room at `variant` (geometry, slots, fixtures) and fence the instance on it.
+local function placeRoom(room, variant)
+	local fo = variant.floorOrigin
+	room.variantKey = variant.key
+	room.origin = variant.origin
+	room.floorOrigin = fo
+	room.width, room.height = LobbyVariants.outerSize()
+	room.slots = variant.slots
+	room.lever = variant.lever
+	room.entry = Position(fo.x + LobbyConfig.SPAWN_OFFSETS[1][1], fo.y + LobbyConfig.SPAWN_OFFSETS[1][2], fo.z)
+	for _, spec in ipairs(LobbyConfig.fixtureLayout()) do
+		if spec.key then
+			room[spec.key] = Position(fo.x + spec.dx, fo.y + spec.dy, fo.z)
+		end
+	end
+	local o = room.origin
+	-- Replaces the previous fence of this instance.
+	Game.setInstancePrivateFence(room.instanceId, nil, { x = o.x, y = o.y, w = room.width, h = room.height }, { o.z })
+end
+
 --- Allocate the private overlay for a lobby (idempotent).
 function LobbyInstance.ensureRoom(record)
 	if not record then
@@ -164,6 +84,7 @@ function LobbyInstance.ensureRoom(record)
 	end
 	local existing = roomsByLobbyId[record.id]
 	if existing then
+		LobbyInstance.applyVariant(record)
 		return existing
 	end
 	LobbyInstance.ensureTemplate()
@@ -171,30 +92,18 @@ function LobbyInstance.ensureRoom(record)
 	if engineId == nil then
 		return nil, "No lobby rooms available right now."
 	end
-	local o = origin()
-	local fo = floorOrigin()
 	local room = {
 		lobbyId = record.id,
 		instanceId = engineId,
 		channel = Instance.channel(engineId),
-		origin = o,
-		floorOrigin = fo,
-		width = outerW(),
-		height = outerH(),
-		entry = Position(fo.x + LobbyConfig.SPAWN_OFFSETS[1][1], fo.y + LobbyConfig.SPAWN_OFFSETS[1][2], fo.z),
 	}
-	for _, spec in ipairs(LobbyConfig.fixtureLayout()) do
-		if spec.key then
-			room[spec.key] = Position(fo.x + spec.dx, fo.y + spec.dy, fo.z)
-		end
-	end
-	Game.setInstancePrivateFence(engineId, nil, { x = o.x, y = o.y, w = room.width, h = room.height }, { o.z })
+	placeRoom(room, LobbyVariants.get(LobbyVariants.keyForRecord(record)))
 	if InstanceWorld and InstanceWorld.rememberFloors then
-		InstanceWorld.rememberFloors(engineId, { [o.z] = true })
+		InstanceWorld.rememberFloors(engineId, { [LobbyConfig.ROOM_Z] = true })
 	end
 	roomsByLobbyId[record.id] = room
 	lobbyIdByInstance[engineId] = record.id
-	logger.info("[Lobby] room built for lobby #{} instance={}", record.id, engineId)
+	logger.info("[Lobby] room built for lobby #{} instance={} variant={}", record.id, engineId, room.variantKey)
 	return room
 end
 
@@ -212,26 +121,135 @@ local function occupants(room)
 end
 LobbyInstance.occupants = occupants
 
+--- Interior tile a creature can stand on (ground, nothing solid); fixtures and cloned decor block.
+local function walkable(room, x, y)
+	local fo = room.floorOrigin
+	if x < fo.x or y < fo.y or x >= fo.x + LobbyConfig.ROOM_FLOOR_W or y >= fo.y + LobbyConfig.ROOM_FLOOR_H then
+		return false
+	end
+	local tile = Tile(Position(x, y, fo.z))
+	if not tile or not tile:getGround() then
+		return false
+	end
+	return not (
+		tile:hasProperty(CONST_PROP_BLOCKSOLID)
+		or tile:hasProperty(CONST_PROP_IMMOVABLEBLOCKSOLID)
+		or tile:hasProperty(CONST_PROP_BLOCKPATH)
+	)
+end
+
+local function takenTiles(room, except)
+	local taken = {}
+	for _, p in ipairs(occupants(room)) do
+		if p ~= except then
+			local pos = p:getPosition()
+			taken[pos.x .. ":" .. pos.y] = true
+		end
+	end
+	return taken
+end
+
+--- Nearest free walkable interior tile to (x, y), ring by ring.
+local function nearestFree(room, x, y, taken)
+	local maxR = math.max(LobbyConfig.ROOM_FLOOR_W, LobbyConfig.ROOM_FLOOR_H)
+	for r = 0, maxR do
+		for dy = -r, r do
+			for dx = -r, r do
+				if math.max(math.abs(dx), math.abs(dy)) == r then
+					local tx, ty = x + dx, y + dy
+					if not taken[tx .. ":" .. ty] and walkable(room, tx, ty) then
+						return Position(tx, ty, room.floorOrigin.z)
+					end
+				end
+			end
+		end
+	end
+	return nil
+end
+
 --- Free tile for the next arrival (spreads members around the room center).
 function LobbyInstance.spawnPosition(room, index)
 	local fo = room.floorOrigin
-	local taken = {}
-	for _, p in ipairs(occupants(room)) do
-		local pos = p:getPosition()
-		taken[pos.x .. ":" .. pos.y] = true
-	end
 	local offsets = LobbyConfig.SPAWN_OFFSETS
 	if index then
 		local o = offsets[((index - 1) % #offsets) + 1]
 		return Position(fo.x + o[1], fo.y + o[2], fo.z)
 	end
+	local taken = takenTiles(room)
 	for _, o in ipairs(offsets) do
 		local x, y = fo.x + o[1], fo.y + o[2]
-		if not taken[x .. ":" .. y] then
+		if not taken[x .. ":" .. y] and walkable(room, x, y) then
 			return Position(x, y, fo.z)
 		end
 	end
-	return room.entry
+	return nearestFree(room, room.entry.x, room.entry.y, taken) or room.entry
+end
+
+local function memberIndex(record, guid)
+	for i, m in ipairs(record and record.members or {}) do
+		if m.guid == guid then
+			return i
+		end
+	end
+	return nil
+end
+
+--- Lever slot of `player` in a lever-boss room (member order), nil when none or taken.
+local function slotPosition(room, record, player, taken)
+	if not room.slots or not player.getGuid then
+		return nil
+	end
+	local index = memberIndex(record, player:getGuid())
+	local slot = index and room.slots[index]
+	if not slot then
+		return nil
+	end
+	local fo = room.floorOrigin
+	local x, y = fo.x + slot[1], fo.y + slot[2]
+	if taken[x .. ":" .. y] or not walkable(room, x, y) then
+		return nil
+	end
+	return Position(x, y, fo.z)
+end
+
+--- Arrival tile for `player`: their lever slot in lever-boss rooms, else a spawn tile.
+function LobbyInstance.arrivalPosition(room, record, player)
+	return slotPosition(room, record, player, takenTiles(room, player)) or LobbyInstance.spawnPosition(room)
+end
+
+local function moveWithin(room, creature, dest)
+	local ok
+	if InstanceWorld and InstanceWorld.enterInstance then
+		ok = InstanceWorld.enterInstance(creature, room.instanceId, dest)
+	else
+		ok = creature:teleportTo(dest, false, room.instanceId)
+	end
+	if ok then
+		Game.runInInstance(room.instanceId, function()
+			dest:sendMagicEffect(CONST_ME_TELEPORT)
+		end)
+	end
+	return ok
+end
+
+--- Lever-boss room: move the members inside onto their slots (member order).
+function LobbyInstance.arrange(record)
+	local room = record and roomsByLobbyId[record.id]
+	if not room or not room.slots then
+		return
+	end
+	local fo = room.floorOrigin
+	for _, p in ipairs(occupants(room)) do
+		local index = memberIndex(record, p:getGuid())
+		local slot = index and room.slots[index]
+		local pos = p:getPosition()
+		if slot and (pos.x ~= fo.x + slot[1] or pos.y ~= fo.y + slot[2]) then
+			local dest = slotPosition(room, record, p, takenTiles(room, p))
+			if dest then
+				moveWithin(room, p, dest)
+			end
+		end
+	end
 end
 
 local function removeInstanceThings(room)
@@ -255,6 +273,62 @@ local function removeInstanceThings(room)
 			end
 		end
 	end
+end
+
+--- Move a live room to the variant of the lobby's expedition: re-fence, then carry everyone
+--- inside to the same floor offsets (lever-boss rooms: onto the slots in member order).
+--- Returns true when the room switched.
+function LobbyInstance.applyVariant(record)
+	local room = record and roomsByLobbyId[record.id]
+	if not room then
+		return false
+	end
+	local variant = LobbyVariants.get(LobbyVariants.keyForRecord(record))
+	if not variant or variant.key == room.variantKey then
+		return false
+	end
+	local from = room.floorOrigin
+	local moves = {}
+	for _, p in ipairs(occupants(room)) do
+		local pos = p:getPosition()
+		if inRoomRect(room, pos) then
+			moves[#moves + 1] = { creature = p, dx = pos.x - from.x, dy = pos.y - from.y }
+			for _, summon in ipairs(p:getSummons() or {}) do
+				local spos = summon:getPosition()
+				if inRoomRect(room, spos) then
+					moves[#moves + 1] = { creature = summon, dx = spos.x - from.x, dy = spos.y - from.y, summon = true }
+				end
+			end
+		end
+	end
+	local previous = { origin = room.origin, width = room.width, height = room.height, instanceId = room.instanceId }
+	placeRoom(room, variant)
+
+	local to = room.floorOrigin
+	local taken = {}
+	local placed = {}
+	-- Slots first so offset moves cannot take a member's slot.
+	for i, move in ipairs(moves) do
+		if not move.summon then
+			local dest = slotPosition(room, record, move.creature, taken)
+			if dest then
+				taken[dest.x .. ":" .. dest.y] = true
+				placed[i] = dest
+			end
+		end
+	end
+	for i, move in ipairs(moves) do
+		local dest = placed[i] or nearestFree(room, to.x + move.dx, to.y + move.dy, taken) or room.entry
+		taken[dest.x .. ":" .. dest.y] = true
+		moveWithin(room, move.creature, dest)
+		if not move.summon and InstanceWorld and InstanceWorld.sendBounds then
+			InstanceWorld.sendBounds(move.creature, true)
+		end
+	end
+	-- Instance leftovers (lever / door forks) of the room just left; everyone moved first.
+	removeInstanceThings(previous)
+	logger.info("[Lobby] lobby #{} moved to room variant {}", record.id, variant.key)
+	return true
 end
 
 --- Tear down the overlay once nobody is inside. Safe to call any time.
@@ -327,7 +401,7 @@ function LobbyInstance.enterNow(creature, record, opts)
 	if player and player.isPlayer and player:isPlayer() and not alreadyIn then
 		saveReturnPos(player)
 	end
-	local dest = opts.position or LobbyInstance.spawnPosition(room)
+	local dest = opts.position or LobbyInstance.arrivalPosition(room, record, player)
 	local previousLobbyRoom = LobbyInstance.roomForPlayer(player)
 	local ok = false
 	if InstanceWorld and InstanceWorld.enterInstance then
@@ -441,6 +515,16 @@ function LobbyInstance.restoreOnLogin(player)
 	-- Headless deploys place straight onto a live room id.
 	local current = LobbyInstance.roomByInstanceId(player:getInstanceId())
 	if current then
+		-- The lobby switched room variant while this player was offline.
+		if not LobbyInstance.roomForPlayer(player) then
+			local record = LobbyStore.get(current.lobbyId)
+			local dest = record and LobbyInstance.arrivalPosition(current, record, player) or current.entry
+			if InstanceWorld and InstanceWorld.enterInstance then
+				InstanceWorld.enterInstance(player, current.instanceId, dest)
+			else
+				player:teleportTo(dest, false, current.instanceId)
+			end
+		end
 		return true
 	end
 	local record = LobbyManager and LobbyManager.ensureForPlayer and LobbyManager.ensureForPlayer(player) or nil

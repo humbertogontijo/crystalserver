@@ -1,6 +1,7 @@
 -- Lobby room travel + opcode 116 mux (recall, guild, room enter/leave, channel cancel, training).
 -- client -> server: goLobby | leaveLobby | goHometown | goGuild | channelCancel | startTraining | stopTraining
--- server -> client: error | trainingState | channelStart / channelComplete / channelCancelled
+--                   | listChannels | switchChannel {channel}
+-- server -> client: error | trainingState | channelStart / channelComplete / channelCancelled | instanceChannels
 LobbyTravel = LobbyTravel or {}
 
 local function replyError(player, message)
@@ -77,6 +78,15 @@ end
 
 actions.stopTraining = function(player)
 	return LobbyServices.stopTraining(player)
+end
+
+actions.listChannels = function(player)
+	InstanceWorld.sendChannels(player)
+	return true
+end
+
+actions.switchChannel = function(player, msg)
+	return InstanceWorld.requestChannelSwitch(player, msg.channel)
 end
 
 function LobbyTravel.handleOpcode(player, buffer)

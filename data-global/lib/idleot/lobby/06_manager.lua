@@ -517,6 +517,9 @@ function LobbyManager.update(host, opts)
 		end
 	end
 	LobbyStore.save(record)
+	if opts.expeditionId ~= nil and LobbyInstance and LobbyInstance.applyVariant then
+		LobbyInstance.applyVariant(record)
+	end
 	if LobbyManager.channelName(record) ~= previousChannelName then
 		-- Channels cannot be renamed in place: reopen under the new title.
 		LobbyManager.openChannel(record)

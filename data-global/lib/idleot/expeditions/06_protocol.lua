@@ -310,7 +310,41 @@ function ExpeditionProtocol.sendInstanceBounds(player, desc)
 		key = tostring(desc.key or ""),
 		channel = math.floor(tonumber(desc.channel) or 0),
 	}
-	return ExpeditionProtocol.send(player, payload)
+	local hunt = ExpeditionProtocol.openWorldHunt(player, payload)
+	if hunt then
+		payload.expeditionId = tostring(hunt.id)
+		payload.expeditionName = tostring(hunt.name or hunt.id)
+	end
+	local sent = ExpeditionProtocol.send(player, payload)
+	if CavebotProtocol then
+		CavebotProtocol.sendState(player)
+	end
+	return sent
+end
+
+--- Catalog hunt matching a public hunt / wild layer the player stands in (expedition hint).
+function ExpeditionProtocol.openWorldHunt(player, payload)
+	if payload.kind ~= "hunt" and payload.kind ~= "wild" then
+		return nil
+	end
+	if payload.key == "" or Instance.isPrivate(payload.key) then
+		return nil
+	end
+	local function isHunt(entry)
+		return entry and entry.role ~= "boss" and entry.role ~= "arena" and entry.kind ~= "boss"
+	end
+	for _, entry in ipairs(InstanceWorld.huntsAt and InstanceWorld.huntsAt(player:getPosition()) or {}) do
+		if isHunt(entry) then
+			return entry
+		end
+	end
+	if payload.kind == "hunt" then
+		local entry = ExpeditionConfig.getById(payload.subareaId, "monster")
+		if isHunt(entry) then
+			return entry
+		end
+	end
+	return nil
 end
 
 function ExpeditionProtocol.sendError(player, message)
@@ -480,8 +514,6 @@ function ExpeditionProtocol.handle(player, buffer)
 	elseif action == "declineTeamInvite" then
 		logger.info("[Expedition] {} declineTeamInvite", player:getName())
 		ExpeditionManager.declineTeamInvite(player)
-	elseif action == "resumeAuto" then
-		ExpeditionAI.resumeAuto(player)
 	elseif action == "setLure" then
 		ExpeditionManager.setLure(player, msg.lure)
 	elseif action == "setStopOptions" then

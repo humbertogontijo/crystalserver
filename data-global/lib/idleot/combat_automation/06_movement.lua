@@ -24,7 +24,7 @@ local PATH_FAIL_FRESH_MS = 1500
 --- path closed for a moment by a passing creature is not.
 local PATH_FAIL_PERSIST = 3
 local FOCUS_GRACE_MS = 1000
-local MANUAL_CONTROL_MS = 5000
+local MANUAL_CONTROL_MS = 3000
 
 local geo = CombatGeo
 local nowMs, sameTile, chebyshev, faceToward = geo.nowMs, geo.sameTile, geo.chebyshev, geo.faceToward
@@ -349,26 +349,120 @@ local function stepTo(player, dest)
 	return CombatAutomationMovement.queueWalkToward(player, dest, true)
 end
 
---- Monster types that cast beams / waves (directional areas), cached per name.
-local directionalByName = {}
-local function castsDirectional(monster)
+-- ---------------------------------------------------------------------------
+-- Wave / beam lines: members keep out of the directional attacks of monsters on
+-- screen (any monster; bosses also have their own, far stronger front rule below).
+-- ---------------------------------------------------------------------------
+
+--- Attacks of unknown shape (scripted monster spells) count as a cone this long.
+local LINE_FALLBACK_RANGE = 5
+local CARDINAL_DIRS = { DIRECTION_NORTH, DIRECTION_EAST, DIRECTION_SOUTH, DIRECTION_WEST }
+
+local function offsetKey(dx, dy)
+	return (dx + 128) * 256 + (dy + 128)
+end
+
+--- Union of a monster type's directional attacks (waves / beams), cached per name:
+--- nil when it casts none, else per facing { list = { { dx, dy }, ... }, set =
+--- { [offsetKey] = true } } with offsets from the caster.
+local shapeByName = {}
+local function directionalShape(monster)
 	local mType = monster.getType and monster:getType()
 	if not mType or not mType.getAttackList then
-		return false
+		return nil
 	end
 	local name = mType:name()
-	local cached = directionalByName[name]
+	local cached = shapeByName[name]
 	if cached == nil then
-		cached = false
-		for _, attack in ipairs(mType:getAttackList() or {}) do
-			if attack.needDirection then
-				cached = true
-				break
+		local north, any = {}, false
+		local function add(dx, dy)
+			if dx ~= 0 or dy ~= 0 then
+				north[offsetKey(dx, dy)] = { dx, dy }
 			end
 		end
-		directionalByName[name] = cached
+		for _, attack in ipairs(mType:getAttackList() or {}) do
+			if attack.needDirection then
+				any = true
+				if type(attack.area) == "table" and #attack.area > 0 then
+					for _, off in ipairs(attack.area) do
+						add(off.x, off.y)
+					end
+				else
+					for f = 1, LINE_FALLBACK_RANGE do
+						for l = 1 - f, f - 1 do
+							add(l, -f)
+						end
+					end
+				end
+			end
+		end
+		cached = false
+		if any then
+			cached = {}
+			for _, dir in ipairs(CARDINAL_DIRS) do
+				local list, set = {}, {}
+				for _, off in pairs(north) do
+					local dx, dy = geo.rotateOffset(off[1], off[2], dir)
+					list[#list + 1] = { dx, dy }
+					set[offsetKey(dx, dy)] = true
+				end
+				cached[dir] = { list = list, set = set }
+			end
+		end
+		shapeByName[name] = cached
 	end
-	return cached
+	return cached or nil
+end
+
+--- Directional casters fighting on `player`'s screen: `tiles` counts per tile the
+--- casters fighting someone else whose line covers it (as they face now); `mine`
+--- lists the casters targeting `player`, which turn toward it wherever it stands.
+--- Nil when there are none.
+local function lineDanger(player)
+	local monsters = CombatAutomation.visibleMonsters and CombatAutomation.visibleMonsters(player) or {}
+	local tiles, mine, any = {}, {}, false
+	local myId = player:getId()
+	local z = player:getPosition().z
+	for _, monster in ipairs(monsters) do
+		local target = monster:getTarget()
+		local shape = target and directionalShape(monster)
+		local mpos = shape and monster:getPosition()
+		if mpos and mpos.z == z then
+			any = true
+			if target:getId() == myId then
+				mine[#mine + 1] = { pos = mpos, shape = shape }
+			else
+				local facing = shape[monster:getDirection()]
+				for _, off in ipairs(facing and facing.list or {}) do
+					local key = (mpos.x + off[1]) * 65536 + (mpos.y + off[2])
+					tiles[key] = (tiles[key] or 0) + 1
+				end
+			end
+		end
+	end
+	return any and { tiles = tiles, mine = mine } or nil
+end
+
+--- Casters whose line covers `pos` (exact diagonals of a caster turning toward it
+--- stay clear).
+local function linesCovering(lines, pos)
+	local count = lines.tiles[pos.x * 65536 + pos.y] or 0
+	for _, caster in ipairs(lines.mine) do
+		local dx, dy = pos.x - caster.pos.x, pos.y - caster.pos.y
+		local adx, ady = math.abs(dx), math.abs(dy)
+		if adx ~= ady then
+			local dir
+			if adx > ady then
+				dir = dx > 0 and DIRECTION_EAST or DIRECTION_WEST
+			else
+				dir = dy > 0 and DIRECTION_SOUTH or DIRECTION_NORTH
+			end
+			if caster.shape[dir].set[offsetKey(dx, dy)] then
+				count = count + 1
+			end
+		end
+	end
+	return count
 end
 
 -- ---------------------------------------------------------------------------
@@ -379,7 +473,7 @@ end
 --- Cone reach (wave / beam length).
 local BOSS_CONE_RANGE = 7
 --- A tile in a boss front loses this much (above every other positioning term).
-local BOSS_FRONT_PENALTY = 200
+local BOSS_FRONT_PENALTY = 10 * AnchorSpot.RING_TILE
 
 local bossByName = {}
 local function isBoss(monster)
@@ -480,10 +574,11 @@ function CombatAutomationMovement.rangedStance(player)
 end
 
 --- Expedition halt tile: the best `AnchorSpot` tile within `steps` walking steps (over
---- standable ground; creatures ignored, a blocked walk repicks) of `center`, less
---- BOSS_FRONT_PENALTY in a boss front. `opts`: center (Position, default the anchor),
---- steps, team ({ { id, slotDist }, ... }), exclude (set of `AnchorSpot.tileKey`
---- keys that failed to path). Returns pos, score, ring, unserved.
+--- standable ground; a blocked walk repicks) of `center`, less BOSS_FRONT_PENALTY in a
+--- boss front. `opts`: center (Position, default the anchor), steps, team
+--- ({ { id, slotDist }, ... }), exclude (set of `AnchorSpot.tileKey` keys that failed
+--- to path), avoidMonsters (never pick or walk through a tile a monster stands on; the
+--- ring still counts it). Returns pos, score, ring, unserved.
 function CombatAutomationMovement.bestAnchorSpot(anchor, opts)
 	opts = opts or {}
 	local center = opts.center or (anchor and anchor:getPosition())
@@ -505,6 +600,11 @@ function CombatAutomationMovement.bestAnchorSpot(anchor, opts)
 		end,
 		adjust = bosses[1] and function(x, y)
 			return inBossFront(anchor, Position(x, y, z), bosses) and -BOSS_FRONT_PENALTY or 0
+		end or nil,
+		passable = opts.avoidMonsters and function(x, y)
+			local tile = Tile(Position(x, y, z))
+			local top = tile and tile:getTopCreature(anchor:getInstanceId())
+			return not (top and top:isMonster())
 		end or nil,
 	}, team)
 	local x, y, score, ring, unserved = AnchorSpot.best(ctx, center.x, center.y, opts.steps or 0, opts.exclude)
@@ -549,7 +649,8 @@ end
 -- best on a cardinal lane (ranged: two free tiles between it and the monster box
 -- around the anchor, so a wave covers the box; melee: right outside the box, on any
 -- side while it stands next to the anchor), and
--- keeps out of the anchor's 3x3 where monsters stand. Ranged also keeps away from monsters
+-- keeps out of the anchor's 3x3 where monsters stand and out of wave / beam lines
+-- (`lineDanger`). Ranged also keeps away from monsters
 -- targeting it; melee fights next to its target and never steps away from monsters
 -- (low HP is retreatIfCritical's job). Formation is only for fighting: without a
 -- target the member trails (TRAIL_RADIUS, never ahead of the anchor) instead of
@@ -577,6 +678,9 @@ local UNSAFE_WALK_COST = 2
 --- Without a target a member trails within this many tiles of the anchor, never
 --- ahead of it along the travel front.
 local TRAIL_RADIUS = 3
+--- Per wave / beam line covering a tile (up to LINE_MAX_CASTERS lines).
+local LINE_PENALTY = 40
+local LINE_MAX_CASTERS = 3
 
 local function slotById(config, id)
 	for _, slot in ipairs(config and config.slots or {}) do
@@ -605,7 +709,8 @@ end
 --- band around the target; melee facing (diagonal to beam casters, orthogonal for
 --- its own wave spells) and a penalty when boxed in. Plus area-spell hits, minus
 --- walking, plus a little for the destination already chosen (a new one every tick
---- restarts autoWalk before its first step), less BOSS_FRONT_PENALTY in a boss front.
+--- restarts autoWalk before its first step), less BOSS_FRONT_PENALTY in a boss front
+--- and LINE_PENALTY per wave / beam line over it (members of an anchor only).
 --- Returns nil once it cannot beat `beat`.
 local function memberTileScore(ctx, pos, beat)
 	local player = ctx.player
@@ -662,6 +767,9 @@ local function memberTileScore(ctx, pos, beat)
 	end
 	if ctx.bosses[1] and inBossFront(player, pos, ctx.bosses) then
 		score = score - BOSS_FRONT_PENALTY
+	end
+	if ctx.lines then
+		score = score - LINE_PENALTY * math.min(linesCovering(ctx.lines, pos), LINE_MAX_CASTERS)
 	end
 	if beat and score + (ctx.areaSlot and AREA_BONUS_CAP or 0) <= beat then
 		return nil
@@ -788,10 +896,11 @@ local function driveMember(player, anchor, target, config, state, home)
 		threats = threats,
 		safeDist = safeDist,
 		bosses = bosses,
+		lines = anchor and lineDanger(player) or nil,
 		minFree = REPOSITION_MIN_FREE,
 		wantOrthogonal = melee and tpos ~= nil and CombatAutomation.hasDirectionalAttackSlot ~= nil
 			and CombatAutomation.hasDirectionalAttackSlot(config),
-		dodgeBeams = melee and tpos ~= nil and castsDirectional(target),
+		dodgeBeams = melee and tpos ~= nil and directionalShape(target) ~= nil,
 		prevDest = state and state.memberDest,
 		areaSlot = rememberedAreaSlot(config, state),
 	}
@@ -1035,7 +1144,7 @@ end
 --- Per-tick positioning: follow → anchorStance → hold → stance vs attack target.
 --- Members form up around the anchor only while attacking; otherwise they trail it.
 function CombatAutomationMovement.tick(player, config)
-	if not player or isManual(player) then
+	if not player or isManual(player) or PlayerErrand.owns(player) then
 		return
 	end
 	-- Let walk-then-act (Use / use-with) finish without stance/hold stealing the path.

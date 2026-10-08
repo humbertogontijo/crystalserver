@@ -44,6 +44,7 @@
 #include "items/containers/depot/depotlocker.hpp"
 #include "items/containers/rewards/reward.hpp"
 #include "items/item.hpp"
+#include "lua/creature/actions.hpp"
 #include "map/spectators.hpp"
 #include "kv/kv.hpp"
 
@@ -160,6 +161,7 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "isSoftDespawned", PlayerFunctions::luaPlayerIsSoftDespawned);
 	Lua::registerMethod(L, "Player", "hasWalkTask", PlayerFunctions::luaPlayerHasWalkTask);
 	Lua::registerMethod(L, "Player", "clearWalkTask", PlayerFunctions::luaPlayerClearWalkTask);
+	Lua::registerMethod(L, "Player", "useItem", PlayerFunctions::luaPlayerUseItem);
 	Lua::registerMethod(L, "Player", "isHeadless", PlayerFunctions::luaPlayerIsHeadless);
 	Lua::registerMethod(L, "Player", "setHeadless", PlayerFunctions::luaPlayerSetHeadless);
 	Lua::registerMethod(L, "Player", "switchClientTo", PlayerFunctions::luaPlayerSwitchClientTo);
@@ -1638,6 +1640,83 @@ int PlayerFunctions::luaPlayerClearWalkTask(lua_State* L) {
 		lua_pushnil(L);
 	}
 	return 1;
+}
+
+int PlayerFunctions::luaPlayerUseItem(lua_State* L) {
+	// player:useItem(item[, target]) -> ok, returnValue
+	// Uses `item` (on the map or carried) the way a client Use / Use-with does, from where the
+	// player stands: a map item must lie next to the player and `target` (Item, Creature or
+	// Position) within the item's use range. No walk and no deferred retry: the caller walks
+	// first and retries on RETURNVALUE_YOUAREEXHAUSTED.
+	const auto &player = Lua::getUserdataShared<Player>(L, 1);
+	const auto &item = Lua::getUserdataShared<Item>(L, 2);
+	if (!player || !item) {
+		Lua::pushBoolean(L, false);
+		lua_pushnumber(L, RETURNVALUE_NOTPOSSIBLE);
+		return 2;
+	}
+
+	Position fromPos;
+	uint8_t fromStackPos = 0;
+	Game::internalGetPosition(item, fromPos, fromStackPos);
+
+	const bool useWith = lua_gettop(L) >= 3 && !lua_isnil(L, 3);
+	Position toPos;
+	uint8_t toStackPos = 0;
+	std::shared_ptr<Creature> targetCreature;
+	ReturnValue ret = RETURNVALUE_NOERROR;
+	if (useWith) {
+		if (lua_isuserdata(L, 3)) {
+			const LuaData_t type = Lua::getUserdataType(L, 3);
+			if (type == LuaData_t::Player || type == LuaData_t::Monster || type == LuaData_t::Npc) {
+				targetCreature = Lua::getUserdataShared<Creature>(L, 3);
+				if (targetCreature) {
+					toPos = targetCreature->getPosition();
+				}
+			} else if (const auto &targetItem = Lua::getUserdataShared<Item>(L, 3)) {
+				Game::internalGetPosition(targetItem, toPos, toStackPos);
+			}
+		} else if (lua_istable(L, 3)) {
+			toPos = Lua::getPosition(L, 3);
+		}
+		if (toPos.x == 0 && toPos.y == 0) {
+			ret = RETURNVALUE_NOTPOSSIBLE;
+		}
+	}
+
+	if (ret == RETURNVALUE_NOERROR) {
+		ret = g_actions().canUse(player, fromPos);
+	}
+	if (ret == RETURNVALUE_NOERROR && useWith) {
+		ret = item->isMultiUse() ? g_actions().canUse(player, toPos, item) : RETURNVALUE_CANNOTUSETHISOBJECT;
+	}
+	if (ret == RETURNVALUE_NOERROR && !player->canDoAction()) {
+		ret = RETURNVALUE_YOUAREEXHAUSTED;
+	}
+	if (ret != RETURNVALUE_NOERROR) {
+		Lua::pushBoolean(L, false);
+		lua_pushnumber(L, ret);
+		return 2;
+	}
+
+	player->resetIdleTime();
+	player->setNextActionTask(nullptr);
+	const auto &useItem = g_game().resolveInstancedMapItem(player, item);
+	InstanceActorScope instanceActorScope(player);
+	bool ok = false;
+	if (useWith) {
+		ok = g_actions().useItemEx(player, fromPos, toPos, toStackPos, useItem, false, targetCreature);
+	} else {
+		// A container opens in the first free window.
+		uint8_t containerId = 0;
+		while (containerId < 0xFF && player->getContainerByID(containerId)) {
+			++containerId;
+		}
+		ok = g_actions().useItem(player, fromPos, containerId, useItem, false);
+	}
+	Lua::pushBoolean(L, ok);
+	lua_pushnumber(L, ok ? RETURNVALUE_NOERROR : RETURNVALUE_NOTPOSSIBLE);
+	return 2;
 }
 
 int PlayerFunctions::luaPlayerIsHeadless(lua_State* L) {

@@ -629,10 +629,52 @@ function EM_PRIV.clearBossAttemptsForSession(session)
 	end
 	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
 		local p = Player(id)
-		if p and not EM_PRIV.isSessionCompanion(session, p) and ExpeditionConfig.clearBossAttempt then
+		if p and ExpeditionConfig.clearBossAttempt then
 			ExpeditionConfig.clearBossAttempt(p)
 		end
 	end
+end
+
+--- Online players among `memberIds` (every fighter: humans and headless companions alike).
+local function onlineMembers(memberIds)
+	local players = {}
+	for _, id in ipairs(memberIds or {}) do
+		local p = Player(id)
+		if p then
+			players[#players + 1] = p
+		end
+	end
+	return players
+end
+
+--- Error when a team member of the boss session is still on that boss's cooldown (nil
+--- when everyone may fight it).
+function EM_PRIV.entryBossCooldownError(session)
+	if not session or session.role ~= "boss" then
+		return nil
+	end
+	local bossName = ExpeditionConfig.bossTypeName(session.catalog)
+	if not bossName then
+		return nil
+	end
+	local canFight, _, _, err = ExpeditionConfig.partyCanFightBoss(onlineMembers(ExpeditionManager.sessionMemberIds(session)), bossName)
+	if canFight then
+		return nil
+	end
+	return err or "A team member is on boss cooldown."
+end
+
+--- Boss cooldown for every fighter among `memberIds`, once they are actually inside: a
+--- cancelled entry channel never costs a cooldown.
+function EM_PRIV.applyEntryBossCooldown(session, memberIds)
+	if not session or session.role ~= "boss" then
+		return
+	end
+	local bossName = ExpeditionConfig.bossTypeName(session.catalog)
+	if not bossName then
+		return
+	end
+	ExpeditionConfig.applyBossCooldown(onlineMembers(memberIds), bossName)
 end
 
 function EM_PRIV.refundBossCooldownForSession(session)
@@ -643,14 +685,7 @@ function EM_PRIV.refundBossCooldownForSession(session)
 	if not bossName then
 		return
 	end
-	local humans = {}
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local p = Player(id)
-		if p and not EM_PRIV.isSessionCompanion(session, p) then
-			humans[#humans + 1] = p
-		end
-	end
-	ExpeditionConfig.clearBossCooldown(humans, bossName)
+	ExpeditionConfig.clearBossCooldown(onlineMembers(ExpeditionManager.sessionMemberIds(session)), bossName)
 end
 
 function EM_PRIV.syncHuntPersist(session)

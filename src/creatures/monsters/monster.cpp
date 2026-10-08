@@ -445,7 +445,7 @@ void Monster::onCreatureMove(const std::shared_ptr<Creature> &creature, const st
 			bool canSeeNewPos = canSee(newPos);
 			bool canSeeOldPos = canSee(oldPos);
 
-			if (canSeeNewPos && !canSeeOldPos) {
+			if ((canSeeNewPos && !canSeeOldPos) || (canAcquireTarget(newPos) && !canAcquireTarget(oldPos))) {
 				onCreatureEnter(creature);
 			} else if (!canSeeNewPos && canSeeOldPos) {
 				if (!isOpponent(creature) || !canKeepTarget(newPos)) {
@@ -697,7 +697,7 @@ void Monster::onCreatureFound(const std::shared_ptr<Creature> &creature, bool pu
 		addFriend(creature);
 	}
 
-	if (isOpponent(creature)) {
+	if (isOpponent(creature) && canAcquireTarget(creature->getPosition())) {
 		addTarget(creature, pushFront);
 	}
 
@@ -1022,6 +1022,10 @@ void Monster::setRunAwayHealth(int32_t value) {
 
 bool Monster::canKeepTarget(const Position &pos) {
 	return Creature::canSee(getPosition(), pos, MAP_MAX_VIEW_PORT_X + targetKeepRange, MAP_MAX_VIEW_PORT_Y + targetKeepRange);
+}
+
+bool Monster::canAcquireTarget(const Position &pos) {
+	return Creature::canSee(getPosition(), pos, MAP_CLASSIC_CLIENT_VIEW_PORT_X, MAP_CLASSIC_CLIENT_VIEW_PORT_Y);
 }
 
 bool Monster::isFleeing() const {

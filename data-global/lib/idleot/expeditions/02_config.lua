@@ -44,64 +44,16 @@ ExpeditionConfig.FORMATION_REPATH_MS = 400
 ExpeditionConfig.LEAVE_COUNTDOWN_SEC = 5
 -- Shared team-accept ready check (host + invitees). Expiry cancels the waiting lobby.
 ExpeditionConfig.TEAM_ACCEPT_TIMEOUT_SEC = 45
--- Map-spawn lure hunts (ExpeditionPack + ExpeditionCavebot). Instance spawns come
+-- Map-spawn lure hunts (ExpeditionPack + Cavebot). Instance spawns come
 -- from the world spawn XML; monsters keep stock behaviour (engage on sight, walk back
--- to their spawn on losing the party; homes are never moved).
--- Engaged monsters farther than this from the anchor stop being tracked.
-ExpeditionConfig.RELEASE_RADIUS = 18
--- Engaged monsters that make no progress toward the party for this long stop being tracked.
-ExpeditionConfig.PULL_STALL_MS = 8000
--- Dynamic lure: walking the cave route, once lure * LURE_STOP_FACTOR monsters are in
--- the lure (on the anchor's screen or chasing any member) the anchor halts: at the next
--- hold when it is on screen, else near where it stands (LURE_FULL_SPOT_STEPS).
--- `cave.lure` counts spawns seen over a whole lure walk (it also sets hunt levels);
--- the party kills on the way, so only about half of that is ever on screen at once.
-ExpeditionConfig.LURE_STOP_FACTOR = 0.5
--- A halt walks on (still attacking) once the monsters in the lure add up
--- to at most this many full-health monsters: the sum of their health fractions, so 1
--- can be one untouched monster or two at half health.
-ExpeditionConfig.LURE_RESUME_LOAD = 1
--- Halted with visible monsters but no kill for this long (out of reach): walk on.
-ExpeditionConfig.HALT_STUCK_MS = 20000
+-- to their spawn on losing the party; homes are never moved). Cave walker and lure
+-- pacing knobs are shared with open-world runs (lib/idleot/cavebot/01_config.lua).
+for _, key in ipairs(CavebotConfig.SHARED_KEYS) do
+	ExpeditionConfig[key] = CavebotConfig[key]
+end
 -- Lure-hunt monsters keep chasing a target they already have this many sqm past their
 -- normal sight, so trailing monsters follow the anchor to the next halt.
 ExpeditionConfig.TARGET_KEEP_SQM = 4
--- A halt walks straight to the best fight tile (AnchorSpot terrain score, the one
--- generation placed the hold with) within this many walking steps of the hold.
-ExpeditionConfig.HALT_SPOT_STEPS = 3
--- A halt tile the anchor cannot path to is replaced by the next best near the hold at
--- most HALT_REPICK_MAX times, then it fights where it stands.
-ExpeditionConfig.HALT_REPICK_MAX = 4
--- Blocker rule: the anchor stands still this long with an
--- attackable monster in the way of its next waypoint → halt and kill it.
-ExpeditionConfig.BLOCKER_MS = 1000
--- Lure leash (any count): walking, the anchor stands still when a monster chasing any
--- member trails that member by more than LURE_LAG_SQM (it would lose its lock) or the
--- anchor by more than LURE_LEASH_SQM (kept on the anchor's screen), and walks on once
--- every chaser is within LURE_LAG_RESUME_SQM of its target and LURE_LEASH_SQM - 2 of the
--- anchor. A wait whose lag does not shrink for LURE_LAG_STALL_MS gives those chasers up
--- for PULL_STALL_MS. Never waits while LURE_WAIT_SKIP_ADJACENT or more chasers are
--- adjacent (anti-trap).
-ExpeditionConfig.LURE_LAG_SQM = 4
-ExpeditionConfig.LURE_LAG_RESUME_SQM = 2
-ExpeditionConfig.LURE_LEASH_SQM = 6
-ExpeditionConfig.LURE_LAG_STALL_MS = 2500
-ExpeditionConfig.LURE_WAIT_SKIP_ADJACENT = 4
--- Lure full mid-route (no hold on screen): halt at the best spot within this many
--- walking steps of the anchor, inside the viewport so the pack stays in sight.
-ExpeditionConfig.LURE_FULL_SPOT_STEPS = 4
--- Anchor within this Chebyshev distance of a waypoint counts as reached.
-ExpeditionConfig.WAYPOINT_REACH = 1
--- Advance to the next waypoint this many steps early, so its path replaces the
--- current one mid-walk instead of restarting from a standstill.
-ExpeditionConfig.WAYPOINT_LOOKAHEAD = 1
--- No progress toward the current waypoint for this long (walking alone) skips it.
-ExpeditionConfig.WAYPOINT_STALL_MS = 6000
--- Fiendish Hunt: off screen but within this Chebyshev distance of the anchor, the
--- anchor detours off the route toward the forced Fiendish. A Fiendish the party
--- cannot reach (stalled detour / stuck halt) is ignored for FIENDISH_IGNORE_MS.
-ExpeditionConfig.FIENDISH_DETOUR_SQM = 14
-ExpeditionConfig.FIENDISH_IGNORE_MS = 30000
 -- Companions beyond CATCH_UP_WALK_SQM walk toward the anchor (path search CATCH_UP_PATH_MAX).
 -- Teleport only when on another floor, or beyond CATCH_UP_TELEPORT_SQM with no
 -- progress for CATCH_UP_STALL_MS.
@@ -111,7 +63,7 @@ ExpeditionConfig.CATCH_UP_TELEPORT_SQM = 15
 ExpeditionConfig.CATCH_UP_STALL_MS = 10000
 -- Client walk / follow input pauses the AI's movement for that member; the AI takes
 -- over again this long after the last manual step (or at once via "Resume Auto").
-ExpeditionConfig.MANUAL_CONTROL_MS = 5000
+ExpeditionConfig.MANUAL_CONTROL_MS = 3000
 -- Path search radius (Chebyshev) for hold walks. Non-zero uses Crystal's
 -- getPathMatchingCond (no 100-node hard stop). 0 = unrestricted but capped at 100 nodes.
 ExpeditionConfig.HOLD_PATH_MAX = 128
@@ -120,10 +72,6 @@ ExpeditionConfig.PRE_SPAWN_FLASHES = 3
 ExpeditionConfig.PRE_SPAWN_INTERVAL_MS = 1400
 -- After instance teleport, wait before AI/spawn so OTC finishes map description.
 ExpeditionConfig.ENTRY_CLIENT_SYNC_MS = 500
--- Lure bounds (pack size the anchor halts at). Hunts ship their own `cave.lure`
--- (uncapped, it also sets hunt levels); the halt count is clamped to LURE_MAX.
-ExpeditionConfig.LURE_MAX = 16
-ExpeditionConfig.LURE_DEFAULT = 1
 
 --- Safety options for ending an expedition when supplies cannot be paid / carried.
 --- Both default to false (explicit opt-in; new players often have 0 gold).
@@ -149,6 +97,8 @@ end
 ExpeditionConfig.LOOT_GRACE_MS = 5000
 -- Fallback when configKeys.BOSS_DEFAULT_TIME_TO_DEFEAT is unavailable (lever timeout).
 ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC = 20 * 60
+-- A boss whose mechanic is played keeps its immunity this long before it is stripped.
+ExpeditionConfig.BOSS_MECHANIC_STALL_SEC = 60
 -- Fallback when raids.xml interval2 is missing (matches typical interval2=1440).
 ExpeditionConfig.RAID_DESPAWN_FALLBACK_MS = 24 * 60 * 60 * 1000
 -- When player HP% is below this, switch from anchor formation to creature-stance positioning.
@@ -167,37 +117,6 @@ function ExpeditionConfig.isPositionCritical(player)
 	local threshold = tonumber(ExpeditionConfig.POSITION_CRITICAL_HP_PERCENT) or 30
 	local pct = (player:getHealth() / maxHp) * 100
 	return pct < threshold
-end
-
--- Party anchor: lower rank wins (knight → paladin → monk → anyone else).
--- Used for spawn center + non-anchor cardinal positioning (not raids).
-ExpeditionConfig.ANCHOR_VOCATION_RANK = {
-	knight = 1,
-	paladin = 2,
-	monk = 3,
-	other = 4,
-}
-
---- Vocation priority rank for anchor selection (lower = preferred).
-function ExpeditionConfig.anchorVocationRank(player)
-	if not player then
-		return ExpeditionConfig.ANCHOR_VOCATION_RANK.other
-	end
-	local vocation = player:getVocation()
-	if not vocation then
-		return ExpeditionConfig.ANCHOR_VOCATION_RANK.other
-	end
-	local baseId = vocation:getBaseId()
-	if baseId == VOCATION.BASE_ID.KNIGHT then
-		return ExpeditionConfig.ANCHOR_VOCATION_RANK.knight
-	end
-	if baseId == VOCATION.BASE_ID.PALADIN then
-		return ExpeditionConfig.ANCHOR_VOCATION_RANK.paladin
-	end
-	if VOCATION.BASE_ID.MONK and baseId == VOCATION.BASE_ID.MONK then
-		return ExpeditionConfig.ANCHOR_VOCATION_RANK.monk
-	end
-	return ExpeditionConfig.ANCHOR_VOCATION_RANK.other
 end
 
 --- Living members eligible to be the party anchor (online, HP > 0, not dead-flagged).
@@ -224,7 +143,8 @@ local function livingAnchorCandidates(session)
 	return out
 end
 
---- Pick session.anchorPlayerId: vocation rank, then highest max HP, then lowest id.
+--- Pick session.anchorPlayerId (Cavebot.bestAnchor). Every member is a candidate:
+--- inside an expedition the cavebot only pauses, it is never stopped.
 function ExpeditionConfig.pickAnchor(session)
 	if not session then
 		return nil
@@ -244,22 +164,7 @@ function ExpeditionConfig.pickAnchor(session)
 		return nil
 	end
 
-	local best = candidates[1]
-	local bestRank = ExpeditionConfig.anchorVocationRank(best)
-	local bestHp = best:getMaxHealth() or 0
-	local bestId = best:getId()
-	for i = 2, #candidates do
-		local p = candidates[i]
-		local rank = ExpeditionConfig.anchorVocationRank(p)
-		local hp = p:getMaxHealth() or 0
-		local id = p:getId()
-		if rank < bestRank or (rank == bestRank and hp > bestHp) or (rank == bestRank and hp == bestHp and id < bestId) then
-			best = p
-			bestRank = rank
-			bestHp = hp
-			bestId = id
-		end
-	end
+	local bestId = Cavebot.bestAnchor(candidates):getId()
 	session.anchorPlayerId = bestId
 	return bestId
 end
@@ -299,7 +204,7 @@ ExpeditionConfig.RAID_ARENA_KIND = "raid"
 ExpeditionConfig.RAID_JOIN_HINT = "Join via Expeditions > Raids."
 -- How many shared raid instances may run at once (XML + Lua Raid.registry).
 ExpeditionConfig.RAID_MAX_CONCURRENT = 2
--- XML import: first-check chance and per-row / per-raid spawn caps (17×17 arena).
+-- XML import: first-check chance and per-row / per-raid spawn caps.
 ExpeditionConfig.RAID_XML_INITIAL_CHANCE = 0.12
 ExpeditionConfig.RAID_XML_MAX_CHANCE_PER_CHECK = 0.08
 ExpeditionConfig.RAID_XML_MAX_AMOUNT = 8
@@ -774,33 +679,70 @@ function ExpeditionConfig.bossDifficultyLever(catalog)
 	return nil
 end
 
---- Instance spec for a lever boss: the lever's specPos arena, arriving where the lever teleports.
-function ExpeditionConfig.bossLeverInstanceSpec(catalog, lever)
-	local area = lever and lever.area
-	local arrival = lever and lever:arrival(1)
-	if type(area) ~= "table" or not area.from or not area.to or not arrival then
-		return nil
+local function occupancyContains(occ, x, y)
+	local lx, ly = x - occ.originX, y - occ.originY
+	if lx < 0 or ly < 0 or lx >= occ.width or ly >= occ.height then
+		return false
 	end
-	local x1, y1, z1, x2, y2, z2 = math.huge, math.huge, math.huge, -math.huge, -math.huge, -math.huge
-	local function grow(rect)
-		for _, p in ipairs({ rect.from, rect.to }) do
-			x1, y1, z1 = math.min(x1, p.x), math.min(y1, p.y), math.min(z1, p.z)
-			x2, y2, z2 = math.max(x2, p.x), math.max(y2, p.y), math.max(z2, p.z)
+	local i = ly * occ.width + lx
+	local byte = occ.bits:byte(math.floor(i / 8) + 1) or 0
+	return bit.band(byte, bit.lshift(1, i % 8)) ~= 0
+end
+
+--- Occupancy mask (Game.setInstancePrivateFence layout) of the tiles in `positions`,
+--- with their sorted floors.
+local function occupancyOf(positions)
+	local x1, y1, x2, y2 = math.huge, math.huge, -math.huge, -math.huge
+	local floorSet, floors = {}, {}
+	for _, p in ipairs(positions) do
+		x1, y1 = math.min(x1, p.x), math.min(y1, p.y)
+		x2, y2 = math.max(x2, p.x), math.max(y2, p.y)
+		if not floorSet[p.z] then
+			floorSet[p.z] = true
+			floors[#floors + 1] = p.z
 		end
 	end
-	grow(area)
-	for _, extra in ipairs(lever.extraAreas or {}) do
-		grow(extra)
+	table.sort(floors)
+	local width, height = x2 - x1 + 1, y2 - y1 + 1
+	local bytes = {}
+	for i = 1, math.ceil(width * height / 8) do
+		bytes[i] = 0
 	end
-	local floors = {}
-	for z = z1, z2 do
-		floors[#floors + 1] = z
+	for _, p in ipairs(positions) do
+		local i = (p.y - y1) * width + (p.x - x1)
+		local b = math.floor(i / 8) + 1
+		bytes[b] = bit.bor(bytes[b], bit.lshift(1, i % 8))
 	end
+	local chars = {}
+	for i, byte in ipairs(bytes) do
+		chars[i] = string.char(byte)
+	end
+	local occupancy = {
+		originX = x1,
+		originY = y1,
+		width = width,
+		height = height,
+		bits = table.concat(chars),
+		contains = occupancyContains,
+	}
+	return occupancy, floors
+end
+
+--- Private fence of a lever fight: every tile of the lever's zone, i.e. the boss room plus
+--- whatever the stock scripts add to it (stage rooms the party arrives in first).
+function ExpeditionConfig.bossLeverInstanceSpec(catalog, lever)
+	local arrival = lever and lever:arrival(1)
+	local positions = lever and lever:getZone():getPositions()
+	if not arrival or type(positions) ~= "table" or #positions == 0 then
+		return nil
+	end
+	local occupancy, floors = occupancyOf(positions)
 	return {
 		region = catalog.region or catalog.id,
 		center = { x = arrival.x, y = arrival.y, z = arrival.z },
 		entry = { x = arrival.x, y = arrival.y, z = arrival.z },
-		boundary = { x = x1, y = y1, w = x2 - x1 + 1, h = y2 - y1 + 1, z = arrival.z },
+		boundary = { x = occupancy.originX, y = occupancy.originY, w = occupancy.width, h = occupancy.height, z = arrival.z },
+		occupancy = occupancy,
 		floors = floors,
 	}
 end

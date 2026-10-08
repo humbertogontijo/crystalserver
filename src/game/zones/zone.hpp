@@ -189,9 +189,11 @@ public:
 	void itemAdded(const std::shared_ptr<Item> &item);
 	void itemRemoved(const std::shared_ptr<Item> &item);
 
-	void removePlayers();
-	void removeMonsters();
-	void removeNpcs();
+	/** Keeps the creatures the filter accepts out of a removal (empty filter: remove all). */
+	using CreatureFilter = std::function<bool(const std::shared_ptr<Creature> &)>;
+	void removePlayers(const CreatureFilter &filter = {});
+	void removeMonsters(const CreatureFilter &filter = {});
+	void removeNpcs(const CreatureFilter &filter = {});
 
 	void refresh();
 

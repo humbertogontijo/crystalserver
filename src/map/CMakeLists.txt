@@ -6,4 +6,5 @@ target_sources(${PROJECT_NAME}_lib PRIVATE
     map.cpp
     mapcache.cpp
     spectators.cpp
+    walk_grid.cpp
 )

@@ -51,6 +51,19 @@ namespace {
 				Lua::pushUserdata<CombatSpell>(L, combatSpell);
 				lua_setfield(L, -2, "spell");
 				if (const auto &combat = combatSpell->getCombat()) {
+					if (needDirection && combat->hasArea()) {
+						// Facing north, (dx, dy) from the caster: the area centre is the tile in front.
+						const auto offsets = combat->getArea()->getOffsets(DIRECTION_NORTH);
+						lua_createtable(L, static_cast<int>(offsets.size()), 0);
+						int offsetIndex = 0;
+						for (const auto &[dx, dy] : offsets) {
+							lua_createtable(L, 0, 2);
+							Lua::setField(L, "x", dx);
+							Lua::setField(L, "y", dy - 1);
+							lua_rawseti(L, -2, ++offsetIndex);
+						}
+						lua_setfield(L, -2, "area");
+					}
 					const auto magnitude = combat->estimateMagnitude();
 					combatType = magnitude.combatType;
 					if (magnitude.formulaKnown) {
@@ -64,6 +77,7 @@ namespace {
 				lua_setfield(L, -2, "spell");
 			}
 		} else if (const auto instant = std::dynamic_pointer_cast<InstantSpell>(spellBlock.spell)) {
+			needDirection = instant->getNeedDirection();
 			Lua::pushUserdata<InstantSpell>(L, instant);
 			Lua::setMetatable(L, -1, "Spell");
 			lua_setfield(L, -2, "spell");

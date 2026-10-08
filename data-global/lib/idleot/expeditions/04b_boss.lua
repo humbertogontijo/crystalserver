@@ -29,37 +29,42 @@ end
 --- HEALTHCHANGE kill-gates only (phase transforms must stay registered).
 --- tentuglysHeadPhase: CIP tentacle teleport/arena (absolute multi-floor).
 --- facelessHealth: CIP immortality / elemental absorb cleared only by arena tiles.
+--- OberonImmunity: CIP immunity cleared by answering Oberon's taunt.
 local KILL_GATE_HEALTHCHANGE = {
 	["monster.invulnerable"] = true,
 	["tentuglysHeadPhase"] = true,
 	["facelessHealth"] = true,
+	["OberonImmunity"] = true,
 }
 
---- Neutralize scripts that block HP from reaching 0. Keeps THINK (heals/summons).
---- Always preserves non-kill-gate HEALTHCHANGE (e.g. UrmahlulluChanges phase transforms).
-function ExpeditionBoss.ensureKillable(monster, _opts)
-	if not monster then
-		return false
-	end
+--- Kill-gate events of `monster` (opts.keepPrepareDeath: lever arenas keep PREPAREDEATH,
+--- their phase transforms run there).
+local function killGates(monster, opts)
+	local gates = {}
 	for i = 1, #KILL_GATE_EVENT_TYPES do
 		local eventType = KILL_GATE_EVENT_TYPES[i]
-		if eventType ~= nil then
-			local events = monster:getEvents(eventType)
-			if type(events) == "table" then
-				for j = 1, #events do
-					local name = events[j]
-					if name and name ~= "" then
-						local strip = true
-						if eventType == CREATURE_EVENT_HEALTHCHANGE then
-							strip = KILL_GATE_HEALTHCHANGE[name] == true
-						end
-						if strip then
-							monster:unregisterEvent(name)
-						end
-					end
+		local skip = eventType == nil or (eventType == CREATURE_EVENT_PREPAREDEATH and opts and opts.keepPrepareDeath)
+		local events = not skip and monster:getEvents(eventType) or nil
+		if type(events) == "table" then
+			for j = 1, #events do
+				local name = events[j]
+				if name and name ~= "" and (eventType ~= CREATURE_EVENT_HEALTHCHANGE or KILL_GATE_HEALTHCHANGE[name]) then
+					gates[#gates + 1] = name
 				end
 			end
 		end
+	end
+	return gates
+end
+
+--- Neutralize scripts that block HP from reaching 0. Keeps THINK (heals/summons).
+--- Always preserves non-kill-gate HEALTHCHANGE (e.g. UrmahlulluChanges phase transforms).
+function ExpeditionBoss.ensureKillable(monster, opts)
+	if not monster then
+		return false
+	end
+	for _, name in ipairs(killGates(monster, opts)) do
+		monster:unregisterEvent(name)
 	end
 	pcall(function()
 		monster:immune(false)
@@ -68,51 +73,66 @@ function ExpeditionBoss.ensureKillable(monster, _opts)
 end
 
 --- True when the boss still has kill-gate scripts attached.
-function ExpeditionBoss.hasKillGates(monster, _opts)
-	if not monster then
-		return false
-	end
-	for i = 1, #KILL_GATE_EVENT_TYPES do
-		local eventType = KILL_GATE_EVENT_TYPES[i]
-		if eventType ~= nil then
-			local events = monster:getEvents(eventType)
-			if type(events) == "table" then
-				for j = 1, #events do
-					local name = events[j]
-					if name and name ~= "" then
-						if eventType == CREATURE_EVENT_HEALTHCHANGE then
-							if KILL_GATE_HEALTHCHANGE[name] then
-								return true
-							end
-						else
-							return true
-						end
-					end
-				end
-			end
-		end
-	end
-	return false
-end
-
-function ExpeditionBoss.ensureKillableSession(session)
-	if ExpeditionConfig.bossLever(session and session.catalog) then
-		return false
-	end
-	local boss = ExpeditionBoss.getBoss(session)
-	if not boss or not ExpeditionBoss.hasKillGates(boss) then
-		return false
-	end
-	return ExpeditionBoss.ensureKillable(boss)
+function ExpeditionBoss.hasKillGates(monster, opts)
+	return monster ~= nil and #killGates(monster, opts) > 0
 end
 
 local function sessionLever(session)
 	return session and session.catalog and ExpeditionConfig.bossLever(session.catalog) or nil
 end
 
+--- Lever whose fight is run by a stock Encounter script (stages, adds, the boss spawn):
+--- the expedition runs an instance copy of that script instead of spawning the boss.
+local function encounterDriven(lever)
+	return lever and lever.encounter and EncounterInstances and EncounterInstances.has(lever.encounter) or false
+end
+
+--- The fight plays its own immunity mechanic: a boss mechanic, or the stock encounter's stages.
+local function playsMechanic(lever)
+	return lever ~= nil and (encounterDriven(lever) or ExpeditionBossMechanics.handles(lever))
+end
+
+--- Bosses whose mechanic is played keep their immunity; it is stripped when the boss stays
+--- immune past BOSS_MECHANIC_STALL_SEC (mechanic stuck). Other bosses lose it right away.
+function ExpeditionBoss.ensureKillableSession(session)
+	local boss = ExpeditionBoss.getBoss(session)
+	local lever = sessionLever(session)
+	local opts = { keepPrepareDeath = lever ~= nil }
+	if not boss or not ExpeditionBoss.hasKillGates(boss, opts) then
+		if session then
+			session.killGateSince = nil
+		end
+		return false
+	end
+	if playsMechanic(lever) then
+		local now = os.time()
+		session.killGateSince = session.killGateSince or now
+		local stallSec = ExpeditionConfig.BOSS_MECHANIC_STALL_SEC
+		if now - session.killGateSince < stallSec then
+			return false
+		end
+		logger.warn(
+			"[Expedition] {} stayed immune {}s in {} ({}); stripping its immunity",
+			boss:getName(),
+			stallSec,
+			session.instance and session.instance.instanceId or "?",
+			table.concat(killGates(boss, opts), ",")
+		)
+		session.killGateSince = nil
+	end
+	return ExpeditionBoss.ensureKillable(boss, opts)
+end
+
+local function stopEncounterCopy(session, opts)
+	local lever = sessionLever(session)
+	if encounterDriven(lever) and session.instance and EncounterInstances then
+		EncounterInstances.stop(session.instance.instanceId, lever.encounter, opts)
+	end
+end
+
 --- Phase transforms remove+recreate the monster; re-bind ownership to the new form.
---- Lever fights run in the lever's own arena, so its kill-gates stay and forms fought
---- together keep their owner entries.
+--- Lever fights run in the lever's own arena (kill-gates handled by ensureKillableSession)
+--- and forms fought together keep their owner entries.
 function ExpeditionBoss.bindBoss(session, monster)
 	if not session or not monster then
 		return false
@@ -186,12 +206,16 @@ local function onLeverFormSpawned(monster, lever)
 	end
 end
 
-if BossLever and BossLever.addPhaseHook and not ExpeditionBoss.leverHookAdded then
-	ExpeditionBoss.leverHookAdded = true
-	BossLever.addPhaseHook(function(monster, lever)
-		onLeverFormSpawned(monster, lever)
-	end)
+-- Product libs load before data/libs (BossLever), so the hook installs on first use.
+local function ensureLeverHook()
+	if BossLever and BossLever.addPhaseHook and not ExpeditionBoss.leverHookAdded then
+		ExpeditionBoss.leverHookAdded = true
+		BossLever.addPhaseHook(function(monster, lever)
+			onLeverFormSpawned(monster, lever)
+		end)
+	end
 end
+ensureLeverHook()
 
 function ExpeditionBoss.rebindBossIfNeeded(session)
 	if not session or session.state ~= "hunting" then
@@ -280,6 +304,8 @@ local function finishBoss(session, opts)
 	local lever = sessionLever(session)
 
 	clearDespawn(session)
+	stopEncounterCopy(session, { keepCallbacks = true })
+	ExpeditionBossMechanics.stop(session)
 	clearArena(session)
 	for mid, ownerKey in pairs(bossOwners) do
 		if ownerKey == session.key then
@@ -375,6 +401,7 @@ end
 
 --- Run the lever's own spawn inside the private instance and bind what it created.
 local function materializeLever(session, lever)
+	ensureLeverHook()
 	local instanceId = session.instance.instanceId
 	local ok, spawned = lever:startEncounter({
 		instanceId = instanceId,
@@ -425,6 +452,30 @@ local function materializeLever(session, lever)
 	if session.alive == 0 and fallback then
 		ExpeditionBoss.bindBoss(session, fallback)
 	end
+	if session.alive == 0 and not encounterDriven(lever) and not session.leverSpawnWarned then
+		session.leverSpawnWarned = true
+		logger.warn("[Expedition] lever {} spawned no boss in {}; retrying", lever.name, instanceId)
+	end
+end
+
+--- Run the lever's stock encounter script as a copy owned by the session's instance; the
+--- boss binds when the copy spawns it (later stage). Returns the copy, nil when it failed.
+local function startLeverEncounter(session, lever)
+	local instanceId = session.instance.instanceId
+	local key = session.key
+	local copy, reason = EncounterInstances.start(lever.encounter, instanceId, {
+		onSpawn = function(monster)
+			local s = ExpeditionManager.getSessionByKey(key)
+			if s and s.state == "hunting" and isLeverBossMonster(monster, lever) then
+				ExpeditionBoss.bindBoss(s, monster)
+				ExpeditionManager.broadcastStatus(s)
+			end
+		end,
+	})
+	if not copy then
+		logger.error("[Expedition] encounter {} failed to start in {}: {}", lever.encounter, instanceId, tostring(reason))
+	end
+	return copy
 end
 
 local function materialize(session, planned)
@@ -434,8 +485,12 @@ local function materialize(session, planned)
 	session.bossCreatureId = nil
 
 	local lever = sessionLever(session)
+	local encounterRunning = false
 	if lever then
 		materializeLever(session, lever)
+		local copy = encounterDriven(lever) and startLeverEncounter(session, lever) or nil
+		encounterRunning = copy ~= nil
+		ExpeditionBossMechanics.start(session, lever, copy)
 		planned = {}
 	end
 	for _, entry in ipairs(planned) do
@@ -450,7 +505,7 @@ local function materialize(session, planned)
 		end
 	end
 
-	if session.alive == 0 then
+	if session.alive == 0 and not encounterRunning then
 		session.state = "waiting"
 		session.waitingEvent = addEvent(function()
 			local s = ExpeditionManager.getSessionByKey(session.key)
@@ -507,17 +562,16 @@ function ExpeditionBoss.spawn(session)
 		raceId = session.catalog.creatureIds[1]
 	end
 
+	-- A lever fight is already set up when the party arrives (the stock lever spawns, then
+	-- teleports), so it runs the lever's own spawn right away: no expedition spawn flash.
 	local lever = sessionLever(session)
 	if lever then
-		local flashPos = lever.bossPosition or session.instance.entry
 		session.wave = 1
 		session.state = "waiting"
 		session.alive = 0
 		session.bossCreatureId = nil
 		session.bossRaceId = raceId
-		ExpeditionManager.broadcastStatus(session)
-		local durationMs, _, intervalMs = preSpawnDurationMs()
-		schedulePreSpawn(session.key, { { name = lever.name, pos = Position(flashPos.x, flashPos.y, flashPos.z) } }, durationMs, intervalMs)
+		materialize(session, {})
 		return
 	end
 	-- Prefer catalog.name so shared bosstiary race ids (multi-phase forms) spawn the right type.
@@ -647,6 +701,8 @@ function ExpeditionBoss.clear(session)
 		session.waitingEvent = nil
 	end
 	clearDespawn(session)
+	stopEncounterCopy(session)
+	ExpeditionBossMechanics.stop(session)
 	if session.instance and session.instance.zone then
 		session.instance.zone:removeMonsters()
 	end

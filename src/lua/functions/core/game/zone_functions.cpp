@@ -19,7 +19,58 @@
 
 #include "game/zones/zone.hpp"
 #include "game/game.hpp"
+#include "game/instance_registry.hpp"
+#include "items/item.hpp"
 #include "lua/functions/lua_functions_loader.hpp"
+
+namespace {
+	// Zones are map areas shared by every instance. Script queries see the caller's layer:
+	// code scoped into an instance sees only that instance; world-level code sees public layers.
+	std::optional<InstanceId> zoneLayer() {
+		const auto scope = Game::getInstanceScope();
+		if (scope && !scope->isWorld()) {
+			return scope;
+		}
+		return std::nullopt;
+	}
+
+	bool creatureInLayer(const std::shared_ptr<Creature> &creature, const std::optional<InstanceId> &layer) {
+		if (!creature) {
+			return false;
+		}
+		return layer ? creature->getInstanceId() == *layer : !g_instanceRegistry().isPrivate(creature->getInstanceId());
+	}
+
+	bool itemInLayer(const std::shared_ptr<Item> &item, const std::optional<InstanceId> &layer) {
+		if (!item) {
+			return false;
+		}
+		return layer ? item->isVisibleInInstance(*layer) : !g_instanceRegistry().isPrivate(item->getInstanceId());
+	}
+
+	Zone::CreatureFilter layerFilter() {
+		return [layer = zoneLayer()](const std::shared_ptr<Creature> &creature) {
+			return creatureInLayer(creature, layer);
+		};
+	}
+
+	template <typename T>
+	std::vector<std::shared_ptr<T>> inLayer(const std::vector<std::shared_ptr<T>> &things) {
+		const auto layer = zoneLayer();
+		std::vector<std::shared_ptr<T>> result;
+		result.reserve(things.size());
+		for (const auto &thing : things) {
+			if constexpr (std::is_same_v<T, Item>) {
+				if (itemInLayer(thing, layer)) {
+					result.push_back(thing);
+				}
+			} else if (creatureInLayer(thing, layer)) {
+				result.push_back(thing);
+			}
+		}
+		return result;
+	}
+}
 
 void ZoneFunctions::init(lua_State* L) {
 	Lua::registerSharedClass(L, "Zone", "", ZoneFunctions::luaZoneCreate);
@@ -176,7 +227,7 @@ int ZoneFunctions::luaZoneGetCreatures(lua_State* L) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
-	const auto &creatures = zone->getCreatures();
+	const auto creatures = inLayer(zone->getCreatures());
 	lua_createtable(L, static_cast<int>(creatures.size()), 0);
 
 	int index = 0;
@@ -197,7 +248,7 @@ int ZoneFunctions::luaZoneGetPlayers(lua_State* L) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
-	const auto &players = zone->getPlayers();
+	const auto players = inLayer(zone->getPlayers());
 	lua_createtable(L, static_cast<int>(players.size()), 0);
 
 	int index = 0;
@@ -218,7 +269,7 @@ int ZoneFunctions::luaZoneGetMonsters(lua_State* L) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
-	const auto &monsters = zone->getMonsters();
+	const auto monsters = inLayer(zone->getMonsters());
 	lua_createtable(L, static_cast<int>(monsters.size()), 0);
 
 	int index = 0;
@@ -239,7 +290,7 @@ int ZoneFunctions::luaZoneGetNpcs(lua_State* L) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
-	const auto &npcs = zone->getNpcs();
+	const auto npcs = inLayer(zone->getNpcs());
 	lua_createtable(L, static_cast<int>(npcs.size()), 0);
 
 	int index = 0;
@@ -260,7 +311,7 @@ int ZoneFunctions::luaZoneGetItems(lua_State* L) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
-	const auto &items = zone->getItems();
+	const auto items = inLayer(zone->getItems());
 	lua_createtable(L, static_cast<int>(items.size()), 0);
 
 	int index = 0;
@@ -282,7 +333,7 @@ int ZoneFunctions::luaZoneRemovePlayers(lua_State* L) {
 		return 1;
 	}
 
-	zone->removePlayers();
+	zone->removePlayers(layerFilter());
 	return 1;
 }
 
@@ -294,7 +345,7 @@ int ZoneFunctions::luaZoneRemoveMonsters(lua_State* L) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
-	zone->removeMonsters();
+	zone->removeMonsters(layerFilter());
 	return 1;
 }
 
@@ -306,7 +357,7 @@ int ZoneFunctions::luaZoneRemoveNpcs(lua_State* L) {
 		Lua::pushBoolean(L, false);
 		return 1;
 	}
-	zone->removeNpcs();
+	zone->removeNpcs(layerFilter());
 	return 1;
 }
 

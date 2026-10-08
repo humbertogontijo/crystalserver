@@ -77,6 +77,14 @@ local function normalizeRecord(raw)
 		bonuses = type(raw.bonuses) == "table" and raw.bonuses or nil,
 		created = math.floor(tonumber(raw.created) or os.time()),
 	}
+	-- Picked expedition dropped from the catalog since the lobby was saved.
+	if record.expeditionId ~= "" and ExpeditionConfig and ExpeditionConfig.getById
+		and type(ExpeditionConfig.Catalog) == "table" and #ExpeditionConfig.Catalog > 0
+		and not ExpeditionConfig.getById(record.expeditionId, record.role)
+	then
+		record.expeditionId, record.role, record.expeditionName, record.creatureId = "", "", "", nil
+		record.bossDifficulty = nil
+	end
 	local seen = {}
 	for _, m in ipairs(type(raw.members) == "table" and raw.members or {}) do
 		local guid = math.floor(tonumber(m.guid) or 0)

@@ -9,6 +9,9 @@ InstanceTeleport.DURATION_WILD_MS = 30000
 InstanceTeleport.KIND_HOMETOWN = "hometown"
 InstanceTeleport.KIND_LOBBY = "lobby"
 InstanceTeleport.KIND_EXPEDITION = "expedition"
+-- Open-world channel switch (same place, another public channel).
+InstanceTeleport.KIND_CHANNEL = "channel"
+InstanceTeleport.CHANNEL_SWITCH_MAX_MS = 10000
 -- Where a hop lands; picks the aura tint (kind only drives policy and client UI).
 InstanceTeleport.DEST_OPEN_WORLD = InstanceTeleport.KIND_HOMETOWN
 InstanceTeleport.DEST_LOBBY = InstanceTeleport.KIND_LOBBY

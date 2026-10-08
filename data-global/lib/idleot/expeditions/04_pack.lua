@@ -2,7 +2,7 @@
 -- native copies of the world spawn XML (Game.createInstanceSpawns). Monsters keep
 -- stock behaviour: they engage when they see a party member and walk back to their
 -- spawn when they lose it. Engaged monsters are only tracked (pacing, metrics) while
--- ExpeditionCavebot walks the route.
+-- Cavebot walks the route; pack tracking itself is CavebotPack (lib/idleot/cavebot).
 --
 -- Session fields kept for protocol / persistence: state (pending | hunting |
 -- ended), alive (live instance-spawn monsters), kills. Hunts are endless unless
@@ -37,14 +37,6 @@ end
 
 local function anchorOf(session)
 	return ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session) or nil
-end
-
-local function memberSet(session)
-	local set = {}
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session) or {}) do
-		set[id] = true
-	end
-	return set
 end
 
 local function stopEvents(session)
@@ -221,170 +213,6 @@ function ExpeditionPack.finishFiendishHunt(session)
 	})
 end
 
--- ---------------------------------------------------------------------------
--- Pack tracking (ExpeditionAI.tick, every AI_TICK_MS)
--- ---------------------------------------------------------------------------
-
---- Stop tracking a far / stalled monster (it is not re-tracked for a while).
-local function release(session, mid)
-	session.engaged[mid] = nil
-	session.releasedUntil[mid] = nowMs() + 2 * ExpeditionConfig.PULL_STALL_MS
-end
-
-local function targetsMember(monster, members)
-	local target = monster.getTarget and monster:getTarget() or nil
-	return target ~= nil and members[target:getId()] == true
-end
-ExpeditionPack.targetsMember = targetsMember
-
---- Track a monster that took a party member as target (native aggro).
-local function engage(session, mid, monster, anchorPos)
-	local now = nowMs()
-	session.engaged[mid] = { since = now, dist = chebyshev(monster:getPosition(), anchorPos), progressAt = now, hp = monster:getHealth() }
-end
-
---- Chasing the party on the anchor's screen (trailing a walk counts), closing in,
---- fighting its target, or taking damage.
-local function packProgress(state, monster, dist, chasing, onScreen)
-	if (chasing and onScreen) or dist < (state.dist or math.huge) or dist <= 1 then
-		return true
-	end
-	local hp = monster:getHealth()
-	if hp < (state.hp or hp) then
-		return true
-	end
-	local target = monster.getTarget and monster:getTarget() or nil
-	return target ~= nil and chebyshev(monster:getPosition(), target:getPosition()) <= 1
-end
-
---- Update engaged monsters, drop stalled / far ones, and track monsters that aggroed
---- the party. Monster movement is left to the engine.
-local function tickPack(session, anchorPos, members)
-	local now = nowMs()
-	local releaseRadius = ExpeditionConfig.RELEASE_RADIUS
-	local stallMs = ExpeditionConfig.PULL_STALL_MS
-
-	-- Gone without a death event (despawn, teleport, instance clear); deaths are counted in onDeath.
-	for mid in pairs(session.tracked) do
-		if not Monster(mid) then
-			session.tracked[mid] = nil
-			session.engaged[mid] = nil
-			session.alive = math.max(0, (session.alive or 1) - 1)
-		end
-	end
-
-	for mid, state in pairs(session.engaged) do
-		local monster = Monster(mid)
-		if not monster or monster:getHealth() <= 0 then
-			session.engaged[mid] = nil
-		else
-			local mpos = monster:getPosition()
-			local dist = chebyshev(mpos, anchorPos)
-			local chasing = targetsMember(monster, members)
-			-- A monster chasing a trailing member is measured from that member too.
-			local target = chasing and monster:getTarget() or nil
-			local near = target and math.min(dist, chebyshev(mpos, target:getPosition())) or dist
-			if near > releaseRadius then
-				release(session, mid)
-			else
-				if packProgress(state, monster, dist, chasing, geo.isInViewport(anchorPos, mpos)) then
-					state.progressAt = now
-				end
-				state.dist = dist
-				state.hp = monster:getHealth()
-				if now - (state.progressAt or now) > stallMs then
-					release(session, mid)
-				end
-			end
-		end
-	end
-
-	-- Adopt tracked monsters that aggroed a member (released ones wait out their ban).
-	for mid in pairs(session.tracked) do
-		if not session.engaged[mid] and (session.releasedUntil[mid] or 0) <= now then
-			local monster = Monster(mid)
-			if monster and targetsMember(monster, members) then
-				engage(session, mid, monster, anchorPos)
-			end
-		end
-	end
-end
-
---- No standable tile around `pos`: a monster there (an island spawn) never comes.
-local function sealedIn(pos)
-	for _, off in ipairs(geo.NEIGHBOUR_OFFSETS) do
-		if geo.tileStandable(Position(pos.x + off[1], pos.y + off[2], pos.z)) then
-			return false
-		end
-	end
-	return true
-end
-ExpeditionPack.sealedIn = sealedIn
-
---- Engaged monsters chasing a party member (any member, not only the anchor) on floor
---- `z` that can still come: alive, not sealed in, and (unless `includeStuck`) not given
---- up on by the lure walk (`lagStuckUntil` on their engaged entry). `members`: set of
---- member ids. Returns { { monster, state, target }, ... }.
-function ExpeditionPack.chasers(session, members, z, now, includeStuck)
-	local out = {}
-	for mid, state in pairs(session.engaged or {}) do
-		if includeStuck or (state.lagStuckUntil or 0) <= now then
-			local monster = Monster(mid)
-			local target = monster and monster:getHealth() > 0 and monster:getTarget() or nil
-			if target and members[target:getId()] then
-				local mpos = monster:getPosition()
-				if mpos.z == z and target:getPosition().z == z and not sealedIn(mpos) then
-					out[#out + 1] = { monster = monster, state = state, target = target }
-				end
-			end
-		end
-	end
-	return out
-end
-
---- What a lure halt counts: live monsters (not summons) on the anchor's screen that
---- some member can attack, plus every chaser (`ExpeditionPack.chasers`) on a member
---- off that screen, each once. A monster behind a wall (no clear shot from anyone) or
---- sealed on an island never arrives, so counting it would hold a halt forever.
---- `members`: set of member ids. Returns the count and the load: their summed health
---- fractions (two monsters at half health weigh as one).
-function ExpeditionPack.lureCount(session, anchor, members)
-	local pos = anchor:getPosition()
-	local vx, vy = geo.VIEWPORT_X, geo.VIEWPORT_Y
-	local players = {}
-	for id in pairs(members) do
-		local member = Player(id)
-		if member then
-			players[#players + 1] = member
-		end
-	end
-	if #players == 0 then
-		players[1] = anchor
-	end
-	local n, load, counted = 0, 0, {}
-	local function count(monster)
-		counted[monster:getId()] = true
-		n = n + 1
-		load = load + monster:getHealth() / math.max(1, monster:getMaxHealth())
-	end
-	for _, creature in ipairs(Game.getSpectators(pos, false, false, vx, vx, vy, vy, anchor:getInstanceId())) do
-		if creature:isMonster() and creature:getHealth() > 0 and not creature:getMaster() and not sealedIn(creature:getPosition()) then
-			for _, member in ipairs(players) do
-				if CombatAutomation.isValidAttackTarget(member, creature) then
-					count(creature)
-					break
-				end
-			end
-		end
-	end
-	for _, chaser in ipairs(ExpeditionPack.chasers(session, members, pos.z, nowMs())) do
-		if not counted[chaser.monster:getId()] then
-			count(chaser.monster)
-		end
-	end
-	return n, load
-end
-
 --- Boss / raid instances: keep every live instance monster homed on the anchor.
 function ExpeditionPack.pullMonstersToAnchor(session)
 	if not session or session.state ~= "hunting" then
@@ -424,10 +252,10 @@ function ExpeditionPack.tickLure(session)
 	session.engaged = session.engaged or {}
 	session.releasedUntil = session.releasedUntil or {}
 
-	local members = memberSet(session)
-	tickPack(session, anchorPos, members)
+	local members = Cavebot.memberSet(session)
+	CavebotPack.tickPack(session, anchorPos, members)
 	ExpeditionMetrics.tick(session, anchor, ExpeditionManager.sessionMemberIds(session))
-	ExpeditionCavebot.tick(session, anchor, members)
+	Cavebot.tick(session, anchor, members)
 end
 
 -- ---------------------------------------------------------------------------
@@ -457,7 +285,7 @@ function ExpeditionPack.spawn(session)
 		ExpeditionPack.applyForcedFiendish(session)
 	end
 	resetPack(session)
-	ExpeditionCavebot.start(session)
+	Cavebot.start(session)
 end
 
 function ExpeditionPack.onMonsterDeath(creature, corpse)

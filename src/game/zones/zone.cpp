@@ -127,8 +127,11 @@ std::vector<std::shared_ptr<Item>> Zone::getItems() {
 	return weak::lock(itemsCache);
 }
 
-void Zone::removePlayers() {
+void Zone::removePlayers(const CreatureFilter &filter /* = {} */) {
 	for (const auto &player : getPlayers()) {
+		if (filter && !filter(player)) {
+			continue;
+		}
 		g_game().internalTeleport(player, getRemoveDestination(player));
 		// Remove icon from player (soul war quest)
 		if (player->hasIcon("goshnars-hatred-damage")) {
@@ -137,14 +140,20 @@ void Zone::removePlayers() {
 	}
 }
 
-void Zone::removeMonsters() {
+void Zone::removeMonsters(const CreatureFilter &filter /* = {} */) {
 	for (const auto &monster : getMonsters()) {
+		if (filter && !filter(monster)) {
+			continue;
+		}
 		g_game().removeCreature(monster->getCreature());
 	}
 }
 
-void Zone::removeNpcs() {
+void Zone::removeNpcs(const CreatureFilter &filter /* = {} */) {
 	for (const auto &npc : getNpcs()) {
+		if (filter && !filter(npc)) {
+			continue;
+		}
 		g_game().removeCreature(npc->getCreature());
 	}
 }

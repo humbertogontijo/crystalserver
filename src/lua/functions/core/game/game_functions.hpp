@@ -59,6 +59,7 @@ private:
 	static int luaGameSetInstancePrivateFence(lua_State* L);
 	static int luaGameClearInstancePrivateFence(lua_State* L);
 	static int luaGameRunInInstance(lua_State* L);
+	static int luaGameGetInstanceScope(lua_State* L);
 	static int luaGameCreateInstanceSpawns(lua_State* L);
 	static int luaGameClearInstanceSpawns(lua_State* L);
 	static int luaGameSweepInstance(lua_State* L);

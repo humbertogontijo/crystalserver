@@ -3,10 +3,12 @@ local base = DATA_DIRECTORY .. "/lib/idleot/combat_automation/"
 local files = {
 	"00_geo.lua",
 	"00_anchor_spot.lua",
+	"00_cave_route.lua",
 	"01_config.lua",
 	"01_base_loadouts.lua",
 	"02_catalog.lua",
 	"06_movement.lua",
+	"07_errand.lua",
 	"03_runtime.lua",
 	"04_store.lua",
 	"05_protocol.lua",

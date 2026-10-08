@@ -550,7 +550,19 @@ function ExpeditionManager.prepareBoss(player, expeditionId, loadout, options)
 		gatePlayers[#gatePlayers + 1] = teammate
 	end
 	if not options.previewOnly then
-		local canFight, _, _, cdErr = ExpeditionConfig.partyCanFightBoss(gatePlayers, bossName)
+		-- Deployed alts fight too; offline ones are checked once deployed at entry.
+		local fighters = {}
+		for index, gatePlayer in ipairs(gatePlayers) do
+			fighters[index] = gatePlayer
+		end
+		local deployment = Alts and Alts.getDeployment and Alts.getDeployment(player)
+		for _, id in ipairs(deployment and deployment.companionIds or {}) do
+			local companion = Player(id)
+			if companion then
+				fighters[#fighters + 1] = companion
+			end
+		end
+		local canFight, _, _, cdErr = ExpeditionConfig.partyCanFightBoss(fighters, bossName)
 		if not canFight then
 			ExpeditionProtocol.sendError(player, cdErr or "A team member is on boss cooldown.")
 			return

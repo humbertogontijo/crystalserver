@@ -718,6 +718,10 @@ bool Combat::hasArea() const {
 	return area != nullptr;
 }
 
+const std::unique_ptr<AreaCombat> &Combat::getArea() const {
+	return area;
+}
+
 void Combat::addCondition(const std::shared_ptr<Condition> &condition) {
 	params.conditionList.emplace_back(condition);
 }
@@ -2545,6 +2549,27 @@ void AreaCombat::copyArea(const std::unique_ptr<MatrixArea> &input, const std::u
 
 		output->setCenter(rotateCenterY, rotateCenterX);
 	}
+}
+
+std::vector<std::pair<int32_t, int32_t>> AreaCombat::getOffsets(Direction dir) const {
+	std::vector<std::pair<int32_t, int32_t>> out;
+	if (dir > DIRECTION_LAST || !areas[dir]) {
+		return out;
+	}
+	const auto &area = areas[dir];
+	uint32_t centerY;
+	uint32_t centerX;
+	area->getCenter(centerY, centerX);
+	const uint32_t rows = area->getRows();
+	const uint32_t cols = area->getCols();
+	for (uint32_t y = 0; y < rows; ++y) {
+		for (uint32_t x = 0; x < cols; ++x) {
+			if (area->getValue(y, x)) {
+				out.emplace_back(static_cast<int32_t>(x) - static_cast<int32_t>(centerX), static_cast<int32_t>(y) - static_cast<int32_t>(centerY));
+			}
+		}
+	}
+	return out;
 }
 
 const std::unique_ptr<MatrixArea> &AreaCombat::getArea(const Position &centerPos, const Position &targetPos) const {

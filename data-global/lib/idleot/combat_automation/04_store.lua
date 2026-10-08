@@ -38,6 +38,12 @@ local function coerceCondition(slot)
 	elseif kind == "rune" or kind == "ammo" then
 		slot.triggerStat = "always"
 		slot.triggerPercent = 100
+	elseif kind == "equip" then
+		-- HP / mana only; below 100 so the release threshold stays reachable.
+		if slot.triggerStat ~= "mana" then
+			slot.triggerStat = "hp"
+		end
+		slot.triggerPercent = math.max(1, math.min(99, slot.triggerPercent))
 	elseif kind == "spell" then
 		local group = CombatAutomationConfig.SpellGroupById and CombatAutomationConfig.SpellGroupById[slot.spellId]
 		local lowerWords = tostring(slot.words or ""):lower()
@@ -82,7 +88,7 @@ local function sanitizeSlot(raw, index, player)
 		return nil
 	end
 	local kind = raw.kind
-	if kind ~= "potion" and kind ~= "spell" and kind ~= "rune" and kind ~= "ammo" then
+	if kind ~= "potion" and kind ~= "spell" and kind ~= "rune" and kind ~= "ammo" and kind ~= "equip" then
 		return nil
 	end
 	local triggerStat = raw.triggerStat
@@ -137,6 +143,18 @@ local function sanitizeSlot(raw, index, player)
 			return nil
 		end
 		slot.ammoTypeId = typeId
+	elseif kind == "equip" then
+		local typeId = math.floor(tonumber(raw.equipTypeId) or 0)
+		local entry = CombatAutomationConfig.EquipItems[typeId]
+		if
+			not entry
+			or group ~= CombatAutomationConfig.EQUIP_GROUP
+			or step ~= CombatAutomationConfig.EQUIP_STEP_BY_SLOT[entry.slot]
+			or not CombatAutomationCatalog.equipAllowedForPlayer(typeId, player)
+		then
+			return nil
+		end
+		slot.equipTypeId = typeId
 	else
 		local spellId = tostring(raw.spellId or ""):lower():gsub("%s+", "_")
 		local ok, words = CombatAutomationCatalog.spellAllowedForPlayer(spellId, player)
@@ -151,6 +169,10 @@ local function sanitizeSlot(raw, index, player)
 		end
 	end
 	coerceCondition(slot)
+	if kind == "equip" then
+		local margin = CombatAutomationConfig.EQUIP_RELEASE_MARGIN or 30
+		slot.releasePercent = clampInt(raw.releasePercent, slot.triggerPercent + 1, 100, math.min(100, slot.triggerPercent + margin))
+	end
 	return slot
 end
 
@@ -175,7 +197,7 @@ end
 
 --- Sanitize a raw slot list: drop invalid / duplicate (group, step) entries, sort by
 --- (group, step), and give every step of a group the condition of its first step that
---- carries one (else its lowest step).
+--- carries one (else its lowest step). Steps of a side group keep their own.
 local function sanitizeSlotList(entries, player)
 	local out = {}
 	if type(entries) ~= "table" then
@@ -193,16 +215,17 @@ local function sanitizeSlotList(entries, player)
 		end
 	end
 	table.sort(out, byGroupStep)
+	local sideGroups = CombatAutomationConfig.SIDE_GROUPS or {}
 	local sources = {}
 	for _, slot in ipairs(out) do
 		local current = sources[slot.group]
-		if not current or (not carriesCondition(current) and carriesCondition(slot)) then
+		if not sideGroups[slot.group] and (not current or (not carriesCondition(current) and carriesCondition(slot))) then
 			sources[slot.group] = slot
 		end
 	end
 	for _, slot in ipairs(out) do
 		local source = sources[slot.group]
-		if source ~= slot then
+		if source and source ~= slot then
 			for _, field in ipairs(CONDITION_FIELDS) do
 				slot[field] = source[field]
 			end
@@ -251,6 +274,7 @@ function CombatAutomationStore.sanitize(raw, player)
 		enabled = false,
 		stance = stance,
 		rangedDistance = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT,
+		cavebot = false,
 	}
 	local ammoTypeId = 0
 	local strictSkillOrder = false
@@ -259,6 +283,7 @@ function CombatAutomationStore.sanitize(raw, player)
 		strictSkillOrder = raw.strictSkillOrder == true
 		if type(raw.autoTarget) == "table" then
 			autoTarget.enabled = raw.autoTarget.enabled == true
+			autoTarget.cavebot = raw.autoTarget.cavebot == true
 			autoTarget.stance, autoTarget.rangedDistance =
 				CombatAutomationConfig.normalizeStanceForPlayer(player, raw.autoTarget.stance or stance)
 		end
@@ -321,6 +346,7 @@ local function defaultAutoTarget()
 		enabled = false,
 		stance = "melee",
 		rangedDistance = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT,
+		cavebot = false,
 	}
 end
 
@@ -407,6 +433,9 @@ function CombatAutomationStore.applyToRuntime(player, config)
 		CombatAutomationMovement.onAutoResumed(player)
 	end
 	CombatAutomation.ensureLoop(player)
+	if CavebotStore then
+		CavebotStore.onConfigChanged(player)
+	end
 end
 
 function CombatAutomationStore.setConfig(player, raw)
@@ -419,6 +448,11 @@ function CombatAutomationStore.setConfig(player, raw)
 	-- Preserve auto-target when legacy expedition payloads only update slots.
 	if type(raw) == "table" and raw.autoTarget == nil then
 		config.autoTarget = existing.autoTarget or config.autoTarget
+	elseif type(raw) == "table" and type(raw.autoTarget) == "table" and raw.autoTarget.cavebot == nil and existing.autoTarget then
+		config.autoTarget.cavebot = existing.autoTarget.cavebot == true
+	end
+	if CavebotStore then
+		CavebotStore.filterConfig(player, config, existing)
 	end
 	-- Preserve ammo when payloads omit it (slot-only updates).
 	if type(raw) == "table" and raw.ammoTypeId == nil then

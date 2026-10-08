@@ -93,7 +93,8 @@ local function isSoloOnly(catalog)
 end
 
 --- Boss cooldown blocking the lobby expedition: remainingSec, blockerName (0, nil when clear).
---- Solo bosses only check the host; lever bosses every online human, like the expedition entry check.
+--- Solo bosses only check the host; lever bosses every online member, alts included (offline
+--- alts are checked by the expedition entry once deployed).
 function LobbyStart.bossCooldown(record)
 	if not record or record.role ~= "boss" then
 		return 0, nil
@@ -108,6 +109,12 @@ function LobbyStart.bossCooldown(record)
 		fighters = { online(record.hostGuid) }
 	else
 		fighters = LobbyManager.onlineHumans(record)
+		for _, alt in ipairs(LobbyStore.alts(record)) do
+			local player = online(alt.guid)
+			if player then
+				fighters[#fighters + 1] = player
+			end
+		end
 	end
 	local remaining, blocker = ExpeditionConfig.partyBossCooldown(fighters, bossName)
 	if remaining <= 0 then
@@ -175,6 +182,7 @@ function LobbyStart.gather(record)
 	local token = nextToken
 	nextToken = nextToken + 1
 	rt.channeling = token
+	LobbyInstance.arrange(record)
 	broadcast(record)
 
 	local catalog = ExpeditionConfig.getById(record.expeditionId, record.role)
@@ -205,6 +213,7 @@ function LobbyStart.gather(record)
 					InstanceTeleport.sendArrivalEffect(alt, InstanceTeleport.KIND_LOBBY)
 				end
 			end
+			LobbyInstance.arrange(live)
 			broadcast(live)
 			addEvent(launch, LobbyStart.GATHER_PAUSE_MS, lobbyId, token)
 		end,

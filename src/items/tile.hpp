@@ -213,6 +213,9 @@ public:
 
 	std::string getDescription(int32_t lookDistance) final;
 
+	// Dying creatures stay counted until their removal is sent: the client still holds them,
+	// and death adds the corpse before removing the creature.
+	static bool countsTowardClientStack(const std::shared_ptr<Player> &player, const std::shared_ptr<Creature> &creature);
 	int32_t getClientIndexOfCreature(const std::shared_ptr<Player> &player, const std::shared_ptr<Creature> &creature) const;
 	int32_t getStackposOfCreature(const std::shared_ptr<Player> &player, const std::shared_ptr<Creature> &creature) const;
 	int32_t getStackposOfItem(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item) const;

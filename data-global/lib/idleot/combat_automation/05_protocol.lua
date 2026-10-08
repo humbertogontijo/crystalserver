@@ -24,6 +24,7 @@ function CombatAutomationProtocol.sendConfig(player, config, opts)
 			enabled = at.enabled == true,
 			stance = at.stance or "melee",
 			rangedDistance = math.floor(tonumber(at.rangedDistance) or CombatAutomationConfig.RANGED_DISTANCE_DEFAULT),
+			cavebot = at.cavebot == true,
 		},
 		ammoTypeId = math.floor(tonumber(config.ammoTypeId) or 0),
 		strictSkillOrder = config.strictSkillOrder == true,
@@ -51,6 +52,19 @@ function CombatAutomationProtocol.sendCast(player, payload)
 		words = tostring(payload.words or ""),
 		label = tostring(payload.label or payload.words or ""),
 		exhaustMs = math.max(0, math.floor(tonumber(payload.exhaustMs) or 0)),
+	})
+end
+
+--- Slot readiness the client cannot see: "missing" (an equip slot's item is not in
+--- the player's inventory, so the rule sits idle) or "ok". Sent on change only.
+function CombatAutomationProtocol.sendSlotStatus(player, slotId, status)
+	if not player then
+		return false
+	end
+	return send(player, {
+		type = "automationSlotStatus",
+		slotId = tostring(slotId or ""),
+		status = tostring(status or "ok"),
 	})
 end
 
@@ -120,18 +134,26 @@ function CombatAutomationProtocol.handleAction(player, msg)
 	if not player or type(msg) ~= "table" then
 		return false
 	end
+	if CavebotProtocol and CavebotProtocol.handleAction(player, msg) then
+		return true
+	end
 	local action = msg.action
 	if action == "getAutomation" then
 		local config = CombatAutomationStore.getConfig(player)
 		CombatAutomationProtocol.sendConfig(player, config, { includePresets = true })
+		CombatAutomation.resetEquipStatus(player)
 		-- Client is ready (map/self loaded); force-paint the current server target.
 		CombatAutomation.resyncAttackTarget(player)
+		if CavebotProtocol then
+			CavebotProtocol.sendState(player, true)
+		end
 		return true
 	end
 	if action == "setAutomation" or action == "setBotConfig" then
 		local config = CombatAutomationStore.setConfig(player, wireLoadoutFromMsg(msg))
 		-- Do not echo attackPresets; client already has the bank it just pushed.
 		CombatAutomationProtocol.sendConfig(player, config, { includePresets = false })
+		CombatAutomation.resetEquipStatus(player)
 		CombatAutomation.resyncAttackTarget(player)
 		return true
 	end

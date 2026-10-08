@@ -89,6 +89,18 @@ function CombatGeo.inFrontCone(cpos, dir, pos, range)
 	return forward >= 1 and forward <= range and lateral <= forward - 1
 end
 
+--- Offset (dx, dy) given for a creature facing north, turned to face `dir` (N/E/S/W).
+function CombatGeo.rotateOffset(dx, dy, dir)
+	if dir == DIRECTION_EAST then
+		return -dy, dx
+	elseif dir == DIRECTION_SOUTH then
+		return -dx, -dy
+	elseif dir == DIRECTION_WEST then
+		return dy, -dx
+	end
+	return dx, dy
+end
+
 --- Turn `player` toward `toPos` (dominant axis; same floor only).
 function CombatGeo.faceToward(player, toPos)
 	if not player or not toPos then

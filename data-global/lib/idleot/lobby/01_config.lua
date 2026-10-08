@@ -56,15 +56,42 @@ LobbyConfig.ALT_PARTY_WEIGHT = 0.5
 LobbyConfig.ROLE_MONSTER = "monster"
 LobbyConfig.ROLE_BOSS = "boss"
 
--- Lobby room: one shared stamped footprint; each live lobby overlays it with a private
--- engine instance id. Nothing in the room is ever saved.
+-- Lobby room: stamped footprints (one per variant, see 03_variants.lua); each live lobby
+-- overlays its current variant with a private engine instance id. Nothing in the room is ever saved.
 LobbyConfig.ROOM_BASE_X = 62040
 LobbyConfig.ROOM_BASE_Y = 60000
 LobbyConfig.ROOM_Z = 7
--- Interior floor (5 members + fixtures; SPAWN_OFFSETS has spare arrival tiles). Walls form a 1-tile ring around it.
-LobbyConfig.ROOM_FLOOR_W = 9
-LobbyConfig.ROOM_FLOOR_H = 7
+-- Center window (floor-local offset): plain floor in the default variant, a cloned lever room
+-- in lever-boss variants.
+LobbyConfig.CENTER_OFFSET = 2
+LobbyConfig.CENTER_SIZE = 8
+-- Interior floor: a CENTER_OFFSET-tile fixture ring around the center, the same in every variant.
+-- Walls form a 1-tile ring around it.
+LobbyConfig.ROOM_FLOOR_W = LobbyConfig.CENTER_SIZE + 2 * LobbyConfig.CENTER_OFFSET
+LobbyConfig.ROOM_FLOOR_H = LobbyConfig.CENTER_SIZE + 2 * LobbyConfig.CENTER_OFFSET
 LobbyConfig.ROOM_FLOOR_ID = 32820
+-- Widest streamed client view radius (engine MAP_MAX_CLIENT_VIEW_PORT_X/Y, both axes).
+LobbyConfig.VIEW_RADIUS = 15
+-- Variants are stamped in a grid from ROOM_BASE_X/Y. The gap past each outer wall is wider than
+-- VIEW_RADIUS, so a player on any floor tile never sees a neighbouring room.
+LobbyConfig.VARIANT_STRIDE = LobbyConfig.ROOM_FLOOR_W + 2 + LobbyConfig.VIEW_RADIUS + 2
+LobbyConfig.VARIANT_COLUMNS = 8
+LobbyConfig.DEFAULT_VARIANT = "default"
+-- Cloned lever in a lever-boss variant (pulling it starts the lobby expedition).
+LobbyConfig.LEVER_ACTION_ID = 47101
+-- Placed next to slot 1 when the real lever room has no lever item near the slots.
+LobbyConfig.LEVER_FALLBACK_ID = 2772
+-- Center window border overlays; the black side faces the lobby floor.
+LobbyConfig.CENTER_BORDER = {
+	n = 33740,
+	e = 33741,
+	s = 33742,
+	w = 33743,
+	nw = 33748,
+	ne = 33749,
+	sw = 33750,
+	se = 33751,
+}
 LobbyConfig.ROOM_WALL_H = 32835
 LobbyConfig.ROOM_WALL_V = 32826
 LobbyConfig.ROOM_WALL_TL = 32828
@@ -84,7 +111,9 @@ LobbyConfig.LOCKER_SWITCH_NE_ID = 10145
 LobbyConfig.LOCKER_COUNTER_SW_ID = 17393
 LobbyConfig.LOCKER_TABLE_ID = 10050
 
--- Floor-local offsets from the NW interior tile.
+-- Floor-local offsets from the NW interior tile; all inside the ring around the center
+-- (shrines NW, dummy NE, mailbox SW, locker block SE). `actionId` overrides FIXTURE_ACTION_ID
+-- (0 = none).
 function LobbyConfig.fixtureLayout()
 	local lx = LobbyConfig.ROOM_FLOOR_W - 1
 	local ly = LobbyConfig.ROOM_FLOOR_H - 1
@@ -94,24 +123,35 @@ function LobbyConfig.fixtureLayout()
 		{ id = LobbyConfig.EXERCISE_DUMMY_ID, dx = lx, dy = 0, key = "dummyPos" },
 		{ id = LobbyConfig.MAILBOX_ID, dx = 0, dy = ly, key = "mailboxPos" },
 		{ id = LobbyConfig.LOCKER_COUNTER_NW_ID, dx = lx - 1, dy = ly - 1 },
-		{ id = LobbyConfig.LOCKER_SWITCH_NE_ID, dx = lx, dy = ly - 1 },
+		-- Stock special_tiles.lua reads a switch action id >= 1000 as a minimum level gate.
+		{ id = LobbyConfig.LOCKER_SWITCH_NE_ID, dx = lx, dy = ly - 1, actionId = 0 },
 		{ id = LobbyConfig.LOCKER_COUNTER_SW_ID, dx = lx - 1, dy = ly },
 		{ id = LobbyConfig.LOCKER_TABLE_ID, dx = lx, dy = ly },
 		{ id = LobbyConfig.LOCKER_ID, dx = lx, dy = ly, key = "lockerPos" },
 	}
 end
 
--- Arrival tiles around the room center (floor-local), one per creature.
+-- Arrival tiles around the room center (floor-local), one per creature; the ring tiles at the
+-- end cover lever-room centers whose cloned decor blocks the middle.
 LobbyConfig.SPAWN_OFFSETS = {
-	{ 4, 3 },
-	{ 3, 2 },
-	{ 5, 2 },
-	{ 3, 4 },
-	{ 5, 4 },
-	{ 4, 2 },
+	{ 5, 5 },
+	{ 6, 6 },
+	{ 6, 5 },
+	{ 5, 6 },
 	{ 4, 4 },
-	{ 2, 3 },
-	{ 6, 3 },
+	{ 7, 4 },
+	{ 4, 7 },
+	{ 7, 7 },
+	{ 5, 4 },
+	{ 6, 7 },
+	{ 5, 1 },
+	{ 1, 6 },
+	{ 10, 5 },
+	{ 6, 10 },
+	{ 6, 1 },
+	{ 1, 5 },
+	{ 10, 6 },
+	{ 5, 10 },
 }
 
 -- Runtime storages (not storages.xml): open-world tile to return to when leaving the room.

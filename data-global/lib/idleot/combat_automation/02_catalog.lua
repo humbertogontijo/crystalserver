@@ -88,6 +88,12 @@ function CombatAutomationCatalog.potionAllowedForPlayer(typeId, player)
 	return vocationAllowed(allowed, CombatAutomationCatalog.playerVocationName(player))
 end
 
+--- Level / vocation limits are the item's own; the engine refuses the equip.
+function CombatAutomationCatalog.equipAllowedForPlayer(typeId, _player)
+	local id = math.floor(tonumber(typeId) or 0)
+	return id > 0 and CombatAutomationConfig.EquipItems ~= nil and CombatAutomationConfig.EquipItems[id] ~= nil
+end
+
 local function isPaladinVocation(vocationName)
 	return vocationName == "paladin" or vocationName == "royal paladin"
 end

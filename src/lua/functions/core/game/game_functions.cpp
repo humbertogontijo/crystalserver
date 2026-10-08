@@ -259,6 +259,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "setInstancePrivateFence", GameFunctions::luaGameSetInstancePrivateFence);
 	Lua::registerMethod(L, "Game", "clearInstancePrivateFence", GameFunctions::luaGameClearInstancePrivateFence);
 	Lua::registerMethod(L, "Game", "runInInstance", GameFunctions::luaGameRunInInstance);
+	Lua::registerMethod(L, "Game", "getInstanceScope", GameFunctions::luaGameGetInstanceScope);
 	Lua::registerMethod(L, "Game", "createInstanceSpawns", GameFunctions::luaGameCreateInstanceSpawns);
 	Lua::registerMethod(L, "Game", "clearInstanceSpawns", GameFunctions::luaGameClearInstanceSpawns);
 	Lua::registerMethod(L, "Game", "sweepInstance", GameFunctions::luaGameSweepInstance);
@@ -1167,6 +1168,16 @@ int GameFunctions::luaGameRunInInstance(lua_State* L) {
 		return 0;
 	}
 	return lua_gettop(L);
+}
+
+int GameFunctions::luaGameGetInstanceScope(lua_State* L) {
+	// Game.getInstanceScope() -> instance key of the running actor / runInInstance scope, or nil
+	if (const auto scope = Game::getInstanceScope()) {
+		Lua::pushInstanceId(L, *scope);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
 }
 
 int GameFunctions::luaGameClearInstancePrivateFence(lua_State* L) {

@@ -1,0 +1,121 @@
+-- Cavebot toggle state. The on/off flag is `autoTarget.cavebot` in the combat
+-- automation config (persisted with it, off by default) and needs AUTO attack on. A
+-- pause (`pauseCavebot`, the client toggle inside an expedition) lasts
+-- ExpeditionConfig.MANUAL_CONTROL_MS and is runtime only. Inside an expedition the
+-- cavebot cannot be stopped: turning it off pauses it.
+
+CavebotStore = CavebotStore or {}
+
+local PAUSE_MS_DEFAULT = 3000
+
+-- playerId -> pausedUntil (ms)
+local pausedUntil = {}
+
+local function autoTargetOf(player)
+	if not player then
+		return nil
+	end
+	local config = CombatAutomation.getState(player).config or CombatAutomationStore.getConfig(player)
+	return config and type(config.autoTarget) == "table" and config.autoTarget or nil
+end
+
+local function inExpedition(player)
+	local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
+	return session ~= nil and session.state ~= "ended"
+end
+CavebotStore.inExpedition = inExpedition
+
+function CavebotStore.attackOn(player)
+	local at = autoTargetOf(player)
+	return at ~= nil and at.enabled == true
+end
+
+function CavebotStore.flagOn(player)
+	local at = autoTargetOf(player)
+	return at ~= nil and at.cavebot == true
+end
+
+--- Open world: the player asked for the cavebot (flag and AUTO attack on).
+function CavebotStore.isEnabled(player)
+	return CavebotStore.flagOn(player) and CavebotStore.attackOn(player)
+end
+
+function CavebotStore.pauseMs()
+	return (ExpeditionConfig and tonumber(ExpeditionConfig.MANUAL_CONTROL_MS)) or PAUSE_MS_DEFAULT
+end
+
+function CavebotStore.pause(player)
+	if player then
+		pausedUntil[player:getId()] = CombatGeo.nowMs() + CavebotStore.pauseMs()
+	end
+end
+
+--- Milliseconds left on the player's pause (0 when not paused).
+function CavebotStore.pausedMs(player)
+	local id = player and player:getId()
+	local untilMs = id and pausedUntil[id]
+	if not untilMs then
+		return 0
+	end
+	local left = untilMs - CombatGeo.nowMs()
+	if left <= 0 then
+		pausedUntil[id] = nil
+		return 0
+	end
+	return left
+end
+
+--- Hand the player's movement back to the AI now: ends a pause and manual control.
+function CavebotStore.resume(player)
+	if not player then
+		return
+	end
+	pausedUntil[player:getId()] = nil
+	if player.clearManualControl then
+		player:clearManualControl()
+	end
+end
+
+function CavebotStore.forget(player)
+	if player then
+		pausedUntil[player:getId()] = nil
+	end
+end
+
+--- Why the walker leaves this member alone, or nil: "manual" (their own walk / follow
+--- input), "pause" (paused cavebot), "attack" (AUTO attack off; open-world runs drop
+--- such members instead).
+function CavebotStore.pauseReason(player, _run)
+	if CombatAutomationMovement.isManual(player) then
+		return "manual"
+	end
+	if CavebotStore.pausedMs(player) > 0 then
+		return "pause"
+	end
+	if not CavebotStore.attackOn(player) then
+		return "attack"
+	end
+	return nil
+end
+
+--- setConfig hook (before persist): inside an expedition turning the cavebot off pauses
+--- it and keeps the flag.
+function CavebotStore.filterConfig(player, config, existing)
+	local at, prev = config.autoTarget, existing and existing.autoTarget
+	if type(at) ~= "table" or type(prev) ~= "table" then
+		return
+	end
+	if prev.cavebot == true and at.cavebot ~= true and inExpedition(player) then
+		at.cavebot = true
+		if at.enabled == true then
+			CavebotStore.pause(player)
+		end
+	end
+end
+
+--- applyToRuntime hook: the flag or AUTO attack may have changed.
+function CavebotStore.onConfigChanged(player)
+	if CavebotService then
+		CavebotService.refresh(player)
+	end
+end

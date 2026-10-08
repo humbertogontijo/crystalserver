@@ -87,6 +87,7 @@ function LobbyProtocol.lobbyWire(record, viewer)
 		bossDifficulty = difficultyLever and (record.bossDifficulty or 0) or nil,
 		bossDifficultyMax = difficultyLever and BossDifficulty.max(difficultyLever) or nil,
 		bossCooldown = bossCooldown,
+		leverRoom = LobbyVariants.hasLeverRoom(record),
 		state = LobbyManager.state(record),
 		members = members,
 		call = call,
@@ -289,6 +290,10 @@ end
 handlers.start = function(player, msg)
 	if not LobbyStart then
 		return reply(player, false, "Lobby starts are unavailable.")
+	end
+	local record = LobbyStore.getForPlayer(player)
+	if record and LobbyVariants.hasLeverRoom(record) then
+		return reply(player, false, "Pull the boss lever in the lobby room to start.")
 	end
 	local ok, err = LobbyStart.request(player, msg)
 	if not ok and not err then

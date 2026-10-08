@@ -259,7 +259,6 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 			ExpeditionProtocol.sendError(player, cdErr or "A team member is on boss cooldown.")
 			return
 		end
-		ExpeditionConfig.applyBossCooldown({ player }, bossName)
 	end
 
 	local playerIds = {}
@@ -1064,6 +1063,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 		s.entered = true
 		s.starting = nil
 		s.persistedForRestart = nil
+		EM_PRIV.applyEntryBossCooldown(s, ExpeditionManager.sessionMemberIds(s))
 		ExpeditionConfig.pickAnchor(s)
 		if ExpeditionPersist and ExpeditionPersist.writeSession and ExpeditionPersist.isPersistableHunt(s) then
 			pcall(ExpeditionPersist.writeSession, s)
@@ -1234,6 +1234,13 @@ function ExpeditionManager.startExpeditionEntry(session)
 			end
 		end
 
+		local cooldownErr = EM_PRIV.entryBossCooldownError(s)
+		if cooldownErr then
+			ExpeditionProtocol.sendError(liveHost, cooldownErr)
+			ExpeditionManager.cancelWaitingSession(s, cooldownErr)
+			return
+		end
+
 		local memberIds = {}
 		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s)) do
 			local p = Player(mid)
@@ -1247,6 +1254,13 @@ function ExpeditionManager.startExpeditionEntry(session)
 
 		local sessionKey = s.key
 		local function doEnter(live, host)
+			-- Companions deployed for the entry are members only now.
+			local entryCooldownErr = EM_PRIV.entryBossCooldownError(live)
+			if entryCooldownErr then
+				ExpeditionProtocol.sendError(host, entryCooldownErr)
+				ExpeditionManager.cancelWaitingSession(live, entryCooldownErr)
+				return
+			end
 			if not teleportMembers(live) then
 				return
 			end
@@ -1367,6 +1381,15 @@ function ExpeditionManager.startExpeditionEntry(session)
 					loadout = loadout,
 					hostWorldPos = hostWorldPos,
 				})
+				local cooldownErr = EM_PRIV.entryBossCooldownError(live)
+				if cooldownErr then
+					ExpeditionProtocol.sendError(host, cooldownErr)
+					ExpeditionManager.cancelWaitingSession(live, cooldownErr)
+					if InstanceTeleport.cancel then
+						InstanceTeleport.cancel(host)
+					end
+					return
+				end
 				-- Marks prep ready; hop fires once the channel timer has also elapsed.
 				InstanceTeleport.markReady(groupKey)
 			end,
@@ -1677,7 +1700,6 @@ function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 			ExpeditionProtocol.sendError(friend, cdErr or "You are on boss cooldown.")
 			return
 		end
-		ExpeditionConfig.applyBossCooldown({ friend }, bossName)
 	end
 
 	EM_PRIV.saveReturn(friend)
@@ -1757,6 +1779,7 @@ function ExpeditionManager.attachFriendToSession(friend, session, host, opts)
 			ExpeditionManager.leave(p, { silent = true })
 			return
 		end
+		EM_PRIV.applyEntryBossCooldown(live, { p:getId() })
 		if InstanceTeleport and InstanceTeleport.sendArrivalEffect then
 			InstanceTeleport.sendArrivalEffect(p, InstanceTeleport.KIND_EXPEDITION)
 		end
