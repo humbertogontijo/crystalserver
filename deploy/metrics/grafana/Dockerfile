@@ -6,7 +6,7 @@
 FROM grafana/grafana-oss:12.1.1
 
 COPY deploy/metrics/grafana/provisioning/ /etc/grafana/provisioning/
-COPY metrics/grafana/dashboards/crystalserver-performance.json /etc/grafana/dashboards/CrystalServer/
+COPY deploy/metrics/grafana/dashboards/crystalserver-performance.json /etc/grafana/dashboards/CrystalServer/
 
 # grafana.com: Node Exporter Full (1860) and cAdvisor (19792), pinned revisions.
 ADD https://grafana.com/api/dashboards/1860/revisions/45/download \
