@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Dragolisk")
 local monster = {}
 
 monster.description = "a dragolisk"
-monster.experience = 4650
+monster.experience = 5050
 monster.outfit = {
 	lookType = 1707,
 	lookHead = 0,
@@ -81,11 +81,9 @@ monster.loot = {
 	{ name = "Nimmersatt's Seal", chance = 8320 },
 	{ id = 282, chance = 7580 },
 	{ name = "Dragolisk Eye", chance = 5510 },
-	{ name = "Green Gem", chance = 4376 },
+	{ name = "Green Gem", chance = 8260 },
 	{ name = "Dragon's Tail", chance = 1003 },
 	{ name = "Dragon Shield", chance = 400 },
-	{ id = 3039, chance = 7790 }, -- red gem
-	{ id = 281, chance = 7615 }, -- giant shimmering pearl
 }
 
 monster.attacks = {
@@ -105,7 +103,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 15 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = -10 },
-	{ type = COMBAT_FIREDAMAGE, percent = 40 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

@@ -85,7 +85,7 @@ monster.loot = {
 	{ id = 25695, chance = 12000 }, -- dandelion seeds
 	{ id = 3010, chance = 1800 }, -- emerald bangle
 	{ id = 9013, chance = 500 }, -- flower wreath
-	{ id = 25691, chance = 21612, maxCount = 2 }, -- wild flowers
+	{ id = 25691, chance = 15000, maxCount = 2 }, -- wild flowers
 	{ id = 3031, chance = 65000, maxCount = 110 }, -- gold coin
 	{ id = 238, chance = 3000 }, -- great mana potion
 	{ id = 8045, chance = 650 }, -- hibiscus dress
@@ -100,10 +100,10 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -180 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -205 },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -85, maxDamage = -135, range = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = true },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -85, maxDamage = -135, range = 4, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_HEARTS, target = true },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -85, maxDamage = -100, range = 7, effect = CONST_ME_HEARTS, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -85, maxDamage = -135, range = 7, effect = CONST_ME_HEARTS, target = true },
 }
 
 monster.defenses = {

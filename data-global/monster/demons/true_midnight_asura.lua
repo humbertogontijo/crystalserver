@@ -91,21 +91,21 @@ monster.loot = {
 	{ id = 7404, chance = 980 }, -- assassin dagger
 	{ id = 3041, chance = 1020 }, -- blue gem
 	{ id = 3567, chance = 900 }, -- blue robe
-	{ id = 9058, chance = 1521 }, -- gold ingot
-	{ id = 21974, chance = 20419 }, -- golden lotus brooch
+	{ id = 9058, chance = 900 }, -- gold ingot
+	{ id = 21974, chance = 12440 }, -- golden lotus brooch
 	{ id = 3069, chance = 3610 }, -- necrotic rod
 	{ id = 21981, chance = 1820 }, -- oriental shoes
-	{ id = 21975, chance = 19980 }, -- peacock feather fan
+	{ id = 21975, chance = 12790 }, -- peacock feather fan
 	{ id = 8061, chance = 930 }, -- skullcracker armor
 	{ id = 3017, chance = 10060 }, -- silver brooch
-	{ id = 3054, chance = 1487 }, -- silver amulet
-	{ id = 5944, chance = 18087 }, -- soul orb
+	{ id = 3054, chance = 2020 }, -- silver amulet
+	{ id = 5944, chance = 10020 }, -- soul orb
 	{ id = 8074, chance = 900 }, -- spellbook of mind control
 	{ id = 3403, chance = 2290 }, -- tribal mask
 	{ id = 8082, chance = 990 }, -- underworld rod
 	{ id = 3037, chance = 900 }, -- yellow gem
 	{ id = 3007, chance = 930 }, -- crystal ring
-	{ name = "small enchanted amethyst", chance = 14097, maxCount = 3 },
+	{ name = "small enchanted amethyst", chance = 1441, maxCount = 3 },
 }
 
 monster.attacks = {
@@ -113,7 +113,7 @@ monster.attacks = {
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -500, maxDamage = -650, range = 5, effect = CONST_ME_MORTAREA, target = true }, --Death Missile
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_MANADRAIN, minDamage = -50, maxDamage = -280, range = 7, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -100, maxDamage = -240, length = 8, spread = 0, effect = CONST_ME_PURPLEENERGY, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -500, maxDamage = -650, length = 8, spread = 0, effect = CONST_ME_BLACKSMOKE, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -500, maxDamage = -700, length = 8, spread = 0, effect = CONST_ME_BLACKSMOKE, target = false },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = -100, radius = 1, effect = CONST_ME_MAGIC_RED, target = true, duration = 30000 },
 }
 

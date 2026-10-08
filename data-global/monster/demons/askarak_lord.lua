@@ -84,13 +84,13 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 50000, maxCount = 100 },
 	{ name = "gold coin", chance = 50000, maxCount = 90 },
-	{ name = "small emerald", chance = 16667, maxCount = 5 },
-	{ name = "platinum coin", chance = 66667, maxCount = 2 },
+	{ name = "small emerald", chance = 5882, maxCount = 5 },
+	{ name = "platinum coin", chance = 35333, maxCount = 2 },
 	{ id = 3051, chance = 606 }, -- energy ring
 	{ name = "brown mushroom", chance = 5263, maxCount = 5 },
 	{ name = "magic sulphur", chance = 620 },
 	{ name = "assassin star", chance = 70, maxCount = 5 },
-	{ name = "dreaded cleaver", chance = 16667 },
+	{ name = "dreaded cleaver", chance = 30 },
 	{ name = "mastermind potion", chance = 750 },
 	{ name = "strong health potion", chance = 6250 },
 	{ name = "strong mana potion", chance = 7692 },
@@ -99,7 +99,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -250 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -186 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -40, maxDamage = -80, range = 7, radius = 6, shootEffect = CONST_ANI_POISON, effect = CONST_ME_GREEN_RINGS, target = false },
 	{ name = "askarak wave", interval = 2000, chance = 15, minDamage = -95, maxDamage = -180, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -130, maxDamage = -180, length = 4, spread = 0, effect = CONST_ME_GREEN_RINGS, target = false },

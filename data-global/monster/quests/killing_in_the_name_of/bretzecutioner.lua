@@ -75,19 +75,19 @@ monster.loot = {
 	{ id = 10298, chance = 100000 }, -- metal spike
 	{ id = 7452, chance = 32000 }, -- spiked squelcher
 	{ id = 3035, chance = 100000, maxCount = 8 }, -- platinum coin
-	{ id = 3281, chance = 15385 }, -- giant sword
+	{ id = 3281, chance = 24000 }, -- giant sword
 	{ id = 239, chance = 44000, maxCount = 3 }, -- great health potion
-	{ id = 238, chance = 23077, maxCount = 3 }, -- great mana potion
-	{ id = 7642, chance = 28205, maxCount = 3 }, -- great spirit potion
+	{ id = 238, chance = 44000, maxCount = 3 }, -- great mana potion
+	{ id = 7642, chance = 44000, maxCount = 3 }, -- great spirit potion
 	{ id = 281, chance = 48000 }, -- giant shimmering pearl (green)
 	{ id = 282, chance = 48000 }, -- giant shimmering pearl (brown)
 	{ id = 3554, chance = 4000 }, -- steel boots
-	{ id = 7427, chance = 17949 }, -- chaos mace
+	{ id = 7427, chance = 24000 }, -- chaos mace
 	{ id = 7419, chance = 12000 }, -- dreaded cleaver
 	{ id = 3008, chance = 24000 }, -- crystal necklace
 	{ id = 3421, chance = 16000 }, -- dark shield
 	{ id = 6299, chance = 100000 }, -- death ring
-	{ id = 5741, chance = 2564 }, -- skull helmet
+	{ id = 5741, chance = 4000 }, -- skull helmet
 }
 
 monster.attacks = {
@@ -104,15 +104,15 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 100 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 20 },
-	{ type = COMBAT_FIREDAMAGE, percent = 30 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = -15 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 20 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }
 
 monster.immunities = {

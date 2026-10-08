@@ -91,7 +91,7 @@ monster.loot = {
 	{ name = "rotten piece of cloth", chance = 14470 },
 	{ name = "ghoul snack", chance = 5130 },
 	{ name = "pile of grave earth", chance = 950 },
-	{ id = 23986, chance = 2223 }, -- heavy old tome
+	{ id = 23986, chance = 1000 }, -- heavy old tome
 }
 
 monster.attacks = {

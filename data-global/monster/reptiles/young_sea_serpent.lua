@@ -86,7 +86,7 @@ monster.loot = {
 	{ name = "strong health potion", chance = 5000 },
 	{ name = "strong mana potion", chance = 4000 },
 	{ id = 8894, chance = 7940 }, -- heavily rusted armor
-	{ id = 8895, chance = 832 }, -- rusted armor
+	{ id = 8895, chance = 7940 }, -- rusted armor
 	{ name = "sea serpent scale", chance = 5000 },
 }
 

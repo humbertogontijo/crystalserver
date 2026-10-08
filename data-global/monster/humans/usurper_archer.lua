@@ -91,20 +91,20 @@ monster.loot = {
 	{ name = "gemmed figurine", chance = 4189 },
 	{ name = "white pearl", chance = 3514 },
 	{ name = "glacier shoes", chance = 2432 },
-	{ name = "knight armor", chance = 3147 },
-	{ name = "coral brooch", chance = 1157 },
-	{ name = "assassin dagger", chance = 1073 },
+	{ name = "knight armor", chance = 1892 },
+	{ name = "coral brooch", chance = 1757 },
+	{ name = "assassin dagger", chance = 1622 },
 	{ name = "ornate crossbow", chance = 946 },
 	{ name = "emerald bangle", chance = 811 },
-	{ name = "wood cape", chance = 1058 },
+	{ name = "wood cape", chance = 405 },
 	{ name = "elvish bow", chance = 270 },
 }
 
 monster.attacks = {
 	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -430, range = 7, shootEffect = CONST_ANI_BURSTARROW, target = true },
-	{ name = "combat", interval = 6000, chance = 12, type = COMBAT_DEATHDAMAGE, minDamage = 0, maxDamage = -485, range = 7, shootEffect = CONST_ANI_SMALLHOLY, target = true },
-	{ name = "combat", interval = 4000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = 0, maxDamage = -485, range = 7, effect = CONST_ME_MORTAREA, shootEffect = CONST_ANI_SUDDENDEATH, target = true },
-	{ name = "combat", interval = 4000, chance = 10, type = COMBAT_ICEDAMAGE, minDamage = 0, maxDamage = -425, radius = 3, effect = CONST_ME_ICEAREA, target = true },
+	{ name = "combat", interval = 6000, chance = 12, type = COMBAT_DEATHDAMAGE, minDamage = -160, maxDamage = -485, range = 7, shootEffect = CONST_ANI_SMALLHOLY, target = true },
+	{ name = "combat", interval = 4000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -160, maxDamage = -545, range = 7, effect = CONST_ME_MORTAREA, shootEffect = CONST_ANI_SUDDENDEATH, target = true },
+	{ name = "combat", interval = 4000, chance = 10, type = COMBAT_ICEDAMAGE, minDamage = -150, maxDamage = -425, radius = 3, effect = CONST_ME_ICEAREA, target = true },
 }
 
 monster.defenses = {

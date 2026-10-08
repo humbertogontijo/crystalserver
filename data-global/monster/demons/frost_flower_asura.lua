@@ -73,10 +73,10 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 3031, chance = 99554, maxCount = 100 }, -- gold coin
+	{ id = 3031, chance = 70980, maxCount = 100 }, -- gold coin
 	{ id = 3035, chance = 80500, maxCount = 6 }, -- platinum coin
 	{ id = 3567, chance = 680 }, -- blue robe
-	{ id = 7368, chance = 9899, maxCount = 5 }, -- assassin star
+	{ id = 7368, chance = 6640, maxCount = 5 }, -- assassin star
 	{ id = 3027, chance = 5320, maxCount = 1 }, -- black pearl
 	{ id = 3007, chance = 250 }, -- crystal ring
 	{ id = 6558, chance = 19650 }, -- flask of demonic blood
@@ -101,8 +101,8 @@ monster.loot = {
 	{ id = 8074, chance = 420 }, -- spellbook of mind control
 	{ id = 3403, chance = 3380 }, -- tribal mask
 	{ id = 3037, chance = 1820 }, -- yellow gem
-	{ id = 3067, chance = 1173 }, -- hailstorm rod
-	{ id = 8083, chance = 3190 }, -- northwind rod
+	{ id = 3067, chance = 19520 }, -- hailstorm rod
+	{ id = 8083, chance = 19520 }, -- northwind rod
 }
 
 monster.attacks = {

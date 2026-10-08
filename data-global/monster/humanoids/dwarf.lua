@@ -85,11 +85,11 @@ monster.loot = {
 	{ id = 3505, chance = 8000 }, -- letter
 	{ name = "leather legs", chance = 10000 },
 	{ name = "white mushroom", chance = 50000 },
-	{ name = "iron ore", chance = 84 },
+	{ name = "iron ore", chance = 700 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -31 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -30 },
 }
 
 monster.defenses = {

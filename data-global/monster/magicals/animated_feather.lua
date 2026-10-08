@@ -73,29 +73,28 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "small sapphire", chance = 39868, maxCount = 5 },
+	{ name = "small sapphire", chance = 8700, maxCount = 5 },
 	{ name = "platinum coin", chance = 87000, maxCount = 50 },
-	{ id = 28570, chance = 77729, maxCount = 10 }, -- glowing rune
+	{ id = 28570, chance = 500, maxCount = 10 }, -- glowing rune
 	{ id = 3051, chance = 8700 }, -- energy ring
-	{ id = 7441, chance = 14178 }, -- ice cube
+	{ id = 7441, chance = 4000 }, -- ice cube
 	{ name = "shard", chance = 250, maxCount = 3 },
-	{ name = "glacier mask", chance = 7523 },
-	{ name = "hailstorm rod", chance = 2525 },
-	{ name = "life crystal", chance = 3639 },
+	{ name = "glacier mask", chance = 250 },
+	{ name = "hailstorm rod", chance = 250 },
+	{ name = "life crystal", chance = 8700 },
 	{ id = 238, chance = 900, maxCount = 6 }, -- great mana potion
-	{ name = "golden mug", chance = 2622 },
-	{ name = "glowing rune", chance = 77729, maxCount = 10 },
+	{ name = "golden mug", chance = 500 },
+	{ name = "glowing rune", chance = 500, maxCount = 10 },
 	{ id = 3051, chance = 8700 }, -- energy ring
-	{ name = "quill", chance = 13529 },
-	{ name = "small diamond", chance = 4752, maxCount = 5 },
-	{ name = "ultimate mana potion", chance = 17448, maxCount = 2 },
+	{ name = "quill", chance = 250 },
+	{ name = "small diamond", chance = 500, maxCount = 5 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400 },
-	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -600, maxDamage = -800, range = 7, shootEffect = CONST_ANI_ICE, target = false },
-	{ name = "combat", interval = 1000, chance = 10, type = COMBAT_ICEDAMAGE, minDamage = -600, maxDamage = -800, range = 7, shootEffect = CONST_ANI_SMALLICE, effect = CONST_ME_ICEATTACK, target = false },
-	{ name = "combat", interval = 1000, chance = 10, type = COMBAT_ICEDAMAGE, minDamage = -800, maxDamage = -1150, length = 3, spread = 2, effect = CONST_ME_ICEATTACK, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -200 },
+	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -100, maxDamage = -200, range = 7, shootEffect = CONST_ANI_ICE, target = false },
+	{ name = "combat", interval = 1000, chance = 10, type = COMBAT_ICEDAMAGE, minDamage = -200, maxDamage = -780, range = 7, shootEffect = CONST_ANI_SMALLICE, effect = CONST_ME_ICEATTACK, target = false },
+	{ name = "combat", interval = 1000, chance = 10, type = COMBAT_ICEDAMAGE, minDamage = -200, maxDamage = -275, length = 3, spread = 2, effect = CONST_ME_ICEATTACK, target = false },
 	{ name = "combat", interval = 1000, chance = 12, type = COMBAT_ICEDAMAGE, minDamage = -230, maxDamage = -680, range = 7, radius = 3, shootEffect = CONST_ANI_SMALLICE, effect = CONST_ME_ICETORNADO, target = false },
 }
 

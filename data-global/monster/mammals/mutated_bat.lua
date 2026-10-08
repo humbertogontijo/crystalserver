@@ -77,24 +77,24 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "black pearl", chance = 2521, maxCount = 3 },
+	{ name = "black pearl", chance = 720, maxCount = 3 },
 	{ name = "gold coin", chance = 92500, maxCount = 130 },
-	{ name = "small amethyst", chance = 1681, maxCount = 2 },
+	{ name = "small amethyst", chance = 500, maxCount = 2 },
 	{ id = 3051, chance = 990 }, -- energy ring
 	{ name = "battle shield", chance = 7760 },
 	{ name = "black shield", chance = 70 },
 	{ name = "obsidian lance", chance = 7260 },
 	{ name = "star herb", chance = 5060 },
-	{ name = "bat wing", chance = 3361, maxCount = 2 },
+	{ name = "bat wing", chance = 4900, maxCount = 2 },
 	{ name = "mercenary sword", chance = 110 },
-	{ id = 8894, chance = 18487 }, -- heavily rusted armor
-	{ id = 8895, chance = 840, maxCount = 2 }, -- rusted armor
+	{ id = 8894, chance = 12530 }, -- heavily rusted armor
+	{ id = 8895, chance = 12530, maxCount = 2 }, -- rusted armor
 	{ name = "batwing hat", chance = 80 },
-	{ name = "mutated bat ear", chance = 10084 },
+	{ name = "mutated bat ear", chance = 4900 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -169, condition = { type = CONDITION_POISON, totalDamage = 120, interval = 4000 } },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -168, condition = { type = CONDITION_POISON, totalDamage = 120, interval = 4000 } },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -70, maxDamage = -180, range = 7, shootEffect = CONST_ANI_POISON, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DROWNDAMAGE, minDamage = -30, maxDamage = -90, radius = 6, effect = CONST_ME_SOUND_WHITE, target = false },
 	{ name = "mutated bat curse", interval = 2000, chance = 10, target = false },

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Mazzinor")
 local monster = {}
 
 monster.description = "Mazzinor"
-monster.experience = 55000
+monster.experience = 100000
 monster.outfit = {
 	lookType = 1062,
 	lookHead = 85,
@@ -23,8 +23,8 @@ monster.bosstiary = {
 	bossRace = RARITY_ARCHFOE,
 }
 
-monster.health = 350000
-monster.maxHealth = 350000
+monster.health = 300000
+monster.maxHealth = 300000
 monster.race = "blood"
 monster.corpse = 22495
 monster.speed = 115
@@ -74,36 +74,25 @@ monster.loot = {
 	{ name = "crystal coin", chance = 70000, maxCount = 5 },
 	{ name = "ultimate mana potion", chance = 70000, maxCount = 8 },
 	{ name = "ultimate spirit potion", chance = 70000, maxCount = 4 },
-	{ name = "supreme health potion", chance = 37500, maxCount = 4 },
-	{ name = "berserk potion", chance = 50000, maxCount = 2 },
-	{ name = "mastermind potion", chance = 25000, maxCount = 2 },
+	{ name = "supreme health potion", chance = 70000, maxCount = 4 },
+	{ name = "berserk potion", chance = 70000, maxCount = 2 },
+	{ name = "mastermind potion", chance = 70000, maxCount = 2 },
 	{ name = "onyx chip", chance = 70000, maxCount = 12 },
-	{ name = "small emerald", chance = 25000, maxCount = 12 },
-	{ name = "demon horn", chance = 37500 },
-	{ name = "lightning boots", chance = 25000 },
-	{ id = 3039, chance = 25000 }, -- red gem
+	{ name = "small emerald", chance = 70000, maxCount = 12 },
+	{ name = "demon horn", chance = 70000 },
+	{ name = "lightning boots", chance = 70000 },
+	{ id = 3039, chance = 70000 }, -- red gem
 	{ name = "violet gem", chance = 70000 },
-	{ name = "stone skin amulet", chance = 100000 },
+	{ name = "stone skin amulet", chance = 70000 },
 	{ name = "wand of starstorm", chance = 70000 },
 	{ name = "silver token", chance = 85710, maxCount = 6 },
 	{ name = "gold token", chance = 28570, maxCount = 4 },
-	{ name = "assassin dagger", chance = 12500 },
+	{ name = "assassin dagger", chance = 30000 },
 	{ name = "crystalline armor", chance = 30000 },
 	{ name = "dreaded cleaver", chance = 30000 },
 	{ name = "frozen lightning", chance = 30000 },
-	{ name = "sinister book", chance = 12500 },
+	{ name = "sinister book", chance = 1000 },
 	{ name = "wand of dimensions", chance = 10 },
-	{ name = "bullseye potion", chance = 50000 },
-	{ name = "small amethyst", chance = 50000, maxCount = 10 },
-	{ name = "blue gem", chance = 37500 },
-	{ name = "demonic essence", chance = 37500, maxCount = 8 },
-	{ name = "green gem", chance = 37500 },
-	{ name = "slightly rusted helmet", chance = 37500 },
-	{ name = "magic sulphur", chance = 25000 },
-	{ name = "small diamond", chance = 25000, maxCount = 19 },
-	{ name = "crystal crossbow", chance = 12500 },
-	{ name = "slightly rusted shield", chance = 12500 },
-	{ name = "transcendence potion", chance = 12500 },
 }
 
 monster.attacks = {
@@ -125,7 +114,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 5 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 200 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

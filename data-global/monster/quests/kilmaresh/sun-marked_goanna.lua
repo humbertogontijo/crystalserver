@@ -65,13 +65,6 @@ monster.loot = {
 	{ name = "envenomed arrow", chance = 50000, maxCount = 29 },
 	{ name = "poison dagger", chance = 50000 },
 	{ name = "scared frog", chance = 50000 },
-	{ name = "earth arrow", chance = 20000, maxCount = 20 },
-	{ name = "goanna meat", chance = 13333 },
-	{ name = "terra rod", chance = 13333 },
-	{ name = "goanna claw", chance = 6667 },
-	{ name = "sacred tree amulet", chance = 6667 },
-	{ name = "terra amulet", chance = 6667 },
-	{ name = "terra hood", chance = 6667 },
 }
 
 monster.attacks = {

@@ -67,19 +67,19 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 67361, maxCount = 4 },
-	{ name = "ultimate health potion", chance = 58333, maxCount = 5 },
-	{ name = "gold ingot", chance = 14583 },
+	{ name = "crystal coin", chance = 97640, maxCount = 4 },
+	{ name = "ultimate health potion", chance = 77950, maxCount = 5 },
+	{ name = "gold ingot", chance = 23620 },
 	{ name = "hailstorm rod", chance = 10240 },
-	{ name = "green gem", chance = 2083 },
-	{ name = "violet gem", chance = 3472 },
-	{ name = "gemmed figurine", chance = 2083 },
+	{ name = "green gem", chance = 7090 },
+	{ name = "violet gem", chance = 5510 },
+	{ name = "gemmed figurine", chance = 4720 },
 	{ name = "hazardous robe", chance = 4720 },
 	{ name = "hazardous heart", chance = 3940 },
 	{ name = "blue gem", chance = 3150 },
-	{ name = "northwind rod", chance = 694 },
+	{ name = "northwind rod", chance = 2360 },
 	{ name = "glacier robe", chance = 2360 },
-	{ id = 282, chance = 694 }, -- giant shimmering pearl
+	{ id = 282, chance = 1570 }, -- giant shimmering pearl
 	{ name = "wand of everblazing", chance = 790 },
 	{ id = 23542, chance = 790 }, -- collar of blue plasma
 	{ name = "bag you desire", chance = 15 },
@@ -89,8 +89,8 @@ monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -1100 },
 	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -1050, maxDamage = -1400, range = 7, radius = 3, shootEffect = CONST_ANI_POISONARROW, effect = CONST_ME_GREEN_RINGS, target = true },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -900, maxDamage = -1250, length = 6, spread = 4, effect = CONST_ME_GREEN_RINGS, target = false },
-	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -1200, maxDamage = -1500, radius = 3, effect = CONST_ME_ICETORNADO, target = false },
-	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -1200, maxDamage = -1500, range = 7, radius = 4, effect = CONST_ME_ICEATTACK, target = true },
+	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -1050, maxDamage = -1100, radius = 3, effect = CONST_ME_ICETORNADO, target = false },
+	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -1050, maxDamage = -1300, range = 7, radius = 4, effect = CONST_ME_ICEATTACK, target = true },
 	{ name = "ice chain", interval = 2000, chance = 15, minDamage = -1300, maxDamage = -1500, range = 4 },
 	{ name = "soulwars fear", interval = 2000, chance = 2, target = true },
 }

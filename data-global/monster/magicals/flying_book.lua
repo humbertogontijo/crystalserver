@@ -76,7 +76,7 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -25, maxDamage = -100 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -200 },
 	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -100, maxDamage = -180, range = 7, shootEffect = CONST_ANI_ICE, target = false },
 }
 

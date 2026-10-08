@@ -81,24 +81,24 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "holy falcon", chance = 500 },
-	{ name = "small ruby", chance = 12205, maxCount = 3 },
+	{ name = "small ruby", chance = 7000, maxCount = 3 },
 	{ name = "gold coin", chance = 50000, maxCount = 80 },
 	{ name = "gold coin", chance = 50000, maxCount = 70 },
 	{ name = "gold coin", chance = 50000, maxCount = 64 },
-	{ id = 3039, chance = 666 }, -- red gem
-	{ id = 3052, chance = 6741 }, -- life ring
+	{ id = 3039, chance = 1500 }, -- red gem
+	{ id = 3052, chance = 1500 }, -- life ring
 	{ name = "burning heart", chance = 100000 },
 	{ name = "fire axe", chance = 750 },
 	{ name = "phoenix shield", chance = 300 },
-	{ name = "great health potion", chance = 10180 },
+	{ name = "great health potion", chance = 1500 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400, condition = { type = CONDITION_POISON, totalDamage = 65, interval = 4000 } },
-	{ name = "combat", interval = 1600, chance = 7, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -600, range = 1, effect = CONST_ME_MAGIC_RED, target = false },
-	{ name = "combat", interval = 1000, chance = 7, type = COMBAT_FIREDAMAGE, minDamage = 0, maxDamage = -600, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = false },
+	{ name = "combat", interval = 1600, chance = 7, type = COMBAT_PHYSICALDAMAGE, minDamage = -60, maxDamage = -600, range = 1, effect = CONST_ME_MAGIC_RED, target = false },
+	{ name = "combat", interval = 1000, chance = 7, type = COMBAT_FIREDAMAGE, minDamage = -60, maxDamage = -600, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = false },
 	{ name = "speed", interval = 2000, chance = 13, speedChange = -850, range = 7, effect = CONST_ME_MAGIC_RED, target = false, duration = 50000 },
-	{ name = "combat", interval = 2000, chance = 34, type = COMBAT_FIREDAMAGE, minDamage = 0, maxDamage = -600, radius = 3, effect = CONST_ME_EXPLOSIONAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 34, type = COMBAT_FIREDAMAGE, minDamage = -80, maxDamage = -800, radius = 3, effect = CONST_ME_EXPLOSIONAREA, target = false },
 	{ name = "firefield", interval = 1000, chance = 12, radius = 4, effect = CONST_ME_BLOCKHIT, target = false },
 	-- fire
 	{ name = "condition", type = CONDITION_FIRE, interval = 2000, chance = 13, minDamage = -50, maxDamage = -500, length = 8, spread = 3, effect = CONST_ME_EXPLOSIONHIT, target = false },
@@ -106,20 +106,20 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 30,
-	armor = 42,
+	armor = 20,
 	{ name = "combat", interval = 1000, chance = 20, type = COMBAT_HEALING, minDamage = 20, maxDamage = 800, effect = CONST_ME_MAGIC_BLUE, target = false },
 }
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 20 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 20 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 45 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
 	{ type = COMBAT_FIREDAMAGE, percent = 100 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = -10 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -20 },
+	{ type = COMBAT_ICEDAMAGE, percent = -25 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -22 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 100 },
 }
 

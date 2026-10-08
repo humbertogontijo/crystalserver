@@ -80,7 +80,7 @@ monster.loot = {
 	{ name = "green crystal splinter", chance = 6220 },
 	{ name = "small emerald", chance = 4230 },
 	{ name = "onyx chip", chance = 3890 },
-	{ name = "small ruby", chance = 2277 },
+	{ name = "small ruby", chance = 3540 },
 	{ name = "opal", chance = 3370 },
 }
 

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Silverfrost Sentinel")
 local monster = {}
 
 monster.description = "a silverfrost sentinel"
-monster.experience = 7700
+monster.experience = 8450
 monster.outfit = {
 	lookType = 1951,
 	lookHead = 81,
@@ -73,12 +73,12 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 87918, maxCount = 9 },
-	{ name = "Small Sapphire", chance = 21337, maxCount = 3 },
+	{ name = "Platinum Coin", chance = 20000, maxCount = 9 },
+	{ name = "Small Sapphire", chance = 9000, maxCount = 3 },
 	{ name = "Crystal Coin", chance = 9000 },
-	{ name = "Glacier Mask", chance = 1028 },
-	{ name = "Blue Gem", chance = 2185 },
-	{ name = "Ice Rapier", chance = 2699 },
+	{ name = "Glacier Mask", chance = 4000 },
+	{ name = "Blue Gem", chance = 4000 },
+	{ name = "Ice Rapier", chance = 4000 },
 	{ name = "Diamond Sceptre", chance = 4000 },
 	{ name = "Ice Shard", chance = 4000 },
 	{ id = 3007, chance = 900 }, -- crystal ring

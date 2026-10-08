@@ -18,8 +18,8 @@ monster.events = {
 	"SnailSlimeThink",
 }
 
-monster.health = 5000
-monster.maxHealth = 5000
+monster.health = 4500
+monster.maxHealth = 4500
 monster.race = "venom"
 monster.corpse = 0
 monster.speed = 90
@@ -81,8 +81,8 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = -5 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 100 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = -1 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
 	{ type = COMBAT_FIREDAMAGE, percent = 100 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },

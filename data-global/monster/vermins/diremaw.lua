@@ -92,13 +92,13 @@ monster.loot = {
 	{ name = "small emerald", chance = 5080, maxCount = 2 },
 	{ name = "gold ingot", chance = 2970 },
 	{ id = 281, chance = 3100 }, -- giant shimmering pearl (green)
-	{ name = "suspicious device", chance = 1629 },
+	{ name = "suspicious device", chance = 600 },
 	{ name = "mycological bow", chance = 200 },
-	{ name = "mushroom backpack", chance = 57 },
+	{ name = "mushroom backpack", chance = 1500 },
 }
 
 monster.attacks = {
-	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_EARTHDAMAGE, minDamage = -150, maxDamage = -220, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_EARTHDAMAGE, minDamage = -150, maxDamage = -200, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_EARTHDAMAGE, minDamage = -150, maxDamage = -250, range = 7, radius = 4, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POFF, target = true },
 	-- poison
 	{ name = "condition", type = CONDITION_POISON, interval = 2000, chance = 21, minDamage = -200, maxDamage = -310, radius = 4, effect = CONST_ME_GREEN_RINGS, target = false },

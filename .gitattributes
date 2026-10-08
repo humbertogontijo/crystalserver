@@ -1,1 +1,3 @@
 text eol=lf
+*.generated.* -diff linguist-generated
+data-global/lib/idleot/subareas/** -diff linguist-generated

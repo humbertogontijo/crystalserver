@@ -87,17 +87,17 @@ monster.loot = {
 	{ id = 24962, chance = 2500, maxCount = 2 }, -- prismatic quartz
 	{ id = 16126, chance = 3600, maxCount = 2 }, -- red crystal fragment
 	{ id = 3738, chance = 3200 }, -- sling herb
-	{ id = 677, chance = 2110, maxCount = 3 }, -- small enchanted emerald
+	{ id = 677, chance = 3000, maxCount = 3 }, -- small enchanted emerald
 	{ id = 236, chance = 15000 }, -- strong health potion
 	{ id = 814, chance = 3200 }, -- terra amulet
 	{ name = "fairy wings", chance = 15000 },
-	{ name = "wooden spellbook", chance = 605 },
-	{ name = "leaf star", chance = 7882, maxCount = 7 },
+	{ name = "wooden spellbook", chance = 3440 },
+	{ name = "leaf star", chance = 3440, maxCount = 7 },
 	{ id = 3727, chance = 4500 }, -- wood mushroom
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -465 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -450 },
 	-- bleed
 	{ name = "condition", type = CONDITION_BLEEDING, interval = 3000, chance = 11, minDamage = -100, maxDamage = -300, radius = 6, shootEffect = CONST_ANI_WHIRLWINDCLUB, effect = CONST_ME_DRAWBLOOD, target = true },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -60, maxDamage = -115, range = 7, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_EXPLOSIONAREA, target = true },

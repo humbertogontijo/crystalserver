@@ -89,21 +89,21 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 92000, maxCount = 130 }, -- gold coin
-	{ id = 22194, chance = 1732, maxCount = 3 }, -- opal
-	{ id = 22185, chance = 8736, maxCount = 2 }, -- prickly pear
-	{ id = 3030, chance = 3230, maxCount = 2 }, -- small ruby
-	{ id = 3027, chance = 2525, maxCount = 2 }, -- black pearl
-	{ id = 17831, chance = 4772 }, -- bone fetish
-	{ id = 11452, chance = 7561 }, -- broken shamanic staff
-	{ id = 3069, chance = 2246 }, -- necrotic rod
-	{ id = 22188, chance = 13904 }, -- ogre ear stud
-	{ id = 22189, chance = 9925 }, -- ogre nose ring
-	{ id = 22184, chance = 10307 }, -- shamanic talisman
+	{ id = 22194, chance = 1200, maxCount = 3 }, -- opal
+	{ id = 22185, chance = 6200, maxCount = 2 }, -- prickly pear
+	{ id = 3030, chance = 2200, maxCount = 2 }, -- small ruby
+	{ id = 3027, chance = 1200, maxCount = 2 }, -- black pearl
+	{ id = 17831, chance = 3200 }, -- bone fetish
+	{ id = 11452, chance = 1200 }, -- broken shamanic staff
+	{ id = 3069, chance = 800 }, -- necrotic rod
+	{ id = 22188, chance = 3200 }, -- ogre ear stud
+	{ id = 22189, chance = 2200 }, -- ogre nose ring
+	{ id = 22184, chance = 1200 }, -- shamanic talisman
 	{ id = 3114, chance = 1200 }, -- skull
-	{ id = 22191, chance = 11158 }, -- skull fetish
-	{ id = 237, chance = 14550, maxCount = 3 }, -- strong mana potion
-	{ id = 3072, chance = 1674 }, -- wand of decay
-	{ id = 2901, chance = 2085 }, -- waterskin
+	{ id = 22191, chance = 1200 }, -- skull fetish
+	{ id = 237, chance = 1000, maxCount = 3 }, -- strong mana potion
+	{ id = 3072, chance = 600 }, -- wand of decay
+	{ id = 2901, chance = 500 }, -- waterskin
 	{ id = 22183, chance = 300 }, -- ogre scepta
 	{ id = 22192, chance = 300 }, -- shamanic mask
 	{ id = 3002, chance = 100 }, -- voodoo doll
@@ -111,10 +111,10 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -150, condition = { type = CONDITION_FIRE, totalDamage = 6, interval = 9000 } },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -269, condition = { type = CONDITION_FIRE, totalDamage = 6, interval = 9000 } },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -70, maxDamage = -180, range = 7, shootEffect = CONST_ANI_POISON, target = false },
 	{ name = "outfit", interval = 2000, chance = 8, range = 7, effect = CONST_ME_MAGIC_BLUE, target = false, duration = 4000, outfitMonster = "chicken" },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -80, maxDamage = -110, length = 8, spread = 0, effect = CONST_ME_CARNIPHILA, target = false },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -15, maxDamage = -120, length = 8, spread = 0, effect = CONST_ME_CARNIPHILA, target = false },
 }
 
 monster.defenses = {

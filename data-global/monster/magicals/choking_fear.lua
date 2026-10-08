@@ -87,8 +87,8 @@ monster.loot = {
 	{ id = 3098, chance = 3000 }, -- ring of healing
 	{ name = "guardian shield", chance = 1540 },
 	{ name = "beastslayer axe", chance = 3290 },
-	{ name = "brown piece of cloth", chance = 4087 },
-	{ name = "yellow piece of cloth", chance = 2319 },
+	{ name = "brown piece of cloth", chance = 6000 },
+	{ name = "yellow piece of cloth", chance = 3500 },
 	{ id = 238, chance = 20000, maxCount = 3 }, -- great mana potion
 	{ name = "terra boots", chance = 720 },
 	{ name = "great spirit potion", chance = 20000, maxCount = 3 },
@@ -97,15 +97,15 @@ monster.loot = {
 	{ name = "underworld rod", chance = 720 },
 	{ name = "springsprout rod", chance = 510 },
 	{ name = "green crystal shard", chance = 1540 },
-	{ name = "brown crystal splinter", chance = 39005, maxCount = 2 },
+	{ name = "brown crystal splinter", chance = 52500, maxCount = 2 },
 	{ name = "blue crystal splinter", chance = 10000, maxCount = 3 },
-	{ name = "cluster of solace", chance = 550 },
+	{ name = "cluster of solace", chance = 4620 },
 	{ name = "dead weight", chance = 14180 },
 	{ name = "hemp rope", chance = 14180 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500, condition = { type = CONDITION_POISON, totalDamage = 600, interval = 4000 } },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -499, condition = { type = CONDITION_POISON, totalDamage = 600, interval = 4000 } },
 	-- poison
 	{ name = "condition", type = CONDITION_POISON, interval = 2000, chance = 10, minDamage = -700, maxDamage = -900, length = 5, spread = 0, effect = CONST_ME_HITBYPOISON, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -300, radius = 1, shootEffect = CONST_ANI_EXPLOSION, effect = CONST_ME_SLEEP, target = true },

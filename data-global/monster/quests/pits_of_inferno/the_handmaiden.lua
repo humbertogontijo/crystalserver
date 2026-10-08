@@ -68,21 +68,21 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 6539, chance = 35000 }, -- handmaiden's protector
-	{ name = "demonic essence", chance = 100000 },
-	{ name = "gold coin", chance = 100000, maxCount = 163 },
-	{ name = "soul orb", chance = 100000 },
-	{ name = "piece of iron", chance = 66667 },
-	{ name = "platinum coin", chance = 55556, maxCount = 5 },
-	{ name = "dark shield", chance = 33333 },
-	{ name = "big bone", chance = 27778 },
-	{ name = "steel boots", chance = 22222 },
-	{ name = "blue robe", chance = 11111 },
-	{ id = 6299, chance = 11111 }, -- death ring
-	{ id = 3049, chance = 11111 }, -- stealth ring
-	{ id = 3051, chance = 5556 }, -- energy ring
-	{ id = 3050, chance = 5556 }, -- power ring
-	{ name = "small sapphire", chance = 5556 },
+	{ id = 6539, chance = 100000 }, -- handmaiden's protector
+	{ id = 6499, chance = 100000 }, -- demonic essence
+	{ id = 5944, chance = 100000 }, -- soul orb
+	{ id = 3031, chance = 100000, maxCount = 163 }, -- gold coin
+	{ id = 3110, chance = 67000 }, -- piece of iron
+	{ id = 3035, chance = 56000, maxCount = 5 }, -- platinum coin
+	{ id = 3421, chance = 33000 }, -- dark shield
+	{ id = 3116, chance = 28000 }, -- big bone
+	{ id = 3554, chance = 22000 }, -- steel boots
+	{ id = 6299, chance = 11000 }, -- death ring
+	{ id = 3049, chance = 11000 }, -- stealth ring
+	{ id = 3567, chance = 11000 }, -- blue robe
+	{ id = 3050, chance = 5600 }, -- power ring
+	{ id = 3051, chance = 5600 }, -- energy ring
+	{ id = 3029, chance = 5600 }, -- energy ring
 }
 
 monster.attacks = {

@@ -70,24 +70,24 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 5 },
-	{ name = "great spirit potion", chance = 24420, maxCount = 2 },
-	{ name = "lion's mane", chance = 19138 },
+	{ name = "great spirit potion", chance = 5000, maxCount = 2 },
+	{ name = "lion's mane", chance = 5000 },
 	{ name = "green crystal shard", chance = 5000, maxCount = 2 },
-	{ name = "cyan crystal fragment", chance = 4467 },
+	{ name = "cyan crystal fragment", chance = 1500 },
 	{ name = "green crystal fragment", chance = 1500 },
-	{ name = "terra boots", chance = 14978 },
-	{ name = "axe", chance = 15254 },
-	{ name = "leather boots", chance = 14671 },
-	{ name = "twin hooks", chance = 12904 },
-	{ name = "war hammer", chance = 3387 },
+	{ name = "terra boots", chance = 5000 },
+	{ name = "axe", chance = 5000 },
+	{ name = "leather boots", chance = 5000 },
+	{ name = "twin hooks", chance = 5000 },
+	{ name = "war hammer", chance = 1500 },
 	{ name = "combat knife", chance = 1500 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 0, minDamage = 0, maxDamage = -350 },
-	{ name = "combat", interval = 2000, chance = 0, type = COMBAT_HOLYDAMAGE, minDamage = 0, maxDamage = -380, range = 1, effect = CONST_ME_HOLYAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 0, type = COMBAT_HOLYDAMAGE, minDamage = 0, maxDamage = -380, range = 1, radius = 2, effect = CONST_ME_HOLYAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -350, range = 1, radius = 2, effect = CONST_ME_EXPLOSIONAREA, target = false },
+	{ name = "melee", interval = 2000, chance = 0, minDamage = 0, maxDamage = -300 },
+	{ name = "combat", interval = 2000, chance = 0, type = COMBAT_HOLYDAMAGE, minDamage = -300, maxDamage = -400, range = 1, effect = CONST_ME_HOLYAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 0, type = COMBAT_HOLYDAMAGE, minDamage = -250, maxDamage = -350, range = 1, radius = 2, effect = CONST_ME_HOLYAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_PHYSICALDAMAGE, minDamage = -250, maxDamage = -350, range = 1, radius = 2, effect = CONST_ME_EXPLOSIONAREA, target = false },
 }
 
 monster.defenses = {

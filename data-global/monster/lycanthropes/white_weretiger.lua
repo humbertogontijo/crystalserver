@@ -78,11 +78,11 @@ monster.loot = {
 	{ name = "weretiger tooth", chance = 13400 },
 	{ name = "beastslayer axe", chance = 3970 },
 	{ name = "ham", chance = 5500, maxCount = 2 },
-	{ name = "moonlight crystals", chance = 16282 },
+	{ name = "moonlight crystals", chance = 7000 },
 	{ name = "white gem", chance = 1650 },
 	{ name = "silver moon coin", chance = 2000 },
 	{ name = "blue robe", chance = 1160 },
-	{ name = "moon pin", chance = 1681 },
+	{ name = "moon pin", chance = 660 },
 	{ name = "crystal mace", chance = 500 },
 	{ id = 43915, chance = 610 }, -- weretiger trophy
 }
@@ -103,7 +103,7 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = -5 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 60 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 25 },
 	{ type = COMBAT_EARTHDAMAGE, percent = -20 },
 	{ type = COMBAT_FIREDAMAGE, percent = -15 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },

@@ -94,10 +94,10 @@ monster.loot = {
 	{ name = "gold coin", chance = 60000, maxCount = 30 },
 	{ name = "blue gem", chance = 110 },
 	{ name = "hailstorm rod", chance = 770 },
-	{ id = 2948, chance = 331 }, -- wooden flute
+	{ id = 2948, chance = 5000 }, -- wooden flute
 	{ name = "heavy machete", chance = 4530 },
 	{ name = "mystic turban", chance = 290 },
-	{ name = "blueberry", chance = 25746, maxCount = 29 },
+	{ name = "blueberry", chance = 65000, maxCount = 29 },
 	{ name = "blue piece of cloth", chance = 3750 },
 	{ name = "royal spear", chance = 15500, maxCount = 3 },
 	{ name = "strong mana potion", chance = 9800 },
@@ -108,14 +108,14 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -114 },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -65, maxDamage = -115, range = 7, shootEffect = CONST_ANI_ENERGYBALL, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -60, maxDamage = -120, range = 7, effect = CONST_ME_MAGIC_RED, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -90 },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -100, maxDamage = -250, range = 7, shootEffect = CONST_ANI_ENERGYBALL, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -30, maxDamage = -90, range = 7, effect = CONST_ME_MAGIC_RED, target = false },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = -650, range = 7, effect = CONST_ME_MAGIC_RED, target = false, duration = 1500 },
 	{ name = "drunk", interval = 2000, chance = 10, range = 7, shootEffect = CONST_ANI_ENERGY, target = false, duration = 6000 },
 	{ name = "outfit", interval = 2000, chance = 1, range = 7, effect = CONST_ME_MAGIC_BLUE, target = false, duration = 4000, outfitMonster = "rabbit" },
 	{ name = "djinn electrify", interval = 2000, chance = 15, range = 5, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -65, maxDamage = -115, radius = 3, effect = CONST_ME_ENERGYHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -30, maxDamage = -90, radius = 3, effect = CONST_ME_ENERGYHIT, target = false },
 }
 
 monster.defenses = {

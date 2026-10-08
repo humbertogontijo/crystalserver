@@ -83,27 +83,27 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 15 },
-	{ name = "might ring", chance = 5134 },
+	{ name = "might ring", chance = 8000 },
 	{ name = "stone skin amulet", chance = 18000 },
-	{ name = "hammer of wrath", chance = 852 },
+	{ name = "hammer of wrath", chance = 1380 },
 	{ name = "crystal mace", chance = 5500 },
 	{ name = "magic plate armor", chance = 1380 },
 	{ name = "crown legs", chance = 920 },
 	{ name = "crusader helmet", chance = 920 },
 	{ name = "tower shield", chance = 1380 },
-	{ name = "steel boots", chance = 2365 },
+	{ name = "steel boots", chance = 920 },
 	{ name = "onyx flail", chance = 920 },
 	{ name = "jade hammer", chance = 920 },
 	{ id = 238, chance = 78000, maxCount = 5 }, -- great mana potion
 	{ name = "great spirit potion", chance = 72000, maxCount = 5 },
-	{ name = "ultimate health potion", chance = 76800, maxCount = 5 },
+	{ name = "ultimate health potion", chance = 30000, maxCount = 5 },
 	{ name = "blue crystal shard", chance = 23000, maxCount = 3 },
 	{ name = "violet crystal shard", chance = 32000, maxCount = 3 },
 	{ name = "green crystal shard", chance = 21600, maxCount = 3 },
 	{ name = "green crystal splinter", chance = 30000, maxCount = 5 },
 	{ name = "brown crystal splinter", chance = 30410, maxCount = 5 },
 	{ name = "blue crystal splinter", chance = 40000, maxCount = 5 },
-	{ name = "cluster of solace", chance = 2897 },
+	{ name = "cluster of solace", chance = 11800 },
 	{ name = "sight of surrender's eye", chance = 100000 },
 	{ name = "broken visor", chance = 100000 },
 	{ id = 20208, chance = 460 }, -- string of mending
@@ -111,8 +111,8 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -1100 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -500, maxDamage = -700, length = 8, spread = 0, effect = CONST_ME_YELLOWENERGY, target = true },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -1100, radius = 1, shootEffect = CONST_ANI_LARGEROCK, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -500, maxDamage = -800, length = 8, spread = 0, effect = CONST_ME_YELLOWENERGY, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -500, radius = 1, shootEffect = CONST_ANI_LARGEROCK, target = true },
 }
 
 monster.defenses = {

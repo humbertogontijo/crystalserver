@@ -60,23 +60,23 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 18238, maxCount = 88 },
-	{ id = 3115, chance = 13524 }, -- bone
-	{ name = "plate armor", chance = 5087 },
+	{ name = "gold coin", chance = 11690, maxCount = 88 },
+	{ id = 3115, chance = 8230 }, -- bone
+	{ name = "plate armor", chance = 2810 },
 	{ id = 3114, chance = 2810 }, -- skull
-	{ id = 3116, chance = 2730 }, -- big bone
-	{ name = "bone club", chance = 3226 },
+	{ id = 3116, chance = 1950 }, -- big bone
+	{ name = "bone club", chance = 1520 },
 	{ name = "bone shield", chance = 1520 },
 	{ name = "health potion", chance = 870 },
-	{ name = "green mushroom", chance = 1241 },
+	{ name = "green mushroom", chance = 650 },
 	{ name = "hardened bone", chance = 650 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -50 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -100 },
 	{ name = "dreadbeast skill reducer", interval = 3000, chance = 15, range = 1, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_YELLOWENERGY, target = true },
 	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_DROWNDAMAGE, minDamage = -70, maxDamage = -90, range = 1, shootEffect = CONST_ANI_ICE, effect = CONST_ME_LOSEENERGY, target = true },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_LIFEDRAIN, minDamage = 0, maxDamage = -80, radius = 1, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_PURPLEENERGY, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_LIFEDRAIN, minDamage = -150, maxDamage = -250, radius = 1, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_PURPLEENERGY, target = true },
 }
 
 monster.defenses = {

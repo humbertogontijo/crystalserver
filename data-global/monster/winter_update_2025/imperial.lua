@@ -72,7 +72,7 @@ monster.loot = {
 	{ name = "tender venison", chance = 100000 },
 	{ name = "meat", chance = 84000, maxCount = 4 },
 	{ name = "ham", chance = 48000 },
-	{ id = 10297, chance = 7317 }, -- antlers
+	{ id = 10297, chance = 4000 }, -- antlers
 }
 
 monster.defenses = {

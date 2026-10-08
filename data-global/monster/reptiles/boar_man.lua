@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Boar Man")
 local monster = {}
 
 monster.description = "a boar man"
-monster.experience = 7100
+monster.experience = 7720
 monster.outfit = {
 	lookType = 1603,
 	lookHead = 0,
@@ -79,7 +79,7 @@ monster.loot = {
 	{ name = "platinum coin", chance = 78950, maxCount = 22 },
 	{ name = "red crystal fragment", chance = 9830, maxCount = 6 },
 	{ id = 3039, chance = 6390, maxCount = 2 }, -- red gem
-	{ name = "boar man hoof", chance = 1066, maxCount = 2 },
+	{ name = "boar man hoof", chance = 4640, maxCount = 2 },
 	{ name = "great health potion", chance = 3810, maxCount = 4 },
 	{ name = "sapphire hammer", chance = 2700 },
 	{ name = "crystal mace", chance = 2160 },
@@ -102,7 +102,7 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 10 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 15 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 15 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
 	{ type = COMBAT_FIREDAMAGE, percent = 15 },

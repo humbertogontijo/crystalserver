@@ -79,25 +79,25 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 120 },
-	{ id = 3607, chance = 14821 }, -- cheese
+	{ id = 3607, chance = 20000 }, -- cheese
 	{ name = "bola", chance = 10000 },
-	{ name = "spike shield", chance = 2218 },
-	{ name = "ratana", chance = 2117 },
-	{ name = "life preserver", chance = 1903 },
-	{ name = "cheese cutter", chance = 11732 },
-	{ name = "cheesy figurine", chance = 2117 },
+	{ name = "spike shield", chance = 4761 },
+	{ name = "ratana", chance = 5000 },
+	{ name = "life preserver", chance = 5000 },
+	{ name = "cheese cutter", chance = 16666 },
+	{ name = "cheesy figurine", chance = 3846 },
 	{ name = "earflap", chance = 11111 },
 	{ name = "soft cheese", chance = 14285 },
 	{ name = "rat cheese", chance = 14285 },
 	{ name = "rat god doll", chance = 14 },
 	{ name = "leather harness", chance = 1612 },
-	{ name = "spiky club", chance = 2291 },
+	{ name = "spiky club", chance = 3225 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -130 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -140 },
 	{ name = "corym vanguard wave", interval = 2000, chance = 10, minDamage = -50, maxDamage = -100, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -35, maxDamage = -70, radius = 4, effect = CONST_ME_MORTAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -40, maxDamage = -70, radius = 4, effect = CONST_ME_MORTAREA, target = true },
 }
 
 monster.defenses = {

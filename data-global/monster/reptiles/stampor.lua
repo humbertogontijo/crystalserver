@@ -74,7 +74,7 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 94485, maxCount = 242 },
+	{ name = "gold coin", chance = 30000, maxCount = 242 },
 	{ name = "platinum coin", chance = 9920, maxCount = 2 },
 	{ name = "war hammer", chance = 1010 },
 	{ name = "knight armor", chance = 870 },
@@ -89,8 +89,8 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -130 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -130, radius = 3, effect = CONST_ME_GROUNDSHAKER, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -150, maxDamage = -280, shootEffect = CONST_ANI_SMALLSTONE, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -150, maxDamage = -280, radius = 3, effect = CONST_ME_GROUNDSHAKER, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -75, maxDamage = -100, shootEffect = CONST_ANI_SMALLSTONE, target = true },
 	{ name = "stampor skill reducer", interval = 2000, chance = 10, range = 5, target = false },
 }
 

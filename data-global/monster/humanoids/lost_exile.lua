@@ -91,7 +91,7 @@ monster.loot = {
 	{ id = 12600, chance = 13100 }, -- coal
 	{ name = "holy ash", chance = 13100 },
 	{ name = "small topaz", chance = 10240 },
-	{ name = "lost husher's staff", chance = 9474 },
+	{ name = "lost husher's staff", chance = 6900 },
 	{ name = "skull shatterer", chance = 7620 },
 	{ name = "wimp tooth chain", chance = 11900 },
 	{ name = "red hair dye", chance = 12620 },
@@ -99,9 +99,9 @@ monster.loot = {
 	{ name = "bonecarving knife", chance = 8100 },
 	{ name = "basalt figurine", chance = 8100 },
 	{ name = "bone fetish", chance = 8881 },
-	{ id = 3097, chance = 2378 }, -- dwarven ring
-	{ name = "guardian shield", chance = 921 },
-	{ name = "buckle", chance = 844 },
+	{ id = 3097, chance = 1043 }, -- dwarven ring
+	{ name = "guardian shield", chance = 1430 },
+	{ name = "buckle", chance = 1900 },
 	{ name = "clay lump", chance = 710 },
 	{ name = "knight axe", chance = 950 },
 	{ name = "terra boots", chance = 240 },
@@ -114,7 +114,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -120 },
 	{ name = "sudden death rune", interval = 2000, chance = 15, minDamage = -150, maxDamage = -350, range = 3, length = 6, spread = 0, effect = CONST_ME_MORTAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_MANADRAIN, minDamage = -150, maxDamage = -250, range = 3, length = 5, spread = 5, effect = CONST_ME_SMOKE, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -150, maxDamage = -290, range = 3, length = 5, spread = 5, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_POISONAREA, target = false },
@@ -124,7 +124,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 20,
-	armor = 55,
+	armor = 20,
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_HEALING, minDamage = 0, maxDamage = 160, effect = CONST_ME_MAGIC_BLUE, target = false },
 }
 

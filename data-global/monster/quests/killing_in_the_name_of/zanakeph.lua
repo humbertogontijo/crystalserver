@@ -84,10 +84,10 @@ monster.loot = {
 	{ id = 3029, chance = 33000, maxCount = 5 }, -- small sapphire
 	{ id = 238, chance = 25000, maxCount = 3 }, -- great mana potion
 	{ id = 3360, chance = 13500 }, -- golden armor
-	{ id = 12304, chance = 4494 }, -- maxilla maximus
+	{ id = 12304, chance = 6780 }, -- maxilla maximus
 	{ id = 5741, chance = 5000 }, -- skull helmet
 	{ id = 8057, chance = 3390 }, -- divine plate
-	{ id = 3392, chance = 5618 }, -- royal helmet
+	{ id = 3392, chance = 1690 }, -- royal helmet
 }
 
 monster.attacks = {

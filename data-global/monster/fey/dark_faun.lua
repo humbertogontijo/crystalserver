@@ -80,31 +80,30 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 100000, maxCount = 112 },
-	{ name = "wood cape", chance = 1743 },
+	{ name = "gold coin", chance = 30000, maxCount = 112 },
+	{ name = "wood cape", chance = 492 },
 	{ name = "wooden spellbook", chance = 92 },
 	{ name = "mandrake", chance = 50 },
 	{ name = "leaf legs", chance = 492 },
-	{ name = "small stone", chance = 4393, maxCount = 4 },
-	{ name = "small enchanted sapphire", chance = 2391, maxCount = 2 },
-	{ name = "shimmering beetles", chance = 10082 },
-	{ name = "cave turnip", chance = 6136, maxCount = 4 },
+	{ name = "small stone", chance = 492, maxCount = 4 },
+	{ name = "small enchanted sapphire", chance = 492, maxCount = 2 },
+	{ name = "shimmering beetles", chance = 492 },
+	{ name = "cave turnip", chance = 55000, maxCount = 4 },
 	{ name = "leaf legs", chance = 719 },
-	{ name = "dark mushroom", chance = 5199 },
-	{ name = "panpipes", chance = 2708 },
-	{ name = "prismatic quartz", chance = 5660 },
-	{ name = "leaf star", chance = 6885, maxCount = 8 },
-	{ name = "strong health potion", chance = 11710, maxCount = 2 },
-	{ name = "goat grass", chance = 8671 },
-	{ name = "great health potion", chance = 3572 },
-	{ name = "fairy wings", chance = 14072 },
+	{ name = "dark mushroom", chance = 719 },
+	{ name = "panpipes", chance = 719 },
+	{ name = "prismatic quartz", chance = 719 },
+	{ name = "leaf star", chance = 10000, maxCount = 8 },
+	{ name = "strong health potion", chance = 6800, maxCount = 2 },
+	{ name = "goat grass", chance = 5155 },
+	{ name = "great health potion", chance = 591 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -450 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -76, maxDamage = -105, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -515 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -60, maxDamage = -115, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
 	{ name = "drunk", interval = 2000, chance = 11, length = 4, spread = 2, effect = CONST_ME_SOUND_PURPLE, target = false, duration = 25000 },
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -115, range = 7, shootEffect = CONST_ANI_LEAFSTAR, target = false },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -100, range = 7, shootEffect = CONST_ANI_LEAFSTAR, target = false },
 }
 
 monster.defenses = {

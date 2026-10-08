@@ -18,8 +18,8 @@ monster.bosstiary = {
 	bossRace = RARITY_NEMESIS,
 }
 
-monster.health = 81000
-monster.maxHealth = 81000
+monster.health = 18000
+monster.maxHealth = 18000
 monster.race = "undead"
 monster.corpse = 28601
 monster.speed = 85
@@ -68,22 +68,18 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 74 },
-	{ id = 3041, chance = 72727, maxCount = 2 }, -- blue gem
-	{ id = 32769, chance = 36364 }, -- white gem
-	{ name = "etcher", chance = 100000 },
-	{ id = 6299, chance = 6818 }, -- death ring
-	{ name = "silver amulet", chance = 27273 },
-	{ name = "bronze amulet", chance = 20455 },
+	{ name = "platinum coin", chance = 7500, maxCount = 74 },
+	{ id = 3041, chance = 5000, maxCount = 2 }, -- blue gem
+	{ id = 32769, chance = 5000 }, -- white gem
+	{ name = "etcher", chance = 6000 },
+	{ id = 6299, chance = 4500 }, -- death ring
+	{ name = "silver amulet", chance = 4800 },
+	{ name = "bronze amulet", chance = 4000 },
 	{ id = 3092, chance = 3800 }, -- axe ring
 	{ name = "knight armor", chance = 3800 },
-	{ name = "colourful quill", chance = 36364 },
-	{ name = "blank imbuement scroll", chance = 100000 },
-	{ name = "proficiency catalyst", chance = 100000 },
-	{ name = "protection amulet", chance = 29545 },
-	{ name = "knight axe", chance = 11364 },
-	{ name = "knight legs", chance = 11364 },
-	{ id = 3053, chance = 9091 }, -- time ring
+	{ name = "colourful quill", chance = 3500 },
+	{ name = "blank imbuement scroll", chance = 3000 },
+	{ name = "proficiency catalyst", chance = 3000 },
 }
 
 -- missing spells

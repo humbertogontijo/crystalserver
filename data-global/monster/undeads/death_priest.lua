@@ -76,13 +76,13 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "white pearl", chance = 2000 },
+	{ name = "white pearl", chance = 3000 },
 	{ name = "gold coin", chance = 70000, maxCount = 144 },
 	{ name = "scarab coin", chance = 10000, maxCount = 3 },
-	{ id = 3059, chance = 4000 }, -- spellbook
+	{ id = 3059, chance = 6800 }, -- spellbook
 	{ id = 3098, chance = 1000 }, -- ring of healing
 	{ name = "orichalcum pearl", chance = 6000, maxCount = 4 },
-	{ name = "health potion", chance = 11000 },
+	{ name = "health potion", chance = 15000 },
 	{ name = "mana potion", chance = 15000 },
 	{ id = 12482, chance = 27000 }, -- hieroglyph banner
 }

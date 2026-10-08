@@ -65,12 +65,9 @@ monster.voices = {
 monster.loot = {
 	{ id = 3031, chance = 99700, maxCount = 87 }, -- gold coin
 	{ id = 7290, chance = 40000 }, -- shard
-	{ id = 236, chance = 72727 }, -- strong health potion
-	{ id = 9661, chance = 56364 }, -- frosty heart
-	{ id = 7441, chance = 50000 }, -- ice cube
-	{ name = "platinum coin", chance = 73636, maxCount = 5 },
-	{ name = "small sapphire", chance = 66364, maxCount = 5 },
-	{ name = "small diamond", chance = 63636, maxCount = 4 },
+	{ id = 236, chance = 100000 }, -- strong health potion
+	{ id = 9661, chance = 40000 }, -- frosty heart
+	{ id = 7441, chance = 80000 }, -- ice cube
 }
 
 monster.attacks = {

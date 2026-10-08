@@ -85,7 +85,6 @@ monster.loot = {
 	{ name = "crawler head plating", chance = 18430 },
 	{ name = "compound eye", chance = 14640 },
 	{ name = "grasshopper legs", chance = 100 },
-	{ name = "platinum coin", chance = 50250 },
 }
 
 monster.attacks = {

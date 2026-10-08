@@ -64,15 +64,15 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 92000, maxCount = 130 }, -- gold coin
-	{ id = 22186, chance = 19444 }, -- raw meat
-	{ id = 5925, chance = 2778, maxCount = 2 }, -- hardened bone
-	{ id = 10307, chance = 8333 }, -- thick fur
+	{ id = 22186, chance = 2200 }, -- raw meat
+	{ id = 5925, chance = 1200, maxCount = 2 }, -- hardened bone
+	{ id = 10307, chance = 900 }, -- thick fur
 	{ id = 3443, chance = 400 }, -- tusk shield
 	{ id = 7432, chance = 200 }, -- furry club
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -250, condition = { type = CONDITION_FIRE, totalDamage = 6, interval = 9000 } },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 40, maxDamage = -289, condition = { type = CONDITION_FIRE, totalDamage = 6, interval = 9000 } },
 }
 
 monster.defenses = {

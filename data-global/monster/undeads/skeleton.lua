@@ -83,13 +83,13 @@ monster.loot = {
 	{ name = "hatchet", chance = 4850 },
 	{ name = "mace", chance = 4850 },
 	{ name = "viking helmet", chance = 7520 },
-	{ name = "brass shield", chance = 1018 },
+	{ name = "brass shield", chance = 2090 },
 	{ name = "pelvis bone", chance = 9940 },
-	{ id = 23986, chance = 1907 }, -- heavy old tome
+	{ id = 23986, chance = 1000 }, -- heavy old tome
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -17 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -20 },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -7, maxDamage = -13, range = 1, target = false },
 }
 

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Naga Warrior")
 local monster = {}
 
 monster.description = "a naga warrior"
-monster.experience = 5480
+monster.experience = 5890
 monster.outfit = {
 	lookType = 1539,
 	lookHead = 85,
@@ -80,7 +80,7 @@ monster.loot = {
 	{ name = "naga warrior scales", chance = 10600, maxCount = 3 },
 	{ name = "naga earring", chance = 6420, maxCount = 3 },
 	{ id = 3307, chance = 5520 }, -- scimitar
-	{ name = "naga armring", chance = 2744 },
+	{ name = "naga armring", chance = 3730 },
 	{ name = "plate armor", chance = 2990 },
 	{ name = "spiky club", chance = 2090 },
 	{ name = "serpent sword", chance = 1940 },
@@ -95,7 +95,7 @@ monster.attacks = {
 	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_PHYSICALDAMAGE, minDamage = -120, maxDamage = -330, target = true }, -- basic_attack
 	{ name = "combat", interval = 2500, chance = 30, type = COMBAT_PHYSICALDAMAGE, minDamage = -320, maxDamage = -430, effect = CONST_ME_YELLOWSMOKE, range = 3, target = true }, -- eruption_strike
 	{ name = "nagadeathattack", interval = 3000, chance = 35, minDamage = -125, maxDamage = -250, target = true }, -- death_strike
-	{ name = "combat", interval = 3500, chance = 35, type = COMBAT_LIFEDRAIN, minDamage = -330, maxDamage = -330, radius = 4, effect = CONST_ME_DRAWBLOOD, target = false }, -- great_blood_ball
+	{ name = "combat", interval = 3500, chance = 35, type = COMBAT_LIFEDRAIN, minDamage = -125, maxDamage = -330, radius = 4, effect = CONST_ME_DRAWBLOOD, target = false }, -- great_blood_ball
 }
 
 monster.defenses = {

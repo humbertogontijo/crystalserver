@@ -84,7 +84,7 @@ monster.loot = {
 	{ name = "blank rune", chance = 10000 },
 	{ name = "strong mana potion", chance = 1910 },
 	{ name = "earth arrow", chance = 20160, maxCount = 30 },
-	{ id = 8894, chance = 5148 }, -- heavily rusted armor
+	{ id = 8894, chance = 350 }, -- heavily rusted armor
 	{ name = "small topaz", chance = 620 },
 	{ name = "lump of earth", chance = 20460 },
 	{ name = "clay lump", chance = 570 },
@@ -94,7 +94,7 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -110 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -72, maxDamage = -105, range = 7, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_GREEN_RINGS, target = true },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = -59, maxDamage = -107, range = 7, radius = 2, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_POFF, target = true },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -100, range = 7, radius = 2, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_POFF, target = true },
 	-- poison
 	{ name = "condition", type = CONDITION_POISON, interval = 2000, chance = 20, minDamage = -200, maxDamage = -260, length = 6, spread = 0, effect = CONST_ME_BIGPLANTS, target = false },
 	-- poison

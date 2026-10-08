@@ -82,7 +82,7 @@ monster.loot = {
 	{ name = "great spirit potion", chance = 3840, maxCount = 4 },
 	{ name = "green crystal shard", chance = 3470, maxCount = 3 },
 	{ name = "blue crystal shard", chance = 2950, maxCount = 3 },
-	{ name = "small diamond", chance = 3943, maxCount = 6 },
+	{ name = "small diamond", chance = 2950, maxCount = 6 },
 	{ name = "violet gem", chance = 2730 },
 	{ name = "bashmu fang", chance = 2070 },
 	{ name = "rainbow quartz", chance = 1770 },
@@ -97,7 +97,7 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -600 },
-	{ name = "combat", interval = 2000, chance = 50, type = COMBAT_ENERGYDAMAGE, minDamage = -400, maxDamage = -500, length = 4, spread = 0, effect = CONST_ME_ENERGYAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 50, type = COMBAT_ENERGYDAMAGE, minDamage = -400, maxDamage = -800, length = 4, spread = 0, effect = CONST_ME_ENERGYAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_ENERGYDAMAGE, minDamage = -400, maxDamage = -500, range = 3, radius = 3, effect = CONST_ME_ENERGYHIT, target = false },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -400, maxDamage = -800, range = 7, shootEffect = CONST_ANI_EARTHARROW, target = true },
 }

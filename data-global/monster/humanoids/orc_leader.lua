@@ -85,7 +85,7 @@ monster.loot = {
 	{ name = "plate armor", chance = 1650 },
 	{ name = "warrior helmet", chance = 180 },
 	{ name = "brass legs", chance = 3100 },
-	{ name = "plate shield", chance = 10061 },
+	{ name = "plate shield", chance = 1650 },
 	{ name = "plate legs", chance = 440 },
 	{ id = 3578, chance = 29400 }, -- fish
 	{ name = "brown mushroom", chance = 9650 },

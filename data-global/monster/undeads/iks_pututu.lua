@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Iks Pututu")
 local monster = {}
 
 monster.description = "an iks pututu"
-monster.experience = 1390
+monster.experience = 980
 monster.outfit = {
 	lookType = 1589,
 	lookHead = 0,
@@ -83,16 +83,17 @@ monster.loot = {
 	{ name = "opal", chance = 1850 },
 	{ name = "gold-brocaded cloth", chance = 1780 },
 	{ name = "gold ingot", chance = 960 },
-	{ name = "broken iks headpiece", chance = 70 },
 	{ id = 50150, chance = 560 }, -- ring of orange plasma
-	{ name = "platinum coin", chance = 39620, maxCount = 4 },
+	{ name = "broken iks headpiece", chance = 70 },
+	{ name = "broken iks sandals", chance = 70 },
+	{ name = "broken iks faulds", chance = 70 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -150 },
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_FIREDAMAGE, minDamage = -81, maxDamage = -88, radius = 2, effect = CONST_ME_FIREAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -79, maxDamage = -91, length = 8, spread = 0, effect = CONST_ME_STONE_STORM, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -79, maxDamage = -91, range = 7, radius = 1, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_FIREDAMAGE, minDamage = -80, maxDamage = -90, radius = 2, effect = CONST_ME_FIREAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -75, maxDamage = -95, length = 8, spread = 0, effect = CONST_ME_STONE_STORM, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -98, maxDamage = -114, range = 7, radius = 1, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
 }
 
 monster.defenses = {

@@ -79,7 +79,7 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 166 },
 	{ name = "strong health potion", chance = 15930 },
-	{ name = "small topaz", chance = 13717, maxCount = 3 },
+	{ name = "small topaz", chance = 1238, maxCount = 3 },
 	{ name = "orcish axe", chance = 9190 },
 	{ name = "cultish robe", chance = 19360 },
 	{ name = "red mushroom", chance = 6250, maxCount = 3 },
@@ -88,8 +88,8 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -150, range = 7, shootEffect = CONST_ANI_SPEAR, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -230 },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -120, maxDamage = -170, range = 7, shootEffect = CONST_ANI_SPEAR, target = false },
 }
 
 monster.defenses = {

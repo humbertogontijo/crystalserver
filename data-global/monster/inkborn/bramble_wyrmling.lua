@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Bramble Wyrmling")
 local monster = {}
 
 monster.description = "a bramble wyrmling"
-monster.experience = 2350
+monster.experience = 1950
 monster.outfit = {
 	lookType = 1850,
 	lookHead = 43,
@@ -42,13 +42,12 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 65424, maxCount = 10 },
-	{ name = "small emerald", chance = 6589, maxCount = 4 },
-	{ name = "green crystal fragment", chance = 8402, maxCount = 2 },
-	{ name = "book with a dragon", chance = 3728 },
-	{ name = "terra hood", chance = 383 },
-	{ id = 3038, chance = 121 }, -- green gem
-	{ name = "gold coin", chance = 84868, maxCount = 100 },
+	{ name = "platinum coin", chance = 40590, maxCount = 10 },
+	{ name = "small emerald", chance = 2500, maxCount = 4 },
+	{ name = "green crystal fragment", chance = 1900, maxCount = 2 },
+	{ name = "book with a dragon", chance = 1600 },
+	{ name = "terra hood", chance = 1200 },
+	{ id = 3038, chance = 800 }, -- green gem
 }
 
 monster.attacks = {
@@ -71,16 +70,16 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 5 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -5 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 20 },
-	{ type = COMBAT_FIREDAMAGE, percent = -5 },
+	{ type = COMBAT_EARTHDAMAGE, percent = -20 },
+	{ type = COMBAT_FIREDAMAGE, percent = 5 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 5 },
-	{ type = COMBAT_DEATHDAMAGE, percent = -10 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -5 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 10 },
 }
 
 monster.immunities = {

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Lost Husher")
 local monster = {}
 
 monster.description = "a lost husher"
-monster.experience = 1800
+monster.experience = 1100
 monster.outfit = {
 	lookType = 537,
 	lookHead = 0,
@@ -77,7 +77,7 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "gold coin", chance = 50000, maxCount = 100 },
 	{ name = "platinum coin", chance = 58670, maxCount = 2 },
 	{ name = "fire axe", chance = 330 },
 	{ name = "skull staff", chance = 280 },
@@ -95,18 +95,14 @@ monster.loot = {
 	{ name = "buckle", chance = 8180 },
 	{ name = "buckle", chance = 770 },
 	{ name = "bonecarving knife", chance = 8510 },
-	{ name = "wimp tooth chain", chance = 12054 },
-	{ name = "skull shatterer", chance = 8984 },
-	{ name = "red hair dye", chance = 15247 },
+	{ name = "wimp tooth chain", chance = 8950 },
+	{ name = "skull shatterer", chance = 12320 },
+	{ name = "red hair dye", chance = 8510 },
 	{ name = "basalt figurine", chance = 8560 },
-	{ name = "holy ash", chance = 11613 },
-	{ name = "lost husher's staff", chance = 9139 },
-	{ name = "bone fetish", chance = 7492 },
-	{ name = "basalt fetish", chance = 5907 },
 }
 
 monster.attacks = {
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -150, maxDamage = -350, length = 6, spread = 0, effect = CONST_ME_BLACKSMOKE, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -150, maxDamage = -300, length = 6, spread = 0, effect = CONST_ME_BLACKSMOKE, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -150, maxDamage = -200, range = 7, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -150, maxDamage = -250, range = 7, radius = 2, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_MAGIC_GREEN, target = true },
 	{ name = "drunk", interval = 2000, chance = 10, radius = 4, effect = CONST_ME_SOUND_RED, target = false, duration = 6000 },
@@ -128,7 +124,7 @@ monster.elements = {
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = -5 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = -10 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 20 },
 }

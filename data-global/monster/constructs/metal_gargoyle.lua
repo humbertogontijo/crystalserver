@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Metal Gargoyle")
 local monster = {}
 
 monster.description = "a metal gargoyle"
-monster.experience = 1470
+monster.experience = 1278
 monster.outfit = {
 	lookType = 601,
 	lookHead = 0,
@@ -80,25 +80,25 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 200 }, -- gold coin
-	{ id = 21755, chance = 2348 }, -- bronze gear wheel
+	{ id = 21755, chance = 1490 }, -- bronze gear wheel
 	{ id = 21193, chance = 17160 }, -- metal jaw
 	{ id = 3035, chance = 43280, maxCount = 2 }, -- platinum coin
 	{ id = 236, chance = 9700, maxCount = 2 }, -- strong health potion
 	{ id = 237, chance = 9700, maxCount = 2 }, -- strong mana potion
-	{ id = 21171, chance = 821 }, -- metal bat
-	{ id = 8082, chance = 895 }, -- underworld rod
-	{ id = 3051, chance = 378 }, -- energy ring
+	{ id = 21171, chance = 1490 }, -- metal bat
+	{ id = 8082, chance = 1490 }, -- underworld rod
+	{ id = 3051, chance = 2240 }, -- energy ring
 	{ id = 3052, chance = 750 }, -- life ring
-	{ id = 10310, chance = 1305 }, -- shiny stone
-	{ id = 21169, chance = 2700 }, -- metal spats
-	{ id = 21168, chance = 878 }, -- alloy legs
+	{ id = 10310, chance = 2240 }, -- shiny stone
+	{ id = 21169, chance = 1490 }, -- metal spats
+	{ id = 21168, chance = 1490 }, -- alloy legs
 	{ id = 8896, chance = 2990 }, -- slightly rusted armor
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, skill = 84, attack = 50 },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -125, maxDamage = -210, length = 8, spread = 0, effect = CONST_ME_YELLOWENERGY, target = false },
-	{ name = "combat", interval = 2000, chance = 9, type = COMBAT_LIFEDRAIN, minDamage = -75, maxDamage = -120, range = 7, radius = 3, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -125, maxDamage = -230, length = 8, spread = 0, effect = CONST_ME_YELLOWENERGY, target = false },
+	{ name = "combat", interval = 2000, chance = 9, type = COMBAT_LIFEDRAIN, minDamage = -85, maxDamage = -150, range = 7, radius = 3, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = true },
 	{ name = "metal gargoyle curse", interval = 2000, chance = 13, target = false },
 }
 

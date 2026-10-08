@@ -92,14 +92,14 @@ monster.loot = {
 	{ name = "gold coin", chance = 60000, maxCount = 100 },
 	{ name = "gold coin", chance = 60000, maxCount = 100 },
 	{ name = "small emerald", chance = 9690, maxCount = 5 },
-	{ name = "small amethyst", chance = 10170, maxCount = 5 },
-	{ name = "small ruby", chance = 9907, maxCount = 5 },
+	{ name = "small amethyst", chance = 7250, maxCount = 5 },
+	{ name = "small ruby", chance = 7430, maxCount = 5 },
 	{ name = "small topaz", chance = 7470, maxCount = 5 },
 	{ id = 3039, chance = 2220 }, -- red gem
-	{ name = "demonic essence", chance = 20259 },
+	{ name = "demonic essence", chance = 14630 },
 	{ name = "talon", chance = 3430 },
 	{ name = "platinum coin", chance = 90540, maxCount = 8 },
-	{ name = "might ring", chance = 638 },
+	{ name = "might ring", chance = 1890 },
 	{ id = 3049, chance = 2170 }, -- stealth ring
 	{ name = "platinum amulet", chance = 680 },
 	{ name = "orb", chance = 2854 },
@@ -115,21 +115,21 @@ monster.loot = {
 	{ name = "mastermind shield", chance = 480 },
 	{ name = "demon shield", chance = 740 },
 	{ name = "fire mushroom", chance = 19660, maxCount = 6 },
-	{ name = "demon horn", chance = 20320 },
+	{ name = "demon horn", chance = 14920 },
 	{ name = "assassin star", chance = 12550, maxCount = 10 },
 	{ name = "demonrage sword", chance = 70 },
 	{ id = 7393, chance = 90 }, -- demon trophy
 	{ id = 238, chance = 22220, maxCount = 3 }, -- great mana potion
 	{ name = "ultimate health potion", chance = 19540, maxCount = 3 },
-	{ name = "great spirit potion", chance = 24701, maxCount = 3 },
+	{ name = "great spirit potion", chance = 18510, maxCount = 3 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -520 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_MANADRAIN, minDamage = 0, maxDamage = -120, range = 7, target = false },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -150, maxDamage = -250, range = 7, radius = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
 	{ name = "firefield", interval = 2000, chance = 10, range = 7, radius = 1, shootEffect = CONST_ANI_FIRE, target = true },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -300, maxDamage = -500, length = 8, spread = 0, effect = CONST_ME_PURPLEENERGY, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -300, maxDamage = -490, length = 8, spread = 0, effect = CONST_ME_PURPLEENERGY, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -210, maxDamage = -300, range = 1, shootEffect = CONST_ANI_ENERGY, target = true },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = -700, radius = 1, effect = CONST_ME_MAGIC_RED, target = true, duration = 30000 },
 }

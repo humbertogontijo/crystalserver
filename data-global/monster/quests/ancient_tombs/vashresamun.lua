@@ -80,27 +80,26 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 2950, chance = 7000 }, -- lute
-	{ id = 2953, chance = 364 }, -- panpipes
+	{ id = 2953, chance = 1500 }, -- panpipes
 	{ id = 3007, chance = 1500 }, -- crystal ring
 	{ name = "ancient tiara", chance = 300 },
-	{ name = "white pearl", chance = 9905 },
+	{ name = "white pearl", chance = 7000 },
 	{ name = "gold coin", chance = 50000, maxCount = 90 },
 	{ name = "gold coin", chance = 50000, maxCount = 80 },
 	{ name = "gold coin", chance = 50000, maxCount = 65 },
 	{ name = "blue note", chance = 100000 },
 	{ name = "crystal mace", chance = 500 },
-	{ name = "blue robe", chance = 1165 },
-	{ name = "great mana potion", chance = 8230 },
+	{ name = "blue robe", chance = 2500 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200, condition = { type = CONDITION_POISON, totalDamage = 65, interval = 4000 } },
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_LIFEDRAIN, minDamage = -50, maxDamage = -750, radius = 5, effect = CONST_ME_SOUND_PURPLE, target = false },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_LIFEDRAIN, minDamage = -200, maxDamage = -750, radius = 5, effect = CONST_ME_SOUND_PURPLE, target = false },
 }
 
 monster.defenses = {
 	defense = 35,
-	armor = 40,
+	armor = 20,
 	{ name = "combat", interval = 1000, chance = 20, type = COMBAT_HEALING, minDamage = 60, maxDamage = 450, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "speed", interval = 1000, chance = 12, speedChange = 350, range = 7, effect = CONST_ME_MAGIC_RED, target = false, duration = 30000 },
 }
@@ -108,13 +107,13 @@ monster.defenses = {
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 20 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 20 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
 	{ type = COMBAT_FIREDAMAGE, percent = 20 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 20 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -10 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 100 },
 }
 

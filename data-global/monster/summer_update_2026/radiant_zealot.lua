@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Radiant Zealot")
 local monster = {}
 
 monster.description = "a radiant zealot"
-monster.experience = 35220
+monster.experience = 31160
 monster.outfit = {
 	lookType = 1968,
 	lookHead = 0,
@@ -73,7 +73,7 @@ monster.light = {
 
 monster.loot = {
 	{ name = "Etcher", chance = 900 },
-	{ name = "Loose Prayer Beads", chance = 2970 },
+	{ name = "Loose Prayer Beads", chance = 900 },
 	{ name = "Gilded Bell", chance = 150 },
 	{ name = "radiant zealot soul core", chance = 100 },
 }

@@ -80,10 +80,10 @@ monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 100 }, -- gold coin
 	{ id = 3031, chance = 100000, maxCount = 89 }, -- gold coin
 	{ id = 3035, chance = 100000, maxCount = 8 }, -- platinum coin
-	{ id = 23545, chance = 20079 }, -- energy drink
-	{ id = 23535, chance = 20391 }, -- energy bar
+	{ id = 23545, chance = 15000 }, -- energy drink
+	{ id = 23535, chance = 15000 }, -- energy bar
 	{ id = 23519, chance = 15000 }, -- frozen lightning
-	{ id = 23516, chance = 14688 }, -- instable proto matter
+	{ id = 23516, chance = 8000 }, -- instable proto matter
 	{ id = 7642, chance = 14000 }, -- great spirit potion
 	{ id = 7643, chance = 13500 }, -- ultimate health potion
 	{ id = 238, chance = 12700 }, -- great mana potion
@@ -108,7 +108,7 @@ monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
 	-- energy damage
 	{ name = "condition", type = CONDITION_ENERGY, interval = 2000, chance = 20, minDamage = -400, maxDamage = -600, radius = 5, effect = CONST_ME_ENERGYHIT, target = false },
-	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_DEATHDAMAGE, minDamage = -280, maxDamage = -350, range = 4, radius = 4, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_DEATHDAMAGE, minDamage = -250, maxDamage = -400, range = 4, radius = 4, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = true },
 	{ name = "dread intruder wave", interval = 2000, chance = 25, minDamage = -350, maxDamage = -550, target = false },
 }
 

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Skeleton Elite Warrior")
 local monster = {}
 
 monster.description = "a skeleton elite warrior"
-monster.experience = 5370
+monster.experience = 4800
 monster.outfit = {
 	lookType = 298,
 	lookHead = 0,
@@ -73,22 +73,21 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 15 },
+	{ name = "platinum coin", chance = 43500, maxCount = 15 },
 	{ id = 3115, chance = 50000 }, -- bone
 	{ name = "white mushroom", chance = 24000, maxCount = 3 },
-	{ name = "soul orb", chance = 24237, maxCount = 5 },
-	{ name = "knight axe", chance = 6102 },
-	{ name = "pelvis bone", chance = 15932, maxCount = 10 },
-	{ name = "unholy bone", chance = 11017, maxCount = 5 },
-	{ name = "skull helmet", chance = 4576 },
+	{ name = "soul orb", chance = 43500, maxCount = 5 },
+	{ name = "knight axe", chance = 3250 },
+	{ name = "pelvis bone", chance = 2630, maxCount = 10 },
+	{ name = "unholy bone", chance = 2630, maxCount = 5 },
+	{ name = "skull helmet", chance = 350 },
 	{ name = "ruthless axe", chance = 150 },
-	{ name = "bone toothpick", chance = 5085 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -400, maxDamage = -500, range = 1, effect = CONST_ME_MAGIC_RED, target = false },
-	{ name = "combat", interval = 1500, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -500, range = 7, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -700 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -300, maxDamage = -480, range = 1, effect = CONST_ME_MAGIC_RED, target = false },
+	{ name = "combat", interval = 1500, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -380, maxDamage = -520, range = 7, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = false },
 }
 
 monster.defenses = {

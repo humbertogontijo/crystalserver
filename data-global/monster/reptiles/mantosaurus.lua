@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Mantosaurus")
 local monster = {}
 
 monster.description = "a mantosaurus"
-monster.experience = 12440
+monster.experience = 11569
 monster.outfit = {
 	lookType = 1556,
 	lookHead = 85,
@@ -78,7 +78,7 @@ monster.loot = {
 	{ name = "Mantosaurus Jaw", chance = 19120 },
 	{ name = "Ultimate Mana Potion", chance = 9660, minCount = 1, maxCount = 3 },
 	{ name = "Silver Brooch", chance = 3920 },
-	{ name = "Red Crystal Fragment", chance = 2574 },
+	{ name = "Red Crystal Fragment", chance = 3570 },
 	{ name = "Cyan Crystal Fragment", chance = 3010 },
 	{ name = "Green Crystal Shard", chance = 3010 },
 	{ name = "Coral Brooch", chance = 2420 },

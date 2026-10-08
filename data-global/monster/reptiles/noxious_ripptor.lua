@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Noxious Ripptor")
 local monster = {}
 
 monster.description = "a noxious ripptor"
-monster.experience = 14180
+monster.experience = 13190
 monster.outfit = {
 	lookType = 1558,
 	lookHead = 85,
@@ -81,7 +81,7 @@ monster.loot = {
 	{ name = "Ripptor Claw", chance = 8280, minCount = 1, maxCount = 2 },
 	{ name = "Serpent Sword", chance = 1440 },
 	{ name = "Sacred Tree Amulet", chance = 1360 },
-	{ name = "Muck Rod", chance = 619 },
+	{ name = "Muck Rod", chance = 1290 },
 	{ name = "Terra Legs", chance = 750 },
 	{ name = "Wooden Spellbook", chance = 450 },
 }

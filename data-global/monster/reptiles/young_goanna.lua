@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Young Goanna")
 local monster = {}
 
 monster.description = "a young goanna"
-monster.experience = 5250
+monster.experience = 6100
 monster.outfit = {
 	lookType = 1196,
 	lookHead = 0,
@@ -26,8 +26,8 @@ monster.Bestiary = {
 	Locations = "Kilmaresh Central Steppe, Kilmaresh Southern Steppe, Green Belt.",
 }
 
-monster.health = 6950
-monster.maxHealth = 6950
+monster.health = 6200
+monster.maxHealth = 6200
 monster.race = "blood"
 monster.corpse = 31409
 monster.speed = 190
@@ -94,19 +94,19 @@ monster.loot = {
 	{ name = "silver amulet", chance = 2280 },
 	{ name = "terra amulet", chance = 1430 },
 	{ name = "blue gem", chance = 1180 },
-	{ name = "terra hood", chance = 485 },
+	{ name = "terra hood", chance = 1100 },
 	{ name = "blue crystal splinter", chance = 1010 },
 	{ name = "sacred tree amulet", chance = 840 },
 	{ name = "small tortoise", chance = 670 },
-	{ name = "lizard heart", chance = 1129 },
+	{ name = "lizard heart", chance = 590 },
 	{ name = "wooden spellbook", chance = 170 },
 	{ name = "fur armor", chance = 80 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -229, condition = { type = CONDITION_POISON, totalDamage = 200, interval = 4000 } },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500, condition = { type = CONDITION_POISON, totalDamage = 200, interval = 4000 } },
 	{ name = "combat", interval = 2500, chance = 30, type = COMBAT_EARTHDAMAGE, minDamage = -300, maxDamage = -490, range = 3, shootEffect = CONST_ANI_EARTH, effect = CONST_ME_HITBYPOISON, target = true },
-	{ name = "combat", interval = 3000, chance = 30, type = COMBAT_EARTHDAMAGE, minDamage = -300, maxDamage = -450, radius = 1, effect = CONST_ME_GROUNDSHAKER, target = false },
+	{ name = "combat", interval = 3000, chance = 30, type = COMBAT_EARTHDAMAGE, minDamage = -300, maxDamage = -500, radius = 1, effect = CONST_ME_GROUNDSHAKER, target = false },
 	{ name = "combat", interval = 3500, chance = 30, type = COMBAT_EARTHDAMAGE, minDamage = -300, maxDamage = -490, lenght = 8, spread = 0, effect = CONST_ME_GREEN_RINGS, target = false },
 }
 

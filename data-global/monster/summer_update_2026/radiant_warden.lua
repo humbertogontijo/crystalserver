@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Radiant Warden")
 local monster = {}
 
 monster.description = "a radiant warden"
-monster.experience = 35540
+monster.experience = 31450
 monster.outfit = {
 	lookType = 1964,
 	lookHead = 0,
@@ -72,7 +72,7 @@ monster.light = {
 }
 
 monster.loot = {
-	{ id = 860, chance = 6349 }, -- crimson sword
+	{ id = 860, chance = 4000 }, -- crimson sword
 	{ name = "Tatty Robe", chance = 4000 },
 	{ name = "Gilded Bell", chance = 150 },
 	{ name = "radiant warden soul core", chance = 100 },

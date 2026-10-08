@@ -77,7 +77,7 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "pirate coin", chance = 10000, maxCount = 10 },
-	{ name = "cyan crystal fragment", chance = 15351 },
+	{ name = "cyan crystal fragment", chance = 10000 },
 	{ name = "small diamond", chance = 10000 },
 	{ name = "red crystal fragment", chance = 10000 },
 	{ name = "mouldy powder", chance = 9000 },

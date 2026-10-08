@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Sorcerer's Apparition")
 local monster = {}
 
 monster.description = "a sorcerer's apparition"
-monster.experience = 21130
+monster.experience = 28600
 monster.outfit = {
 	lookType = 138,
 	lookHead = 95,
@@ -81,23 +81,22 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 55990 },
+	{ name = "crystal coin", chance = 79040 },
 	{ id = 238, chance = 62450, maxCount = 3 }, -- great mana potion
-	-- { id = 281, chance = 10040 }, -- giant shimmering pearl
+	-- {name = "giant shimmering pearl", chance = 10040}, -- unknown item: giant shimmering pearl
 	{ name = "blue gem", chance = 5240 },
-	{ id = 23533, chance = 2396 }, -- ring of red plasma
-	{ name = "wand of voodoo", chance = 2270 },
-	{ id = 23531, chance = 1702 }, -- ring of green plasma
-	{ id = 23529, chance = 2081 }, -- ring of blue plasma
-	{ name = "violet gem", chance = 1450 },
-	{ name = "glacier amulet", chance = 1072 },
+	{ id = 23533, chance = 4370 }, -- ring of red plasma
+	{ name = "wand of voodoo", chance = 4370 },
+	{ id = 23531, chance = 3490 }, -- ring of green plasma
+	{ id = 23529, chance = 3060 }, -- ring of blue plasma
+	{ name = "violet gem", chance = 2620 },
+	{ name = "glacier amulet", chance = 2620 },
 	{ name = "wand of everblazing", chance = 2180 },
 	{ name = "wand of defiance", chance = 1750 },
-	{ name = "wand of starstorm", chance = 504 },
-	{ name = "stone skin amulet", chance = 694 },
+	{ name = "wand of starstorm", chance = 1310 },
+	{ name = "stone skin amulet", chance = 1310 },
 	{ name = "alloy legs", chance = 440 },
 	{ name = "bag you desire", chance = 15 },
-	{ id = 281, chance = 5738 }, -- giant shimmering pearl
 }
 
 monster.attacks = {
@@ -107,7 +106,7 @@ monster.attacks = {
 	{ name = "combat", interval = 5000, chance = 34, type = COMBAT_ICEDAMAGE, minDamage = -1100, maxDamage = -1300, range = 7, shootEffect = CONST_ANI_ICE, effect = CONST_ME_BIGCLOUDS, target = true },
 	{ name = "ice chain", interval = 9500, chance = 52, minDamage = -1100, maxDamage = -1300, range = 7 },
 	{ name = "combat", interval = 3000, chance = 14, type = COMBAT_HOLYDAMAGE, minDamage = -1100, maxDamage = -1250, range = 7, shootEffect = CONST_ANI_HOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
-	{ name = "combat", interval = 4000, chance = 19, type = COMBAT_HOLYDAMAGE, minDamage = -1100, maxDamage = -1300, radius = 4, effect = CONST_ME_HOLYAREA, target = false },
+	{ name = "combat", interval = 4000, chance = 19, type = COMBAT_HOLYDAMAGE, minDamage = -1250, maxDamage = -1400, radius = 4, effect = CONST_ME_HOLYAREA, target = false },
 }
 
 monster.defenses = {

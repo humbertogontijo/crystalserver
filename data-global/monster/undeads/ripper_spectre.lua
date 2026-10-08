@@ -76,17 +76,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 74296, maxCount = 5 },
-	{ name = "great spirit potion", chance = 23123, maxCount = 2 },
-	{ name = "two handed sword", chance = 12219 },
-	{ name = "terra rod", chance = 6743 },
-	{ name = "silver brooch", chance = 3779 },
-	{ name = "emerald bangle", chance = 3985 },
-	{ name = "twin hooks", chance = 3396 },
-	{ name = "springsprout rod", chance = 2611 },
+	{ name = "platinum coin", chance = 100000, maxCount = 5 },
+	{ name = "great spirit potion", chance = 30910, maxCount = 2 },
+	{ name = "two handed sword", chance = 16500 },
+	{ name = "terra rod", chance = 4780 },
+	{ name = "silver brooch", chance = 15190 },
+	{ name = "emerald bangle", chance = 14740 },
+	{ name = "twin hooks", chance = 1170 },
+	{ name = "springsprout rod", chance = 1210 },
 	{ id = 30083, chance = 1890 }, -- green ectoplasm
 	{ name = "coral brooch", chance = 1330 },
-	{ name = "serpent sword", chance = 1070 },
+	{ name = "serpent sword", chance = 1950 },
 	{ name = "hexagonal ruby", chance = 800 },
 	{ name = "assassin dagger", chance = 970 },
 	{ name = "spike sword", chance = 530 },
@@ -94,10 +94,10 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -350 },
-	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_EARTHDAMAGE, minDamage = -200, maxDamage = -400, radius = 4, effect = CONST_ME_GREEN_RINGS, target = false },
-	{ name = "combat", interval = 2800, chance = 25, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -350, radius = 3, effect = CONST_ME_DRAWBLOOD, target = false },
-	{ name = "combat", interval = 3500, chance = 37, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -350, length = 3, spread = 2, effect = CONST_ME_GROUNDSHAKER, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -370 },
+	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_EARTHDAMAGE, minDamage = -200, maxDamage = -425, radius = 4, effect = CONST_ME_GREEN_RINGS, target = false },
+	{ name = "combat", interval = 2800, chance = 25, type = COMBAT_PHYSICALDAMAGE, minDamage = -350, maxDamage = -450, radius = 3, effect = CONST_ME_DRAWBLOOD, target = false },
+	{ name = "combat", interval = 3500, chance = 37, type = COMBAT_PHYSICALDAMAGE, minDamage = -250, maxDamage = -375, length = 3, spread = 2, effect = CONST_ME_GROUNDSHAKER, target = false },
 }
 
 monster.defenses = {

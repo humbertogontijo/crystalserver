@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Psychic Spirit Elemental")
 local monster = {}
 
 monster.description = "a psychic spirit elemental"
-monster.experience = 1
+monster.experience = 1300
 monster.outfit = {
 	lookType = 1840,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 1
-monster.maxHealth = 1
+monster.health = 1400
+monster.maxHealth = 1400
 monster.race = "undead"
 monster.corpse = 6003
 monster.speed = 125
@@ -64,11 +64,11 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 87495, maxCount = 120 },
-	{ name = "holy ash", chance = 49583 },
+	{ name = "gold coin", chance = 44000, maxCount = 120 },
+	{ name = "holy ash", chance = 10800 },
 	{ name = "small topaz", chance = 4500, maxCount = 2 },
-	{ name = "spirited soil", chance = 9785 },
-	{ name = "moonlight rod", chance = 439 },
+	{ name = "spirited soil", chance = 2100 },
+	{ name = "moonlight rod", chance = 1935 },
 }
 
 monster.attacks = {
@@ -86,7 +86,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 100 },
+	{ type = COMBAT_FIREDAMAGE, percent = -100 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

@@ -85,11 +85,11 @@ monster.loot = {
 	{ name = "gold coin", chance = 40000, maxCount = 10 },
 	{ id = 3115, chance = 11500 }, -- bone
 	{ name = "mouldy cheese", chance = 9000 },
-	{ name = "dagger", chance = 17571 },
-	{ name = "short sword", chance = 9905 },
-	{ name = "bone club", chance = 4757 },
-	{ name = "leather helmet", chance = 10297 },
-	{ name = "leather armor", chance = 7499 },
+	{ name = "dagger", chance = 10300 },
+	{ name = "short sword", chance = 15400 },
+	{ name = "bone club", chance = 1300 },
+	{ name = "leather helmet", chance = 16670 },
+	{ name = "leather armor", chance = 5000 },
 	{ name = "small axe", chance = 12800 },
 	{ id = 3578, chance = 15000 }, -- fish
 }

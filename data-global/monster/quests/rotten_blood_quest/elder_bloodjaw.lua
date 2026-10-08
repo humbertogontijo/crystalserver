@@ -66,7 +66,7 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -300, maxDamage = -690 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 300, maxDamage = -690 },
 	{ name = "Life Drain Circle", interval = 2000, chance = 25, minDamage = -2000, maxDamage = -3500, target = false },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_LIFEDRAIN, minDamage = -2100, maxDamage = -2500, radius = 4, effect = CONST_ME_DRAWBLOOD, target = false },
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_LIFEDRAIN, minDamage = -1500, maxDamage = -2000, length = 6, spread = 0, effect = CONST_ME_DRAWBLOOD, target = false },

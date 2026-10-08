@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Shell Drake")
 local monster = {}
 
 monster.description = "a shell drake"
-monster.experience = 2900
+monster.experience = 2370
 monster.outfit = {
 	lookType = 1857,
 	lookHead = 0,
@@ -79,26 +79,26 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 43811, minCount = 1, maxCount = 150 },
-	{ name = "platinum coin", chance = 73485, minCount = 1, maxCount = 8 },
-	{ name = "paper plane", chance = 7524 }, -- new item
+	{ name = "gold coin", chance = 60000, minCount = 1, maxCount = 150 },
+	{ name = "platinum coin", chance = 45000, minCount = 1, maxCount = 8 },
+	{ name = "paper plane", chance = 2800 }, -- new item
 	{ id = 238, chance = 2000 }, -- great mana potion
-	{ name = "small enchanted amethyst", chance = 3453 },
-	{ name = "spiked squelcher", chance = 977 },
-	{ name = "violet crystal shard", chance = 2182 },
-	{ name = "cave turnip", chance = 2866 },
-	{ name = "prismatic quartz", chance = 2150 },
-	{ name = "blank imbuement scroll", chance = 456 },
-	{ name = "warrior's shield", chance = 65 },
+	{ name = "small enchanted amethyst", chance = 1800 },
+	{ name = "spiked squelcher", chance = 1600 },
+	{ name = "violet crystal shard", chance = 1500 },
+	{ name = "cave turnip", chance = 1400 },
+	{ name = "prismatic quartz", chance = 1200 },
+	{ name = "blank imbuement scroll", chance = 1200 },
+	{ name = "warrior's shield", chance = 800 },
 }
 
 monster.attacks = {
 	-- Physical: Stone Shower (220-260)
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_PHYSICALDAMAGE, minDamage = -220, maxDamage = -260, radius = 4, effect = CONST_ME_STONES, target = false },
 	-- Physical: Explosion (Circle 7x7)
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -225, maxDamage = -350, radius = 3, effect = CONST_ME_EXPLOSIONHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -250, maxDamage = -350, radius = 3, effect = CONST_ME_EXPLOSIONHIT, target = false },
 	-- Fire: Strike (200-280)
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -240, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -280, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
 }
 
 monster.defenses = {
@@ -109,15 +109,15 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 5 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = -5 },
-	{ type = COMBAT_FIREDAMAGE, percent = 20 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 10 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = -5 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = -5 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -5 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 5 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 25 },
 }
 
 monster.immunities = {

@@ -87,7 +87,6 @@ monster.loot = {
 	{ name = "health potion", chance = 19000 },
 	{ name = "mana potion", chance = 19000 },
 	{ name = "small enchanted amethyst", chance = 470 },
-	{ name = "powder herb", chance = 6016 },
 }
 
 monster.attacks = {

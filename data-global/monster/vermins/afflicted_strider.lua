@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Afflicted Strider")
 local monster = {}
 
 monster.description = "an afflicted strider"
-monster.experience = 6550
+monster.experience = 5700
 monster.outfit = {
 	lookType = 1403,
 	lookHead = 0,
@@ -74,7 +74,7 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 16 },
+	{ name = "platinum coin", chance = 70000, maxCount = 16 },
 	{ name = "afflicted strider worms", chance = 10940, maxCount = 3 },
 	{ name = "guardian halberd", chance = 9410 },
 	{ name = "crystal sword", chance = 8940 },
@@ -89,7 +89,7 @@ monster.loot = {
 	{ name = "magma coat", chance = 2470 },
 	{ name = "serpent sword", chance = 2240 },
 	{ name = "machete", chance = 3760 },
-	{ name = "broadsword", chance = 2043 },
+	{ name = "broadsword", chance = 1060 },
 	{ name = "focus cape", chance = 2240 },
 	{ name = "ice rapier", chance = 2240 },
 	{ name = "titan axe", chance = 1880 },
@@ -101,7 +101,7 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -600 },
 	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_EARTHDAMAGE, minDamage = -550, maxDamage = -650, range = 3, shootEffect = CONST_ANI_POISON, target = true },
-	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_DEATHDAMAGE, minDamage = -650, maxDamage = -760, radius = 5, effect = CONST_ME_GROUNDSHAKER, target = false },
+	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_DEATHDAMAGE, minDamage = -650, maxDamage = -800, radius = 5, effect = CONST_ME_GROUNDSHAKER, target = false },
 }
 
 monster.defenses = {

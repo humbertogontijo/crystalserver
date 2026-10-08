@@ -82,23 +82,23 @@ monster.loot = {
 	{ name = "werepanther claw", chance = 13820, maxCount = 2 },
 	{ name = "golden sickle", chance = 6720 },
 	{ name = "meat", chance = 5500, maxCount = 2 },
-	{ name = "small ruby", chance = 4306, maxCount = 3 },
-	{ name = "moonlight crystals", chance = 3993 },
-	{ id = 3039, chance = 1801 }, -- red gem
-	{ name = "magma monocle", chance = 1461 },
+	{ name = "small ruby", chance = 8470, maxCount = 3 },
+	{ name = "moonlight crystals", chance = 2550 },
+	{ id = 3039, chance = 1240 }, -- red gem
+	{ name = "magma monocle", chance = 3080 },
 	{ name = "ripper lance", chance = 850 },
-	{ name = "gemmed figurine", chance = 835 },
-	{ id = 817, chance = 548 }, -- magma amulet
-	{ name = "fur armor", chance = 861 },
+	{ name = "gemmed figurine", chance = 1770 },
+	{ id = 817, chance = 2770 }, -- magma amulet
+	{ name = "fur armor", chance = 2620 },
 	{ id = 43917, chance = 650 }, -- werepanther trophy
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -67, maxDamage = -470 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -75, maxDamage = -525 },
 	{ name = "combat", interval = 3700, chance = 40, type = COMBAT_FIREDAMAGE, minDamage = -265, maxDamage = -400, radius = 3, effect = CONST_ME_FIREATTACK, target = false },
 	{ name = "combat", interval = 2700, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -275, maxDamage = -375, radius = 3, effect = CONST_ME_GROUNDSHAKER, range = 4, target = true },
 	{ name = "combat", interval = 2300, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -200, maxDamage = -375, radius = 2, effect = CONST_ME_YELLOWSMOKE, target = false },
-	{ name = "combat", interval = 3300, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -175, maxDamage = -280, radius = 2, effect = CONST_ME_MORTAREA, range = 4, target = true },
+	{ name = "combat", interval = 3300, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -175, maxDamage = -300, radius = 2, effect = CONST_ME_MORTAREA, range = 4, target = true },
 }
 
 monster.defenses = {

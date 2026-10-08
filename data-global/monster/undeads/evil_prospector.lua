@@ -74,22 +74,22 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 5 },
-	{ name = "spectral silver nugget", chance = 11388, maxCount = 2 },
+	{ name = "spectral silver nugget", chance = 17110, maxCount = 2 },
 	{ name = "wand of starstorm", chance = 13160, maxCount = 10 },
-	{ name = "lightning pendant", chance = 3276 },
+	{ name = "lightning pendant", chance = 9210 },
 	{ name = "emerald bangle", chance = 3950 },
-	{ name = "strange talisman", chance = 3744 },
+	{ name = "strange talisman", chance = 2630 },
 	{ name = "wand of defiance", chance = 2630 },
-	{ name = "lightning headband", chance = 2808 },
+	{ name = "lightning headband", chance = 1320 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -500 },
 	{ name = "combat", interval = 1700, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -250, maxDamage = -550, radius = 3, shootEffect = CONST_ANI_ENVENOMEDARROW, effect = CONST_ME_HITBYPOISON, target = true },
-	{ name = "combat", interval = 1700, chance = 25, type = COMBAT_ENERGYDAMAGE, minDamage = -500, maxDamage = -500, length = 4, spread = 0, effect = CONST_ME_ENERGYHIT, target = false },
+	{ name = "combat", interval = 1700, chance = 25, type = COMBAT_ENERGYDAMAGE, minDamage = -250, maxDamage = -550, length = 4, spread = 0, effect = CONST_ME_ENERGYHIT, target = false },
 	{ name = "combat", interval = 1700, chance = 35, type = COMBAT_DEATHDAMAGE, minDamage = -250, maxDamage = -550, radius = 3, effect = CONST_ME_MORTAREA, target = false },
-	{ name = "combat", interval = 1700, chance = 35, type = COMBAT_HOLYDAMAGE, minDamage = -400, maxDamage = -500, radius = 3, effect = CONST_ME_HOLYAREA, target = false },
-	{ name = "combat", interval = 1700, chance = 13, type = COMBAT_ENERGYDAMAGE, minDamage = -500, maxDamage = -500, range = 4, radius = 4, effect = CONST_ME_ENERGYAREA, target = true },
+	{ name = "combat", interval = 1700, chance = 35, type = COMBAT_HOLYDAMAGE, minDamage = -250, maxDamage = -400, radius = 3, effect = CONST_ME_HOLYAREA, target = false },
+	{ name = "combat", interval = 1700, chance = 13, type = COMBAT_ENERGYDAMAGE, minDamage = -400, maxDamage = -450, range = 4, radius = 4, effect = CONST_ME_ENERGYAREA, target = true },
 }
 
 monster.defenses = {

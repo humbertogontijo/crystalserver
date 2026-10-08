@@ -76,28 +76,28 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 24 },
+	{ name = "platinum coin", chance = 70000, maxCount = 24 },
 	{ name = "gold ingot", chance = 18430, maxCount = 2 },
 	{ name = "violet crystal shard", chance = 15630, maxCount = 3 },
-	{ name = "lavaworm spike roots", chance = 7818, maxCount = 3 },
-	{ name = "violet gem", chance = 9107 },
+	{ name = "lavaworm spike roots", chance = 20310, maxCount = 3 },
+	{ name = "violet gem", chance = 6750 },
 	{ name = "lavaworm spikes", chance = 4230 },
 	{ name = "green gem", chance = 4130 },
 	{ name = "butterfly ring", chance = 3120 },
-	{ name = "underworld rod", chance = 4811 },
-	{ name = "lavaworm jaws", chance = 4124 },
-	{ name = "blue crystal shard", chance = 4811 },
+	{ name = "underworld rod", chance = 2920 },
+	{ name = "lavaworm jaws", chance = 2620 },
+	{ name = "blue crystal shard", chance = 2520 },
 	{ name = "warrior helmet", chance = 1560 },
-	{ name = "wand of voodoo", chance = 2577 },
-	{ name = "crusader helmet", chance = 344 },
+	{ name = "wand of voodoo", chance = 1560 },
+	{ name = "crusader helmet", chance = 1560 },
 	{ name = "strange helmet", chance = 500 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -600 },
 	{ name = "combat", interval = 2750, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -600, maxDamage = -760, range = 5, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = true },
-	{ name = "combat", interval = 2000, chance = 60, type = COMBAT_FIREDAMAGE, minDamage = -550, maxDamage = -700, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = false },
-	{ name = "combat", interval = 2750, chance = 30, type = COMBAT_FIREDAMAGE, minDamage = -700, maxDamage = -780, range = 5, radius = 3, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_EXPLOSIONHIT, target = true },
+	{ name = "combat", interval = 2000, chance = 60, type = COMBAT_FIREDAMAGE, minDamage = -700, maxDamage = -780, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = false },
+	{ name = "combat", interval = 2750, chance = 30, type = COMBAT_FIREDAMAGE, minDamage = -550, maxDamage = -700, range = 5, radius = 3, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_EXPLOSIONHIT, target = true },
 }
 
 monster.defenses = {

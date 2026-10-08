@@ -81,8 +81,8 @@ monster.loot = {
 	{ name = "black pearl", chance = 12000, maxCount = 3 },
 	{ name = "gold coin", chance = 100000, maxCount = 198 },
 	{ name = "platinum coin", chance = 100000, maxCount = 7 },
-	{ id = 3039, chance = 1694 }, -- red gem
-	{ name = "stone skin amulet", chance = 847 },
+	{ id = 3039, chance = 15000 }, -- red gem
+	{ name = "stone skin amulet", chance = 2780 },
 	{ name = "blank rune", chance = 35250, maxCount = 3 },
 	{ name = "skull staff", chance = 850 },
 	{ name = "tower shield", chance = 740 },
@@ -90,19 +90,19 @@ monster.loot = {
 	{ id = 5806, chance = 4950 }, -- silver goblet
 	{ name = "soul orb", chance = 15000 },
 	{ id = 6299, chance = 2170 }, -- death ring
-	{ name = "demonic essence", chance = 5389 },
+	{ name = "demonic essence", chance = 7500 },
 	{ name = "skeleton decoration", chance = 1250 },
 	{ name = "haunted blade", chance = 740 },
 	{ name = "titan axe", chance = 1000 },
 	{ id = 238, chance = 14200, maxCount = 2 }, -- great mana potion
 	{ name = "great health potion", chance = 8800, maxCount = 2 },
-	{ id = 8896, chance = 5004 }, -- slightly rusted armor
+	{ id = 8896, chance = 3500 }, -- slightly rusted armor
 	{ name = "unholy bone", chance = 33010 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -429 },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = 0, maxDamage = -210, length = 3, spread = 0, effect = CONST_ME_MAGIC_RED, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -420 },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -40, maxDamage = -210, length = 3, spread = 0, effect = CONST_ME_MAGIC_RED, target = false },
 	{ name = "speed", interval = 2000, chance = 20, speedChange = -800, radius = 6, effect = CONST_ME_SMALLCLOUDS, target = false, duration = 4000 },
 }
 

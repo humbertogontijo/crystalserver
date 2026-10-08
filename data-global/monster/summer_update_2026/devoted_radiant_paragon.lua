@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Devoted Radiant Paragon")
 local monster = {}
 
 monster.description = "a devoted radiant paragon"
-monster.experience = 50560
+monster.experience = 42850
 monster.outfit = {
 	lookType = 1966,
 	lookHead = 0,
@@ -86,21 +86,21 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 0,
-	armor = 118,
+	armor = 0,
 	mitigation = 0.00,
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 10 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = -10 },
-	{ type = COMBAT_EARTHDAMAGE, percent = -15 },
-	{ type = COMBAT_FIREDAMAGE, percent = 30 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 5 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 20 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }
 
 monster.immunities = {

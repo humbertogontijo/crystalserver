@@ -70,7 +70,7 @@ monster.light = {
 monster.loot = {
 	{ name = "mana potion", chance = 30000 },
 	{ name = "gold coin", chance = 50000, maxCount = 18 },
-	{ name = "infernoid ember", chance = 5579 },
+	{ name = "infernoid ember", chance = 9000 },
 	{ name = "sail pass", chance = 9000 },
 	{ name = "fire mushroom", chance = 2500 },
 	{ id = 12600, chance = 700 }, -- coal

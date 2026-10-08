@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Lion Hydra")
 local monster = {}
 
 monster.description = "a lion hydra"
-monster.experience = 2600
+monster.experience = 2450
 monster.outfit = {
 	lookType = 1859,
 	lookHead = 0,
@@ -79,18 +79,18 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 82287, minCount = 1, maxCount = 100 },
-	{ name = "platinum coin", chance = 64679, minCount = 1, maxCount = 15 },
-	{ name = "sealing wax", chance = 7619 },
+	{ name = "gold coin", chance = 60000, minCount = 1, maxCount = 100 },
+	{ name = "platinum coin", chance = 45000, minCount = 1, maxCount = 15 },
+	{ name = "sealing wax", chance = 2800 },
 	{ name = "silver brooch", chance = 2000 },
-	{ name = "small diamond", chance = 3103, minCount = 1, maxCount = 3 },
-	{ name = "ham", chance = 3713, minCount = 1, maxCount = 2 },
-	{ name = "hydra head", chance = 2249 },
+	{ name = "small diamond", chance = 1800, minCount = 1, maxCount = 3 },
+	{ name = "ham", chance = 1600, minCount = 1, maxCount = 2 },
+	{ name = "hydra head", chance = 1400 },
 	{ name = "onyx chip", chance = 1200 },
 	{ name = "titan axe", chance = 1000 },
 	{ name = "sacred tree amulet", chance = 1000 },
-	{ name = "medusa shield", chance = 139 },
-	{ name = "gold ingot", chance = 209 },
+	{ name = "medusa shield", chance = 1000 },
+	{ name = "gold ingot", chance = 800 },
 }
 
 monster.attacks = {
@@ -101,7 +101,7 @@ monster.attacks = {
 	-- Fire: Claw Attack (220-280)
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -220, maxDamage = -280, range = 1, effect = CONST_ME_FIREAREA, target = true },
 	-- Holy: Explosion (230-290)
-	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_HOLYDAMAGE, minDamage = -210, maxDamage = -250, radius = 4, effect = CONST_ME_HOLYAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_HOLYDAMAGE, minDamage = -230, maxDamage = -290, radius = 4, effect = CONST_ME_HOLYAREA, target = false },
 }
 
 monster.defenses = {
@@ -113,14 +113,14 @@ monster.defenses = {
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = -5 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -5 },
-	{ type = COMBAT_DEATHDAMAGE, percent = -10 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 5 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 10 },
 }
 
 monster.immunities = {

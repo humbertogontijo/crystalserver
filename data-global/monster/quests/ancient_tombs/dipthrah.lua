@@ -77,11 +77,11 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "small sapphire", chance = 9654, maxCount = 3 },
+	{ name = "small sapphire", chance = 7000, maxCount = 3 },
 	{ name = "gold coin", chance = 50000, maxCount = 80 },
 	{ name = "gold coin", chance = 50000, maxCount = 80 },
-	{ name = "blue gem", chance = 866 },
-	{ id = 3051, chance = 4762 }, -- energy ring
+	{ name = "blue gem", chance = 1500 },
+	{ id = 3051, chance = 7000 }, -- energy ring
 	{ name = "mind stone", chance = 1500 },
 	{ name = "ankh", chance = 500 },
 	{ name = "ornamented ankh", chance = 100000 },
@@ -91,12 +91,12 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -260, condition = { type = CONDITION_POISON, totalDamage = 65, interval = 4000 } },
-	{ name = "combat", interval = 4000, chance = 20, type = COMBAT_LIFEDRAIN, minDamage = -400, maxDamage = -800, range = 1, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200, condition = { type = CONDITION_POISON, totalDamage = 65, interval = 4000 } },
+	{ name = "combat", interval = 4000, chance = 20, type = COMBAT_LIFEDRAIN, minDamage = -100, maxDamage = -800, range = 1, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_MANADRAIN, minDamage = -100, maxDamage = -500, range = 7, effect = CONST_ME_MAGIC_RED, target = false },
 	{ name = "speed", interval = 1000, chance = 15, speedChange = -650, range = 7, effect = CONST_ME_MAGIC_RED, target = false, duration = 50000 },
 	{ name = "drunk", interval = 1000, chance = 12, radius = 7, effect = CONST_ME_LOSEENERGY, target = false },
-	{ name = "melee", interval = 3000, chance = 34, minDamage = 0, maxDamage = -260 },
+	{ name = "melee", interval = 3000, chance = 34, minDamage = -50, maxDamage = -600 },
 }
 
 monster.defenses = {
@@ -107,14 +107,14 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 100 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 20 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 20 },
-	{ type = COMBAT_FIREDAMAGE, percent = 5 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -10 },
+	{ type = COMBAT_ICEDAMAGE, percent = 30 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 100 },
 }
 

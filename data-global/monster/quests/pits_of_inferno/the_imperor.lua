@@ -75,23 +75,23 @@ monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 150 }, -- gold coin
 	{ id = 6534, chance = 100000 }, -- imperor's trident
 	{ id = 3451, chance = 53850 }, -- pitchfork
-	{ id = 3320, chance = 5000 }, -- fire axe
+	{ id = 3320, chance = 11000 }, -- fire axe
 	{ id = 3035, chance = 46150, maxCount = 3 }, -- platinum coin
 	{ id = 5944, chance = 100000 }, -- soul orb
 	{ id = 3382, chance = 30770 }, -- crown legs
-	{ id = 3364, chance = 5000 }, -- golden legs
-	{ id = 3019, chance = 10000 }, -- demonbone amulet
-	{ id = 3442, chance = 5000 }, -- tempest shield
+	{ id = 3364, chance = 7690 }, -- golden legs
+	{ id = 3019, chance = 15380 }, -- demonbone amulet
+	{ id = 3442, chance = 7690 }, -- tempest shield
 	{ id = 3415, chance = 15400 }, -- guardian shield
-	{ id = 826, chance = 10000 }, -- magma coat
+	{ id = 826, chance = 15380 }, -- magma coat
 	{ id = 3033, chance = 30770, maxCount = 4 }, -- small amethyst
-	{ id = 3030, chance = 5000, maxCount = 4 }, -- small ruby
+	{ id = 3030, chance = 7690, maxCount = 4 }, -- small ruby
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, skill = 90, attack = 100, condition = { type = CONDITION_POISON, totalDamage = 280, interval = 4000 } },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -800, range = 7, radius = 4, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
-	{ name = "combat", interval = 2500, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -800, range = 7, radius = 2, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREATTACK, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -350, range = 7, radius = 4, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
+	{ name = "combat", interval = 2500, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -460, range = 7, radius = 2, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREATTACK, target = true },
 	{ name = "diabolic imp skill reducer", interval = 2000, chance = 10, range = 7, target = false },
 }
 

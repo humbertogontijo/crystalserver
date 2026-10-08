@@ -80,22 +80,22 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 3 },
-	{ name = "cyan crystal fragment", chance = 20180 },
-	{ name = "green crystal fragment", chance = 3832 },
-	{ name = "lamassu horn", chance = 17745 },
+	{ name = "cyan crystal fragment", chance = 13670 },
+	{ name = "green crystal fragment", chance = 1770 },
+	{ name = "lamassu horn", chance = 10770 },
 	{ name = "lamassu hoof", chance = 9700 },
 	{ name = "small amethyst", chance = 8680 },
-	{ name = "gold ingot", chance = 6299 },
-	{ name = "green gem", chance = 3680 },
+	{ name = "gold ingot", chance = 4660 },
+	{ name = "green gem", chance = 1290 },
 	{ name = "elven amulet", chance = 800 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -570 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
 	{ name = "warden x", interval = 2000, chance = 15, minDamage = -250, maxDamage = -430, target = false },
 	{ name = "warden ring", interval = 2000, chance = 8, minDamage = -250, maxDamage = -380, target = false },
-	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_EARTHDAMAGE, minDamage = -200, maxDamage = -350, radius = 2, effect = CONST_ME_GROUNDSHAKER, target = false },
-	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_HOLYDAMAGE, minDamage = -300, maxDamage = -500, length = 5, spread = 0, effect = CONST_ME_HOLYAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_EARTHDAMAGE, minDamage = -200, maxDamage = -480, radius = 2, effect = CONST_ME_GROUNDSHAKER, target = false },
+	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_HOLYDAMAGE, minDamage = -300, maxDamage = -450, length = 5, spread = 0, effect = CONST_ME_HOLYAREA, target = false },
 }
 
 monster.defenses = {

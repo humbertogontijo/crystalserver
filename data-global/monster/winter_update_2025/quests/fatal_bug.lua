@@ -66,18 +66,18 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "crystal coin", chance = 100000, maxCount = 64 }, -- não confirmado (chance)
-	{ name = "yellow gem", chance = 33333, maxCount = 10 }, -- não confirmado (chance)
-	{ id = 3039, chance = 33333, maxCount = 10 }, -- red gem (não confirmado (chance))
-	{ name = "blue gem", chance = 20000, maxCount = 2 }, -- não confirmado (chance)
+	{ name = "yellow gem", chance = 100000, maxCount = 10 }, -- não confirmado (chance)
+	{ id = 3039, chance = 100000, maxCount = 10 }, -- red gem (não confirmado (chance))
+	{ name = "blue gem", chance = 100000, maxCount = 2 }, -- não confirmado (chance)
 	{ name = "giant amethyst", chance = 100000 }, -- não confirmado (chance)
 	{ name = "giant sapphire", chance = 100000, maxCount = 3 }, -- não confirmado (chance)
-	{ name = "strong mana potion", chance = 23333, maxCount = 92 }, -- não confirmado (chance)
-	{ id = 238, chance = 33333, maxCount = 67 }, -- great mana potion -- não confirmado (chance)
-	{ name = "great spirit potion", chance = 43333, maxCount = 56 }, -- não confirmado (chance)
-	{ name = "ultimate mana potion", chance = 30000, maxCount = 25 }, -- não confirmado (chance)
-	{ name = "ultimate spirit potion", chance = 23333, maxCount = 25 }, -- não confirmado (chance)
-	{ name = "ultimate health potion", chance = 40000, maxCount = 35 }, -- não confirmado (chance)
-	{ name = "supreme health potion", chance = 36667, maxCount = 11 }, -- não confirmado (chance)
+	{ name = "strong mana potion", chance = 100000, maxCount = 92 }, -- não confirmado (chance)
+	{ id = 238, chance = 100000, maxCount = 67 }, -- great mana potion -- não confirmado (chance)
+	{ name = "great spirit potion", chance = 100000, maxCount = 56 }, -- não confirmado (chance)
+	{ name = "ultimate mana potion", chance = 100000, maxCount = 25 }, -- não confirmado (chance)
+	{ name = "ultimate spirit potion", chance = 100000, maxCount = 25 }, -- não confirmado (chance)
+	{ name = "ultimate health potion", chance = 100000, maxCount = 35 }, -- não confirmado (chance)
+	{ name = "supreme health potion", chance = 100000, maxCount = 11 }, -- não confirmado (chance)
 	{ name = "guardian gem", chance = 100000 }, -- não confirmado (chance)
 	{ name = "marksman gem", chance = 100000 }, -- não confirmado (chance)
 	{ name = "mystic gem", chance = 100000 }, -- não confirmado (chance)
@@ -88,20 +88,16 @@ monster.loot = {
 	{ name = "greater mystic gem", chance = 100000 }, -- não confirmado (chance)
 	{ name = "greater sage gem", chance = 100000 }, -- não confirmado (chance)
 	{ name = "greater spiritualist gem", chance = 100000 }, -- não confirmado (chance)
-	{ name = "berserk potion", chance = 30000 }, -- não confirmado (chance)
-	{ name = "bullseye potion", chance = 33333 }, -- não confirmado (chance)
-	{ name = "transcendence potion", chance = 26667 }, -- não confirmado (chance)
+	{ name = "berserk potion", chance = 100000 }, -- não confirmado (chance)
+	{ name = "bullseye potion", chance = 100000 }, -- não confirmado (chance)
+	{ name = "transcendence potion", chance = 100000 }, -- não confirmado (chance)
 	{ name = "cryptic fossil", chance = 100000 }, -- não confirmado (chance)
 	{ name = "fetid heart", chance = 100000 }, -- não confirmado (chance)
-	{ name = "wand of everblazing", chance = 10000 }, -- não confirmado (chance)
-	{ name = "composite hornbow", chance = 20000 }, -- não confirmado (chance)
-	{ name = "muck rod", chance = 6667 }, -- não confirmado (chance)
+	{ name = "wand of everblazing", chance = 100000 }, -- não confirmado (chance)
+	{ name = "composite hornbow", chance = 100000 }, -- não confirmado (chance)
+	{ name = "muck rod", chance = 100000 }, -- não confirmado (chance)
 	{ name = "worn guide book", chance = 100000 }, -- não confirmado (chance)
 	{ name = "ancient crypt rune", chance = 100000 }, -- não confirmado (chance)
-	{ name = "mastermind potion", chance = 30000, maxCount = 2 },
-	{ name = "giant ruby", chance = 10000, maxCount = 2 },
-	{ name = "mercenary sword", chance = 10000 },
-	{ name = "traditional sai", chance = 10000 },
 }
 
 monster.attacks = {

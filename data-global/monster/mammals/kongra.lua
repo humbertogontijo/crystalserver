@@ -84,7 +84,7 @@ monster.loot = {
 	{ name = "banana", chance = 30000, maxCount = 12 },
 	{ name = "ape fur", chance = 980 },
 	{ name = "health potion", chance = 570 },
-	{ name = "kongra's shoulderpad", chance = 9396 },
+	{ name = "kongra's shoulderpad", chance = 4900 },
 }
 
 monster.attacks = {

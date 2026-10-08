@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Orclops Bloodbreaker")
 local monster = {}
 
 monster.description = "an orclops bloodbreaker"
-monster.experience = 10250
+monster.experience = 7800
 monster.outfit = {
 	lookType = 1854,
 	lookHead = 0,
@@ -79,17 +79,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 80916, minCount = 1, maxCount = 30 },
-	{ name = "orcish axe", chance = 8661 },
-	{ name = "orcish toothbrush", chance = 8207 }, -- new item
-	{ name = "bone fibula", chance = 5841 }, -- new item
-	{ name = "green gem", chance = 3374 },
-	{ name = "vampire teeth", chance = 1309 },
-	{ name = "green crystal shard", chance = 4028 },
-	{ name = "bone toothpick", chance = 4733 },
-	{ name = "bloodshot giant eye", chance = 4683 }, -- new item
-	{ name = "war drum", chance = 403 },
-	{ name = "stone skin amulet", chance = 453 },
+	{ name = "platinum coin", chance = 60000, minCount = 1, maxCount = 30 },
+	{ name = "orcish axe", chance = 2800 },
+	{ name = "orcish toothbrush", chance = 2600 }, -- new item
+	{ name = "bone fibula", chance = 2400 }, -- new item
+	{ name = "green gem", chance = 2200 },
+	{ name = "vampire teeth", chance = 2000 },
+	{ name = "green crystal shard", chance = 1800 },
+	{ name = "bone toothpick", chance = 1600 },
+	{ name = "bloodshot giant eye", chance = 1600 }, -- new item
+	{ name = "war drum", chance = 1400 },
+	{ name = "stone skin amulet", chance = 1200 },
 	{ name = "berserk potion", chance = 800 },
 	{ id = 51487, chance = 800 }, -- norcferatu talisman
 }
@@ -97,7 +97,7 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = -260, maxDamage = -785 },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -430, maxDamage = -1170, range = 5, effect = CONST_ME_SPIKES, target = true },
-	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_PHYSICALDAMAGE, minDamage = -370, maxDamage = -425, range = 5, radius = 5, effect = CONST_ME_GROUNDSHAKER, target = false },
+	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_PHYSICALDAMAGE, minDamage = -400, maxDamage = -450, range = 5, radius = 5, effect = CONST_ME_GROUNDSHAKER, target = false },
 }
 
 monster.defenses = {
@@ -108,16 +108,16 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 5 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -5 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = -10 },
+	{ type = COMBAT_FIREDAMAGE, percent = 10 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = -5 },
+	{ type = COMBAT_ICEDAMAGE, percent = 5 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 30 },
+	{ type = COMBAT_DEATHDAMAGE, percent = -30 },
 }
 
 monster.immunities = {

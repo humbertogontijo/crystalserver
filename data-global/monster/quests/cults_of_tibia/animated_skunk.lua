@@ -63,13 +63,13 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "bulb of garlic", chance = 7634 },
+	{ name = "bulb of garlic", chance = 4910 },
 	{ name = "skunk tail", chance = 920 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -5 },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -1, maxDamage = -2, range = 1, target = true },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -1, maxDamage = -3, range = 1, target = true },
 }
 
 monster.defenses = {

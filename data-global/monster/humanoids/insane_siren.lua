@@ -77,16 +77,16 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 72585, maxCount = 12 },
+	{ name = "platinum coin", chance = 100000, maxCount = 12 },
 	{ name = "ultimate health potion", chance = 14970 },
-	{ name = "miraculum", chance = 9292 },
+	{ name = "miraculum", chance = 13090 },
 	{ name = "dream essence egg", chance = 11980 },
-	{ name = "wand of draconia", chance = 5692 },
-	{ name = "holy orchid", chance = 3415 },
-	{ name = "magma amulet", chance = 3015 },
-	{ name = "wand of inferno", chance = 2554 },
-	{ name = "fire axe", chance = 2523 },
-	{ name = "magma coat", chance = 2185 },
+	{ name = "wand of draconia", chance = 7700 },
+	{ name = "holy orchid", chance = 5650 },
+	{ name = "magma amulet", chance = 5130 },
+	{ name = "wand of inferno", chance = 4360 },
+	{ name = "fire axe", chance = 3590 },
+	{ name = "magma coat", chance = 3340 },
 	{ name = "wand of dragonbreath", chance = 2650 },
 	{ name = "sun fruit", chance = 2570 },
 	{ name = "magma legs", chance = 1200 },
@@ -94,12 +94,12 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
-	{ name = "combat", interval = 2300, chance = 17, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -600, length = 3, spread = 0, effect = CONST_ME_FIREAREA, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -450 },
+	{ name = "combat", interval = 2300, chance = 17, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -300, length = 3, spread = 0, effect = CONST_ME_FIREAREA, target = false },
 	{ name = "combat", interval = 2600, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -300, radius = 1, effect = CONST_ME_FIREAREA, target = false },
 	{ name = "combat", interval = 2900, chance = 17, type = COMBAT_FIREDAMAGE, minDamage = -250, maxDamage = -300, range = 7, shootEffect = CONST_ANI_FIRE, target = false },
-	{ name = "combat", interval = 3200, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -100, maxDamage = -250, radius = 3, effect = CONST_ME_EXPLOSIONHIT, target = true },
-	{ name = "combat", interval = 3500, chance = 17, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -300, range = 6, effect = CONST_ME_FIREATTACK, target = true },
+	{ name = "combat", interval = 3200, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -100, maxDamage = -300, radius = 3, effect = CONST_ME_EXPLOSIONHIT, target = true },
+	{ name = "combat", interval = 3500, chance = 17, type = COMBAT_FIREDAMAGE, minDamage = -150, maxDamage = -300, range = 6, effect = CONST_ME_FIREATTACK, target = true },
 	{ name = "combat", interval = 3800, chance = 17, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -300, range = 6, radius = 2, effect = CONST_ME_FIREAREA, target = true },
 	{ name = "sparks chain", interval = 4100, chance = 17, minDamage = -100, maxDamage = -200, range = 3, target = true },
 }

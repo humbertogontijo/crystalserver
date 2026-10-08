@@ -76,30 +76,28 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 100000, minCount = 70, maxCount = 75 },
-	{ id = 281, chance = 6122 }, -- giant shimmering pearl (green)
-	{ name = "giant sapphire", chance = 34694, maxCount = 1 },
-	{ name = "giant topaz", chance = 38776, maxCount = 1 },
-	{ name = "violet gem", chance = 18367, maxCount = 1 },
-	{ name = "blue gem", chance = 18367, maxCount = 3 },
-	{ id = 3039, chance = 44898, maxCount = 3 }, -- red gem
-	{ name = "green gem", chance = 20408, maxCount = 3 },
-	{ name = "yellow gem", chance = 42857, maxCount = 3 },
+	{ name = "crystal coin", chance = 55000, minCount = 70, maxCount = 75 },
+	{ id = 281, chance = 1150 }, -- giant shimmering pearl (green)
+	{ name = "giant sapphire", chance = 10000, maxCount = 1 },
+	{ name = "giant topaz", chance = 10000, maxCount = 1 },
+	{ name = "violet gem", chance = 6000, maxCount = 1 },
+	{ name = "blue gem", chance = 10000, maxCount = 3 },
+	{ id = 3039, chance = 10000, maxCount = 3 }, -- red gem
+	{ name = "green gem", chance = 10000, maxCount = 3 },
+	{ name = "yellow gem", chance = 10000, maxCount = 3 },
 	{ name = "white gem", chance = 6000, maxCount = 3 },
 	{ name = "dragon figurine", chance = 10000, maxCount = 1 },
-	{ name = "bullseye potion", chance = 22449, minCount = 10, maxCount = 25 },
-	{ name = "mastermind potion", chance = 24490, minCount = 10, maxCount = 25 },
-	{ id = 49271, chance = 8163, minCount = 0, maxCount = 20 }, -- transcendence potion
-	{ name = "berserk potion", chance = 36735, minCount = 10, maxCount = 25 },
-	{ name = "ultimate mana potion", chance = 48980, minCount = 50, maxCount = 100 },
-	{ name = "supreme health potion", chance = 55102, minCount = 50, maxCount = 100 },
-	{ name = "ultimate spirit potion", chance = 57143, minCount = 50, maxCount = 100 },
-	{ name = "greed's arm", chance = 4082, maxCount = 1 },
+	{ name = "bullseye potion", chance = 15000, minCount = 10, maxCount = 25 },
+	{ name = "mastermind potion", chance = 15000, minCount = 10, maxCount = 25 },
+	{ id = 49271, chance = 15000, minCount = 0, maxCount = 20 }, -- transcendence potion
+	{ name = "berserk potion", chance = 15000, minCount = 10, maxCount = 25 },
+	{ name = "ultimate mana potion", chance = 18000, minCount = 50, maxCount = 100 },
+	{ name = "supreme health potion", chance = 18000, minCount = 50, maxCount = 100 },
+	{ name = "ultimate spirit potion", chance = 18000, minCount = 50, maxCount = 100 },
+	{ name = "greed's arm", chance = 25000, maxCount = 1 },
 	{ name = "figurine of greed", chance = 400 },
-	{ name = "the skull of a beast", chance = 2041 },
-	{ name = "bag you desire", chance = 2041 },
-	{ name = "giant ruby", chance = 26531 },
-	{ name = "gold ingot", chance = 24490 },
+	{ name = "the skull of a beast", chance = 400 },
+	{ name = "bag you desire", chance = 50 },
 }
 
 monster.attacks = {

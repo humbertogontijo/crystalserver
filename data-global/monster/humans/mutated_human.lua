@@ -90,7 +90,7 @@ monster.loot = {
 	{ name = "fern", chance = 420 },
 	{ name = "worm", chance = 7110, maxCount = 2 },
 	{ name = "peanut", chance = 580 },
-	{ id = 8894, chance = 2011 }, -- heavily rusted armor
+	{ id = 8894, chance = 190 }, -- heavily rusted armor
 	{ name = "mutated flesh", chance = 19940 },
 }
 

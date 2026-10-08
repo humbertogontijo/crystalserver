@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Hellhunter Inferniarch")
 local monster = {}
 
 monster.description = "a hellhunter inferniarch"
-monster.experience = 8100
+monster.experience = 9400
 monster.outfit = {
 	lookType = 1793,
 	lookHead = 0,
@@ -80,26 +80,26 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 100000, maxCount = 40 },
-	{ name = "Onyx Arrow", chance = 10202, maxCount = 25 },
-	{ name = "Sniper Arrow", chance = 3028, maxCount = 15 },
-	{ name = "Assassin Star", chance = 8320, maxCount = 25 },
-	{ name = "Small Amethyst", chance = 7056, maxCount = 5 },
-	{ name = "Dark Helmet", chance = 1909, maxCount = 1 },
-	{ id = 6299, chance = 1218, maxCount = 1 },
-	{ name = "Demonic Core Essence", chance = 3101, maxCount = 1 },
-	{ name = "Cyan Crystal Fragment", chance = 3837, maxCount = 5 },
-	{ name = "Mummified Demon Finger", chance = 991, maxCount = 1 },
-	{ name = "Hellhunter Eye", chance = 473, maxCount = 1 },
-	{ name = "Demonic Matter", chance = 782, maxCount = 1 },
+	{ name = "Platinum Coin", chance = 26500, maxCount = 40 },
+	{ name = "Onyx Arrow", chance = 24500, maxCount = 25 },
+	{ name = "Sniper Arrow", chance = 24500, maxCount = 15 },
+	{ name = "Assassin Star", chance = 24500, maxCount = 25 },
+	{ name = "Small Amethyst", chance = 24500, maxCount = 5 },
+	{ name = "Dark Helmet", chance = 12500, maxCount = 1 },
+	{ id = 6299, chance = 3500, maxCount = 1 },
+	{ name = "Demonic Core Essence", chance = 1500, maxCount = 1 },
+	{ name = "Cyan Crystal Fragment", chance = 14500, maxCount = 5 },
+	{ name = "Mummified Demon Finger", chance = 1500, maxCount = 1 },
+	{ name = "Hellhunter Eye", chance = 2500, maxCount = 1 },
+	{ name = "Demonic Matter", chance = 1500, maxCount = 1 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 0, minDamage = -250, maxDamage = -400 },
+	{ name = "melee", interval = 2000, chance = 0, minDamage = 250, maxDamage = -400 },
 	{ name = "extended white chain", interval = 2000, chance = 15, minDamage = -275, maxDamage = -438, range = 4 },
 	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -340, maxDamage = -470, range = 4, effect = CONST_ME_MORTAREA, target = true },
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_ENERGYDAMAGE, minDamage = -350, maxDamage = -430, range = 4, radius = 4, shootEffect = CONST_ANI_DIAMONDARROW, effect = CONST_ME_ENERGYAREA, target = true },
-	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_DEATHDAMAGE, minDamage = -240, maxDamage = -330, range = 4, radius = 4, shootEffect = CONST_ANI_SNIPERARROW, effect = CONST_ME_BLACK_BLOOD, target = true },
+	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_DEATHDAMAGE, minDamage = -240, maxDamage = -370, range = 4, radius = 4, shootEffect = CONST_ANI_SNIPERARROW, effect = CONST_ME_BLACK_BLOOD, target = true },
 }
 
 monster.defenses = {
@@ -112,7 +112,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 10 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 15 },
 	{ type = COMBAT_EARTHDAMAGE, percent = -15 },
-	{ type = COMBAT_FIREDAMAGE, percent = -5 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

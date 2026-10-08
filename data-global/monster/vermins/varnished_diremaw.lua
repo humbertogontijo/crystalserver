@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Varnished Diremaw")
 local monster = {}
 
 monster.description = "a varnished diremaw"
-monster.experience = 6300
+monster.experience = 5900
 monster.outfit = {
 	lookType = 1397,
 	lookHead = 0,
@@ -76,28 +76,28 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 18 },
+	{ name = "platinum coin", chance = 70000, maxCount = 18 },
 	{ name = "terra rod", chance = 30090 },
-	{ name = "emerald bangle", chance = 13643, maxCount = 1 },
+	{ name = "emerald bangle", chance = 18580, maxCount = 1 },
 	{ name = "brown crystal splinter", chance = 8850, maxCount = 3 },
 	{ id = 3039, chance = 10620, maxCount = 1 }, -- red gem
-	{ name = "green crystal splinter", chance = 8677, maxCount = 3 },
+	{ name = "green crystal splinter", chance = 6190, maxCount = 3 },
 	{ name = "small diamond", chance = 9730, maxCount = 6 },
-	{ name = "varnished diremaw legs", chance = 7684, maxCount = 4 },
+	{ name = "varnished diremaw legs", chance = 13270, maxCount = 4 },
 	{ name = "violet crystal shard", chance = 9730, maxCount = 3 },
-	{ name = "cyan crystal fragment", chance = 7684 },
-	{ name = "varnished diremaw brainpan", chance = 6012 },
+	{ name = "cyan crystal fragment", chance = 5310 },
+	{ name = "varnished diremaw brainpan", chance = 2650 },
 	{ name = "green gem", chance = 6190, maxCount = 1 },
 	{ name = "small emerald", chance = 9730, maxCount = 5 },
-	{ name = "green crystal shard", chance = 6273, maxCount = 3 },
+	{ name = "green crystal shard", chance = 11500, maxCount = 3 },
 	{ name = "hailstorm rod", chance = 6190 },
-	{ name = "diamond sceptre", chance = 3921 },
-	{ name = "wand of starstorm", chance = 4077 },
-	{ name = "springsprout rod", chance = 3607 },
+	{ name = "diamond sceptre", chance = 2650 },
+	{ name = "wand of starstorm", chance = 2650 },
+	{ name = "springsprout rod", chance = 7080 },
 	{ name = "glacier shoes", chance = 2650 },
 	{ name = "spellbook of warding", chance = 1770 },
 	{ name = "fur armor", chance = 1640 },
-	{ name = "wood cape", chance = 1934 },
+	{ name = "wood cape", chance = 2650 },
 	{ name = "haunted blade", chance = 1370 },
 	{ name = "glacier kilt", chance = 880 },
 	{ name = "crown shield", chance = 880 },
@@ -105,9 +105,9 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400 },
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_ICEDAMAGE, minDamage = -700, maxDamage = -720, radius = 4, shootEffect = CONST_ANI_ICE, effect = CONST_ME_ICEATTACK, target = true }, -- avalanche
-	{ name = "combat", interval = 2000, chance = 50, type = COMBAT_HOLYDAMAGE, minDamage = -730, maxDamage = -690, radius = 3, effect = CONST_ME_HOLYAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_ICEDAMAGE, minDamage = -800, maxDamage = -785, range = 4, shootEffect = CONST_ANI_ICE, target = true },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_ICEDAMAGE, minDamage = -700, maxDamage = -750, radius = 4, shootEffect = CONST_ANI_ICE, effect = CONST_ME_ICEATTACK, target = true }, -- avalanche
+	{ name = "combat", interval = 2000, chance = 50, type = COMBAT_HOLYDAMAGE, minDamage = -730, maxDamage = -750, radius = 3, effect = CONST_ME_HOLYAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_ICEDAMAGE, minDamage = -800, maxDamage = -850, range = 4, shootEffect = CONST_ANI_ICE, target = true },
 }
 
 monster.defenses = {

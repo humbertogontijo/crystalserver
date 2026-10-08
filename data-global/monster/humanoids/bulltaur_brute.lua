@@ -80,21 +80,21 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 5000, maxCount = 6 },
-	{ name = "small topaz", chance = 9993, maxCount = 5 },
+	{ name = "small topaz", chance = 1200, maxCount = 5 },
 	{ name = "platinum coin", chance = 3533, maxCount = 7 },
-	{ id = 44736, chance = 17576 }, -- stealth ring
-	{ id = 44737, chance = 8505 }, -- stealth ring
-	{ id = 44738, chance = 11198 }, -- stealth ring
-	{ name = "might ring", chance = 780 },
-	{ name = "mino shield", chance = 3898 },
-	{ name = "dragon hammer", chance = 1205 },
-	{ id = 3041, chance = 1205 }, -- stealth ring
+	{ id = 44736, chance = 4545 }, -- stealth ring
+	{ id = 44737, chance = 4545 }, -- stealth ring
+	{ id = 44738, chance = 4545 }, -- stealth ring
+	{ name = "might ring", chance = 14285 },
+	{ name = "mino shield", chance = 840 },
+	{ name = "dragon hammer", chance = 420 },
+	{ id = 3041, chance = 4545 }, -- stealth ring
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -90, maxDamage = -290 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 90, maxDamage = -290 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -150, maxDamage = -550, range = 3, radius = 1, shootEffect = 11, effect = 18, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -470, length = 1, spread = 0, effect = 216, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -500, length = 1, spread = 0, effect = 216, target = true },
 }
 
 monster.defenses = {

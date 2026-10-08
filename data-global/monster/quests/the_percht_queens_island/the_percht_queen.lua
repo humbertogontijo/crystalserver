@@ -62,10 +62,10 @@ monster.loot = {
 	{ name = "piggy bank", chance = 80000 },
 	{ name = "royal star", chance = 80000, maxCount = 100 },
 	{ name = "platinum coin", chance = 80000, maxCount = 5 },
-	{ name = "energy bar", chance = 100000 },
-	{ name = "supreme health potion", chance = 100000, maxCount = 20 },
+	{ name = "energy bar", chance = 75000 },
+	{ name = "supreme health potion", chance = 65000, maxCount = 20 },
 	{ name = "huge chunk of crude iron", chance = 64000 },
-	{ name = "mysterious remains", chance = 100000 },
+	{ name = "mysterious remains", chance = 63000 },
 	{ name = "ultimate spirit potion", chance = 62000, maxCount = 20 },
 	{ name = "ultimate mana potion", chance = 61000, maxCount = 20 },
 	{ name = "bullseye potion", chance = 25500, maxCount = 10 },
@@ -91,24 +91,23 @@ monster.loot = {
 	{ id = 23529, chance = 8486 }, -- ring of blue plasma
 	{ id = 30321, chance = 4848 }, -- fly agaric
 	{ name = "percht broom", chance = 6485 },
-	{ name = "ice hatchet", chance = 100000 },
+	{ name = "ice hatchet", chance = 5485 },
 	{ id = 23533, chance = 4858 }, -- ring of red plasma
 	{ id = 23531, chance = 3485 }, -- ring of green plasma
-	{ name = "yellow gem", chance = 100000 },
+	{ name = "yellow gem", chance = 5485 },
 	{ name = "violet gem", chance = 6485 },
 	{ id = 23544, chance = 7848 }, -- collar of red plasma
 	{ id = 23543, chance = 5485 }, -- collar of green plasma
-	{ name = "green gem", chance = 100000 },
+	{ name = "green gem", chance = 5485 },
 	{ name = "blue gem", chance = 5845 },
 	{ name = "frozen chain", chance = 5485 },
-	{ id = 23542, chance = 100000 }, -- collar of blue plasma
+	{ id = 23542, chance = 5158 }, -- collar of blue plasma
 	{ name = "horseshoe", chance = 1250 },
 	{ name = "golden horseshoe", chance = 2510 },
 	{ name = "abyss hammer", chance = 1480 },
 	{ name = "golden bell", chance = 2548 },
 	{ name = "golden cotton reel", chance = 1254 },
 	{ name = "lucky pig", chance = 2540 },
-	{ name = "transcendence potion", chance = 100000, maxCount = 8 },
 }
 
 monster.attacks = {
@@ -130,7 +129,7 @@ monster.elements = {
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 200 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 80 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 90 },
 }

@@ -82,22 +82,21 @@ monster.loot = {
 	{ id = 32772, chance = 20000 }, -- silver hand mirror
 	{ id = 23375, chance = 20000, minCount = 4, maxCount = 9 }, -- supreme health potion
 	{ id = 7443, chance = 16000, minCount = 2, maxCount = 16 }, -- bullseye potion
-	{ id = 32773, chance = 10169 }, -- ivory comb
-	{ id = 32626, chance = 1695 }, -- amber
+	{ id = 32773, chance = 16000 }, -- ivory comb
+	{ id = 32626, chance = 12000 }, -- amber
 	{ id = 7439, chance = 12000, minCount = 6, maxCount = 15 }, -- berserk potion
-	{ id = 7440, chance = 18644, minCount = 4, maxCount = 15 }, -- mastermind potion
+	{ id = 7440, chance = 12000, minCount = 4, maxCount = 15 }, -- mastermind potion
 	{ id = 32703, chance = 8000, minCount = 1, maxCount = 3 }, -- death toll
-	{ id = 32589, chance = 11864 }, -- angel figurine
-	{ id = 32774, chance = 8475 }, -- cursed bone
+	{ id = 32589, chance = 4000 }, -- angel figurine
+	{ id = 32774, chance = 4000 }, -- cursed bone
 	{ id = 32596, chance = 4000 }, -- dark bell (Silver)
-	{ id = 32622, chance = 1695 }, -- giant amethyst
-	{ id = 32595, chance = 1695 }, -- jagged sickle
+	{ id = 32622, chance = 4000 }, -- giant amethyst
+	{ id = 32595, chance = 4000 }, -- jagged sickle
 	{ id = 32591, chance = 4000 }, -- soulforged lantern
 	{ id = 32619, chance = 730 }, -- pair of nightmare boots
-	{ id = 32631, chance = 1695 }, -- ghost claw
-	{ id = 32630, chance = 1695 }, -- spooky hood
+	{ id = 32631, chance = 730 }, -- ghost claw
+	{ id = 32630, chance = 730 }, -- spooky hood
 	{ id = 50185, chance = 730 }, -- jade legs
-	{ name = "transcendence potion", chance = 6780, maxCount = 16 },
 }
 
 monster.attacks = {
@@ -125,7 +124,7 @@ monster.elements = {
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 200 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 100 },
 }
 
 monster.immunities = {

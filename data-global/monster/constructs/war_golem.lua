@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("War Golem")
 local monster = {}
 
 monster.description = "a war golem"
-monster.experience = 2680
+monster.experience = 2310
 monster.outfit = {
 	lookType = 326,
 	lookHead = 0,
@@ -98,7 +98,7 @@ monster.loot = {
 	{ id = 5880, chance = 1920 }, -- iron ore
 	{ id = 7439, chance = 900 }, -- berserk potion
 	{ id = 3326, chance = 6400 }, -- epee
-	{ id = 8895, chance = 3501 }, -- rusted armor
+	{ id = 8895, chance = 260 }, -- rusted armor
 	{ id = 3093, chance = 810 }, -- club ring
 	{ id = 3097, chance = 1210 }, -- dwarven ring
 	{ id = 9067, chance = 130 }, -- crystal of power
@@ -110,12 +110,11 @@ monster.loot = {
 	{ id = 7428, chance = 770 }, -- bonebreaker
 	{ id = 3061, chance = 1000 }, -- life crystal
 	{ id = 12305, chance = 100 }, -- tin key
-	{ name = "war crystal", chance = 8145 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -478 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -160, maxDamage = -220, range = 7, shootEffect = CONST_ANI_ENERGY, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -550 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -165, maxDamage = -220, range = 7, shootEffect = CONST_ANI_ENERGY, target = false },
 	{ name = "outfit", interval = 2000, chance = 1, range = 7, target = false, duration = 3000, outfitMonster = "skeleton" },
 	{ name = "war golem electrify", interval = 2000, chance = 15, range = 1, target = false },
 	{ name = "war golem skill reducer", interval = 2000, chance = 10, target = false },

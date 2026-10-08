@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Carnivostrich")
 local monster = {}
 
 monster.description = "a carnivostrich"
-monster.experience = 6710
+monster.experience = 7290
 monster.outfit = {
 	lookType = 1605,
 	lookHead = 0,
@@ -91,10 +91,10 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500, condition = { type = CONDITION_POISON, totalDamage = 480, interval = 4000 } },
-	{ name = "combat", interval = 2500, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -453, maxDamage = -527, range = 7, shootEffect = CONST_ANI_LARGEROCK, target = true },
-	{ name = "combat", interval = 3000, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -453, maxDamage = -527, range = 7, shootEffect = CONST_ANI_SMALLSTONE, target = true },
-	{ name = "combat", interval = 3500, chance = 30, type = COMBAT_DEATHDAMAGE, minDamage = -350, maxDamage = -450, length = 7, spread = 0, effect = CONST_ME_BLACKSMOKE, target = false },
-	{ name = "combat", interval = 4000, chance = 30, type = COMBAT_ENERGYDAMAGE, minDamage = -302, maxDamage = -309, length = 7, spread = 0, effect = CONST_ME_ENERGYHIT, target = false },
+	{ name = "combat", interval = 2500, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -386, maxDamage = -480, range = 7, shootEffect = CONST_ANI_LARGEROCK, target = true },
+	{ name = "combat", interval = 3000, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -135, range = 7, shootEffect = CONST_ANI_SMALLSTONE, target = true },
+	{ name = "combat", interval = 3500, chance = 30, type = COMBAT_DEATHDAMAGE, minDamage = -350, maxDamage = -495, length = 7, spread = 0, effect = CONST_ME_BLACKSMOKE, target = false },
+	{ name = "combat", interval = 4000, chance = 30, type = COMBAT_ENERGYDAMAGE, minDamage = -280, maxDamage = -320, length = 7, spread = 0, effect = CONST_ME_ENERGYHIT, target = false },
 	{ name = "energy chain", interval = 4500, chance = 20, minDamage = -302, maxDamage = -309, range = 3, target = true },
 	{ name = "thunderstorm ring", interval = 5000, chance = 20, minDamage = -325, maxDamage = -415 },
 }

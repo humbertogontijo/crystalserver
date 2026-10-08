@@ -79,48 +79,47 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "small diamond", chance = 12000, maxCount = 3 },
+	{ name = "small diamond", chance = 7000, maxCount = 3 },
 	{ name = "gold coin", chance = 50000, maxCount = 90 },
 	{ name = "gold coin", chance = 50000, maxCount = 70 },
 	{ name = "yellow gem", chance = 5000 },
 	{ id = 3049, chance = 5000 }, -- stealth ring
-	{ name = "boots of haste", chance = 571 },
+	{ name = "boots of haste", chance = 1500 },
 	{ name = "crystal arrow", chance = 100000 },
-	{ name = "arrow", chance = 19429, maxCount = 21 },
-	{ name = "poison arrow", chance = 62286, maxCount = 20 },
-	{ id = 3449, chance = 44571, maxCount = 15 }, -- burst arrow
+	{ name = "arrow", chance = 10000, maxCount = 21 },
+	{ name = "poison arrow", chance = 10000, maxCount = 20 },
+	{ id = 3449, chance = 10000, maxCount = 15 }, -- burst arrow
 	{ name = "power bolt", chance = 10000, maxCount = 3 },
-	{ name = "onyx arrow", chance = 32571, maxCount = 2 },
-	{ name = "great health potion", chance = 9714 },
-	{ name = "red apple", chance = 82286, maxCount = 2 },
+	{ name = "onyx arrow", chance = 10000, maxCount = 2 },
+	{ name = "great health potion", chance = 7000 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -120, condition = { type = CONDITION_POISON, totalDamage = 65, interval = 4000 } },
 	{ name = "combat", interval = 5000, chance = 20, type = COMBAT_LIFEDRAIN, minDamage = -100, maxDamage = -250, range = 1, target = false },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -500, shootEffect = CONST_ANI_POISONARROW, target = false },
-	{ name = "combat", interval = 1000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -500, range = 3, shootEffect = CONST_ANI_BURSTARROW, effect = CONST_ME_EXPLOSIONAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -200, maxDamage = -500, shootEffect = CONST_ANI_POISONARROW, target = false },
+	{ name = "combat", interval = 1000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -120, maxDamage = -450, range = 3, shootEffect = CONST_ANI_BURSTARROW, effect = CONST_ME_EXPLOSIONAREA, target = false },
 	{ name = "melee", interval = 3000, chance = 20, minDamage = -150, maxDamage = -500 },
 	{ name = "speed", interval = 1000, chance = 25, speedChange = -900, range = 7, effect = CONST_ME_MAGIC_RED, target = false, duration = 50000 },
 }
 
 monster.defenses = {
 	defense = 35,
-	armor = 60,
+	armor = 20,
 	{ name = "combat", interval = 1000, chance = 17, type = COMBAT_HEALING, minDamage = 100, maxDamage = 200, effect = CONST_ME_MAGIC_BLUE, target = false },
 	{ name = "invisible", interval = 2000, chance = 14, effect = CONST_ME_MAGIC_BLUE },
 }
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = -5 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 20 },
-	{ type = COMBAT_FIREDAMAGE, percent = 20 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = -5 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -10 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 100 },
 }
 

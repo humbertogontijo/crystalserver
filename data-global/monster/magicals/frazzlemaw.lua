@@ -87,12 +87,12 @@ monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "platinum coin", chance = 100000, maxCount = 7 },
 	{ name = "banana skin", chance = 9500 },
-	{ name = "piece of iron", chance = 7735 },
+	{ name = "piece of iron", chance = 10400 },
 	{ name = "fishbone", chance = 10000 },
 	{ id = 3114, chance = 12680 }, -- skull
 	{ id = 3115, chance = 10000 }, -- bone
-	{ id = 3116, chance = 3793 }, -- big bone
-	{ name = "two handed sword", chance = 2224 },
+	{ id = 3116, chance = 5500 }, -- big bone
+	{ name = "two handed sword", chance = 3200 },
 	{ id = 3578, chance = 6750, maxCount = 3 }, -- fish
 	{ name = "ham", chance = 6000, maxCount = 2 },
 	{ name = "iron ore", chance = 3000 },
@@ -100,27 +100,26 @@ monster.loot = {
 	{ name = "hardened bone", chance = 5000 },
 	{ id = 5951, chance = 10800 }, -- fish tail
 	{ name = "assassin dagger", chance = 1000 },
-	{ name = "haunted blade", chance = 1569 },
+	{ name = "haunted blade", chance = 2240 },
 	{ name = "nightmare blade", chance = 1100 },
 	{ id = 238, chance = 15000, maxCount = 3 }, -- great mana potion
 	{ name = "great health potion", chance = 15000, maxCount = 2 },
 	{ name = "gold ingot", chance = 2300 },
-	{ name = "traditional sai", chance = 470 },
+	{ name = "traditional sai", chance = 1460 },
 	{ name = "violet crystal shard", chance = 3000 },
-	{ name = "brown crystal splinter", chance = 11936 },
-	{ name = "red crystal fragment", chance = 4251 },
+	{ name = "brown crystal splinter", chance = 16000 },
+	{ name = "red crystal fragment", chance = 7600 },
 	{ id = 16279, chance = 10000 }, -- crystal rubbish
-	{ name = "cluster of solace", chance = 383 },
+	{ name = "cluster of solace", chance = 4450 },
 	{ name = "frazzle tongue", chance = 18760 },
 	{ name = "frazzle skin", chance = 16000 },
-	{ name = "remains of a fish", chance = 8106 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -450 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400 },
 	-- bleed
 	{ name = "condition", type = CONDITION_BLEEDING, interval = 2000, chance = 10, minDamage = -300, maxDamage = -400, radius = 3, effect = CONST_ME_DRAWBLOOD, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -350, maxDamage = -600, length = 5, spread = 0, effect = CONST_ME_EXPLOSIONAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = 0, maxDamage = -700, length = 5, spread = 0, effect = CONST_ME_EXPLOSIONAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -400, radius = 2, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_STONES, target = true },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = -600, radius = 5, effect = CONST_ME_MAGIC_RED, target = false, duration = 15000 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_MANADRAIN, minDamage = -80, maxDamage = -150, radius = 4, effect = CONST_ME_MAGIC_RED, target = false },

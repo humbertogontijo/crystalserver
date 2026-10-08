@@ -72,24 +72,25 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 6537, chance = 100000 }, -- mr. punish's handcuffs
-	{ name = "gold coin", chance = 100000, maxCount = 129 },
-	{ name = "demonic essence", chance = 92857 },
-	{ name = "soul orb", chance = 92857 },
-	{ name = "double axe", chance = 28571 },
-	{ name = "jewelled backpack", chance = 21429 },
-	{ name = "assassin star", chance = 14286, maxCount = 3 },
-	{ name = "cat's paw", chance = 14286 },
-	{ name = "gold ingot", chance = 14286 },
-	{ name = "great health potion", chance = 14286 },
-	{ name = "platinum coin", chance = 14286, maxCount = 2 },
-	{ id = 6491, chance = 7143 }, -- bat decoration
-	{ name = "great mana potion", chance = 7143 },
-	{ name = "ravager's axe", chance = 7143 },
-	{ name = "small diamond", chance = 7143 },
+	{ id = 6499, chance = 93000 }, -- demonic essence
+	{ id = 5944, chance = 93000 }, -- soul orb
+	{ id = 3031, chance = 100000, maxCount = 129 }, -- gold coin
+	{ id = 3275, chance = 29000 }, -- steel axe
+	{ id = 5801, chance = 21000 }, -- jewelled backpack
+	{ id = 239, chance = 14000 }, -- great health potion
+	{ id = 3035, chance = 14300, maxCount = 2 }, -- platinum coin
+	{ id = 9058, chance = 14300 }, -- gold ingot
+	{ id = 5479, chance = 14300 }, -- cat's paw
+	{ id = 7368, chance = 14300, maxCount = 3 }, -- assassin star
+	{ id = 3331, chance = 7100 }, -- ravager's axe
+	{ id = 238, chance = 7100 }, -- great mana potion
+	{ id = 6491, chance = 7100 }, -- bat decoration
+	{ id = 3028, chance = 7100 }, -- small diamond
+	{ id = 7435, chance = 5000 }, -- impaler
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -1100 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -660, maxDamage = -1280 },
 }
 
 monster.defenses = {

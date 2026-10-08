@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Stalking Stalk")
 local monster = {}
 
 monster.description = "a stalking stalk"
-monster.experience = 12440
+monster.experience = 11569
 monster.outfit = {
 	lookType = 1554,
 	lookHead = 85,
@@ -80,8 +80,8 @@ monster.loot = {
 	{ name = "Green Crystal Fragment", chance = 5030 },
 	{ name = "Dragon Necklace", chance = 4540 },
 	{ name = "Opal", chance = 3960, minCount = 1, maxCount = 2 },
-	{ name = "Magma Coat", chance = 1164 },
-	{ name = "Bow", chance = 1455 },
+	{ name = "Magma Coat", chance = 2160 },
+	{ name = "Bow", chance = 2000 },
 	{ name = "Green Gem", chance = 1780 },
 	{ name = "Warrior's Axe", chance = 1700 },
 	{ name = "Muck Rod", chance = 1310 },
@@ -89,7 +89,7 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400, effect = CONST_ME_CARNIPHILA },
-	{ name = "combat", interval = 4000, chance = 40, type = COMBAT_FIREDAMAGE, minDamage = -1012, maxDamage = -1049, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_HITBYFIRE, target = true },
+	{ name = "combat", interval = 4000, chance = 40, type = COMBAT_FIREDAMAGE, minDamage = -800, maxDamage = -1050, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_HITBYFIRE, target = true },
 	{ name = "combat", interval = 2900, chance = 25, type = COMBAT_EARTHDAMAGE, minDamage = -850, maxDamage = -1130, radius = 4, effect = CONST_ME_PLANTATTACK, target = false },
 }
 
@@ -100,8 +100,8 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = -10 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = -15 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -25 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 25 },
 	{ type = COMBAT_FIREDAMAGE, percent = 25 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },

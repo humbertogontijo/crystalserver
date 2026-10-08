@@ -68,25 +68,7 @@ monster.voices = {
 	chance = 10,
 }
 
-monster.loot = {
-	{ name = "gold coin", chance = 100000, maxCount = 382 },
-	{ name = "golden lotus brooch", chance = 100000 },
-	{ name = "peacock feather fan", chance = 100000 },
-	{ name = "platinum coin", chance = 100000, maxCount = 10 },
-	{ name = "assassin star", chance = 39286, maxCount = 15 },
-	{ name = "flask of demonic blood", chance = 35714 },
-	{ name = "small amethyst", chance = 29464, maxCount = 3 },
-	{ name = "demonic essence", chance = 28571 },
-	{ name = "soul orb", chance = 23214 },
-	{ name = "great mana potion", chance = 22321, maxCount = 5 },
-	{ name = "moonlight rod", chance = 18750 },
-	{ name = "great spirit potion", chance = 15179, maxCount = 5 },
-	{ name = "ultimate health potion", chance = 13393, maxCount = 5 },
-	{ id = 3039, chance = 9821 }, -- red gem
-	{ id = 3007, chance = 8929 }, -- crystal ring
-	{ name = "necrotic rod", chance = 8036 },
-	{ name = "gold ingot", chance = 7143, maxCount = 3 },
-}
+monster.loot = {}
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200 },

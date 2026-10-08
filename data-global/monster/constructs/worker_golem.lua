@@ -97,15 +97,15 @@ monster.loot = {
 	{ name = "nail", chance = 5000, maxCount = 5 },
 	{ name = "great spirit potion", chance = 830 },
 	{ name = "gear wheel", chance = 1007 },
-	{ id = 8895, chance = 1544 }, -- rusted armor
-	{ id = 8898, chance = 885 }, -- rusted legs
-	{ id = 9066, chance = 157 }, -- crystal pedestal
+	{ id = 8895, chance = 200 }, -- rusted armor
+	{ id = 8898, chance = 50 }, -- rusted legs
+	{ id = 9066, chance = 2270 }, -- crystal pedestal
 	{ name = "gear crystal", chance = 2270 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -240 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -85, maxDamage = -125, range = 7, shootEffect = CONST_ANI_SMALLSTONE, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -125, range = 7, shootEffect = CONST_ANI_SMALLSTONE, target = false },
 }
 
 monster.defenses = {

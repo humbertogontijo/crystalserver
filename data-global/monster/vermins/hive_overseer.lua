@@ -97,7 +97,7 @@ monster.loot = {
 	{ name = "gold ingot", chance = 29000 },
 	{ name = "kollos shell", chance = 28000 },
 	{ name = "compound eye", chance = 16000 },
-	{ name = "calopteryx cape", chance = 1526 },
+	{ name = "calopteryx cape", chance = 830 },
 	{ name = "carapace shield", chance = 920 },
 	{ name = "hive scythe", chance = 1650 },
 	{ name = "gooey mass", chance = 13000, maxCount = 2 },

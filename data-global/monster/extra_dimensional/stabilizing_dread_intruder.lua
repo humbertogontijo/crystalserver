@@ -78,7 +78,7 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 100 }, -- gold coin
-	{ id = 3035, chance = 86510, maxCount = 5 }, -- platinum coin
+	{ id = 3035, chance = 20000, maxCount = 5 }, -- platinum coin
 	{ id = 23535, chance = 12200 }, -- energy bar
 	{ id = 238, chance = 10800 }, -- great mana potion
 	{ id = 23513, chance = 9800 }, -- strange proto matter
@@ -92,12 +92,12 @@ monster.loot = {
 	{ id = 3029, chance = 4400, maxCount = 2 }, -- small sapphire
 	{ id = 16120, chance = 4200 }, -- violet crystal shard
 	{ id = 3030, chance = 3400, maxCount = 2 }, -- small ruby
-	{ id = 16125, chance = 5312 }, -- cyan crystal fragment
+	{ id = 16125, chance = 3300 }, -- cyan crystal fragment
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -350 },
-	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_DEATHDAMAGE, minDamage = 0, maxDamage = -325, range = 4, radius = 4, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400 },
+	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_DEATHDAMAGE, minDamage = -200, maxDamage = -300, range = 4, radius = 4, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = true },
 	{ name = "dread intruder wave", interval = 2000, chance = 25, minDamage = -350, maxDamage = -450, target = false },
 }
 

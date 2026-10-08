@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Tremendous Tyrant")
 local monster = {}
 
 monster.description = "a tremendous tyrant"
-monster.experience = 6950
+monster.experience = 6100
 monster.outfit = {
 	lookType = 1396,
 	lookHead = 60,
@@ -76,33 +76,33 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 24 },
+	{ name = "platinum coin", chance = 70000, maxCount = 24 },
 	{ name = "gold ingot", chance = 11820, maxCount = 2 },
-	{ id = 3039, chance = 9478, maxCount = 1 }, -- red gem
+	{ id = 3039, chance = 14550, maxCount = 1 }, -- red gem
 	{ name = "violet crystal shard", chance = 6360, maxCount = 3 },
 	{ name = "green crystal shard", chance = 5450 },
 	{ name = "blue crystal shard", chance = 5450 },
 	{ name = "tremendous tyrant shell", chance = 4550 },
-	{ name = "yellow gem", chance = 4992, maxCount = 1 },
-	{ name = "spellbook of warding", chance = 5048 },
-	{ name = "wand of starstorm", chance = 3253 },
-	{ name = "ice rapier", chance = 3926 },
+	{ name = "yellow gem", chance = 9090, maxCount = 1 },
+	{ name = "spellbook of warding", chance = 8180 },
+	{ name = "wand of starstorm", chance = 910 },
+	{ name = "ice rapier", chance = 1820 },
 	{ name = "hailstorm rod", chance = 2730 },
 	{ name = "knight axe", chance = 4550 },
 	{ name = "dragonbone staff", chance = 3640 },
-	{ name = "tremendous tyrant head", chance = 3365 },
+	{ name = "tremendous tyrant head", chance = 8180 },
 	{ name = "wand of cosmic energy", chance = 2730 },
-	{ name = "warrior's shield", chance = 2524 },
-	{ name = "elven amulet", chance = 1963 },
+	{ name = "warrior's shield", chance = 1820 },
+	{ name = "elven amulet", chance = 2730 },
 	{ name = "focus cape", chance = 1820 },
-	{ name = "glacier robe", chance = 2524 },
+	{ name = "glacier robe", chance = 4555 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400 },
 	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_ICEDAMAGE, minDamage = -600, maxDamage = -650, length = 5, spread = 0, effect = CONST_ME_ICEATTACK, target = false },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -600, maxDamage = -700, radius = 4, shootEffect = CONST_ANI_ICE, effect = CONST_ME_ICEAREA, target = false }, -- avalanche
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_HOLYDAMAGE, minDamage = -670, maxDamage = -950, range = 5, shootEffect = CONST_ANI_HOLY, effect = CONST_ME_HOLYAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_HOLYDAMAGE, minDamage = -750, maxDamage = -950, range = 5, shootEffect = CONST_ANI_HOLY, effect = CONST_ME_HOLYAREA, target = true },
 }
 
 monster.defenses = {

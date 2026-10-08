@@ -68,12 +68,11 @@ monster.loot = {
 	{ name = "gold coin", chance = 24500, maxCount = 47 },
 	{ id = 3129, chance = 22000 }, -- some leaves
 	{ name = "natural soil", chance = 3750 },
-	{ name = "lump of earth", chance = 20442 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -160 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -70, maxDamage = -110, range = 7, radius = 2, effect = CONST_ME_STONES, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -25, maxDamage = -155, range = 7, radius = 2, effect = CONST_ME_STONES, target = true },
 	-- poison
 	{ name = "condition", type = CONDITION_POISON, interval = 1000, chance = 10, minDamage = 0, maxDamage = -26, length = 6, spread = 0, effect = CONST_ME_GROUNDSHAKER, target = false },
 }

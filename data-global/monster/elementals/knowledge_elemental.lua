@@ -77,27 +77,27 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 70149, maxCount = 9 },
-	{ name = "book page", chance = 38308, maxCount = 6 },
-	{ name = "small amethyst", chance = 71642, maxCount = 8 },
-	{ name = "glowing rune", chance = 35821, maxCount = 3 },
-	{ name = "quill", chance = 22388, maxCount = 3 },
-	{ name = "silken bookmark", chance = 26866, maxCount = 3 },
-	{ name = "flash arrow", chance = 17413, maxCount = 6 },
-	{ name = "throwing star", chance = 5473, maxCount = 10 },
-	{ name = "crystal sword", chance = 6468 },
+	{ name = "platinum coin", chance = 100000, maxCount = 9 },
+	{ name = "book page", chance = 10000, maxCount = 6 },
+	{ name = "small amethyst", chance = 10000, maxCount = 8 },
+	{ name = "glowing rune", chance = 10000, maxCount = 3 },
+	{ name = "quill", chance = 10000, maxCount = 3 },
+	{ name = "silken bookmark", chance = 10000, maxCount = 3 },
+	{ name = "flash arrow", chance = 10000, maxCount = 6 },
+	{ name = "throwing star", chance = 10000, maxCount = 10 },
+	{ name = "crystal sword", chance = 10000 },
 	{ id = 3051, chance = 10000 }, -- energy ring
 	{ name = "guardian shield", chance = 10000 },
 	{ name = "mana potion", chance = 10000, maxCount = 10 },
 	{ name = "ultimate mana potion", chance = 10000, maxCount = 8 },
 	{ name = "ultimate health potion", chance = 10000, maxCount = 8 },
-	{ name = "wand of cosmic energy", chance = 6965 },
+	{ name = "wand of cosmic energy", chance = 300 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -600 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -400 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_HOLYDAMAGE, minDamage = -200, maxDamage = -680, radius = 3, effect = CONST_ME_HOLYDAMAGE, target = true },
-	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_ENERGYDAMAGE, minDamage = -600, maxDamage = -900, range = 7, shootEffect = CONST_ANI_ENERGY, target = false },
+	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_ENERGYDAMAGE, minDamage = -200, maxDamage = -680, range = 7, shootEffect = CONST_ANI_ENERGY, target = false },
 }
 
 monster.defenses = {

@@ -67,15 +67,15 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 22500, maxCount = 70 },
 	{ name = "gold coin", chance = 22500, maxCount = 60 },
-	{ name = "shiver arrow", chance = 3946, maxCount = 3 },
+	{ name = "shiver arrow", chance = 2575, maxCount = 3 },
 	{ name = "iced soil", chance = 6000 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -175 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -130, range = 7, shootEffect = CONST_ANI_EARTH, target = true },
-	{ name = "combat", interval = 1000, chance = 10, type = COMBAT_ICEDAMAGE, minDamage = -78, maxDamage = -120, range = 6, shootEffect = CONST_ANI_SNOWBALL, target = true },
-	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_ICEDAMAGE, minDamage = -78, maxDamage = -120, range = 4, shootEffect = CONST_ANI_SMALLICE, target = true },
+	{ name = "combat", interval = 1000, chance = 10, type = COMBAT_ICEDAMAGE, minDamage = 0, maxDamage = -220, range = 6, shootEffect = CONST_ANI_SNOWBALL, target = true },
+	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_ICEDAMAGE, minDamage = 0, maxDamage = -103, range = 4, shootEffect = CONST_ANI_SMALLICE, target = true },
 }
 
 monster.defenses = {

@@ -83,14 +83,14 @@ monster.loot = {
 	{ name = "meat", chance = 29500, maxCount = 2 },
 	{ name = "angelic axe", chance = 440 },
 	{ name = "glorious axe", chance = 870 },
-	{ name = "strong health potion", chance = 4054 },
+	{ name = "strong health potion", chance = 6000 },
 	{ name = "silky tapestry", chance = 730 },
 	{ name = "striped fur", chance = 20130 },
 	{ name = "sabretooth", chance = 10600 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -145 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -150 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -200, length = 5, spread = 3, effect = CONST_ME_BLOCKHIT, target = false },
 }
 

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Feral Sphinx")
 local monster = {}
 
 monster.description = "a feral sphinx"
-monster.experience = 8450
+monster.experience = 8800
 monster.outfit = {
 	lookType = 1188,
 	lookHead = 76,
@@ -86,12 +86,12 @@ monster.loot = {
 	{ name = "sphinx feather", chance = 5480 },
 	{ name = "sphinx tiara", chance = 5240 },
 	{ name = "fire axe", chance = 4200 },
-	{ name = "wand of draconia", chance = 4421 },
-	{ name = "green gem", chance = 1736 },
+	{ name = "wand of draconia", chance = 2910 },
+	{ name = "green gem", chance = 2680 },
 	{ name = "magma monocle", chance = 1400 },
 	{ name = "magma boots", chance = 1280 },
 	{ name = "small enchanted emerald", chance = 1050, maxCount = 2 },
-	{ name = "magma legs", chance = 1433 },
+	{ name = "magma legs", chance = 930 },
 }
 
 monster.attacks = {

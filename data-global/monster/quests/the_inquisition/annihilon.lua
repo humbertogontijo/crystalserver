@@ -80,7 +80,7 @@ monster.loot = {
 	{ name = "platinum coin", chance = 16666, maxCount = 30 },
 	{ name = "violet gem", chance = 16666 },
 	{ name = "yellow gem", chance = 20000 },
-	{ name = "green gem", chance = 18933 },
+	{ name = "green gem", chance = 12500 },
 	{ id = 3039, chance = 20000 }, -- red gem
 	{ name = "blue gem", chance = 20000 },
 	{ name = "halberd", chance = 20000 },
@@ -118,8 +118,8 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -1707 },
-	{ name = "combat", interval = 1000, chance = 11, type = COMBAT_DEATHDAMAGE, minDamage = -450, maxDamage = -800, length = 8, spread = 3, effect = CONST_ME_MORTAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -450, maxDamage = -800, radius = 4, effect = CONST_ME_ICEAREA, target = false },
+	{ name = "combat", interval = 1000, chance = 11, type = COMBAT_DEATHDAMAGE, minDamage = 0, maxDamage = -600, length = 8, spread = 3, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -200, maxDamage = -700, radius = 4, effect = CONST_ME_ICEAREA, target = false },
 	{ name = "combat", interval = 3000, chance = 18, type = COMBAT_PHYSICALDAMAGE, minDamage = -50, maxDamage = -255, radius = 5, effect = CONST_ME_GROUNDSHAKER, target = true },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -50, maxDamage = -600, radius = 6, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
 }

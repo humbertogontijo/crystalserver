@@ -64,13 +64,13 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 3031, chance = 75000, maxCount = 98 }, -- gold coin
+	{ id = 3031, chance = 40000, maxCount = 98 }, -- gold coin
 	{ id = 7924, chance = 100000 }, -- ring of the count
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -189 },
-	{ name = "combat", interval = 1000, chance = 9, type = COMBAT_LIFEDRAIN, minDamage = 0, maxDamage = -94, radius = 4, effect = CONST_ME_SMALLCLOUDS, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -50, maxDamage = -75 },
+	{ name = "combat", interval = 1000, chance = 9, type = COMBAT_LIFEDRAIN, minDamage = 0, maxDamage = -100, radius = 4, effect = CONST_ME_SMALLCLOUDS, target = false },
 }
 
 monster.defenses = {

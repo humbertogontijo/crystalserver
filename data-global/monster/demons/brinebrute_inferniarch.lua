@@ -79,29 +79,28 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 100000, maxCount = 40 },
-	{ name = "Brinebrute Claw", chance = 77238, maxCount = 1 },
-	{ name = "great spirit potion", chance = 74936, maxCount = 15 },
-	{ name = "Blue Crystal Shard", chance = 17775, maxCount = 2 },
+	{ name = "Platinum Coin", chance = 16500, maxCount = 40 },
+	{ name = "Brinebrute Claw", chance = 18500, maxCount = 1 },
+	{ name = "great spirit potion", chance = 11500, maxCount = 15 },
+	{ name = "Blue Crystal Shard", chance = 12500, maxCount = 2 },
 	{ name = "Green Crystal Shard", chance = 13500, maxCount = 2 },
 	{ name = "Violet Crystal Shard", chance = 12500, maxCount = 2 },
-	{ name = "Small Sapphire", chance = 6905, maxCount = 2 },
+	{ name = "Small Sapphire", chance = 12500, maxCount = 2 },
 	{ name = "Blue Crystal Splinter", chance = 14500, maxCount = 2 },
-	{ name = "Green Crystal Splinter", chance = 20077, maxCount = 2 },
+	{ name = "Green Crystal Splinter", chance = 14500, maxCount = 2 },
 	{ name = "Brown Crystal Splinter", chance = 14500, maxCount = 2 },
-	{ id = 3039, chance = 7545, maxCount = 1 }, -- Red gem
+	{ id = 3039, chance = 5000, maxCount = 1 }, -- Red gem
 	{ name = "Ultimate Health Potion", chance = 5500, maxCount = 10 },
-	{ name = "Demonic Core Essence", chance = 2813, maxCount = 1 },
+	{ name = "Demonic Core Essence", chance = 1500, maxCount = 1 },
 	{ name = "Demonic Matter", chance = 1500, maxCount = 1 },
 	{ name = "Bloodstained Scythe", chance = 2500, maxCount = 1 },
-	{ name = "Giant Sword", chance = 2046, maxCount = 1 },
-	{ name = "Green Gem", chance = 1662, maxCount = 1 },
-	{ name = "Might ring", chance = 2941, maxCount = 1 },
-	{ id = 3100, chance = 1790, maxCount = 1 }, -- Ring of Healing
+	{ name = "Giant Sword", chance = 4000, maxCount = 1 },
+	{ name = "Green Gem", chance = 3000, maxCount = 1 },
+	{ name = "Might ring", chance = 1000, maxCount = 1 },
+	{ id = 3100, chance = 5000, maxCount = 1 }, -- Ring of Healing
 	{ name = "Mummified Demon Finger", chance = 500, maxCount = 1 },
 	{ name = "Gold Ring", chance = 500, maxCount = 1 },
 	{ name = "brinebrute inferniarch soul core", chance = 100, maxCount = 1 },
-	{ name = "crystal coin", chance = 18031 },
 }
 
 monster.attacks = {

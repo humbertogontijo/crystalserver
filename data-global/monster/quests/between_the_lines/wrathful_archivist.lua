@@ -76,30 +76,21 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 37647, maxCount = 2 },
-	{ name = "platinum coin", chance = 100000, maxCount = 66 },
-	{ name = "mana potion", chance = 32353, maxCount = 14 },
-	{ name = "violet crystal shard", chance = 20882, maxCount = 2 },
-	{ name = "blue crystal splinter", chance = 19118 },
-	{ id = 238, chance = 27941, maxCount = 6 }, -- great mana potion
-	{ name = "strong mana potion", chance = 28824, maxCount = 14 },
-	{ name = "small ruby", chance = 18824, maxCount = 3 },
-	{ name = "small sapphire", chance = 18824, maxCount = 3 },
-	{ name = "small emerald", chance = 20882, maxCount = 3 },
-	{ name = "small amethyst", chance = 17941, maxCount = 3 },
-	{ name = "spellweaver's robe", chance = 6176 },
-	{ name = "proficiency catalyst", chance = 8235 },
-	{ name = "blank imbuement scroll", chance = 7647 },
-	{ id = 3041, chance = 37941 }, -- blue gem
-	{ id = 6299, chance = 35882, maxCount = 2 }, -- death ring
-	{ id = 3053, chance = 34706, maxCount = 2 }, -- time ring
-	{ id = 3052, chance = 32647, maxCount = 2 }, -- life ring
-	{ name = "violet gem", chance = 19412, maxCount = 2 },
-	{ name = "blue crystal shard", chance = 15882, maxCount = 2 },
-	{ name = "ultimate mana potion", chance = 10882 },
-	{ name = "wand of inferno", chance = 7059, maxCount = 2 },
-	{ name = "spellbook of mind control", chance = 5588 },
-	{ name = "wand of cosmic energy", chance = 5294, maxCount = 2 },
+	{ name = "gold coin", chance = 7500, maxCount = 2 },
+	{ name = "platinum coin", chance = 7500, maxCount = 66 },
+	{ name = "mana potion", chance = 6000, maxCount = 14 },
+	{ name = "violet crystal shard", chance = 5000, maxCount = 2 },
+	{ name = "blue crystal splinter", chance = 4800 },
+	{ id = 238, chance = 4000, maxCount = 6 }, -- great mana potion
+	{ name = "strong mana potion", chance = 3800, maxCount = 14 },
+	{ name = "small ruby", chance = 3800, maxCount = 3 },
+	{ name = "small sapphire", chance = 3800, maxCount = 3 },
+	{ name = "small emerald", chance = 3500, maxCount = 3 },
+	{ name = "small amethyst", chance = 3200, maxCount = 3 },
+	{ name = "spellweaver's robe", chance = 3000 },
+	{ name = "proficiency catalyst", chance = 3000 },
+	{ name = "blank imbuement scroll", chance = 3000 },
+	{ id = 3041, chance = 3000 }, -- blue gem
 }
 
 -- missing spells

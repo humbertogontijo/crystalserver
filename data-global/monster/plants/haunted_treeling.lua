@@ -91,7 +91,6 @@ monster.loot = {
 	{ id = 3097, chance = 660 }, -- dwarven ring
 	{ name = "small emerald", chance = 620 },
 	{ name = "bullseye potion", chance = 100 },
-	{ id = 398, chance = 29498 }, -- wooden trash
 }
 
 monster.attacks = {

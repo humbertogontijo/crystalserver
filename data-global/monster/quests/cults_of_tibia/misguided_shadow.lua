@@ -68,8 +68,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 236, chance = 1770 }, -- strong health potion
-	{ id = 3039, chance = 4425 }, -- red gem
+	{ id = 236, chance = 15000 }, -- strong health potion
+	{ id = 3039, chance = 6000 }, -- red gem
 }
 
 monster.attacks = {

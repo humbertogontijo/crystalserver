@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Norcferatu Heartless")
 local monster = {}
 
 monster.description = "a norcferatu heartless"
-monster.experience = 5900
+monster.experience = 4450
 monster.outfit = {
 	lookType = 1852,
 	lookHead = 0,
@@ -80,23 +80,23 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 60000, minCount = 1, maxCount = 20 },
-	{ name = "green crystal splinter", chance = 4637 },
-	{ name = "heart amphora", chance = 6182 }, -- new item
+	{ name = "green crystal splinter", chance = 2800 },
+	{ name = "heart amphora", chance = 2500 }, -- new item
 	{ name = "vampire teeth", chance = 2000 },
-	{ name = "brown crystal splinter", chance = 3555 },
-	{ name = "blue crystal splinter", chance = 4740 },
-	{ name = "pot of orcish warpaint", chance = 4534 }, -- new item
+	{ name = "brown crystal splinter", chance = 1800 },
+	{ name = "blue crystal splinter", chance = 1600 },
+	{ name = "pot of orcish warpaint", chance = 1500 }, -- new item
 	{ name = "war axe", chance = 1400 },
-	{ name = "chaos mace", chance = 567 },
-	{ name = "greater garlic necklace", chance = 618 }, -- new item
+	{ name = "chaos mace", chance = 1200 },
+	{ name = "greater garlic necklace", chance = 1200 }, -- new item
 	{ id = 51487, chance = 800 }, -- norcferatu talisman
-	{ name = "vampire shield", chance = 206 },
+	{ name = "vampire shield", chance = 800 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = -150, maxDamage = -480, effect = CONST_ME_DRAWBLOOD, target = true },
 	{ name = "clouds chain", interval = 2000, chance = 8, minDamage = -100, maxDamage = -380, target = true },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -230, maxDamage = -550, range = 5, shootEffect = CONST_ANI_WHIRLWINDAXE, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -270, maxDamage = -550, range = 5, shootEffect = CONST_ANI_WHIRLWINDAXE, target = true },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -700, radius = 4, effect = CONST_ME_BLOOD_RAIN, target = false },
 }
 
@@ -107,16 +107,16 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 10 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 5 },
-	{ type = COMBAT_EARTHDAMAGE, percent = -10 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -10 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = -5 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 10 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -5 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 30 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 5 },
+	{ type = COMBAT_DEATHDAMAGE, percent = -30 },
 }
 
 monster.immunities = {

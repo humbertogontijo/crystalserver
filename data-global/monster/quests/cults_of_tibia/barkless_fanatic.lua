@@ -80,34 +80,34 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 3031, chance = 50119, maxCount = 199 }, -- gold coin
+	{ id = 3031, chance = 100000, maxCount = 199 }, -- gold coin
 	{ id = 25743, chance = 2310 }, -- bed of nails
 	{ id = 25742, chance = 12690 }, -- fig leaf
-	{ id = 24961, chance = 4847 }, -- tiger eye
+	{ id = 24961, chance = 6920 }, -- tiger eye
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -230 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -220, maxDamage = -450, range = 7, radius = 4, shootEffect = CONST_ANI_SPEAR, effect = CONST_ME_GREEN_RINGS, target = true },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -150, radius = 6, effect = CONST_ME_GREEN_RINGS, target = false },
 }
 
 monster.defenses = {
 	defense = 35,
-	armor = 30,
+	armor = 35,
 }
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 17 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 1 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 10 },
+	{ type = COMBAT_FIREDAMAGE, percent = 1 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 15 },
+	{ type = COMBAT_ICEDAMAGE, percent = 1 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 15 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 1 },
 }
 
 monster.immunities = {

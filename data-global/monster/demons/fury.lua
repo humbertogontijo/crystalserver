@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Fury")
 local monster = {}
 
 monster.description = "a fury"
-monster.experience = 4000
+monster.experience = 3600
 monster.outfit = {
 	lookType = 149,
 	lookHead = 94,
@@ -97,18 +97,16 @@ monster.loot = {
 	{ name = "noble axe", chance = 2000 },
 	{ name = "great health potion", chance = 10500 },
 	{ name = "jalapeno pepper", chance = 29280, maxCount = 4 },
-	{ name = "slightly rusted legs", chance = 10098 },
-	{ name = "small amethyst", chance = 7745, maxCount = 3 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -509 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -510 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -300, length = 8, spread = 3, effect = CONST_ME_EXPLOSIONAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 5, type = COMBAT_DEATHDAMAGE, minDamage = 0, maxDamage = -700, length = 8, spread = 3, effect = CONST_ME_DRAWBLOOD, target = false },
+	{ name = "combat", interval = 2000, chance = 5, type = COMBAT_DEATHDAMAGE, minDamage = -120, maxDamage = -700, length = 8, spread = 3, effect = CONST_ME_DRAWBLOOD, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -120, maxDamage = -300, radius = 4, effect = CONST_ME_DRAWBLOOD, target = false },
 	{ name = "fury skill reducer", interval = 2000, chance = 5, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = 0, maxDamage = -300, radius = 3, effect = CONST_ME_HITAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = 0, maxDamage = -250, range = 7, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_SMALLCLOUDS, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -120, maxDamage = -300, radius = 3, effect = CONST_ME_HITAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -125, maxDamage = -250, range = 7, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_SMALLCLOUDS, target = false },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = -800, range = 7, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_SMALLCLOUDS, target = false, duration = 30000 },
 }
 
@@ -127,7 +125,7 @@ monster.elements = {
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 5 },
+	{ type = COMBAT_ICEDAMAGE, percent = 30 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 30 },
 	{ type = COMBAT_DEATHDAMAGE, percent = -10 },
 }

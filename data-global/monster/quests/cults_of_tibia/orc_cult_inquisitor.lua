@@ -79,14 +79,14 @@ monster.voices = {
 monster.loot = {
 	{ name = "strong health potion", chance = 18390 },
 	{ name = "gold coin", chance = 100000, maxCount = 221 },
-	{ name = "black pearl", chance = 6216, maxCount = 2 },
+	{ name = "black pearl", chance = 510, maxCount = 2 },
 	{ name = "berserk potion", chance = 2940 },
-	{ name = "small ruby", chance = 5477, maxCount = 5 },
+	{ name = "small ruby", chance = 4020, maxCount = 5 },
 	{ name = "battle axe", chance = 6340 },
 	{ name = "bug meat", chance = 17160 },
 	{ name = "red mushroom", chance = 7730, maxCount = 3 },
 	{ name = "halberd", chance = 9890 },
-	{ name = "orcish axe", chance = 8309 },
+	{ name = "orcish axe", chance = 850 },
 	{ name = "cultish robe", chance = 9890 },
 	{ name = "ham", chance = 8960 },
 	{ name = "orc tooth", chance = 5410 },
@@ -95,7 +95,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
 }
 
 monster.defenses = {

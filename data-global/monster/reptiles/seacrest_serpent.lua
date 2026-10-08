@@ -81,21 +81,21 @@ monster.loot = {
 	{ id = 3583, chance = 13040 }, -- dragon ham
 	{ id = 21801, chance = 12040 }, -- seacrest hair
 	{ id = 762, chance = 7020, maxCount = 17 }, -- shiver arrow
-	{ id = 829, chance = 2003 }, -- glacier mask
-	{ id = 21892, chance = 1081 }, -- crest of the deep seas
+	{ id = 829, chance = 2680 }, -- glacier mask
+	{ id = 21892, chance = 400 }, -- crest of the deep seas
 	{ id = 3035, chance = 100000, maxCount = 5 }, -- platinum coin
 	{ id = 236, chance = 7020, maxCount = 2 }, -- strong health potion
 	{ id = 237, chance = 10370, maxCount = 2 }, -- strong mana potion
-	{ id = 21747, chance = 6956 }, -- seacrest pearl
-	{ id = 3026, chance = 1936, maxCount = 2 }, -- white pearl
+	{ id = 21747, chance = 10030 }, -- seacrest pearl
+	{ id = 3026, chance = 3680, maxCount = 2 }, -- white pearl
 	{ id = 3027, chance = 2340, maxCount = 3 }, -- black pearl
 	{ id = 281, chance = 1000 }, -- giant shimmering pearl (green)
 	{ id = 5944, chance = 3340 }, -- soul orb
 	{ id = 3028, chance = 5020, maxCount = 3 }, -- small diamond
 	{ id = 21800, chance = 17390 }, -- seacrest scale
 	{ id = 815, chance = 670 }, -- glacier amulet
-	{ id = 823, chance = 2096 }, -- glacier kilt
-	{ id = 819, chance = 2016 }, -- glacier shoes
+	{ id = 823, chance = 3680 }, -- glacier kilt
+	{ id = 819, chance = 3010 }, -- glacier shoes
 	{ id = 16096, chance = 670 }, -- wand of defiance
 	{ id = 8093, chance = 670 }, -- wand of draconia
 }
@@ -103,9 +103,9 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, skill = 120, attack = 82 },
 	{ name = "combat", interval = 2000, chance = 7, type = COMBAT_DEATHDAMAGE, minDamage = -200, maxDamage = -260, range = 7, shootEffect = CONST_ANI_EARTH, effect = CONST_ME_SOUND_RED, target = true },
-	{ name = "combat", interval = 2000, chance = 11, type = COMBAT_LIFEDRAIN, minDamage = -150, maxDamage = -250, radius = 3, effect = CONST_ME_MAGIC_RED, target = false },
+	{ name = "combat", interval = 2000, chance = 11, type = COMBAT_LIFEDRAIN, minDamage = -200, maxDamage = -285, radius = 3, effect = CONST_ME_MAGIC_RED, target = false },
 	{ name = "seacrest serpent wave", interval = 2000, chance = 30, minDamage = 0, maxDamage = -284, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -530, length = 4, spread = 3, effect = CONST_ME_MAGIC_BLUE, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = -200, maxDamage = -300, length = 4, spread = 3, effect = CONST_ME_MAGIC_BLUE, target = false },
 }
 
 monster.defenses = {
@@ -118,8 +118,8 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 10 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 10 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 10 },
 	{ type = COMBAT_FIREDAMAGE, percent = 20 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },

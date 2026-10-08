@@ -61,7 +61,7 @@ monster.voices = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -455, maxDamage = -1031 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -750, maxDamage = -1700 },
 	{ name = "unchained fire beam", interval = 3100, chance = 38, minDamage = -1000, maxDamage = -1750 },
 	{ name = "unchained fire explosion", interval = 5100, chance = 35, minDamage = -900, maxDamage = -1400 },
 }

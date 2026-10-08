@@ -79,11 +79,11 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "health potion", chance = 40000, maxCount = 2 },
-	{ name = "mana potion", chance = 27283, maxCount = 2 },
-	{ name = "gold coin", chance = 100000, maxCount = 50 },
+	{ name = "mana potion", chance = 40000, maxCount = 2 },
+	{ name = "gold coin", chance = 50000, maxCount = 50 },
 	{ name = "sabre", chance = 9000 },
-	{ name = "gold tooth", chance = 20435 },
-	{ name = "sailor's burn cure", chance = 4457 },
+	{ name = "gold tooth", chance = 9000 },
+	{ name = "sailor's burn cure", chance = 2500 },
 	{ name = "pirate boots", chance = 700 },
 	{ name = "rum flask", chance = 700 },
 	{ name = "pirate backpack", chance = 700 },

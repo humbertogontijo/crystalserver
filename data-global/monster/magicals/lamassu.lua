@@ -84,22 +84,20 @@ monster.loot = {
 	{ name = "red crystal fragment", chance = 10500 },
 	{ name = "terra amulet", chance = 10000 },
 	{ name = "lamassu hoof", chance = 7700 },
-	{ name = "violet crystal shard", chance = 10829 },
-	{ name = "blue crystal shard", chance = 10522 },
-	{ id = 3039, chance = 17281 }, -- red gem
+	{ name = "violet crystal shard", chance = 6800 },
+	{ name = "blue crystal shard", chance = 6500 },
+	{ id = 3039, chance = 6200 }, -- red gem
 	{ name = "terra hood", chance = 5900 },
 	{ name = "sacred tree amulet", chance = 2300 },
 	{ name = "elven amulet", chance = 2000 },
 	{ name = "violet gem", chance = 1700 },
-	{ name = "opal", chance = 6810 },
-	{ name = "small emerald", chance = 5351 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_HOLYDAMAGE, minDamage = -400, maxDamage = -500, radius = 1, effect = CONST_ME_HOLYAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_HOLYDAMAGE, minDamage = -300, maxDamage = -500, radius = 3, effect = CONST_ME_HOLYAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -405, range = 5, radius = 2, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_SMALLPLANTS, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -300, maxDamage = -405, range = 5, radius = 2, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_SMALLPLANTS, target = true },
 }
 
 monster.defenses = {
@@ -118,7 +116,7 @@ monster.elements = {
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 20 },
-	{ type = COMBAT_DEATHDAMAGE, percent = -20 },
+	{ type = COMBAT_DEATHDAMAGE, percent = -30 },
 }
 
 monster.immunities = {

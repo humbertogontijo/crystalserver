@@ -82,23 +82,22 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "small enchanted ruby", chance = 20200, maxCount = 5 },
-	{ name = "red crystal fragment", chance = 19558, maxCount = 2 },
-	{ id = 3039, chance = 71319, maxCount = 3 }, -- red gem
-	{ name = "red piece of cloth", chance = 30292, maxCount = 3 },
+	{ name = "small enchanted ruby", chance = 10000, maxCount = 5 },
+	{ name = "red crystal fragment", chance = 10000, maxCount = 2 },
+	{ id = 3039, chance = 10000, maxCount = 3 }, -- red gem
+	{ name = "red piece of cloth", chance = 10000, maxCount = 3 },
 	{ name = "flask of demonic blood", chance = 12000, maxCount = 5 },
-	{ name = "demonic essence", chance = 23963, maxCount = 5 },
-	{ id = 3456, chance = 5217 }, -- pick
-	{ name = "sample of monster blood", chance = 114, maxCount = 5 },
-	{ name = "book of necromantic rituals", chance = 19800 },
+	{ name = "demonic essence", chance = 10000, maxCount = 5 },
+	{ id = 3456, chance = 10000 }, -- pick
+	{ name = "sample of monster blood", chance = 10000, maxCount = 5 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -300 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -250, maxDamage = -450, range = 7, shootEffect = CONST_ANI_FIRE, target = false },
-	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_ENERGYDAMAGE, minDamage = -250, maxDamage = -600, range = 7, shootEffect = CONST_ANI_ENERGY, target = false },
-	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = -250, maxDamage = -450, radius = 3, effect = CONST_ME_EXPLOSIONAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -250, maxDamage = -450, length = 4, spread = 0, effect = CONST_ME_HITBYFIRE, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -200 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -390, maxDamage = -480, range = 7, shootEffect = CONST_ANI_FIRE, target = false },
+	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_ENERGYDAMAGE, minDamage = -390, maxDamage = -480, range = 7, shootEffect = CONST_ANI_ENERGY, target = false },
+	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = -300, maxDamage = -400, radius = 3, effect = CONST_ME_EXPLOSIONAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -490, maxDamage = -630, length = 4, spread = 0, effect = CONST_ME_HITBYFIRE, target = false },
 }
 
 monster.defenses = {

@@ -85,7 +85,7 @@ monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 10 },
 	{ id = 3039, chance = 6110 }, -- red gem
 	{ name = "blue gem", chance = 830 },
-	{ name = "giant sword", chance = 1200 },
+	{ name = "giant sword", chance = 620 },
 	{ name = "hammer of wrath", chance = 70 },
 	{ name = "knight legs", chance = 830 },
 	{ name = "crown armor", chance = 310 },
@@ -95,11 +95,11 @@ monster.loot = {
 	{ name = "magic sulphur", chance = 1450 },
 	{ name = "soul orb", chance = 17080 },
 	{ name = "sapphire hammer", chance = 1350 },
-	{ name = "spiked squelcher", chance = 1575 },
+	{ name = "spiked squelcher", chance = 1040 },
 	{ id = 238, chance = 30950, maxCount = 4 }, -- great mana potion
 	{ name = "ultimate health potion", chance = 25260, maxCount = 2 },
 	{ name = "crystal of balance", chance = 2690 },
-	{ name = "crystal of power", chance = 1350 },
+	{ name = "crystal of power", chance = 720 },
 	{ name = "shiny stone", chance = 11280 },
 	{ name = "wand of defiance", chance = 2000 },
 	{ name = "glacial rod", chance = 1240 },
@@ -115,11 +115,11 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -500, radius = 4, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_STONES, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -499 },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -800, radius = 4, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_STONES, target = true },
 	{ name = "cliff strider skill reducer", interval = 2000, chance = 10, target = false },
 	{ name = "cliff strider electrify", interval = 2000, chance = 15, range = 1, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -500, length = 6, spread = 0, effect = CONST_ME_GROUNDSHAKER, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -1000, length = 6, spread = 0, effect = CONST_ME_GROUNDSHAKER, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_MANADRAIN, minDamage = -100, maxDamage = -300, radius = 4, effect = CONST_ME_YELLOWENERGY, target = false },
 }
 

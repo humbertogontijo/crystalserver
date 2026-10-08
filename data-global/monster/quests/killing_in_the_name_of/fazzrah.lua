@@ -73,9 +73,9 @@ monster.loot = {
 	{ id = 239, chance = 75000, maxCount = 3 }, -- great health potion
 	{ id = 10386, chance = 75000 }, -- zaoan shoes
 	{ id = 3032, chance = 71000, maxCount = 5 }, -- small emerald
-	{ id = 10289, chance = 34545 }, -- red lantern
-	{ id = 10387, chance = 12727 }, -- zaoan legs
-	{ id = 10384, chance = 10909 }, -- zaoan armor
+	{ id = 10289, chance = 25000 }, -- red lantern
+	{ id = 10387, chance = 6250 }, -- zaoan legs
+	{ id = 10384, chance = 3130 }, -- zaoan armor
 }
 
 monster.attacks = {

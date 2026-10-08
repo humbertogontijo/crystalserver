@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Rage Squid")
 local monster = {}
 
 monster.description = "a rage squid"
-monster.experience = 16300
+monster.experience = 14820
 monster.outfit = {
 	lookType = 1059,
 	lookHead = 94,
@@ -73,43 +73,43 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 28570, chance = 18910 }, -- glowing rune
-	{ name = "great spirit potion", chance = 18671, maxCount = 3 },
-	{ name = "fire mushroom", chance = 15052, maxCount = 6 },
-	{ name = "small amethyst", chance = 7470, maxCount = 5 },
+	{ id = 28570, chance = 10000 }, -- glowing rune
+	{ name = "great spirit potion", chance = 10000, maxCount = 3 },
+	{ name = "fire mushroom", chance = 10000, maxCount = 6 },
+	{ name = "small amethyst", chance = 90000, maxCount = 5 },
 	{ name = "slime heart", chance = 3000 },
-	{ name = "piece of dead brain", chance = 1098 },
+	{ name = "piece of dead brain", chance = 4900 },
 	{ name = "platinum coin", chance = 100000, maxCount = 6 },
-	{ name = "ultimate health potion", chance = 30257, maxCount = 3 },
-	{ name = "small topaz", chance = 7709, maxCount = 5 },
-	{ name = "small emerald", chance = 7692, maxCount = 5 },
-	{ id = 3039, chance = 2215, maxCount = 5 }, -- red gem
-	{ name = "orb", chance = 2147, maxCount = 5 },
-	{ name = "purple tome", chance = 1042 },
-	{ id = 238, chance = 19278, maxCount = 3 }, -- great mana potion
-	{ name = "demonic essence", chance = 7341 },
+	{ name = "ultimate health potion", chance = 10000, maxCount = 3 },
+	{ name = "small topaz", chance = 90000, maxCount = 5 },
+	{ name = "small emerald", chance = 90000, maxCount = 5 },
+	{ id = 3039, chance = 9800, maxCount = 5 }, -- red gem
+	{ name = "orb", chance = 66000, maxCount = 5 },
+	{ name = "purple tome", chance = 6333 },
+	{ id = 238, chance = 10000, maxCount = 3 }, -- great mana potion
+	{ name = "demonic essence", chance = 4300 },
 	{ id = 28568, chance = 10000 }, -- inkwell
-	{ name = "small ruby", chance = 7376, maxCount = 5 },
-	{ name = "talon", chance = 2589 },
-	{ name = "might ring", chance = 1784 },
-	{ name = "devil helmet", chance = 845 },
-	{ name = "demonrage sword", chance = 1454 },
+	{ name = "small ruby", chance = 90000, maxCount = 5 },
+	{ name = "talon", chance = 8990 },
+	{ name = "might ring", chance = 4990 },
+	{ name = "devil helmet", chance = 6990 },
+	{ name = "demonrage sword", chance = 400 },
 	{ id = 7393, chance = 390 }, -- demon trophy
-	{ name = "giant sword", chance = 2205 },
-	{ name = "demon shield", chance = 2079 },
+	{ name = "giant sword", chance = 250 },
+	{ name = "demon shield", chance = 250 },
 	{ name = "magic plate armor", chance = 150 },
-	{ name = "platinum amulet", chance = 2037 },
+	{ name = "platinum amulet", chance = 350 },
 	{ name = "wand of everblazing", chance = 300 },
-	{ name = "fire axe", chance = 6002 },
+	{ name = "fire axe", chance = 500 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -600 },
-	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -500, maxDamage = -700, range = 7, shootEffect = CONST_ANI_FLAMMINGARROW, effect = CONST_ME_HITBYFIRE, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -500, maxDamage = -700, range = 7, shootEffect = CONST_ANI_FIRE, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
+	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -280, range = 7, shootEffect = CONST_ANI_FLAMMINGARROW, effect = CONST_ME_HITBYFIRE, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -380, range = 7, shootEffect = CONST_ANI_FIRE, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -175, maxDamage = -200, length = 5, spread = 0, effect = CONST_ME_MAGIC_RED, target = false },
-	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -700, radius = 3, effect = CONST_ME_HITBYFIRE, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -700, radius = 2, effect = CONST_ME_FIREAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -475, radius = 3, effect = CONST_ME_HITBYFIRE, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -475, radius = 2, effect = CONST_ME_FIREAREA, target = false },
 }
 
 monster.defenses = {

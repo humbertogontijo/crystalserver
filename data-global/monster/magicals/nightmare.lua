@@ -90,7 +90,7 @@ monster.loot = {
 	{ name = "war axe", chance = 95 },
 	{ name = "knight legs", chance = 961 },
 	{ name = "ancient shield", chance = 990 },
-	{ name = "power bolt", chance = 1136, maxCount = 4 },
+	{ name = "power bolt", chance = 9090, maxCount = 4 },
 	{ name = "ham", chance = 29000, maxCount = 2 },
 	{ name = "mysterious voodoo skull", chance = 123 },
 	{ name = "soul orb", chance = 20000 },
@@ -105,7 +105,7 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -150 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -120, maxDamage = -170, range = 7, radius = 1, shootEffect = CONST_ANI_DEATH, effect = CONST_ME_SMALLCLOUDS, target = true },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -150, maxDamage = -500, range = 7, radius = 4, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -150, maxDamage = -350, range = 7, radius = 4, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
 }
 
 monster.defenses = {

@@ -82,14 +82,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 21901, chance = 28750, unique = true }, -- glooth glider casing
+	{ id = 21901, chance = 1000, unique = true }, -- glooth glider casing
 	{ id = 21292, chance = 1000 }, -- feedbag
-	{ name = "glooth bag", chance = 100000, maxCount = 4 },
-	{ name = "platinum coin", chance = 48750, maxCount = 8 },
-	{ name = "rusted legs", chance = 17500 },
-	{ name = "slightly rusted armor", chance = 11250 },
-	{ name = "rusted armor", chance = 10000 },
-	{ name = "gold coin", chance = 6250 },
 }
 
 monster.attacks = {
@@ -114,16 +108,16 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 5 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 50 },
-	{ type = COMBAT_FIREDAMAGE, percent = 35 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 5 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 40 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 15 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }
 
 monster.immunities = {

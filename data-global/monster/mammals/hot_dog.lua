@@ -77,13 +77,13 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 73469, maxCount = 75 },
+	{ name = "gold coin", chance = 50000, maxCount = 75 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 1200, chance = 100, minDamage = 0, maxDamage = -55 },
 	{ name = "hot dog wave", interval = 2000, chance = 30, minDamage = -30, maxDamage = -60, target = false },
-	{ name = "combat", interval = 1000, chance = 30, type = COMBAT_FIREDAMAGE, minDamage = -30, maxDamage = -60, range = 7, effect = CONST_ME_FIREATTACK, target = true },
+	{ name = "combat", interval = 1000, chance = 30, type = COMBAT_FIREDAMAGE, minDamage = -50, maxDamage = -50, range = 7, effect = CONST_ME_FIREATTACK, target = true },
 }
 
 monster.defenses = {

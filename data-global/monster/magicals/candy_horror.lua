@@ -86,7 +86,7 @@ monster.loot = {
 	{ name = "Energy Bar", chance = 5309, maxCount = 1 },
 	{ name = "Black Shield", chance = 2730, maxCount = 1 },
 	{ name = "Gummy Rotworm", chance = 2530, maxCount = 2 },
-	{ name = "Wand of Decay", chance = 2230, maxCount = 1 },
+	{ name = "Wand of Decay", chance = 1620, maxCount = 1 },
 	{ id = 3591, chance = 1310, maxCount = 4 },
 	{ name = "Brigadeiro", chance = 1160, maxCount = 1 },
 	{ name = "Violet Gem", chance = 810, maxCount = 1 },

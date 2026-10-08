@@ -84,21 +84,21 @@ monster.loot = {
 	{ id = 3030, chance = 11890, maxCount = 2 }, -- small ruby
 	{ id = 9057, chance = 8560, maxCount = 2 }, -- small topaz
 	{ name = "royal star", chance = 4050, maxCount = 3 },
-	{ id = 3041, chance = 2595 }, -- blue gem
+	{ id = 3041, chance = 1300 }, -- blue gem
 	{ id = 3039, chance = 3800 }, -- red gem
-	{ id = 6299, chance = 519 }, -- death ring
+	{ id = 6299, chance = 1100 }, -- death ring
 	{ id = 6499, chance = 22110 }, -- demonic essence
 	{ id = 8043, chance = 2200 }, -- focus cape
-	{ id = 21974, chance = 20026 }, -- golden lotus brooch
+	{ id = 21974, chance = 11400 }, -- golden lotus brooch
 	{ id = 826, chance = 1980 }, -- magma coat
 	{ id = 3078, chance = 2820 }, -- mysterious fetish
 	{ id = 3574, chance = 3170 }, -- mystic turban
-	{ id = 21981, chance = 2941 }, -- oriental shoes
-	{ id = 21975, chance = 19550 }, -- peacock feather fan
+	{ id = 21981, chance = 2110 }, -- oriental shoes
+	{ id = 21975, chance = 11460 }, -- peacock feather fan
 	{ id = 5911, chance = 3070 }, -- red piece of cloth
-	{ id = 3016, chance = 3201 }, -- ruby necklace
+	{ id = 3016, chance = 2330 }, -- ruby necklace
 	{ id = 5944, chance = 20140 }, -- soul orb
-	{ id = 8074, chance = 1125 }, -- spellbook of mind control
+	{ id = 8074, chance = 620 }, -- spellbook of mind control
 	{ id = 3071, chance = 1440 }, -- wand of inferno
 }
 

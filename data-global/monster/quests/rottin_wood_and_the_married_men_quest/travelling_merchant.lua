@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Travelling Merchant")
 local monster = {}
 
 monster.description = "a travelling merchant"
-monster.experience = 65
+monster.experience = 0
 monster.outfit = {
 	lookType = 132,
 	lookHead = 112,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 100
-monster.maxHealth = 100
+monster.health = 110
+monster.maxHealth = 110
 monster.race = "blood"
 monster.corpse = 18042
 monster.speed = 86
@@ -68,12 +68,12 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 10,
-	armor = 11,
+	armor = 10,
 	mitigation = 0.28,
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = -10 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -5 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },

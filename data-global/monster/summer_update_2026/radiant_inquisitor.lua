@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Radiant Inquisitor")
 local monster = {}
 
 monster.description = "a radiant inquisitor"
-monster.experience = 32460
+monster.experience = 28730
 monster.outfit = {
 	lookType = 1967,
 	lookHead = 0,
@@ -72,8 +72,8 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "Blue Quiver", chance = 9016 },
-	{ name = "Golden Belt", chance = 9836 },
+	{ name = "Blue Quiver", chance = 4000 },
+	{ name = "Golden Belt", chance = 4000 },
 	{ name = "Gilded Bell", chance = 150 },
 	{ name = "radiant inquisitor soul core", chance = 100 },
 }

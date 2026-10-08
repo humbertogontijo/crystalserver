@@ -79,10 +79,10 @@ monster.loot = {
 	{ name = "mystic turban", chance = 33330 },
 	{ name = "small sapphire", chance = 14290, maxCount = 2 },
 	{ name = "seeds", chance = 7140 },
-	{ name = "magma monocle", chance = 3509 },
-	{ name = "blue gem", chance = 1754 },
+	{ name = "magma monocle", chance = 4760 },
+	{ name = "blue gem", chance = 2380 },
 	{ name = "small oil lamp", chance = 580 },
-	{ id = 2948, chance = 1754 }, -- wooden flute
+	{ id = 2948, chance = 480 }, -- wooden flute
 	{ name = "heavy machete", chance = 380 },
 }
 
@@ -94,7 +94,7 @@ monster.attacks = {
 	{ name = "drunk", interval = 2000, chance = 10, range = 7, shootEffect = CONST_ANI_ENERGY, target = false, duration = 6000 },
 	{ name = "outfit", interval = 2000, chance = 1, range = 7, effect = CONST_ME_MAGIC_BLUE, target = false, duration = 4000, outfitMonster = "rabbit" },
 	{ name = "djinn electrify", interval = 2000, chance = 15, range = 5, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -100, maxDamage = -300, radius = 3, effect = CONST_ME_ENERGYHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -30, maxDamage = -90, radius = 3, effect = CONST_ME_ENERGYHIT, target = false },
 }
 
 monster.defenses = {

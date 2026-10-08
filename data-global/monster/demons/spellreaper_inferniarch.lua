@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Spellreaper Inferniarch")
 local monster = {}
 
 monster.description = "a spellreaper inferniarch"
-monster.experience = 8350
+monster.experience = 9750
 monster.outfit = {
 	lookType = 1792,
 	lookHead = 0,
@@ -80,7 +80,7 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 100000, maxCount = 40 },
+	{ name = "Platinum Coin", chance = 26500, maxCount = 40 },
 	{ name = "Onyx Arrow", chance = 24500, maxCount = 25 },
 	{ name = "Sniper Arrow", chance = 24500, maxCount = 15 },
 	{ name = "Assassin Star", chance = 24500, maxCount = 25 },
@@ -89,15 +89,13 @@ monster.loot = {
 	{ id = 6299, chance = 3500, maxCount = 1 },
 	{ name = "Demonic Core Essence", chance = 3000, maxCount = 1 },
 	{ name = "Cyan Crystal Fragment", chance = 14500, maxCount = 5 },
-	{ name = "Mummified Demon Finger", chance = 910, maxCount = 1 },
-	{ name = "Demonic Matter", chance = 654, maxCount = 1 },
-	{ id = 50054, chance = 572, maxCount = 1 },
-	{ name = "fire mushroom", chance = 6580 },
-	{ name = "small ruby", chance = 5738, maxCount = 4 },
+	{ name = "Mummified Demon Finger", chance = 3000, maxCount = 1 },
+	{ name = "Demonic Matter", chance = 3000, maxCount = 1 },
+	{ id = 50054, chance = 2500, maxCount = 1 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 0, minDamage = -250, maxDamage = -400 },
+	{ name = "melee", interval = 2000, chance = 0, minDamage = 250, maxDamage = -400 },
 	{ name = "extended white chain", interval = 2000, chance = 15, minDamage = -275, maxDamage = -438, range = 4 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -250, maxDamage = -350, range = 7, radius = 4, shootEffect = CONST_ANI_DEATH, effect = CONST_ME_DRAWBLOOD, target = true },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -250, maxDamage = -350, range = 7, radius = 4, shootEffect = CONST_ANI_POISON, effect = CONST_ME_HITBYPOISON, target = true },
@@ -113,7 +111,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 10 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 100 },
 	{ type = COMBAT_EARTHDAMAGE, percent = -15 },
-	{ type = COMBAT_FIREDAMAGE, percent = -5 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

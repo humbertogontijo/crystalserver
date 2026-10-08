@@ -80,8 +80,8 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 100000, maxCount = 209 },
-	{ name = "ultimate mana potion", chance = 55224, maxCount = 320 },
+	{ name = "crystal coin", chance = 28938, maxCount = 209 },
+	{ name = "ultimate mana potion", chance = 21433, maxCount = 320 },
 	{ name = "supreme health potion", chance = 50000, maxCount = 242 },
 	{ name = "giant amethyst", chance = 34000, maxCount = 6 },
 	{ name = "giant topaz", chance = 27570, maxCount = 6 },
@@ -91,25 +91,18 @@ monster.loot = {
 	{ name = "mastermind potion", chance = 14310, maxCount = 79 },
 	{ id = 3039, chance = 20570, maxCount = 30 }, -- red gem
 	{ name = "Cobalt Ridge", chance = 25000, maxCount = 1 },
-	{ name = "Dragon Figurine", chance = 7463, maxCount = 1 },
-	{ name = "Fiery Tear", chance = 2985, maxCount = 1 },
+	{ name = "Dragon Figurine", chance = 25000, maxCount = 1 },
+	{ name = "Fiery Tear", chance = 360, maxCount = 1 },
 	{ name = "violet gem", chance = 20970, maxCount = 8 },
 	{ name = "yellow gem", chance = 20970, maxCount = 9 },
 	{ name = "figurine of bakragore", chance = 7970 },
 	{ name = "bakragore's amalgamation", chance = 7100 },
-	{ name = "spiritual horseshoe", chance = 2985 },
-	{ id = 39038, chance = 2985, maxCount = 1 }, -- royal almandine
+	{ name = "spiritual horseshoe", chance = 360 },
+	{ id = 39038, chance = 360, maxCount = 1 }, -- royal almandine
 	{ id = 43946, chance = 180, maxCount = 1 }, -- scroll 1
 	{ id = 43947, chance = 180, maxCount = 1 }, -- scroll 2
 	{ id = 43950, chance = 180, maxCount = 1 }, -- scroll 5
-	{ id = 43895, chance = 4478 }, ---bag you covet
-	{ name = "giant emerald", chance = 31343, maxCount = 7 },
-	{ name = "green gem", chance = 23881, maxCount = 9 },
-	{ name = "berserk potion", chance = 17910, maxCount = 99 },
-	{ name = "transcendence potion", chance = 17910, maxCount = 66 },
-	{ name = "blue gem", chance = 14925, maxCount = 8 },
-	{ name = "gold ingot", chance = 14925 },
-	{ name = "bullseye potion", chance = 10448, maxCount = 98 },
+	{ id = 43895, chance = 360 }, ---bag you covet
 }
 
 monster.attacks = {
@@ -133,16 +126,16 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = -5 },
-	{ type = COMBAT_FIREDAMAGE, percent = 0 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 20 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 5 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
+	{ type = COMBAT_FIREDAMAGE, percent = 5 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 35 },
+	{ type = COMBAT_ICEDAMAGE, percent = 5 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 10 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 10 },
 }
 
 monster.immunities = {

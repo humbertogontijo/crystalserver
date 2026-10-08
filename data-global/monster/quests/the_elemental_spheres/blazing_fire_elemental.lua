@@ -61,16 +61,16 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 76415, maxCount = 40 },
+	{ name = "gold coin", chance = 10000, maxCount = 40 },
 	{ name = "flaming arrow", chance = 5000, maxCount = 4 },
-	{ name = "glimmering soil", chance = 4151 },
+	{ name = "glimmering soil", chance = 2500 },
 	{ name = "fiery heart", chance = 5475 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -100 },
-	{ name = "combat", interval = 1000, chance = 13, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -150, radius = 5, effect = CONST_ME_FIREAREA, target = false },
-	{ name = "combat", interval = 1000, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -150, range = 7, radius = 5, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
+	{ name = "combat", interval = 1000, chance = 13, type = COMBAT_FIREDAMAGE, minDamage = -65, maxDamage = -205, radius = 5, effect = CONST_ME_FIREAREA, target = false },
+	{ name = "combat", interval = 1000, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = -110, maxDamage = -150, range = 7, radius = 5, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
 	{ name = "firefield", interval = 1000, chance = 15, range = 7, radius = 1, shootEffect = CONST_ANI_FIRE, target = true },
 }
 

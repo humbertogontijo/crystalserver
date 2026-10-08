@@ -76,41 +76,41 @@ monster.loot = {
 	{ id = 20062, chance = 100000 }, -- cluster of solace
 	{ id = 5954, chance = 100000 }, -- demon horn
 	{ id = 6499, chance = 100000 }, -- demonic essence
-	{ id = 20063, chance = 49421 }, -- dream matter
-	{ id = 20276, chance = 11405 }, -- dream warden mask
+	{ id = 20063, chance = 13850 }, -- dream matter
+	{ id = 20276, chance = 5380 }, -- dream warden mask
 	{ id = 3031, chance = 100000, maxCount = 200 }, -- gold coin
 	{ id = 3035, chance = 100000, maxCount = 50 }, -- platinum coin
 	{ id = 20264, chance = 100000 }, -- unrealized dream
-	{ id = 8075, chance = 9421 }, -- spellbook of lost souls
+	{ id = 8075, chance = 5130 }, -- spellbook of lost souls
 	{ id = 8073, chance = 35900 }, -- spellbook of warding
 	{ id = 8074, chance = 10260 }, -- spellbook of mind control
 	{ id = 3344, chance = 33330 }, -- beastslayer axe
 	{ id = 7456, chance = 12820 }, -- noble axe
-	{ id = 7453, chance = 661 }, -- executioner
-	{ id = 7388, chance = 1818 }, -- vile axe
-	{ id = 3360, chance = 8926 }, -- golden armor
-	{ id = 3567, chance = 18017 }, -- blue robe
+	{ id = 7453, chance = 2560 }, -- executioner
+	{ id = 7388, chance = 2560 }, -- vile axe
+	{ id = 3360, chance = 1220 }, -- golden armor
+	{ id = 3567, chance = 1220 }, -- blue robe
 	{ id = 3381, chance = 17950 }, -- crown armor
-	{ id = 3364, chance = 1488 }, -- golden legs
+	{ id = 3364, chance = 250 }, -- golden legs
 	{ id = 3303, chance = 90 }, -- great axe
 	{ id = 8098, chance = 90 }, -- demonwing axe
-	{ id = 822, chance = 13719 }, -- lightning legs
-	{ id = 3371, chance = 15537 }, -- knight legs
-	{ id = 3382, chance = 11405 }, -- crown legs
+	{ id = 822, chance = 1750 }, -- lightning legs
+	{ id = 3371, chance = 1750 }, -- knight legs
+	{ id = 3382, chance = 20510 }, -- crown legs
 	{ id = 3554, chance = 15380 }, -- steel boots
 	{ id = 3028, chance = 17950, maxCount = 25 }, -- small diamond
-	{ id = 3033, chance = 15868, maxCount = 25 }, -- small amethyst
-	{ id = 3032, chance = 14876, maxCount = 25 }, -- small emerald
-	{ id = 3029, chance = 18347, maxCount = 25 }, -- small sapphire
+	{ id = 3033, chance = 5130, maxCount = 25 }, -- small amethyst
+	{ id = 3032, chance = 10260, maxCount = 25 }, -- small emerald
+	{ id = 3029, chance = 28210, maxCount = 25 }, -- small sapphire
 	{ id = 9057, chance = 15380, maxCount = 25 }, -- small topaz
 	{ id = 3030, chance = 20510, maxCount = 25 }, -- small ruby
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, skill = 110, attack = 100 },
-	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_EARTHDAMAGE, minDamage = -500, maxDamage = -900, length = 8, spread = 0, effect = CONST_ME_HITBYPOISON, target = false },
-	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_EARTHDAMAGE, minDamage = -500, maxDamage = -900, length = 8, spread = 0, effect = CONST_ME_HITBYPOISON, target = false },
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -250, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_HITBYPOISON, target = true },
+	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_EARTHDAMAGE, minDamage = -600, maxDamage = -1000, length = 8, spread = 0, effect = CONST_ME_HITBYPOISON, target = false },
+	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_EARTHDAMAGE, minDamage = -600, maxDamage = -1000, length = 8, spread = 0, effect = CONST_ME_HITBYPOISON, target = false },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -235, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_HITBYPOISON, target = true },
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -250, radius = 3, effect = CONST_ME_POISONAREA, target = false },
 	-- poison
 	{ name = "condition", type = CONDITION_POISON, interval = 2000, chance = 25, minDamage = -300, maxDamage = -450, radius = 3, effect = CONST_ME_HITBYPOISON, target = false },

@@ -83,7 +83,7 @@ monster.loot = {
 	{ name = "mace", chance = 1800 },
 	{ name = "iron helmet", chance = 450 },
 	{ name = "brass armor", chance = 2240 },
-	{ name = "steel shield", chance = 958 },
+	{ name = "steel shield", chance = 450 },
 	{ name = "nomad parchment", chance = 220 },
 	{ name = "potato", chance = 4840, maxCount = 3 },
 	{ name = "dirty turban", chance = 1570 },
@@ -91,8 +91,8 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -30 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -30, range = 7, radius = 1, shootEffect = CONST_ANI_THROWINGSTAR, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -90 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -40, range = 7, radius = 1, shootEffect = CONST_ANI_THROWINGSTAR, target = true },
 }
 
 monster.defenses = {

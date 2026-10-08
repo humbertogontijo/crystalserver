@@ -76,23 +76,23 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 32362, maxCount = 1 },
-	{ name = "gold coin", chance = 98706, maxCount = 148 },
-	{ id = 3030, chance = 8414, maxCount = 3 },
-	{ name = "tooth file", chance = 7767 },
-	{ name = "blood preservation", chance = 5502 },
-	{ name = "emerald bangle", chance = 971 },
+	{ name = "platinum coin", chance = 50000, maxCount = 1 },
+	{ name = "gold coin", chance = 50000, maxCount = 148 },
+	{ id = 3030, chance = 1052, maxCount = 3 },
+	{ name = "tooth file", chance = 564 },
+	{ name = "blood preservation", chance = 1000 },
+	{ name = "emerald bangle", chance = 120 },
 	{ name = "vampire teeth", chance = 10000 },
 	{ name = "vampire shield", chance = 50 },
-	{ name = "strong health potion", chance = 7767 },
+	{ name = "strong health potion", chance = 4761 },
 	{ name = "strong mana potion", chance = 5000 },
-	{ id = 3039, chance = 971 }, -- red gem
-	{ id = 3098, chance = 3560 }, -- ring of healing
+	{ id = 3039, chance = 55 }, -- red gem
+	{ id = 3098, chance = 1000 }, -- ring of healing
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200 },
-	{ name = "combat", interval = 1000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -200, range = 7, shootEffect = CONST_ANI_THROWINGKNIFE, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -45 },
+	{ name = "combat", interval = 1000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = -5, maxDamage = -40, range = 7, shootEffect = CONST_ANI_THROWINGKNIFE, target = false },
 }
 
 monster.defenses = {

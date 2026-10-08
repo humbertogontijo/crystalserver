@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Radiant Paragon")
 local monster = {}
 
 monster.description = "a radiant paragon"
-monster.experience = 34780
+monster.experience = 30780
 monster.outfit = {
 	lookType = 1966,
 	lookHead = 0,
@@ -72,8 +72,8 @@ monster.light = {
 
 monster.loot = {
 	{ name = "Blue Quiver", chance = 4000 },
-	{ name = "Broken Arrow", chance = 5960, maxCount = 3 },
-	{ name = "Gilded Bell", chance = 662 },
+	{ name = "Broken Arrow", chance = 4000, maxCount = 3 },
+	{ name = "Gilded Bell", chance = 150 },
 	{ name = "radiant paragon soul core", chance = 100 },
 }
 

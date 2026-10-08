@@ -74,7 +74,7 @@ monster.voices = {
 monster.loot = {
 	{ id = 3035, chance = 100000, minCount = 1, maxCount = 17 }, -- platinum coin
 	{ id = 7643, chance = 100000, minCount = 1, maxCount = 5 }, -- ultimate health potion
-	{ id = 9058, chance = 100000 }, -- gold ingot
+	{ id = 9058, chance = 25000 }, -- gold ingot
 	{ id = 33943, chance = 21110 }, -- werehyaena nose
 	{ id = 3036, chance = 5000 }, -- violet gem
 	{ id = 34100, chance = 4440 }, -- katex' blood

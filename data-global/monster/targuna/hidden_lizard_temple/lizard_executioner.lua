@@ -75,12 +75,12 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 50000, maxCount = 18 },
-	{ name = "health potion", chance = 20519 },
-	{ name = "lizard tail", chance = 5071 },
+	{ name = "health potion", chance = 9000 },
+	{ name = "lizard tail", chance = 9000 },
 	{ name = "lizard scale", chance = 700 },
 	{ name = "lizard leather", chance = 700 },
 	{ name = "mace", chance = 700 },
-	{ name = "salamander shield", chance = 1238 },
+	{ name = "salamander shield", chance = 700 },
 	{ name = "templar scytheblade", chance = 700 },
 	{ name = "hatchet", chance = 700 },
 }

@@ -73,18 +73,18 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 30 },
+	{ name = "platinum coin", chance = 70000, maxCount = 30 },
 	{ id = 3115, chance = 27670, maxCount = 1 }, -- bone
 	{ name = "great health potion", chance = 14990, maxCount = 4 },
 	{ name = "carnisylvan bark", chance = 12100, maxCount = 1 },
 	{ name = "carnisylvan finger", chance = 10090, maxCount = 2 },
 	{ name = "terra hood", chance = 7200 },
 	{ name = "terra boots", chance = 4900 },
-	{ name = "knight axe", chance = 4675 },
+	{ name = "knight axe", chance = 3460 },
 	{ name = "lightning headband", chance = 3460 },
 	{ name = "dragonbone staff", chance = 5190 },
 	{ name = "diamond sceptre", chance = 4320 },
-	{ name = "epee", chance = 4082 },
+	{ name = "epee", chance = 2590 },
 	{ name = "war hammer", chance = 3750 },
 	{ name = "human teeth", chance = 580 },
 }
@@ -92,7 +92,7 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -300 },
 	{ name = "combat", interval = 2000, chance = 60, type = COMBAT_EARTHDAMAGE, minDamage = -350, maxDamage = -450, range = 5, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_POISONAREA, target = true },
-	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -350, maxDamage = -400, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -600, maxDamage = -800, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = false },
 	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_PHYSICALDAMAGE, minDamage = -350, maxDamage = -400, length = 4, spread = 0, effect = CONST_ME_EXPLOSIONHIT, target = false },
 }
 

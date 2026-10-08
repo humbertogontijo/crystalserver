@@ -74,13 +74,13 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 71154, maxCount = 10 },
-	{ name = "health potion", chance = 15570 },
+	{ name = "gold coin", chance = 50000, maxCount = 10 },
+	{ name = "health potion", chance = 9000 },
 	{ name = "spear", chance = 9000 },
-	{ name = "arrow", chance = 19644, maxCount = 5 },
+	{ name = "arrow", chance = 9000, maxCount = 5 },
 	{ name = "sail pass", chance = 9000 },
-	{ id = 3457, chance = 1709 }, -- shovel
-	{ name = "lizard tail", chance = 3863 },
+	{ id = 3457, chance = 2500 }, -- shovel
+	{ name = "lizard tail", chance = 2500 },
 	{ name = "lizard scale", chance = 700 },
 	{ name = "lizard leather", chance = 700 },
 	{ name = "sentinel shield", chance = 700 },

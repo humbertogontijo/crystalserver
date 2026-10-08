@@ -84,19 +84,19 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 3 },
-	{ name = "fafnar symbol", chance = 10280 },
+	{ name = "fafnar symbol", chance = 6600 },
 	{ id = 31433, chance = 5600 }, -- secret instruction
 	{ id = 31435, chance = 5600 }, -- secret instruction
 	{ id = 31436, chance = 5600 }, -- secret instruction
 	{ name = "dragon necklace", chance = 4700 },
 	{ name = "lightning pendant", chance = 4100 },
 	{ name = "magma amulet", chance = 3700 },
-	{ name = "strange talisman", chance = 5184 },
-	{ name = "magma boots", chance = 4329 },
+	{ name = "strange talisman", chance = 3000 },
+	{ name = "magma boots", chance = 2700 },
 	{ id = 31331, chance = 2400 }, -- empty honey glass
 	{ name = "elven amulet", chance = 2100 },
-	{ name = "lightning legs", chance = 3569 },
-	{ name = "lightning headband", chance = 4078 },
+	{ name = "lightning legs", chance = 2000 },
+	{ name = "lightning headband", chance = 1700 },
 	{ name = "lightning boots", chance = 1400 },
 	{ name = "spellweaver's robe", chance = 850 },
 	{ id = 31369, chance = 570 }, -- gryphon mask

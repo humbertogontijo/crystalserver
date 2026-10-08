@@ -87,8 +87,8 @@ monster.voices = {
 monster.loot = {
 	{ name = "candlestick", chance = 70000 },
 	{ name = "wedding ring", chance = 460 },
-	{ id = 3007, chance = 1582 }, -- crystal ring
-	{ name = "silver brooch", chance = 1857 },
+	{ id = 3007, chance = 60 }, -- crystal ring
+	{ name = "silver brooch", chance = 1250 },
 	{ name = "white pearl", chance = 1010 },
 	{ name = "black pearl", chance = 2030 },
 	{ name = "gold coin", chance = 30000, maxCount = 80 },

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Monk's Apparition")
 local monster = {}
 
 monster.description = "a monk's apparition"
-monster.experience = 21130
+monster.experience = 18870
 monster.outfit = {
 	lookType = 1824,
 	lookHead = 38,
@@ -87,14 +87,12 @@ monster.loot = {
 	{ name = "epee", chance = 6870 },
 	{ name = "green gem", chance = 4940 },
 	{ name = "violet gem", chance = 3860 },
-	{ name = "glacier amulet", chance = 2020 },
+	{ name = "glacier amulet", chance = 3860 },
 	{ name = "crystal mace", chance = 2360 },
 	{ name = "giant sword", chance = 1720 },
-	{ name = "stone skin amulet", chance = 381 },
+	{ name = "stone skin amulet", chance = 1500 },
 	{ name = "crown shield", chance = 640 },
 	{ name = "bag you desire", chance = 15 },
-	{ name = "warrior helmet", chance = 6936 },
-	{ name = "great spirit potion", chance = 5069 },
 }
 
 monster.attacks = {
@@ -114,15 +112,15 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 20 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 50 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = -10 },
+	{ type = COMBAT_FIREDAMAGE, percent = -20 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 40 },
+	{ type = COMBAT_ICEDAMAGE, percent = 10 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
 	{ type = COMBAT_DEATHDAMAGE, percent = -20 },
 }
 

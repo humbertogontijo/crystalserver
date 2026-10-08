@@ -89,17 +89,17 @@ monster.loot = {
 	{ id = 23506, chance = 8000 }, -- plasma pearls
 	{ id = 16126, chance = 3400 }, -- red crystal fragment
 	{ id = 16120, chance = 3400 }, -- violet crystal shard
-	{ id = 16124, chance = 3825, maxCount = 2 }, -- blue crystal splinter
+	{ id = 16124, chance = 2700, maxCount = 2 }, -- blue crystal splinter
 	{ id = 16119, chance = 1900 }, -- blue crystal shard
 	{ id = 3039, chance = 1500 }, -- red gem
 	{ id = 8092, chance = 1100 }, -- wand of starstorm
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = 0, maxDamage = -450, range = 5, radius = 5, shootEffect = CONST_ANI_ENERGYBALL, effect = CONST_ME_PURPLEENERGY, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -300 },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -180, maxDamage = -300, range = 5, radius = 5, shootEffect = CONST_ANI_ENERGYBALL, effect = CONST_ME_PURPLEENERGY, target = true },
 	{ name = "reality reaver wave", interval = 2000, chance = 20, minDamage = -200, maxDamage = -350, target = false },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -400, radius = 3, effect = CONST_ME_STUN, target = false },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -80, maxDamage = -200, radius = 3, effect = CONST_ME_STUN, target = false },
 }
 
 monster.defenses = {

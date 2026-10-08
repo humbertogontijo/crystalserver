@@ -86,7 +86,7 @@ monster.loot = {
 	{ id = 3091, chance = 570 }, -- sword ring
 	{ name = "iron ore", chance = 400 },
 	{ name = "nail", chance = 1460 },
-	{ name = "heavily rusted armor", chance = 10024 },
+	{ name = "heavily rusted armor", chance = 790 },
 	{ name = "gear crystal", chance = 200 },
 }
 

@@ -71,10 +71,10 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 3116, chance = 3448 }, -- big bone
+	{ id = 3116, chance = 5880 }, -- big bone
 	{ id = 6499, chance = 100000 }, -- demonic essence
 	{ id = 239, chance = 5880 }, -- great health potion
-	{ id = 238, chance = 10345 }, -- great mana potion
+	{ id = 238, chance = 5880 }, -- great mana potion
 	{ id = 3031, chance = 94120, maxCount = 157 }, -- gold coin
 	{ id = 3422, chance = 500 }, -- great shield
 	{ id = 3577, chance = 88240, maxCount = 9 }, -- meat

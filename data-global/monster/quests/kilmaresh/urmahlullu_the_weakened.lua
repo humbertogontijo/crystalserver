@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Urmahlullu the Weakened")
 local monster = {}
 
 monster.description = "Urmahlullu the Weakened"
-monster.experience = 50
+monster.experience = 55000
 monster.outfit = {
 	lookType = 1197,
 	lookHead = 0,
@@ -75,34 +75,34 @@ monster.loot = {
 	{ name = "energy bar", chance = 100000 },
 	{ name = "ultimate mana potion", chance = 73080, maxCount = 31 },
 	{ name = "supreme health potion", chance = 53850, maxCount = 28 },
-	{ id = 3039, chance = 36022, maxCount = 2 }, -- red gem
+	{ id = 3039, chance = 53850, maxCount = 2 }, -- red gem
 	{ name = "lightning pendant", chance = 30770 },
 	{ name = "berserk potion", chance = 23080, maxCount = 15 },
-	{ name = "bullseye potion", chance = 16129, maxCount = 15 },
-	{ name = "magma coat", chance = 16129 },
-	{ name = "royal star", chance = 31720, maxCount = 168 },
+	{ name = "bullseye potion", chance = 23080, maxCount = 15 },
+	{ name = "magma coat", chance = 23080 },
+	{ name = "royal star", chance = 19230, maxCount = 168 },
 	{ name = "flash arrow", chance = 19230, maxCount = 175 },
-	{ name = "ultimate spirit potion", chance = 34409, maxCount = 8 },
+	{ name = "ultimate spirit potion", chance = 19230, maxCount = 8 },
 	{ name = "magma amulet", chance = 19230 },
-	{ name = "gold ingot", chance = 12903 },
-	{ name = "blue gem", chance = 22043 },
-	{ name = "magma monocle", chance = 9677 },
-	{ name = "yellow gem", chance = 35484 },
+	{ name = "gold ingot", chance = 19230 },
+	{ name = "blue gem", chance = 15380 },
+	{ name = "magma monocle", chance = 15380 },
+	{ name = "yellow gem", chance = 15380 },
 	{ name = "crystal coin", chance = 11540, maxCount = 5 },
 	{ name = "silver token", chance = 6740, maxCount = 5 },
 	{ name = "violet gem", chance = 7690 },
-	{ name = "urmahlullu's paw", chance = 1613 },
-	{ id = 281, chance = 17742 }, -- giant shimmering pearl
-	{ name = "mastermind potion", chance = 15054 },
+	{ name = "urmahlullu's paw", chance = 7690 },
+	{ id = 281, chance = 7690 }, -- giant shimmering pearl
+	{ name = "mastermind potion", chance = 3850 },
 	{ name = "tagralt blade", chance = 1850 },
-	{ name = "giant sapphire", chance = 2151 },
-	{ id = 31263, chance = 10215 }, -- ring of secret thoughts
+	{ name = "giant sapphire", chance = 3850 },
+	{ id = 31263, chance = 3850 }, -- ring of secret thoughts
 	{ name = "sunray emblem", chance = 3850 },
-	{ name = "urmahlullu's mane", chance = 1075 },
-	{ name = "winged boots", chance = 538 },
+	{ name = "urmahlullu's mane", chance = 3850 },
+	{ name = "winged boots", chance = 1850 },
 	{ name = "urmahlullu's tail", chance = 6980 },
 	{ name = "lightning legs", chance = 6400 },
-	{ name = "giant emerald", chance = 2151 },
+	{ name = "giant emerald", chance = 3490 },
 	{ name = "giant ruby", chance = 3490 },
 	{ id = 30403, chance = 1740 }, -- enchanted theurgic amulet
 	{ name = "sun medal", chance = 580 },
@@ -112,8 +112,7 @@ monster.loot = {
 	{ id = 30403, chance = 160 }, -- enchanted theurgic amulet
 	{ name = "sun medal", chance = 160 },
 	{ name = "sunray emblem", chance = 160 },
-	{ id = 50150, chance = 4301 }, -- ring of orange plasma
-	{ name = "transcendence potion", chance = 9140, maxCount = 18 },
+	{ id = 50150, chance = 560 }, -- ring of orange plasma
 }
 
 monster.attacks = {

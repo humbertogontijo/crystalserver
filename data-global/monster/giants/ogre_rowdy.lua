@@ -79,19 +79,18 @@ monster.voices = {
 monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 3 },
 	{ name = "flaming arrow", chance = 22040, maxCount = 19 },
-	{ name = "ogre ear stud", chance = 21450 },
+	{ name = "ogre ear stud", chance = 12900 },
 	{ name = "ogre nose ring", chance = 20970 },
 	{ name = "skull fetish", chance = 12900 },
 	{ name = "wand of inferno", chance = 8600 },
 	{ name = "jalapeno pepper", chance = 3760, maxCount = 3 },
-	{ name = "wand of draconia", chance = 5120 },
+	{ name = "wand of draconia", chance = 2150 },
 	{ name = "wand of everblazing", chance = 1080 },
 	{ name = "ogre choppa", chance = 540 },
-	{ name = "small emerald", chance = 5717 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -450 },
 	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_FIREDAMAGE, minDamage = -250, maxDamage = -400, range = 5, radius = 4, shootEffect = CONST_ANI_WHIRLWINDAXE, effect = CONST_ME_EXPLOSIONHIT, target = true },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -450, radius = 3, effect = CONST_ME_FIREAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_FIREDAMAGE, minDamage = -280, maxDamage = -420, range = 3, shootEffect = CONST_ANI_FLAMMINGARROW, target = true },

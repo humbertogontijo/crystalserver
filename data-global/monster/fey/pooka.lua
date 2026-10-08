@@ -81,15 +81,15 @@ monster.voices = {
 monster.loot = {
 	{ name = "carrot on a stick", chance = 20 },
 	{ name = "dream blossom staff", chance = 20 },
-	{ name = "small stone", chance = 4984, maxCount = 5 },
-	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "small stone", chance = 200, maxCount = 5 },
+	{ name = "gold coin", chance = 30000, maxCount = 100 },
 	{ id = 3049, chance = 492 }, -- stealth ring
-	{ id = 3595, chance = 19804, maxCount = 3 }, -- carrot
-	{ name = "strong health potion", chance = 12491 },
-	{ name = "orange mushroom", chance = 2667 },
-	{ name = "fern", chance = 2740 },
-	{ name = "opal", chance = 3041 },
-	{ name = "shimmering beetles", chance = 10476 },
+	{ id = 3595, chance = 55000, maxCount = 3 }, -- carrot
+	{ name = "strong health potion", chance = 719 },
+	{ name = "orange mushroom", chance = 10000 },
+	{ name = "fern", chance = 30100 },
+	{ name = "opal", chance = 5155 },
+	{ name = "shimmering beetles", chance = 591 },
 	{ name = "rainbow quartz", chance = 5800 },
 	{ name = "small enchanted ruby", chance = 3400, maxCount = 2 },
 }

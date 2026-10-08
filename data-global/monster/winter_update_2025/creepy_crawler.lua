@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Creepy Crawler")
 local monster = {}
 
 monster.description = "a creepy crawler"
-monster.experience = 22380
+monster.experience = 23000
 monster.outfit = {
 	lookType = 1890,
 	lookHead = 0,
@@ -82,7 +82,7 @@ monster.loot = {
 	{ name = "cyan crystal fragment", chance = 4380, maxCount = 4 },
 	{ name = "blue crystal shard", chance = 3080, maxCount = 4 },
 	{ name = "necromantic core", chance = 2270 },
-	{ name = "amber", chance = 2825 },
+	{ name = "amber", chance = 1790 },
 	{ name = "cluster of crystallized death", chance = 970 },
 	{ name = "blue gem", chance = 810, maxCount = 4 },
 	{ name = "amber with a bug", chance = 650 },

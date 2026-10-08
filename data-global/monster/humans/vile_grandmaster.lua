@@ -85,28 +85,28 @@ monster.loot = {
 	{ id = 3031, chance = 75410, maxCount = 30 }, -- gold coin
 	{ id = 3035, chance = 75410, maxCount = 2 }, -- platinum coin
 	{ id = 3592, chance = 1210 }, -- grapes
-	{ id = 3577, chance = 9540, maxCount = 2 }, -- meat
-	{ id = 239, chance = 7148 }, -- great health potion
+	{ id = 3577, chance = 1210, maxCount = 2 }, -- meat
+	{ id = 239, chance = 1210 }, -- great health potion
 	{ id = 3269, chance = 1610 }, -- halberd
 	{ id = 3658, chance = 510 }, -- red rose
 	{ id = 3003, chance = 1510 }, -- rope
-	{ id = 11510, chance = 7909 }, -- scroll of heroic deeds
-	{ id = 11450, chance = 2402 }, -- small notebook
-	{ id = 3030, chance = 3618, maxCount = 2 }, -- small ruby
-	{ id = 3029, chance = 3559, maxCount = 2 }, -- small sapphire
-	{ id = 3004, chance = 5022 }, -- wedding ring
-	{ id = 5911, chance = 2116 }, -- red piece of cloth
-	{ id = 3279, chance = 2096 }, -- war hammer
-	{ id = 3381, chance = 1157 }, -- crown armor
-	{ id = 3280, chance = 821 }, -- fire sword
+	{ id = 11510, chance = 910 }, -- scroll of heroic deeds
+	{ id = 11450, chance = 910 }, -- small notebook
+	{ id = 3030, chance = 810, maxCount = 2 }, -- small ruby
+	{ id = 3029, chance = 810, maxCount = 2 }, -- small sapphire
+	{ id = 3004, chance = 510 }, -- wedding ring
+	{ id = 5911, chance = 210 }, -- red piece of cloth
+	{ id = 3279, chance = 210 }, -- war hammer
+	{ id = 3381, chance = 310 }, -- crown armor
+	{ id = 3280, chance = 210 }, -- fire sword
 	{ id = 3385, chance = 310 }, -- crown helmet
 	{ id = 3419, chance = 210 }, -- crown shield
-	{ id = 3382, chance = 761 }, -- crown legs
+	{ id = 3382, chance = 110 }, -- crown legs
 	{ id = 3055, chance = 210 }, -- platinum amulet
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -260 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 10, maxDamage = -260 },
 	-- bleed
 	{ name = "condition", type = CONDITION_BLEEDING, interval = 2000, chance = 20, minDamage = -150, maxDamage = -225, radius = 4, shootEffect = CONST_ANI_THROWINGKNIFE, effect = CONST_ME_DRAWBLOOD, target = true },
 }

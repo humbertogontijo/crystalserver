@@ -85,19 +85,17 @@ monster.loot = {
 	{ name = "great health potion", chance = 14730 },
 	{ id = 12600, chance = 12180 }, -- coal
 	{ name = "buckle", chance = 850 },
-	{ name = "broken throwing axe", chance = 15085 },
-	{ name = "helmet of the lost", chance = 1598 },
+	{ name = "broken throwing axe", chance = 1390 },
+	{ name = "helmet of the lost", chance = 13560 },
 	{ name = "lost bracers", chance = 14860 },
 	{ name = "mad froth", chance = 11810 },
 	{ name = "basalt fetish", chance = 6150 },
 	{ name = "basalt figurine", chance = 7900 },
-	{ name = "red hair dye", chance = 12314 },
-	{ name = "bloody dwarven beard", chance = 11822 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -300 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -150, maxDamage = -300, range = 7, radius = 1, shootEffect = CONST_ANI_THROWINGSTAR, effect = CONST_ME_EXPLOSIONAREA, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -301 },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -250, range = 7, radius = 1, shootEffect = CONST_ANI_THROWINGSTAR, effect = CONST_ME_EXPLOSIONAREA, target = true },
 	{ name = "combat", interval = 2000, chance = 5, type = COMBAT_PHYSICALDAMAGE, range = 7, radius = 2, effect = CONST_ME_MAGIC_RED, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = -150, maxDamage = -300, range = 7, radius = 2, shootEffect = CONST_ANI_WHIRLWINDCLUB, effect = CONST_ME_STUN, target = true },
 	{ name = "drunk", interval = 2000, chance = 10, radius = 3, shootEffect = CONST_ANI_WHIRLWINDAXE, effect = CONST_ME_EXPLOSIONAREA, target = true, duration = 6000 },

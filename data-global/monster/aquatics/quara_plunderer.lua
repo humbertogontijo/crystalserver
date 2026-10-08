@@ -86,7 +86,7 @@ monster.loot = {
 	{ name = "demon shield", chance = 670 },
 	{ name = "demonrage sword", chance = 270 },
 	{ name = "preserved purple seed", chance = 80 },
-	{ name = "platinum coin", chance = 57161, maxCount = 25 },
+	{ name = "platinum coin", chance = 10000, maxCount = 25 },
 }
 
 monster.attacks = {
@@ -103,14 +103,14 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = -5 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = -10 },
 	{ type = COMBAT_EARTHDAMAGE, percent = -10 },
 	{ type = COMBAT_FIREDAMAGE, percent = 20 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 100 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 15 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 10 },
 }

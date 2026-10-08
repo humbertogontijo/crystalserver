@@ -77,21 +77,21 @@ monster.loot = {
 	{ name = "lost soul", chance = 36220 },
 	{ name = "death toll", chance = 4890 },
 	{ name = "skull staff", chance = 4540 },
-	{ name = "machete", chance = 4928 },
+	{ name = "machete", chance = 3520 },
 	{ name = "ensouled essence", chance = 2760 },
 	{ name = "fire axe", chance = 1400 },
 	{ name = "ivory comb", chance = 1200 },
 	{ name = "mercenary sword", chance = 1050 },
 	{ name = "haunted blade", chance = 960 },
-	{ name = "warrior's axe", chance = 1309 },
+	{ name = "warrior's axe", chance = 730 },
 	{ name = "twiceslicer", chance = 310 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -90, maxDamage = -450 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -500 },
 	{ name = "combat", interval = 1700, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -300, maxDamage = -550, radius = 3, shootEffect = CONST_ANI_ENVENOMEDARROW, effect = CONST_ME_HITBYPOISON, target = true },
-	{ name = "combat", interval = 1700, chance = 25, type = COMBAT_ENERGYDAMAGE, minDamage = -270, maxDamage = -550, length = 4, spread = 0, effect = CONST_ME_ENERGYHIT, target = false },
-	{ name = "combat", interval = 1700, chance = 35, type = COMBAT_DEATHDAMAGE, minDamage = -300, maxDamage = -540, radius = 3, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "combat", interval = 1700, chance = 25, type = COMBAT_ENERGYDAMAGE, minDamage = -300, maxDamage = -550, length = 4, spread = 0, effect = CONST_ME_ENERGYHIT, target = false },
+	{ name = "combat", interval = 1700, chance = 35, type = COMBAT_DEATHDAMAGE, minDamage = -300, maxDamage = -550, radius = 3, effect = CONST_ME_MORTAREA, target = false },
 }
 
 monster.defenses = {

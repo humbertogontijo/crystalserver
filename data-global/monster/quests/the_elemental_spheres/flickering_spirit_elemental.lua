@@ -64,9 +64,9 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 76113, maxCount = 120 },
-	{ name = "holy ash", chance = 34827 },
-	{ name = "spirited soil", chance = 4838 },
+	{ name = "gold coin", chance = 44000, maxCount = 120 },
+	{ name = "holy ash", chance = 10800 },
+	{ name = "spirited soil", chance = 2100 },
 }
 
 monster.attacks = {
@@ -84,11 +84,11 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 100 },
+	{ type = COMBAT_FIREDAMAGE, percent = -100 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 100 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }

@@ -83,8 +83,8 @@ monster.loot = {
 	{ name = "magma boots", chance = 3000 },
 	{ name = "mouldy powder", chance = 4000 },
 	{ id = 23529, chance = 2000 }, -- ring of blue plasma
-	{ name = "lightning boots", chance = 1580 },
-	{ name = "wood cape", chance = 1773 },
+	{ name = "lightning boots", chance = 1000 },
+	{ name = "wood cape", chance = 1000 },
 }
 
 monster.attacks = {

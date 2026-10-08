@@ -77,28 +77,28 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 85480, maxCount = 4 },
-	{ name = "terra rod", chance = 31644 },
-	{ name = "snakebite rod", chance = 12420 },
+	{ name = "terra rod", chance = 43000 },
+	{ name = "snakebite rod", chance = 20970 },
 	{ name = "cobra crest", chance = 16130 },
 	{ name = "terra hood", chance = 13710 },
 	{ name = "cyan crystal fragment", chance = 10805 },
-	{ name = "terra boots", chance = 14004 },
+	{ name = "terra boots", chance = 9680 },
 	{ id = 281, chance = 8870 }, -- giant shimmering pearl (green)
 	{ id = 3039, chance = 6450 }, -- red gem
-	{ name = "emerald bangle", chance = 3349 },
+	{ name = "emerald bangle", chance = 5650 },
 	{ name = "gemmed figurine", chance = 4840 },
-	{ name = "green crystal fragment", chance = 5079 },
+	{ name = "green crystal fragment", chance = 3230 },
 	{ name = "red crystal fragment", chance = 3230 },
 	{ name = "serpent sword", chance = 2420 },
-	{ name = "violet crystal shard", chance = 4065 },
-	{ name = "green gem", chance = 2982 },
-	{ name = "onyx chip", chance = 925, maxCount = 3 },
+	{ name = "violet crystal shard", chance = 2420 },
+	{ name = "green gem", chance = 1610 },
+	{ name = "onyx chip", chance = 1610, maxCount = 3 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -480 },
 	{ name = "explosion wave", interval = 2000, chance = 15, minDamage = -280, maxDamage = -400, target = false },
-	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_EARTHDAMAGE, minDamage = -300, maxDamage = -550, radius = 4, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_GREEN_RINGS, target = true },
+	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_EARTHDAMAGE, minDamage = -350, maxDamage = -520, radius = 4, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_GREEN_RINGS, target = true },
 	{ name = "death chain", interval = 4000, chance = 30, minDamage = -550, maxDamage = -800, range = 3, target = true },
 }
 

@@ -73,21 +73,21 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 238, chance = 10724 }, -- great mana potion
-	{ name = "wand of inferno", chance = 7495 },
-	{ id = 35588, chance = 7649 }, -- grappling hook
-	{ name = "pirate coin", chance = 6800, maxCount = 10 },
-	{ name = "pirat's tail", chance = 5279 },
-	{ name = "springsprout rod", chance = 3902 },
-	{ name = "wand of starstorm", chance = 4750 },
-	{ name = "wand of voodoo", chance = 2998 },
+	{ id = 238, chance = 44810 }, -- great mana potion
+	{ name = "wand of inferno", chance = 12500 },
+	{ id = 35588, chance = 19420 }, -- grappling hook
+	{ name = "pirate coin", chance = 17810, maxCount = 10 },
+	{ name = "pirat's tail", chance = 2120 },
+	{ name = "springsprout rod", chance = 9550 },
+	{ name = "wand of starstorm", chance = 1750 },
+	{ name = "wand of voodoo", chance = 1450 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -100, maxDamage = -130, range = 7, radius = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = true },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -100, maxDamage = -130, radius = 3, effect = CONST_ME_ENERGYHIT, target = true },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -100, maxDamage = -130, radius = 3, effect = CONST_ME_ENERGYHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -110, maxDamage = -180, range = 7, radius = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -100, maxDamage = -140, radius = 3, effect = CONST_ME_ENERGYHIT, target = true },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -90, maxDamage = -120, radius = 3, effect = CONST_ME_ENERGYHIT, target = false },
 }
 
 monster.defenses = {

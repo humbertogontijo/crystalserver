@@ -82,18 +82,18 @@ monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "platinum coin", chance = 100000, maxCount = 9 },
 	{ name = "fire sword", chance = 1240 },
-	{ name = "crown shield", chance = 1093 },
+	{ name = "crown shield", chance = 1700 },
 	{ name = "tower shield", chance = 550 },
 	{ name = "brown mushroom", chance = 14000, maxCount = 2 },
 	{ name = "beastslayer axe", chance = 4260 },
 	{ name = "mercenary sword", chance = 2500 },
-	{ name = "spiked squelcher", chance = 1283 },
+	{ name = "spiked squelcher", chance = 410 },
 	{ id = 238, chance = 12500 }, -- great mana potion
-	{ name = "great health potion", chance = 11148 },
+	{ name = "great health potion", chance = 15000 },
 	{ name = "underworld rod", chance = 1800 },
 	{ name = "wand of starstorm", chance = 960 },
 	{ id = 20029, chance = 3700 }, -- broken dream
-	{ name = "goosebump leather", chance = 11899 },
+	{ name = "goosebump leather", chance = 16400 },
 	{ name = "pool of chitinous glue", chance = 14000 },
 }
 
@@ -102,13 +102,13 @@ monster.attacks = {
 	{ name = "drunk", interval = 2000, chance = 10, length = 4, spread = 0, effect = CONST_ME_MAGIC_GREEN, target = true, duration = 5000 },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = -700, radius = 4, shootEffect = CONST_ANI_WHIRLWINDCLUB, effect = CONST_ME_STUN, target = true, duration = 15000 },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -110, radius = 4, effect = CONST_ME_HITAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -500, radius = 1, shootEffect = CONST_ANI_SNIPERARROW, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -200, radius = 1, shootEffect = CONST_ANI_SNIPERARROW, target = true },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -350, radius = 1, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREATTACK, target = true },
 }
 
 monster.defenses = {
 	defense = 30,
-	armor = 74,
+	armor = 30,
 }
 
 monster.elements = {
@@ -121,7 +121,7 @@ monster.elements = {
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 15 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 22 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 20 },
 }
 
 monster.immunities = {

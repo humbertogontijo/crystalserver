@@ -79,12 +79,12 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "mana potion", chance = 30000 },
-	{ name = "gold coin", chance = 70080, maxCount = 15 },
-	{ name = "arrow", chance = 19961, maxCount = 5 },
+	{ name = "gold coin", chance = 50000, maxCount = 15 },
+	{ name = "arrow", chance = 9000, maxCount = 5 },
 	{ name = "sail pass", chance = 9000 },
 	{ id = 3003, chance = 2500 }, -- rope
-	{ name = "spear", chance = 5552 },
-	{ name = "gold tooth", chance = 4796 },
+	{ name = "spear", chance = 2500 },
+	{ name = "gold tooth", chance = 2500 },
 	{ name = "bandana", chance = 700 },
 	{ name = "empty goldfish bowl", chance = 700 },
 	{ name = "eye patch", chance = 150 },

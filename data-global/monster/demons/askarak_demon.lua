@@ -93,17 +93,16 @@ monster.loot = {
 	{ name = "assassin star", chance = 4761, maxCount = 5 },
 	{ name = "mastermind potion", chance = 431 },
 	{ name = "strong health potion", chance = 5263 },
-	{ name = "strong mana potion", chance = 2857 },
+	{ name = "strong mana potion", chance = 5263 },
 	{ name = "terra legs", chance = 123 },
 	{ name = "springsprout rod", chance = 512 },
-	{ name = "platinum coin", chance = 76667, maxCount = 3 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -20, maxDamage = -140 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -143 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -20, maxDamage = -60, range = 7, radius = 6, shootEffect = CONST_ANI_POISON, effect = CONST_ME_GREEN_RINGS, target = false },
 	{ name = "askarak wave", interval = 2000, chance = 15, minDamage = -75, maxDamage = -140, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -75, maxDamage = -140, length = 4, spread = 0, effect = CONST_ME_GREEN_RINGS, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -130, maxDamage = -170, length = 4, spread = 0, effect = CONST_ME_GREEN_RINGS, target = false },
 	{ name = "speed", interval = 2000, chance = 10, speedChange = -600, radius = 1, effect = CONST_ME_MAGIC_RED, target = true, duration = 15000 },
 }
 

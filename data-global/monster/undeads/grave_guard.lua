@@ -79,16 +79,16 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 50000, maxCount = 100 },
 	{ name = "gold coin", chance = 50000, maxCount = 30 },
-	{ name = "scarab coin", chance = 6707 },
-	{ name = "daramian waraxe", chance = 610 },
+	{ name = "scarab coin", chance = 4166 },
+	{ name = "daramian waraxe", chance = 1170 },
 	{ name = "grave flower", chance = 70000 },
-	{ id = 6299, chance = 4268 }, -- death ring
+	{ id = 6299, chance = 1754 }, -- death ring
 	{ name = "health potion", chance = 20000 },
 	{ name = "mana potion", chance = 20000 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -150 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -147 },
 	{ name = "combat", interval = 2000, chance = 5, type = COMBAT_PHYSICALDAMAGE, radius = 1, effect = CONST_ME_SOUND_BLUE, target = false },
 }
 

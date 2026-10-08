@@ -66,15 +66,15 @@ monster.loot = {
 	{ id = 11472, chance = 10000 }, -- minotaur horn
 	{ id = 3559, chance = 9000 }, -- leather legs
 	{ id = 268, chance = 3500 }, -- mana potion
-	{ id = 2920, chance = 10345 }, -- torch
-	{ id = 3355, chance = 6897 }, -- leather helmet
+	{ id = 2920, chance = 3500 }, -- torch
+	{ id = 3355, chance = 1800 }, -- leather helmet
 	{ id = 11473, chance = 1800 }, -- purple robe
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -29 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -16, maxDamage = -27, range = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -24, maxDamage = -64, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -10 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = 0, maxDamage = -20, range = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = 0, maxDamage = -20, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = false },
 	{ name = "energyfield", interval = 2000, chance = 10, range = 7, shootEffect = CONST_ANI_ENERGYBALL, target = true },
 }
 

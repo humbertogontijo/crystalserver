@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Knight's Apparition")
 local monster = {}
 
 monster.description = "a knight's apparition"
-monster.experience = 21130
+monster.experience = 28600
 monster.outfit = {
 	lookType = 131,
 	lookHead = 19,
@@ -84,13 +84,13 @@ monster.voices = {
 monster.loot = {
 	{ name = "crystal coin", chance = 76610 },
 	{ name = "ultimate health potion", chance = 9010 },
-	{ name = "epee", chance = 5080 },
-	{ name = "green gem", chance = 3577 },
-	{ name = "violet gem", chance = 2644 },
-	{ name = "glacier amulet", chance = 1607 },
+	{ name = "epee", chance = 6870 },
+	{ name = "green gem", chance = 4940 },
+	{ name = "violet gem", chance = 3860 },
+	{ name = "glacier amulet", chance = 3860 },
 	{ name = "crystal mace", chance = 2360 },
 	{ name = "giant sword", chance = 1720 },
-	{ name = "stone skin amulet", chance = 933 },
+	{ name = "stone skin amulet", chance = 1500 },
 	{ name = "crown shield", chance = 640 },
 	{ name = "bag you desire", chance = 15 },
 }

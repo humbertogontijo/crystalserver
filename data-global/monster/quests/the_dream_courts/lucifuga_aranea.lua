@@ -64,22 +64,11 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "platinum coin", chance = 100000 },
-	{ name = "cyan crystal fragment", chance = 5556 },
-	{ name = "poison gland", chance = 100000 },
-	{ id = 238, chance = 11111 }, -- great mana potion
-	{ name = "plate armor", chance = 11111 },
+	{ name = "cyan crystal fragment", chance = 55000 },
+	{ name = "poison gland", chance = 54500 },
+	{ id = 238, chance = 80000 }, -- great mana potion
+	{ name = "plate armor", chance = 64000 },
 	{ name = "green gem", chance = 35000 },
-	{ name = "crystal sword", chance = 11111 },
-	{ name = "gold ingot", chance = 11111 },
-	{ name = "guardian halberd", chance = 11111 },
-	{ id = 3053, chance = 11111 }, -- time ring
-	{ name = "blue crystal shard", chance = 5556 },
-	{ name = "crystal necklace", chance = 5556 },
-	{ id = 281, chance = 5556 }, -- giant shimmering pearl
-	{ name = "halberd", chance = 5556 },
-	{ id = 7441, chance = 5556 }, -- ice cube
-	{ name = "obsidian lance", chance = 5556 },
-	{ name = "spider silk", chance = 5556 },
 }
 
 monster.attacks = {
@@ -98,15 +87,15 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 100 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 75 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 20 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 20 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }
 
 monster.immunities = {

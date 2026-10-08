@@ -79,24 +79,24 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 197 },
 	{ name = "platinum coin", chance = 100000, maxCount = 8 },
-	{ id = 238, chance = 25913, maxCount = 3 }, -- great mana potion
-	{ name = "great health potion", chance = 24365, maxCount = 3 },
+	{ id = 238, chance = 34850, maxCount = 3 }, -- great mana potion
+	{ name = "great health potion", chance = 34290, maxCount = 3 },
 	{ name = "great spirit potion", chance = 30860, maxCount = 3 },
 	{ name = "flask of demonic blood", chance = 23400, maxCount = 3 },
 	{ name = "demonic essence", chance = 19240 },
 	{ name = "some grimeleech wings", chance = 19080 },
 	{ name = "fire mushroom", chance = 15360, maxCount = 5 },
 	{ name = "green mushroom", chance = 14800, maxCount = 5 },
-	{ name = "small diamond", chance = 4960, maxCount = 5 },
-	{ name = "small ruby", chance = 5159, maxCount = 5 },
-	{ name = "small topaz", chance = 5437, maxCount = 5 },
-	{ name = "small amethyst", chance = 4643, maxCount = 5 },
+	{ name = "small diamond", chance = 11290, maxCount = 5 },
+	{ name = "small ruby", chance = 10750, maxCount = 5 },
+	{ name = "small topaz", chance = 9660, maxCount = 5 },
+	{ name = "small amethyst", chance = 9640, maxCount = 5 },
 	{ name = "underworld rod", chance = 6890 },
 	{ name = "wand of voodoo", chance = 4810 },
-	{ id = 3039, chance = 1825 }, -- red gem
-	{ name = "yellow gem", chance = 1746 },
-	{ name = "devil helmet", chance = 794 },
-	{ name = "magma legs", chance = 556 },
+	{ id = 3039, chance = 3930 }, -- red gem
+	{ name = "yellow gem", chance = 2900 },
+	{ name = "devil helmet", chance = 1360 },
+	{ name = "magma legs", chance = 1150 },
 	{ name = "demon shield", chance = 1010 },
 	{ name = "nightmare blade", chance = 930 },
 	{ name = "blue gem", chance = 780 },
@@ -113,9 +113,9 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, skill = 70, attack = 80 },
 	{ name = "melee", interval = 2000, chance = 2, skill = 153, attack = 100 },
-	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_LIFEDRAINDAMAGE, minDamage = -100, maxDamage = -565, range = 7, shootEffect = CONST_ANI_DEATH, effect = CONST_ME_MORTAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_LIFEDRAINDAMAGE, minDamage = 100, maxDamage = -565, range = 7, shootEffect = CONST_ANI_DEATH, effect = CONST_ME_MORTAREA, target = true },
 	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_LIFEDRAINDAMAGE, minDamage = -150, maxDamage = -220, length = 8, spread = 0, effect = CONST_ME_MAGIC_GREEN, target = false },
-	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_DEATHDAMAGE, minDamage = -350, maxDamage = -400, radius = 4, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_DEATHDAMAGE, minDamage = -225, maxDamage = -375, radius = 4, effect = CONST_ME_MORTAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 9, type = COMBAT_MANADRAINDAMAGE, minDamage = 0, maxDamage = -300, length = 8, spread = 3, effect = CONST_ME_MAGIC_RED, target = false },
 	{ name = "drunk", interval = 2000, chance = 30, radius = 4, effect = CONST_ME_SMALLCLOUDS, target = false, duration = 8000 },
 }

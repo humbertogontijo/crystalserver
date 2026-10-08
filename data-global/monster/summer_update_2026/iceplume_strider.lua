@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Iceplume Strider")
 local monster = {}
 
 monster.description = "an iceplume strider"
-monster.experience = 7500
+monster.experience = 8150
 monster.outfit = {
 	lookType = 1950,
 	lookHead = 0,
@@ -71,11 +71,11 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 89737, maxCount = 8 },
-	{ name = "Small Sapphire", chance = 15155, maxCount = 3 },
+	{ name = "Platinum Coin", chance = 20000, maxCount = 8 },
+	{ name = "Small Sapphire", chance = 9000, maxCount = 3 },
 	{ name = "Crystal Coin", chance = 9000 },
-	{ name = "Blue Gem", chance = 2864 },
-	{ name = "Northwind Rod", chance = 1909 },
+	{ name = "Blue Gem", chance = 4000 },
+	{ name = "Northwind Rod", chance = 4000 },
 	{ name = "Ice Shard", chance = 4000 },
 	{ id = 3007, chance = 900 }, -- crystal ring
 	{ name = "Blue Robe", chance = 900 },
@@ -93,7 +93,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 75,
-	armor = 85,
+	armor = 75,
 	mitigation = 3.68,
 }
 

@@ -80,29 +80,29 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 60145, maxCount = 112 },
-	{ name = "small enchanted emerald", chance = 2619, maxCount = 2 },
-	{ name = "green mushroom", chance = 1363, maxCount = 2 },
-	{ name = "white pearl", chance = 2032, maxCount = 2 },
-	{ name = "opal", chance = 1834, maxCount = 2 },
-	{ name = "strong mana potion", chance = 834 },
-	{ name = "clerical mace", chance = 950 },
-	{ id = 238, chance = 3164 }, -- great mana potion
-	{ name = "colourful snail shell", chance = 14582 },
-	{ name = "diamond sceptre", chance = 388 },
-	{ name = "coral brooch", chance = 1842 },
-	{ name = "flower wreath", chance = 421 },
-	{ name = "powder herb", chance = 5312 },
+	{ name = "gold coin", chance = 30000, maxCount = 112 },
+	{ name = "small enchanted emerald", chance = 492, maxCount = 2 },
+	{ name = "green mushroom", chance = 492, maxCount = 2 },
+	{ name = "white pearl", chance = 492, maxCount = 2 },
+	{ name = "opal", chance = 492, maxCount = 2 },
+	{ name = "strong mana potion", chance = 6800 },
+	{ name = "clerical mace", chance = 5155 },
+	{ id = 238, chance = 591 }, -- great mana potion
+	{ name = "colourful snail shell", chance = 5800 },
+	{ name = "diamond sceptre", chance = 3400 },
+	{ name = "coral brooch", chance = 3400 },
+	{ name = "flower wreath", chance = 3400 },
+	{ name = "powder herb", chance = 3400 },
 	{ name = "silver brooch", chance = 3400 },
-	{ name = "summer dress", chance = 479 },
-	{ name = "wild flowers", chance = 20150 },
-	{ name = "boots of haste", chance = 843 },
-	{ name = "butterfly ring", chance = 744 },
+	{ name = "summer dress", chance = 3400 },
+	{ name = "wild flowers", chance = 3400 },
+	{ name = "boots of haste", chance = 50 },
+	{ name = "butterfly ring", chance = 100 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -160 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -83, maxDamage = -105, range = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -215 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -60, maxDamage = -115, range = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = true },
 	{ name = "combat", interval = 2000, chance = 11, type = COMBAT_MANADRAIN, minDamage = -82, maxDamage = -215, range = 7, shootEffect = CONST_ANI_HOLY, effect = CONST_ME_HOLYAREA, target = true },
 	{ name = "speed", interval = 2000, chance = 11, speedChange = -450, radius = 6, effect = CONST_ME_PIXIE_EXPLOSION, target = false, duration = 5000 },
 }

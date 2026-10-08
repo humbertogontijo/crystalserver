@@ -88,16 +88,16 @@ monster.loot = {
 	{ name = "ultimate health potion", chance = 24120 },
 	{ name = "undead heart", chance = 21610 },
 	{ name = "zaoan halberd", chance = 16580 },
-	{ id = 8896, chance = 9802 }, -- slightly rusted armor
+	{ id = 8896, chance = 15080 }, -- slightly rusted armor
 	{ name = "demonic essence", chance = 10550 },
 	{ name = "terra boots", chance = 10050 },
-	{ name = "twin hooks", chance = 15097 },
+	{ name = "twin hooks", chance = 9550 },
 	{ name = "ghastly dragon head", chance = 7540 },
-	{ name = "soul orb", chance = 12345 },
-	{ name = "terra legs", chance = 3280 },
+	{ name = "soul orb", chance = 7040 },
+	{ name = "terra legs", chance = 4520 },
 	{ name = "jade hat", chance = 1010 },
 	{ name = "zaoan armor", chance = 1010 },
-	{ name = "guardian boots", chance = 214 },
+	{ name = "guardian boots", chance = 1010 },
 	{ name = "drakinata", chance = 1010 },
 	{ name = "spellweaver's robe", chance = 500 },
 	{ name = "zaoan shoes", chance = 980 },
@@ -112,9 +112,9 @@ monster.attacks = {
 	{ name = "ghastly dragon curse", interval = 2000, chance = 5, range = 5, target = false },
 	-- poison
 	{ name = "condition", type = CONDITION_POISON, interval = 2000, chance = 10, minDamage = -920, maxDamage = -1280, range = 5, effect = CONST_ME_SMALLCLOUDS, target = true },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -80, maxDamage = -228, range = 7, effect = CONST_ME_MAGIC_RED, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -80, maxDamage = -230, range = 7, effect = CONST_ME_MAGIC_RED, target = true },
 	{ name = "ghastly dragon wave", interval = 2000, chance = 10, minDamage = -120, maxDamage = -250, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -120, maxDamage = -250, radius = 4, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -110, maxDamage = -180, radius = 4, effect = CONST_ME_MORTAREA, target = false },
 	{ name = "speed", interval = 2000, chance = 20, speedChange = -800, range = 7, effect = CONST_ME_SMALLCLOUDS, target = true, duration = 30000 },
 }
 

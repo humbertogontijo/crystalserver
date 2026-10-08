@@ -69,7 +69,7 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -265 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -250 },
 	{ name = "speed", interval = 3500, chance = 65, speedChange = -500, range = 1, radius = 1, effect = CONST_ME_MAGIC_RED, target = true, duration = 40 },
 	{ name = "combat", interval = 3000, chance = 75, type = COMBAT_ENERGYDAMAGE, minDamage = -13, maxDamage = -80, range = 7, shootEffect = CONST_ANI_ENERGY, target = false },
 }

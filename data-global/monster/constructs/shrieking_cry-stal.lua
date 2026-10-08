@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Shrieking Cry-Stal")
 local monster = {}
 
 monster.description = "a shrieking cry-stal"
-monster.experience = 14580
+monster.experience = 13560
 monster.outfit = {
 	lookType = 1560,
 	lookHead = 85,
@@ -91,10 +91,10 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400 },
-	{ name = "combat", interval = 5000, chance = 47, type = COMBAT_ENERGYDAMAGE, minDamage = -1037, maxDamage = -1037, range = 6, shootEffect = CONST_ANI_ENERGYBALL },
+	{ name = "combat", interval = 5000, chance = 47, type = COMBAT_ENERGYDAMAGE, minDamage = -650, maxDamage = -900, range = 6, shootEffect = CONST_ANI_ENERGYBALL },
 	{ name = "combat", interval = 3500, chance = 30, type = COMBAT_DEATHDAMAGE, minDamage = -500, maxDamage = -700, radius = 6, effect = CONST_ME_MORTAREA, target = false },
 	{ name = "energy chain", interval = 2000, chance = 20, minDamage = -425, maxDamage = -550, range = 3, target = true },
-	{ name = "combat", interval = 3000, chance = 30, type = COMBAT_ENERGYDAMAGE, minDamage = -1037, maxDamage = -1037, length = 5, spread = 2, effect = CONST_ME_SOUND_PURPLE, target = false },
+	{ name = "combat", interval = 3000, chance = 30, type = COMBAT_ENERGYDAMAGE, minDamage = -700, maxDamage = -1000, length = 5, spread = 2, effect = CONST_ME_SOUND_PURPLE, target = false },
 	{ name = "fear", interval = 2000, chance = 1, target = true },
 }
 

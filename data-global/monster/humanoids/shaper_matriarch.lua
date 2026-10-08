@@ -83,7 +83,7 @@ monster.loot = {
 	{ id = 24385, chance = 15000 }, -- cracked alabaster vase
 	{ id = 3728, chance = 6800 }, -- dark mushroom
 	{ id = 24392, chance = 4300 }, -- gemmed figurine
-	{ id = 3031, chance = 100000, maxCount = 150 }, -- gold coin
+	{ id = 3031, chance = 50320, maxCount = 150 }, -- gold coin
 	{ id = 3035, chance = 80000, maxCount = 2 }, -- platinum coin
 	{ id = 24962, chance = 2800 }, -- prismatic quartz
 	{ id = 24386, chance = 20000 }, -- rhino horn carving

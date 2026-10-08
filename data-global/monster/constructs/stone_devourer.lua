@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Stone Devourer")
 local monster = {}
 
 monster.description = "a stone devourer"
-monster.experience = 3650
+monster.experience = 2900
 monster.outfit = {
 	lookType = 486,
 	lookHead = 0,
@@ -80,31 +80,31 @@ monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "platinum coin", chance = 92000, maxCount = 7 },
 	{ name = "stone skin amulet", chance = 2270 },
-	{ id = 3097, chance = 1695 }, -- dwarven ring
+	{ id = 3097, chance = 2840 }, -- dwarven ring
 	{ name = "giant sword", chance = 570 },
 	{ name = "crystal mace", chance = 850 },
-	{ name = "war axe", chance = 1695 },
-	{ name = "sapphire hammer", chance = 5085 },
+	{ name = "war axe", chance = 920 },
+	{ name = "sapphire hammer", chance = 1490 },
 	{ name = "spiked squelcher", chance = 1490 },
-	{ name = "glorious axe", chance = 5085 },
-	{ name = "strong health potion", chance = 10169, maxCount = 2 },
+	{ name = "glorious axe", chance = 3340 },
+	{ name = "strong health potion", chance = 13840, maxCount = 2 },
 	{ name = "strong mana potion", chance = 14900, maxCount = 2 },
 	{ id = 238, chance = 15610, maxCount = 2 }, -- great mana potion
 	{ name = "mana potion", chance = 15050, maxCount = 2 },
-	{ name = "ultimate health potion", chance = 22034 },
+	{ name = "ultimate health potion", chance = 14410 },
 	{ id = 12600, chance = 11360 }, -- coal
 	{ name = "ancient stone", chance = 12850 },
-	{ name = "crystalline arrow", chance = 3390, maxCount = 10 },
-	{ name = "green crystal splinter", chance = 3390 },
-	{ name = "cyan crystal fragment", chance = 11864 },
+	{ name = "crystalline arrow", chance = 9940, maxCount = 10 },
+	{ name = "green crystal splinter", chance = 6960 },
+	{ name = "cyan crystal fragment", chance = 6810 },
 	{ name = "stone nose", chance = 18679 },
-	{ name = "crystalline spikes", chance = 22034 },
+	{ name = "crystalline spikes", chance = 16320 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -991 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -990 },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -230, maxDamage = -460, range = 7, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_STONES, target = true },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -600, maxDamage = -650, range = 7, shootEffect = CONST_ANI_LARGEROCK, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -650, range = 7, shootEffect = CONST_ANI_LARGEROCK, target = true },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -150, maxDamage = -260, length = 5, spread = 0, effect = CONST_ME_STONES, target = false },
 }
 
@@ -118,7 +118,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 10 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 30 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 100 },
-	{ type = COMBAT_FIREDAMAGE, percent = 5 },
+	{ type = COMBAT_FIREDAMAGE, percent = -5 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

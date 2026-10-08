@@ -89,7 +89,7 @@ monster.loot = {
 	{ name = "strong health potion", chance = 7100 },
 	{ name = "strong mana potion", chance = 8180 },
 	{ name = "vampire teeth", chance = 7200 },
-	{ name = "blood preservation", chance = 2043 },
+	{ name = "blood preservation", chance = 2910 },
 	{ name = "tooth file", chance = 6560 },
 	{ name = "vampire's cape chain", chance = 4460 },
 }

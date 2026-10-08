@@ -86,7 +86,6 @@ monster.loot = {
 	{ name = "blue crystal splinter", chance = 4120 },
 	{ name = "cyan crystal fragment", chance = 1050 },
 	{ name = "crystalline spikes", chance = 7980 },
-	{ name = "crystalline arrow", chance = 5051, maxCount = 5 },
 }
 
 monster.attacks = {
@@ -95,7 +94,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 15,
-	armor = 38,
+	armor = 15,
 }
 
 monster.elements = {

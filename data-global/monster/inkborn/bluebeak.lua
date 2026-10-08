@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Bluebeak")
 local monster = {}
 
 monster.description = "a bluebeak"
-monster.experience = 2330
+monster.experience = 2070
 monster.outfit = {
 	lookType = 1849,
 	lookHead = 0,
@@ -42,14 +42,14 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 81765, maxCount = 100 },
-	{ name = "platinum coin", chance = 62563, maxCount = 15 },
-	{ name = "small sapphire", chance = 7898, maxCount = 2 },
-	{ name = "paper boat", chance = 5439 }, -- new item
-	{ name = "star ink", chance = 8130 }, -- new item
+	{ name = "gold coin", chance = 60590, maxCount = 100 },
+	{ name = "platinum coin", chance = 40590, maxCount = 15 },
+	{ name = "small sapphire", chance = 1600, maxCount = 2 },
+	{ name = "paper boat", chance = 2000 }, -- new item
+	{ name = "star ink", chance = 1400 }, -- new item
 	{ name = "hailstorm rod", chance = 1000 },
-	{ name = "grapes", chance = 2033 },
-	{ name = "blue crystal splinter", chance = 1626 },
+	{ name = "grapes", chance = 800 },
+	{ name = "blue crystal splinter", chance = 600 },
 	{ name = "glacier amulet", chance = 600 },
 	{ name = "glacier shoes", chance = 600 },
 	{ name = "blue crystal shard", chance = 600 },
@@ -63,7 +63,7 @@ monster.attacks = {
 	-- Ice: Melee (80-240)
 	{ name = "melee", interval = 2000, chance = 100, minDamage = -80, maxDamage = -240 },
 	-- Ice: Cross (240-260)
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -230, maxDamage = -260, radius = 3, effect = CONST_ME_ICEAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -240, maxDamage = -260, radius = 3, effect = CONST_ME_ICEAREA, target = false },
 }
 
 monster.defenses = {
@@ -74,14 +74,14 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = -5 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 5 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = -5 },
+	{ type = COMBAT_FIREDAMAGE, percent = 5 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 0 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 10 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -10 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }
 

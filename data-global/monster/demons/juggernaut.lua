@@ -82,45 +82,41 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3019, chance = 550 }, -- demonbone amulet
-	{ name = "small ruby", chance = 12971, maxCount = 4 },
+	{ name = "small ruby", chance = 20000, maxCount = 4 },
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
 	{ name = "gold coin", chance = 100000, maxCount = 100 },
-	{ name = "small emerald", chance = 13734, maxCount = 5 },
+	{ name = "small emerald", chance = 20000, maxCount = 5 },
 	{ name = "platinum coin", chance = 100000, maxCount = 15 },
 	{ name = "violet gem", chance = 830 },
-	{ name = "green gem", chance = 2456 },
-	{ id = 3039, chance = 9728 }, -- red gem
+	{ name = "green gem", chance = 869 },
+	{ id = 3039, chance = 13850 }, -- red gem
 	{ name = "dragon hammer", chance = 9000 },
 	{ name = "heavy mace", chance = 400 },
-	{ name = "war axe", chance = 1431 },
+	{ name = "war axe", chance = 400 },
 	{ name = "golden armor", chance = 550 },
 	{ name = "golden legs", chance = 500 },
 	{ name = "knight armor", chance = 4990 },
 	{ name = "mastermind shield", chance = 800 },
 	{ id = 3481, chance = 280 }, -- closed trap
-	{ name = "ham", chance = 44516, maxCount = 8 },
-	{ name = "soul orb", chance = 23104 },
-	{ name = "demonic essence", chance = 30448 },
+	{ name = "ham", chance = 60000, maxCount = 8 },
+	{ name = "soul orb", chance = 33333 },
+	{ name = "demonic essence", chance = 45333 },
 	{ name = "flask of demonic blood", chance = 25000, maxCount = 4 },
 	{ name = "onyx arrow", chance = 11111, maxCount = 15 },
-	{ name = "assassin star", chance = 15999, maxCount = 10 },
+	{ name = "assassin star", chance = 25000, maxCount = 10 },
 	{ name = "titan axe", chance = 4430 },
-	{ name = "spiked squelcher", chance = 3934 },
-	{ id = 238, chance = 21221 }, -- great mana potion
-	{ name = "great health potion", chance = 21054 },
+	{ name = "spiked squelcher", chance = 7761 },
+	{ id = 238, chance = 35000 }, -- great mana potion
+	{ name = "great health potion", chance = 32000 },
 	{ name = "skullcracker armor", chance = 400 },
-	{ name = "gold ingot", chance = 5365, maxCount = 2 },
-	{ name = "small topaz", chance = 13138, maxCount = 5 },
-	{ name = "small diamond", chance = 12756, maxCount = 5 },
-	{ name = "small amethyst", chance = 12589, maxCount = 5 },
-	{ id = 281, chance = 6557 }, -- giant shimmering pearl
+	{ name = "gold ingot", chance = 7692, maxCount = 2 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -700 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -600, range = 7, shootEffect = CONST_ANI_LARGEROCK, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -1470 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -780, range = 7, shootEffect = CONST_ANI_LARGEROCK, target = false },
 }
 
 monster.defenses = {

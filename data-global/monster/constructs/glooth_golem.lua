@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Glooth Golem")
 local monster = {}
 
 monster.description = "a glooth golem"
-monster.experience = 1930
+monster.experience = 1606
 monster.outfit = {
 	lookType = 600,
 	lookHead = 0,
@@ -79,25 +79,25 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 5880, chance = 2006 }, -- iron ore
-	{ id = 21183, chance = 1484 }, -- glooth amulet
-	{ id = 21170, chance = 949 }, -- gearwheel chain
-	{ id = 21165, chance = 1021 }, -- rubber cap
+	{ id = 5880, chance = 530 }, -- iron ore
+	{ id = 21183, chance = 720 }, -- glooth amulet
+	{ id = 21170, chance = 1720 }, -- gearwheel chain
+	{ id = 21165, chance = 370 }, -- rubber cap
 	{ id = 3031, chance = 100000, maxCount = 200 }, -- gold coin
-	{ id = 21755, chance = 3082 }, -- bronze gear wheel
-	{ id = 8775, chance = 1790 }, -- gear wheel
-	{ id = 21143, chance = 10194 }, -- glooth sandwich
-	{ id = 3035, chance = 59350, maxCount = 4 }, -- platinum coin
-	{ id = 21103, chance = 15120 }, -- glooth injection tube
+	{ id = 21755, chance = 1470 }, -- bronze gear wheel
+	{ id = 8775, chance = 690 }, -- gear wheel
+	{ id = 21143, chance = 1970 }, -- glooth sandwich
+	{ id = 3035, chance = 6010, maxCount = 4 }, -- platinum coin
+	{ id = 21103, chance = 2840 }, -- glooth injection tube
 	{ id = 7643, chance = 4470 }, -- ultimate health potion
 	{ id = 238, chance = 9280 }, -- great mana potion
-	{ id = 21167, chance = 1364 }, -- heat core
-	{ id = 21179, chance = 1454 }, -- glooth blade
-	{ id = 21178, chance = 1063 }, -- glooth club
-	{ id = 21180, chance = 1538 }, -- glooth axe
+	{ id = 21167, chance = 690 }, -- heat core
+	{ id = 21179, chance = 440 }, -- glooth blade
+	{ id = 21178, chance = 230 }, -- glooth club
+	{ id = 21180, chance = 290 }, -- glooth axe
 	{ id = 3037, chance = 730 }, -- yellow gem
-	{ id = 9057, chance = 7815, maxCount = 4 }, -- small topaz
-	{ id = 3032, chance = 8170, maxCount = 4 }, -- small emerald
+	{ id = 9057, chance = 1560, maxCount = 4 }, -- small topaz
+	{ id = 3032, chance = 1590, maxCount = 4 }, -- small emerald
 }
 
 monster.attacks = {

@@ -79,12 +79,12 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 161 },
-	{ name = "platinum coin", chance = 25444, maxCount = 3 },
-	{ name = "wyrm scale", chance = 17601 },
-	{ name = "dragon ham", chance = 34115, maxCount = 2 },
+	{ name = "platinum coin", chance = 52380, maxCount = 3 },
+	{ name = "wyrm scale", chance = 33330 },
+	{ name = "dragon ham", chance = 23810, maxCount = 2 },
 	{ name = "strong health potion", chance = 23810 },
 	{ name = "strong mana potion", chance = 19050 },
-	{ name = "crossbow", chance = 8487 },
+	{ name = "crossbow", chance = 14290 },
 	{ name = "small diamond", chance = 4760 },
 	{ name = "soul orb", chance = 4760 },
 	{ name = "wand of draconia", chance = 1510 },
@@ -102,10 +102,10 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -400 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -140, maxDamage = -250, radius = 4, effect = CONST_ME_TELEPORT, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -360 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -90, maxDamage = -150, radius = 4, effect = CONST_ME_TELEPORT, target = true },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -140, maxDamage = -250, radius = 5, effect = CONST_ME_PURPLEENERGY, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -400, length = 8, spread = 3, effect = CONST_ME_BLOCKHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -180, length = 8, spread = 3, effect = CONST_ME_BLOCKHIT, target = false },
 	{ name = "elder wyrm wave", interval = 2000, chance = 10, minDamage = -200, maxDamage = -300, target = false },
 }
 

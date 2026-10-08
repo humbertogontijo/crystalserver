@@ -83,7 +83,6 @@ monster.loot = {
 	{ id = 3440, chance = 43890 }, -- scarab shield
 	{ id = 7426, chance = 30560 }, -- amber staff
 	{ id = 11468, chance = 14440 }, -- ornamented brooch
-	{ name = "knight armor", chance = 40726 },
 }
 
 monster.attacks = {

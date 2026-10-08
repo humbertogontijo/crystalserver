@@ -79,19 +79,19 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 49110, maxCount = 1 },
-	{ name = "yellow darklight matter", chance = 15950, maxCount = 1 },
+	{ name = "crystal coin", chance = 12186, maxCount = 1 },
+	{ name = "yellow darklight matter", chance = 5354, maxCount = 1 },
 	{ name = "magma clump", chance = 11440, maxCount = 1 },
-	{ name = "darklight core", chance = 6743, maxCount = 1 },
+	{ name = "darklight core", chance = 10276, maxCount = 1 },
 	{ id = 12600, chance = 8489, maxCount = 4 }, -- coal
-	{ name = "darklight basalt chunk", chance = 8829, maxCount = 1 },
-	{ name = "onyx chip", chance = 4693, maxCount = 2 },
-	{ name = "strange helmet", chance = 3183, maxCount = 1 },
-	{ name = "fire sword", chance = 3578, maxCount = 1 },
-	{ name = "ultimate mana potion", chance = 4154, maxCount = 3 },
-	{ name = "blue gem", chance = 827, maxCount = 1 },
-	{ name = "magma legs", chance = 611, maxCount = 1 },
-	{ name = "white gem", chance = 324, maxCount = 1 },
+	{ name = "darklight basalt chunk", chance = 12855, maxCount = 1 },
+	{ name = "onyx chip", chance = 12831, maxCount = 2 },
+	{ name = "strange helmet", chance = 11001, maxCount = 1 },
+	{ name = "fire sword", chance = 8347, maxCount = 1 },
+	{ name = "ultimate mana potion", chance = 9687, maxCount = 3 },
+	{ name = "blue gem", chance = 5868, maxCount = 1 },
+	{ name = "magma legs", chance = 14497, maxCount = 1 },
+	{ name = "white gem", chance = 9936, maxCount = 1 },
 	{ name = "darklight heart", chance = 1, maxCount = 1 },
 }
 
@@ -100,7 +100,7 @@ monster.attacks = {
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -1400, maxDamage = -1650, length = 8, spread = 3, effect = CONST_ME_BLUE_ENERGY_SPARK, target = false },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_HOLYDAMAGE, minDamage = -1500, maxDamage = -1800, radius = 5, effect = CONST_ME_PURPLESMOKE, target = true },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_HOLYDAMAGE, minDamage = -1200, maxDamage = -1400, radius = 5, effect = CONST_ME_GHOSTLY_BITE, target = true },
-	{ name = "extended energy chain", interval = 2000, chance = 5, minDamage = -1100, maxDamage = -1670, range = 3 },
+	{ name = "extended energy chain", interval = 2000, chance = 5, minDamage = -1100, maxDamage = 1670, range = 3 },
 	{ name = "largepinkring", interval = 3500, chance = 10, minDamage = -1100, maxDamage = -1800, target = false },
 	{ name = "agonyfield", interval = 2000, chance = 10, range = 7, radius = 2, shootEffect = CONST_ANI_POISON, target = true },
 }

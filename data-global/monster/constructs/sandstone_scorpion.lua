@@ -79,7 +79,7 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 92590, maxCount = 128 },
-	{ name = "small emerald", chance = 10126, maxCount = 2 },
+	{ name = "small emerald", chance = 1100, maxCount = 2 },
 	{ name = "platinum coin", chance = 10750, maxCount = 2 },
 	{ name = "daramian mace", chance = 5100 },
 	{ name = "steel helmet", chance = 4620 },
@@ -88,7 +88,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200, condition = { type = CONDITION_POISON, totalDamage = 1000, interval = 4000 } },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -193, condition = { type = CONDITION_POISON, totalDamage = 1000, interval = 4000 } },
 }
 
 monster.defenses = {

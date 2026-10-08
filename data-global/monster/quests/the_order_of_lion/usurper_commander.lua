@@ -76,17 +76,7 @@ monster.voices = {
 	{ text = "FORMATION!", yell = true },
 }
 
-monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 5 },
-	{ name = "fur shred", chance = 16166 },
-	{ name = "axe", chance = 15512 },
-	{ name = "lion cloak patch", chance = 10566 },
-	{ name = "lion crest", chance = 8755 },
-	{ id = 281, chance = 8176 }, -- giant shimmering pearl
-	{ name = "bow", chance = 8120 },
-	{ name = "gold ingot", chance = 8102 },
-	{ name = "spellbook of warding", chance = 5357 },
-}
+monster.loot = {}
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500, effect = CONST_ME_DRAWBLOOD },

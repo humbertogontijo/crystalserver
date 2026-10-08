@@ -84,7 +84,7 @@ monster.loot = {
 	{ id = 3033, chance = 7142 }, -- small amethyst
 	{ id = 9057, chance = 6666 }, -- small topaz
 	{ id = 3029, chance = 5555 }, -- small sapphire
-	{ id = 3077, chance = 2906 }, -- ankh
+	{ id = 3077, chance = 1612 }, -- ankh
 	{ id = 3048, chance = 1204 }, -- might ring
 	{ id = 3385, chance = 1010 }, -- crown helmet
 }

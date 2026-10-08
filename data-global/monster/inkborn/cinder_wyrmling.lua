@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Cinder Wyrmling")
 local monster = {}
 
 monster.description = "a cinder wyrmling"
-monster.experience = 2350
+monster.experience = 1950
 monster.outfit = {
 	lookType = 1850,
 	lookHead = 77,
@@ -42,23 +42,22 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 64523, maxCount = 10 },
+	{ name = "platinum coin", chance = 40590, maxCount = 10 },
 	{ name = "small ruby", chance = 5590 },
-	{ name = "red crystal fragment", chance = 8117 },
+	{ name = "red crystal fragment", chance = 3030 },
 	{ name = "book with a dragon", chance = 2500 }, -- new item
-	{ name = "wand of dragonbreath", chance = 367 },
-	{ name = "magma coat", chance = 440 },
-	{ name = "magma monocle", chance = 171 },
-	{ name = "dragon shield", chance = 196 },
+	{ name = "wand of dragonbreath", chance = 1900 },
+	{ name = "magma coat", chance = 1000 },
+	{ name = "magma monocle", chance = 1000 },
+	{ name = "dragon shield", chance = 1000 },
 	{ id = 3039, chance = 800 }, -- red gem
-	{ name = "gold coin", chance = 84156, maxCount = 100 },
 }
 
 monster.attacks = {
 	-- Fire: Strike (100-200)
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -200, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
 	-- Fire: Wave (200-300)
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = 0, maxDamage = -200, radius = 4, effect = CONST_ME_FIREAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -300, radius = 4, effect = CONST_ME_FIREAREA, target = false },
 }
 
 monster.defenses = {
@@ -68,15 +67,15 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 5 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -5 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = -5 },
-	{ type = COMBAT_FIREDAMAGE, percent = 20 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
+	{ type = COMBAT_FIREDAMAGE, percent = -20 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = -10 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 5 },
+	{ type = COMBAT_ICEDAMAGE, percent = 10 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -5 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }
 

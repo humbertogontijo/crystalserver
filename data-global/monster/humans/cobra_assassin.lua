@@ -76,23 +76,20 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 71906, maxCount = 3 },
-	{ name = "knife", chance = 22767 },
-	{ name = "cobra crest", chance = 14794 },
-	{ id = 3307, chance = 16777 }, -- scimitar
-	{ name = "protection amulet", chance = 13799 },
+	{ name = "platinum coin", chance = 100000, maxCount = 3 },
+	{ name = "knife", chance = 10500 },
+	{ name = "cobra crest", chance = 7750 },
+	{ id = 3307, chance = 7750 }, -- scimitar
+	{ name = "protection amulet", chance = 7500 },
 	{ name = "heavy machete", chance = 6500 },
-	{ name = "bone sword", chance = 8923 },
-	{ name = "machete", chance = 5302 },
-	{ name = "carlin sword", chance = 4512 },
+	{ name = "bone sword", chance = 5000 },
+	{ name = "machete", chance = 2250 },
+	{ name = "carlin sword", chance = 2250 },
 	{ id = 23533, chance = 1690 }, -- ring of red plasma
-	{ name = "opal", chance = 32239, maxCount = 5 },
-	{ name = "small emerald", chance = 27513, maxCount = 3 },
-	{ name = "green crystal shard", chance = 6618 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -450 },
 	{ name = "wave t", interval = 2000, chance = 10, minDamage = -300, maxDamage = -380, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -300, maxDamage = -500, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = false },
 	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_PHYSICALDAMAGE, minDamage = -300, maxDamage = -500, length = 5, spread = 0, effect = CONST_ME_BLOCKHIT, target = false },

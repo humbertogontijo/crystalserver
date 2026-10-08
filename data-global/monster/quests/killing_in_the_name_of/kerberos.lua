@@ -68,7 +68,7 @@ monster.loot = {
 	{ id = 6558, chance = 100000 }, -- flask of demonic blood
 	{ id = 6499, chance = 62500 }, -- demonic essence
 	{ id = 9058, chance = 100000, maxCount = 5 }, -- gold ingot
-	{ id = 3318, chance = 72093 }, -- knight axe
+	{ id = 3318, chance = 10810 }, -- knight axe
 	{ id = 6553, chance = 6250 }, -- ruthless axe
 	{ id = 9637, chance = 100000 }, -- hellhound slobber
 	{ id = 3038, chance = 50000 }, -- green gem
@@ -76,7 +76,7 @@ monster.loot = {
 	{ id = 4871, chance = 65630 }, -- explorer brooch
 	{ id = 817, chance = 96880 }, -- magma amulet
 	{ id = 238, chance = 96880, maxCount = 3 }, -- great mana potion
-	{ id = 7453, chance = 2326 }, -- executioner
+	{ id = 7453, chance = 3130 }, -- executioner
 	{ id = 3360, chance = 31250 }, -- golden armor
 }
 
@@ -86,7 +86,7 @@ monster.attacks = {
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = 0, maxDamage = -498, range = 7, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_SMALLCLOUDS, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = 0, maxDamage = -662, length = 8, spread = 3, effect = CONST_ME_FIREAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = 0, maxDamage = -976, length = 8, spread = 3, effect = CONST_ME_MAGIC_RED, target = false },
-	{ name = "combat", interval = 2000, chance = 5, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -700, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 5, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -549, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = false },
 }
 
 monster.defenses = {

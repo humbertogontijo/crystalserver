@@ -87,7 +87,7 @@ monster.loot = {
 	{ name = "crystal crossbow", chance = 330 },
 	{ name = "preserved light blue seed", chance = 70 },
 	{ name = "preserved violet seed", chance = 70 },
-	{ name = "platinum coin", chance = 63268, maxCount = 25 },
+	{ name = "platinum coin", chance = 10000, maxCount = 25 },
 	{ name = "glacier robe", chance = 800 },
 	{ name = "preserved purple seed", chance = 70 },
 }
@@ -101,20 +101,20 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 95,
-	armor = 92,
+	armor = 95,
 	mitigation = 2.75,
 	{ name = "combat", interval = 2000, chance = 7, type = COMBAT_HEALING, minDamage = 600, maxDamage = 800, effect = CONST_ME_MAGIC_BLUE, target = false },
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 5 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = -15 },
 	{ type = COMBAT_EARTHDAMAGE, percent = -10 },
 	{ type = COMBAT_FIREDAMAGE, percent = 20 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 100 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 10 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 5 },
 }

@@ -76,14 +76,12 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 100000, maxCount = 100 },
-	{ name = "strong mana potion", chance = 23529 },
-	{ name = "small ruby", chance = 11765, maxCount = 3 },
+	{ name = "gold coin", chance = 50000, maxCount = 100 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -200, radius = 3, effect = CONST_ME_HITAREA, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -215 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -250, radius = 3, effect = CONST_ME_HITAREA, target = false },
 	{ name = "speed", interval = 2000, chance = 15, radius = 1, effect = CONST_ME_BATS, target = true },
 	-- bleed
 	{ name = "condition", type = CONDITION_BLEEDING, interval = 2000, chance = 20, minDamage = -400, maxDamage = -600, radius = 2, effect = CONST_ME_DRAWBLOOD, target = false },

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Manticore")
 local monster = {}
 
 monster.description = "a manticore"
-monster.experience = 4750
+monster.experience = 5100
 monster.outfit = {
 	lookType = 1189,
 	lookHead = 116,
@@ -80,7 +80,7 @@ monster.loot = {
 	{ name = "small emerald", chance = 5880 },
 	{ name = "green crystal fragment", chance = 5710 },
 	{ name = "flaming arrow", chance = 4870, maxCount = 9 },
-	{ name = "prismatic quartz", chance = 2777 },
+	{ name = "prismatic quartz", chance = 4370 },
 	{ name = "rainbow quartz", chance = 3700, maxCount = 3 },
 	{ name = "magma coat", chance = 3190 },
 	{ name = "violet gem", chance = 3030 },
@@ -90,14 +90,14 @@ monster.loot = {
 	{ name = "wand of draconia", chance = 1180 },
 	{ name = "royal star", chance = 1010, maxCount = 3 },
 	{ name = "wand of everblazing", chance = 1010 },
-	{ name = "magma legs", chance = 934 },
+	{ name = "magma legs", chance = 340 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
 	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_FIREDAMAGE, minDamage = -300, maxDamage = -450, length = 8, spread = 3, effect = CONST_ME_HITBYFIRE, target = false },
 	{ name = "combat", interval = 4000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -300, maxDamage = -400, radius = 3, shootEffect = CONST_ANI_ENVENOMEDARROW, effect = CONST_ME_GREEN_RINGS, target = true },
-	{ name = "combat", interval = 2000, chance = 22, type = COMBAT_FIREDAMAGE, minDamage = -300, maxDamage = -450, range = 4, shootEffect = CONST_ANI_BURSTARROW, target = true },
+	{ name = "combat", interval = 2000, chance = 22, type = COMBAT_FIREDAMAGE, minDamage = -450, maxDamage = -550, range = 4, shootEffect = CONST_ANI_BURSTARROW, target = true },
 }
 
 monster.defenses = {

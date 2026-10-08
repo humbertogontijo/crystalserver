@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Diamond Servant Replica")
 local monster = {}
 
 monster.description = "a diamond servant replica"
-monster.experience = 1400
+monster.experience = 700
 monster.outfit = {
 	lookType = 397,
 	lookHead = 0,
@@ -95,7 +95,6 @@ monster.loot = {
 	{ id = 9304, chance = 110 }, -- shockwave amulet
 	{ id = 8050, chance = 20 }, -- crystalline armor
 	{ id = 7428, chance = 13 }, -- bonebreaker
-	{ name = "platinum coin", chance = 21603, maxCount = 2 },
 }
 
 monster.attacks = {

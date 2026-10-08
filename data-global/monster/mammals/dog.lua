@@ -80,7 +80,7 @@ monster.loot = {}
 
 monster.defenses = {
 	defense = 5,
-	armor = 1,
+	armor = 5,
 }
 
 monster.elements = {

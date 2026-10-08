@@ -71,7 +71,6 @@ monster.voices = {
 
 monster.loot = {
 	{ id = CakeQuest.Items.SweetAndSugarySubstance, chance = 50000, minCount = 1, maxCount = 1 },
-	{ name = "sweet and sugary substance", chance = 100000 },
 }
 
 monster.attacks = {

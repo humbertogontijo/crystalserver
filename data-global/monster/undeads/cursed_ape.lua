@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Cursed Ape")
 local monster = {}
 
 monster.description = "a cursed ape"
-monster.experience = 2000
+monster.experience = 1860
 monster.outfit = {
 	lookType = 1592,
 	lookHead = 0,
@@ -73,22 +73,21 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 60627, maxCount = 68 },
-	{ name = "platinum coin", chance = 47867, maxCount = 2 },
+	{ name = "gold coin", chance = 96120, maxCount = 68 },
+	{ name = "platinum coin", chance = 96120, maxCount = 2 },
 	{ name = "kongra's shoulderpad", chance = 13890 },
 	{ name = "small amethyst", chance = 8140, maxCount = 1 },
-	{ name = "protection amulet", chance = 1750 },
+	{ name = "protection amulet", chance = 2750 },
 	{ name = "plate armor", chance = 1630 },
 	{ name = "ape fur", chance = 1250 },
 	{ name = "health potion", chance = 500, maxCount = 1 },
 	{ id = 3050, chance = 380 }, -- power ring
 	{ id = 3093, chance = 250 }, -- club ring
-	{ name = "banana", chance = 41269, maxCount = 12 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -217, maxDamage = -217 },
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_DEATHDAMAGE, minDamage = -211, maxDamage = -227, radius = 2, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -498 },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_DEATHDAMAGE, minDamage = -210, maxDamage = -225, radius = 2, effect = CONST_ME_MORTAREA, target = false },
 }
 
 monster.defenses = {

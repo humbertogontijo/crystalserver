@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Draken Elite")
 local monster = {}
 
 monster.description = "a draken elite"
-monster.experience = 4750
+monster.experience = 4200
 monster.outfit = {
 	lookType = 362,
 	lookHead = 0,
@@ -78,14 +78,14 @@ monster.loot = {
 	{ name = "gold coin", chance = 97220, maxCount = 187 },
 	{ name = "platinum coin", chance = 49070, maxCount = 8 },
 	{ name = "meat", chance = 34260, maxCount = 4 },
-	{ name = "broken draken mail", chance = 17706 },
+	{ name = "broken draken mail", chance = 25000 },
 	{ name = "broken slicer", chance = 25000 },
 	{ name = "ultimate health potion", chance = 12040, maxCount = 3 },
 	{ id = 238, chance = 9260, maxCount = 3 }, -- great mana potion
 	{ name = "draken sulphur", chance = 6480 },
-	{ name = "draken wristbands", chance = 14155 },
+	{ name = "draken wristbands", chance = 6480 },
 	{ name = "small diamond", chance = 1850, maxCount = 2 },
-	{ name = "zaoan legs", chance = 858 },
+	{ name = "zaoan legs", chance = 1850 },
 	{ name = "magic sulphur", chance = 1850 },
 	{ name = "draken boots", chance = 930 },
 	{ name = "assassin dagger", chance = 930 },
@@ -100,10 +100,10 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -350 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -354 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -240, maxDamage = -550, length = 4, spread = 3, effect = CONST_ME_EXPLOSIONHIT, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -200, maxDamage = -300, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -170, maxDamage = -370, radius = 4, effect = CONST_ME_POFF, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -280, maxDamage = -410, radius = 4, effect = CONST_ME_POFF, target = true },
 	{ name = "soulfire rune", interval = 2000, chance = 10, target = false },
 	-- poison
 	{ name = "condition", type = CONDITION_POISON, interval = 2000, chance = 10, minDamage = -250, maxDamage = -320, range = 7, shootEffect = CONST_ANI_POISON, target = true },

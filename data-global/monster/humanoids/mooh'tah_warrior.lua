@@ -81,15 +81,15 @@ monster.loot = {
 	{ id = 21202, chance = 18970 }, -- mooh'tah shell
 	{ name = "strong mana potion", chance = 9290 },
 	{ name = "strong health potion", chance = 8500 },
-	{ name = "small ruby", chance = 4928 },
+	{ name = "small ruby", chance = 7710 },
 	{ name = "small emerald", chance = 6320 },
 	{ name = "small amethyst", chance = 5340 },
 	{ name = "minotaur leather", chance = 5340 },
 	{ name = "minotaur horn", chance = 4550, maxCount = 2 },
 	{ name = "small topaz", chance = 4350 },
-	{ id = 3094, chance = 982 }, -- sword ring
+	{ id = 3094, chance = 1580 }, -- sword ring
 	{ name = "cowtana", chance = 1380 },
-	{ id = 21166, chance = 877 }, -- mooh'tah plate
+	{ id = 21166, chance = 1380 }, -- mooh'tah plate
 	{ name = "knight armor", chance = 990 },
 	{ name = "red piece of cloth", chance = 790 },
 	{ name = "knight legs", chance = 590 },
@@ -99,8 +99,8 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, skill = 45, attack = 80 },
-	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_ENERGYDAMAGE, minDamage = -150, maxDamage = -162, length = 4, spread = 0, effect = CONST_ME_YELLOWENERGY, target = false },
-	{ name = "combat", interval = 2000, chance = 11, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -90, range = 7, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_EXPLOSIONAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_ENERGYDAMAGE, minDamage = -150, maxDamage = -200, length = 4, spread = 0, effect = CONST_ME_YELLOWENERGY, target = false },
+	{ name = "combat", interval = 2000, chance = 11, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -135, range = 7, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_EXPLOSIONAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -50, maxDamage = -150, radius = 3, effect = CONST_ME_HITAREA, target = false },
 	{ name = "mooh'tah master skill reducer", interval = 2000, chance = 19, range = 7, target = false },
 }

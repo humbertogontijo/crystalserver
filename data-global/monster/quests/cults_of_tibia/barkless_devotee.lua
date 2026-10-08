@@ -80,13 +80,13 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 48000, maxCount = 199 }, -- gold coin
-	{ id = 25743, chance = 1001 }, -- bed of nails
+	{ id = 25743, chance = 1540 }, -- bed of nails
 	{ id = 25742, chance = 4050 }, -- fig leaf
 	{ id = 25744, chance = 970 }, -- torn shirt
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -150 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -250, maxDamage = -420, range = 7, radius = 4, shootEffect = CONST_ANI_SPEAR, effect = CONST_ME_GREEN_RINGS, target = true },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -150, radius = 6, effect = CONST_ME_GREEN_RINGS, target = false },
 }

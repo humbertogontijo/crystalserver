@@ -80,7 +80,7 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 91430, maxCount = 47 },
 	{ name = "dragon ham", chance = 82860 },
-	{ name = "frosty heart", chance = 5038 },
+	{ name = "frosty heart", chance = 8570 },
 	{ name = "health potion", chance = 510 },
 	{ name = "spellbook of enlightenment", chance = 430 },
 }
@@ -102,7 +102,7 @@ monster.defenses = {
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = -5 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 100 },
 	{ type = COMBAT_FIREDAMAGE, percent = 100 },
 	{ type = COMBAT_LIFEDRAIN, percent = 100 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },

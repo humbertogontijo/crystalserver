@@ -84,13 +84,13 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -250, condition = { type = CONDITION_POISON, totalDamage = 28, interval = 4000 } },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -35, maxDamage = -75, range = 7, shootEffect = CONST_ANI_WHIRLWINDSWORD, target = true },
-	{ name = "combat", interval = 6000, chance = 14, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -250, radius = 2, effect = CONST_ME_HITAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -75, range = 7, shootEffect = CONST_ANI_WHIRLWINDSWORD, target = true },
+	{ name = "combat", interval = 6000, chance = 14, type = COMBAT_PHYSICALDAMAGE, minDamage = -50, maxDamage = -125, radius = 2, effect = CONST_ME_HITAREA, target = false },
 }
 
 monster.defenses = {
 	defense = 50,
-	armor = 30,
+	armor = 38,
 	mitigation = 1.46,
 	{ name = "speed", interval = 2000, chance = 15, speedChange = 390, effect = CONST_ME_MAGIC_RED, target = false, duration = 5000 },
 }
@@ -98,7 +98,7 @@ monster.defenses = {
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 20 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 100 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
 	{ type = COMBAT_FIREDAMAGE, percent = -10 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },

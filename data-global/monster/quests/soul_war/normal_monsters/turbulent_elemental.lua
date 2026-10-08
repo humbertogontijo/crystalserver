@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Turbulent Elemental")
 local monster = {}
 
 monster.description = "a turbulent elemental"
-monster.experience = 17230
+monster.experience = 19360
 monster.outfit = {
 	lookType = 1314,
 	lookHead = 0,
@@ -80,17 +80,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 42314 },
-	{ name = "gold ingot", chance = 13664 },
+	{ name = "crystal coin", chance = 74880 },
+	{ name = "gold ingot", chance = 22270 },
 	{ name = "ultimate health potion", chance = 17300, maxCount = 4 },
-	{ name = "sacred tree amulet", chance = 3636 },
-	{ name = "blue gem", chance = 2810 },
+	{ name = "sacred tree amulet", chance = 6160 },
+	{ name = "blue gem", chance = 4980 },
 	{ name = "springsprout rod", chance = 4270 },
-	{ name = "northwind rod", chance = 2039 },
+	{ name = "northwind rod", chance = 3320 },
 	{ name = "violet gem", chance = 3080 },
 	{ name = "glacier amulet", chance = 2840 },
-	{ name = "glacier robe", chance = 937 },
-	{ name = "fur armor", chance = 331 },
+	{ name = "glacier robe", chance = 1900 },
+	{ name = "fur armor", chance = 1420 },
 	{ name = "wood cape", chance = 950 },
 	{ name = "crystalline armor", chance = 710 },
 	{ name = "rubber cap", chance = 710 },

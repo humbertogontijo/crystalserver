@@ -82,32 +82,32 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 46073 },
-	{ name = "terra rod", chance = 24607 },
-	{ name = "ultimate health potion", chance = 17277, maxCount = 4 },
+	{ name = "crystal coin", chance = 61900 },
+	{ name = "terra rod", chance = 34070 },
+	{ name = "ultimate health potion", chance = 24400, maxCount = 4 },
 	{ name = "hailstorm rod", chance = 7460 },
-	{ name = "springsprout rod", chance = 2618 },
-	{ name = "infernal heart", chance = 3141 },
+	{ name = "springsprout rod", chance = 4640 },
+	{ name = "infernal heart", chance = 4440 },
 	{ name = "underworld rod", chance = 3830 },
-	{ name = "fire axe", chance = 5236 },
+	{ name = "fire axe", chance = 3630 },
 	{ name = "wand of starstorm", chance = 3430 },
-	{ name = "glorious axe", chance = 1047 },
-	{ name = "infernal robe", chance = 524 },
-	{ name = "chaos mace", chance = 1571 },
+	{ name = "glorious axe", chance = 3230 },
+	{ name = "infernal robe", chance = 2620 },
+	{ name = "chaos mace", chance = 2420 },
 	{ name = "titan axe", chance = 2020 },
-	{ name = "wand of voodoo", chance = 1047 },
-	{ name = "crystal mace", chance = 2618 },
-	{ name = "war axe", chance = 524 },
+	{ name = "wand of voodoo", chance = 1610 },
+	{ name = "crystal mace", chance = 1610 },
+	{ name = "war axe", chance = 1410 },
 	{ name = "warrior's axe", chance = 1410 },
 	{ name = "bag you desire", chance = 15 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -800 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -300, maxDamage = -700, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -950, maxDamage = -1300, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
 	{ name = "extended fire chain", interval = 2000, chance = 15, minDamage = -700, maxDamage = -900, range = 4 },
 	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -900, maxDamage = -1350, radius = 4, effect = CONST_ME_FIREAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -300, maxDamage = -700, length = 6, spread = 3, effect = CONST_ME_EXPLOSIONHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -980, maxDamage = -1250, length = 6, spread = 3, effect = CONST_ME_EXPLOSIONHIT, target = false },
 	{ name = "combat", interval = 3000, chance = 24, type = COMBAT_DEATHDAMAGE, minDamage = -850, maxDamage = -1200, range = 7, radius = 3, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = true },
 }
 

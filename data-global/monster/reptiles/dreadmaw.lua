@@ -18,8 +18,8 @@ monster.bosstiary = {
 	bossRace = RARITY_NEMESIS,
 }
 
-monster.health = 3500
-monster.maxHealth = 3500
+monster.health = 2000
+monster.maxHealth = 2000
 monster.race = "blood"
 monster.corpse = 10221
 monster.speed = 95
@@ -66,10 +66,9 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 99990, maxCount = 10 },
-	{ name = "gold ingot", chance = 63636 },
+	{ name = "gold ingot", chance = 99990 },
 	{ name = "ham", chance = 50000 },
 	{ name = "piece of crocodile leather", chance = 99990 },
-	{ name = "small emerald", chance = 9091 },
 }
 
 monster.attacks = {

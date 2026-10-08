@@ -77,16 +77,16 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 43784, maxCount = 10 },
+	{ name = "gold coin", chance = 73000, maxCount = 10 },
 	{ id = 3115, chance = 42000 }, -- bone
-	{ id = 3264, chance = 1622 }, -- sword
+	{ id = 3264, chance = 3850 }, -- sword
 	{ name = "mace", chance = 26900 },
 	{ name = "white mushroom", chance = 15400, maxCount = 3 },
-	{ name = "brown mushroom", chance = 2162 },
+	{ name = "brown mushroom", chance = 3850 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -20 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -30 },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -7, maxDamage = -13, range = 1, effect = CONST_ME_MAGIC_RED, target = false },
 }
 

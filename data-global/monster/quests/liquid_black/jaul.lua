@@ -74,14 +74,14 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "deepling axe", chance = 6452 },
-	{ name = "depth calcei", chance = 19355 },
-	{ id = 13995, chance = 12903 }, -- depth galea
-	{ name = "depth lorica", chance = 12903 },
-	{ name = "ornate chestplate", chance = 6452, unique = true },
-	{ name = "ornate legs", chance = 12903 },
-	{ name = "ornate mace", chance = 12903 },
-	{ name = "ornate shield", chance = 22581 },
+	{ name = "deepling axe", chance = 6500 },
+	{ name = "depth calcei", chance = 19400 },
+	{ id = 13995, chance = 12900 }, -- depth galea
+	{ name = "depth lorica", chance = 12900 },
+	{ name = "ornate chestplate", chance = 6500, unique = true },
+	{ name = "ornate legs", chance = 12900 },
+	{ name = "ornate mace", chance = 12900 },
+	{ name = "ornate shield", chance = 23000 },
 }
 
 monster.attacks = {
@@ -89,7 +89,7 @@ monster.attacks = {
 	{ name = "combat", interval = 2200, chance = 19, type = COMBAT_FIREDAMAGE, minDamage = 0, maxDamage = -1000, range = 7, radius = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = true },
 	{ name = "combat", interval = 3000, chance = 32, type = COMBAT_MANADRAIN, minDamage = -200, maxDamage = -800, range = 7, radius = 7, effect = CONST_ME_MORTAREA, target = true },
 	{ name = "combat", interval = 1300, chance = 27, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -600, radius = 3, effect = CONST_ME_EXPLOSIONAREA, target = false },
-	{ name = "combat", interval = 1200, chance = 6, type = COMBAT_DEATHDAMAGE, minDamage = -300, maxDamage = -800, length = 8, spread = 3, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "combat", interval = 1200, chance = 6, type = COMBAT_DEATHDAMAGE, minDamage = -300, maxDamage = -900, length = 8, spread = 3, effect = CONST_ME_MORTAREA, target = false },
 	{ name = "combat", interval = 1000, chance = 5, type = COMBAT_FIREDAMAGE, minDamage = -500, maxDamage = -1000, length = 8, spread = 3, effect = CONST_ME_HITBYFIRE, target = false },
 	{ name = "combat", interval = 1000, chance = 5, type = COMBAT_ICEDAMAGE, minDamage = -1000, maxDamage = -2000, length = 8, spread = 3, effect = CONST_ME_ICEAREA, target = false },
 	{ name = "combat", interval = 4000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -500, maxDamage = -1000, length = 8, spread = 3, effect = CONST_ME_WATERSPLASH, target = false },

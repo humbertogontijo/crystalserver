@@ -79,30 +79,30 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 100000, maxCount = 136 },
-	{ name = "goat grass", chance = 7961 },
+	{ name = "gold coin", chance = 30000, maxCount = 136 },
+	{ name = "goat grass", chance = 5155 },
 	{ name = "leaf star", chance = 10000, maxCount = 7 },
-	{ name = "grapes", chance = 5060, maxCount = 2 },
-	{ name = "small enchanted sapphire", chance = 2534, maxCount = 2 },
+	{ name = "grapes", chance = 30100, maxCount = 2 },
+	{ name = "small enchanted sapphire", chance = 492, maxCount = 2 },
 	{ name = "leaf legs", chance = 492 },
-	{ name = "dandelion seeds", chance = 15225 },
-	{ name = "shimmering beetles", chance = 9905 },
-	{ name = "panpipes", chance = 5284 },
-	{ name = "cookie", chance = 6140, maxCount = 5 },
-	{ name = "great health potion", chance = 3297, maxCount = 2 },
+	{ name = "dandelion seeds", chance = 5800 },
+	{ name = "shimmering beetles", chance = 492 },
+	{ name = "panpipes", chance = 172 },
+	{ name = "cookie", chance = 55000, maxCount = 5 },
+	{ name = "great health potion", chance = 6400, maxCount = 2 },
 	{ name = "wooden spellbook", chance = 92 },
-	{ name = "strong health potion", chance = 12216, maxCount = 2 },
-	{ name = "fresh fruit", chance = 9768, maxCount = 3 },
-	{ name = "rainbow quartz", chance = 5543, maxCount = 4 },
-	{ name = "small stone", chance = 5125, maxCount = 3 },
-	{ name = "wood cape", chance = 2282 },
+	{ name = "strong health potion", chance = 6800, maxCount = 2 },
+	{ name = "fresh fruit", chance = 3400, maxCount = 3 },
+	{ name = "rainbow quartz", chance = 1086, maxCount = 4 },
+	{ name = "small stone", chance = 492, maxCount = 3 },
+	{ name = "wood cape", chance = 492 },
 	{ id = 5792, chance = 80 }, -- die
 	{ name = "mandrake", chance = 50 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -360 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -60, maxDamage = -80, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -370 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = -60, maxDamage = -115, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
 	{ name = "drunk", interval = 2000, chance = 11, length = 4, spread = 2, effect = CONST_ME_SOUND_PURPLE, target = false, duration = 25000 },
 	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -100, range = 7, shootEffect = CONST_ANI_LEAFSTAR, target = false },
 }

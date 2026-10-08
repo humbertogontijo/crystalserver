@@ -72,14 +72,14 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 80071, maxCount = 15 },
+	{ name = "platinum coin", chance = 43500, maxCount = 15 },
 	{ id = 3115, chance = 50000 }, -- bone
 	{ name = "white mushroom", chance = 24000, maxCount = 3 },
-	{ name = "soul orb", chance = 31519, maxCount = 5 },
-	{ id = 3264, chance = 5230, maxCount = 1 }, -- sword
-	{ name = "pelvis bone", chance = 19011, maxCount = 10 },
-	{ name = "unholy bone", chance = 10883, maxCount = 5 },
-	{ name = "ruthless axe", chance = 777 },
+	{ name = "soul orb", chance = 43500, maxCount = 5 },
+	{ id = 3264, chance = 2630, maxCount = 1 }, -- sword
+	{ name = "pelvis bone", chance = 2630, maxCount = 10 },
+	{ name = "unholy bone", chance = 2630, maxCount = 5 },
+	{ name = "ruthless axe", chance = 150 },
 }
 
 monster.attacks = {

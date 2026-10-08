@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Rustheap Golem")
 local monster = {}
 
 monster.description = "a rustheap golem"
-monster.experience = 2350
+monster.experience = 2100
 monster.outfit = {
 	lookType = 603,
 	lookHead = 0,
@@ -80,23 +80,23 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 953, chance = 2832 }, -- nail
+	{ id = 953, chance = 1950 }, -- nail
 	{ id = 9016, chance = 5860 }, -- flask of rust remover
 	{ id = 21196, chance = 14980 }, -- necromantic rust
 	{ id = 3031, chance = 100000, maxCount = 290 }, -- gold coin
-	{ id = 5880, chance = 1468 }, -- iron ore
-	{ id = 21755, chance = 2773 }, -- bronze gear wheel
+	{ id = 5880, chance = 330 }, -- iron ore
+	{ id = 21755, chance = 1950 }, -- bronze gear wheel
 	{ id = 3035, chance = 58310, maxCount = 3 }, -- platinum coin
-	{ id = 3026, chance = 2180 }, -- white pearl
+	{ id = 3026, chance = 1300 }, -- white pearl
 	{ id = 3027, chance = 1630 }, -- black pearl
-	{ id = 236, chance = 6702, maxCount = 2 }, -- strong health potion
+	{ id = 236, chance = 10100, maxCount = 2 }, -- strong health potion
 	{ id = 237, chance = 7170, maxCount = 2 }, -- strong mana potion
-	{ id = 3279, chance = 1987 }, -- war hammer
+	{ id = 3279, chance = 3580 }, -- war hammer
 	{ id = 7452, chance = 330 }, -- spiked squelcher
 	{ id = 21171, chance = 330 }, -- metal bat
 	{ id = 21170, chance = 2930 }, -- gearwheel chain
-	{ id = 8896, chance = 2995 }, -- slightly rusted armor
-	{ id = 8899, chance = 3158 }, -- slightly rusted legs
+	{ id = 8896, chance = 5860 }, -- slightly rusted armor
+	{ id = 8899, chance = 4230 }, -- slightly rusted legs
 }
 
 monster.attacks = {
@@ -108,7 +108,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 45,
-	armor = 46,
+	armor = 40,
 	{ name = "speed", interval = 2000, chance = 11, speedChange = 428, effect = CONST_ME_MAGIC_BLUE, target = false, duration = 6000 },
 }
 

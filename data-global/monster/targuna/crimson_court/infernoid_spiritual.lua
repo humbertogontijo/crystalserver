@@ -69,9 +69,9 @@ monster.light = {
 
 monster.loot = {
 	{ name = "mana potion", chance = 30000 },
-	{ name = "gold coin", chance = 75923, maxCount = 20 },
-	{ id = 3449, chance = 31815, maxCount = 5 }, -- burst arrow
-	{ name = "health potion", chance = 14864 },
+	{ name = "gold coin", chance = 50000, maxCount = 20 },
+	{ id = 3449, chance = 50000, maxCount = 5 }, -- burst arrow
+	{ name = "health potion", chance = 9000 },
 	{ name = "infernoid ember", chance = 9000 },
 	{ name = "fire mushroom", chance = 2500 },
 	{ id = 12600, chance = 700 }, -- coal

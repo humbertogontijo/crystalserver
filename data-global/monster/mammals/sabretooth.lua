@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Sabretooth")
 local monster = {}
 
 monster.description = "a sabretooth"
-monster.experience = 12830
+monster.experience = 11931
 monster.outfit = {
 	lookType = 1549,
 	lookHead = 85,
@@ -75,14 +75,14 @@ monster.voices = {
 monster.loot = {
 	{ name = "Sabretooth Fur", chance = 23640 },
 	{ name = "Crystal Coin", chance = 23350, minCount = 1, maxCount = 2 },
-	{ name = "Elven Amulet", chance = 1316 },
+	{ name = "Elven Amulet", chance = 5010 },
 	{ name = "Wand of Inferno", chance = 4720 },
 	{ name = "Dragon Necklace", chance = 3850 },
-	{ name = "Magma Coat", chance = 5263 },
+	{ name = "Magma Coat", chance = 3820 },
 	{ name = "Sacred Tree Amulet", chance = 2730 },
-	{ name = "Fire Sword", chance = 5263 },
+	{ name = "Fire Sword", chance = 2650 },
 	{ name = "Wand of Dragonbreath", chance = 2330 },
-	{ name = "Metal Spats", chance = 5263 },
+	{ name = "Metal Spats", chance = 2260 },
 }
 
 monster.attacks = {

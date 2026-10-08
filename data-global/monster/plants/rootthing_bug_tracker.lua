@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Rootthing Bug Tracker")
 local monster = {}
 
 monster.description = "a rootthing bug tracker"
-monster.experience = 10420
+monster.experience = 9650
 monster.outfit = {
 	lookType = 1763,
 	lookHead = 0,
@@ -81,9 +81,9 @@ monster.voices = {
 monster.loot = {
 	{ name = "platinum coin", chance = 74620, maxCount = 44 },
 	{ name = "small emerald", chance = 6180 },
-	{ name = "resin parasite", chance = 9091 },
+	{ name = "resin parasite", chance = 4840 },
 	{ name = "demon root", chance = 4510 },
-	{ name = "springsprout rod", chance = 9091 },
+	{ name = "springsprout rod", chance = 3170 },
 	{ name = "wood cape", chance = 1170 },
 	{ name = "green gem", chance = 1170 },
 	{ name = "golden legs", chance = 170 },
@@ -94,10 +94,10 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -600 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -300 },
 	{ name = "rotthligholyulus", interval = 2000, chance = 14, minDamage = -630, maxDamage = -840 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -470, maxDamage = -720, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = true },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -300, maxDamage = -600, range = 6, radius = 2, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -530, maxDamage = -720, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -460, maxDamage = -740, range = 6, radius = 2, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
 	{ name = "podzillaphyschain", interval = 2000, chance = 16 },
 	{ name = "rotthligexplo", interval = 2000, chance = 18, minDamage = -400, maxDamage = -625 },
 }

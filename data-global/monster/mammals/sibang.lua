@@ -77,7 +77,7 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "small stone", chance = 30060, maxCount = 3 },
-	{ name = "gold coin", chance = 88778, maxCount = 35 },
+	{ name = "gold coin", chance = 56000, maxCount = 35 },
 	{ name = "orange", chance = 19840, maxCount = 5 },
 	{ name = "banana", chance = 30000, maxCount = 12 },
 	{ name = "coconut", chance = 1960, maxCount = 3 },
@@ -87,8 +87,8 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -43 },
-	{ name = "combat", interval = 2000, chance = 35, type = COMBAT_PHYSICALDAMAGE, minDamage = -35, maxDamage = -55, range = 7, shootEffect = CONST_ANI_SMALLSTONE, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -40 },
+	{ name = "combat", interval = 2000, chance = 35, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -55, range = 7, shootEffect = CONST_ANI_SMALLSTONE, target = false },
 }
 
 monster.defenses = {

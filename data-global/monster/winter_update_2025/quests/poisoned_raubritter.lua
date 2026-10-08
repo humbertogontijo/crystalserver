@@ -63,7 +63,7 @@ monster.voices = {
 monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -200, maxDamage = -1000 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 200, maxDamage = -1000 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -800, maxDamage = -1200, target = false, radius = 3, effect = CONST_ME_GREEN_RINGS },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -800, maxDamage = -1200, range = 7, radius = 3, effect = CONST_ME_CARNIPHILA, shootEffect = CONST_ANI_EARTHARROW, target = true },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -600, maxDamage = -1000, range = 7, radius = 1, effect = CONST_ME_BIGPLANTS, shootEffect = CONST_ANI_EARTH, target = true },

@@ -98,19 +98,18 @@ monster.loot = {
 	{ id = 238, chance = 10000, maxCount = 3 }, -- great mana potion
 	{ id = 239, chance = 10000, maxCount = 2 }, -- great health potion
 	{ id = 10389, chance = 300 }, -- sai
-	{ id = 20062, chance = 157 }, -- cluster of solace
+	{ id = 20062, chance = 1200 }, -- cluster of solace
 	{ id = 20198, chance = 12000 }, -- frazzle tongue
 	{ id = 20199, chance = 10500 }, -- frazzle skin
 	{ name = "fairy wings", chance = 15000 },
-	{ name = "remains of a fish", chance = 9743 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, skill = 90, attack = 80 },
 	-- bleed
 	{ name = "condition", type = CONDITION_BLEEDING, interval = 2000, chance = 10, minDamage = -80, maxDamage = -200, radius = 3, effect = CONST_ME_DRAWBLOOD, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -300, length = 5, spread = 0, effect = CONST_ME_EXPLOSIONAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -300, radius = 2, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_STONES, target = true },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -200, length = 5, spread = 0, effect = CONST_ME_EXPLOSIONAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -100, radius = 2, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_STONES, target = true },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = -600, radius = 5, effect = CONST_ME_MAGIC_RED, target = false, duration = 15000 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_MANADRAIN, minDamage = -80, maxDamage = -50, radius = 4, effect = CONST_ME_MAGIC_RED, target = false },
 }

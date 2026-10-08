@@ -72,15 +72,15 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 49293, maxCount = 1 },
+	{ name = "crystal coin", chance = 14380, maxCount = 1 },
 	{ name = "unstable darklight matter", chance = 14492, maxCount = 1 },
 	{ name = "darklight core", chance = 9783, maxCount = 1 },
 	{ name = "small topaz", chance = 11140, maxCount = 3 },
 	{ name = "ice rapier", chance = 5104, maxCount = 1 },
-	{ name = "dark obsidian splinter", chance = 3690, maxCount = 1 },
-	{ name = "blue gem", chance = 994, maxCount = 1 },
-	{ name = "crystal mace", chance = 910, maxCount = 1 },
-	{ name = "zaoan helmet", chance = 96, maxCount = 1 },
+	{ name = "dark obsidian splinter", chance = 14185, maxCount = 1 },
+	{ name = "blue gem", chance = 7355, maxCount = 1 },
+	{ name = "crystal mace", chance = 8812, maxCount = 1 },
+	{ name = "zaoan helmet", chance = 5572, maxCount = 1 },
 	{ name = "darklight heart", chance = 1, maxCount = 1 },
 }
 
@@ -113,7 +113,7 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 10 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 35 },
 	{ type = COMBAT_EARTHDAMAGE, percent = -15 },
-	{ type = COMBAT_FIREDAMAGE, percent = -20 },
+	{ type = COMBAT_FIREDAMAGE, percent = -25 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },

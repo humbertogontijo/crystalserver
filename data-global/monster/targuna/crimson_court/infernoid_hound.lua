@@ -69,16 +69,16 @@ monster.light = {
 
 monster.loot = {
 	{ name = "health potion", chance = 30000 },
-	{ name = "gold coin", chance = 69915, maxCount = 18 },
+	{ name = "gold coin", chance = 50000, maxCount = 18 },
 	{ name = "arrow", chance = 50000, maxCount = 5 },
-	{ name = "infernoid ember", chance = 5876 },
-	{ name = "meat", chance = 1749 },
-	{ name = "wolf paw", chance = 4256 },
+	{ name = "infernoid ember", chance = 9000 },
+	{ name = "meat", chance = 2500 },
+	{ name = "wolf paw", chance = 2500 },
 	{ name = "might ring", chance = 150 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -25, maxDamage = -25 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -25 },
 	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_FIREDAMAGE, minDamage = 0, maxDamage = -25, range = 1, effect = CONST_ME_HITBYFIRE, target = true },
 }
 

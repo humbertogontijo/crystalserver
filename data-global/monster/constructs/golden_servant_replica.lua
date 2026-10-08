@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Golden Servant Replica")
 local monster = {}
 
 monster.description = "a golden servant replica"
-monster.experience = 1250
+monster.experience = 450
 monster.outfit = {
 	lookType = 396,
 	lookHead = 0,
@@ -90,7 +90,6 @@ monster.loot = {
 	{ id = 12801, chance = 36 }, -- golden can of oil
 	{ id = 3360, chance = 13 }, -- golden armor
 	{ id = 3063, chance = 8 }, -- gold ring
-	{ name = "platinum coin", chance = 9203, maxCount = 2 },
 }
 
 monster.attacks = {

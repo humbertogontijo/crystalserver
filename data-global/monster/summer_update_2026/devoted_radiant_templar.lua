@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Devoted Radiant Templar")
 local monster = {}
 
 monster.description = "a devoted radiant templar"
-monster.experience = 49900
+monster.experience = 42300
 monster.outfit = {
 	lookType = 1965,
 	lookHead = 0,
@@ -71,7 +71,7 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "Ceremonial Bowl", chance = 5556 },
+	{ name = "Ceremonial Bowl", chance = 9000 },
 	{ name = "Cloud Familiar", chance = 900 },
 	{ name = "Lunar Ascension Orb", chance = 150 },
 	{ name = "devoted radiant templar soul core", chance = 100 },

@@ -68,33 +68,21 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 100000, maxCount = 3 },
-	{ name = "platinum coin", chance = 100000, maxCount = 138 },
+	{ name = "crystal coin", chance = 7500, maxCount = 3 },
+	{ name = "platinum coin", chance = 7500, maxCount = 138 },
 	{ name = "greater proficiency catalyst", chance = 6000 },
-	{ name = "blood preservation", chance = 22222 },
-	{ name = "supreme health potion", chance = 33333, maxCount = 5 },
-	{ name = "ultimate mana potion", chance = 50000, maxCount = 29 },
-	{ id = 238, chance = 50000, maxCount = 6 }, -- great mana potion
-	{ name = "strong mana potion", chance = 38889, maxCount = 14 },
-	{ name = "ultimate spirit potion", chance = 33333, maxCount = 4 },
-	{ name = "great spirit potion", chance = 16667, maxCount = 15 },
-	{ name = "skull belt", chance = 16667 },
-	{ name = "blood sceptre", chance = 11111 },
-	{ name = "giant emerald", chance = 5556 },
-	{ id = 3039, chance = 22222 }, -- red gem
-	{ id = 3037, chance = 44444 }, -- yellow gem
-	{ name = "ultimate health potion", chance = 27778, maxCount = 19 },
-	{ name = "blue gem", chance = 22222, maxCount = 2 },
-	{ name = "red piece of cloth", chance = 16667 },
-	{ name = "dark armor", chance = 11111 },
-	{ name = "vampire teeth", chance = 11111 },
-	{ name = "blood crown", chance = 5556 },
-	{ id = 6299, chance = 5556 }, -- death ring
-	{ name = "giant ruby", chance = 5556 },
-	{ name = "greater garlic necklace", chance = 5556 },
-	{ name = "orcish axe", chance = 5556 },
-	{ name = "skull staff", chance = 5556 },
-	{ name = "vampire shield", chance = 5556 },
+	{ name = "blood preservation", chance = 5500 },
+	{ name = "supreme health potion", chance = 5000, maxCount = 5 },
+	{ name = "ultimate mana potion", chance = 4800, maxCount = 29 },
+	{ id = 238, chance = 4000, maxCount = 6 }, -- great mana potion
+	{ name = "strong mana potion", chance = 3800, maxCount = 14 },
+	{ name = "ultimate spirit potion", chance = 3800, maxCount = 4 },
+	{ name = "great spirit potion", chance = 3800, maxCount = 15 },
+	{ name = "skull belt", chance = 3500 },
+	{ name = "blood sceptre", chance = 3200 },
+	{ name = "giant emerald", chance = 3000 },
+	{ id = 3039, chance = 3000 }, -- red gem
+	{ id = 3037, chance = 3000 }, -- yellow gem
 }
 
 -- missing spells

@@ -82,28 +82,28 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 93000, maxCount = 236 },
-	{ name = "morning star", chance = 7194 },
-	{ name = "warrior helmet", chance = 1386 },
+	{ name = "morning star", chance = 10000 },
+	{ name = "warrior helmet", chance = 1886 },
 	{ name = "knight legs", chance = 3030 },
-	{ name = "red mushroom", chance = 5578, maxCount = 2 },
+	{ name = "red mushroom", chance = 7692, maxCount = 2 },
 	{ name = "demonic essence", chance = 9090 },
 	{ name = "battle shield", chance = 7500 },
 	{ name = "assassin star", chance = 9090, maxCount = 2 },
 	{ name = "onyx flail", chance = 103 },
 	{ name = "berserk potion", chance = 934 },
 	{ name = "spiked squelcher", chance = 970 },
-	{ name = "great health potion", chance = 29545 },
+	{ name = "great health potion", chance = 40333 },
 	{ name = "ultimate health potion", chance = 9090 },
-	{ id = 8895, chance = 2234 }, -- rusted armor
-	{ id = 8896, chance = 171 }, -- slightly rusted armor
+	{ id = 8895, chance = 3125 }, -- rusted armor
+	{ id = 8896, chance = 3125 }, -- slightly rusted armor
 	{ id = 9034, chance = 140 }, -- dracoyle statue
 	{ id = 9056, chance = 151 }, -- black skull
 	{ name = "small topaz", chance = 5882, maxCount = 3 },
-	{ name = "hellspawn tail", chance = 14743 },
+	{ name = "hellspawn tail", chance = 20000 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -350 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -352 },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -150, maxDamage = -175, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREATTACK, target = false },
 	{ name = "hellspawn soulfire", interval = 2000, chance = 10, range = 5, target = false },
 }

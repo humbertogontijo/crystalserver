@@ -83,38 +83,38 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 3031, chance = 74435, maxCount = 80 }, -- gold coin
-	{ id = 237, chance = 6038 }, -- strong mana potion
+	{ id = 3031, chance = 100000, maxCount = 80 }, -- gold coin
+	{ id = 237, chance = 9660 }, -- strong mana potion
 	{ id = 3039, chance = 5680 }, -- red gem
 	{ id = 3582, chance = 58520 }, -- ham
 	{ id = 236, chance = 5680 }, -- strong health potion
 	{ id = 3577, chance = 47160 }, -- meat
 	{ id = 3037, chance = 6250 }, -- yellow gem
-	{ id = 25296, chance = 9044 }, -- rubbish amulet
+	{ id = 25296, chance = 6250 }, -- rubbish amulet
 	{ id = 16124, chance = 570 }, -- blue crystal splinter
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -200, range = 7, shootEffect = CONST_ANI_FIRE, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -225 },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_FIREDAMAGE, minDamage = -100, maxDamage = -150, range = 7, shootEffect = CONST_ANI_FIRE, target = true },
 }
 
 monster.defenses = {
 	defense = 35,
-	armor = 25,
+	armor = 35,
 	{ name = "combat", interval = 1000, chance = 20, type = COMBAT_HEALING, minDamage = 20, maxDamage = 140, effect = CONST_ME_MAGIC_BLUE, target = false },
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 20 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -1 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 30 },
+	{ type = COMBAT_EARTHDAMAGE, percent = -1 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 10 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -30 },
+	{ type = COMBAT_ICEDAMAGE, percent = -1 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 1 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }
 

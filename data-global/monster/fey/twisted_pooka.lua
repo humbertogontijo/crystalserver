@@ -80,23 +80,22 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "carrot on a stick", chance = 20 },
-	{ name = "small stone", chance = 4618, maxCount = 5 },
-	{ name = "gold coin", chance = 100000, maxCount = 100 },
+	{ name = "small stone", chance = 200, maxCount = 5 },
+	{ name = "gold coin", chance = 30000, maxCount = 100 },
 	{ id = 3049, chance = 492 }, -- stealth ring
-	{ id = 3595, chance = 20462, maxCount = 3 }, -- carrot
-	{ name = "strong health potion", chance = 11977 },
+	{ id = 3595, chance = 55000, maxCount = 3 }, -- carrot
+	{ name = "strong health potion", chance = 719 },
 	{ name = "orange mushroom", chance = 10000 },
-	{ name = "fairy wings", chance = 10216 },
+	{ name = "fairy wings", chance = 30100 },
 	{ name = "orange mushroom", chance = 5155 },
-	{ name = "shimmering beetles", chance = 9408 },
+	{ name = "shimmering beetles", chance = 591 },
 	{ name = "prismatic quartz", chance = 2500 },
 	{ name = "crystal of focus", chance = 60 },
 	{ name = "small enchanted ruby", chance = 3400, maxCount = 2 },
-	{ name = "stone herb", chance = 6984 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -180 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -120 },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -50, range = 4, shootEffect = CONST_ANI_SMALLSTONE, effect = CONST_ME_STONES, target = true },
 	-- earth damage
 	{ name = "condition", type = CONDITION_POISON, interval = 2000, chance = 15, minDamage = -50, maxDamage = -100, range = 3, effect = CONST_ME_POISONAREA, target = true },

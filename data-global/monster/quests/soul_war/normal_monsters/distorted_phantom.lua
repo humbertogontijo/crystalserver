@@ -84,28 +84,28 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "crystal coin", chance = 74920 },
-	{ name = "great spirit potion", chance = 18674, maxCount = 5 },
-	{ name = "distorted heart", chance = 3486 },
-	{ id = 23529, chance = 1415 }, -- ring of blue plasma
-	{ name = "underworld rod", chance = 3245 },
-	{ name = "distorted robe", chance = 1899 },
-	{ name = "violet gem", chance = 3072 },
-	{ name = "springsprout rod", chance = 1726 },
-	{ id = 23533, chance = 932 }, -- ring of red plasma
-	{ name = "gold ingot", chance = 3866 },
+	{ name = "great spirit potion", chance = 27010, maxCount = 5 },
+	{ name = "distorted heart", chance = 6750 },
+	{ id = 23529, chance = 4820 }, -- ring of blue plasma
+	{ name = "underworld rod", chance = 4820 },
+	{ name = "distorted robe", chance = 4500 },
+	{ name = "violet gem", chance = 4180 },
+	{ name = "springsprout rod", chance = 3860 },
+	{ id = 23533, chance = 3540 }, -- ring of red plasma
+	{ name = "gold ingot", chance = 2890 },
 	{ name = "spellbook of warding", chance = 2890 },
-	{ id = 23531, chance = 1174 }, -- ring of green plasma
-	{ name = "glacial rod", chance = 2451 },
+	{ id = 23531, chance = 1930 }, -- ring of green plasma
+	{ name = "glacial rod", chance = 1290 },
 	{ name = "bag you desire", chance = 15 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -750 },
-	{ name = "combat", interval = 4000, chance = 33, type = COMBAT_HOLYDAMAGE, minDamage = -900, maxDamage = -1100, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = false },
+	{ name = "combat", interval = 4000, chance = 33, type = COMBAT_HOLYDAMAGE, minDamage = -1000, maxDamage = -1250, radius = 4, effect = CONST_ME_EXPLOSIONHIT, target = false },
 	{ name = "combat", interval = 5000, chance = 44, type = COMBAT_ICEDAMAGE, minDamage = -1050, maxDamage = -1300, range = 7, radius = 4, shootEffect = CONST_ANI_ICE, effect = CONST_ME_ICETORNADO, target = true },
 	{ name = "ice chain", interval = 10000, chance = 59, minDamage = -1100, maxDamage = -1300, range = 3 },
 	{ name = "combat", interval = 3000, chance = 18, type = COMBAT_HOLYDAMAGE, minDamage = -1050, maxDamage = -1250, range = 7, shootEffect = CONST_ANI_SMALLHOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
-	{ name = "combat", interval = 4000, chance = 25, type = COMBAT_HOLYDAMAGE, minDamage = -1000, maxDamage = -1250, range = 7, radius = 4, shootEffect = CONST_ANI_SMALLHOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
+	{ name = "combat", interval = 4000, chance = 25, type = COMBAT_HOLYDAMAGE, minDamage = -900, maxDamage = -1100, range = 7, radius = 4, shootEffect = CONST_ANI_SMALLHOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
 	{ name = "extended holy chain", interval = 15000, chance = 30, minDamage = -400, maxDamage = -700, range = 4 },
 }
 

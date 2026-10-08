@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 1000
-monster.maxHealth = 1000
+monster.health = 500
+monster.maxHealth = 500
 monster.race = "undead"
 monster.corpse = 33891
 monster.speed = 140
@@ -86,7 +86,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -616 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -250, maxDamage = -450 },
 }
 
 monster.defenses = {

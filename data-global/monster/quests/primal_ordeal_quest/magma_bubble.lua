@@ -23,8 +23,8 @@ monster.bosstiary = {
 	bossRace = RARITY_ARCHFOE,
 }
 
-monster.health = 150000
-monster.maxHealth = 150000
+monster.health = 450000
+monster.maxHealth = 450000
 monster.race = "undead"
 monster.corpse = 36847
 monster.speed = 0
@@ -71,16 +71,16 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "crystal coin", chance = 100000, maxCount = 60 },
-	{ name = "ultimate mana potion", chance = 44737, maxCount = 14 },
+	{ name = "ultimate mana potion", chance = 32653, maxCount = 14 },
 	{ name = "ultimate health potion", chance = 30612, maxCount = 14 },
 	{ name = "bullseye potion", chance = 24490, maxCount = 5 },
-	{ name = "berserk potion", chance = 35526, maxCount = 5 },
-	{ name = "mastermind potion", chance = 31579, maxCount = 5 },
-	{ name = "giant amethyst", chance = 34211 },
+	{ name = "berserk potion", chance = 22449, maxCount = 5 },
+	{ name = "mastermind potion", chance = 18367, maxCount = 5 },
+	{ name = "giant amethyst", chance = 6122 },
 	{ name = "giant ruby", chance = 4082 },
-	{ name = "giant emerald", chance = 19737 },
-	{ name = "giant sapphire", chance = 27632 },
-	{ name = "giant topaz", chance = 17105 },
+	{ name = "giant emerald", chance = 4082 },
+	{ name = "giant sapphire", chance = 2041 },
+	{ name = "giant topaz", chance = 2041 },
 	{ name = "fiery tear", chance = 1000 },
 	{ name = "arboreal tome", chance = 250 },
 	{ name = "arboreal crown", chance = 250 },
@@ -90,7 +90,7 @@ monster.loot = {
 	{ name = "alicorn quiver", chance = 250 },
 	{ name = "arcanomancer regalia", chance = 250 },
 	{ name = "arcanomancer folio", chance = 250 },
-	{ name = "ethereal coned hat", chance = 1316 },
+	{ name = "ethereal coned hat", chance = 250 },
 	{ id = 50149, chance = 250 }, -- name = "charged ethereal ring"
 	{ id = 39183, chance = 250 }, -- name = "charged arcanomancer sigil"
 	{ id = 39186, chance = 250 }, -- name = "charged arboreal ring"
@@ -98,9 +98,6 @@ monster.loot = {
 	{ id = 39177, chance = 250 }, -- name = "charged spiritthorn ring"
 	{ name = "portable flame", chance = 250 },
 	{ name = "firefighting axe", chance = 250 },
-	{ name = "smoldering eye", chance = 25000 },
-	{ name = "ultimate spirit potion", chance = 18421, maxCount = 14 },
-	{ name = "transcendence potion", chance = 11842, maxCount = 6 },
 }
 
 monster.attacks = {

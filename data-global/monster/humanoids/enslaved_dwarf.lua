@@ -97,20 +97,20 @@ monster.loot = {
 	{ name = "spiked squelcher", chance = 80 },
 	{ name = "glorious axe", chance = 1940 },
 	{ id = 238, chance = 6660, maxCount = 2 }, -- great mana potion
-	{ name = "great health potion", chance = 5890 },
+	{ name = "great health potion", chance = 7960 },
 	{ name = "shiny stone", chance = 4660 },
 	{ id = 12600, chance = 780 }, -- coal
 	{ name = "green crystal shard", chance = 1750 },
 	{ name = "green crystal splinter", chance = 3110 },
 	{ name = "brown crystal splinter", chance = 5630, maxCount = 2 },
 	{ name = "red crystal fragment", chance = 3690 },
-	{ name = "drill bolt", chance = 5122, maxCount = 5 },
+	{ name = "drill bolt", chance = 3690, maxCount = 5 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -500, range = 7, shootEffect = CONST_ANI_LARGEROCK, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -500, range = 7, radius = 3, shootEffect = CONST_ANI_EXPLOSION, effect = CONST_ME_EXPLOSIONHIT, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -501 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -340, range = 7, shootEffect = CONST_ANI_LARGEROCK, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -250, range = 7, radius = 3, shootEffect = CONST_ANI_EXPLOSION, effect = CONST_ME_EXPLOSIONHIT, target = true },
 	{ name = "drunk", interval = 2000, chance = 20, radius = 5, effect = CONST_ME_BLOCKHIT, target = false, duration = 6000 },
 	{ name = "enslaved dwarf skill reducer 1", interval = 2000, chance = 5, target = false },
 	{ name = "enslaved dwarf skill reducer 2", interval = 2000, chance = 5, target = false },

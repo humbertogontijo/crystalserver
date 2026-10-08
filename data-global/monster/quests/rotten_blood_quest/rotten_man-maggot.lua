@@ -78,23 +78,23 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 44713, maxCount = 1 },
+	{ name = "crystal coin", chance = 10340, maxCount = 1 },
 	{ name = "small amethyst", chance = 7364, maxCount = 2 },
 	{ name = "lichen gobbler", chance = 8391, maxCount = 1 },
-	{ name = "rotten roots", chance = 6647, maxCount = 1 },
-	{ id = 6299, chance = 5740, maxCount = 1 }, -- death ring
-	{ name = "wood cape", chance = 3625, maxCount = 1 },
+	{ name = "rotten roots", chance = 11619, maxCount = 1 },
+	{ id = 6299, chance = 12591, maxCount = 1 }, -- death ring
+	{ name = "wood cape", chance = 14371, maxCount = 1 },
 	{ id = 3039, chance = 5155, maxCount = 1 }, -- red gem
 	{ name = "yellow gem", chance = 9564, maxCount = 1 },
-	{ name = "blooded worm", chance = 3625, maxCount = 1 },
+	{ name = "blooded worm", chance = 5096, maxCount = 1 },
 	{ name = "tainted heart", chance = 1, maxCount = 1 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -900 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -1100, maxDamage = -1350, radius = 5, effect = CONST_ME_MORTAREA, target = true },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -1300, maxDamage = -1640, radius = 5, effect = CONST_ME_GHOSTLY_BITE, target = true },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ICEDAMAGE, minDamage = -1200, maxDamage = -1640, length = 8, spread = 5, effect = CONST_ME_ICEAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -1100, maxDamage = -1400, radius = 5, effect = CONST_ME_MORTAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -1300, maxDamage = -1800, radius = 5, effect = CONST_ME_GHOSTLY_BITE, target = true },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ICEDAMAGE, minDamage = -1200, maxDamage = -1700, length = 8, spread = 5, effect = CONST_ME_ICEAREA, target = false },
 	{ name = "largeicering", interval = 2000, chance = 15, minDamage = -800, maxDamage = -1200, target = false },
 }
 

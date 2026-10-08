@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Megasylvan Yselda")
 local monster = {}
 
 monster.description = "Megasylvan Yselda"
-monster.experience = 19
+monster.experience = 19900
 monster.outfit = {
 	lookTypeEx = 36928,
 }
@@ -73,26 +73,25 @@ monster.loot = {
 	{ id = 23373, chance = 57140, minCount = 1, maxCount = 31 }, -- ultimate mana potion
 	{ id = 23374, chance = 30000, minCount = 1, maxCount = 11 }, -- ultimate spirit potion
 	{ id = 7443, chance = 22860, minCount = 4, maxCount = 19 }, -- bullseye potion
-	{ id = 7439, chance = 14218, minCount = 1, maxCount = 16 }, -- berserk potion
-	{ id = 3041, chance = 11374, count = 1 }, -- blue gem
-	{ id = 7440, chance = 23223, minCount = 4, maxCount = 19 }, -- mastermind potion
-	{ id = 3038, chance = 11848, minCount = 1, maxCount = 2 }, -- green gem
+	{ id = 7439, chance = 21430, minCount = 1, maxCount = 16 }, -- berserk potion
+	{ id = 3041, chance = 18570, count = 1 }, -- blue gem
+	{ id = 7440, chance = 17140, minCount = 4, maxCount = 19 }, -- mastermind potion
+	{ id = 3038, chance = 17140, minCount = 1, maxCount = 2 }, -- green gem
 	{ id = 3036, chance = 15710, minCount = 1, maxCount = 2 }, -- violet gem
-	{ id = 3039, chance = 9005, minCount = 1, maxCount = 2 }, -- red gem
-	{ id = 30060, chance = 4265, count = 1 }, -- giant emerald
+	{ id = 3039, chance = 14290, minCount = 1, maxCount = 2 }, -- red gem
+	{ id = 30060, chance = 11430, count = 1 }, -- giant emerald
 	{ id = 3037, chance = 10000, count = 1 }, -- yellow gem
-	{ id = 3043, chance = 13744, count = 1 }, -- crystal coin
-	{ id = 36809, chance = 1422 }, -- curl of hair
-	{ id = 14112, chance = 9953 }, -- bar of gold
-	{ id = 814, chance = 1422 }, -- terra amulet
-	{ id = 3065, chance = 1896 }, -- terra rod
-	{ id = 830, chance = 1896 }, -- terra hood
+	{ id = 3043, chance = 8570, count = 1 }, -- crystal coin
+	{ id = 36809, chance = 4290 }, -- curl of hair
+	{ id = 14112, chance = 4290 }, -- bar of gold
+	{ id = 814, chance = 2860 }, -- terra amulet
+	{ id = 3065, chance = 2860 }, -- terra rod
+	{ id = 830, chance = 2860 }, -- terra hood
 	{ id = 36811, chance = 1430 }, -- megasylvan sapling
-	{ id = 36808, chance = 3318 }, -- old royal diary
-	{ id = 812, chance = 474 }, -- terra legs
-	{ id = 811, chance = 2370 }, -- terra mantle
-	{ id = 32623, chance = 474, count = 1 }, -- giant topaz
-	{ name = "transcendence potion", chance = 5687, maxCount = 18 },
+	{ id = 36808, chance = 1430 }, -- old royal diary
+	{ id = 812, chance = 1430 }, -- terra legs
+	{ id = 811, chance = 1430 }, -- terra mantle
+	{ id = 32623, chance = 1200, count = 1 }, -- giant topaz
 }
 
 monster.attacks = {

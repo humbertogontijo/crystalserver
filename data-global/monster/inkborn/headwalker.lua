@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Headwalker")
 local monster = {}
 
 monster.description = "a headwalker"
-monster.experience = 2250
+monster.experience = 2050
 monster.outfit = {
 	lookType = 1856,
 	lookHead = 94,
@@ -79,15 +79,15 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "gold coin", chance = 94659, minCount = 1, maxCount = 150 },
-	{ name = "platinum coin", chance = 68097, minCount = 1, maxCount = 8 },
-	{ name = "torn page", chance = 6815 },
+	{ name = "gold coin", chance = 60000, minCount = 1, maxCount = 150 },
+	{ name = "platinum coin", chance = 45000, minCount = 1, maxCount = 8 },
+	{ name = "torn page", chance = 2800 },
 	{ name = "great health potion", chance = 2000 },
-	{ id = 281, chance = 4511 }, -- giant shimmering pearl
-	{ name = "white pearl", chance = 3823 },
-	{ name = "black pearl", chance = 1158 },
-	{ name = "protection amulet", chance = 2403 },
-	{ name = "book with an hourglass", chance = 4380 }, -- new item
+	{ id = 281, chance = 1800 }, -- giant shimmering pearl
+	{ name = "white pearl", chance = 1800 },
+	{ name = "black pearl", chance = 1800 },
+	{ name = "protection amulet", chance = 1400 },
+	{ name = "book with an hourglass", chance = 1200 }, -- new item
 	{ name = "blank imbuement scroll", chance = 1000 },
 }
 
@@ -99,7 +99,7 @@ monster.attacks = {
 	-- Death: Strike (200-260)
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -200, maxDamage = -260, range = 7, shootEffect = CONST_ANI_DEATH, effect = CONST_ME_MORTAREA, target = true },
 	-- Life Drain: Strike (200-220)
-	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_LIFEDRAIN, minDamage = -195, maxDamage = -220, range = 7, shootEffect = CONST_ANI_DEATH, effect = CONST_ME_MAGIC_RED, target = true },
+	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_LIFEDRAIN, minDamage = -200, maxDamage = -220, range = 7, shootEffect = CONST_ANI_DEATH, effect = CONST_ME_MAGIC_RED, target = true },
 	-- Drunk effect
 	{ name = "drunk", interval = 2000, chance = 10, range = 7, shootEffect = CONST_ANI_ENERGY, target = true },
 }
@@ -112,15 +112,15 @@ monster.defenses = {
 
 monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 15 },
-	{ type = COMBAT_EARTHDAMAGE, percent = -5 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = -15 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = -5 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -5 },
-	{ type = COMBAT_DEATHDAMAGE, percent = -10 },
+	{ type = COMBAT_ICEDAMAGE, percent = 5 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 5 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 10 },
 }
 
 monster.immunities = {

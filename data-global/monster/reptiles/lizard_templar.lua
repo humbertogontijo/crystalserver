@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Lizard Templar")
 local monster = {}
 
 monster.description = "a lizard templar"
-monster.experience = 265
+monster.experience = 155
 monster.outfit = {
 	lookType = 113,
 	lookHead = 0,
@@ -77,7 +77,7 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 84000, maxCount = 60 },
 	{ name = "small emerald", chance = 250 },
-	{ id = 3264, chance = 5526 }, -- sword
+	{ id = 3264, chance = 4000 }, -- sword
 	{ name = "morning star", chance = 1990 },
 	{ name = "short sword", chance = 9500 },
 	{ name = "steel helmet", chance = 2000 },

@@ -79,7 +79,7 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 57 },
-	{ id = 3052, chance = 2703 }, -- life ring
+	{ id = 3052, chance = 12500 }, -- life ring
 	{ name = "meat", chance = 25000, maxCount = 4 },
 	{ name = "panther head", chance = 12500 },
 	{ name = "panther paw", chance = 100000 },
@@ -87,7 +87,7 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "melee", interval = 1500, chance = 100, minDamage = 0, maxDamage = -90 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = 0, maxDamage = -215, range = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -75, maxDamage = -215, range = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYAREA, target = false },
 }
 
 monster.defenses = {

@@ -77,23 +77,23 @@ monster.loot = {
 	{ name = "platinum coin", chance = 100000, maxCount = 13 },
 	{ name = "werecrocodile tongue", chance = 10800 },
 	{ name = "serpent sword", chance = 5910 },
-	{ name = "crocodile boots", chance = 5088 },
+	{ name = "crocodile boots", chance = 8530 },
 	{ name = "meat", chance = 5500, maxCount = 4 },
 	{ name = "small topaz", chance = 9120, maxCount = 4 },
-	{ name = "moonlight crystals", chance = 5175 },
+	{ name = "moonlight crystals", chance = 3000 },
 	{ id = 3039, chance = 5120 }, -- red gem
 	{ name = "green crystal shard", chance = 2800 },
 	{ name = "bonebreaker", chance = 500 },
-	{ name = "glorious axe", chance = 2982 },
-	{ name = "golden sun coin", chance = 833 },
+	{ name = "glorious axe", chance = 2190 },
+	{ name = "golden sun coin", chance = 1770 },
 	{ id = 43916, chance = 200 }, -- werecrocodile trophy
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -550 },
-	{ name = "combat", interval = 2700, chance = 37, type = COMBAT_PHYSICALDAMAGE, minDamage = -200, maxDamage = -450, radius = 1, effect = CONST_ME_BIG_SCRATCH, range = 1, target = true },
-	{ name = "combat", interval = 3300, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -120, maxDamage = -300, length = 6, spread = 3, effect = CONST_ME_BLACKSMOKE, target = false },
-	{ name = "combat", interval = 3700, chance = 25, type = COMBAT_DEATHDAMAGE, minDamage = -120, maxDamage = -300, radius = 2, range = 4, effect = CONST_ME_MORTAREA, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -100, maxDamage = -575 },
+	{ name = "combat", interval = 2700, chance = 37, type = COMBAT_PHYSICALDAMAGE, minDamage = -175, maxDamage = -325, radius = 1, effect = CONST_ME_BIG_SCRATCH, range = 1, target = true },
+	{ name = "combat", interval = 3300, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -200, maxDamage = -375, length = 6, spread = 3, effect = CONST_ME_BLACKSMOKE, target = false },
+	{ name = "combat", interval = 3700, chance = 25, type = COMBAT_DEATHDAMAGE, minDamage = -250, maxDamage = -400, radius = 2, range = 4, effect = CONST_ME_MORTAREA, target = true },
 }
 
 monster.defenses = {

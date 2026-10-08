@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Mould Phantom")
 local monster = {}
 
 monster.description = "a mould phantom"
-monster.experience = 17780
+monster.experience = 18330
 monster.outfit = {
 	lookType = 1298,
 	lookHead = 106,
@@ -86,13 +86,13 @@ monster.loot = {
 	{ name = "crystal coin", chance = 57370 },
 	{ name = "gold ingot", chance = 11840 },
 	{ name = "wand of starstorm", chance = 4440 },
-	{ name = "green gem", chance = 2620 },
+	{ name = "green gem", chance = 3800 },
 	{ name = "violet gem", chance = 3550 },
 	{ name = "mould heart", chance = 3490 },
 	{ name = "wand of defiance", chance = 2930 },
 	{ name = "blue gem", chance = 2440 },
 	{ name = "wand of voodoo", chance = 2360 },
-	{ name = "mould robe", chance = 1536 },
+	{ name = "mould robe", chance = 2200 },
 	{ id = 23542, chance = 1070 }, -- collar of blue plasma
 	{ id = 23529, chance = 1040 }, -- ring of blue plasma
 	{ name = "ornate crossbow", chance = 840 },
@@ -103,9 +103,9 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -900 },
 	{ name = "poison chain", interval = 2000, chance = 15, minDamage = -1000, maxDamage = -1250, range = 7 },
-	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -900, maxDamage = -1050, radius = 4, effect = CONST_ME_GREEN_RINGS, target = false },
-	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_HOLYDAMAGE, minDamage = -1000, maxDamage = -1250, range = 7, shootEffect = CONST_ANI_SMALLHOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
-	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_HOLYDAMAGE, minDamage = -1200, maxDamage = -1300, radius = 4, range = 7, shootEffect = CONST_ANI_SMALLHOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
+	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -1100, maxDamage = -1350, radius = 4, effect = CONST_ME_GREEN_RINGS, target = false },
+	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_HOLYDAMAGE, minDamage = -1030, maxDamage = -1350, range = 7, shootEffect = CONST_ANI_SMALLHOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
+	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_HOLYDAMAGE, minDamage = -1100, maxDamage = -1300, radius = 4, range = 7, shootEffect = CONST_ANI_SMALLHOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
 	{ name = "extended holy chain", interval = 2000, chance = 15, minDamage = -400, maxDamage = -700, range = 4 },
 }
 

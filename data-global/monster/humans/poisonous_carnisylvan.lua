@@ -80,16 +80,16 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 95220, maxCount = 17 },
+	{ name = "platinum coin", chance = 70000, maxCount = 17 },
 	{ name = "carnisylvan bark", chance = 12040, maxCount = 2 },
 	{ name = "mushroom pie", chance = 8640, maxCount = 1 },
 	{ name = "carnisylvan finger", chance = 8640, maxCount = 4 },
-	{ name = "emerald bangle", chance = 7151 },
+	{ name = "emerald bangle", chance = 4970 },
 	{ name = "great spirit potion", chance = 6810, maxCount = 5 },
-	{ name = "guardian halberd", chance = 6769 },
+	{ name = "guardian halberd", chance = 4970 },
 	{ id = 23542, chance = 4970 }, -- collar of blue plasma
 	{ name = "terra rod", chance = 7330 },
-	{ name = "underworld rod", chance = 3556 },
+	{ name = "underworld rod", chance = 6280 },
 	{ name = "diamond sceptre", chance = 4710 },
 	{ name = "fire mushroom", chance = 3140 },
 	{ name = "knight axe", chance = 5760 },
@@ -98,7 +98,6 @@ monster.loot = {
 	{ id = 281, chance = 2090 }, -- giant shimmering pearl (green)
 	{ name = "gemmed figurine", chance = 790 },
 	{ name = "human teeth", chance = 520 },
-	{ id = 398, chance = 8681 }, -- wooden trash
 }
 
 monster.attacks = {

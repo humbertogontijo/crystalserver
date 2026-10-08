@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Magma Crawler")
 local monster = {}
 
 monster.description = "a magma crawler"
-monster.experience = 4250
+monster.experience = 3900
 monster.outfit = {
 	lookType = 492,
 	lookHead = 0,

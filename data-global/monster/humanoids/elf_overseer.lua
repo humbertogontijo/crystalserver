@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Elf Overseer")
 local monster = {}
 
 monster.description = "an elf overseer"
-monster.experience = 290
+monster.experience = 200
 monster.outfit = {
 	lookType = 159,
 	lookHead = 57,
@@ -26,8 +26,8 @@ monster.Bestiary = {
 	Locations = "Shadowthorn",
 }
 
-monster.health = 500
-monster.maxHealth = 500
+monster.health = 220
+monster.maxHealth = 220
 monster.race = "blood"
 monster.corpse = 6011
 monster.speed = 110
@@ -81,7 +81,7 @@ monster.voices = {
 monster.loot = {
 	{ id = 2815, chance = 31000 }, -- scroll
 	{ name = "candlestick", chance = 2100 },
-	{ name = "gold coin", chance = 56098, maxCount = 47 },
+	{ name = "gold coin", chance = 37000, maxCount = 47 },
 	{ name = "yellow gem", chance = 50 },
 	{ name = "life crystal", chance = 970 },
 	{ name = "wand of cosmic energy", chance = 1160 },
@@ -95,18 +95,16 @@ monster.loot = {
 	{ name = "bread", chance = 14000 },
 	{ name = "grave flower", chance = 880 },
 	{ name = "sling herb", chance = 5000 },
-	{ name = "holy orchid", chance = 7317 },
+	{ name = "holy orchid", chance = 2100 },
 	{ name = "strong mana potion", chance = 3000 },
-	{ name = "health potion", chance = 12195 },
-	{ name = "elvish talisman", chance = 17073 },
+	{ name = "health potion", chance = 4000 },
+	{ name = "elvish talisman", chance = 10000 },
 	{ name = "elven astral observer", chance = 7710 },
-	{ name = "battle shield", chance = 17073 },
-	{ name = "mana potion", chance = 7317 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -75 },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -80, range = 7, shootEffect = CONST_ANI_ARROW, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -94 },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -120, range = 7, shootEffect = CONST_ANI_ARROW, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -80, maxDamage = -100, range = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -120, maxDamage = -135, range = 7, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_MORTAREA, target = false },
 }
@@ -122,13 +120,13 @@ monster.elements = {
 	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 20 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
-	{ type = COMBAT_FIREDAMAGE, percent = 100 },
+	{ type = COMBAT_FIREDAMAGE, percent = 50 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 10 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -5 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 10 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -10 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 20 },
 }
 
 monster.immunities = {

@@ -79,18 +79,18 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 13600000, maxCount = 100 },
 	{ name = "gold coin", chance = 13600000, maxCount = 100 },
-	{ name = "platinum coin", chance = 100000, maxCount = 10 },
-	{ name = "assassin star", chance = 100000, maxCount = 9 },
+	{ name = "platinum coin", chance = 13600000, maxCount = 10 },
+	{ name = "assassin star", chance = 13600000, maxCount = 9 },
 	{ name = "black pearl", chance = 13600000, maxCount = 2 },
-	{ id = 238, chance = 100000, maxCount = 2 }, -- great mana potion
+	{ id = 238, chance = 13600000, maxCount = 2 }, -- great mana potion
 	{ name = "great spirit potion", chance = 13600000, maxCount = 2 },
-	{ name = "small enchanted emerald", chance = 100000, maxCount = 2 },
+	{ name = "small enchanted emerald", chance = 13600000, maxCount = 2 },
 	{ name = "ultimate mana potion", chance = 13600000, maxCount = 2 },
 	{ name = "ultimate spirit potion", chance = 13600000, maxCount = 2 },
-	{ name = "fox paw", chance = 100000, maxCount = 2 },
+	{ name = "fox paw", chance = 13600000, maxCount = 2 },
 	{ name = "moonlight rod", chance = 13600000 },
 	{ id = 3049, chance = 13600000 }, -- stealth ring
-	{ name = "werefox tail", chance = 100000 },
+	{ name = "werefox tail", chance = 13600000 },
 	{ name = "green gem", chance = 400 },
 	{ name = "troll green", chance = 400 },
 	{ name = "werewolf amulet", chance = 400 },
@@ -102,14 +102,13 @@ monster.loot = {
 	{ name = "wolf backpack", chance = 100 },
 	{ name = "foxtail amulet", chance = 100 },
 	{ name = "silver token", chance = 100 },
-	{ name = "sai", chance = 50000 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -290 },
-	{ name = "combat", interval = 1000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -720, range = 7, shootEffect = CONST_ANI_THROWINGSTAR, target = false },
+	{ name = "combat", interval = 1000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 100, maxDamage = 720, range = 7, shootEffect = CONST_ANI_THROWINGSTAR, target = false },
 	{ name = "speed", interval = 2000, chance = 15, speedChange = -600, range = 7, effect = CONST_ME_MAGIC_RED, target = false, duration = 20000 },
-	{ name = "combat", interval = 1000, chance = 14, type = COMBAT_DEATHDAMAGE, minDamage = -150, maxDamage = -300, length = 5, spread = 0, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "combat", interval = 1000, chance = 14, type = COMBAT_DEATHDAMAGE, minDamage = -100, maxDamage = -700, length = 5, spread = 0, effect = CONST_ME_MORTAREA, target = false },
 	{ name = "outfit", interval = 1000, chance = 1, radius = 1, target = true, duration = 2000, outfitMonster = "werewolf" },
 }
 
@@ -121,15 +120,15 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 20 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 60 },
-	{ type = COMBAT_FIREDAMAGE, percent = -5 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 50 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 50 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 50 },
+	{ type = COMBAT_FIREDAMAGE, percent = 50 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 10 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
+	{ type = COMBAT_ICEDAMAGE, percent = -40 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 50 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 50 },
 }
 

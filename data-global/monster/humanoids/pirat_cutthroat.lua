@@ -73,22 +73,22 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "great health potion", chance = 20271, maxCount = 4 },
-	{ name = "ice rapier", chance = 12873 },
-	{ name = "knight axe", chance = 4754 },
-	{ name = "crystal sword", chance = 8400 },
-	{ name = "pirate coin", chance = 6982, maxCount = 10 },
-	{ name = "crowbar", chance = 4690 },
-	{ name = "knight armor", chance = 3078 },
-	{ name = "focus cape", chance = 1958 },
-	{ name = "pirat's tail", chance = 4871 },
-	{ name = "shark fins", chance = 4103 },
+	{ name = "great health potion", chance = 44810, maxCount = 4 },
+	{ name = "ice rapier", chance = 25950 },
+	{ name = "knight axe", chance = 12500 },
+	{ name = "crystal sword", chance = 19420 },
+	{ name = "pirate coin", chance = 17810, maxCount = 10 },
+	{ name = "crowbar", chance = 7810 },
+	{ name = "knight armor", chance = 9550 },
+	{ name = "focus cape", chance = 8250 },
+	{ name = "pirat's tail", chance = 2120 },
+	{ name = "shark fins", chance = 1750 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -450 },
-	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -140, length = 4, spread = 3, effect = CONST_ME_GROUNDSHAKER, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -120, maxDamage = -160, radius = 3, effect = CONST_ME_ENERGYHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 18, type = COMBAT_PHYSICALDAMAGE, minDamage = -110, maxDamage = -190, length = 4, spread = 3, effect = CONST_ME_GROUNDSHAKER, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -120, maxDamage = -175, radius = 3, effect = CONST_ME_ENERGYHIT, target = false },
 }
 
 monster.defenses = {

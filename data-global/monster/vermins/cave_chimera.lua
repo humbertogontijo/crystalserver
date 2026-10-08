@@ -76,7 +76,7 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 24 },
+	{ name = "platinum coin", chance = 70000, maxCount = 24 },
 	{ name = "great spirit potion", chance = 25220, maxCount = 2 },
 	{ name = "ultimate health potion", chance = 20000, maxCount = 4 },
 	{ name = "gold ingot", chance = 19130, maxCount = 2 },
@@ -84,11 +84,11 @@ monster.loot = {
 	{ name = "violet gem", chance = 6960, maxCount = 1 },
 	{ name = "cave chimera leg", chance = 4350 },
 	{ name = "cave chimera head", chance = 3480 },
-	{ id = 281, chance = 3011 }, -- giant shimmering pearl (green)
+	{ id = 281, chance = 1740 }, -- giant shimmering pearl (green)
 	{ name = "yellow gem", chance = 2660 },
 	{ name = "glacier amulet", chance = 2480 },
 	{ id = 23529, chance = 1720 }, -- ring of blue plasma
-	{ name = "glacier kilt", chance = 2172 },
+	{ name = "glacier kilt", chance = 1540 },
 	{ name = "gold ring", chance = 1430 },
 	{ name = "fur armor", chance = 970 },
 	{ name = "gemmed figurine", chance = 970 },
@@ -101,7 +101,7 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -600 },
 	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_HOLYDAMAGE, minDamage = -600, maxDamage = -700, range = 4, radius = 3, shootEffect = CONST_ANI_HOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
-	{ name = "combat", interval = 2000, chance = 60, type = COMBAT_ICEDAMAGE, minDamage = -750, maxDamage = -850, radius = 4, effect = CONST_ME_BLUE_ENERGY_SPARK, target = false },
+	{ name = "combat", interval = 2000, chance = 60, type = COMBAT_ICEDAMAGE, minDamage = -560, maxDamage = -650, radius = 4, effect = CONST_ME_BLUE_ENERGY_SPARK, target = false },
 	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_ICEDAMAGE, minDamage = -750, maxDamage = -850, range = 4, shootEffect = CONST_ANI_ICE, target = true },
 }
 

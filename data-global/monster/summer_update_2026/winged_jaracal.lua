@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Winged Jaracal")
 local monster = {}
 
 monster.description = "a winged jaracal"
-monster.experience = 7200
+monster.experience = 7830
 monster.outfit = {
 	lookType = 1961,
 	lookHead = 113,
@@ -78,15 +78,15 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 90836, maxCount = 8 },
-	{ name = "Strong Health Potion", chance = 14526 },
-	{ name = "Crystal Coin", chance = 5842 },
-	{ name = "Furry Club", chance = 5242 },
-	{ id = 3049, chance = 1481 }, -- stealth ring
-	{ name = "Beastslayer Axe", chance = 2681 },
-	{ name = "Dark Shield", chance = 1200 },
-	{ name = "Ham", chance = 2241, maxCount = 2 },
-	{ name = "Catnip", chance = 1281 },
+	{ name = "Platinum Coin", chance = 20000, maxCount = 8 },
+	{ name = "Strong Health Potion", chance = 9000 },
+	{ name = "Crystal Coin", chance = 9000 },
+	{ name = "Furry Club", chance = 9000 },
+	{ id = 3049, chance = 4000 }, -- stealth ring
+	{ name = "Beastslayer Axe", chance = 4000 },
+	{ name = "Dark Shield", chance = 4000 },
+	{ name = "Ham", chance = 4000, maxCount = 2 },
+	{ name = "Catnip", chance = 4000 },
 	{ name = "Fur Armor", chance = 900 },
 	{ name = "Skullcracker Armor", chance = 150 },
 	{ name = "winged jaracal soul core", chance = 100 },

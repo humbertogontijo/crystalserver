@@ -83,7 +83,7 @@ monster.loot = {
 	{ name = "lion cloak patch", chance = 8444 },
 	{ name = "lion crest", chance = 8222 },
 	{ name = "black pearl", chance = 5778 },
-	{ id = 281, chance = 3940 }, -- giant shimmering pearl (green)
+	{ id = 281, chance = 5556 }, -- giant shimmering pearl (green)
 	{ name = "terra hood", chance = 4667 },
 	{ name = "lightning headband", chance = 3778 },
 	{ name = "green gem", chance = 3556 },
@@ -92,12 +92,12 @@ monster.loot = {
 	{ name = "magma monocle", chance = 1778 },
 	{ name = "wand of cosmic energy", chance = 1778 },
 	{ name = "underworld rod", chance = 1333 },
-	{ name = "knight legs", chance = 2513 },
-	{ name = "wand of starstorm", chance = 1320 },
+	{ name = "knight legs", chance = 1111 },
+	{ name = "wand of starstorm", chance = 667 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500, effect = CONST_ME_DRAWBLOOD },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -250, effect = CONST_ME_DRAWBLOOD },
 	{ name = "singledeathchain", interval = 6000, chance = 15, minDamage = -250, maxDamage = -530, range = 5, effect = CONST_ME_MORTAREA, target = true },
 	{ name = "singleicechain", interval = 6000, chance = 18, minDamage = -150, maxDamage = -450, range = 5, effect = CONST_ME_ICEATTACK, target = true },
 	{ name = "combat", interval = 4000, chance = 12, type = COMBAT_ICEDAMAGE, minDamage = -200, maxDamage = -450, radius = 4, shootEffect = CONST_ANI_ICE, effect = CONST_ME_ICEATTACK, target = true }, -- avalanche

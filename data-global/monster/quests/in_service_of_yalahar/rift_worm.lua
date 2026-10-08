@@ -68,7 +68,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 25,
-	armor = 28,
+	armor = 25,
 	{ name = "invisible", interval = 2000, chance = 10, effect = CONST_ME_GROUNDSHAKER },
 }
 

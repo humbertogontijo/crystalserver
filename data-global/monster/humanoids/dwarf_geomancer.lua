@@ -78,7 +78,7 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "small sapphire", chance = 710 },
-	{ name = "gold coin", chance = 75395, maxCount = 35 },
+	{ name = "gold coin", chance = 50000, maxCount = 35 },
 	{ id = 3046, chance = 14000 }, -- magic light wand
 	{ id = 3059, chance = 360 }, -- spellbook
 	{ id = 3097, chance = 530 }, -- dwarven ring
@@ -94,7 +94,7 @@ monster.loot = {
 
 monster.attacks = {
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -50, maxDamage = -110, range = 7, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_GREEN_RINGS, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_MANADRAIN, minDamage = -50, maxDamage = -75, range = 7, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_MANADRAIN, minDamage = -50, maxDamage = -80, range = 7, target = false },
 }
 
 monster.defenses = {

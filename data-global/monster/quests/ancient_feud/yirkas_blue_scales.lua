@@ -70,7 +70,7 @@ monster.loot = {
 	{ id = 7643, chance = 100000, minCount = 1, maxCount = 5 }, -- ultimate health potion
 	{ id = 9058, chance = 11540 }, -- gold ingot
 	{ id = 24392, chance = 8790 }, -- gemmed figurine
-	{ id = 34102, chance = 100000 }, -- yirkas' egg
+	{ id = 34102, chance = 8240 }, -- yirkas' egg
 	{ id = 31340, chance = 6590 }, -- lizard heart
 	{ id = 3038, chance = 3850 }, -- green gem
 	{ id = 3041, chance = 3300 }, -- blue gem
@@ -97,9 +97,9 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -100, condition = { type = CONDITION_POISON, totalDamage = 15, interval = 4000 } },
 	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_EARTHDAMAGE, minDamage = -400, maxDamage = -500, length = 3, spread = 0, effect = CONST_ME_POISONAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_ENERGYDAMAGE, minDamage = -200, maxDamage = -300, range = 3, radius = 3, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = true },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -250, maxDamage = -350, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYAREA, target = true },
-	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_ENERGYDAMAGE, minDamage = -250, maxDamage = -350, radius = 4, effect = CONST_ME_ENERGYAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_ENERGYDAMAGE, minDamage = -250, maxDamage = -350, range = 3, radius = 3, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -400, maxDamage = -500, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 30, type = COMBAT_ENERGYDAMAGE, minDamage = -200, maxDamage = -300, radius = 4, effect = CONST_ME_ENERGYAREA, target = false },
 }
 
 monster.defenses = {

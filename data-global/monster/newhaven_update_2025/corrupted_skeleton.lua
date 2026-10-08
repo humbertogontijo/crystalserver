@@ -86,7 +86,6 @@ monster.loot = {
 	{ id = 10319, chance = 210 }, -- ranger's cloak (0.21%)
 	{ id = 8820, chance = 140 }, -- magician's robe (0.14%)
 	{ id = 50257, chance = 70 }, -- plain monk robe (0.07%)
-	{ name = "health potion", chance = 25522 },
 }
 
 monster.attacks = {

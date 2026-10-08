@@ -79,26 +79,25 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 19 },
-	{ name = "bronze amulet", chance = 17188 },
-	{ name = "silver amulet", chance = 21615 },
-	{ name = "protection amulet", chance = 20313 },
+	{ name = "platinum coin", chance = 7500, maxCount = 19 },
+	{ name = "bronze amulet", chance = 6000 },
+	{ name = "silver amulet", chance = 5000 },
+	{ name = "protection amulet", chance = 4800 },
 	{ name = "proficiency catalyst", chance = 4000 },
-	{ name = "gearwheel chain", chance = 1823 },
-	{ name = "knight axe", chance = 5469 },
-	{ name = "knight armor", chance = 6771 },
-	{ name = "knight legs", chance = 9375 },
-	{ name = "helmet of sir leonard", chance = 4948 },
-	{ name = "white gem", chance = 4688 },
-	{ name = "green gem", chance = 13281 },
-	{ name = "blank imbuement scroll", chance = 781 },
-	{ name = "ancient shield", chance = 4427 },
-	{ id = 32769, chance = 4688 }, -- white gem
-	{ id = 3038, chance = 13281 }, -- green gem
-	{ id = 3053, chance = 11198 }, -- time ring
-	{ id = 3092, chance = 9375 }, -- axe ring
-	{ id = 6299, chance = 11458 }, -- death ring
-	{ name = "warrior helmet", chance = 11198 },
+	{ name = "gearwheel chain", chance = 3800 },
+	{ name = "knight axe", chance = 3800 },
+	{ name = "knight armor", chance = 3800 },
+	{ name = "knight legs", chance = 3500 },
+	{ name = "helmet of sir leonard", chance = 3200 },
+	{ name = "white gem", chance = 3000 },
+	{ name = "green gem", chance = 3000 },
+	{ name = "blank imbuement scroll", chance = 3000 },
+	{ name = "ancient shield", chance = 3000 },
+	{ id = 32769, chance = 3000 }, -- white gem
+	{ id = 3038, chance = 3000 }, -- green gem
+	{ id = 3053, chance = 3000 }, -- time ring
+	{ id = 3092, chance = 3000 }, -- axe ring
+	{ id = 6299, chance = 3000 }, -- death ring
 }
 
 -- missing spells

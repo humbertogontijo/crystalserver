@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Undead Elite Gladiator")
 local monster = {}
 
 monster.description = "an undead elite gladiator"
-monster.experience = 5700
+monster.experience = 5090
 monster.outfit = {
 	lookType = 306,
 	lookHead = 0,
@@ -73,30 +73,30 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 40 },
-	{ name = "belted cape", chance = 27273 },
-	{ name = "ultimate health potion", chance = 8434, maxCount = 2 },
-	{ name = "throwing star", chance = 15772, maxCount = 18 },
-	{ name = "knight axe", chance = 7010 },
-	{ id = 3307, chance = 10077 }, -- scimitar
-	{ name = "protection amulet", chance = 1862 },
-	{ name = "hunting spear", chance = 4600 },
-	{ name = "broken gladiator shield", chance = 4929 },
-	{ name = "dark helmet", chance = 1643 },
-	{ name = "flask of warrior's sweat", chance = 5476 },
-	{ name = "plate armor", chance = 1972 },
-	{ name = "plate legs", chance = 4710 },
-	{ name = "two handed sword", chance = 1643 },
-	{ name = "great health potion", chance = 4819, maxCount = 2 },
-	{ id = 3049, chance = 1424 }, -- stealth ring
+	{ name = "platinum coin", chance = 44000, maxCount = 40 },
+	{ name = "belted cape", chance = 500 },
+	{ name = "ultimate health potion", chance = 500, maxCount = 2 },
+	{ name = "throwing star", chance = 500, maxCount = 18 },
+	{ name = "knight axe", chance = 250 },
+	{ id = 3307, chance = 500 }, -- scimitar
+	{ name = "protection amulet", chance = 250 },
+	{ name = "hunting spear", chance = 250 },
+	{ name = "broken gladiator shield", chance = 250 },
+	{ name = "dark helmet", chance = 250 },
+	{ name = "flask of warrior's sweat", chance = 250 },
+	{ name = "plate armor", chance = 250 },
+	{ name = "plate legs", chance = 250 },
+	{ name = "two handed sword", chance = 250 },
+	{ name = "great health potion", chance = 250, maxCount = 2 },
+	{ id = 3049, chance = 230 }, -- stealth ring
 	{ name = "crusader helmet", chance = 150 },
 	{ name = "relic sword", chance = 150 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
-	{ name = "combat", interval = 1500, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -300, maxDamage = -550, range = 7, shootEffect = CONST_ANI_WHIRLWINDSWORD, target = false },
-	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -300, maxDamage = -500, range = 5, radius = 3, effect = CONST_ME_HITAREA, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 100, maxDamage = 550 },
+	{ name = "combat", interval = 1500, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 300, maxDamage = 550, range = 7, shootEffect = CONST_ANI_WHIRLWINDSWORD, target = false },
+	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = 300, maxDamage = 500, range = 5, radius = 3, effect = CONST_ME_HITAREA, target = false },
 }
 
 monster.defenses = {

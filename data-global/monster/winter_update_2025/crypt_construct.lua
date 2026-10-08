@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Crypt Construct")
 local monster = {}
 
 monster.description = "a crypt construct"
-monster.experience = 19730
+monster.experience = 20500
 monster.outfit = {
 	lookType = 1887,
 	lookHead = 0,

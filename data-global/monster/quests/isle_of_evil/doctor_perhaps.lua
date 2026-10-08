@@ -78,11 +78,7 @@ monster.voices = {
 	{ text = "You can't beat what you can't comprehend!", yell = false },
 }
 
-monster.loot = {
-	{ name = "glutton's mace", chance = 40000 },
-	{ name = "trousers of the ancients", chance = 20000 },
-	{ name = "meat shield", chance = 40000 },
-}
+monster.loot = {}
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -43 },

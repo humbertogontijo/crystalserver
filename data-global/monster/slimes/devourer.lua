@@ -81,35 +81,35 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 100000, maxCount = 165 }, -- gold coin
-	{ id = 3035, chance = 55604, maxCount = 2 }, -- platinum coin
-	{ id = 21182, chance = 13816 }, -- glob of glooth
-	{ id = 3034, chance = 2325 }, -- talon
-	{ id = 3029, chance = 5616, maxCount = 3 }, -- small sapphire
-	{ id = 3033, chance = 5514, maxCount = 3 }, -- small amethyst
-	{ id = 9057, chance = 5479, maxCount = 3 }, -- small topaz
-	{ id = 3032, chance = 5635, maxCount = 3 }, -- small emerald
-	{ id = 3030, chance = 5728, maxCount = 3 }, -- small ruby
-	{ id = 3028, chance = 5426, maxCount = 3 }, -- small diamond
+	{ id = 3035, chance = 9100, maxCount = 2 }, -- platinum coin
+	{ id = 21182, chance = 1670 }, -- glob of glooth
+	{ id = 3034, chance = 940 }, -- talon
+	{ id = 3029, chance = 1170, maxCount = 3 }, -- small sapphire
+	{ id = 3033, chance = 1030, maxCount = 3 }, -- small amethyst
+	{ id = 9057, chance = 1030, maxCount = 3 }, -- small topaz
+	{ id = 3032, chance = 1170, maxCount = 3 }, -- small emerald
+	{ id = 3030, chance = 1190, maxCount = 3 }, -- small ruby
+	{ id = 3028, chance = 1050, maxCount = 3 }, -- small diamond
 	{ id = 3037, chance = 1090 }, -- yellow gem
 	{ id = 3038, chance = 100 }, -- green gem
 	{ id = 21164, chance = 210 }, -- glooth cape
-	{ id = 21183, chance = 960 }, -- glooth amulet
-	{ id = 21179, chance = 2637 }, -- glooth blade
-	{ id = 21178, chance = 2710 }, -- glooth club
-	{ id = 21180, chance = 2730 }, -- glooth axe
-	{ id = 21158, chance = 1623 }, -- glooth spear
-	{ id = 8084, chance = 960 }, -- springsprout rod
+	{ id = 21183, chance = 130 }, -- glooth amulet
+	{ id = 21179, chance = 350 }, -- glooth blade
+	{ id = 21178, chance = 510 }, -- glooth club
+	{ id = 21180, chance = 390 }, -- glooth axe
+	{ id = 21158, chance = 370 }, -- glooth spear
+	{ id = 8084, chance = 250 }, -- springsprout rod
 	{ id = 3065, chance = 260 }, -- terra rod
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, skill = 62, attack = 50, condition = { type = CONDITION_POISON, totalDamage = 360, interval = 4000 } },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -40, maxDamage = -125, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_MAGIC_RED, target = true },
-	{ name = "combat", interval = 2000, chance = 8, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -150, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_GREEN_RINGS, target = true },
+	{ name = "combat", interval = 2000, chance = 8, type = COMBAT_EARTHDAMAGE, minDamage = -50, maxDamage = -160, range = 7, shootEffect = CONST_ANI_POISON, effect = CONST_ME_GREEN_RINGS, target = true },
 	{ name = "devourer wave", interval = 2000, chance = 5, minDamage = -50, maxDamage = -150, target = false },
 	{ name = "devourer paralyze", interval = 2000, chance = 9, target = false },
-	{ name = "combat", interval = 2000, chance = 11, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -150, length = 1, spread = 0, effect = CONST_ME_SMOKE, target = false },
-	{ name = "combat", interval = 2000, chance = 7, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -200, radius = 4, effect = CONST_ME_GREEN_RINGS, target = false },
+	{ name = "combat", interval = 2000, chance = 11, type = COMBAT_EARTHDAMAGE, minDamage = -50, maxDamage = -150, length = 1, spread = 0, effect = CONST_ME_SMOKE, target = false },
+	{ name = "combat", interval = 2000, chance = 7, type = COMBAT_EARTHDAMAGE, minDamage = -120, maxDamage = -135, radius = 4, effect = CONST_ME_GREEN_RINGS, target = false },
 }
 
 monster.defenses = {

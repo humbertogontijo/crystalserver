@@ -75,21 +75,20 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 28569, chance = 58730, maxCount = 5 }, -- book page
-	{ id = 28570, chance = 20635, maxCount = 5 }, -- glowing rune
-	{ name = "small amethyst", chance = 55556, maxCount = 5 },
+	{ id = 28569, chance = 10000, maxCount = 5 }, -- book page
+	{ id = 28570, chance = 10000, maxCount = 5 }, -- glowing rune
+	{ name = "small amethyst", chance = 10000, maxCount = 5 },
 	{ name = "flash arrow", chance = 10000, maxCount = 5 },
-	{ name = "lightning legs", chance = 7937 },
-	{ name = "spellbook of warding", chance = 9524 },
+	{ name = "lightning legs", chance = 250 },
+	{ name = "spellbook of warding", chance = 350 },
 	{ name = "ultimate health potion", chance = 10000, maxCount = 5 },
-	{ name = "ultimate mana potion", chance = 6349, maxCount = 5 },
-	{ name = "wand of starstorm", chance = 1587 },
-	{ name = "lightning pendant", chance = 6349 },
+	{ name = "ultimate mana potion", chance = 10000, maxCount = 5 },
+	{ name = "wand of starstorm", chance = 300 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -500 },
-	{ name = "combat", interval = 1000, chance = 13, type = COMBAT_ENERGYDAMAGE, minDamage = -550, maxDamage = -650, radius = 3, effect = CONST_ME_ENERGYAREA, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -10, maxDamage = -550 },
+	{ name = "combat", interval = 1000, chance = 13, type = COMBAT_ENERGYDAMAGE, minDamage = -100, maxDamage = -555, radius = 3, effect = CONST_ME_ENERGYAREA, target = false },
 }
 
 monster.defenses = {

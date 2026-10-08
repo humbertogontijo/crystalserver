@@ -72,25 +72,25 @@ monster.light = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 52713, maxCount = 1 },
+	{ name = "crystal coin", chance = 11755, maxCount = 1 },
 	{ name = "lichen gobbler", chance = 9121, maxCount = 1 },
 	{ name = "white mushroom", chance = 12998, maxCount = 3 },
-	{ name = "rotten roots", chance = 4134, maxCount = 1 },
-	{ name = "wand of decay", chance = 6977, maxCount = 1 },
-	{ id = 3039, chance = 4134, maxCount = 1 }, -- red gem
-	{ name = "worm sponge", chance = 3618, maxCount = 1 },
-	{ name = "dark mushroom", chance = 7494, maxCount = 3 },
-	{ name = "yellow gem", chance = 3876, maxCount = 1 },
-	{ name = "brown mushroom", chance = 9302, maxCount = 3 },
-	{ name = "terra amulet", chance = 4393, maxCount = 1 },
+	{ name = "rotten roots", chance = 9791, maxCount = 1 },
+	{ name = "wand of decay", chance = 14668, maxCount = 1 },
+	{ id = 3039, chance = 10406, maxCount = 1 }, -- red gem
+	{ name = "worm sponge", chance = 10697, maxCount = 1 },
+	{ name = "dark mushroom", chance = 12313, maxCount = 3 },
+	{ name = "yellow gem", chance = 13520, maxCount = 1 },
+	{ name = "brown mushroom", chance = 6422, maxCount = 3 },
+	{ name = "terra amulet", chance = 13122, maxCount = 1 },
 	{ name = "tainted heart", chance = 1, maxCount = 1 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -950 },
-	{ name = "combat", interval = 2500, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -840, maxDamage = -1400, radius = 5, effect = CONST_ME_MORTAREA, target = true },
-	{ name = "combat", interval = 2500, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -840, maxDamage = -1500, radius = 5, effect = CONST_ME_INSECTS, target = true },
-	{ name = "combat", interval = 2500, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -880, maxDamage = -1700, length = 8, spread = 5, effect = CONST_ME_BLACKSMOKE, target = false },
+	{ name = "combat", interval = 2500, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -900, maxDamage = -1400, radius = 5, effect = CONST_ME_MORTAREA, target = true },
+	{ name = "combat", interval = 2500, chance = 15, type = COMBAT_DEATHDAMAGE, minDamage = -900, maxDamage = -1500, radius = 5, effect = CONST_ME_INSECTS, target = true },
+	{ name = "combat", interval = 2500, chance = 20, type = COMBAT_ICEDAMAGE, minDamage = -900, maxDamage = -1700, length = 8, spread = 5, effect = CONST_ME_BLACKSMOKE, target = false },
 	{ name = "largeblackring", interval = 2000, chance = 10, minDamage = -1100, maxDamage = -1500, target = false },
 }
 

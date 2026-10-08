@@ -85,15 +85,14 @@ monster.loot = {
 	{ name = "lightning pendant", chance = 730 },
 	{ name = "lightning legs", chance = 150 },
 	{ name = "spellbook of warding", chance = 360 },
-	{ name = "wand of starstorm", chance = 1556 },
-	{ id = 8895, chance = 9728 }, -- rusted armor
+	{ name = "wand of starstorm", chance = 730 },
+	{ id = 8895, chance = 730 }, -- rusted armor
 	{ name = "shockwave amulet", chance = 500 },
-	{ name = "flash arrow", chance = 7782, maxCount = 15 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -220 },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -175, maxDamage = -205, range = 7, radius = 2, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -175 },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_ENERGYDAMAGE, minDamage = -270, maxDamage = -615, range = 7, radius = 2, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYHIT, target = true },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = -175, maxDamage = -205, range = 7, shootEffect = CONST_ANI_ENERGYBALL, effect = CONST_ME_ENERGYHIT, target = true },
 	{ name = "massive energy elemental electrify", interval = 2000, chance = 20, effect = CONST_ME_BLOCKHIT, target = false },
 }

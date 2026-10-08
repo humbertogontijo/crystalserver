@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Rootthing Amber Shaper")
 local monster = {}
 
 monster.description = "a rootthing amber shaper"
-monster.experience = 13380
+monster.experience = 12400
 monster.outfit = {
 	lookType = 1762,
 	lookHead = 0,
@@ -82,7 +82,7 @@ monster.loot = {
 	{ name = "gold coin", chance = 100000, maxCount = 200 },
 	{ name = "platinum coin", chance = 88010, maxCount = 37 },
 	{ name = "demon root", chance = 6840 },
-	{ name = "amber sickle", chance = 33333 },
+	{ name = "amber sickle", chance = 5980 },
 	{ name = "resin parasite", chance = 5980 },
 	{ name = "crystal coin", chance = 2560 },
 	{ name = "wooden spellbook", chance = 2560 },
@@ -99,8 +99,8 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -600 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -1000, maxDamage = -1600, effect = CONST_ME_SMALLPLANTS, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -450 },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -550, maxDamage = -750, effect = CONST_ME_SMALLPLANTS, target = true },
 	{ name = "combat", interval = 2500, chance = 17, type = COMBAT_PHYSICALDAMAGE, minDamage = -600, maxDamage = -800, radius = 2, effect = CONST_ME_STONES, target = true },
 	{ name = "rotthingshaper", interval = 2000, chance = 18, target = false },
 	{ name = "poison chain", interval = 2000, chance = 15, minDamage = -600, maxDamage = -900 },

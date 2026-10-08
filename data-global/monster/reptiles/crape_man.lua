@@ -78,12 +78,12 @@ monster.voices = {
 monster.loot = {
 	{ name = "platinum coin", chance = 71540, maxCount = 28 },
 	{ name = "crab man claws", chance = 5210, maxCount = 2 },
-	{ name = "green gem", chance = 1895 },
-	{ name = "great health potion", chance = 2787, maxCount = 5 },
+	{ name = "green gem", chance = 3010 },
+	{ name = "great health potion", chance = 2000, maxCount = 5 },
 	{ id = 281, chance = 1700 }, -- giant shimmering pearl (green)
-	{ name = "guardian halberd", chance = 5128 },
-	{ name = "lightning legs", chance = 1895 },
-	{ name = "warrior's shield", chance = 1561 },
+	{ name = "guardian halberd", chance = 2400 },
+	{ name = "lightning legs", chance = 900 },
+	{ name = "warrior's shield", chance = 900 },
 	{ name = "glacier kilt", chance = 750 },
 	{ name = "noble axe", chance = 700 },
 	{ name = "hammer of wrath", chance = 400 },
@@ -91,10 +91,10 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -271 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -498 },
 	{ name = "combat", interval = 3500, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -120, maxDamage = -320, range = 7, shootEffect = CONST_ANI_SUDDENDEATH, target = true },
-	{ name = "combat", interval = 2500, chance = 50, type = COMBAT_ENERGYDAMAGE, minDamage = -331, maxDamage = -383, range = 7, radius = 4, shootEffect = CONST_ANI_ENERGYBALL, effect = CONST_ME_PURPLEENERGY, target = true },
-	{ name = "combat", interval = 3000, chance = 65, type = COMBAT_ENERGYDAMAGE, minDamage = -314, maxDamage = -369, length = 3, spread = 3, effect = CONST_ME_ENERGYHIT, target = false },
+	{ name = "combat", interval = 2500, chance = 50, type = COMBAT_ENERGYDAMAGE, minDamage = -330, maxDamage = -380, range = 7, radius = 4, shootEffect = CONST_ANI_ENERGYBALL, effect = CONST_ME_PURPLEENERGY, target = true },
+	{ name = "combat", interval = 3000, chance = 65, type = COMBAT_ENERGYDAMAGE, minDamage = -311, maxDamage = -370, length = 3, spread = 3, effect = CONST_ME_ENERGYHIT, target = false },
 }
 
 monster.defenses = {
@@ -103,7 +103,7 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 15 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 25 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 10 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
 	{ type = COMBAT_FIREDAMAGE, percent = 0 },
@@ -112,7 +112,7 @@ monster.elements = {
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = -5 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
-	{ type = COMBAT_DEATHDAMAGE, percent = -15 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 5 },
 }
 
 monster.immunities = {

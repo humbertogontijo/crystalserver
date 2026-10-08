@@ -77,17 +77,17 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ id = 2992, chance = 52991, maxCount = 22 }, -- snowball
+	{ id = 2992, chance = 10000, maxCount = 22 }, -- snowball
 	{ name = "gold coin", chance = 100000, maxCount = 60 },
 	{ name = "gold coin", chance = 100000, maxCount = 40 },
 	{ name = "bunnyslippers", chance = 1333 },
-	{ name = "meat", chance = 69231, maxCount = 4 },
-	{ name = "ham", chance = 37607, maxCount = 5 },
+	{ name = "meat", chance = 33333, maxCount = 4 },
+	{ name = "ham", chance = 10000, maxCount = 5 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -300 },
-	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -300, range = 7, shootEffect = CONST_ANI_SNOWBALL, effect = CONST_ME_POFF, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -200 },
+	{ name = "combat", interval = 1000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -180, range = 7, shootEffect = CONST_ANI_SNOWBALL, effect = CONST_ME_POFF, target = false },
 	{ name = "combat", interval = 1000, chance = 12, type = COMBAT_ENERGYDAMAGE, minDamage = 0, maxDamage = -175, length = 3, spread = 0, effect = CONST_ME_POFF, target = false },
 }
 

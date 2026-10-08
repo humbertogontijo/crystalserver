@@ -79,11 +79,11 @@ monster.loot = {
 	{ id = 6525, chance = 28000 }, -- skeleton decoration
 	{ id = 3342, chance = 14000 }, -- war axe
 	{ id = 7418, chance = 10000 }, -- nightmare blade
-	{ id = 3079, chance = 12500 }, -- boots of haste
+	{ id = 3079, chance = 8000 }, -- boots of haste
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -150 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -340 },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_DEATHDAMAGE, minDamage = -130, maxDamage = -170, range = 7, radius = 1, shootEffect = CONST_ANI_DEATH, effect = CONST_ME_SMALLCLOUDS, target = true },
 	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -250, maxDamage = -400, range = 7, radius = 4, shootEffect = CONST_ANI_POISON, effect = CONST_ME_POISONAREA, target = true },
 }

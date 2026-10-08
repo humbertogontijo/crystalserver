@@ -77,33 +77,32 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 13600000, maxCount = 200 },
 	{ name = "gold coin", chance = 13600000, maxCount = 100 },
-	{ name = "platinum coin", chance = 100000, maxCount = 5 },
-	{ name = "black pearl", chance = 100000, maxCount = 2 },
+	{ name = "platinum coin", chance = 13600000, maxCount = 5 },
+	{ name = "black pearl", chance = 13600000, maxCount = 2 },
 	{ name = "ham", chance = 13600000, maxCount = 2 },
-	{ name = "opal", chance = 50000, maxCount = 2 },
-	{ name = "small enchanted sapphire", chance = 100000, maxCount = 2 },
-	{ name = "bear paw", chance = 100000, maxCount = 2 },
-	{ name = "furry club", chance = 100000 },
+	{ name = "opal", chance = 13600000, maxCount = 2 },
+	{ name = "small enchanted sapphire", chance = 13600000, maxCount = 2 },
+	{ name = "bear paw", chance = 13600000, maxCount = 2 },
+	{ name = "furry club", chance = 13600000 },
 	{ id = 281, chance = 5000 }, -- giant shimmering pearl (green)
-	{ name = "great health potion", chance = 50000, maxCount = 5 },
+	{ name = "great health potion", chance = 13600000, maxCount = 5 },
 	{ name = "honeycomb", chance = 13600000, maxCount = 2 },
 	{ name = "spiked squelcher", chance = 13600000 },
 	{ name = "ultimate health potion", chance = 13600000, maxCount = 5 },
-	{ name = "werebear fur", chance = 100000, maxCount = 2 },
-	{ name = "werebear skull", chance = 100000, maxCount = 2 },
+	{ name = "werebear fur", chance = 13600000, maxCount = 2 },
+	{ name = "werebear skull", chance = 13600000, maxCount = 2 },
 	{ name = "dreaded cleaver", chance = 550 },
 	{ name = "fur armor", chance = 550 },
 	{ name = "relic sword", chance = 550 },
 	{ name = "silver token", chance = 2120 },
-	{ id = 22103, chance = 50000 }, -- werebear trophy
+	{ id = 22103, chance = 150 }, -- werebear trophy
 	{ name = "foxtail amulet", chance = 100 },
 	{ name = "wolf backpack", chance = 100 },
-	{ name = "tiger eye", chance = 50000 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, skill = 50, attack = 50 },
-	{ name = "combat", interval = 100, chance = 22, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -300, radius = 3, effect = CONST_ME_EXPLOSIONAREA, target = false },
+	{ name = "combat", interval = 100, chance = 22, type = COMBAT_PHYSICALDAMAGE, minDamage = -200, maxDamage = -310, radius = 3, effect = CONST_ME_EXPLOSIONAREA, target = false },
 	{ name = "outfit", interval = 1000, chance = 1, radius = 1, target = true, duration = 2000, outfitMonster = "Werebear" },
 	{ name = "combat", interval = 100, chance = 15, type = COMBAT_LIFEDRAIN, minDamage = -100, maxDamage = -200, radius = 3, effect = CONST_ME_SOUND_WHITE, target = false },
 }

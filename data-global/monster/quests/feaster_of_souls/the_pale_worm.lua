@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("The Pale Worm")
 local monster = {}
 
 monster.description = "The Pale Worm"
-monster.experience = 128000
+monster.experience = 30000
 monster.outfit = {
 	lookType = 1272,
 	lookHead = 0,
@@ -13,8 +13,8 @@ monster.outfit = {
 	lookMount = 0,
 }
 
-monster.health = 435000
-monster.maxHealth = 435000
+monster.health = 420000
+monster.maxHealth = 420000
 monster.race = "undead"
 monster.corpse = 32702
 monster.speed = 125
@@ -74,11 +74,11 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "crystal coin", chance = 96080, maxCount = 2 },
-	{ name = "white gem", chance = 24242, maxCount = 2 },
+	{ name = "white gem", chance = 52940, maxCount = 2 },
 	{ name = "moonstone", chance = 52940, maxCount = 2 },
 	{ name = "ultimate mana potion", chance = 43140, maxCount = 6 },
 	{ name = "supreme health potion", chance = 29410, maxCount = 6 },
-	{ name = "silver hand mirror", chance = 14141 },
+	{ name = "silver hand mirror", chance = 27450 },
 	{ name = "berserk potion", chance = 23530, maxCount = 10 },
 	{ name = "ultimate spirit potion", chance = 23530, maxCount = 6 },
 	{ name = "bullseye potion", chance = 19610, maxCount = 10 },
@@ -86,31 +86,30 @@ monster.loot = {
 	{ name = "death toll", chance = 13730, maxCount = 2 },
 	{ name = "ivory comb", chance = 13730 },
 	{ name = "angel figurine", chance = 11760 },
-	{ name = "diamond", chance = 44444 },
-	{ name = "cursed bone", chance = 19192 },
+	{ name = "diamond", chance = 11760 },
+	{ name = "cursed bone", chance = 7840 },
 	{ name = "soulforged lantern", chance = 7840 },
 	{ name = "grimace", chance = 5880 },
 	{ name = "amber", chance = 5880 },
-	{ name = "amber with a dragonfly", chance = 6061 },
+	{ name = "amber with a dragonfly", chance = 3920 },
 	{ name = "ghost claw", chance = 1960 },
 	{ name = "bloody tears", chance = 1500 },
 	{ name = "ghost chestplate", chance = 150 },
 	{ name = "spooky hood", chance = 150 },
-	{ name = "pale worm's scalp", chance = 2020 },
-	{ name = "spectral scrap of cloth", chance = 5051 },
-	{ name = "fabulous legs", chance = 2020 },
-	{ name = "phantasmal axe", chance = 2020 },
+	{ name = "pale worm's scalp", chance = 1200 },
+	{ name = "spectral scrap of cloth", chance = 250 },
+	{ name = "fabulous legs", chance = 150 },
+	{ name = "phantasmal axe", chance = 150 },
 	{ name = "ghost backpack", chance = 150 },
 	{ name = "soulful legs", chance = 150 },
 	{ id = 32621, chance = 400 }, -- ring of souls
 	{ id = 50185, chance = 730 }, -- jade legs
-	{ name = "transcendence potion", chance = 7071, maxCount = 19 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -1500, condition = { type = CONDITION_POISON, totalDamage = 4, interval = 4000 } },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 600, maxDamage = -1050, condition = { type = CONDITION_POISON, totalDamage = 4, interval = 4000 } },
 	{ name = "combat", interval = 2000, chance = 100, type = COMBAT_LIFEDRAIN, minDamage = -900, maxDamage = -1400, effect = CONST_ME_MAGIC_RED, target = true },
-	{ name = "combat", interval = 1000, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -1500, radius = 2, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_HITBYPOISON, target = false },
+	{ name = "combat", interval = 1000, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -1000, maxDamage = -1750, radius = 2, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_HITBYPOISON, target = false },
 	{ name = "drunk", interval = 1000, chance = 70, range = 7, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYAREA, target = false },
 	{ name = "strength", interval = 1000, chance = 60, range = 7, shootEffect = CONST_ANI_LARGEROCK, effect = CONST_ME_ENERGYAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_ENERGYDAMAGE, minDamage = 0, maxDamage = -900, length = 5, spread = 3, effect = CONST_ME_ENERGYHIT, target = false },
@@ -127,16 +126,16 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 90 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = 90 },
-	{ type = COMBAT_EARTHDAMAGE, percent = 90 },
-	{ type = COMBAT_FIREDAMAGE, percent = 90 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 5 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = 5 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 5 },
+	{ type = COMBAT_FIREDAMAGE, percent = 5 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = 90 },
-	{ type = COMBAT_HOLYDAMAGE, percent = 90 },
-	{ type = COMBAT_DEATHDAMAGE, percent = 90 },
+	{ type = COMBAT_ICEDAMAGE, percent = 5 },
+	{ type = COMBAT_HOLYDAMAGE, percent = 5 },
+	{ type = COMBAT_DEATHDAMAGE, percent = 5 },
 }
 
 monster.immunities = {

@@ -65,13 +65,13 @@ monster.voices = {
 monster.loot = {
 	{ name = "gold coin", chance = 50000, maxCount = 100 },
 	{ name = "gold coin", chance = 50000, maxCount = 22 },
-	{ name = "flash arrow", chance = 3950, maxCount = 3 },
-	{ name = "energy soil", chance = 6885 },
+	{ name = "flash arrow", chance = 6250, maxCount = 3 },
+	{ name = "energy soil", chance = 2063 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -100 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -100, maxDamage = -250, range = 6, radius = 4, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_PURPLEENERGY, target = true },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -168, maxDamage = -100, range = 6, radius = 4, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_PURPLEENERGY, target = true },
 	-- energy damage
 	{ name = "condition", type = CONDITION_ENERGY, interval = 1000, chance = 15, radius = 3, effect = CONST_ME_YELLOWENERGY, target = false },
 }

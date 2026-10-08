@@ -83,7 +83,7 @@ monster.loot = {
 	{ name = "orichalcum pearl", chance = 8000, maxCount = 2 },
 	{ name = "skull helmet", chance = 390 },
 	{ name = "golden figurine", chance = 160 },
-	{ name = "soul orb", chance = 7184 },
+	{ name = "soul orb", chance = 10000 },
 	{ id = 6299, chance = 390 }, -- death ring
 	{ name = "demonic essence", chance = 19430 },
 	{ name = "flask of demonic blood", chance = 65250 },
@@ -96,7 +96,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -455 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -450 },
 	{ name = "betrayed wraith skill reducer", interval = 2000, chance = 10, target = false },
 	{ name = "speed", interval = 2000, chance = 20, speedChange = -600, range = 7, shootEffect = CONST_ANI_SUDDENDEATH, effect = CONST_ME_SMALLCLOUDS, target = true, duration = 3000 },
 }
@@ -119,7 +119,7 @@ monster.elements = {
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
 	{ type = COMBAT_ICEDAMAGE, percent = 50 },
-	{ type = COMBAT_HOLYDAMAGE, percent = -25 },
+	{ type = COMBAT_HOLYDAMAGE, percent = -20 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 100 },
 }
 

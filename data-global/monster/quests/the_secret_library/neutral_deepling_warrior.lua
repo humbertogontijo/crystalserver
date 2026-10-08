@@ -59,19 +59,11 @@ monster.voices = {
 	chance = 10,
 }
 
-monster.loot = {
-	{ name = "gold coin", chance = 100000, maxCount = 167 },
-	{ name = "deepling ridge", chance = 13143 },
-	{ name = "deepling filet", chance = 11429 },
-	{ name = "great health potion", chance = 10857 },
-	{ name = "deepling warts", chance = 10286 },
-	{ name = "deeptags", chance = 10286 },
-	{ name = "great mana potion", chance = 9143 },
-}
+monster.loot = {}
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -280 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -280, range = 7, shootEffect = CONST_ANI_WHIRLWINDAXE, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -300 },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = 0, maxDamage = -290, range = 7, shootEffect = CONST_ANI_WHIRLWINDAXE, target = true },
 }
 
 monster.defenses = {

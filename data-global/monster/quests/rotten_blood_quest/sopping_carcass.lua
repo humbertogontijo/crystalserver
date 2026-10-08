@@ -74,28 +74,25 @@ monster.light = {
 
 monster.loot = {
 	{ name = "crystal coin", chance = 42860 },
-	{ name = "ultimate mana potion", chance = 4142, minCount = 2, maxCount = 3 },
+	{ name = "ultimate mana potion", chance = 42860, minCount = 2, maxCount = 3 },
 	{ id = 7385, chance = 14290 }, -- crimson sword
 	{ name = "ultimate health potion", chance = 14290, maxCount = 2 },
 	{ name = "organic acid", chance = 7678, maxCount = 1 },
-	{ name = "rotten roots", chance = 5325, maxCount = 1 },
+	{ name = "rotten roots", chance = 13133, maxCount = 1 },
 	{ name = "emerald bangle", chance = 8558, maxCount = 1 },
-	{ name = "underworld rod", chance = 2959, maxCount = 1 },
+	{ name = "underworld rod", chance = 8380, maxCount = 1 },
 	{ name = "violet gem", chance = 5084, maxCount = 1 },
 	{ name = "blue gem", chance = 9808, maxCount = 1 },
 	{ name = "relic sword", chance = 6964, maxCount = 1 },
 	{ name = "skullcracker armor", chance = 7270, maxCount = 1 },
 	{ id = 23531, chance = 3073, maxCount = 1 }, -- ring of green plasma
 	{ name = "tainted heart", chance = 1, maxCount = 1 },
-	{ name = "soul orb", chance = 15976, maxCount = 3 },
-	{ name = "decayed finger bone", chance = 8580 },
-	{ name = "yellow gem", chance = 5325 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -1100 },
-	{ name = "combat", interval = 2000, chance = 24, type = COMBAT_DEATHDAMAGE, minDamage = -1400, maxDamage = -1340, radius = 5, effect = CONST_ME_MORTAREA, target = false },
-	{ name = "combat", interval = 2500, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -1190, maxDamage = -1400, radius = 5, effect = CONST_ME_GHOSTLY_BITE, target = false },
+	{ name = "combat", interval = 2000, chance = 24, type = COMBAT_DEATHDAMAGE, minDamage = -1400, maxDamage = -1500, radius = 5, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "combat", interval = 2500, chance = 15, type = COMBAT_ICEDAMAGE, minDamage = -1200, maxDamage = -1400, radius = 5, effect = CONST_ME_GHOSTLY_BITE, target = false },
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_EARTHDAMAGE, minDamage = -900, maxDamage = -1400, radius = 5, effect = CONST_ME_BIGPLANTS, target = false },
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_DEATHDAMAGE, minDamage = -1100, maxDamage = -1550, length = 8, spread = 5, effect = CONST_ME_BLACKSMOKE, target = false },
 	{ name = "largeicering", interval = 3000, chance = 15, minDamage = -1200, maxDamage = -1500 },

@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Broodrider Inferniarch")
 local monster = {}
 
 monster.description = "a broodrider inferniarch"
-monster.experience = 7400
+monster.experience = 7850
 monster.outfit = {
 	lookType = 1796,
 	lookHead = 0,
@@ -79,22 +79,22 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "Platinum Coin", chance = 100000, maxCount = 40 },
-	{ name = "Demonic Core Essence", chance = 2667, maxCount = 1 },
-	{ name = "Blue Crystal Splinter", chance = 5225, maxCount = 2 },
-	{ name = "Mummified Demon Finger", chance = 1016, maxCount = 1 },
-	{ name = "Demonic Matter", chance = 457, maxCount = 1 },
-	{ name = "Magma Legs", chance = 816, maxCount = 1 },
-	{ name = "Arbalest", chance = 46, maxCount = 1 },
-	{ name = "Drill Bolt", chance = 2901, maxCount = 25 },
-	{ name = "Power Bolt", chance = 2936, maxCount = 35 },
-	{ name = "Onyx Chip", chance = 5044, maxCount = 5 },
-	{ name = "Broodrider Saddle", chance = 1869, maxCount = 1 },
+	{ name = "Platinum Coin", chance = 26500, maxCount = 40 },
+	{ name = "Demonic Core Essence", chance = 1000, maxCount = 1 },
+	{ name = "Blue Crystal Splinter", chance = 24500, maxCount = 2 },
+	{ name = "Mummified Demon Finger", chance = 500, maxCount = 1 },
+	{ name = "Demonic Matter", chance = 1000, maxCount = 1 },
+	{ name = "Magma Legs", chance = 2000, maxCount = 1 },
+	{ name = "Arbalest", chance = 1500, maxCount = 1 },
+	{ name = "Drill Bolt", chance = 24500, maxCount = 25 },
+	{ name = "Power Bolt", chance = 24500, maxCount = 35 },
+	{ name = "Onyx Chip", chance = 24500, maxCount = 5 },
+	{ name = "Broodrider Saddle", chance = 24500, maxCount = 1 },
 	{ name = "broodrider inferniarch soul core", chance = 100 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -250, maxDamage = -400 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 250, maxDamage = -400 },
 	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_PHYSICALDAMAGE, minDamage = -400, maxDamage = -470, range = 1, effect = CONST_ME_BITE, target = true },
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_DEATHDAMAGE, minDamage = -340, maxDamage = -370, range = 7, shootEffect = CONST_ANI_INFERNALBOLT, effect = CONST_ME_MORTAREA, target = true },
 }
@@ -106,8 +106,8 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
-	{ type = COMBAT_ENERGYDAMAGE, percent = -5 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = -5 },
+	{ type = COMBAT_ENERGYDAMAGE, percent = -10 },
 	{ type = COMBAT_EARTHDAMAGE, percent = 10 },
 	{ type = COMBAT_FIREDAMAGE, percent = 20 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },

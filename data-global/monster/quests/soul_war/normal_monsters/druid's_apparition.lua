@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Druid's Apparition")
 local monster = {}
 
 monster.description = "a druid's apparition"
-monster.experience = 21130
+monster.experience = 28600
 monster.outfit = {
 	lookType = 148,
 	lookHead = 114,
@@ -82,18 +82,18 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "crystal coin", chance = 57700 },
+	{ name = "crystal coin", chance = 80700 },
 	{ name = "terra rod", chance = 17540 },
-	{ id = 238, chance = 11858, maxCount = 3 }, -- great mana potion
-	{ name = "blue gem", chance = 7546 },
+	{ id = 238, chance = 17110, maxCount = 3 }, -- great mana potion
+	{ name = "blue gem", chance = 12720 },
 	{ name = "green gem", chance = 6580 },
 	{ name = "stone skin amulet", chance = 4820 },
-	{ name = "glacier amulet", chance = 1951 },
+	{ name = "glacier amulet", chance = 3510 },
 	{ name = "sacred tree amulet", chance = 3070 },
 	{ name = "springsprout rod", chance = 2190 },
 	{ name = "underworld rod", chance = 2190 },
 	{ name = "platinum amulet", chance = 1750 },
-	{ name = "glacier robe", chance = 1643 },
+	{ name = "glacier robe", chance = 880 },
 	{ id = 23544, chance = 440 }, -- collar of red plasma
 	{ name = "bag you desire", chance = 15 },
 }

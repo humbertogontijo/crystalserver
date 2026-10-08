@@ -84,29 +84,29 @@ monster.voices = {
 monster.loot = {
 	{ name = "crystal coin", chance = 66670 },
 	{ name = "ultimate health potion", chance = 27960, maxCount = 5 },
-	{ name = "terra rod", chance = 9189 },
+	{ name = "terra rod", chance = 13980 },
 	{ name = "violet gem", chance = 8600 },
-	{ name = "vibrant heart", chance = 3272 },
+	{ name = "vibrant heart", chance = 6450 },
 	{ id = 281, chance = 6450 }, -- giant shimmering pearl
-	{ name = "gold ingot", chance = 7351 },
-	{ name = "blue crystal shard", chance = 1479 },
+	{ name = "gold ingot", chance = 4300 },
+	{ name = "blue crystal shard", chance = 4300 },
 	{ name = "vibrant robe", chance = 3230 },
-	{ name = "springsprout rod", chance = 1793 },
+	{ name = "springsprout rod", chance = 3230 },
 	{ name = "blue gem", chance = 3230 },
 	{ name = "hailstorm rod", chance = 3230 },
 	{ name = "underworld rod", chance = 2150 },
-	{ name = "violet crystal shard", chance = 1658 },
+	{ name = "violet crystal shard", chance = 1080 },
 	{ id = 23529, chance = 1080 }, -- ring of blue plasma
-	{ name = "green gem", chance = 2600 },
+	{ name = "green gem", chance = 1080 },
 	{ name = "bag you desire", chance = 15 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -750 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -800 },
 	{ name = "extended energy chain", interval = 2000, chance = 15, minDamage = -500, maxDamage = -600, range = 3 },
-	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -900, maxDamage = -1200, range = 7, radius = 4, effect = CONST_ME_ENERGYAREA, target = false },
-	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -900, maxDamage = -1200, range = 7, radius = 4, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYAREA, target = true },
-	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_HOLYDAMAGE, minDamage = -1200, maxDamage = -1400, range = 7, shootEffect = CONST_ANI_SMALLHOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
+	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -800, maxDamage = -1200, range = 7, radius = 4, effect = CONST_ME_ENERGYAREA, target = false },
+	{ name = "combat", interval = 3000, chance = 20, type = COMBAT_ENERGYDAMAGE, minDamage = -1000, maxDamage = -1200, range = 7, radius = 4, shootEffect = CONST_ANI_ENERGY, effect = CONST_ME_ENERGYAREA, target = true },
+	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_HOLYDAMAGE, minDamage = -1050, maxDamage = -1300, range = 7, shootEffect = CONST_ANI_SMALLHOLY, effect = CONST_ME_HOLYDAMAGE, target = true },
 	{ name = "extended holy chain", interval = 2000, chance = 15, minDamage = -1030, maxDamage = -1250, range = 4 },
 }
 

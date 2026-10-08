@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Mercurial Menace")
 local monster = {}
 
 monster.description = "a mercurial menace"
-monster.experience = 13000
+monster.experience = 12095
 monster.outfit = {
 	lookType = 1561,
 	lookHead = 85,
@@ -83,7 +83,7 @@ monster.loot = {
 	{ name = "Dream Blossom Staff", chance = 1090 },
 	{ name = "Coral Brooch", chance = 1030 },
 	{ name = "Lightning Boots", chance = 1000 },
-	{ name = "Wand of Cosmic Energy", chance = 1732 },
+	{ name = "Wand of Cosmic Energy", chance = 860 },
 	{ name = "Gemmed Figurine", chance = 830 },
 	{ name = "Butterfly Ring", chance = 800 },
 }

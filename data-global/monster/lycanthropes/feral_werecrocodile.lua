@@ -78,11 +78,11 @@ monster.loot = {
 	{ name = "werecrocodile tongue", chance = 10800 },
 	{ name = "war hammer", chance = 5000 },
 	{ name = "ham", chance = 5500, maxCount = 2 },
-	{ name = "moonlight crystals", chance = 4861 },
+	{ name = "moonlight crystals", chance = 3000 },
 	{ name = "violet gem", chance = 1370 },
 	{ name = "green crystal shard", chance = 2800 },
 	{ name = "ornate crossbow", chance = 680 },
-	{ name = "terra mantle", chance = 1250 },
+	{ name = "terra mantle", chance = 2190 },
 	{ name = "golden sun coin", chance = 1820 },
 	{ name = "sun brooch", chance = 680 },
 	{ name = "swamplair armor", chance = 230 },
@@ -90,7 +90,7 @@ monster.loot = {
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -485 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -50, maxDamage = -485 },
 	{ name = "combat", interval = 3400, chance = 33, type = COMBAT_DEATHDAMAGE, minDamage = -300, maxDamage = -450, length = 7, spread = 3, effect = CONST_ME_MORTAREA, target = false },
 	{ name = "combat", interval = 2700, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -300, maxDamage = -450, radius = 3, effect = CONST_ME_MORTAREA, shootEffect = CONST_ANI_DEATH, range = 4, target = true },
 	{ name = "combat", interval = 3300, chance = 30, type = COMBAT_LIFEDRAIN, minDamage = -175, maxDamage = -350, radius = 1, effect = CONST_ME_MAGIC_RED, range = 1, target = true },
@@ -99,7 +99,7 @@ monster.attacks = {
 
 monster.defenses = {
 	defense = 30,
-	armor = 85,
+	armor = 82,
 	mitigation = 2.28,
 	{ name = "combat", interval = 2000, chance = 25, type = COMBAT_HEALING, minDamage = 50, maxDamage = 100, effect = CONST_ME_MAGIC_BLUE, target = false },
 }

@@ -85,7 +85,6 @@ monster.loot = {
 	{ name = "magma coat", chance = 1320 },
 	{ name = "magma monocle", chance = 950 },
 	{ name = "magma legs", chance = 510 },
-	{ name = "grainy fireworks powder", chance = 5828 },
 }
 
 monster.attacks = {

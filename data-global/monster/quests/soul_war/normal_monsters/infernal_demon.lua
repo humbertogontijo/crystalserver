@@ -83,29 +83,29 @@ monster.voices = {
 
 monster.loot = {
 	{ name = "crystal coin", chance = 64000 },
-	{ name = "ultimate health potion", chance = 14583, maxCount = 5 },
+	{ name = "ultimate health potion", chance = 22860, maxCount = 5 },
 	{ name = "gold ingot", chance = 18860 },
 	{ name = "cyan crystal fragment", chance = 7430 },
 	{ name = "red crystal fragment", chance = 7430 },
-	{ name = "blue crystal shard", chance = 3333 },
+	{ name = "blue crystal shard", chance = 5710 },
 	{ name = "small diamond", chance = 4570 },
 	{ name = "blue gem", chance = 4570 },
-	{ name = "green crystal fragment", chance = 4583 },
-	{ name = "magma amulet", chance = 1250 },
-	{ name = "mercenary sword", chance = 1250 },
-	{ name = "onyx chip", chance = 4167 },
-	{ name = "war axe", chance = 833 },
-	{ name = "giant sword", chance = 1250 },
-	{ name = "magma boots", chance = 1250 },
+	{ name = "green crystal fragment", chance = 3430 },
+	{ name = "magma amulet", chance = 3430 },
+	{ name = "mercenary sword", chance = 2860 },
+	{ name = "onyx chip", chance = 2860 },
+	{ name = "war axe", chance = 2860 },
+	{ name = "giant sword", chance = 2860 },
+	{ name = "magma boots", chance = 2290 },
 	{ name = "stone skin amulet", chance = 570 },
 	{ name = "bag you desire", chance = 15 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -2000 },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -700, maxDamage = -1500, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -700, maxDamage = -1500, length = 8, effect = CONST_ME_EXPLOSIONHIT, target = false },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -800, maxDamage = -1300, radius = 4, effect = CONST_ME_MORTAREA, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -1450 },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_FIREDAMAGE, minDamage = -1150, maxDamage = -1400, range = 7, shootEffect = CONST_ANI_FIRE, effect = CONST_ME_FIREAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_FIREDAMAGE, minDamage = -800, maxDamage = -1250, length = 8, effect = CONST_ME_EXPLOSIONHIT, target = false },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_DEATHDAMAGE, minDamage = -1000, maxDamage = -1350, radius = 4, effect = CONST_ME_MORTAREA, target = false },
 	{ name = "death chain", interval = 2000, chance = 20, minDamage = -1100, maxDamage = -1380, target = true },
 }
 

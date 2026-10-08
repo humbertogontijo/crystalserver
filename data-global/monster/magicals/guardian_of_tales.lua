@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Guardian of Tales")
 local monster = {}
 
 monster.description = "a guardian of tales"
-monster.experience = 10600
+monster.experience = 9204
 monster.outfit = {
 	lookType = 1063,
 	lookHead = 92,
@@ -73,24 +73,24 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 85674, maxCount = 10 },
-	{ name = "book page", chance = 44599, maxCount = 5 },
-	{ name = "burnt scroll", chance = 37155, maxCount = 5 },
-	{ name = "glowing rune", chance = 38790, maxCount = 5 },
-	{ name = "small diamond", chance = 57354, maxCount = 5 },
-	{ name = "fire axe", chance = 4047 },
-	{ name = "soul orb", chance = 9244, maxCount = 5 },
-	{ name = "spellbook of warding", chance = 5031 },
-	{ name = "wand of inferno", chance = 8721 },
-	{ name = "fire sword", chance = 1353 },
-	{ name = "magma coat", chance = 983 },
-	{ name = "magma legs", chance = 1060 },
-	{ name = "piece of hellfire armor", chance = 4571, maxCount = 5 },
-	{ id = 12600, chance = 281, maxCount = 5 }, -- coal
+	{ name = "platinum coin", chance = 10000, maxCount = 10 },
+	{ name = "book page", chance = 10000, maxCount = 5 },
+	{ name = "burnt scroll", chance = 10000, maxCount = 5 },
+	{ name = "glowing rune", chance = 10000, maxCount = 5 },
+	{ name = "small diamond", chance = 10000, maxCount = 5 },
+	{ name = "fire axe", chance = 250 },
+	{ name = "soul orb", chance = 260, maxCount = 5 },
+	{ name = "spellbook of warding", chance = 250 },
+	{ name = "wand of inferno", chance = 250 },
+	{ name = "fire sword", chance = 250 },
+	{ name = "magma coat", chance = 350 },
+	{ name = "magma legs", chance = 250 },
+	{ name = "piece of hellfire armor", chance = 500, maxCount = 5 },
+	{ id = 12600, chance = 10000, maxCount = 5 }, -- coal
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -600 },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = -200, maxDamage = -550 },
 	{ name = "combat", interval = 2000, chance = 13, type = COMBAT_ENERGYDAMAGE, minDamage = -200, maxDamage = -605, radius = 3, effect = CONST_ME_ENERGYAREA, target = false },
 	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_LIFEDRAIN, minDamage = -375, maxDamage = -500, length = 5, spread = 0, effect = CONST_ME_MAGIC_RED, target = false },
 	{ name = "combat", interval = 2000, chance = 12, type = COMBAT_FIREDAMAGE, minDamage = -400, maxDamage = -775, radius = 3, effect = CONST_ME_HITBYFIRE, target = false },

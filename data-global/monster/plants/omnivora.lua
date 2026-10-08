@@ -78,13 +78,13 @@ monster.voices = {
 
 monster.loot = {
 	{ id = 3031, chance = 97000, maxCount = 242 }, -- gold coin
-	{ id = 3578, chance = 10251, maxCount = 2 }, -- fish
-	{ id = 16124, chance = 571 }, -- blue crystal splinter
-	{ id = 16123, chance = 767 }, -- brown crystal splinter
-	{ id = 16122, chance = 606 }, -- green crystal splinter
-	{ id = 3582, chance = 9717 }, -- ham
-	{ id = 3723, chance = 9717 }, -- white mushroom
-	{ id = 3052, chance = 1515 }, -- life ring
+	{ id = 3578, chance = 18200, maxCount = 2 }, -- fish
+	{ id = 16124, chance = 2000 }, -- blue crystal splinter
+	{ id = 16123, chance = 2000 }, -- brown crystal splinter
+	{ id = 16122, chance = 2210 }, -- green crystal splinter
+	{ id = 3582, chance = 1200 }, -- ham
+	{ id = 3723, chance = 1900 }, -- white mushroom
+	{ id = 3052, chance = 950 }, -- life ring
 	{ id = 3297, chance = 780 }, -- serpent sword
 	{ id = 814, chance = 700 }, -- terra amulet
 	{ id = 813, chance = 560 }, -- terra boots
@@ -96,8 +96,8 @@ monster.loot = {
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -150 },
 	{ name = "speed", interval = 4000, chance = 20, speedChange = -350, range = 7, shootEffect = CONST_ANI_POISON, target = true, duration = 12000 },
-	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -150, range = 7, shootEffect = CONST_ANI_POISON, target = false },
-	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -150, length = 8, spread = 0, effect = CONST_ME_POISONAREA, target = false },
+	{ name = "combat", interval = 2000, chance = 20, type = COMBAT_EARTHDAMAGE, minDamage = -80, maxDamage = -100, range = 7, shootEffect = CONST_ANI_POISON, target = false },
+	{ name = "combat", interval = 2000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -50, maxDamage = -100, length = 8, spread = 0, effect = CONST_ME_POISONAREA, target = false },
 }
 
 monster.defenses = {

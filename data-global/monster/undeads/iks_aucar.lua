@@ -2,7 +2,7 @@ local mType = Game.createMonsterType("Iks Aucar")
 local monster = {}
 
 monster.description = "an iks aucar"
-monster.experience = 1240
+monster.experience = 1150
 monster.outfit = {
 	lookType = 1587,
 	lookHead = 0,
@@ -95,13 +95,12 @@ monster.loot = {
 	{ name = "broken iks cuirass", chance = 40 },
 	{ name = "broken iks faulds", chance = 40 },
 	{ name = "broken iks sandals", chance = 40 },
-	{ name = "platinum coin", chance = 42371, maxCount = 5 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = -203, maxDamage = -203, effect = CONST_ME_PURPLEENERGY },
-	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -77, maxDamage = -97, length = 7, spread = 0, effect = 216, target = false },
-	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -203, maxDamage = -203, range = 1, radius = 0, effect = CONST_ME_EXPLOSIONHIT, target = true },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -250, effect = CONST_ME_PURPLEENERGY },
+	{ name = "combat", interval = 2000, chance = 40, type = COMBAT_PHYSICALDAMAGE, minDamage = -75, maxDamage = -100, length = 7, spread = 0, effect = 216, target = false },
+	{ name = "combat", interval = 2000, chance = 15, type = COMBAT_PHYSICALDAMAGE, minDamage = -100, maxDamage = -160, range = 1, radius = 0, effect = CONST_ME_EXPLOSIONHIT, target = true },
 }
 
 monster.defenses = {

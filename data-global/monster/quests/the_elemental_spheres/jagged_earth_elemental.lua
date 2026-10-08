@@ -67,18 +67,16 @@ monster.loot = {
 	{ name = "gold coin", chance = 27000, maxCount = 90 },
 	{ name = "gold coin", chance = 27000, maxCount = 90 },
 	{ name = "gold coin", chance = 1500, maxCount = 10 },
-	{ name = "small emerald", chance = 5480, maxCount = 2 },
+	{ name = "small emerald", chance = 3750, maxCount = 2 },
 	{ id = 3130, chance = 18000 }, -- twigs
 	{ name = "iron ore", chance = 800, maxCount = 2 },
-	{ name = "seeds", chance = 2177 },
+	{ name = "seeds", chance = 1600 },
 	{ name = "natural soil", chance = 9000 },
-	{ name = "lump of earth", chance = 48498 },
-	{ name = "small stone", chance = 25000, maxCount = 10 },
 }
 
 monster.attacks = {
 	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -300 },
-	{ name = "combat", interval = 1000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -200, length = 6, spread = 0, effect = CONST_ME_STONES, target = false },
+	{ name = "combat", interval = 1000, chance = 10, type = COMBAT_EARTHDAMAGE, minDamage = -100, maxDamage = -250, length = 6, spread = 0, effect = CONST_ME_STONES, target = false },
 	{ name = "combat", interval = 1000, chance = 11, type = COMBAT_EARTHDAMAGE, minDamage = 0, maxDamage = -200, range = 7, radius = 6, shootEffect = CONST_ANI_SMALLEARTH, effect = CONST_ME_POISONAREA, target = true },
 }
 

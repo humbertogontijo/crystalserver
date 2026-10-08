@@ -82,20 +82,20 @@ monster.voices = {
 }
 
 monster.loot = {
-	{ name = "platinum coin", chance = 100000, maxCount = 19 },
-	{ name = "proficiency catalyst", chance = 919 },
-	{ name = "dragon ham", chance = 79003, maxCount = 2 },
-	{ name = "book with a dragon", chance = 51181 },
-	{ name = "strong mana potion", chance = 6562 },
-	{ id = 3041, chance = 2231 }, -- blue gem
-	{ name = "dragon necklace", chance = 5118 },
-	{ id = 3039, chance = 8136 }, -- red gem
-	{ name = "strong health potion", chance = 4724 },
+	{ name = "platinum coin", chance = 7500, maxCount = 19 },
+	{ name = "proficiency catalyst", chance = 6000 },
+	{ name = "dragon ham", chance = 5000, maxCount = 2 },
+	{ name = "book with a dragon", chance = 4800 },
+	{ name = "strong mana potion", chance = 4000 },
+	{ id = 3041, chance = 3000 }, -- blue gem
+	{ name = "dragon necklace", chance = 3800 },
+	{ id = 3039, chance = 3000 }, -- red gem
+	{ name = "strong health potion", chance = 3500 },
 	{ name = "wand of dragonbreath", chance = 3200 },
-	{ id = 3037, chance = 9974 }, -- yellow gem
+	{ id = 3037, chance = 3000 }, -- yellow gem
 	{ name = "dragon shield", chance = 3000 },
-	{ name = "blank imbuement scroll", chance = 787 },
-	{ name = "dragon slayer", chance = 919 },
+	{ name = "blank imbuement scroll", chance = 3000 },
+	{ name = "dragon slayer", chance = 3000 },
 }
 
 monster.attacks = {
@@ -111,14 +111,14 @@ monster.defenses = {
 }
 
 monster.elements = {
-	{ type = COMBAT_PHYSICALDAMAGE, percent = 5 },
+	{ type = COMBAT_PHYSICALDAMAGE, percent = 0 },
 	{ type = COMBAT_ENERGYDAMAGE, percent = 0 },
-	{ type = COMBAT_EARTHDAMAGE, percent = -5 },
-	{ type = COMBAT_FIREDAMAGE, percent = 20 },
+	{ type = COMBAT_EARTHDAMAGE, percent = 0 },
+	{ type = COMBAT_FIREDAMAGE, percent = 0 },
 	{ type = COMBAT_LIFEDRAIN, percent = 0 },
 	{ type = COMBAT_MANADRAIN, percent = 0 },
 	{ type = COMBAT_DROWNDAMAGE, percent = 0 },
-	{ type = COMBAT_ICEDAMAGE, percent = -10 },
+	{ type = COMBAT_ICEDAMAGE, percent = 0 },
 	{ type = COMBAT_HOLYDAMAGE, percent = 0 },
 	{ type = COMBAT_DEATHDAMAGE, percent = 0 },
 }

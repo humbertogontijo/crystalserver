@@ -111,26 +111,24 @@ monster.loot = {
 	{ id = 8074, chance = 8770 }, -- spellbook of mind control
 	{ id = 8075, chance = 8620 }, -- spellbook of lost souls
 	{ id = 3567, chance = 8170 }, -- blue robe
-	{ id = 3360, chance = 2049 }, -- golden armor
+	{ id = 3360, chance = 2870 }, -- golden armor
 	{ id = 7412, chance = 2720 }, -- butcher's axe
-	{ id = 7388, chance = 1149 }, -- vile axe
+	{ id = 7388, chance = 1970 }, -- vile axe
 	{ id = 8076, chance = 1360 }, -- spellscroll of prophecies
 	{ id = 7453, chance = 610 }, -- executioner
 	{ id = 8098, chance = 450 }, -- demonwing axe
 	{ id = 3364, chance = 450 }, -- golden legs
 	{ id = 8051, chance = 450 }, -- voltage armor
 	{ id = 8090, chance = 300 }, -- spellbook of dark mysteries
-	{ id = 3019, chance = 700 }, -- demonbone amulet
+	{ id = 3019, chance = 150 }, -- demonbone amulet
 	{ id = 3303, chance = 100 }, -- great axe
-	{ name = "demonic essence", chance = 100000 },
-	{ name = "stone skin amulet", chance = 10045 },
 }
 
 monster.attacks = {
-	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -800 },
-	{ name = "combat", interval = 1000, chance = 11, type = COMBAT_ENERGYDAMAGE, minDamage = -323, maxDamage = -850, length = 8, spread = 3, effect = CONST_ME_PURPLEENERGY, target = false },
+	{ name = "melee", interval = 2000, chance = 100, minDamage = 0, maxDamage = -910 },
+	{ name = "combat", interval = 1000, chance = 11, type = COMBAT_ENERGYDAMAGE, minDamage = -250, maxDamage = -819, length = 8, spread = 3, effect = CONST_ME_PURPLEENERGY, target = false },
 	{ name = "combat", interval = 2000, chance = 14, type = COMBAT_MANADRAIN, minDamage = -90, maxDamage = -500, radius = 5, effect = CONST_ME_STUN, target = false },
-	{ name = "combat", interval = 1000, chance = 11, type = COMBAT_FIREDAMAGE, minDamage = 0, maxDamage = -600, radius = 5, effect = CONST_ME_FIREAREA, target = true },
+	{ name = "combat", interval = 1000, chance = 11, type = COMBAT_FIREDAMAGE, minDamage = -50, maxDamage = -520, radius = 5, effect = CONST_ME_FIREAREA, target = true },
 	{ name = "combat", interval = 2000, chance = 5, type = COMBAT_LIFEDRAIN, minDamage = 0, maxDamage = -150, radius = 7, effect = CONST_ME_POFF, target = false },
 }
 
