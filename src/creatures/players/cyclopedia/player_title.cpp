@@ -277,7 +277,7 @@ bool PlayerTitle::checkTask(uint32_t amount) const {
 }
 
 bool PlayerTitle::checkMap(uint32_t amount) const {
-	// Discovery System: overall explored-areas percent, maintained by data/scripts/discovery_system.lua
+	// Discovery System: overall explored-areas percent, maintained by data-global/scripts/idleot/discovery/system.lua
 	const auto percentKV = m_player.kv()->scoped("discovery")->get("map-percent");
 	return percentKV && percentKV.has_value() && static_cast<uint32_t>(percentKV->getNumber()) >= amount;
 }

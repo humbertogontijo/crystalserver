@@ -105,7 +105,7 @@ Sites: `Game.createMonster`, `Game.createNpc`, `Game.generateNpc`,
 
 ## Lua
 
-`data/libs/functions/instance.lua` is a thin wrapper over the engine:
+`data-global/lib/idleot/core/00_instance.lua` is a thin wrapper over the engine:
 
 - `Instance.WORLD`, `Instance.HUB` — keys from the engine.
 - `Instance.key(kind, subareaId, channel)`, `Instance.parse(id)`,
