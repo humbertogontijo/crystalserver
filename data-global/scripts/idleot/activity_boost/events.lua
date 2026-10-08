@@ -6,7 +6,6 @@ local loginEvent = CreatureEvent("ActivityBoostLogin")
 
 function loginEvent.onLogin(player)
 	player:registerEvent("ActivityBoostOpcode")
-	player:registerEvent("ActivityBoostLogout")
 	pcall(ActivityBoostActivities.onLogin, player)
 	addEvent(function()
 		local p = Player(player:getId())

@@ -1,12 +1,3 @@
-local loginEvent = CreatureEvent("CavebotLogin")
-
-function loginEvent.onLogin(player)
-	player:registerEvent("CavebotLogout")
-	return true
-end
-
-loginEvent:register()
-
 local logoutEvent = CreatureEvent("CavebotLogout")
 
 function logoutEvent.onLogout(player)

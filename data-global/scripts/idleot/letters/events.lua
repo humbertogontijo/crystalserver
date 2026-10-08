@@ -4,7 +4,6 @@ local loginEvent = CreatureEvent("LetterLogin")
 
 function loginEvent.onLogin(player)
 	player:registerEvent("LetterOpcode")
-	player:registerEvent("LetterLogout")
 	local ok, err = pcall(Letters.deliverPending, player)
 	if not ok then
 		logger.error("[Letters] delivery failed for {}: {}", player:getName(), err)

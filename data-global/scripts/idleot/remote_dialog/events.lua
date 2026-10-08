@@ -4,7 +4,6 @@ local loginEvent = CreatureEvent("RemoteDialogLogin")
 
 function loginEvent.onLogin(player)
 	player:registerEvent("RemoteDialogOpcode")
-	player:registerEvent("RemoteDialogLogout")
 	return true
 end
 

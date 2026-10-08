@@ -4,7 +4,6 @@ local loginEvent = CreatureEvent("LobbyLogin")
 
 function loginEvent.onLogin(player)
 	player:registerEvent("LobbyOpcode")
-	player:registerEvent("LobbyLogout")
 	local ok, err = pcall(LobbyManager.onLogin, player)
 	if not ok then
 		logger.error("[Lobby] onLogin failed for {}: {}", player:getName(), err)
