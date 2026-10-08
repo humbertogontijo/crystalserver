@@ -209,66 +209,107 @@ std::optional<WorldType_t> InstanceRegistry::worldType(InstanceId instanceId) co
 	return record ? record->worldType : std::nullopt;
 }
 
-void InstanceRegistry::setPlayerInstance(uint32_t playerId, InstanceId instanceId) {
-	if (playerId == 0) {
+void InstanceRegistry::CreatureIndex::bind(uint32_t creatureId, InstanceId instanceId) {
+	if (creatureId == 0) {
 		return;
 	}
-	const auto [it, inserted] = instanceByPlayer.try_emplace(playerId, instanceId);
+	const auto [it, inserted] = instanceById.try_emplace(creatureId, instanceId);
 	if (!inserted) {
 		if (it->second == instanceId) {
 			return;
 		}
-		if (const auto oldIt = membersById.find(it->second); oldIt != membersById.end()) {
-			oldIt->second.erase(playerId);
+		if (const auto oldIt = idsByInstance.find(it->second); oldIt != idsByInstance.end()) {
+			oldIt->second.erase(creatureId);
 			if (oldIt->second.empty()) {
-				membersById.erase(oldIt);
+				idsByInstance.erase(oldIt);
 			}
 		}
 		it->second = instanceId;
 	}
-	membersById[instanceId].insert(playerId);
+	idsByInstance[instanceId].insert(creatureId);
 }
 
-void InstanceRegistry::updatePlayerInstance(uint32_t playerId, InstanceId instanceId) {
-	if (instanceByPlayer.contains(playerId)) {
-		setPlayerInstance(playerId, instanceId);
+void InstanceRegistry::CreatureIndex::rebind(uint32_t creatureId, InstanceId instanceId) {
+	if (instanceById.contains(creatureId)) {
+		bind(creatureId, instanceId);
 	}
 }
 
-void InstanceRegistry::removePlayer(uint32_t playerId) {
-	const auto it = instanceByPlayer.find(playerId);
-	if (it == instanceByPlayer.end()) {
+void InstanceRegistry::CreatureIndex::unbind(uint32_t creatureId) {
+	const auto it = instanceById.find(creatureId);
+	if (it == instanceById.end()) {
 		return;
 	}
-	if (const auto membersIt = membersById.find(it->second); membersIt != membersById.end()) {
-		membersIt->second.erase(playerId);
-		if (membersIt->second.empty()) {
-			membersById.erase(membersIt);
+	if (const auto idsIt = idsByInstance.find(it->second); idsIt != idsByInstance.end()) {
+		idsIt->second.erase(creatureId);
+		if (idsIt->second.empty()) {
+			idsByInstance.erase(idsIt);
 		}
 	}
-	instanceByPlayer.erase(it);
+	instanceById.erase(it);
 }
 
-uint32_t InstanceRegistry::playerCount(InstanceId instanceId) const {
-	const auto it = membersById.find(instanceId);
-	return it != membersById.end() ? static_cast<uint32_t>(it->second.size()) : 0;
+uint32_t InstanceRegistry::CreatureIndex::count(InstanceId instanceId) const {
+	const auto it = idsByInstance.find(instanceId);
+	return it != idsByInstance.end() ? static_cast<uint32_t>(it->second.size()) : 0;
 }
 
-uint32_t InstanceRegistry::playerCountExcluding(InstanceId instanceId, uint32_t playerId) const {
-	const auto it = membersById.find(instanceId);
-	if (it == membersById.end()) {
-		return 0;
-	}
-	const auto count = static_cast<uint32_t>(it->second.size());
-	return playerId != 0 && it->second.contains(playerId) ? count - 1 : count;
+bool InstanceRegistry::CreatureIndex::contains(InstanceId instanceId, uint32_t creatureId) const {
+	const auto it = idsByInstance.find(instanceId);
+	return it != idsByInstance.end() && it->second.contains(creatureId);
 }
 
-std::vector<uint32_t> InstanceRegistry::members(InstanceId instanceId) const {
+std::vector<uint32_t> InstanceRegistry::CreatureIndex::ids(InstanceId instanceId) const {
 	std::vector<uint32_t> out;
-	if (const auto it = membersById.find(instanceId); it != membersById.end()) {
+	if (const auto it = idsByInstance.find(instanceId); it != idsByInstance.end()) {
 		out.assign(it->second.begin(), it->second.end());
 	}
 	return out;
+}
+
+void InstanceRegistry::setPlayerInstance(uint32_t playerId, InstanceId instanceId) {
+	playerIndex.bind(playerId, instanceId);
+}
+
+void InstanceRegistry::updatePlayerInstance(uint32_t playerId, InstanceId instanceId) {
+	playerIndex.rebind(playerId, instanceId);
+}
+
+void InstanceRegistry::removePlayer(uint32_t playerId) {
+	playerIndex.unbind(playerId);
+}
+
+uint32_t InstanceRegistry::playerCount(InstanceId instanceId) const {
+	return playerIndex.count(instanceId);
+}
+
+uint32_t InstanceRegistry::playerCountExcluding(InstanceId instanceId, uint32_t playerId) const {
+	const auto count = playerIndex.count(instanceId);
+	return playerId != 0 && playerIndex.contains(instanceId, playerId) ? count - 1 : count;
+}
+
+std::vector<uint32_t> InstanceRegistry::members(InstanceId instanceId) const {
+	return playerIndex.ids(instanceId);
+}
+
+void InstanceRegistry::setMonsterInstance(uint32_t monsterId, InstanceId instanceId) {
+	monsterIndex.bind(monsterId, instanceId);
+}
+
+void InstanceRegistry::updateMonsterInstance(uint32_t monsterId, InstanceId instanceId) {
+	monsterIndex.rebind(monsterId, instanceId);
+}
+
+void InstanceRegistry::removeMonster(uint32_t monsterId) {
+	monsterIndex.unbind(monsterId);
+}
+
+uint32_t InstanceRegistry::monsterCount(InstanceId instanceId) const {
+	return monsterIndex.count(instanceId);
+}
+
+std::vector<uint32_t> InstanceRegistry::monsters(InstanceId instanceId) const {
+	return monsterIndex.ids(instanceId);
 }
 
 std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const std::shared_ptr<Player> &player) {

@@ -201,12 +201,9 @@ function EM_PRIV.collectHumanViewers(session, deadMember)
 
 	-- Fallback: UI clients still inside the private instance (stale playerIds).
 	local instance = session and session.instance
-	local instanceId = instance and (instance.instanceId or instance.slot)
-	if instanceId and Game.getPlayers then
-		for _, p in ipairs(Game.getPlayers()) do
-			if p and p.getInstanceId and p:getInstanceId() == instanceId then
-				consider(p)
-			end
+	if instance and instance.instanceId then
+		for _, p in ipairs(Game.getInstanceMembers(instance.instanceId)) do
+			consider(p)
 		end
 	end
 	return humans

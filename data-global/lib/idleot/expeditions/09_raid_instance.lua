@@ -486,9 +486,9 @@ function RaidInstance.getBoss(raidName)
 		session.bossCreatureId = nil
 	end
 	local wantRace = session.bossRaceId
-	if wantRace and wantRace > 0 and session.instance and session.instance.instanceId and Game.getMonsters then
-		for _, monster in ipairs(Game.getMonsters()) do
-			if monster and monster:getHealth() > 0 and monster.getInstanceId and monster:getInstanceId() == session.instance.instanceId then
+	if wantRace and wantRace > 0 and session.instance and session.instance.instanceId then
+		for _, monster in ipairs(Game.getInstanceMonsters(session.instance.instanceId)) do
+			if monster:getHealth() > 0 then
 				local raceId = ExpeditionConfig.creatureIdFromMonster(monster)
 				if raceId == wantRace then
 					session.bossCreatureId = monster:getId()
@@ -505,10 +505,10 @@ function RaidInstance.countAlive(session)
 		return 0
 	end
 	local instanceId = session.instance and session.instance.instanceId
-	if instanceId and Game.getMonsters then
+	if instanceId then
 		local n = 0
-		for _, monster in ipairs(Game.getMonsters()) do
-			if monster and monster:getHealth() > 0 and monster.getInstanceId and monster:getInstanceId() == instanceId then
+		for _, monster in ipairs(Game.getInstanceMonsters(instanceId)) do
+			if monster:getHealth() > 0 then
 				n = n + 1
 			end
 		end

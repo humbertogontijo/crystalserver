@@ -12882,10 +12882,12 @@ void Game::removeNpc(const std::shared_ptr<Npc> &npc) {
 
 void Game::addMonster(const std::shared_ptr<Monster> &monster) {
 	monsters[monster->getID()] = monster;
+	g_instanceRegistry().setMonsterInstance(monster->getID(), monster->getInstanceId());
 }
 
 void Game::removeMonster(const std::shared_ptr<Monster> &monster) {
 	monsters.erase(monster->getID());
+	g_instanceRegistry().removeMonster(monster->getID());
 }
 
 std::shared_ptr<Guild> Game::getGuild(uint32_t id, bool allowOffline /* = flase */) const {

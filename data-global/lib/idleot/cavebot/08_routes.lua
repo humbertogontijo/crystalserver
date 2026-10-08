@@ -156,8 +156,8 @@ end
 --- next to the component.
 local function componentSpawns(grid, instanceKey)
 	local spawns, z = {}, grid:getZ()
-	for _, monster in ipairs(Game.getMonsters()) do
-		if monster:getInstanceId() == instanceKey and not monster:getMaster() then
+	for _, monster in ipairs(Game.getInstanceMonsters(instanceKey)) do
+		if not monster:getMaster() then
 			local mType = monster:getType()
 			local pos = monster:getSpawnPosition()
 			if pos and pos.z == z and mType and mType:experience() > 0 and nearGrid(grid, pos) then

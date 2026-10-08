@@ -131,6 +131,31 @@ suite<"instance_registry"> instanceRegistryTest = [] {
 		registry.removePlayer(100);
 	};
 
+	test("monsters are indexed apart from players") = [] {
+		InstanceRegistry registry;
+		const auto hunt = registry.allocate(InstanceKind::Hunt, 5, reserved());
+		expect(hunt.has_value());
+
+		registry.setMonsterInstance(200, InstanceId::World);
+		registry.setMonsterInstance(201, *hunt);
+		registry.setPlayerInstance(100, *hunt);
+		expect(eq(registry.monsterCount(*hunt), 1u));
+		expect(eq(registry.playerCount(*hunt), 1u));
+		expect(registry.monsters(*hunt) == std::vector<uint32_t> { 201 });
+
+		registry.updateMonsterInstance(200, *hunt);
+		expect(eq(registry.monsterCount(*hunt), 2u));
+		expect(eq(registry.monsterCount(InstanceId::World), 0u));
+
+		registry.updateMonsterInstance(300, *hunt);
+		expect(eq(registry.monsterCount(*hunt), 2u)) << "update ignores monsters not on the map";
+
+		registry.removeMonster(201);
+		registry.removeMonster(200);
+		expect(registry.monsters(*hunt).empty());
+		expect(eq(registry.playerCount(*hunt), 1u));
+	};
+
 	test("pickChannel prefers the current channel and respects capacity") = [] {
 		InstanceRegistry registry;
 		registry.setKindCapacity(InstanceKind::City, 1);

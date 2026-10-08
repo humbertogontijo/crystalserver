@@ -243,6 +243,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "getInstanceInfo", GameFunctions::luaGameGetInstanceInfo);
 	Lua::registerMethod(L, "Game", "isInstanceLive", GameFunctions::luaGameIsInstanceLive);
 	Lua::registerMethod(L, "Game", "getInstanceMembers", GameFunctions::luaGameGetInstanceMembers);
+	Lua::registerMethod(L, "Game", "getInstanceMonsters", GameFunctions::luaGameGetInstanceMonsters);
 	Lua::registerMethod(L, "Game", "getInstances", GameFunctions::luaGameGetInstances);
 	Lua::registerMethod(L, "Game", "parseInstance", GameFunctions::luaGameParseInstance);
 	Lua::registerMethod(L, "Game", "instanceKey", GameFunctions::luaGameInstanceKey);
@@ -839,6 +840,26 @@ int GameFunctions::luaGameGetInstanceMembers(lua_State* L) {
 		}
 		Lua::pushUserdata<Player>(L, player);
 		Lua::setMetatable(L, -1, "Player");
+		lua_rawseti(L, -2, ++index);
+	}
+	return 1;
+}
+
+int GameFunctions::luaGameGetInstanceMonsters(lua_State* L) {
+	// Game.getInstanceMonsters(instance) -> {monster, ...}
+	const auto id = Lua::requireInstanceId(L, 1);
+	lua_newtable(L);
+	if (!id) {
+		return 1;
+	}
+	int index = 0;
+	for (const auto monsterId : g_instanceRegistry().monsters(*id)) {
+		const auto &monster = g_game().getMonsterByID(monsterId);
+		if (!monster) {
+			continue;
+		}
+		Lua::pushUserdata<Monster>(L, monster);
+		Lua::setMetatable(L, -1, "Monster");
 		lua_rawseti(L, -2, ++index);
 	}
 	return 1;

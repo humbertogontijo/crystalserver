@@ -45,6 +45,8 @@ void Creature::setInstanceIdUnseen(InstanceId id) {
 	if (const auto &player = getPlayer()) {
 		g_instanceRegistry().updatePlayerInstance(getID(), id);
 		g_game().persistPlayerInstance(player, id);
+	} else if (getMonster()) {
+		g_instanceRegistry().updateMonsterInstance(getID(), id);
 	}
 	instanceId = id;
 	Spectators::clearCache();
@@ -72,6 +74,8 @@ void Creature::setInstanceId(InstanceId id) {
 	if (const auto &player = getPlayer()) {
 		g_instanceRegistry().updatePlayerInstance(getID(), id);
 		g_game().persistPlayerInstance(player, id);
+	} else if (getMonster()) {
+		g_instanceRegistry().updateMonsterInstance(getID(), id);
 	}
 
 	const InstanceId oldInstanceId = instanceId;

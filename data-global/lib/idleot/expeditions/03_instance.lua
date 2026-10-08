@@ -120,11 +120,11 @@ end
 --- opts.excludeCompanions: ignore headless companions (wipe when no humans remain).
 function ExpeditionInstance.hasLivingPlayers(instance, opts)
 	opts = opts or {}
-	if not instance or not instance.instanceId or not Game.getPlayers then
+	if not instance or not instance.instanceId then
 		return false
 	end
-	for _, player in ipairs(Game.getPlayers()) do
-		if player and player:getHealth() > 0 and player.getInstanceId and player:getInstanceId() == instance.instanceId then
+	for _, player in ipairs(Game.getInstanceMembers(instance.instanceId)) do
+		if player:getHealth() > 0 then
 			local id = player:getId()
 			if opts.excludeIds and opts.excludeIds[id] then
 				-- skip
@@ -323,13 +323,9 @@ function ExpeditionInstance.sweep(instance)
 	end
 	-- Stop instance respawns before sweeping so nothing reappears mid-teardown.
 	Game.clearInstanceSpawns(instanceId)
-	for _, monster in ipairs(Game.getMonsters()) do
-		if monster and monster.getInstanceId and monster:getInstanceId() == instanceId then
-			if monster.setDropLoot then
-				monster:setDropLoot(false)
-			end
-			monster:remove()
-		end
+	for _, monster in ipairs(Game.getInstanceMonsters(instanceId)) do
+		monster:setDropLoot(false)
+		monster:remove()
 	end
 	for _, npc in ipairs(Game.getNpcs()) do
 		if npc and npc.getInstanceId and npc:getInstanceId() == instanceId then

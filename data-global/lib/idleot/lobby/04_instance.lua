@@ -108,16 +108,7 @@ function LobbyInstance.ensureRoom(record)
 end
 
 local function occupants(room)
-	local list = {}
-	if not room then
-		return list
-	end
-	for _, p in ipairs(Game.getPlayers()) do
-		if p.getInstanceId and p:getInstanceId() == room.instanceId then
-			list[#list + 1] = p
-		end
-	end
-	return list
+	return room and Game.getInstanceMembers(room.instanceId) or {}
 end
 LobbyInstance.occupants = occupants
 

@@ -29,8 +29,8 @@ class Player;
  * pickChannel. Reserved channel numbers are allocated from a per-{kind, subarea} counter that
  * only moves forward, so a key captured by a script does not silently point at a newer session.
  *
- * Membership (online players per instance) is maintained incrementally by Game::addPlayer /
- * removePlayer and Creature::setInstanceId.
+ * Membership (online players and monsters per instance) is maintained incrementally by
+ * Game::addPlayer / removePlayer / addMonster / removeMonster and Creature::setInstanceId.
  */
 class InstanceRegistry {
 public:
@@ -98,6 +98,15 @@ public:
 	[[nodiscard]] uint32_t playerCount(InstanceId instanceId) const;
 	[[nodiscard]] std::vector<uint32_t> members(InstanceId instanceId) const;
 
+	/** Monster on the map joins the registry (Game::addMonster). */
+	void setMonsterInstance(uint32_t monsterId, InstanceId instanceId);
+	/** Rebind of a monster already on the map; no-op for monsters not yet added. */
+	void updateMonsterInstance(uint32_t monsterId, InstanceId instanceId);
+	void removeMonster(uint32_t monsterId);
+	/** Monsters currently bound to `instanceId` (summons included). */
+	[[nodiscard]] uint32_t monsterCount(InstanceId instanceId) const;
+	[[nodiscard]] std::vector<uint32_t> monsters(InstanceId instanceId) const;
+
 	/**
 	 * Public channel a player should join on {kind, subareaId}:
 	 * 1) `preferred` when it is live/public (or 0) and has room,
@@ -117,6 +126,20 @@ private:
 	[[nodiscard]] static InstanceId groupKey(InstanceKind kind, uint32_t subareaId) {
 		return InstanceId(kind, subareaId, 0);
 	}
+	/** Creature id <-> instance, maintained incrementally. */
+	struct CreatureIndex {
+		void bind(uint32_t creatureId, InstanceId instanceId);
+		void rebind(uint32_t creatureId, InstanceId instanceId);
+		void unbind(uint32_t creatureId);
+		[[nodiscard]] uint32_t count(InstanceId instanceId) const;
+		[[nodiscard]] bool contains(InstanceId instanceId, uint32_t creatureId) const;
+		[[nodiscard]] std::vector<uint32_t> ids(InstanceId instanceId) const;
+
+	private:
+		phmap::flat_hash_map<InstanceId, phmap::flat_hash_set<uint32_t>> idsByInstance;
+		phmap::flat_hash_map<uint32_t, InstanceId> instanceById;
+	};
+
 	Instance &emplace(InstanceId id, bool reserved, std::string owner, std::string tag);
 	[[nodiscard]] uint32_t playerCountExcluding(InstanceId instanceId, uint32_t playerId) const;
 
@@ -125,8 +148,8 @@ private:
 	phmap::flat_hash_map<InstanceId, std::map<uint16_t, Instance>> channelsByGroup;
 	// groupKey -> next reserved channel number to try
 	phmap::flat_hash_map<InstanceId, uint32_t> nextReservedByGroup;
-	phmap::flat_hash_map<InstanceId, phmap::flat_hash_set<uint32_t>> membersById;
-	phmap::flat_hash_map<uint32_t, InstanceId> instanceByPlayer;
+	CreatureIndex playerIndex;
+	CreatureIndex monsterIndex;
 };
 
 constexpr auto g_instanceRegistry = InstanceRegistry::getInstance;

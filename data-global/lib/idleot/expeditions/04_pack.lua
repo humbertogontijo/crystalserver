@@ -208,12 +208,12 @@ function ExpeditionPack.pullMonstersToAnchor(session)
 	local instanceId = session.instance and session.instance.instanceId
 	local anchor = anchorOf(session)
 	local anchorPos = anchor and anchor:getPosition() or nil
-	if not instanceId or not anchorPos or not Game.getMonsters then
+	if not instanceId or not anchorPos then
 		return
 	end
 	local dest = Position(anchorPos.x, anchorPos.y, anchorPos.z)
-	for _, monster in ipairs(Game.getMonsters()) do
-		if monster:getHealth() > 0 and monster:getInstanceId() == instanceId then
+	for _, monster in ipairs(Game.getInstanceMonsters(instanceId)) do
+		if monster:getHealth() > 0 then
 			monster:setMasterPos(dest)
 		end
 	end

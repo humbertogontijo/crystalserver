@@ -43,6 +43,7 @@ private:
 	static int luaGameGetInstanceInfo(lua_State* L);
 	static int luaGameIsInstanceLive(lua_State* L);
 	static int luaGameGetInstanceMembers(lua_State* L);
+	static int luaGameGetInstanceMonsters(lua_State* L);
 	static int luaGameGetInstances(lua_State* L);
 	static int luaGameParseInstance(lua_State* L);
 	static int luaGameInstanceKey(lua_State* L);

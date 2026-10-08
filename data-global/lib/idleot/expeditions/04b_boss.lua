@@ -224,7 +224,7 @@ function ExpeditionBoss.rebindBossIfNeeded(session)
 		return nil
 	end
 	local instanceId = session.instance and session.instance.instanceId
-	if not instanceId or not Game.getMonsters then
+	if not instanceId then
 		return nil
 	end
 	if session.bossCreatureId then
@@ -238,8 +238,8 @@ function ExpeditionBoss.rebindBossIfNeeded(session)
 	if (not wantRace or wantRace <= 0) and session.catalog and type(session.catalog.creatureIds) == "table" then
 		wantRace = session.catalog.creatureIds[1]
 	end
-	for _, monster in ipairs(Game.getMonsters()) do
-		if monster and monster:getHealth() > 0 and monster.getInstanceId and monster:getInstanceId() == instanceId then
+	for _, monster in ipairs(Game.getInstanceMonsters(instanceId)) do
+		if monster:getHealth() > 0 then
 			local mid = monster:getId()
 			if bossOwners[mid] == session.key then
 				ExpeditionBoss.bindBoss(session, monster)
@@ -281,15 +281,13 @@ end
 --- player summons stay. Deferred so the dying boss finishes its own death scripts.
 local function clearArena(session)
 	local instanceId = session.instance and session.instance.instanceId
-	if Instance.isWorld(instanceId) or not Game.getMonsters then
+	if Instance.isWorld(instanceId) then
 		return
 	end
 	addEvent(function()
-		if Game.clearInstanceSpawns then
-			Game.clearInstanceSpawns(instanceId)
-		end
-		for _, monster in ipairs(Game.getMonsters()) do
-			if monster:getInstanceId() == instanceId and monster:getHealth() > 0 then
+		Game.clearInstanceSpawns(instanceId)
+		for _, monster in ipairs(Game.getInstanceMonsters(instanceId)) do
+			if monster:getHealth() > 0 then
 				local master = monster:getMaster()
 				if not (master and master:isPlayer()) then
 					monster:remove()
@@ -434,12 +432,8 @@ local function materializeLever(session, lever)
 	for _, monster in ipairs(spawned) do
 		consider(monster, true)
 	end
-	if Game.getMonsters then
-		for _, monster in ipairs(Game.getMonsters()) do
-			if monster:getInstanceId() == instanceId then
-				consider(monster)
-			end
-		end
+	for _, monster in ipairs(Game.getInstanceMonsters(instanceId)) do
+		consider(monster)
 	end
 	-- Primary binds last so the HUD tracks it (bindBoss keeps the latest as bossCreatureId).
 	bosses[#bosses + 1] = primary
