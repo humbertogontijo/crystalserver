@@ -1,10 +1,6 @@
 local loginEvent = CreatureEvent("CombatAutomationLogin")
 
 function loginEvent.onLogin(player)
-	player:registerEvent("CombatAutomationLogout")
-	-- Opcode 113 is shared with expeditions; register early so get/setAutomation work
-	-- even if ExpeditionLogin has not run yet.
-	player:registerEvent("ExpeditionExtendedOpcode")
 	local ok, err = pcall(function()
 		CombatAutomationStore.onLogin(player)
 	end)

@@ -1,6 +1,8 @@
 local loginEvent = CreatureEvent("ExpeditionLogin")
 
 function loginEvent.onLogin(player)
+	-- Opcode 113 also carries the combat automation config (get/setAutomation).
+	player:registerEvent("ExpeditionExtendedOpcode")
 	local ok, err = pcall(function()
 		ExpeditionManager.onLogin(player)
 	end)
@@ -92,12 +94,3 @@ function startup.onStartup()
 end
 
 startup:register()
-
-local saveEvent = GlobalEvent("ExpeditionSave")
-
-function saveEvent.onSave()
-	pcall(ExpeditionManager.onServerSave)
-	return true
-end
-
-saveEvent:register()

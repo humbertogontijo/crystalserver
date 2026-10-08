@@ -307,8 +307,6 @@ function ExpeditionManager.onLogin(player)
 	if not player then
 		return
 	end
-	player:registerEvent("ExpeditionExtendedOpcode")
-	player:registerEvent("ExpeditionPlayerLogout")
 	-- Loads the loadout without sending it: CombatAutomationLogin sends the config, so a
 	-- second (possibly empty) automationConfig here could wipe a client upload race.
 	CombatAutomationStore.getConfig(player)
