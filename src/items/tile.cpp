@@ -32,6 +32,8 @@
 #include "map/spectators.hpp"
 #include "utils/tools.hpp"
 #include "game/scheduling/dispatcher.hpp"
+#include "lua/callbacks/event_callback.hpp"
+#include "lua/callbacks/events_callbacks.hpp"
 
 auto real_nullptr_tile = std::make_shared<StaticTile>(0xFFFF, 0xFFFF, 0xFF);
 const std::shared_ptr<Tile> &Tile::nullptr_tile = real_nullptr_tile;
@@ -499,6 +501,19 @@ std::shared_ptr<Thing> Tile::getTopVisibleThing(const std::shared_ptr<Creature> 
 	return ground;
 }
 
+void Tile::notifyZonesItemAdded(const std::shared_ptr<Item> &item) {
+	for (const auto &zone : getZones()) {
+		zone->itemAdded(item);
+		g_callbacks().executeCallback(EventCallback_t::zoneOnItemAdded, &EventCallback::zoneOnItemAdded, zone, item);
+	}
+}
+
+void Tile::notifyZonesItemRemoved(const std::shared_ptr<Item> &item) {
+	for (const auto &zone : getZones()) {
+		g_callbacks().executeCallback(EventCallback_t::zoneOnItemRemoved, &EventCallback::zoneOnItemRemoved, zone, item);
+	}
+}
+
 void Tile::onAddTileItem(const std::shared_ptr<Item> &item) {
 	if (!item) {
 		g_logger().error("Tile::onAddTileItem: item is nullptr");
@@ -532,6 +547,7 @@ void Tile::onAddTileItem(const std::shared_ptr<Item> &item) {
 	for (const auto &spectator : spectators) {
 		spectator->onAddTileItem(static_self_cast<Tile>(), cylinderMapPos);
 	}
+	notifyZonesItemAdded(item);
 
 	if ((!hasFlag(TILESTATE_PROTECTIONZONE) || g_configManager().getBoolean(CLEAN_PROTECTION_ZONES))
 	    && item->isCleanable()) {
@@ -616,6 +632,11 @@ void Tile::onUpdateTileItem(const std::shared_ptr<Item> &oldItem, const ItemType
 	for (const auto &spectator : spectators) {
 		spectator->onUpdateTileItem(static_self_cast<Tile>(), cylinderMapPos, oldItem, oldType, newItem, newType);
 	}
+	for (const auto &zone : getZones()) {
+		zone->itemRemoved(oldItem);
+	}
+	notifyZonesItemRemoved(oldItem);
+	notifyZonesItemAdded(newItem);
 }
 
 void Tile::onRemoveTileItem(const CreatureVector &spectators, const std::vector<int32_t> &oldStackPosVector, const std::shared_ptr<Item> &item) {
@@ -650,6 +671,7 @@ void Tile::onRemoveTileItem(const CreatureVector &spectators, const std::vector<
 	for (const auto &spectator : spectators) {
 		spectator->onRemoveTileItem(static_self_cast<Tile>(), cylinderMapPos, iType, item);
 	}
+	notifyZonesItemRemoved(item);
 
 	if (!hasFlag(TILESTATE_PROTECTIONZONE) || g_configManager().getBoolean(CLEAN_PROTECTION_ZONES)) {
 		const auto &items = getItemList();

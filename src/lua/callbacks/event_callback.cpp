@@ -1406,6 +1406,37 @@ void EventCallback::zoneAfterCreatureLeave(const std::shared_ptr<Zone> &zone, co
 	getScriptInterface()->callVoidFunction(2);
 }
 
+namespace {
+	void callZoneItem(const EventCallback &callback, const char* name, const std::shared_ptr<Zone> &zone, const std::shared_ptr<Item> &item) {
+		if (!LuaScriptInterface::reserveScriptEnv()) {
+			g_logger().error("[EventCallback::{} - Zone {}] Call stack overflow. Too many lua script calls being nested.", name, zone->getName());
+			return;
+		}
+
+		ScriptEnvironment* scriptEnvironment = LuaScriptInterface::getScriptEnv();
+		scriptEnvironment->setScriptId(callback.getScriptId(), callback.getScriptInterface());
+
+		lua_State* L = callback.getScriptInterface()->getLuaState();
+		callback.getScriptInterface()->pushFunction(callback.getScriptId());
+
+		LuaScriptInterface::pushUserdata<Zone>(L, zone);
+		LuaScriptInterface::setMetatable(L, -1, "Zone");
+
+		LuaScriptInterface::pushUserdata<Item>(L, item);
+		LuaScriptInterface::setItemMetatable(L, -1, item);
+
+		callback.getScriptInterface()->callVoidFunction(2);
+	}
+}
+
+void EventCallback::zoneOnItemAdded(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Item> &item) const {
+	callZoneItem(*this, __FUNCTION__, zone, item);
+}
+
+void EventCallback::zoneOnItemRemoved(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Item> &item) const {
+	callZoneItem(*this, __FUNCTION__, zone, item);
+}
+
 void EventCallback::mapOnLoad(const std::string &mapFullPath) const {
 	if (!getScriptInterface()->reserveScriptEnv()) {
 		g_logger().error("[{} - "

@@ -290,6 +290,9 @@ private:
 	void onAddTileItem(const std::shared_ptr<Item> &item);
 	void onUpdateTileItem(const std::shared_ptr<Item> &oldItem, const ItemType &oldType, const std::shared_ptr<Item> &newItem, const ItemType &newType);
 	void onRemoveTileItem(const CreatureVector &spectators, const std::vector<int32_t> &oldStackPosVector, const std::shared_ptr<Item> &item);
+	/** Zone item cache + zoneOnItemAdded / zoneOnItemRemoved for this tile's zones (a transform is a remove then an add). */
+	void notifyZonesItemAdded(const std::shared_ptr<Item> &item);
+	void notifyZonesItemRemoved(const std::shared_ptr<Item> &item);
 	void onUpdateTile(const CreatureVector &spectators);
 	/** Open browse fields of this tile whose viewer layer can see `item`. */
 	void forEachBrowseField(const std::shared_ptr<Item> &item, const std::function<void(const std::shared_ptr<Container> &)> &action);

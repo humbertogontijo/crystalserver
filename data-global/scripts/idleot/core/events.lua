@@ -25,3 +25,23 @@ function walkEnd.playerOnWalkEnd(player, completed)
 end
 
 walkEnd:register()
+
+local itemAdded = EventCallback("IdleZoneOnItemAdded")
+
+function itemAdded.zoneOnItemAdded(zone, item)
+	if IdleEvents.has("zone.itemAdded") then
+		IdleEvents.emit("zone.itemAdded", zone, item)
+	end
+end
+
+itemAdded:register()
+
+local itemRemoved = EventCallback("IdleZoneOnItemRemoved")
+
+function itemRemoved.zoneOnItemRemoved(zone, item)
+	if IdleEvents.has("zone.itemRemoved") then
+		IdleEvents.emit("zone.itemRemoved", zone, item)
+	end
+end
+
+itemRemoved:register()

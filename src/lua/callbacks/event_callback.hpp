@@ -179,6 +179,8 @@ public:
 	bool zoneBeforeCreatureLeave(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Creature> &creature) const;
 	void zoneAfterCreatureEnter(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Creature> &creature) const;
 	void zoneAfterCreatureLeave(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Creature> &creature) const;
+	void zoneOnItemAdded(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Item> &item) const;
+	void zoneOnItemRemoved(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Item> &item) const;
 
 	void mapOnLoad(const std::string &mapFullPath) const;
 
