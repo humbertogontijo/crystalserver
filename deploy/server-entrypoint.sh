@@ -82,7 +82,7 @@ patch_config() {
   fi
 }
 
-# Strip gameplay knobs that now live in config.lua.dist — entrypoint only
+# Gameplay knobs live in deploy/config.idleot.lua (baked into config.lua); entrypoint only
 # injects Coolify secrets (MYSQL_*, public IP, coin CDN URL).
 patch_config mysqlHost "$MYSQL_HOST"
 patch_config mysqlUser "$MYSQL_USER"

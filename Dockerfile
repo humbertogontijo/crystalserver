@@ -70,12 +70,14 @@ WORKDIR /crystalserver
 COPY --from=builder /src/out/crystalserver /crystalserver/crystalserver
 COPY schema.sql /crystalserver/schema.sql
 COPY key.pem /crystalserver/key.pem
-COPY config.lua.dist /crystalserver/config.lua
+COPY config.lua.dist deploy/config.idleot.lua /tmp/config/
 COPY data /crystalserver/data
 COPY data-global /crystalserver/data-global
 COPY deploy/server-entrypoint.sh /crystalserver/server-entrypoint.sh
 
-RUN chmod +x /crystalserver/crystalserver /crystalserver/server-entrypoint.sh
+RUN cat /tmp/config/config.lua.dist /tmp/config/config.idleot.lua > /crystalserver/config.lua \
+	&& rm -rf /tmp/config \
+	&& chmod +x /crystalserver/crystalserver /crystalserver/server-entrypoint.sh
 
 EXPOSE 7171 7172 7173 7174
 

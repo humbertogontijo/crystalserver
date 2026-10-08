@@ -69,7 +69,7 @@ server-build:
 	fi
 
 server-start:
-	@test -f "$(HERE)/config.lua" || cp "$(HERE)/config.lua.dist" "$(HERE)/config.lua"
+	@test -f "$(HERE)/config.lua" || cat "$(HERE)/config.lua.dist" "$(HERE)/deploy/config.idleot.lua" > "$(HERE)/config.lua"
 	@test -x "$(HERE)/crystalserver" || (echo "[server] missing ./crystalserver — make server-build" && exit 1)
 	@cd "$(HERE)" && exec ./crystalserver
 

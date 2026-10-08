@@ -29,7 +29,7 @@ maintainModeMessage = ""
 -- NOTE: valid values for worldType are: "pvp", "no-pvp", "pvp-enforced", "retro-pvp" and "retro-hardcore"
 -- NOTE: valid values for worldLocation are: "Europe", "North America", "South America" and "Oceania"
 worldId = 1
-worldType = "no-pvp"
+worldType = "pvp"
 worldLocation = "South America"
 
 -- Combat settings
@@ -42,7 +42,7 @@ removeChargesFromRunes = true
 removeChargesFromPotions = true
 removeWeaponAmmunition = true
 removeWeaponCharges = true
-removeBeginningWeaponAmmunition = false
+removeBeginningWeaponAmmunition = true
 refundBeginningWeaponMana = false
 timeToDecreaseFrags = 24 * 60 * 60 * 1000
 whiteSkullTime = 15 * 60 * 1000
@@ -86,17 +86,15 @@ allowOldProtocol = false
 bindOnlyGlobalAddress = false
 loginProtocolPort = 7171
 gameProtocolPort = 7172
--- Browser OTC: optional native WebSocket game port (0 = disabled; use SlenderAAC proxy instead).
-websocketGamePort = 7174
 statusProtocolPort = 97172
 maxPlayers = 0
 serverName = "Crystal"
 serverMotd = "Welcome to the Crystal Server!"
 statusTimeout = 5 * 1000
 replaceKickOnLogin = true
-maxPacketsPerSecond = 50
-maxPlayersOnlinePerAccount = 4
-maxPlayersOutsidePZPerAccount = 4
+maxPacketsPerSecond = 25
+maxPlayersOnlinePerAccount = 1
+maxPlayersOutsidePZPerAccount = 1
 toggleMaxConnectionsByIP = false
 maxIPConnections = 3
 
@@ -238,7 +236,7 @@ amplificationChanceFormulaC = 0.4
 -- Bestiary & Bosstiary system
 -- NOTE: bestiaryKillMultiplier, multiplier value of monster killed, default 1
 -- NOTE: bosstiaryKillMultiplier, multiplier value of boss killed, default 1
-bestiaryKillMultiplier = 2
+bestiaryKillMultiplier = 1
 bosstiaryKillMultiplier = 1
 bestiaryRateCharmShopPrice  = 1.0
 boostedBossSlot = true
@@ -332,10 +330,10 @@ onlyPremiumAccount = false
 -- NOTE: allowLureCreatures if true monsters can be lured far from spawn, if false they will despawn
 -- NOTE: blockRespawn if true players block monster respawns on their spot
 -- NOTE: enableOfflineTraining if false will disable offline training from beds only, set false at skill_trainer.lua if you want to completly disable the system
-autoLoot = true
-autoBank = true
+autoLoot = false
+autoBank = false
 toggleGoldPouchAllowAnything = false
-toggleGoldPouchQuickLootOnly = true
+toggleGoldPouchQuickLootOnly = false
 toggleTravelsFree = false
 buyAolCommandFee = 0
 teleportPlayerToVocationRoom = true
@@ -345,7 +343,7 @@ lootPouchMaxLimit = 2000
 storeInboxMaxLimit = 2000
 enablePlayerPutItemInAmmoSlot = false
 startStreakLevel = 0
-showLootsInBestiary = true
+showLootsInBestiary = false
 minTownIdToBankTransferFromMain = 4
 allowLureCreatures = false
 blockRespawn = false
@@ -516,8 +514,8 @@ charBazaarMaxDays = 28
 -- 8–16 — high-traffic servers with heavy market usage
 -- 1 — equivalent to the old single-connection behavior
 mysqlHost = "127.0.0.1"
-mysqlUser = "crystal"
-mysqlPass = "crystal"
+mysqlUser = "root"
+mysqlPass = "root"
 mysqlDatabase = "crystalserver"
 mysqlPort = 3306
 mysqlSock = ""
@@ -537,7 +535,7 @@ temporaryConst= 2
 parallelism = 2
 
 -- Session Auth
-authType = "session"
+authType = "password" -- 'session' | 'password'
 resetSessionsOnStartup = false
 
 -- Misc.
@@ -545,7 +543,7 @@ resetSessionsOnStartup = false
 -- NOTE: disableLegacyRaids: set to true to disable legacy XML raids
 -- NOTE: logPlayersStatements will log all player statements.
 allowChangeOutfit = true
-freePremium = true
+freePremium = false
 kickIdlePlayerAfterMinutes = 15
 maxMessageBuffer = 4
 classicAttackSpeed = false
@@ -556,7 +554,7 @@ minDelayBetweenConditions = 0
 criticalChance = 10
 skulledDeathLoseStoreItem = false
 experienceDisplayRates = true
-disableLegacyRaids = true
+disableLegacyRaids = false
 disableMonsterArmor = false
 minElementalResistance = -200
 maxElementalResistance = 200
@@ -567,7 +565,7 @@ logPlayersStatements = false
 -- NOTE: storeCombinedCoins = true uses transferable coins first, then regular coins for store purchases.
 -- NOTE: When storeCombinedCoins = false, storeCoinType selects which coin type is used (0 = regular, 1 = transferable).
 coinPacketSize = 25
-coinImagesURL = "http://127.0.0.1:5173/images/store/"
+coinImagesURL = "http://127.0.0.1/images/store/"
 storeCombinedCoins = true
 storeCoinType = 0
 
@@ -616,15 +614,12 @@ sortLootByChance = false
 -- NOTE: rateExp, rateSkill and rateMagic is used when 'rateUseStages = false' - or a fallback only
 -- NOTE: rateWeaponProficiency multiplies Weapon Proficiency experience gained from kills
 -- To configure rates see file data/stages.lua
--- NOTE: rateGoldLoot multiplies the dropped amount of gold/platinum/crystal coins
--- and the drop chance of creature products (on top of rateLoot)
 -- lowLevelBonusExp works up to level 50
-rateUseStages = true
+rateUseStages = false
 lowLevelBonusExp = 50
 rateExp = 1
 rateSkill = 1
-rateLoot = 2
-rateGoldLoot = 1.0
+rateLoot = 1
 rateMagic = 1
 rateSpawn = 1
 rateWeaponProficiency = 1
@@ -674,23 +669,19 @@ deSpawnRadius = 50
 dropSurpriseBagsFromMonsters = false
 
 -- Stamina
--- staminaGreenThreshold: minutes above which the green (happy hour) band starts.
--- staminaPenaltyThreshold: at or below this many minutes XP is halved (0 = only when empty).
 staminaSystem = true
-staminaGreenThreshold = 36 * 60
-staminaPenaltyThreshold = 0
-timeToRegenMinuteStamina = 1.5 * 60
-timeToRegenMinutePremiumStamina = 3 * 60
+timeToRegenMinuteStamina = 3 * 60
+timeToRegenMinutePremiumStamina = 6 * 60
 
 -- Stamina in trainers
-staminaTrainer = true
-staminaTrainerDelay = 1
+staminaTrainer = false
+staminaTrainerDelay = 5
 staminaTrainerGain = 1
 
 -- Stamina in protect zone
-staminaPz = true
+staminaPz = false
 staminaOrangeDelay = 1
-staminaGreenDelay = 3
+staminaGreenDelay = 5
 staminaPzGain = 1
 
 -- Mounts
@@ -735,12 +726,12 @@ discordWebhookDelayMs = 1000
 -- 		If you use 'vipFamiliarTimeCooldownReduction' greater than half of 'familiarTime', it will get the highest possible value, in this case 15
 -- NOTE: GainCoin function, please configure script: data-global/scripts/globalevents/vip/online_coins.lua
 -- NOTE: GainToken function, please configure script: data-global/scripts/globalevents/vip/online_tokens.lua
-vipSystemEnabled = true
-vipBonusExp = 10
+vipSystemEnabled = false
+vipBonusExp = 0
 vipBonusLoot = 0
 vipBonusSkill = 0
 vipAutoLootVipOnly = false
-vipStayOnline = true
+vipStayOnline = false
 vipFamiliarTimeCooldownReduction = 0
 vipKeepHouse = false
 
@@ -762,7 +753,7 @@ metricsOstreamInterval = 1000
 -- NOTE: Features added in this list will be forced to be used on OTCR
 -- These features can be found in "modules/gamelib/const.lua"
 OTCRFeatures = {
-    enableFeature = {
+    enableFeature = { 
         101, -- g_game.enableFeature(GameItemShader)
         102, -- g_game.enableFeature(GameCreatureAttachedEffect)
         103, -- g_game.enableFeature(GameCreatureShader)
@@ -771,16 +762,3 @@ OTCRFeatures = {
     disableFeature = {
     }
 }
-
--- IdleOT defaults
-useAnyDatapackFolder = false
-generateLuaApiDocs = false
--- Each subarea (regions.generated.json) is its own instance; players switch instance when crossing borders.
--- Engine default is false (stock single world, no regions file required); the product enables it here.
-openWorldSubareaInstances = true
--- Empty public channels > 0 (overflow layers) are torn down after this many seconds.
-instanceChannelIdleSeconds = 120
--- Creates/effects/moves must carry an explicit instance or run inside an actor scope.
--- false: inferred instances are logged (with a Lua traceback) and counted in
--- instance_inferred_total{site}; true: they are refused.
-instanceStrict = true
