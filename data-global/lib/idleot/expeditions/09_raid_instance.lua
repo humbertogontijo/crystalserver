@@ -1024,7 +1024,7 @@ function RaidInstance.installHooks()
 		if isRaidEncounter(encounter) and RaidInstance.hasInstance(encounter) then
 			RaidInstance.onEnterStage(encounter, stageNumber)
 		end
-	end)
+	end, "RaidInstance")
 
 	local originalNextStage = Encounter.nextStage
 	function Encounter:nextStage()

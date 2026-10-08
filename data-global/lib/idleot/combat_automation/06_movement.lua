@@ -11,14 +11,10 @@ local lastQueuedWalkById = {}
 local lastPathFailLogById = {}
 --- Last getPathTo failure per creature: { key = dest key, at = ms, count = in a row }.
 local lastPathFailById = {}
--- Temporary exclusive destinations (discovery POI FAB). Blocks stance/hold from
--- stealing the path under idle combat.
-local exclusiveWalkById = {}
 
 local PATH_MAX_SEARCH = 128
 local WALK_DEDUPE_MS = 2500
 local STALL_REPATH_MS = 400
-local EXCLUSIVE_WALK_TTL_MS = 20000
 local PATH_FAIL_FRESH_MS = 1500
 --- Failures in a row (one per tick) before a destination counts as blocked: a
 --- path closed for a moment by a passing creature is not.
@@ -125,11 +121,12 @@ end
 --- `force` = skip dedupe and clear stuck walkTask (stall repath).
 --- `ignoreConditions` = autoWalk despite rooted/feared (expedition route walk).
 --- `reach` = Chebyshev distance from `dest` that counts as there (default 0:
---- the exact tile), so a creature standing on a waypoint does not block it.
+--- the exact tile), so a creature standing on a waypoint does not block it;
+--- `minReach` = closest it may end (default 0), for rings around a spot.
 --- An exact destination another creature stands on is not searched: it counts as a
 --- failed search (see `walkBlocked`) without a warning.
 --- `quiet` = never warn (halt tile walks: the caller repicks on `walkBlocked`).
-function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreConditions, reach, quiet)
+function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreConditions, reach, quiet, minReach)
 	if not creature or not dest or not creature.autoWalk then
 		return false
 	end
@@ -138,7 +135,9 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 		return false
 	end
 	reach = math.max(0, math.floor(tonumber(reach) or 0))
-	if sameTile(ppos, dest) or (reach > 0 and ppos.z == dest.z and chebyshev(ppos, dest) <= reach) then
+	minReach = math.min(reach, math.max(0, math.floor(tonumber(minReach) or 0)))
+	local dist = chebyshev(ppos, dest)
+	if dist >= minReach and dist <= reach then
 		clearQueuedWalk(creature)
 		return true
 	end
@@ -172,12 +171,7 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 	if maxSearch < 1 then
 		maxSearch = PATH_MAX_SEARCH
 	end
-	local minDist, maxDist = 0, reach
-	local excl = exclusiveWalkById[id]
-	if force and excl and excl.x == dest.x and excl.y == dest.y and excl.z == dest.z then
-		minDist = math.max(0, math.floor(tonumber(excl.minDist) or 0))
-		maxDist = math.max(minDist, math.floor(tonumber(excl.maxDist) or 0))
-	end
+	local minDist, maxDist = minReach, reach
 	if maxDist == 0 and occupiedByOther(dest, creature) then
 		notePathFail(id, key, now)
 		clearQueuedWalk(creature)
@@ -224,12 +218,16 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 end
 --- Client walk / follow input owns this player's movement (expedition idle combat):
 --- a manual walk or follow is running, or the last manual step is under
---- ExpeditionConfig.MANUAL_CONTROL_MS old.
-function CombatAutomationMovement.isManual(player)
+--- ExpeditionConfig.MANUAL_CONTROL_MS old. With `sinceMs`, only steps taken after it
+--- count (an errand ignores the steps that came before it).
+function CombatAutomationMovement.isManual(player, sinceMs)
 	if not player or not player.isManualControl then
 		return false
 	end
 	local graceMs = (ExpeditionConfig and tonumber(ExpeditionConfig.MANUAL_CONTROL_MS)) or MANUAL_CONTROL_MS
+	if sinceMs then
+		graceMs = math.max(0, math.min(graceMs, nowMs() - sinceMs))
+	end
 	return player:isManualControl(graceMs) == true
 end
 local isManual = CombatAutomationMovement.isManual
@@ -1060,57 +1058,6 @@ function CombatAutomationMovement.clearWalkDedupe(player)
 	clearPendingWalkAction(player)
 end
 
---- On the exclusive walk's destination tile, or inside its [minDist, maxDist] ring.
-local function exclusiveArrived(ppos, excl)
-	if not ppos or ppos.z ~= excl.z then
-		return false
-	end
-	if excl.maxDist > 0 then
-		local d = chebyshev(ppos, excl)
-		return d >= excl.minDist and d <= excl.maxDist
-	end
-	return ppos.x == excl.x and ppos.y == excl.y
-end
-
---- Force-walk to `dest` (or within optional [minDist,maxDist] Chebyshev) and keep
---- owning the path until arrival / TTL. Used by discovery POI FAB and lobby training.
---- `minDist`/`maxDist` let city pathfinding stop on any tile
---- inside the discovery radius instead of requiring one exact (often blocked) sqm.
-function CombatAutomationMovement.beginExclusiveWalk(player, dest, ttlMs, minDist, maxDist)
-	if not player or not dest then
-		return false
-	end
-	local x = tonumber(dest.x)
-	local y = tonumber(dest.y)
-	local z = tonumber(dest.z)
-	if not x or not y or not z then
-		return false
-	end
-	minDist = math.max(0, math.floor(tonumber(minDist) or 0))
-	maxDist = math.max(minDist, math.floor(tonumber(maxDist) or 0))
-	local id = player:getId()
-	exclusiveWalkById[id] = {
-		x = x,
-		y = y,
-		z = z,
-		minDist = minDist,
-		maxDist = maxDist,
-		untilMs = nowMs() + (tonumber(ttlMs) or EXCLUSIVE_WALK_TTL_MS),
-	}
-	clearFollowIfAny(player)
-	local target = Position(x, y, z)
-	if exclusiveArrived(player:getPosition(), exclusiveWalkById[id]) then
-		exclusiveWalkById[id] = nil
-		clearQueuedWalk(player)
-		return true
-	end
-	local ok = CombatAutomationMovement.queueWalkToward(player, target, true) == true
-	if not ok then
-		exclusiveWalkById[id] = nil
-	end
-	return ok
-end
-
 --- Companion beyond the anchor's screen (or CATCH_UP_WALK_SQM) walks back toward it,
 --- until within half that distance (hysteresis so fighting near the edge does not flap).
 local function driveCatchUp(player, anchor, state)
@@ -1151,20 +1098,6 @@ function CombatAutomationMovement.tick(player, config)
 	-- Let walk-then-act (Use / use-with) finish without stance/hold stealing the path.
 	if player.hasWalkTask and player:hasWalkTask() then
 		return
-	end
-
-	-- Discovery POI (and similar) exclusive walks outrank expedition hold/stance.
-	local excl = exclusiveWalkById[player:getId()]
-	if excl then
-		local ppos = player:getPosition()
-		local dest = Position(excl.x, excl.y, excl.z)
-		if not ppos or nowMs() >= (excl.untilMs or 0) or ppos.z ~= dest.z or exclusiveArrived(ppos, excl) then
-			exclusiveWalkById[player:getId()] = nil
-		else
-			clearFollowIfAny(player)
-			CombatAutomationMovement.queueWalkToward(player, dest, true)
-			return
-		end
 	end
 
 	config = config or {}

@@ -4,22 +4,28 @@
 -- player alone (CombatAutomationMovement.tick, ExpeditionAI catch-up); targeting, spells
 -- and healing keep running. Manual walk / follow input (idle combat) ends it.
 --
+-- An errand advances on the player's think (playerOnThink, in the player's instance) and as
+-- soon as its walk ends (player.walkDone); one shared watchdog, running only while errands
+-- exist, ends those of players that logged out or ran past their ttl. Start errands from
+-- the player's instance (scripts and boss mechanics run there).
+--
 -- Every errand takes `opts`:
 --   ttlMs      give up after this long (default 30s)
 --   onDone     fn(player, ok, reason) once it ends (player nil when gone); reason is
---              "timeout", "manual", "cancelled", "replaced", "gone", "missing" or a
---              RETURNVALUE_* of a refused use
+--              "timeout", "manual", "cancelled", "replaced", "gone", "blocked" (no path),
+--              "missing", "refused" or a RETURNVALUE_* of a refused use
 --   keepGoing  fn(player) -> false ends it ("cancelled")
 -- A player runs one errand at a time; starting another replaces it.
 
 PlayerErrand = PlayerErrand or {}
 
-local POLL_MS = 250
+local WATCHDOG_MS = 1000
 local DEFAULT_TTL_MS = 30000
 local STEP_RETRY_MS = 1500
 
 local geo = CombatGeo
 local errands = {}
+local watchdog = nil
 
 local DIRECTION_BY_OFFSET = {
 	[-1] = { [-1] = DIRECTION_NORTHWEST, [0] = DIRECTION_WEST, [1] = DIRECTION_SOUTHWEST },
@@ -37,10 +43,6 @@ local function finish(errand, ok, reason)
 		return
 	end
 	errands[errand.playerId] = nil
-	if errand.event then
-		stopEvent(errand.event)
-		errand.event = nil
-	end
 	local player = Player(errand.playerId)
 	if player then
 		CombatAutomationMovement.clearWalkDedupe(player)
@@ -53,44 +55,37 @@ local function finish(errand, ok, reason)
 	end
 end
 
-function PlayerErrand.cancel(player, reason)
-	local errand = player and errands[player:getId()]
-	if errand then
-		finish(errand, false, reason or "cancelled")
-	end
-end
-
-local function within(player, dest, reach)
-	local pos = player:getPosition()
-	return pos.z == dest.z and geo.chebyshev(pos, dest) <= reach
-end
-
---- One walk step toward the errand's spot; true once there.
+--- One walk toward the errand's spot: true once within [minReach, reach] of it; false,
+--- "blocked" while path searches keep finding nothing.
 local function approach(errand, player)
-	if within(player, errand.dest, errand.reach) then
+	local dist = geo.chebyshev(player:getPosition(), errand.dest)
+	if dist >= errand.minReach and dist <= errand.reach then
 		return true
 	end
-	CombatAutomationMovement.queueWalkToward(player, errand.dest, false, true, errand.reach, true)
+	CombatAutomationMovement.queueWalkToward(player, errand.dest, false, true, errand.reach, true, errand.minReach)
+	if CombatAutomationMovement.walkBlocked(player, errand.dest) then
+		return false, "blocked"
+	end
 	return false
 end
 
-local function inInstance(player, fn)
-	if Game.runInInstance and player.getInstanceId then
-		return Game.runInInstance(player:getInstanceId(), fn)
+--- Walk until there: nil while walking, else the advance result for a blocked walk.
+local function walkThere(errand, player)
+	local there, blocked = approach(errand, player)
+	if there then
+		return nil
 	end
-	return fn()
+	if blocked then
+		return true, false, blocked
+	end
+	return false
 end
 
-local function tick(errand)
-	errand.event = nil
+local function step(errand, player)
 	if errands[errand.playerId] ~= errand then
 		return
 	end
-	local player = Player(errand.playerId)
-	if not player then
-		return finish(errand, false, "gone")
-	end
-	if player.isManualControl and player:isManualControl(0) then
+	if CombatAutomationMovement.isManual(player, errand.startedAt) then
 		return finish(errand, false, "manual")
 	end
 	if geo.nowMs() >= errand.deadline then
@@ -103,9 +98,34 @@ local function tick(errand)
 	if done then
 		return finish(errand, ok, reason)
 	end
-	errand.event = addEvent(function()
-		tick(errand)
-	end, POLL_MS)
+end
+
+--- Advance `player`'s errand (its think and the end of its walks call this).
+function PlayerErrand.think(player)
+	local errand = player and errands[player:getId()]
+	if errand then
+		step(errand, player)
+	end
+end
+
+IdleEvents.on("player.walkDone", PlayerErrand.think, "PlayerErrand")
+
+local function watch()
+	watchdog = nil
+	local now, ended = geo.nowMs(), {}
+	for id, errand in pairs(errands) do
+		if not Player(id) then
+			ended[#ended + 1] = { errand, "gone" }
+		elseif now >= errand.deadline then
+			ended[#ended + 1] = { errand, "timeout" }
+		end
+	end
+	for _, entry in ipairs(ended) do
+		finish(entry[1], false, entry[2])
+	end
+	if next(errands) then
+		watchdog = addEvent(watch, WATCHDOG_MS)
+	end
 end
 
 local function start(player, errand, opts)
@@ -119,32 +139,38 @@ local function start(player, errand, opts)
 	end
 	errand.playerId = player:getId()
 	errand.dest = Position(errand.dest.x, errand.dest.y, errand.dest.z)
-	errand.deadline = geo.nowMs() + (opts.ttlMs or DEFAULT_TTL_MS)
+	errand.minReach = math.min(errand.minReach or 0, errand.reach)
+	errand.startedAt = geo.nowMs()
+	errand.deadline = errand.startedAt + (opts.ttlMs or DEFAULT_TTL_MS)
 	errand.onDone = opts.onDone
 	errand.keepGoing = opts.keepGoing
 	errands[errand.playerId] = errand
 	if player.getFollowCreature and player:getFollowCreature() then
 		player:setFollowCreature(nil)
 	end
-	tick(errand)
+	if not watchdog then
+		watchdog = addEvent(watch, WATCHDOG_MS)
+	end
+	step(errand, player)
 	return true
 end
 
---- Walk to `dest` (within `opts.reach` tiles, default 0: onto it). With
---- `opts.waitUntil(player)`, stay there until it returns true.
+--- Walk to `dest`: within `opts.reach` tiles (default 0: onto it) and at least
+--- `opts.minReach` away (default 0). With `opts.waitUntil(player)`, stay there until it
+--- returns true.
 function PlayerErrand.walkTo(player, dest, opts)
 	opts = opts or {}
 	local waitUntil = opts.waitUntil
 	return start(player, {
 		dest = dest,
 		reach = math.max(0, opts.reach or 0),
+		minReach = math.max(0, opts.minReach or 0),
 		advance = function(errand, p)
-			if not approach(errand, p) then
-				return false
+			local walking, ok, reason = walkThere(errand, p)
+			if walking ~= nil then
+				return walking, ok, reason
 			end
-			if waitUntil and not inInstance(p, function()
-				return waitUntil(p)
-			end) then
+			if waitUntil and not waitUntil(p) then
 				return false
 			end
 			return true, true
@@ -171,9 +197,10 @@ function PlayerErrand.stepOnto(player, dest, opts)
 			if geo.sameTile(pos, errand.dest) then
 				return true, true
 			end
-			if not approach(errand, p) then
+			local walking, ok, reason = walkThere(errand, p)
+			if walking ~= nil then
 				errand.steppedFrom = nil
-				return false
+				return walking, ok, reason
 			end
 			local dir = DIRECTION_BY_OFFSET[errand.dest.x - pos.x][errand.dest.y - pos.y]
 			errand.steppedFrom = Position(pos.x, pos.y, pos.z)
@@ -192,12 +219,11 @@ local function useErrand(player, dest, reach, resolve, opts)
 		dest = dest,
 		reach = reach,
 		advance = function(errand, p)
-			if not approach(errand, p) then
-				return false
+			local walking, ok, reason = walkThere(errand, p)
+			if walking ~= nil then
+				return walking, ok, reason
 			end
-			local item, target = inInstance(p, function()
-				return resolve(p)
-			end)
+			local item, target = resolve(p)
 			if not item then
 				if opts.wait then
 					return false
@@ -205,9 +231,7 @@ local function useErrand(player, dest, reach, resolve, opts)
 				return true, false, "missing"
 			end
 			geo.faceToward(p, errand.dest)
-			local used, ret = inInstance(p, function()
-				return p:useItem(item, target)
-			end)
+			local used, ret = p:useItem(item, target)
 			if used then
 				return true, true
 			end
@@ -244,18 +268,17 @@ end
 
 --- Walk next to map item `itemId` (or the first present of a list of ids) at `position`
 --- and pick it up into the backpack, as a drag onto the inventory would (capacity and
---- free slots apply). Ends "missing" when the item is gone, or a refused move's reason.
+--- free slots apply). Ends "missing" when the item is gone, or "refused".
 function PlayerErrand.pickUp(player, position, itemId, opts)
 	return start(player, {
 		dest = position,
 		reach = 1,
 		advance = function(errand, p)
-			if not approach(errand, p) then
-				return false
+			local walking, ok, reason = walkThere(errand, p)
+			if walking ~= nil then
+				return walking, ok, reason
 			end
-			local item = inInstance(p, function()
-				return itemOnTile(position, itemId)
-			end)
+			local item = itemOnTile(position, itemId)
 			if not item then
 				return true, false, "missing"
 			end

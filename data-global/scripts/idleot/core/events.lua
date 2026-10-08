@@ -11,7 +11,7 @@ instanceRelease:register()
 local walkEnd = EventCallback("IdlePlayerOnWalkEnd")
 
 -- The engine clears the walk right after this callback, so a walk started from a
--- handler would be dropped: emit on the next dispatcher tick.
+-- handler would be dropped: emit on the next dispatcher tick, in the player's instance.
 function walkEnd.playerOnWalkEnd(player, completed)
 	if not IdleEvents.has("player.walkDone") then
 		return
@@ -19,7 +19,7 @@ function walkEnd.playerOnWalkEnd(player, completed)
 	addEvent(function(playerId)
 		local p = Player(playerId)
 		if p then
-			IdleEvents.emit("player.walkDone", p, completed)
+			Game.runInInstance(p:getInstanceId(), IdleEvents.emit, "player.walkDone", p, completed)
 		end
 	end, 0, player:getId())
 end

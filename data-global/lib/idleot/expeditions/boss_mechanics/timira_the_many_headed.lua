@@ -109,7 +109,7 @@ local function bucketRound(ctx, p, done)
 				return CombatGeo.nowMs() < ctx.sparklingUntil or ctx:stage() ~= FIRST_STAGE
 			end,
 			onDone = function(_, ok, reason)
-				if reason == "timeout" and #ctx.reachableWater > 1 and CombatGeo.chebyshev(p:getPosition(), water) > 1 then
+				if (reason == "timeout" or reason == "blocked") and #ctx.reachableWater > 1 and CombatGeo.chebyshev(p:getPosition(), water) > 1 then
 					dropPosition(ctx.reachableWater, water)
 				end
 				if not ok or ctx:stage() ~= FIRST_STAGE then

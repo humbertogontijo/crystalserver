@@ -57,4 +57,4 @@ function InstanceStorage.install()
 	end
 end
 
-IdleEvents.on("instance.released", InstanceStorage.clear)
+IdleEvents.on("instance.released", InstanceStorage.clear, "InstanceStorage")

@@ -32,6 +32,7 @@ if VIEW_Y < 15 then
 	VIEW_Y = 15
 end
 local DISCOVER_RADIUS = 4 -- Chebyshev: viewpoint counts as found only within this range
+local DISCOVERY_WALK_TTL_MS = 20000
 local POI_TARGET = 7
 -- bump only when subarea ids/footprints change incompatibly: rolled viewpoints are wiped on
 -- login (completed subareas are kept). Catalog changes need no bump - saved sets are
@@ -867,7 +868,7 @@ local function discoveryWalkDest(playerPos, poi)
 	return Position(idealX, idealY, poi.z)
 end
 
---- Client FAB: exclusive walk into discovery radius of a viewport-visible unfound POI.
+--- Client FAB: errand walk (PlayerErrand) into discovery radius of a viewport-visible unfound POI.
 --- Validated against the live session — does not unlock general client autoWalk.
 --- Paths to any tile within DISCOVER_RADIUS (cities often block a single ideal sqm).
 function DiscoverySystem.walkTowardViewpoint(player, x, y, z)
@@ -904,36 +905,19 @@ function DiscoverySystem.walkTowardViewpoint(player, x, y, z)
 		-- Already in range; discovery tick will mark found.
 		return true
 	end
-	local focus = Position(x, y, z)
-	if CombatAutomationMovement and CombatAutomationMovement.beginExclusiveWalk then
-		-- Prefer pathfinding into the discovery ring (any walkable tile in range).
-		if CombatAutomationMovement.beginExclusiveWalk(player, focus, nil, 1, DISCOVER_RADIUS) then
-			return true
-		end
-		-- Fallback: single ideal edge tile (legacy).
-		local dest = discoveryWalkDest(pos, poi)
-		if dest and CombatAutomationMovement.beginExclusiveWalk(player, dest) then
-			return true
-		end
-		return false
-	end
-	-- Fallback when automation movement is unavailable: exclusive autoWalk only.
-	local path = player.getPathTo and player:getPathTo(focus, 1, DISCOVER_RADIUS, true, true, 128) or nil
-	if type(path) ~= "table" or #path == 0 then
-		local dest = discoveryWalkDest(pos, poi)
-		if not dest then
-			return false
-		end
-		path = player:getPathTo(dest, 0, 0, true, true, 128)
-	end
-	if type(path) ~= "table" or #path == 0 then
-		return false
-	end
-	local dirs = {}
-	for i = #path, 1, -1 do
-		dirs[#dirs + 1] = path[i]
-	end
-	return player:autoWalk(dirs, 0, true) == true
+	-- Walk into the discovery ring (any walkable tile in range); with no path there, onto
+	-- the single ideal edge tile.
+	return PlayerErrand.walkTo(player, Position(x, y, z), {
+		reach = DISCOVER_RADIUS,
+		minReach = 1,
+		ttlMs = DISCOVERY_WALK_TTL_MS,
+		onDone = function(p, _, reason)
+			local dest = p and reason == "blocked" and discoveryWalkDest(p:getPosition(), poi)
+			if dest then
+				PlayerErrand.walkTo(p, dest, { ttlMs = DISCOVERY_WALK_TTL_MS })
+			end
+		end,
+	})
 end
 
 local function checkViewpoints(player, session)

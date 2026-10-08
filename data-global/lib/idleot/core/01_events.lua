@@ -23,11 +23,23 @@
 -- Prefer Scope:on (02_scope.lua) in session / instance code: it unsubscribes on dispose.
 
 IdleEvents = IdleEvents or { handlers = {} }
+IdleEvents.keyed = IdleEvents.keyed or {}
 
-local handlers = IdleEvents.handlers
+local handlers, keyed = IdleEvents.handlers, IdleEvents.keyed
 
---- Subscribe `fn(...)` to `name`. Returns a function that unsubscribes it.
-function IdleEvents.on(name, fn)
+--- Subscribe `fn(...)` to `name`. Returns a function that unsubscribes it. A `key` replaces
+--- the earlier subscription with that key (module-level subscriptions stay single when the
+--- libs are reloaded).
+function IdleEvents.on(name, fn, key)
+	if key then
+		local slot = name .. "|" .. key
+		if keyed[slot] then
+			keyed[slot]()
+		end
+		local unsubscribe = IdleEvents.on(name, fn)
+		keyed[slot] = unsubscribe
+		return unsubscribe
+	end
 	-- Lists are copied on write, so an emit in progress keeps the list it started with.
 	local copy = {}
 	for i, handler in ipairs(handlers[name] or {}) do
