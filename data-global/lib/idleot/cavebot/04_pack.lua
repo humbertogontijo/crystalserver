@@ -248,7 +248,7 @@ function CavebotPack.adoptEngaged(run, members, pack)
 			if not run.tracked[mid] then
 				run.tracked[mid] = true
 				owners[mid] = run.id
-				creature:registerEvent("CavebotMonsterDeath")
+				creature:registerEvent("IdleMonsterDeath")
 			end
 		end
 	end
@@ -260,7 +260,7 @@ function CavebotPack.adoptEngaged(run, members, pack)
 	end
 end
 
---- CavebotMonsterDeath: an adopted monster died.
+--- An adopted monster died.
 function CavebotPack.onMonsterDeath(creature)
 	local mid = creature and creature:getId()
 	local runId = mid and owners[mid]
@@ -279,6 +279,8 @@ function CavebotPack.onMonsterDeath(creature)
 		run.kills = (run.kills or 0) + 1
 	end
 end
+
+IdleEvents.on("monster.died", CavebotPack.onMonsterDeath, "CavebotPack")
 
 --- Forget an open run's adopted monsters.
 function CavebotPack.clearOwners(runId)

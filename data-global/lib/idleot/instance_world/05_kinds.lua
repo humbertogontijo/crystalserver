@@ -55,9 +55,6 @@ function InstanceKinds.apply(instanceId)
 	return true
 end
 
---- Session rules are engine state (world type) released with the channel; nothing to drop here.
-function InstanceKinds.release(_instanceId) end
-
 --- Rules kind of an instance key.
 function InstanceKinds.kindOf(instanceId)
 	return Instance.kind(instanceId) or "world"

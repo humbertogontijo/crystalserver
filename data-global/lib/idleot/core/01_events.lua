@@ -14,7 +14,9 @@
 --   encounter.stage (encounter, stageNumber)           an Encounter (stock or instance copy) entered a stage
 --   creature.eventRegistered (creature, eventName)     creature event registered on a creature
 --   creature.eventUnregistered (creature, eventName)   creature event unregistered from a creature
---   monster.died (monster, killer)                     product-tracked monster died (expeditions, raids)
+--   monster.died (monster, corpse, killer, mostDamageKiller)
+--                                                      a monster registered with "IdleMonsterDeath" died
+--                                                      (hunts, bosses, arenas, soul pits, raids, cave runs)
 --   zone.itemAdded (zone, item)                        item placed inside a zone
 --   zone.itemRemoved (zone, item)                      item removed from a zone (transform: removed then added)
 --   player.instanceChanged (player)                    player bound to another instance / layer (or its

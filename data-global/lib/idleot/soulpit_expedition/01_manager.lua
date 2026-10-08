@@ -70,7 +70,7 @@ function SoulPitExpedition.spawnWave(session)
 	if not session or not session.instance or not session.soulPitMonster then
 		return
 	end
-	-- Wave timers outlive the session: never spawn into a released (or reused) instance.
+	-- Never spawn into a released (or reused) instance.
 	if not Instance.isLive(session.instance.instanceId) or session.state == "ended" then
 		return
 	end
@@ -97,7 +97,7 @@ function SoulPitExpedition.spawnWave(session)
 			monster = Game.createMonster(monsterName, pos, true, true, nil, instanceId)
 		end
 		if monster then
-			monster:registerEvent("ExpeditionMonsterDeath")
+			monster:registerEvent("IdleMonsterDeath")
 			if stack == 40 and SoulPit and SoulPit.bossAbilities and SoulPit.possibleAbilities then
 				local abilityName = SoulPit.possibleAbilities[math.random(1, #SoulPit.possibleAbilities)]
 				local ability = SoulPit.bossAbilities[abilityName]
@@ -149,28 +149,18 @@ function SoulPitExpedition.onMonsterDeath(session)
 				end
 			end
 		else
-			addEvent(function(key)
-				local s = ExpeditionManager and ExpeditionManager.getSessionByKey and ExpeditionManager.getSessionByKey(key)
-				if not s then
-					-- Fallback: scan by soulpit flag via player.
-					return
+			ExpeditionManager.scope(session):timer("wave", (SoulPit and SoulPit.checkMonstersDelay) or 4500, function()
+				if (session.alive or 0) <= 0 and session.state ~= "cleared" then
+					SoulPitExpedition.spawnWave(session)
 				end
-				SoulPitExpedition.spawnWave(s)
-			end, (SoulPit and SoulPit.checkMonstersDelay) or 4500, session.key)
-			-- Direct spawn if getSessionByKey missing:
-			addEvent(function(playerId)
-				local p = Player(playerId)
-				if not p or not ExpeditionManager then
-					return
-				end
-				local s = ExpeditionManager.getSessionByPlayer(p)
-				if s and s.kind == "soulpit" and (s.alive or 0) <= 0 and s.state ~= "cleared" then
-					SoulPitExpedition.spawnWave(s)
-				end
-			end, (SoulPit and SoulPit.checkMonstersDelay) or 4500, session.playerId)
+			end)
 		end
 	end
 end
+
+IdleEvents.on("monster.died", function(monster)
+	SoulPitExpedition.onMonsterDeath(ExpeditionManager.getSessionByInstanceId(monster:getInstanceId()))
+end, "SoulPitExpedition")
 
 function SoulPitExpedition.start(player)
 	if not player or not ExpeditionManager or not ExpeditionInstance then
@@ -248,16 +238,9 @@ function SoulPitExpedition.start(player)
 	ExpeditionManager.scope(session):cancel("bossSpawn")
 	pcall(ExpeditionPack.clear, session)
 	-- First wave shortly after enter.
-	addEvent(function(pid)
-		local p = Player(pid)
-		if not p then
-			return
-		end
-		local s = ExpeditionManager.getSessionByPlayer(p)
-		if s and s.kind == "soulpit" then
-			SoulPitExpedition.spawnWave(s)
-		end
-	end, 2000, player:getId())
+	ExpeditionManager.scope(session):timer("wave", 2000, function()
+		SoulPitExpedition.spawnWave(session)
+	end)
 
 	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Soul Pit started: " .. monsterName)
 	return true

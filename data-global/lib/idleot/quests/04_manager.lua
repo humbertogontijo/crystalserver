@@ -907,3 +907,13 @@ function QuestsManager.onMonsterKill(player, monsterName)
 		end
 	end
 end
+
+IdleEvents.on("monster.died", function(monster, _corpse, _killer, mostDamageKiller)
+	if not Instance.isPrivate(monster:getInstanceId()) then
+		return
+	end
+	local name = monster:getName()
+	onDeathForParty(monster, mostDamageKiller, function(_, player)
+		QuestsManager.onMonsterKill(player, name)
+	end)
+end, "QuestsManager")

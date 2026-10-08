@@ -270,7 +270,7 @@ end
 
 function EchoWarden.registerExpeditionDeath(m)
 	if m and m.registerEvent then
-		m:registerEvent("ExpeditionMonsterDeath")
+		m:registerEvent("IdleMonsterDeath")
 	end
 end
 

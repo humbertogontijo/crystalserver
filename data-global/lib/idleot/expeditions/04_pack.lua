@@ -161,7 +161,7 @@ function ExpeditionPack.onInstanceMonsterSpawn(monster, _position)
 	if session.skipOpenWorldForge ~= true and InstanceWorld and InstanceWorld.applyOpenWorldForge then
 		InstanceWorld.applyOpenWorldForge(monster)
 	end
-	monster:registerEvent("ExpeditionMonsterDeath")
+	monster:registerEvent("IdleMonsterDeath")
 
 	local mid = monster:getId()
 	monsterOwners[mid] = session.key
@@ -261,26 +261,14 @@ function ExpeditionPack.spawn(session)
 	Cavebot.start(session)
 end
 
-function ExpeditionPack.onMonsterDeath(creature, corpse)
-	if not creature then
-		return
-	end
-	-- Sequential arena pits track kills in QuestArena.monsterOwners.
-	if QuestArena and QuestArena.isOwnedMonster and QuestArena.isOwnedMonster(creature) then
-		return
-	end
-	-- Boss fights own their monsters separately.
-	if ExpeditionBoss and ExpeditionBoss.onMonsterDeath and ExpeditionBoss.onMonsterDeath(creature, corpse) then
-		return
-	end
+--- Arena pits and boss fights own their monsters (their own "monster.died" subscribers);
+--- here only lure-hunt spawns count, other deaths in a hunt just refresh engagement.
+function ExpeditionPack.onMonsterDeath(creature)
 	local monsterId = creature:getId()
 	local key = monsterOwners[monsterId]
 	monsterOwners[monsterId] = nil
 
-	local session = key and ExpeditionManager.getSessionByKey(key)
-	if not session and creature.getInstanceId and ExpeditionManager.getSessionByInstanceId then
-		session = ExpeditionManager.getSessionByInstanceId(creature:getInstanceId())
-	end
+	local session = key and ExpeditionManager.getSessionByKey(key) or ExpeditionManager.getSessionByInstanceId(creature:getInstanceId())
 	if not session or huntEnded(session) then
 		return
 	end
@@ -303,6 +291,8 @@ function ExpeditionPack.onMonsterDeath(creature, corpse)
 		ExpeditionPack.finishFiendishHunt(session)
 	end
 end
+
+IdleEvents.on("monster.died", ExpeditionPack.onMonsterDeath, "ExpeditionPack")
 
 function ExpeditionPack.clear(session)
 	if not session then

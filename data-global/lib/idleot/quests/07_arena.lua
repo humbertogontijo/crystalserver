@@ -233,7 +233,7 @@ local function spawnPitMonster(session)
 	if monster.unregisterEvent then
 		monster:unregisterEvent("SvargrondArenaBossDeath")
 	end
-	monster:registerEvent("ExpeditionMonsterDeath")
+	monster:registerEvent("IdleMonsterDeath")
 	monsterOwners[monster:getId()] = session.key
 	session.alive = 1
 	session.state = "hunting"
@@ -378,30 +378,19 @@ function QuestArena.begin(session)
 	prepareAndSpawn(session, 1)
 end
 
---- True when this creature is a QuestArena pit spawn (not ExpeditionPack/boss tables).
-function QuestArena.isOwnedMonster(creature)
-	if not creature then
-		return false
-	end
-	return monsterOwners[creature:getId()] ~= nil
-end
-
 --- Death entry: resolve session from QuestArena.monsterOwners (reliable at onDeath time).
-function QuestArena.handleMonsterDeath(creature, _corpse)
-	if not creature then
-		return false
-	end
+function QuestArena.handleMonsterDeath(creature)
 	local mid = creature:getId()
 	local key = monsterOwners[mid]
 	if not key then
-		return false
+		return
 	end
-	local session = ExpeditionManager and ExpeditionManager.getSessionByKey and ExpeditionManager.getSessionByKey(key)
+	local session = ExpeditionManager.getSessionByKey(key)
 	if not session then
 		monsterOwners[mid] = nil
-		return false
+		return
 	end
-	return QuestArena.onMonsterDeath(session, creature) == true
+	QuestArena.onMonsterDeath(session, creature)
 end
 
 function QuestArena.onMonsterDeath(session, creature)
@@ -463,6 +452,8 @@ function QuestArena.onMonsterDeath(session, creature)
 	end, 900)
 	return true
 end
+
+IdleEvents.on("monster.died", QuestArena.handleMonsterDeath, "QuestArena")
 
 function QuestArena.clear(session)
 	clearEvents(session)

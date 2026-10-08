@@ -18,13 +18,12 @@ function ExpeditionInstance.allocate(kind, subareaId, owner, tag)
 	return id
 end
 
+--- Release a reserved channel; owners clean up on "instance.released".
 function ExpeditionInstance.free(instanceId)
 	if instanceId == nil or Instance.isWorld(instanceId) then
 		return
 	end
-	Game.clearInstanceSpawns(instanceId)
 	Game.releaseInstance(instanceId)
-	InstanceKinds.release(instanceId)
 end
 
 function ExpeditionInstance.origin(_instanceId)

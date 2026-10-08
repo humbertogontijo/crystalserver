@@ -199,7 +199,8 @@ end
 -- Wait after the last stage starts before allowing "all clear" (covers spawn flash delay).
 -- Actual eligibility is max(this, raid.timeToSpawnMonsters + 2000); grace also requires a successful spawn.
 ExpeditionConfig.RAID_CLEAR_ELIGIBLE_DELAY_MS = 5000
-ExpeditionConfig.RAID_WATCH_INTERVAL_MS = 2000
+-- Deaths / spawns recount at once; this loop only catches monsters removed without dying.
+ExpeditionConfig.RAID_WATCH_INTERVAL_MS = 10000
 ExpeditionConfig.RAID_ARENA_KIND = "raid"
 ExpeditionConfig.RAID_JOIN_HINT = "Join via Expeditions > Raids."
 -- How many shared raid instances may run at once (XML + Lua Raid.registry).

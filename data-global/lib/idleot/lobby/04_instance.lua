@@ -329,14 +329,21 @@ function LobbyInstance.teardownIfEmpty(lobbyId)
 		return false
 	end
 	removeInstanceThings(room)
-	if ExpeditionInstance and ExpeditionInstance.free then
-		ExpeditionInstance.free(room.instanceId)
-	end
-	lobbyIdByInstance[room.instanceId] = nil
-	roomsByLobbyId[room.lobbyId] = nil
-	logger.info("[Lobby] room torn down for lobby #{}", room.lobbyId)
+	Game.releaseInstance(room.instanceId)
 	return true
 end
+
+--- Rooms are forgotten when their channel is released, whoever releases it.
+IdleEvents.on("instance.released", function(instanceKey)
+	local key = Instance.normalize(instanceKey)
+	local lobbyId = lobbyIdByInstance[key]
+	if not lobbyId then
+		return
+	end
+	lobbyIdByInstance[key] = nil
+	roomsByLobbyId[lobbyId] = nil
+	logger.info("[Lobby] room torn down for lobby #{}", lobbyId)
+end, "LobbyInstance")
 
 --- Re-check after a hop resolves (teleports land on the next tick).
 function LobbyInstance.scheduleTeardownCheck(lobbyId)

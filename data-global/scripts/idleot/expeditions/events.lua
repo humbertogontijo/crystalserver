@@ -57,52 +57,6 @@ end
 
 logoutEvent:register()
 
-local monsterDeath = CreatureEvent("ExpeditionMonsterDeath")
-
-function monsterDeath.onDeath(creature, corpse, killer, mostDamageKiller, lastHitUnjustified, mostDamageUnjustified)
-	local arenaHandled = false
-	if QuestArena and QuestArena.handleMonsterDeath then
-		pcall(function()
-			arenaHandled = QuestArena.handleMonsterDeath(creature, corpse) == true
-		end)
-	end
-	if not arenaHandled then
-		pcall(function()
-			ExpeditionPack.onMonsterDeath(creature, corpse)
-		end)
-	end
-	-- Soul Pit expedition waves (not owned by ExpeditionPack).
-	if SoulPitExpedition and SoulPitExpedition.onMonsterDeath and ExpeditionManager then
-		pcall(function()
-			local handled = false
-			if type(onDeathForParty) == "function" then
-				onDeathForParty(creature, mostDamageKiller, function(_, player)
-					if handled then
-						return
-					end
-					local session = ExpeditionManager.getSessionByPlayer(player)
-					if session and session.kind == "soulpit" then
-						handled = true
-						SoulPitExpedition.onMonsterDeath(session)
-					end
-				end)
-			end
-		end)
-	end
-	-- Idle Quests & Tasks: credit Spike / Dragon Hunt (stock scripts are map-gated).
-	if QuestsManager and QuestsManager.onMonsterKill then
-		pcall(function()
-			local name = creature:getName()
-			onDeathForParty(creature, mostDamageKiller, function(_, player)
-				QuestsManager.onMonsterKill(player, name)
-			end)
-		end)
-	end
-	return true
-end
-
-monsterDeath:register()
-
 -- Instance copies of world spawns (Game.createInstanceSpawns) → lure-hunt tracking.
 local monsterSpawnCallback = EventCallback("ExpeditionMonsterOnSpawn")
 

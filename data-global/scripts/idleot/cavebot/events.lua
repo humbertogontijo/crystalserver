@@ -47,16 +47,3 @@ function partyDisband.partyOnDisband(_party)
 end
 
 partyDisband:register()
-
--- Open-world runs: monsters adopted by CavebotPack.adoptEngaged.
-local monsterDeath = CreatureEvent("CavebotMonsterDeath")
-
-function monsterDeath.onDeath(creature)
-	local ok, err = pcall(CavebotPack.onMonsterDeath, creature)
-	if not ok then
-		logger.error("[Cavebot] monster death failed: {}", err)
-	end
-	return true
-end
-
-monsterDeath:register()

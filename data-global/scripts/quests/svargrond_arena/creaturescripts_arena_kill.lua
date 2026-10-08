@@ -1,10 +1,7 @@
 local deathEvent = CreatureEvent("SvargrondArenaBossDeath")
 function deathEvent.onDeath(creature, corpse, _lastHitKiller, mostDamageKiller)
-	-- Private QuestArena instances own progression; do not spawn public pit teleports.
+	-- Private QuestArena instances own progression ("monster.died"); no public pit teleports.
 	if creature and Instance.isPrivate(Instance.of(creature)) then
-		if QuestArena and QuestArena.handleMonsterDeath then
-			QuestArena.handleMonsterDeath(creature, corpse)
-		end
 		return true
 	end
 	local player = Player(mostDamageKiller)

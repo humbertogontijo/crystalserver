@@ -445,6 +445,9 @@ function RaidInstance.onEnterStage(raid, stageNumber)
 		local baseMs = ExpeditionConfig.RAID_CLEAR_ELIGIBLE_DELAY_MS or 5000
 		local delayMs = math.max(baseMs, spawnMs + 2000)
 		session.clearEligibleAt = os.time() + math.ceil(delayMs / 1000)
+		session.scope:timer("clearEligible", math.ceil(delayMs / 1000) * 1000, function()
+			RaidInstance.watchTick(session)
+		end)
 		logger.info("[RaidInstance] last stage started for {}", raid.name)
 	end
 	RaidInstance.refreshMemberStatus(session)
@@ -530,11 +533,11 @@ function RaidInstance.activeCount()
 	return n
 end
 
-function RaidInstance.refreshMemberStatus(session)
+function RaidInstance.refreshMemberStatus(session, alive)
 	if not session then
 		return
 	end
-	local alive = RaidInstance.countAlive(session)
+	alive = alive or RaidInstance.countAlive(session)
 	for _, id in ipairs(session.playerIds or {}) do
 		local player = Player(id)
 		local member = ExpeditionManager.getSessionByPlayer(player)
@@ -590,43 +593,60 @@ local function beginGrace(session)
 	end
 end
 
+--- Recount, push the count to members and start the loot grace once the last stage is
+--- cleared. Runs on deaths / spawns (requestCount) and a slow fallback loop.
 function RaidInstance.watchTick(session)
-	if not session or session.tearingDown or session.graceStarted then
-		return
-	end
-	if not session.lastStageStarted then
-		return
-	end
-	if session.clearEligibleAt and os.time() < session.clearEligibleAt then
-		return
-	end
-	local raid = session.raid
-	if not raid then
+	if not session or session.tearingDown or session.graceStarted or not session.raid then
 		return
 	end
 	local monsters = RaidInstance.countAlive(session)
 	if monsters > 0 then
 		session.monstersSpawned = true
 	end
-	RaidInstance.refreshMemberStatus(session)
-	if monsters > 0 then
+	RaidInstance.refreshMemberStatus(session, monsters)
+	-- Do not treat "never spawned" as cleared — despawn timeout owns that case.
+	if monsters > 0 or not session.monstersSpawned or not session.lastStageStarted then
 		return
 	end
-	-- Do not treat "never spawned" as cleared — despawn timeout owns that case.
-	if not session.monstersSpawned then
+	if session.clearEligibleAt and os.time() < session.clearEligibleAt then
 		return
 	end
 	beginGrace(session)
 end
 
+--- Coalesce a recount into the next tick (a burst of deaths counts once).
+function RaidInstance.requestCount(session)
+	session.scope:timer("count", 0, function()
+		RaidInstance.watchTick(session)
+	end)
+end
+
+--- Fallback for monsters removed without dying (no "monster.died").
 function RaidInstance.startWatcher(session)
 	if not session then
 		return
 	end
-	session.scope:every(ExpeditionConfig.RAID_WATCH_INTERVAL_MS or 2000, function()
+	session.scope:every(ExpeditionConfig.RAID_WATCH_INTERVAL_MS, function()
 		RaidInstance.watchTick(session)
 	end, "watch")
 end
+
+local function sessionOfInstance(instanceId)
+	local key = Instance.normalize(instanceId)
+	for _, session in pairs(RaidInstance.active) do
+		if session.instance and session.instance.instanceId == key then
+			return session
+		end
+	end
+	return nil
+end
+
+IdleEvents.on("monster.died", function(monster)
+	local session = sessionOfInstance(monster:getInstanceId())
+	if session then
+		RaidInstance.requestCount(session)
+	end
+end, "RaidInstance")
 
 function RaidInstance.onStarted(raid)
 	local session = RaidInstance.active[raid.name]
@@ -1157,9 +1177,11 @@ function RaidInstance.installHooks()
 						return false
 					end
 					monster:setRewardBoss()
+					monster:registerEvent("IdleMonsterDeath")
 					local session = RaidInstance.active[raidName]
 					if session then
 						session.monstersSpawned = true
+						RaidInstance.requestCount(session)
 					end
 					if asBoss then
 						RaidInstance.markBoss(raid, monster, monsterName)
@@ -1181,6 +1203,10 @@ function RaidInstance.installHooks()
 							local m = Monster(monsterId)
 							if m then
 								m:remove()
+								local s = RaidInstance.active[raidName]
+								if s then
+									RaidInstance.requestCount(s)
+								end
 							end
 						end, timeLimit, monster:getID())
 					end

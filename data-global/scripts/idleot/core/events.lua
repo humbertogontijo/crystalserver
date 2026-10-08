@@ -45,3 +45,13 @@ function itemRemoved.zoneOnItemRemoved(zone, item)
 end
 
 itemRemoved:register()
+
+-- Product-tracked monsters register "IdleMonsterDeath"; each owner subscribes to "monster.died".
+local monsterDeath = CreatureEvent("IdleMonsterDeath")
+
+function monsterDeath.onDeath(creature, corpse, killer, mostDamageKiller)
+	IdleEvents.emit("monster.died", creature, corpse, killer, mostDamageKiller)
+	return true
+end
+
+monsterDeath:register()

@@ -154,7 +154,7 @@ function ExpeditionBoss.bindBoss(session, monster)
 	session.bossCreatureId = mid
 	session.alive = 1
 	session.phaseTransform = nil
-	monster:registerEvent("ExpeditionMonsterDeath")
+	monster:registerEvent("IdleMonsterDeath")
 	if not lever then
 		ExpeditionBoss.ensureKillable(monster)
 	end
@@ -656,6 +656,8 @@ function ExpeditionBoss.onMonsterDeath(creature, corpse)
 	end)
 	return true
 end
+
+IdleEvents.on("monster.died", ExpeditionBoss.onMonsterDeath, "ExpeditionBoss")
 
 function ExpeditionBoss.clear(session)
 	if not session then
