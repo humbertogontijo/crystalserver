@@ -3,9 +3,10 @@
 --
 --   local scope = Scope.new({ name = "...", instanceId = key, alive = function() ... end })
 --   scope:after(ms, fn)          once, later
---   scope:every(ms, fn)          repeatedly (first run after ms)
+--   scope:every(ms, fn, name?)   repeatedly (first run after ms)
 --   scope:sweep(ms, fn)          now and repeatedly
 --   scope:timer(name, ms, fn)    once, replacing an earlier timer of that name
+--   scope:addEvent(fn, ms, ...)  addEvent-compatible (returns the raw event id)
 --   scope:on(event, fn)          IdleEvents subscription
 --   scope:child(opts)            nested scope, disposed with this one
 --   scope:onDispose(fn)          cleanup hook
@@ -14,6 +15,7 @@
 -- Callbacks run only while the scope is alive (not disposed, its `alive` predicate holds
 -- and its parent is alive), inside its instance (Game.runInInstance) when it has one, and
 -- under pcall. A dead scope's timers simply stop; dispose cancels them right away.
+-- `instanceId` may be a function (resolved per run); children without one use the parent's.
 
 Scope = Scope or {}
 Scope.__index = Scope
@@ -43,11 +45,24 @@ function Scope:alive()
 	return not self.isAlive or self.isAlive() == true
 end
 
+--- Instance the scope's callbacks run in (nil: the caller's).
+function Scope:instance()
+	local id = self.instanceId
+	if type(id) == "function" then
+		id = id()
+	end
+	if id == nil and self.parent then
+		return self.parent:instance()
+	end
+	return id
+end
+
 --- `fn(...)` now, in the scope's instance, under pcall. Returns ok, results.
 function Scope:run(fn, ...)
 	local ok, a, b, c
-	if self.instanceId then
-		ok, a, b, c = pcall(Game.runInInstance, self.instanceId, fn, ...)
+	local instanceId = self:instance()
+	if instanceId then
+		ok, a, b, c = pcall(Game.runInInstance, instanceId, fn, ...)
 	else
 		ok, a, b, c = pcall(fn, ...)
 	end
@@ -89,14 +104,21 @@ function Scope:after(ms, fn)
 	return handle
 end
 
---- `fn()` every `ms` (first run after `ms`) until cancelled or the scope ends.
-function Scope:every(ms, fn)
+--- `fn()` every `ms` (first run after `ms`) until cancelled or the scope ends. A `name`
+--- replaces the earlier loop of that name (cancel/pending accept it too).
+function Scope:every(ms, fn, name)
 	if self.disposed then
 		return nil
+	end
+	if name then
+		self:cancel(name)
 	end
 	local handle = { repeating = true }
 	self.timers[handle] = true
 	schedule(self, handle, ms, fn)
+	if name then
+		self.named[name] = handle
+	end
 	return handle
 end
 
@@ -121,6 +143,25 @@ function Scope:timer(name, ms, fn)
 	end)
 	self.named[name] = handle
 	return handle
+end
+
+--- Drop-in `addEvent(fn, ms, ...)` for code that keeps raw ids (and may stopEvent them).
+function Scope:addEvent(fn, ms, ...)
+	if self.disposed then
+		return nil
+	end
+	local handle = {}
+	self.timers[handle] = true
+	handle.id = addEvent(function(...)
+		handle.id = nil
+		if self.timers[handle] then
+			self.timers[handle] = nil
+			if self:alive() then
+				self:run(fn, ...)
+			end
+		end
+	end, math.max(0, ms or 0), ...)
+	return handle.id
 end
 
 --- True while the timer `name` is pending.
@@ -165,7 +206,7 @@ function Scope:child(opts)
 	opts = opts or {}
 	local child = Scope.new({
 		name = opts.name or self.name,
-		instanceId = opts.instanceId or self.instanceId,
+		instanceId = opts.instanceId,
 		alive = opts.alive,
 		parent = self,
 	})

@@ -16,14 +16,16 @@ local function preSpawnDurationMs()
 end
 
 local function clearDespawn(session)
-	if session and session.despawnEvent then
-		stopEvent(session.despawnEvent)
-		session.despawnEvent = nil
-	end
-	if session then
-		session.bossEndsAt = nil
-		session.bossTimeLimitSec = nil
-	end
+	ExpeditionManager.scope(session):cancel("bossDespawn")
+	session.bossEndsAt = nil
+	session.bossTimeLimitSec = nil
+end
+
+local function retrySpawn(session)
+	session.state = "waiting"
+	ExpeditionManager.scope(session):timer("bossSpawn", 1500, function()
+		ExpeditionBoss.spawn(session)
+	end)
 end
 
 --- HEALTHCHANGE kill-gates only (phase transforms must stay registered).
@@ -339,10 +341,7 @@ local function finishBoss(session, opts)
 		end
 	end
 
-	if session.waitingEvent then
-		stopEvent(session.waitingEvent)
-		session.waitingEvent = nil
-	end
+	ExpeditionManager.scope(session):cancel("bossSpawn")
 
 	ExpeditionManager.scheduleSessionExit(session, {
 		victory = victory,
@@ -363,13 +362,11 @@ function ExpeditionBoss.scheduleDespawn(session)
 	sec = math.floor(sec)
 	session.bossTimeLimitSec = sec
 	session.bossEndsAt = os.time() + sec
-	session.despawnEvent = addEvent(function()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s or s.state ~= "hunting" then
+	ExpeditionManager.scope(session):timer("bossDespawn", sec * 1000, function()
+		if session.state ~= "hunting" then
 			return
 		end
-		s.despawnEvent = nil
-		local bossId = s.bossCreatureId
+		local bossId = session.bossCreatureId
 		if bossId then
 			bossOwners[bossId] = nil
 			local monster = Monster(bossId)
@@ -386,8 +383,8 @@ function ExpeditionBoss.scheduleDespawn(session)
 				end
 			end
 		end
-		finishBoss(s, { victory = false })
-	end, sec * 1000)
+		finishBoss(session, { victory = false })
+	end)
 end
 
 local function isLeverBossMonster(monster, lever)
@@ -462,13 +459,12 @@ end
 --- boss binds when the copy spawns it (later stage). Returns the copy, nil when it failed.
 local function startLeverEncounter(session, lever)
 	local instanceId = session.instance.instanceId
-	local key = session.key
 	local copy, reason = EncounterInstances.start(lever.encounter, instanceId, {
+		scope = ExpeditionManager.scope(session),
 		onSpawn = function(monster)
-			local s = ExpeditionManager.getSessionByKey(key)
-			if s and s.state == "hunting" and isLeverBossMonster(monster, lever) then
-				ExpeditionBoss.bindBoss(s, monster)
-				ExpeditionManager.broadcastStatus(s)
+			if session.state == "hunting" and isLeverBossMonster(monster, lever) then
+				ExpeditionBoss.bindBoss(session, monster)
+				ExpeditionManager.broadcastStatus(session)
 			end
 		end,
 	})
@@ -479,7 +475,6 @@ local function startLeverEncounter(session, lever)
 end
 
 local function materialize(session, planned)
-	session.waitingEvent = nil
 	session.alive = 0
 	session.state = "hunting"
 	session.bossCreatureId = nil
@@ -506,22 +501,15 @@ local function materialize(session, planned)
 	end
 
 	if session.alive == 0 and not encounterRunning then
-		session.state = "waiting"
-		session.waitingEvent = addEvent(function()
-			local s = ExpeditionManager.getSessionByKey(session.key)
-			if s then
-				ExpeditionBoss.spawn(s)
-			end
-		end, 1500)
+		retrySpawn(session)
 	else
 		ExpeditionBoss.scheduleDespawn(session)
 		ExpeditionManager.broadcastStatus(session)
 	end
 end
 
-local function schedulePreSpawn(sessionKey, planned, remainingMs, intervalMs)
-	local session = ExpeditionManager.getSessionByKey(sessionKey)
-	if not session or session.state ~= "waiting" then
+local function schedulePreSpawn(session, planned, remainingMs, intervalMs)
+	if session.state ~= "waiting" then
 		return
 	end
 	if not (session.instance and Instance.isLive(session.instance.instanceId)) then
@@ -541,9 +529,9 @@ local function schedulePreSpawn(sessionKey, planned, remainingMs, intervalMs)
 		end
 	end
 
-	session.waitingEvent = addEvent(function()
-		schedulePreSpawn(sessionKey, planned, remainingMs - intervalMs, intervalMs)
-	end, intervalMs)
+	ExpeditionManager.scope(session):timer("bossSpawn", intervalMs, function()
+		schedulePreSpawn(session, planned, remainingMs - intervalMs, intervalMs)
+	end)
 end
 
 function ExpeditionBoss.spawn(session)
@@ -551,10 +539,7 @@ function ExpeditionBoss.spawn(session)
 		return
 	end
 
-	if session.waitingEvent then
-		stopEvent(session.waitingEvent)
-		session.waitingEvent = nil
-	end
+	ExpeditionManager.scope(session):cancel("bossSpawn")
 	clearDespawn(session)
 
 	local raceId = session.catalog.creatureId
@@ -584,25 +569,13 @@ function ExpeditionBoss.spawn(session)
 			tostring(raceId),
 			tostring(session.catalog.name)
 		)
-		session.state = "waiting"
-		session.waitingEvent = addEvent(function()
-			local s = ExpeditionManager.getSessionByKey(session.key)
-			if s then
-				ExpeditionBoss.spawn(s)
-			end
-		end, 1500)
+		retrySpawn(session)
 		ExpeditionManager.broadcastStatus(session)
 		return
 	end
 	local pos = bossSpawnPos(session)
 	if not pos then
-		session.state = "waiting"
-		session.waitingEvent = addEvent(function()
-			local s = ExpeditionManager.getSessionByKey(session.key)
-			if s then
-				ExpeditionBoss.spawn(s)
-			end
-		end, 1500)
+		retrySpawn(session)
 		ExpeditionManager.broadcastStatus(session)
 		return
 	end
@@ -617,7 +590,7 @@ function ExpeditionBoss.spawn(session)
 	ExpeditionManager.broadcastStatus(session)
 
 	local durationMs, _, intervalMs = preSpawnDurationMs()
-	schedulePreSpawn(session.key, planned, durationMs, intervalMs)
+	schedulePreSpawn(session, planned, durationMs, intervalMs)
 end
 
 --- Lever boss session fighting in `creature`'s instance when `creature` is that lever's
@@ -678,17 +651,13 @@ function ExpeditionBoss.onMonsterDeath(creature, corpse)
 	-- onDeath) or kill a corpse-less mid-form and spawn the next one, so check on the
 	-- next tick whether any boss (or a same-race replacement form) is still alive.
 	session.alive = 0
-	addEvent(function()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s or s.state ~= "hunting" then
+	ExpeditionManager.scope(session):after(SCHEDULER_MIN_TICKS or 50, function()
+		if session.state ~= "hunting" or ExpeditionBoss.rebindBossIfNeeded(session) then
 			return
 		end
-		if ExpeditionBoss.rebindBossIfNeeded(s) then
-			return
-		end
-		s.kills = (s.kills or 0) + 1
-		finishBoss(s, { victory = true })
-	end, SCHEDULER_MIN_TICKS or 50)
+		session.kills = (session.kills or 0) + 1
+		finishBoss(session, { victory = true })
+	end)
 	return true
 end
 
@@ -696,10 +665,7 @@ function ExpeditionBoss.clear(session)
 	if not session then
 		return
 	end
-	if session.waitingEvent then
-		stopEvent(session.waitingEvent)
-		session.waitingEvent = nil
-	end
+	ExpeditionManager.scope(session):cancel("bossSpawn")
 	clearDespawn(session)
 	stopEncounterCopy(session)
 	ExpeditionBossMechanics.stop(session)

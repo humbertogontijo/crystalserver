@@ -818,7 +818,7 @@ function EM_PRIV.startRestoredHuntOnStartup(session, snapshot)
 			end
 		end
 
-		live.entered = true
+		ExpeditionManager.markEntered(live)
 		live.starting = nil
 		live.restoring = nil
 		live.state = "idle"
@@ -1060,7 +1060,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 		if not s then
 			return
 		end
-		s.entered = true
+		ExpeditionManager.markEntered(s)
 		s.starting = nil
 		s.persistedForRestart = nil
 		EM_PRIV.applyEntryBossCooldown(s, ExpeditionManager.sessionMemberIds(s))
@@ -1909,13 +1909,6 @@ function EM_PRIV.removeHuntMember(session, player, opts)
 	EM_PRIV.notifyLobbies({ playerId })
 end
 
-function EM_PRIV.cancelTeardownEvent(session)
-	if session and session.teardownEvent then
-		stopEvent(session.teardownEvent)
-		session.teardownEvent = nil
-	end
-end
-
 function EM_PRIV.disbandExpeditionParty(session)
 	if not session or session.kind == "raid" then
 		return
@@ -1943,7 +1936,6 @@ function EM_PRIV.cleanupSession(session, player, opts)
 	end
 	session._cleaned = true
 	EM_PRIV.notifyLobbies(EM_PRIV.sessionMemberIds(session))
-	EM_PRIV.cancelTeardownEvent(session)
 	ExpeditionAI.stop(session)
 	if session.kind == "arena" or session.role == "arena" then
 		if QuestArena and QuestArena.onSessionCleanup then
@@ -1955,6 +1947,9 @@ function EM_PRIV.cleanupSession(session, player, opts)
 		ExpeditionBoss.clear(session)
 	elseif session.kind ~= "raid" then
 		ExpeditionPack.clear(session)
+	end
+	if session.scope then
+		session.scope:dispose()
 	end
 	ExpeditionInstance.teardown(session.instance)
 	if session.key then
@@ -1981,6 +1976,7 @@ function EM_PRIV.cleanupSession(session, player, opts)
 	if ExpeditionPersist and ExpeditionPersist.clearSession and not ExpeditionPersist.isServerShuttingDown() and not session.persistedForRestart then
 		pcall(ExpeditionPersist.clearSession, session)
 	end
+	IdleEvents.emit("session.ended", session)
 end
 
 --- Leave all living members (boss victory / party teardown).

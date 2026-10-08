@@ -244,11 +244,8 @@ function SoulPitExpedition.start(player)
 	session.role = "monster"
 	session.wave = 0
 	session.alive = 0
-	-- Cancel any stock wave scheduler from join.
-	if session.waitingEvent then
-		stopEvent(session.waitingEvent)
-		session.waitingEvent = nil
-	end
+	-- Cancel the boss spawn timer if join armed one.
+	ExpeditionManager.scope(session):cancel("bossSpawn")
 	pcall(ExpeditionPack.clear, session)
 	-- First wave shortly after enter.
 	addEvent(function(pid)

@@ -317,32 +317,14 @@ function ExpeditionAI.start(session)
 	if not session or session.state == "ended" then
 		return
 	end
-	if session.aiEvent then
-		stopEvent(session.aiEvent)
-		session.aiEvent = nil
-	end
 	for _, id in ipairs(memberIds(session)) do
 		ExpeditionAI.enablePersistence(Player(id))
 	end
-	local key = session.key
-	local tickMs = ExpeditionConfig.AI_TICK_MS or 250
-	local function loop()
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s or s.state == "ended" then
-			if s then
-				s.aiEvent = nil
-			end
-			return
+	ExpeditionManager.scope(session):every(ExpeditionConfig.AI_TICK_MS or 250, function()
+		if session.state ~= "ended" then
+			ExpeditionAI.tick(session)
 		end
-		ExpeditionAI.tick(s)
-		s = ExpeditionManager.getSessionByKey(key)
-		if s and s.state ~= "ended" then
-			s.aiEvent = addEvent(loop, tickMs)
-		elseif s then
-			s.aiEvent = nil
-		end
-	end
-	session.aiEvent = addEvent(loop, tickMs)
+	end, "ai")
 
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)
@@ -358,9 +340,8 @@ function ExpeditionAI.stop(session)
 	if not session then
 		return
 	end
-	if session.aiEvent then
-		stopEvent(session.aiEvent)
-		session.aiEvent = nil
+	if session.scope then
+		session.scope:cancel("ai")
 	end
 	session._catchUp = nil
 	local manual = session.manualIds or {}

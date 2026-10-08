@@ -39,19 +39,14 @@ function ExpeditionManager.scheduleSessionExit(session, opts)
 	local victory = opts.victory == true
 	local endMsg = opts.endMsg
 	local delayMs = tonumber(opts.delayMs) or (ExpeditionConfig.LOOT_GRACE_MS or 5000)
-	local key = session.key
-	if session.exitEvent then
-		stopEvent(session.exitEvent)
-		session.exitEvent = nil
-	end
+	local scope = ExpeditionManager.scope(session)
+	scope:cancel("exit")
 	local function exitSession()
-		session.exitEvent = nil
-		local s = ExpeditionManager.getSessionByKey(key)
-		if not s or s.state == "ended" then
+		if not scope:alive() or session.state == "ended" then
 			return
 		end
 		local anyOnline = false
-		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s) or {}) do
+		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session) or {}) do
 			local p = Player(mid)
 			if p then
 				anyOnline = true
@@ -61,9 +56,9 @@ function ExpeditionManager.scheduleSessionExit(session, opts)
 			end
 		end
 		if anyOnline then
-			ExpeditionManager.leaveAll(s, { silent = true, victory = victory })
+			ExpeditionManager.leaveAll(session, { silent = true, victory = victory })
 		else
-			ExpeditionManager.teardownSession(s)
+			ExpeditionManager.teardownSession(session)
 		end
 	end
 	-- The loot window is the exit channel.
@@ -75,7 +70,7 @@ function ExpeditionManager.scheduleSessionExit(session, opts)
 			onComplete = exitSession,
 		})
 	if not channeled then
-		session.exitEvent = addEvent(exitSession, delayMs)
+		scope:timer("exit", delayMs, exitSession)
 	end
 end
 

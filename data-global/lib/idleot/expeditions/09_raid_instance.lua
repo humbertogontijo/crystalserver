@@ -312,11 +312,15 @@ function RaidInstance.provision(raid)
 		monstersSpawned = false,
 		clearEligibleAt = nil,
 		graceStarted = false,
-		graceEvent = nil,
-		watchEvent = nil,
-		despawnEvent = nil,
 		tearingDown = false,
 	}
+	session.scope = Scope.new({
+		name = "raid:" .. raid.name,
+		instanceId = instanceId,
+		alive = function()
+			return RaidInstance.active[raid.name] == session and not session.tearingDown
+		end,
+	})
 	RaidInstance.active[raid.name] = session
 	RaidInstance.startWatcher(session)
 	RaidInstance.scheduleDespawn(session)
@@ -342,49 +346,28 @@ local function restoreRaidZones(raid)
 	raid._raidSpawnReserved = nil
 end
 
-local function stopWatcher(session)
-	if session and session.watchEvent then
-		stopEvent(session.watchEvent)
-		session.watchEvent = nil
-	end
-	if session and session.graceEvent then
-		stopEvent(session.graceEvent)
-		session.graceEvent = nil
-	end
-	if session and session.despawnEvent then
-		stopEvent(session.despawnEvent)
-		session.despawnEvent = nil
-	end
-end
-
 --- Raid interval safety timeout (raids.xml interval2 / Lua minGapBetween).
 function RaidInstance.scheduleDespawn(session)
 	if not session or session.tearingDown then
 		return
 	end
-	if session.despawnEvent then
-		stopEvent(session.despawnEvent)
-		session.despawnEvent = nil
-	end
 	local raidName = session.raidName
 	local ms = ExpeditionConfig.raidDespawnMs and ExpeditionConfig.raidDespawnMs(raidName, session.raid)
 		or ExpeditionConfig.RAID_DESPAWN_FALLBACK_MS
 		or (24 * 60 * 60 * 1000)
-	session.despawnEvent = addEvent(function()
-		local s = RaidInstance.active[raidName]
-		if not s or s.tearingDown or s.graceStarted then
+	session.scope:timer("despawn", ms, function()
+		if session.graceStarted then
 			return
 		end
-		s.despawnEvent = nil
 		logger.info("[RaidInstance] despawn timeout for {} ({} ms)", raidName, ms)
-		for _, id in ipairs(s.playerIds or {}) do
+		for _, id in ipairs(session.playerIds or {}) do
 			local player = Player(id)
 			if player then
 				player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "The raid timed out.")
 			end
 		end
 		RaidInstance.teardown(raidName, { silent = true })
-	end, ms)
+	end)
 end
 
 function RaidInstance.teardown(raidName, opts)
@@ -397,7 +380,7 @@ function RaidInstance.teardown(raidName, opts)
 		return
 	end
 	session.tearingDown = true
-	stopWatcher(session)
+	session.scope:dispose()
 
 	local raid = session.raid
 	local playerIds = {}
@@ -603,7 +586,7 @@ local function beginGrace(session)
 			onComplete = finish,
 		})
 	if not channeled then
-		session.graceEvent = addEvent(finish, graceMs)
+		session.scope:timer("grace", graceMs, finish)
 	end
 end
 
@@ -640,20 +623,9 @@ function RaidInstance.startWatcher(session)
 	if not session then
 		return
 	end
-	stopWatcher(session)
-	local raidName = session.raidName
-	local interval = ExpeditionConfig.RAID_WATCH_INTERVAL_MS or 2000
-	local function loop()
-		local s = RaidInstance.active[raidName]
-		if not s or s.tearingDown then
-			return
-		end
-		RaidInstance.watchTick(s)
-		if RaidInstance.active[raidName] and not RaidInstance.active[raidName].tearingDown then
-			s.watchEvent = addEvent(loop, interval)
-		end
-	end
-	session.watchEvent = addEvent(loop, interval)
+	session.scope:every(ExpeditionConfig.RAID_WATCH_INTERVAL_MS or 2000, function()
+		RaidInstance.watchTick(session)
+	end, "watch")
 end
 
 function RaidInstance.onStarted(raid)
@@ -843,7 +815,7 @@ function RaidInstance.join(player, raidName, loadout, options)
 		else
 			pos:sendMagicEffect(CONST_ME_TELEPORT)
 		end
-		bound.entered = true
+		ExpeditionManager.markEntered(bound)
 		p:sendTextMessage(
 			MESSAGE_EVENT_ADVANCE,
 			string.format("Joined raid: %s (stance: %s)", s.displayName or raidName, bound.role or "melee")

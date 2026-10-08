@@ -39,18 +39,6 @@ local function anchorOf(session)
 	return ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session) or nil
 end
 
-local function stopEvents(session)
-	if not session then
-		return
-	end
-	for _, field in ipairs({ "waitingEvent", "despawnEvent" }) do
-		if session[field] then
-			stopEvent(session[field])
-			session[field] = nil
-		end
-	end
-end
-
 local function resetPack(session)
 	session.tracked = session.tracked or {}
 	session.engaged = {}
@@ -194,7 +182,6 @@ function ExpeditionPack.finishFiendishHunt(session)
 		return
 	end
 	session.lureFinished = true
-	stopEvents(session)
 	ExpeditionManager.broadcastStatus(session)
 
 	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session) or {}) do
@@ -266,7 +253,6 @@ function ExpeditionPack.spawn(session)
 	if huntEnded(session) or not isLureHunt(session) then
 		return
 	end
-	stopEvents(session)
 
 	local instanceId = session.instance.instanceId
 	if not session.spawnsCreated then
@@ -335,7 +321,6 @@ function ExpeditionPack.clear(session)
 	if not session then
 		return
 	end
-	stopEvents(session)
 	if session.spawnsCreated then
 		ExpeditionMetrics.log(session)
 	end

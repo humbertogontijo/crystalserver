@@ -372,11 +372,8 @@ function QuestArena.begin(session)
 	if union and session.instance then
 		applyInstanceBoundary(session.instance, union)
 	end
-	-- Cancel the boss waiting timer if join armed one.
-	if session.waitingEvent then
-		stopEvent(session.waitingEvent)
-		session.waitingEvent = nil
-	end
+	-- Cancel the boss spawn timer if join armed one.
+	ExpeditionManager.scope(session):cancel("bossSpawn")
 	pcall(ExpeditionPack.clear, session)
 	prepareAndSpawn(session, 1)
 end

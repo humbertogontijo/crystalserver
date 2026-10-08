@@ -191,13 +191,6 @@ local function notifyItem(copy, item)
 	end
 end
 
-local function trackEvent(copy, eventId)
-	if eventId then
-		copy.events[#copy.events + 1] = eventId
-	end
-	return eventId
-end
-
 --- Revscript object of the copy: `on*` callbacks are captured (in registration order, per
 --- class.method) and every other call is a no-op, so nothing registers with the engine.
 local function callbackStub(copy, className)
@@ -237,17 +230,9 @@ local function globalEventStub(copy)
 		if type(onThink) ~= "function" or interval <= 0 then
 			return
 		end
-		local function tick()
-			if not copy.alive then
-				return
-			end
-			local ok, err = pcall(onThink, interval, os.time())
-			if not ok then
-				logger.error("[EncounterInstances] {} onThink in {} failed: {}", copy.name, copy.instanceId, tostring(err))
-			end
-			copy.loops[event] = addEvent(tick, interval)
-		end
-		copy.loops[event] = addEvent(tick, interval)
+		copy.scope:every(interval, function()
+			onThink(interval, os.time())
+		end)
 	end
 	return setmetatable({}, {
 		__index = function(_, key)
@@ -348,8 +333,12 @@ local function buildEnv(copy)
 	end)
 	env.EventCallback = constructor(inertStub)
 	env.ZoneEvent = constructor(inertStub)
-	env.addEvent = function(...)
-		return trackEvent(copy, addEvent(...))
+	-- A halted copy may keep routing callbacks (opts.keepCallbacks); their timers still run.
+	env.addEvent = function(callback, delay, ...)
+		if copy.alive then
+			return copy.scope:addEvent(callback, delay, ...)
+		end
+		return addEvent(callback, delay, ...)
 	end
 	env.Game = setmetatable({
 		createMonster = function(...)
@@ -374,13 +363,7 @@ local function halt(copy)
 	for _, encounter in pairs(copy.encounters) do
 		pcall(encounter.cancelEvents, encounter)
 	end
-	for _, eventId in pairs(copy.loops) do
-		stopEvent(eventId)
-	end
-	for _, eventId in ipairs(copy.events) do
-		stopEvent(eventId)
-	end
-	copy.loops, copy.events = {}, {}
+	copy.scope:dispose()
 end
 
 --- True when a scripts/ file builds encounter `name` (an instance copy can be started).
@@ -398,7 +381,8 @@ end
 
 --- Re-run the script that builds encounter `name` as a copy owned by private instance
 --- `instanceId` and start its encounter there. opts.onSpawn(monster): every monster the
---- copy creates. Returns the copy, or nil and a reason.
+--- copy creates; opts.scope: owner Scope (the copy's timers end with it). Returns the
+--- copy, or nil and a reason.
 function EncounterInstances.start(name, instanceId, opts)
 	opts = opts or {}
 	instanceId = Instance.normalize(instanceId)
@@ -424,9 +408,15 @@ function EncounterInstances.start(name, instanceId, opts)
 		itemWatchers = {},
 		callbacks = {},
 		encounters = {},
-		loops = {},
-		events = {},
 	}
+	local scopeOpts = {
+		name = "encounter:" .. name,
+		instanceId = instanceId,
+		alive = function()
+			return copy.alive
+		end,
+	}
+	copy.scope = opts.scope and opts.scope:child(scopeOpts) or Scope.new(scopeOpts)
 	setfenv(chunk, buildEnv(copy))
 	local ran, ok, runErr = pcall(Game.runInInstance, instanceId, function()
 		return pcall(chunk)
@@ -470,16 +460,4 @@ end
 --- `watcher(item)` for every item the copy's script creates (Game.createItem).
 function EncounterInstances.watchItems(copy, watcher)
 	table.insert(copy.itemWatchers, watcher)
-end
-
---- addEvent owned by the copy: cancelled when the copy stops, skipped once it halted.
-function EncounterInstances.addEvent(copy, callback, delay, ...)
-	return trackEvent(
-		copy,
-		addEvent(function(...)
-			if copy.alive then
-				callback(...)
-			end
-		end, delay, ...)
-	)
 end

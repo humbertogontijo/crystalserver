@@ -432,6 +432,35 @@ function ExpeditionManager.bindSession(session)
 	end
 end
 
+--- Root Scope of a session: its timers, subscriptions and child scopes (boss mechanics,
+--- encounter copies, ...) run in the session's instance while it is the live session for
+--- its key, and end in cleanupSession.
+function ExpeditionManager.scope(session)
+	local scope = session.scope
+	if not scope then
+		scope = Scope.new({
+			name = "session:" .. tostring(session.key),
+			instanceId = function()
+				return session.instance and session.instance.instanceId or nil
+			end,
+			alive = function()
+				return not session._cleaned and EM_PRIV.sessionsByKey[session.key] == session
+			end,
+		})
+		session.scope = scope
+	end
+	return scope
+end
+
+--- Mark the party as inside the instance; emits "session.started" once.
+function ExpeditionManager.markEntered(session)
+	session.entered = true
+	if not session.startedEmitted then
+		session.startedEmitted = true
+		IdleEvents.emit("session.started", session)
+	end
+end
+
 function ExpeditionManager.unbindSession(session)
 	if not session then
 		return
@@ -789,10 +818,7 @@ function EM_PRIV.clearAcceptTimeout(session)
 	if not session then
 		return
 	end
-	if session.acceptTimeoutEvent then
-		stopEvent(session.acceptTimeoutEvent)
-		session.acceptTimeoutEvent = nil
-	end
+	ExpeditionManager.scope(session):cancel("acceptTimeout")
 	session.acceptDeadline = nil
 end
 
@@ -800,24 +826,14 @@ function EM_PRIV.armAcceptTimeout(session)
 	if not session then
 		return
 	end
-	EM_PRIV.clearAcceptTimeout(session)
 	local sec = math.max(5, math.floor(tonumber(ExpeditionConfig.TEAM_ACCEPT_TIMEOUT_SEC) or 45))
 	session.acceptDeadline = os.time() + sec
-	local key = session.key
-	session.acceptTimeoutEvent = addEvent(function()
-		local live = ExpeditionManager.getSessionByKey(key)
-		if not live or live.entered or live.starting then
+	ExpeditionManager.scope(session):timer("acceptTimeout", sec * 1000, function()
+		if session.entered or session.starting or session.state ~= "pending" then
 			return
 		end
-		if live.state ~= "pending" then
-			return
-		end
-		live.acceptTimeoutEvent = nil
-		ExpeditionManager.cancelWaitingSession(
-			live,
-			"Team expedition invite timed out."
-		)
-	end, sec * 1000)
+		ExpeditionManager.cancelWaitingSession(session, "Team expedition invite timed out.")
+	end)
 end
 
 --- Gather players for a hunt/boss join.

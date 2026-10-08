@@ -121,7 +121,7 @@ local thinkCallback = EventCallback("CombatAutomationPlayerOnThink")
 
 function thinkCallback.playerOnThink(player, interval)
 	-- Engine think owns per-player combat cadence (idleCombat 250ms).
-	-- Session AI is only ExpeditionAI.start's aiEvent — do not call ExpeditionAI.tick here.
+	-- Session AI is only ExpeditionAI.start's scope loop — do not call ExpeditionAI.tick here.
 	pcall(CombatAutomation.onThink, player, interval)
 	pcall(ExpeditionManager.syncSessionClientIfNeeded, player)
 end
