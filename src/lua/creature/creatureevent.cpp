@@ -27,6 +27,7 @@ void CreatureEvents::clear() {
 	for (const auto &[name, event] : creatureEvents) {
 		event->clearEvent();
 	}
+	datapackNames.clear();
 }
 
 bool CreatureEvents::registerLuaEvent(const std::shared_ptr<CreatureEvent> &creatureEvent) {
@@ -39,20 +40,30 @@ bool CreatureEvents::registerLuaEvent(const std::shared_ptr<CreatureEvent> &crea
 		return false;
 	}
 
-	const auto &oldEvent = getEventByName(creatureEvent->getName(), false);
-	if (oldEvent) {
-		// if there was an event with the same that is not loaded
-		//(happens when realoading), it is reused
-		if (!oldEvent->isLoaded() && oldEvent->getEventType() == creatureEvent->getEventType()) {
-			oldEvent->copyEvent(creatureEvent);
+	const auto &name = creatureEvent->getName();
+	const bool fromDatapack = g_scripts().isLoadingDatapack();
+	const auto &oldEvent = getEventByName(name, false);
+	if (!oldEvent) {
+		creatureEvents.emplace(name, creatureEvent);
+		if (fromDatapack) {
+			datapackNames.emplace(name);
 		}
-
-		return false;
-	} else {
-		// if not, register it normally
-		creatureEvents.emplace(creatureEvent->getName(), creatureEvent);
 		return true;
 	}
+
+	if (oldEvent->getEventType() != creatureEvent->getEventType()) {
+		return false;
+	}
+	// An unloaded event (reload) is reused in place so players keep their registrations;
+	// a loaded core event is overridden in place by the datapack one with the same name.
+	const bool overridesCore = fromDatapack && !datapackNames.contains(name);
+	if (!oldEvent->isLoaded() || overridesCore) {
+		oldEvent->copyEvent(creatureEvent);
+		if (fromDatapack) {
+			datapackNames.emplace(name);
+		}
+	}
+	return false;
 }
 
 std::shared_ptr<CreatureEvent> CreatureEvents::getEventByName(const std::string &name, bool forceLoaded /*= true*/) {

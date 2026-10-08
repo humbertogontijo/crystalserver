@@ -1,29 +1,38 @@
 local combat = Combat()
 combat:setParameter(COMBAT_PARAM_CHAIN_EFFECT, CONST_ME_CHIVALRIOUS_CHALLENGE)
 
-local MELEE_DURATION = 12000
-
--- Product: ranged monsters only, farthest from the knight first (pulls distant ones in).
 function canChain(creature, target)
-	return KnightChallenge.chainPriority(creature, target, { rangedOnly = true })
+	if target:isMonster() then
+		if target:getType():isRewardBoss() then
+			return false
+		elseif target:getMaster() == nil and target:getType():getTargetDistance() > 1 then
+			return true
+		end
+	end
+	return false
 end
 
 combat:setCallback(CALLBACK_PARAM_CHAINPICKER, "canChain")
 
 function getChainValue(creature)
-	return KnightChallenge.chainTargets(creature), KnightChallenge.CHAIN_DISTANCE, false
+	local targets = 6 -- Vocation Adjustment: +1 additional target (5 -> 6)
+	local player = creature:getPlayer()
+	if creature and player then
+		targets = targets + player:getWheelSpellAdditionalTarget("Chivalrous Challenge")
+	end
+	return targets, 7, false -- jump range 6 -> 7
 end
 
 combat:setCallback(CALLBACK_PARAM_CHAINVALUE, "getChainValue")
 
 function onChain(creature, target)
-	local duration = MELEE_DURATION
+	local duration = 12000
 	local player = creature:getPlayer()
 	if creature and player then
-		duration = duration + (player:getWheelSpellAdditionalDuration(KnightChallenge.WHEEL_SPELL) * 1000)
+		duration = duration + (player:getWheelSpellAdditionalDuration("Chivalrous Challenge") * 1000)
 	end
 	if target and target:isMonster() then
-		doChallengeCreature(creature, target, KnightChallenge.CHALLENGE_DURATION_MS)
+		doChallengeCreature(player, target:getMonster(), 12000)
 		target:changeTargetDistance(1, duration)
 	end
 	return true

@@ -36,8 +36,15 @@ public:
 		return scriptInterface;
 	}
 
+	/** True while loadScripts runs a folder outside CORE_DIRECTORY. Datapack talkactions,
+	 *  instant spells and creature events replace core ones with the same key, in either load order. */
+	bool isLoadingDatapack() const {
+		return loadingDatapack;
+	}
+
 private:
 	LuaScriptInterface scriptInterface;
+	bool loadingDatapack = false;
 	Scripts();
 };
 

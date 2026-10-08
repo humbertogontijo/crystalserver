@@ -35,11 +35,23 @@ TalkActions &TalkActions::getInstance() {
 
 void TalkActions::clear() {
 	talkActions.clear();
+	datapackWords.clear();
 }
 
 bool TalkActions::registerLuaEvent(const TalkAction_ptr &talkAction) {
-	auto [iterator, inserted] = talkActions.try_emplace(talkAction->getWords(), talkAction);
-	return inserted;
+	const auto &words = talkAction->getWords();
+	const bool fromDatapack = g_scripts().isLoadingDatapack();
+	auto [iterator, inserted] = talkActions.try_emplace(words, talkAction);
+	if (!inserted) {
+		if (!fromDatapack || datapackWords.contains(words)) {
+			return false;
+		}
+		iterator->second = talkAction;
+	}
+	if (fromDatapack) {
+		datapackWords.emplace(words);
+	}
+	return true;
 }
 
 bool TalkActions::checkWord(const std::shared_ptr<Player> &player, SpeakClasses type, const std::string &words, std::string_view word, const TalkAction_ptr &talkActionPtr, uint16_t channelId) const {

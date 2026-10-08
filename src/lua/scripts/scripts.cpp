@@ -102,6 +102,9 @@ bool Scripts::loadScripts(std::string_view folderName, bool isLib, bool reload) 
 		return false;
 	}
 
+	const auto coreFolder = g_configManager().getString(CORE_DIRECTORY) + "/";
+	const bool wasLoadingDatapack = std::exchange(loadingDatapack, !folderName.starts_with(coreFolder));
+
 	// Declare a string variable to store the last directory
 	std::string lastDirectory;
 
@@ -166,5 +169,6 @@ bool Scripts::loadScripts(std::string_view folderName, bool isLib, bool reload) 
 		}
 	}
 
+	loadingDatapack = wasLoadingDatapack;
 	return true;
 }

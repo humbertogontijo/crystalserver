@@ -136,6 +136,7 @@ TalkActionResult_t Spells::playerSaySpell(const std::shared_ptr<Player> &player,
 
 void Spells::clear() {
 	instants.clear();
+	datapackInstantWords.clear();
 	runes.clear();
 }
 
@@ -161,6 +162,15 @@ bool Spells::registerInstantLuaEvent(const std::shared_ptr<InstantSpell> &instan
 		}
 
 		const std::string &words = instant->getWords();
+		const bool datapackOwned = datapackInstantWords.contains(words);
+		if (g_scripts().isLoadingDatapack() && !datapackOwned) {
+			datapackInstantWords.emplace(words);
+			instants.insert_or_assign(words, instant);
+			return true;
+		}
+		if (datapackOwned && !g_scripts().isLoadingDatapack()) {
+			return false;
+		}
 		// Checks if there is any spell registered with the same name
 		if (hasInstantSpell(words)) {
 			g_logger().warn("[Spells::registerInstantLuaEvent] - "

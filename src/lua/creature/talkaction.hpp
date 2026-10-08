@@ -112,6 +112,7 @@ public:
 
 private:
 	phmap::flat_hash_map<std::string, std::shared_ptr<TalkAction>> talkActions;
+	phmap::flat_hash_set<std::string> datapackWords;
 };
 
 constexpr auto g_talkActions = TalkActions::getInstance;

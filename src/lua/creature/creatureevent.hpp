@@ -109,6 +109,7 @@ private:
 	// creature events
 	using CreatureEventMap = std::map<std::string, std::shared_ptr<CreatureEvent>>;
 	CreatureEventMap creatureEvents;
+	phmap::flat_hash_set<std::string> datapackNames;
 };
 
 constexpr auto g_creatureEvents = CreatureEvents::getInstance;

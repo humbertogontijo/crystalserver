@@ -116,7 +116,8 @@ local function grant(player, kit)
 	end
 end
 
-local starterKit = CreatureEvent("StarterKitLogin")
+-- Same name as the stock event: the datapack registration replaces data/.../send_first_items.lua.
+local starterKit = CreatureEvent("SendFirstItems")
 
 function starterKit.onLogin(player)
 	if player:getLastLoginSaved() ~= 0 then

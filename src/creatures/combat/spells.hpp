@@ -73,6 +73,7 @@ public:
 private:
 	std::map<uint16_t, std::shared_ptr<RuneSpell>> runes;
 	phmap::flat_hash_map<std::string, std::shared_ptr<InstantSpell>> instants;
+	phmap::flat_hash_set<std::string> datapackInstantWords;
 
 	friend class CombatSpell;
 };
