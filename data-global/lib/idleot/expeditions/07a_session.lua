@@ -581,7 +581,7 @@ function EM_PRIV.hasUiClient(player)
 	if player:isHeadless() then
 		return false
 	end
-	if player:getProtocolVersion() == 0 then
+	if player:getClient().version == 0 then
 		return false
 	end
 	return true

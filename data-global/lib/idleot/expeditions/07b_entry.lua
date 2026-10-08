@@ -580,7 +580,7 @@ end
 
 --- Push expedition HUD/catalog once a real client attaches to a headless session member.
 function ExpeditionManager.syncSessionClientIfNeeded(player)
-	if player:getProtocolVersion() == 0 then
+	if player:getClient().version == 0 then
 		return false
 	end
 	local pid = player:getId()
@@ -613,7 +613,7 @@ function EM_PRIV.syncRunningHuntClients(session)
 		return
 	end
 	for _, member in ipairs(ExpeditionManager.onlinePlayers(session)) do
-		if member:getProtocolVersion() > 0 then
+		if member:getClient().version > 0 then
 			ExpeditionManager.syncSessionClientIfNeeded(member)
 		else
 			ExpeditionProtocol.sendStatus(member, session)
