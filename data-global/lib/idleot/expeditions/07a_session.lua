@@ -57,6 +57,19 @@ function ExpeditionManager.getSessionByKey(key)
 	return EM_PRIV.sessionsByKey[key]
 end
 
+--- Counts of sessions that have not ended: { total, byRole = { [role] = n } }.
+function ExpeditionManager.stats()
+	local total, byRole = 0, {}
+	for _, session in pairs(EM_PRIV.sessionsByKey) do
+		if session.state ~= "ended" then
+			local role = session.role or "monster"
+			byRole[role] = (byRole[role] or 0) + 1
+			total = total + 1
+		end
+	end
+	return { total = total, byRole = byRole }
+end
+
 --- Live hunt/raid session bound to an engine instance id (e.g. GOD /goto spectator).
 function ExpeditionManager.getSessionByInstanceId(instanceId)
 	local id = Instance.normalize(instanceId)

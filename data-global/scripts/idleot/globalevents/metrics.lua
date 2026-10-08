@@ -21,16 +21,9 @@ local function reportPlayers()
 end
 
 local function reportExpeditions()
-	local byRole = {}
+	local byRole = ExpeditionManager.stats().byRole
 	for _, role in ipairs(EXPEDITION_ROLES) do
-		byRole[role] = 0
-	end
-	local sessions = EM_PRIV and EM_PRIV.sessionsByKey or {}
-	for _, session in pairs(sessions) do
-		if session.state ~= "ended" then
-			local role = session.role or "monster"
-			byRole[role] = (byRole[role] or 0) + 1
-		end
+		byRole[role] = byRole[role] or 0
 	end
 	for role, count in pairs(byRole) do
 		metrics.setGauge("game_expeditions", count, { role = role })
@@ -46,7 +39,7 @@ function gauges.onThink(interval)
 	reportPlayers()
 	metrics.setGauge("game_monsters", Game.getMonsterCount())
 	metrics.setGauge("game_npcs", Game.getNpcCount())
-	pcall(reportExpeditions)
+	reportExpeditions()
 	return true
 end
 
