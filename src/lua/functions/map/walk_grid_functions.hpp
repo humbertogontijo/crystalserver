@@ -23,9 +23,7 @@ public:
 
 private:
 	static int luaGameWalkGrid(lua_State* L);
-	static int luaWalkGridSize(lua_State* L);
 	static int luaWalkGridGetZ(lua_State* L);
 	static int luaWalkGridContains(lua_State* L);
-	static int luaWalkGridGetTiles(lua_State* L);
 	static int luaWalkGridBfs(lua_State* L);
 };

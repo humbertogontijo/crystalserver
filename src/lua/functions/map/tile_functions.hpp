@@ -53,6 +53,7 @@ private:
 	static int luaTileGetCreatureCount(lua_State* L);
 
 	static int luaTileHasProperty(lua_State* L);
+	static int luaTileIsStandable(lua_State* L);
 	static int luaTileHasFlag(lua_State* L);
 	static int luaTileSetFlag(lua_State* L);
 	static int luaTileResetFlag(lua_State* L);

@@ -130,22 +130,10 @@ end
 --- `instanceId` limits blocking items to that instance.
 function CombatGeo.tileStandable(pos, instanceId)
 	local tile = pos and Tile(pos)
-	if not tile or not tile:getGround() then
-		return nil
+	if tile and tile:isStandable(instanceId) then
+		return tile
 	end
-	local function blocks(prop)
-		if instanceId then
-			return tile:hasProperty(prop, instanceId)
-		end
-		return tile:hasProperty(prop)
-	end
-	if blocks(CONST_PROP_BLOCKSOLID) or blocks(CONST_PROP_IMMOVABLEBLOCKSOLID) or blocks(CONST_PROP_BLOCKPATH) then
-		return nil
-	end
-	if tile:hasFlag(TILESTATE_FLOORCHANGE) or tile:hasFlag(TILESTATE_PROTECTIONZONE) then
-		return nil
-	end
-	return tile
+	return nil
 end
 
 --- Standable and empty (or holding only `self`). With `instanceId`, only creatures

@@ -61,10 +61,6 @@ public:
 	[[nodiscard]] uint8_t getZ() const {
 		return z;
 	}
-	/** Every component tile as {x, y}, in flood order. */
-	[[nodiscard]] const std::vector<std::pair<int32_t, int32_t>> &getTiles() const {
-		return order;
-	}
 
 	/**
 	 * Breadth-first search from (x, y) over component tiles; the start always counts.
@@ -77,5 +73,4 @@ public:
 private:
 	uint8_t z = 0;
 	std::unordered_set<Key> tiles;
-	std::vector<std::pair<int32_t, int32_t>> order;
 };

@@ -55,12 +55,12 @@ local function findIn(list, pos)
 	return nil
 end
 
---- Walk component around `pos` on the layer `instanceKey` (fenced to its subarea).
+--- Walk component around `pos` on the layer `instanceKey` (fenced to its subarea; the
+--- engine caps the flood).
 local function walkGrid(pos, instanceKey, bounds)
 	local opts = {
 		instance = instanceKey,
 		subareaId = Instance.subareaId(instanceKey) or 0,
-		cap = CavebotConfig.WALK_GRID_CAP,
 	}
 	for k, v in pairs(bounds or {}) do
 		opts[k] = v

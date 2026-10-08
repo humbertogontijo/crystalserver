@@ -43,7 +43,6 @@ std::shared_ptr<WalkGrid> WalkGrid::flood(int32_t seedX, int32_t seedY, uint8_t 
 	std::unordered_set<Key> rejected;
 	std::deque<std::pair<int32_t, int32_t>> queue;
 	grid->tiles.insert(tileKey(seedX, seedY));
-	grid->order.emplace_back(seedX, seedY);
 	queue.emplace_back(seedX, seedY);
 	while (!queue.empty() && grid->tiles.size() < cap) {
 		const auto [x, y] = queue.front();
@@ -60,7 +59,6 @@ std::shared_ptr<WalkGrid> WalkGrid::flood(int32_t seedX, int32_t seedY, uint8_t 
 				continue;
 			}
 			grid->tiles.insert(key);
-			grid->order.emplace_back(nx, ny);
 			queue.emplace_back(nx, ny);
 			if (grid->tiles.size() >= cap) {
 				break;

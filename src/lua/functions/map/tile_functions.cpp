@@ -56,6 +56,7 @@ void TileFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Tile", "getThingIndex", TileFunctions::luaTileGetThingIndex);
 
 	Lua::registerMethod(L, "Tile", "hasProperty", TileFunctions::luaTileHasProperty);
+	Lua::registerMethod(L, "Tile", "isStandable", TileFunctions::luaTileIsStandable);
 	Lua::registerMethod(L, "Tile", "hasFlag", TileFunctions::luaTileHasFlag);
 	Lua::registerMethod(L, "Tile", "setFlag", TileFunctions::luaTileSetFlag);
 	Lua::registerMethod(L, "Tile", "resetFlag", TileFunctions::luaTileResetFlag);
@@ -602,6 +603,23 @@ int TileFunctions::luaTileHasProperty(lua_State* L) {
 		return 1;
 	}
 	Lua::pushBoolean(L, tile->hasProperty(property));
+	return 1;
+}
+
+int TileFunctions::luaTileIsStandable(lua_State* L) {
+	// tile:isStandable([instanceId]) -> ground to stand on (no blockers in that layer, stairs or PZ)
+	const auto &tile = Lua::getUserdataShared<Tile>(L, 1);
+	if (!tile) {
+		lua_pushnil(L);
+		return 1;
+	}
+	std::optional<InstanceId> instanceId;
+	if (!Lua::readInstanceId(L, 2, instanceId)) {
+		lua_pushnil(L);
+		return 1;
+	}
+	// Like hasProperty: unscoped callers inside an actor's script query that actor's layer.
+	Lua::pushBoolean(L, tile->isStandable(instanceId ? instanceId : Game::getInstanceScope()));
 	return 1;
 }
 

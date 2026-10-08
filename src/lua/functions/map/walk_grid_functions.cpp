@@ -37,10 +37,8 @@ namespace {
 
 void WalkGridFunctions::init(lua_State* L) {
 	Lua::registerSharedClass(L, "WalkGrid", "");
-	Lua::registerMethod(L, "WalkGrid", "size", WalkGridFunctions::luaWalkGridSize);
 	Lua::registerMethod(L, "WalkGrid", "getZ", WalkGridFunctions::luaWalkGridGetZ);
 	Lua::registerMethod(L, "WalkGrid", "contains", WalkGridFunctions::luaWalkGridContains);
-	Lua::registerMethod(L, "WalkGrid", "getTiles", WalkGridFunctions::luaWalkGridGetTiles);
 	Lua::registerMethod(L, "WalkGrid", "bfs", WalkGridFunctions::luaWalkGridBfs);
 
 	Lua::registerMethod(L, "Game", "walkGrid", WalkGridFunctions::luaGameWalkGrid);
@@ -84,16 +82,7 @@ int WalkGridFunctions::luaGameWalkGrid(lua_State* L) {
 			return false;
 		}
 		const auto &tile = g_game().map.getTile(pos);
-		if (!tile || !tile->getGround()) {
-			return false;
-		}
-		if (tile->hasFlag(TILESTATE_FLOORCHANGE) || tile->hasFlag(TILESTATE_PROTECTIONZONE)) {
-			return false;
-		}
-		const auto blocks = [&](ItemProperty prop) {
-			return instanceId ? tile->hasProperty(prop, *instanceId) : tile->hasProperty(prop);
-		};
-		return !blocks(CONST_PROP_BLOCKSOLID) && !blocks(CONST_PROP_IMMOVABLEBLOCKSOLID) && !blocks(CONST_PROP_BLOCKPATH);
+		return tile && tile->isStandable(instanceId);
 	};
 
 	const auto grid = WalkGrid::flood(seed.x, seed.y, z, standable, cap);
@@ -103,13 +92,6 @@ int WalkGridFunctions::luaGameWalkGrid(lua_State* L) {
 	}
 	Lua::pushUserdata<WalkGrid>(L, grid);
 	Lua::setMetatable(L, -1, "WalkGrid");
-	return 1;
-}
-
-int WalkGridFunctions::luaWalkGridSize(lua_State* L) {
-	// walkGrid:size()
-	const auto &grid = Lua::getUserdataShared<WalkGrid>(L, 1);
-	lua_pushnumber(L, grid ? static_cast<lua_Number>(grid->size()) : 0);
 	return 1;
 }
 
@@ -124,27 +106,6 @@ int WalkGridFunctions::luaWalkGridContains(lua_State* L) {
 	// walkGrid:contains(x, y)
 	const auto &grid = Lua::getUserdataShared<WalkGrid>(L, 1);
 	Lua::pushBoolean(L, grid && grid->contains(Lua::getNumber<int32_t>(L, 2), Lua::getNumber<int32_t>(L, 3)));
-	return 1;
-}
-
-int WalkGridFunctions::luaWalkGridGetTiles(lua_State* L) {
-	// walkGrid:getTiles() -> { {x, y}, ... }
-	const auto &grid = Lua::getUserdataShared<WalkGrid>(L, 1);
-	if (!grid) {
-		lua_pushnil(L);
-		return 1;
-	}
-	const auto &tiles = grid->getTiles();
-	lua_createtable(L, static_cast<int>(tiles.size()), 0);
-	int index = 0;
-	for (const auto &[x, y] : tiles) {
-		lua_createtable(L, 2, 0);
-		lua_pushnumber(L, x);
-		lua_rawseti(L, -2, 1);
-		lua_pushnumber(L, y);
-		lua_rawseti(L, -2, 2);
-		lua_rawseti(L, -2, ++index);
-	}
 	return 1;
 }
 

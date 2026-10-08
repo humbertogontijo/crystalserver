@@ -72,8 +72,6 @@ CavebotConfig.LURE_DEFAULT = 1
 CavebotConfig.OPEN_KINDS = { hunt = true, wild = true }
 -- A route a generated walk needs at least this many spawn tiles for.
 CavebotConfig.GENERATED_MIN_SPAWNS = 2
--- Flood cap (tiles) of the walk component a route is generated on.
-CavebotConfig.WALK_GRID_CAP = 12000
 
 CavebotConfig.SHARED_KEYS = {
 	"RELEASE_RADIUS",

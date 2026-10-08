@@ -130,6 +130,16 @@ bool Tile::hasProperty(ItemProperty prop, InstanceId instanceId) const {
 	return false;
 }
 
+bool Tile::isStandable(std::optional<InstanceId> instanceId) const {
+	if (!ground || hasFlag(TILESTATE_FLOORCHANGE) || hasFlag(TILESTATE_PROTECTIONZONE)) {
+		return false;
+	}
+	const auto blocks = [&](ItemProperty prop) {
+		return instanceId ? hasProperty(prop, *instanceId) : hasProperty(prop);
+	};
+	return !blocks(CONST_PROP_BLOCKSOLID) && !blocks(CONST_PROP_IMMOVABLEBLOCKSOLID) && !blocks(CONST_PROP_BLOCKPATH);
+}
+
 bool Tile::hasProperty(const std::shared_ptr<Item> &exclude, ItemProperty prop) const {
 	if (!exclude) {
 		g_logger().error("[{}]: exclude is nullptr", __FUNCTION__);

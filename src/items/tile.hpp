@@ -180,6 +180,9 @@ public:
 	bool hasProperty(ItemProperty prop) const;
 	bool hasProperty(ItemProperty prop, InstanceId instanceId) const;
 	bool hasProperty(const std::shared_ptr<Item> &exclude, ItemProperty prop) const;
+	/** Ground a creature may stand and fight on: no solid/path blockers (only `instanceId`'s
+	 *  items when given), stairs or protection zone. Creatures are not considered. */
+	bool isStandable(std::optional<InstanceId> instanceId = std::nullopt) const;
 	std::shared_ptr<Item> findStatefulMapFork(const Item &reference, InstanceId instanceId) const;
 
 	bool hasFlag(uint32_t flag) const;
