@@ -6,9 +6,8 @@ function market.onUse(player, item, fromPosition, target, toPosition, isHotkey)
 		return true
 	end
 
-	-- CrystalServer Player::sendMarketEnter no-ops when lastDepotId is 0
-	-- (default for lockers whose OTBM depot attribute was never set). Depot
-	-- boxes are shared across locker ids, so pin a non-zero id before open.
+	-- Player::sendMarketEnter no-ops until a locker sets lastDepotId; depot
+	-- boxes are shared across locker ids, so pin one before opening.
 	player:getDepotChest(1, true)
 	player:openMarket()
 	return true
