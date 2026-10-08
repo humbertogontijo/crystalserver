@@ -1,10 +1,7 @@
 -- Cave walker knobs shared by expedition hunts and open-world runs (Cavebot).
--- ExpeditionConfig aliases every key in SHARED_KEYS (expeditions/02_config.lua).
 
 CavebotConfig = CavebotConfig or {}
 
--- Run tick (open-world runs; expedition sessions tick in ExpeditionAI at the same rate).
-CavebotConfig.TICK_MS = 250
 -- Engaged monsters farther than this from the anchor stop being tracked. Bookkeeping
 -- only: the lure and the leash only count chasers on a member's screen.
 CavebotConfig.RELEASE_RADIUS = 18
@@ -72,29 +69,3 @@ CavebotConfig.LURE_DEFAULT = 1
 CavebotConfig.OPEN_KINDS = { hunt = true, wild = true }
 -- A route a generated walk needs at least this many spawn tiles for.
 CavebotConfig.GENERATED_MIN_SPAWNS = 2
-
-CavebotConfig.SHARED_KEYS = {
-	"RELEASE_RADIUS",
-	"PULL_STALL_MS",
-	"LURE_STOP_FACTOR",
-	"LURE_RESUME_LOAD",
-	"HALT_STUCK_MS",
-	"HALT_SPOT_STEPS",
-	"HALT_REPICK_MAX",
-	"BLOCKER_MS",
-	"LURE_LAG_SQM",
-	"LURE_LAG_RESUME_SQM",
-	"LURE_LEASH_SQM",
-	"LURE_LAG_STALL_MS",
-	"LURE_WAIT_SKIP_ADJACENT",
-	"LURE_FULL_SPOT_STEPS",
-	"HALT_OPEN_RING",
-	"LURE_FULL_HOLD_SQM",
-	"WAYPOINT_REACH",
-	"WAYPOINT_LOOKAHEAD",
-	"WAYPOINT_STALL_MS",
-	"FIENDISH_DETOUR_SQM",
-	"FIENDISH_IGNORE_MS",
-	"LURE_MAX",
-	"LURE_DEFAULT",
-}

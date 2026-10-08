@@ -12,15 +12,14 @@ local lastPathFailLogById = {}
 --- Last getPathTo failure per creature: { key = dest key, at = ms, count = in a row }.
 local lastPathFailById = {}
 
-local PATH_MAX_SEARCH = 128
+local settings = CombatAutomationConfig
+local PATH_MAX_SEARCH = settings.PATH_MAX_SEARCH
 local WALK_DEDUPE_MS = 2500
-local STALL_REPATH_MS = 400
 local PATH_FAIL_FRESH_MS = 1500
 --- Failures in a row (one per tick) before a destination counts as blocked: a
 --- path closed for a moment by a passing creature is not.
 local PATH_FAIL_PERSIST = 3
 local FOCUS_GRACE_MS = 1000
-local MANUAL_CONTROL_MS = 3000
 
 local geo = CombatGeo
 local nowMs, sameTile, chebyshev, faceToward = geo.nowMs, geo.sameTile, geo.chebyshev, geo.faceToward
@@ -146,8 +145,7 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 	local prev = lastQueuedWalkById[id]
 	local now = nowMs()
 	local pkey = walkDestKey(ppos)
-	local stuckMs = (ExpeditionConfig and tonumber(ExpeditionConfig.FORMATION_REPATH_MS)) or STALL_REPATH_MS
-	local stuck = prev and prev.key == key and prev.posKey and prev.posKey == pkey and (now - (prev.at or 0)) >= stuckMs
+	local stuck = prev and prev.key == key and prev.posKey and prev.posKey == pkey and (now - (prev.at or 0)) >= settings.STALL_REPATH_MS
 	if not force and prev and prev.key == key then
 		if not stuck and (now - (prev.at or 0)) < WALK_DEDUPE_MS then
 			return true
@@ -167,10 +165,7 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 		clearQueuedWalk(creature)
 	end
 
-	local maxSearch = (ExpeditionConfig and tonumber(ExpeditionConfig.HOLD_PATH_MAX)) or PATH_MAX_SEARCH
-	if maxSearch < 1 then
-		maxSearch = PATH_MAX_SEARCH
-	end
+	local maxSearch = PATH_MAX_SEARCH
 	local minDist, maxDist = minReach, reach
 	if maxDist == 0 and occupiedByOther(dest, creature) then
 		notePathFail(id, key, now)
@@ -218,13 +213,13 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 end
 --- Client walk / follow input owns this player's movement (expedition idle combat):
 --- a manual walk or follow is running, or the last manual step is under
---- ExpeditionConfig.MANUAL_CONTROL_MS old. With `sinceMs`, only steps taken after it
+--- MANUAL_CONTROL_MS old. With `sinceMs`, only steps taken after it
 --- count (an errand ignores the steps that came before it).
 function CombatAutomationMovement.isManual(player, sinceMs)
 	if not player or not player.isManualControl then
 		return false
 	end
-	local graceMs = (ExpeditionConfig and tonumber(ExpeditionConfig.MANUAL_CONTROL_MS)) or MANUAL_CONTROL_MS
+	local graceMs = settings.MANUAL_CONTROL_MS
 	if sinceMs then
 		graceMs = math.max(0, math.min(graceMs, nowMs() - sinceMs))
 	end
@@ -268,7 +263,7 @@ local function walkTowardCreature(player, creature, reach, maxSearch)
 	local prev = lastQueuedWalkById[id]
 	local now = nowMs()
 	local pkey = walkDestKey(ppos)
-	local stuck = prev and prev.key == key and prev.posKey == pkey and (now - (prev.at or 0)) >= STALL_REPATH_MS
+	local stuck = prev and prev.key == key and prev.posKey == pkey and (now - (prev.at or 0)) >= settings.STALL_REPATH_MS
 	if prev and prev.key == key and not stuck and (now - (prev.at or 0)) < CREATURE_REPATH_MS then
 		return true
 	end
@@ -919,14 +914,14 @@ local function driveMember(player, anchor, target, config, state, home)
 	end
 end
 
---- Low HP (ExpeditionConfig.isPositionCritical): step to the adjacent tile farthest
+--- Low HP (CombatAutomationConfig.isPositionCritical): step to the adjacent tile farthest
 --- from fighting monsters (ties toward the leash anchor) while heals catch up.
 --- True while a retreat step owns movement.
 local function retreatIfCritical(player, state)
 	if not state then
 		return false
 	end
-	if not (ExpeditionConfig and ExpeditionConfig.isPositionCritical and ExpeditionConfig.isPositionCritical(player)) then
+	if not settings.isPositionCritical(player) then
 		state.retreating = nil
 		return false
 	end
@@ -1070,7 +1065,7 @@ local function driveCatchUp(player, anchor, state)
 		state.catchingUp = nil
 		return false
 	end
-	local walkSqm = (ExpeditionConfig and tonumber(ExpeditionConfig.CATCH_UP_WALK_SQM)) or 10
+	local walkSqm = settings.CATCH_UP_WALK_SQM
 	local dist = chebyshev(ppos, apos)
 	if state.catchingUp then
 		if dist <= math.floor(walkSqm / 2) then
@@ -1084,7 +1079,7 @@ local function driveCatchUp(player, anchor, state)
 		return false
 	end
 	clearFollowIfAny(player)
-	local maxSearch = (ExpeditionConfig and tonumber(ExpeditionConfig.CATCH_UP_PATH_MAX)) or PATH_MAX_SEARCH
+	local maxSearch = settings.CATCH_UP_PATH_MAX
 	walkTowardCreature(player, anchor, 2, maxSearch)
 	return true
 end

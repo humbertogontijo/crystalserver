@@ -717,7 +717,7 @@ end
 -- Soft backoff after a cast that still failed (mana/weapon/range/etc.) so we do not
 -- spam CONST_ME_POFF every TICK_MS. Spell/group CDs are checked before cast instead.
 -- Keep this short (one tick) so transient range/LOS misses recover quickly.
-local CAST_FAIL_BACKOFF_MS = CombatAutomationConfig.TICK_MS or 250
+local CAST_FAIL_BACKOFF_MS = CombatAutomationConfig.TICK_MS
 
 local function getInstantSpell(words)
 	if type(words) ~= "string" or words == "" then
@@ -2459,7 +2459,7 @@ local function considerAreaStep(player, state, config, hpPercent, manaPercent, t
 	local bestPos, bestCount, bestDir = nil, hereBest, hereDir
 	local walking = walkTaskActive(player)
 	-- Low HP: retreat positioning owns movement; never step into the pack for a hit.
-	local critical = ExpeditionConfig and ExpeditionConfig.isPositionCritical and ExpeditionConfig.isPositionCritical(player)
+	local critical = CombatAutomationConfig.isPositionCritical(player)
 	-- Expedition anchor walking its route or holding its halt tile: a side step
 	-- stalls the walk (step, settle, cast, repath) or leaves the halt tile.
 	local luring = state.directive and state.directive.kind == "hold" and state.directive.luring

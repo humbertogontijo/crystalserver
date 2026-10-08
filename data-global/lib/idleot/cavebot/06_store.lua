@@ -1,12 +1,10 @@
 -- Cavebot toggle state. The on/off flag is `autoTarget.cavebot` in the combat
 -- automation config (persisted with it, off by default) and needs AUTO attack on. A
 -- pause (`pauseCavebot`, the client toggle inside an expedition) lasts
--- ExpeditionConfig.MANUAL_CONTROL_MS and is runtime only. Inside an expedition the
+-- CombatAutomationConfig.MANUAL_CONTROL_MS and is runtime only. Inside an expedition the
 -- cavebot cannot be stopped: turning it off pauses it.
 
 CavebotStore = CavebotStore or {}
-
-local PAUSE_MS_DEFAULT = 3000
 
 -- playerId -> pausedUntil (ms); cleared by the pause's own timer (pauseEvents)
 local pausedUntil = {}
@@ -50,7 +48,7 @@ function CavebotStore.isEnabled(player)
 end
 
 function CavebotStore.pauseMs()
-	return (ExpeditionConfig and tonumber(ExpeditionConfig.MANUAL_CONTROL_MS)) or PAUSE_MS_DEFAULT
+	return CombatAutomationConfig.MANUAL_CONTROL_MS
 end
 
 function CavebotStore.pause(player)

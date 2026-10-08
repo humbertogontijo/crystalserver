@@ -184,9 +184,9 @@ function ExpeditionProtocol.sendStatus(player, session)
 	if role == "monster" and kind ~= "raid" then
 		local lureMax = tonumber(session.lureMax)
 			or (session.catalog and tonumber(session.catalog.lureMax))
-			or ExpeditionConfig.LURE_MAX
+			or CavebotConfig.LURE_MAX
 			or 2
-		status.lure = session.lure or ExpeditionConfig.LURE_DEFAULT or 1
+		status.lure = session.lure or CavebotConfig.LURE_DEFAULT
 		status.lureMax = lureMax
 		status.metrics = ExpeditionMetrics and ExpeditionMetrics.summary(session) or nil
 		status.cave = caveStatus(session)

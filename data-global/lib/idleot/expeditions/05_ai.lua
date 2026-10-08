@@ -1,4 +1,4 @@
--- Expedition session AI: the single session tick (AI_TICK_MS), persistence,
+-- Expedition session AI: the single session tick (CombatAutomationConfig.TICK_MS), persistence,
 -- movement directives, catch-up and manual control (players may walk themselves;
 -- the AI takes over again once they stop). Targeting / stance / casting live in
 -- CombatAutomation (per player, playerOnThink).
@@ -167,7 +167,7 @@ local function catchUpMember(session, player, anchor)
 		return
 	end
 	local dist = geo.chebyshev(ppos, apos)
-	if dist <= (tonumber(ExpeditionConfig.CATCH_UP_TELEPORT_SQM) or 15) then
+	if dist <= CombatAutomationConfig.CATCH_UP_TELEPORT_SQM then
 		session._catchUp[pid] = nil
 		return
 	end
@@ -177,7 +177,7 @@ local function catchUpMember(session, player, anchor)
 		session._catchUp[pid] = { dist = dist, at = now }
 		return
 	end
-	if now - track.at > (tonumber(ExpeditionConfig.CATCH_UP_STALL_MS) or 10000) then
+	if now - track.at > CombatAutomationConfig.CATCH_UP_STALL_MS then
 		session._catchUp[pid] = nil
 		teleportNearAnchor(session, player, anchor)
 	end
@@ -322,7 +322,7 @@ function ExpeditionAI.tick(session)
 	end
 end
 
---- Sole session-tick driver at AI_TICK_MS (250). Do not also schedule from
+--- Sole session-tick driver every CombatAutomationConfig.TICK_MS. Do not also schedule from
 --- playerOnThink / CombatAutomation.onThink — those own per-player combat only.
 function ExpeditionAI.start(session)
 	if not session or session.state == "ended" then
@@ -331,7 +331,7 @@ function ExpeditionAI.start(session)
 	for _, id in ipairs(memberIds(session)) do
 		ExpeditionAI.enablePersistence(Player(id))
 	end
-	ExpeditionManager.scope(session):every(ExpeditionConfig.AI_TICK_MS or 250, function()
+	ExpeditionManager.scope(session):every(CombatAutomationConfig.TICK_MS, function()
 		if session.state ~= "ended" then
 			ExpeditionAI.tick(session)
 		end

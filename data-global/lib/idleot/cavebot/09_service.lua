@@ -6,7 +6,7 @@
 -- manual-control detection) while they are in a run; a disconnected member leaves it.
 -- Monsters are tracked only once they target a member (CavebotPack.adoptEngaged).
 --
--- Each run walks on its own Scope loop (Cavebot.step every CavebotConfig.TICK_MS). Runs
+-- Each run walks on its own Scope loop (Cavebot.step every CombatAutomationConfig.TICK_MS). Runs
 -- are regrouped only when something changes who walks with whom: the cavebot or AUTO
 -- attack toggled, a logout, a party join / leave / disband, a player changing layer
 -- (player.instanceChanged), or a run tick finding a member that no longer fits its run
@@ -214,7 +214,7 @@ local function newRun(runId, instanceKey)
 		kills = 0,
 	}
 	run.scope = Scope.new({ name = "cavebot:" .. runId, instanceId = instanceKey })
-	run.scope:every(CavebotConfig.TICK_MS, function()
+	run.scope:every(CombatAutomationConfig.TICK_MS, function()
 		stepRun(run)
 	end)
 	runs[runId] = run

@@ -37,9 +37,6 @@ function ExpeditionConfig.anchorPathBiasRadius()
 end
 
 ExpeditionConfig.SUBAREA_DIR = "lib/idleot/subareas"
-ExpeditionConfig.AI_TICK_MS = 250
--- Repath formation slots when stuck on the same tile (ms); avoids multi-second walk dedupe pauses.
-ExpeditionConfig.FORMATION_REPATH_MS = 400
 -- Voluntary leave: server delays eject this many seconds (client shows the same countdown).
 ExpeditionConfig.LEAVE_COUNTDOWN_SEC = 5
 -- Shared team-accept ready check (host + invitees). Expiry cancels the waiting lobby.
@@ -47,26 +44,10 @@ ExpeditionConfig.TEAM_ACCEPT_TIMEOUT_SEC = 45
 -- Map-spawn lure hunts (ExpeditionPack + Cavebot). Instance spawns come
 -- from the world spawn XML; monsters keep stock behaviour (engage on sight, walk back
 -- to their spawn on losing the party; homes are never moved). Cave walker and lure
--- pacing knobs are shared with open-world runs (lib/idleot/cavebot/01_config.lua).
-for _, key in ipairs(CavebotConfig.SHARED_KEYS) do
-	ExpeditionConfig[key] = CavebotConfig[key]
-end
+-- pacing knobs live in CavebotConfig (lib/idleot/cavebot/01_config.lua).
 -- Lure-hunt monsters keep chasing a target they already have this many sqm past their
 -- normal sight, so trailing monsters follow the anchor to the next halt.
 ExpeditionConfig.TARGET_KEEP_SQM = 4
--- Companions beyond CATCH_UP_WALK_SQM walk toward the anchor (path search CATCH_UP_PATH_MAX).
--- Teleport only when on another floor, or beyond CATCH_UP_TELEPORT_SQM with no
--- progress for CATCH_UP_STALL_MS.
-ExpeditionConfig.CATCH_UP_WALK_SQM = 10
-ExpeditionConfig.CATCH_UP_PATH_MAX = 256
-ExpeditionConfig.CATCH_UP_TELEPORT_SQM = 15
-ExpeditionConfig.CATCH_UP_STALL_MS = 10000
--- Client walk / follow input pauses the AI's movement for that member; the AI takes
--- over again this long after the last manual step (or at once via "Resume Auto").
-ExpeditionConfig.MANUAL_CONTROL_MS = 3000
--- Path search radius (Chebyshev) for hold walks. Non-zero uses Crystal's
--- getPathMatchingCond (no 100-node hard stop). 0 = unrestricted but capped at 100 nodes.
-ExpeditionConfig.HOLD_PATH_MAX = 128
 -- Classic Tibia spawn flash (matches SpawnMonster::NONBLOCKABLE_SPAWN_MONSTER_INTERVAL).
 ExpeditionConfig.PRE_SPAWN_FLASHES = 3
 ExpeditionConfig.PRE_SPAWN_INTERVAL_MS = 1400
@@ -101,24 +82,6 @@ ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC = 20 * 60
 ExpeditionConfig.BOSS_MECHANIC_STALL_SEC = 60
 -- Fallback when raids.xml interval2 is missing (matches typical interval2=1440).
 ExpeditionConfig.RAID_DESPAWN_FALLBACK_MS = 24 * 60 * 60 * 1000
--- When player HP% is below this, switch from anchor formation to creature-stance positioning.
--- Raids always use creature stance (never anchor formation).
-ExpeditionConfig.POSITION_CRITICAL_HP_PERCENT = 30
-
---- True when current HP is below the formation critical threshold.
-function ExpeditionConfig.isPositionCritical(player)
-	if not player then
-		return false
-	end
-	local maxHp = player:getMaxHealth()
-	if not maxHp or maxHp <= 0 then
-		return false
-	end
-	local threshold = tonumber(ExpeditionConfig.POSITION_CRITICAL_HP_PERCENT) or 30
-	local pct = (player:getHealth() / maxHp) * 100
-	return pct < threshold
-end
-
 --- Living members eligible to be the party anchor (online, HP > 0, not dead-flagged).
 local function livingAnchorCandidates(session)
 	local out = {}
@@ -529,7 +492,7 @@ end
 function ExpeditionConfig.lureFromDensity(density)
 	local n = math.floor(tonumber(density) or 0)
 	if n < 1 then
-		return ExpeditionConfig.LURE_DEFAULT or 1
+		return CavebotConfig.LURE_DEFAULT
 	end
 	return n
 end
@@ -584,7 +547,7 @@ function ExpeditionConfig.caveRoute(catalog)
 	end
 	local lure = math.floor(tonumber(cave.lure) or tonumber(catalog.lureMax) or 0)
 	local route = {
-		lure = lure > 0 and lure or (ExpeditionConfig.LURE_DEFAULT or 1),
+		lure = lure > 0 and lure or CavebotConfig.LURE_DEFAULT,
 		entry = entry,
 		waypoints = waypoints,
 		stationary = #waypoints <= 1,

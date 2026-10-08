@@ -174,7 +174,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	local sessionLure = nil
 	local sessionLureMax = nil
 	if contentRole ~= "boss" and contentRole ~= "arena" then
-		sessionLureMax = tonumber(catalog.lureMax) or ExpeditionConfig.LURE_MAX
+		sessionLureMax = tonumber(catalog.lureMax) or CavebotConfig.LURE_MAX
 		-- Ignore client lure; the cave route carries the hunt's pack size.
 		local route = ExpeditionConfig.caveRoute(catalog)
 		sessionLure = route and route.lure or ExpeditionConfig.lureFromDensity(sessionLureMax)

@@ -5,6 +5,7 @@ CombatAutomationConfig.OPCODE = 113
 CombatAutomationConfig.KV_KEY = "combat_automation"
 CombatAutomationConfig.KV_LEGACY_KEY = "expedition_automation"
 
+-- Automation tick: combat, movement and the cave walker (Cavebot runs, expedition AI).
 CombatAutomationConfig.TICK_MS = 250
 CombatAutomationConfig.POTION_EXHAUST_MS = 1000
 CombatAutomationConfig.RUNE_EXHAUST_MS = 2000
@@ -107,6 +108,29 @@ function CombatAutomationConfig.configuredStanceForPlayer(player)
 		at = cfg and cfg.autoTarget
 	end
 	return CombatAutomationConfig.normalizeStanceForPlayer(player, at and at.stance)
+end
+
+-- Movement (CombatAutomationMovement). Path search radius (Chebyshev) of directive
+-- walks: getPathMatchingCond, without the 100-node hard stop.
+CombatAutomationConfig.PATH_MAX_SEARCH = 128
+-- Repath a walk stuck on the same tile this long; avoids multi-second walk dedupe pauses.
+CombatAutomationConfig.STALL_REPATH_MS = 400
+-- Client walk / follow input pauses the AI's movement for that member; the AI takes
+-- over again this long after the last manual step (or at once via "Resume Auto").
+CombatAutomationConfig.MANUAL_CONTROL_MS = 3000
+-- Companions beyond CATCH_UP_WALK_SQM walk toward the anchor (path search CATCH_UP_PATH_MAX).
+-- Teleport only when on another floor, or beyond CATCH_UP_TELEPORT_SQM with no
+-- progress for CATCH_UP_STALL_MS.
+CombatAutomationConfig.CATCH_UP_WALK_SQM = 10
+CombatAutomationConfig.CATCH_UP_PATH_MAX = 256
+CombatAutomationConfig.CATCH_UP_TELEPORT_SQM = 15
+CombatAutomationConfig.CATCH_UP_STALL_MS = 10000
+-- Below this HP percent a member positions by creature stance (retreat), not formation.
+CombatAutomationConfig.POSITION_CRITICAL_HP_PERCENT = 30
+
+function CombatAutomationConfig.isPositionCritical(player)
+	local maxHp = player:getMaxHealth()
+	return maxHp > 0 and player:getHealth() * 100 < CombatAutomationConfig.POSITION_CRITICAL_HP_PERCENT * maxHp
 end
 
 --- Chebyshev distance the member's stance keeps from its focus.
