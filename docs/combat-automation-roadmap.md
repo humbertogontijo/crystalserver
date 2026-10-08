@@ -18,7 +18,7 @@ exist here or do not apply. This file records what is worth taking.
 | Monk harmony thresholds | `harmonyThreshold` slot field |
 | Auto haste (+ PZ), utito, party buffs, familiar | support group, `isHasteSpell`, `PARTY_BUFF_BY_WORDS`, `FAMILIAR_WORDS` |
 | Targeting priority / ignore | target scoring (`TARGET_*` bonuses), store ignore lists |
-| Presets / profiles | loadouts + presets (`04_store.lua`, `05_protocol.lua`) |
+| Presets / profiles | loadouts + presets (`13_store.lua`, `14_protocol.lua`) |
 | Cavebot waypoints, luring, stop/walk by pack size, stuck recovery | catalog routes + holds, `lureMax`, `06_movement.lua`, `cavebot/03_core.lua` |
 | Low-supply alarm / refill | not applicable: supplies are bought per use; `ExpeditionSafety.handleShortage` stops the run when gold runs out |
 
@@ -42,7 +42,7 @@ exist here or do not apply. This file records what is worth taking.
   `EQUIP_SWAP_MS` apart. Only real inventory items are used: when the player owns
   none the rule sits idle and the server sends `automationSlotStatus = missing`, which
   dims the bar slot and says so in its tooltip. Rules run every tick next to the ammo
-  refill, also with AUTO off (`runEquipRules` in `03_runtime.lua`). Allowed items are
+  refill, also with AUTO off (`runEquipRules` in `12_runtime.lua`). Allowed items are
   `CombatAutomationConfig.EquipItems` (keep in sync with `Equip.CATALOG` in the
   client).
 - **Cavebot "avoid" lines (NextGen `cavebot_settings`).** Party members (players

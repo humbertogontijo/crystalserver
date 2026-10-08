@@ -1,6 +1,6 @@
 -- CaveBot-style hunt route: one closed walk over a hunt's spawn clusters. Single
 -- implementation shared by the runtime (open-world routes, cavebot/08_routes.lua) and
--- hunt generation, which loads this file and 00_anchor_spot.lua through lupa
+-- hunt generation, which loads this file and 01_anchor_spot.lua through lupa
 -- (packages/asset-pipeline features/expedition/crystal/lua_cave_route.py).
 -- Pure Lua (5.1 - 5.4): no engine API, tiles come through `env` callbacks.
 --
