@@ -17,12 +17,11 @@ local function cooldownKey(bandId, bossName)
 end
 
 local function poolForBand(bandId)
-	local pools = ActivityBoostConfig.WORLD_BOSS_POOLS or ActivityBoostConfig.WORLD_BOSS_BY_BAND or {}
-	local pool = pools[bandId]
+	local pool = ActivityBoostConfig.WORLD_BOSS_BY_BAND[bandId]
 	if pool and #pool > 0 then
 		return pool
 	end
-	return ActivityBoostConfig.WORLD_BOSS_SHORTLIST or {}
+	return ActivityBoostConfig.WORLD_BOSS_NAMES
 end
 
 local function bossOnCooldown(bandId, bossName, now)

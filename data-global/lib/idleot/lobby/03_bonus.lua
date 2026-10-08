@@ -106,7 +106,7 @@ local function normalizePreySlot(raw, index)
 	return slot
 end
 
---- Normalize any stored payload (lobby record, parked KV or legacy team KV).
+--- Normalize any stored payload (lobby record or parked KV).
 function LobbyBonus.normalize(stored)
 	local data = defaultBonuses()
 	if type(stored) ~= "table" then

@@ -10,7 +10,7 @@ local ARROW = 3447
 
 local function spellSlot(index, spellId, extra)
 	local slot = {
-		id = "slot-" .. tostring(index),
+		group = index,
 		enabled = true,
 		kind = "spell",
 		spellId = spellId,
@@ -18,7 +18,6 @@ local function spellSlot(index, spellId, extra)
 		triggerPercent = 100,
 		monsterCount = 1,
 		monsterCountMode = "minimum",
-		priority = index,
 	}
 	if type(extra) == "table" then
 		for k, v in pairs(extra) do
@@ -30,25 +29,23 @@ end
 
 local function potionSlot(index, typeId, triggerStat, percent)
 	return {
-		id = "slot-" .. tostring(index),
+		group = index,
 		enabled = true,
 		kind = "potion",
 		potionTypeId = typeId,
 		triggerStat = triggerStat,
 		triggerPercent = percent,
-		priority = index,
 	}
 end
 
 local function ammoSlot(index, typeId)
 	return {
-		id = "slot-" .. tostring(index),
+		group = index,
 		enabled = true,
 		kind = "ammo",
 		ammoTypeId = typeId,
 		triggerStat = "always",
 		triggerPercent = 100,
-		priority = index,
 	}
 end
 

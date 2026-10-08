@@ -26,10 +26,6 @@ local function ensureBoostDay(player)
 		for _, def in ipairs(ActivityBoostConfig.ACTIVITIES or {}) do
 			counts:remove(def.id)
 		end
-		-- Drop legacy keys from the previous boolean-completion design.
-		store:remove("completed")
-		store:remove("worldBossFragged")
-		store:remove("soloBoss")
 		ActivityBoostLedger.resetDailyEarned(player)
 		ActivityBoostFiendishHunt.resetForNewDay(player)
 	end

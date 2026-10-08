@@ -147,9 +147,6 @@ ActivityBoostConfig.WORLD_BOSS_NAMES = {
 -- Resolved at load: { name, recommendedLevel, levelMin, combatPower, creatureId, bands }.
 ActivityBoostConfig.WORLD_BOSSES = nil
 
--- Back-compat alias used by older helpers.
-ActivityBoostConfig.WORLD_BOSS_SHORTLIST = nil -- filled after band resolve
-
 -- Shared Oramond Glooth Fairy arena (instance-bound private copy).
 ActivityBoostConfig.WORLD_BOSS_ARENA = {
 	center = { x = 33688, y = 31937, z = 9 },
@@ -272,11 +269,10 @@ local function fillBandGaps(byBand)
 	end
 end
 
---- Resolve shortlist + per-band boss pools (run once after config load).
+--- Resolve boss entries + per-band boss pools (run once after config load).
 function ActivityBoostConfig.resolveWorldBossPools()
 	local names = ActivityBoostConfig.WORLD_BOSS_NAMES or {}
 	local bosses = {}
-	local shortlist = {}
 	local byBand = {}
 	for _, band in ipairs(ActivityBoostConfig.LEVEL_BANDS or {}) do
 		byBand[band.id] = {}
@@ -285,7 +281,6 @@ function ActivityBoostConfig.resolveWorldBossPools()
 		if type(name) == "string" and name ~= "" then
 			local boss = resolveBossEntry(name)
 			bosses[#bosses + 1] = boss
-			shortlist[#shortlist + 1] = name
 			local bandIds = boss.bands
 			if type(bandIds) ~= "table" or #bandIds == 0 then
 				bandIds = ActivityBoostConfig.bandsForBoss(boss)
@@ -301,10 +296,7 @@ function ActivityBoostConfig.resolveWorldBossPools()
 	end
 	fillBandGaps(byBand)
 	ActivityBoostConfig.WORLD_BOSSES = bosses
-	ActivityBoostConfig.WORLD_BOSS_SHORTLIST = shortlist
 	ActivityBoostConfig.WORLD_BOSS_BY_BAND = byBand
-	ActivityBoostConfig.WORLD_BOSS_POOLS = byBand
-	return shortlist, byBand
 end
 
 ActivityBoostConfig.resolveWorldBossPools()

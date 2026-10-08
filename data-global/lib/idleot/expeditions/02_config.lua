@@ -76,11 +76,9 @@ end
 
 -- Post-clear loot window before eject/sweep (boss, Fiendish Hunt, raid).
 ExpeditionConfig.LOOT_GRACE_MS = 5000
--- Fallback when configKeys.BOSS_DEFAULT_TIME_TO_DEFEAT is unavailable (lever timeout).
-ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC = 20 * 60
 -- A boss whose mechanic is played keeps its immunity this long before it is stripped.
 ExpeditionConfig.BOSS_MECHANIC_STALL_SEC = 60
--- Fallback when raids.xml interval2 is missing (matches typical interval2=1440).
+-- Raid despawn when raids.xml has no interval2 and the raid no minGapBetween (typical interval2=1440).
 ExpeditionConfig.RAID_DESPAWN_FALLBACK_MS = 24 * 60 * 60 * 1000
 --- Pick session.anchorPlayerId (Cavebot.electAnchor over living, not dead-flagged members). Every member is a candidate:
 --- inside an expedition the cavebot only pauses, it is never stopped.
@@ -451,14 +449,7 @@ function ExpeditionConfig.bossTimeToDefeatSec(lever)
 	if lever and tonumber(lever.timeToDefeat) and lever.timeToDefeat > 0 then
 		return math.floor(lever.timeToDefeat)
 	end
-	local duration = tonumber(ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC) or (20 * 60)
-	if configManager and configKeys and configKeys.BOSS_DEFAULT_TIME_TO_DEFEAT then
-		local n = configManager.getNumber(configKeys.BOSS_DEFAULT_TIME_TO_DEFEAT)
-		if type(n) == "number" and n > 0 then
-			duration = n
-		end
-	end
-	return math.max(1, math.floor(duration))
+	return math.max(1, configManager.getNumber(configKeys.BOSS_DEFAULT_TIME_TO_DEFEAT))
 end
 
 --- Raid instance despawn: raids.xml interval2 (minutes → ms), else Lua minGapBetween, else 24h.
@@ -473,7 +464,7 @@ function ExpeditionConfig.raidDespawnMs(raidName, raid)
 	if raid and type(raid.minGapBetween) == "number" and raid.minGapBetween > 0 then
 		return math.floor(raid.minGapBetween)
 	end
-	return math.floor(tonumber(ExpeditionConfig.RAID_DESPAWN_FALLBACK_MS) or (24 * 60 * 60 * 1000))
+	return ExpeditionConfig.RAID_DESPAWN_FALLBACK_MS
 end
 
 --- Resolvable MonsterType name for Player:setBossCooldown / canFightBoss.

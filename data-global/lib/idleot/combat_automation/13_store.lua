@@ -71,19 +71,12 @@ local function clampInt(value, low, high, fallback)
 	return n
 end
 
---- Bar slot + step. Legacy entries (no group) used priority as the bar index.
-local function slotPosition(raw, index)
-	local group = math.floor(tonumber(raw.group) or 0)
-	local step = 1
-	if group >= 1 then
-		step = clampInt(raw.step, 1, MULTI_STEPS, 1)
-	else
-		group = math.floor(tonumber(raw.priority) or index)
-	end
-	return clampInt(group, 1, SLOT_GROUPS, 1), step
+--- Bar slot + step.
+local function slotPosition(raw)
+	return clampInt(raw.group, 1, SLOT_GROUPS, 1), clampInt(raw.step, 1, MULTI_STEPS, 1)
 end
 
-local function sanitizeSlot(raw, index, player)
+local function sanitizeSlot(raw, player)
 	if type(raw) ~= "table" then
 		return nil
 	end
@@ -109,7 +102,7 @@ local function sanitizeSlot(raw, index, player)
 		triggerPercent = 100
 	end
 
-	local group, step = slotPosition(raw, index)
+	local group, step = slotPosition(raw)
 	local slot = {
 		id = "slot-" .. group .. "-" .. step,
 		group = group,
@@ -204,8 +197,8 @@ local function sanitizeSlotList(entries, player)
 		return out
 	end
 	local taken = {}
-	for i, entry in ipairs(entries) do
-		local slot = sanitizeSlot(entry, i, player)
+	for _, entry in ipairs(entries) do
+		local slot = sanitizeSlot(entry, player)
 		if slot then
 			local key = slot.group * 10 + slot.step
 			if not taken[key] then
@@ -369,11 +362,6 @@ function CombatAutomationStore.persist(player, config)
 		encoded.attackPresets = payload.attackPresets
 	end
 	kv:set(CombatAutomationConfig.KV_KEY, JsonParser.encode(encoded))
-	if kv.remove then
-		pcall(function()
-			kv:remove(CombatAutomationConfig.KV_LEGACY_KEY)
-		end)
-	end
 end
 
 local function emptyConfig()
@@ -398,12 +386,6 @@ function CombatAutomationStore.load(player)
 	end
 	local raw = kv:get(CombatAutomationConfig.KV_KEY)
 	if type(raw) ~= "string" or raw == "" then
-		raw = kv:get(CombatAutomationConfig.KV_LEGACY_KEY)
-		if type(raw) == "string" and raw ~= "" then
-			local migrated = CombatAutomationStore.sanitize(JsonParser.decode(raw), player)
-			CombatAutomationStore.persist(player, migrated)
-			return migrated
-		end
 		local seeded = seedBaseLoadout(player)
 		if #(seeded.slots or {}) > 0 then
 			CombatAutomationStore.persist(player, seeded)

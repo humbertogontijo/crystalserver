@@ -1,5 +1,5 @@
 -- Shared gate helpers for instance teleport durations (PZ vs wilderness).
--- isAllowed remains the hard gate for legacy callers; IT uses isInSafeZone + isCombatLocked.
+-- isAllowed is the hard gate (Soul Pit start); InstanceTeleport uses isInSafeZone + isCombatLocked.
 PzTeleport = PzTeleport or {}
 
 PzTeleport.FAIL_MESSAGE = "You can only teleport from a protection zone."

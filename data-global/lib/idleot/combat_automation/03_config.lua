@@ -3,7 +3,6 @@ CombatAutomationConfig = CombatAutomationConfig or {}
 -- Same extended opcode as expeditions (JSON multiplexed by action/type).
 CombatAutomationConfig.OPCODE = 113
 CombatAutomationConfig.KV_KEY = "combat_automation"
-CombatAutomationConfig.KV_LEGACY_KEY = "expedition_automation"
 
 -- Automation tick: combat, movement and the cave walker (Cavebot runs, expedition AI).
 CombatAutomationConfig.TICK_MS = 250

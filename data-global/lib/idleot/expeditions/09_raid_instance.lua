@@ -348,9 +348,7 @@ function RaidInstance.scheduleDespawn(session)
 		return
 	end
 	local raidName = session.raidName
-	local ms = ExpeditionConfig.raidDespawnMs and ExpeditionConfig.raidDespawnMs(raidName, session.raid)
-		or ExpeditionConfig.RAID_DESPAWN_FALLBACK_MS
-		or (24 * 60 * 60 * 1000)
+	local ms = ExpeditionConfig.raidDespawnMs(raidName, session.raid)
 	session.scope:timer("despawn", ms, function()
 		if session.graceStarted then
 			return

@@ -321,10 +321,7 @@ function ExpeditionBoss.scheduleDespawn(session)
 	end
 	clearDespawn(session)
 	local key = session.key
-	local sec = ExpeditionConfig.bossTimeToDefeatSec and ExpeditionConfig.bossTimeToDefeatSec(sessionLever(session))
-		or ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC
-		or (20 * 60)
-	sec = math.floor(sec)
+	local sec = ExpeditionConfig.bossTimeToDefeatSec(sessionLever(session))
 	session.bossTimeLimitSec = sec
 	session.bossEndsAt = os.time() + sec
 	ExpeditionManager.scope(session):timer("bossDespawn", sec * 1000, function()

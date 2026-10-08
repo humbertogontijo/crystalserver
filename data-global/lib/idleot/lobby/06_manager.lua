@@ -271,14 +271,6 @@ function LobbyManager.ensureForPlayer(player)
 	if record then
 		return record
 	end
-	-- Login hooks may ask before LobbyManager.onLogin ran: legacy teams convert first.
-	if isRealUi(player) then
-		LobbyManager.convertLegacy(player)
-		record = LobbyStore.getForPlayer(player)
-		if record then
-			return record
-		end
-	end
 	record = LobbyStore.create(player, { size = LobbyConfig.MAX_MEMBERS, public = false })
 	if record then
 		LobbyBonus.restoreParked(player, record)
@@ -642,13 +634,12 @@ end
 
 -- Engine / login hooks ------------------------------------------------------------
 
---- Login: legacy conversion, ensure a lobby, adopt a lobby whose host is offline.
+--- Login: ensure a lobby, adopt a lobby whose host is offline.
 function LobbyManager.onLogin(player)
 	if not isRealUi(player) then
 		LobbyBonus.onMemberLogin(player)
 		return
 	end
-	LobbyManager.convertLegacy(player)
 	local record = LobbyManager.ensureForPlayer(player)
 	LobbyStore.touchMember(player)
 	if record.hostGuid ~= player:getGuid() and not online(record.hostGuid) then
@@ -796,97 +787,4 @@ function LobbyManager.isLobbyMate(a, b)
 	end
 	local record = LobbyStore.getForPlayer(a)
 	return record ~= nil and LobbyStore.member(record, b:getGuid()) ~= nil
-end
-
--- Legacy conversion -------------------------------------------------------------------
-
-local function decodeKv(player, key)
-	local raw = player:kv():get(key)
-	if type(raw) == "table" then
-		return raw
-	end
-	if type(raw) == "string" and raw ~= "" then
-		local ok, decoded = pcall(JsonParser.decode, raw)
-		if ok then
-			return decoded
-		end
-	end
-	return nil
-end
-
---- One-time: old roster / team bonuses / social listing -> lobby record, then clear.
-function LobbyManager.convertLegacy(player)
-	local roster = decodeKv(player, LobbyConfig.LEGACY_KV_TEAM_MEMBERS)
-	local bonuses = decodeKv(player, LobbyConfig.LEGACY_KV_TEAM_BONUSES)
-	local listing = decodeKv(player, LobbyConfig.LEGACY_KV_LISTING)
-	local pointer = tonumber(player:kv():get(LobbyConfig.LEGACY_KV_TEAM_CONTROLLER) or 0) or 0
-	local hadLegacy = roster ~= nil or bonuses ~= nil or listing ~= nil or pointer > 0
-		or player:kv():get(LobbyConfig.LEGACY_KV_SQUAD_MEMBERS) ~= nil
-	if not hadLegacy then
-		return
-	end
-	for _, key in ipairs({
-		LobbyConfig.LEGACY_KV_TEAM_MEMBERS,
-		LobbyConfig.LEGACY_KV_TEAM_BONUSES,
-		LobbyConfig.LEGACY_KV_LISTING,
-		LobbyConfig.LEGACY_KV_TEAM_CONTROLLER,
-		LobbyConfig.LEGACY_KV_SQUAD_MEMBERS,
-	}) do
-		player:kv():remove(key)
-	end
-
-	local existing = LobbyStore.getForPlayer(player)
-	if existing or (pointer > 0 and pointer ~= player:getGuid()) then
-		-- Already lobbied, or a alt of another controller: keep paid timers only.
-		if LobbyBonus.hasActive(bonuses) then
-			player:kv():set(LobbyConfig.KV_PARKED_BONUSES, JsonParser.encode(LobbyBonus.normalize(bonuses)))
-		end
-		return
-	end
-
-	local record = LobbyStore.create(player, { size = LobbyConfig.MAX_MEMBERS })
-	if not record then
-		return
-	end
-	if type(listing) == "table" then
-		record.public = listing.public == true
-		record.levelMin = math.max(1, math.floor(tonumber(listing.levelMin) or 1))
-		record.levelMax = math.max(record.levelMin, math.floor(tonumber(listing.levelMax) or 9999))
-		local expeditionId = tostring(listing.expeditionId or "")
-		local catalog = expeditionId ~= "" and ExpeditionConfig and ExpeditionConfig.getById
-			and ExpeditionConfig.getById(expeditionId, listing.role) or nil
-		if catalog then
-			record.expeditionId = tostring(catalog.id)
-			record.role = (catalog.role == "boss" or catalog.kind == "boss") and "boss" or "monster"
-			record.expeditionName = tostring(catalog.name or catalog.id)
-			record.creatureId = tonumber(listing.creatureId)
-		end
-	end
-	local function addIfFree(src)
-		if src and #record.members < LobbyConfig.MAX_MEMBERS and not LobbyStore.getByGuid(src:getGuid()) then
-			LobbyStore.addMember(record, src)
-		end
-	end
-	for _, entry in ipairs(type(roster) == "table" and roster or {}) do
-		local name = type(entry) == "table" and entry.name or entry
-		if type(name) == "string" and name:lower() ~= player:getName():lower() then
-			local alt = Alts.resolveAccountMember(player, name)
-			addIfFree(alt)
-		end
-	end
-	if type(listing) == "table" then
-		for _, m in ipairs(type(listing.members) == "table" and listing.members or {}) do
-			local guid = tonumber(m.guid) or 0
-			if guid > 0 and guid ~= player:getGuid() and (m.status == nil or m.status == "accepted") then
-				addIfFree(Alts.resolvePlayerByGuid(guid))
-			end
-		end
-	end
-	if LobbyBonus.hasActive(bonuses) then
-		local data = LobbyBonus.normalize(bonuses)
-		data.lastDrainAt = os.time()
-		record.bonuses = data
-	end
-	LobbyStore.save(record)
-	logger.info("[Lobby] converted legacy team of {} into lobby #{} ({} members)", player:getName(), record.id, #record.members)
 end

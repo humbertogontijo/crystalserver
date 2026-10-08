@@ -52,28 +52,11 @@ local function resolveTarget(controller, nameOrGuid)
 	if type(nameOrGuid) == "string" and nameOrGuid:lower() == selfName:lower() then
 		return controller
 	end
-	if Alts and Alts.resolveAccountMember then
-		local target, err = Alts.resolveAccountMember(controller, nameOrGuid)
-		if not target then
-			return nil, err or "Character not found."
-		end
-		return target
+	local target, err = Alts.resolveAccountMember(controller, nameOrGuid)
+	if not target then
+		return nil, err or "Character not found."
 	end
-	-- Fallback without team lib: same-account check only.
-	local candidate = nil
-	if type(nameOrGuid) == "number" then
-		candidate = Player(nameOrGuid) or (Game.getOfflinePlayer and Game.getOfflinePlayer(nameOrGuid))
-	else
-		local name = tostring(nameOrGuid)
-		candidate = Player(name) or (Game.getOfflinePlayer and Game.getOfflinePlayer(name))
-	end
-	if not candidate then
-		return nil, "Character not found."
-	end
-	if candidate:getAccountId() ~= controller:getAccountId() then
-		return nil, "Character is not on your account."
-	end
-	return candidate
+	return target
 end
 
 local function saveIfNeeded(player)

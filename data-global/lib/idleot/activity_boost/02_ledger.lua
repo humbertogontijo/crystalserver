@@ -98,7 +98,7 @@ function ActivityBoostLedger.clear(player)
 	return ActivityBoostLedger.syncEngine(player, {})
 end
 
---- Drop lots from a previous server-save epoch (and strip legacy wall-clock TTLs).
+--- Drop lots from a previous server-save epoch.
 function ActivityBoostLedger.purgeExpired(player)
 	if not player then
 		return 0
@@ -113,18 +113,7 @@ function ActivityBoostLedger.purgeExpired(player)
 		return ActivityBoostLedger.clear(player)
 	end
 
-	local now = os.time()
-	local lots = loadLots(player)
-	local kept = {}
-	for _, lot in ipairs(lots) do
-		local sec = math.floor(tonumber(lot.seconds) or 0)
-		local exp = tonumber(lot.expiresAt)
-		-- Legacy 24h lots: honor remaining wall-clock once, then store without TTL.
-		if sec > 0 and (not exp or exp <= 0 or exp > now) then
-			kept[#kept + 1] = { seconds = sec }
-		end
-	end
-	saveLots(player, kept)
+	local kept = loadLots(player)
 	if stamped == 0 and saveAt > 0 then
 		store:set("lotsServerSave", saveAt)
 	end

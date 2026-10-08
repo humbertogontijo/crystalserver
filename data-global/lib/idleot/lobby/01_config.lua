@@ -30,13 +30,6 @@ LobbyConfig.KV_PARKED_BONUSES = "lobby_parked_bonuses"
 -- Player KV: lobby id the player was inside when they logged out (relog restore).
 LobbyConfig.KV_INSIDE_LOBBY = "lobby_inside_id"
 
--- Legacy KV converted once on login.
-LobbyConfig.LEGACY_KV_TEAM_MEMBERS = "account_team_members"
-LobbyConfig.LEGACY_KV_TEAM_CONTROLLER = "account_team_controller_guid"
-LobbyConfig.LEGACY_KV_SQUAD_MEMBERS = "account_squad_members"
-LobbyConfig.LEGACY_KV_TEAM_BONUSES = "account_team_bonuses"
-LobbyConfig.LEGACY_KV_LISTING = "social_team_listing"
-
 -- Lobby XP boost + team prey (2x personal prices, full effect for every member).
 LobbyConfig.XP_BOOST_PERCENT = 50
 LobbyConfig.XP_BOOST_DURATION_SEC = 3600

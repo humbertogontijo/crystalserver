@@ -27,36 +27,11 @@ local groupByPlayerId = {}
 
 local nextGroupSeq = 1
 
-local function encodePayload(payload)
-	if JsonParser and JsonParser.encode then
-		local ok, encoded = pcall(JsonParser.encode, payload)
-		if ok and type(encoded) == "string" then
-			return encoded
-		end
-	end
-	-- Minimal fallback for channel payloads.
-	local kind = tostring(payload.kind or "")
-	local t = tostring(payload.type or "")
-	-- Include holdUntilReady in channelStart so clients keep FX past the bar.
-	if t == "channelStart" then
-		return string.format(
-			'{"type":"channelStart","kind":%q,"durationMs":%d,"canCancel":%s,"holdUntilReady":%s}',
-			kind,
-			math.floor(tonumber(payload.durationMs) or 0),
-			payload.canCancel and "true" or "false",
-			payload.holdUntilReady and "true" or "false"
-		)
-	end
-	return string.format('{"type":%q,"kind":%q}', t, kind)
-end
-
 local function defaultSend(player, payload)
 	if not player or not payload then
 		return
 	end
-	local opcode = tonumber(payload._opcode) or InstanceTeleport.OPCODE
-	local body = encodePayload(payload)
-	player:sendExtendedOpcode(opcode, body)
+	IdleUtil.sendJson(player, tonumber(payload._opcode) or InstanceTeleport.OPCODE, payload)
 end
 
 --- Per-player channel duration before group max.

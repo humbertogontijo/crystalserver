@@ -84,13 +84,9 @@ local function slotIgnoresTriggerStat(slot)
 	return words == "exori kor tempo" or words == "exori moe tempo"
 end
 
---- HP % threshold for friend/area/self heals. Legacy "always"/mana → not full.
+--- HP % threshold for friend/area/self heals (healing slots always trigger on HP).
 local function healHpThreshold(slot)
-	local stat = slot and slot.triggerStat or "hp"
-	if stat == "always" or stat == "mana" then
-		return 99
-	end
-	return math.max(0, math.min(100, math.floor(tonumber(slot and slot.triggerPercent) or 0)))
+	return slot.triggerPercent
 end
 
 local function isManaShieldPotion(slot)
@@ -149,10 +145,6 @@ local function slotShouldFire(slot, hpPercent, manaPercent, player)
 	local stat = slot.triggerStat or "hp"
 	local threshold = slot.triggerPercent or 0
 	if stat == "always" then
-		-- Legacy potion Always ≈ not full HP.
-		if slot.kind == "potion" then
-			return hpPercent <= 99
-		end
 		return true
 	elseif stat == "mana" then
 		return manaPercent <= threshold
@@ -564,7 +556,7 @@ local function placeConfiguredAmmo(player, typeId, createMissing, count, ignoreC
 	return spawnAmmo(player, typeId, count, ignoreCap ~= false)
 end
 
---- Configured ammo typeId from automation slots / legacy field.
+--- Configured ammo typeId: the first enabled ammo slot, else config.ammoTypeId.
 local function preferredAmmoTypeId(config)
 	if type(config) ~= "table" then
 		return 0
@@ -929,20 +921,6 @@ local function spellRank(slot)
 		return 0
 	end
 	if group == "support" or group == "shield" or group == "stance" then
-		return 1
-	end
-	if group == "attack" then
-		return 2
-	end
-	-- Legacy fallback for configs generated before SpellGroupById.
-	local words = slot.words or ""
-	if words:find("exura", 1, true) then
-		return 0
-	end
-	if words == "utamo vita" then
-		return 1
-	end
-	if words:find("utani", 1, true) then
 		return 1
 	end
 	return 2

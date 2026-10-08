@@ -222,20 +222,7 @@ function EM_PRIV.logoutExpeditionCompanions(session)
 		end
 		EM_PRIV.removeHuntMember(session, companion, { skipEnded = true, keepDeadFlag = true })
 		EM_PRIV.clearActive(companion)
-		if Alts and Alts.safeLogoutCompanion then
-			Alts.safeLogoutCompanion(companion, 0)
-		elseif Game.headlessLogout then
-			-- Fallback: park to open-world return before save+logout (loginPosition).
-			local returnPos = EM_PRIV.loadReturn(companion)
-			if InstanceWorld and InstanceWorld.exitToOpenWorld then
-				pcall(InstanceWorld.exitToOpenWorld, companion, returnPos)
-			elseif returnPos then
-				pcall(function()
-					companion:teleportTo(returnPos)
-				end)
-			end
-			pcall(Game.headlessLogout, companion)
-		end
+		Alts.safeLogoutCompanion(companion, 0)
 	end
 	if session.companionIds then
 		for id in pairs(session.companionIds) do

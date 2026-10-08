@@ -2,35 +2,6 @@
 -- Channel timing lives in 01_core; this file arms channels and performs teleports.
 -- LobbyInstance owns lobby room build/teardown; ExpeditionManager owns hunt sessions.
 
-local TRAVEL_OPCODE = function()
-	return InstanceTeleport.OPCODE
-end
-
-local EXP_OPCODE = function()
-	return (ExpeditionConfig and ExpeditionConfig.OPCODE) or 113
-end
-
-local function encodeBody(payload)
-	if JsonParser and JsonParser.encode then
-		local ok, encoded = pcall(JsonParser.encode, payload)
-		if ok and type(encoded) == "string" then
-			return encoded
-		end
-	end
-	local kind = tostring(payload.kind or "")
-	local t = tostring(payload.type or "")
-	if t == "channelStart" then
-		return string.format(
-			'{"type":"channelStart","kind":%q,"durationMs":%d,"canCancel":%s,"holdUntilReady":%s}',
-			kind,
-			math.floor(tonumber(payload.durationMs) or 0),
-			payload.canCancel and "true" or "false",
-			payload.holdUntilReady and "true" or "false"
-		)
-	end
-	return string.format('{"type":%q,"kind":%q}', t, kind)
-end
-
 function InstanceTeleport.notifyTravel(player, payload)
 	if not player or type(payload) ~= "table" then
 		return
@@ -41,7 +12,7 @@ function InstanceTeleport.notifyTravel(player, payload)
 			clean[k] = v
 		end
 	end
-	player:sendExtendedOpcode(TRAVEL_OPCODE(), encodeBody(clean))
+	IdleUtil.sendJson(player, InstanceTeleport.OPCODE, clean)
 end
 
 function InstanceTeleport.notifyExpedition(player, payload)
@@ -54,11 +25,7 @@ function InstanceTeleport.notifyExpedition(player, payload)
 			clean[k] = v
 		end
 	end
-	if ExpeditionProtocol and ExpeditionProtocol.send then
-		ExpeditionProtocol.send(player, clean)
-		return
-	end
-	player:sendExtendedOpcode(EXP_OPCODE(), encodeBody(clean))
+	ExpeditionProtocol.send(player, clean)
 end
 
 function InstanceTeleport.handleChannelCancel(player)
@@ -192,7 +159,7 @@ function InstanceTeleport.requestHometown(player, opts)
 	local fromExpedition = opts.fromExpedition == true
 	return InstanceTeleport.begin(player, {
 		kind = InstanceTeleport.KIND_HOMETOWN,
-		opcode = TRAVEL_OPCODE(),
+		opcode = InstanceTeleport.OPCODE,
 		forceDurationMs = forceMs,
 		cancelPolicy = InstanceTeleport.CANCEL_INITIATOR,
 		send = InstanceTeleport.notifyTravel,
@@ -220,7 +187,7 @@ function InstanceTeleport.requestGuild(player)
 	local playerId = player:getId()
 	return InstanceTeleport.begin(player, {
 		kind = InstanceTeleport.KIND_HOMETOWN,
-		opcode = TRAVEL_OPCODE(),
+		opcode = InstanceTeleport.OPCODE,
 		cancelPolicy = InstanceTeleport.CANCEL_INITIATOR,
 		send = InstanceTeleport.notifyTravel,
 		onComplete = function(memberIds)
@@ -269,7 +236,7 @@ function InstanceTeleport.requestLobby(player, record, opts)
 	return InstanceTeleport.begin(player, {
 		kind = InstanceTeleport.KIND_LOBBY,
 		destination = leaving and InstanceTeleport.DEST_OPEN_WORLD or InstanceTeleport.DEST_LOBBY,
-		opcode = TRAVEL_OPCODE(),
+		opcode = InstanceTeleport.OPCODE,
 		forceDurationMs = forceMs,
 		cancelPolicy = InstanceTeleport.CANCEL_INITIATOR,
 		send = InstanceTeleport.notifyTravel,
@@ -312,7 +279,7 @@ function InstanceTeleport.requestExpedition(opts)
 	opts = opts or {}
 	opts.kind = InstanceTeleport.KIND_EXPEDITION
 	opts.cancelPolicy = opts.cancelPolicy or InstanceTeleport.CANCEL_ANY
-	opts.opcode = opts.opcode or EXP_OPCODE()
+	opts.opcode = opts.opcode or ExpeditionConfig.OPCODE
 	opts.send = opts.send or InstanceTeleport.notifyExpedition
 	return InstanceTeleport.beginGroup(opts)
 end
@@ -370,7 +337,7 @@ function InstanceTeleport.requestExpeditionExit(opts)
 		cancelPolicy = InstanceTeleport.CANCEL_NONE,
 		ignoreCombatLock = true,
 		forceDurationMs = opts.durationMs,
-		opcode = EXP_OPCODE(),
+		opcode = ExpeditionConfig.OPCODE,
 		send = InstanceTeleport.notifyExpedition,
 		onComplete = opts.onComplete,
 	})
@@ -381,7 +348,7 @@ function InstanceTeleport.requestLobbyGroup(opts)
 	opts = opts or {}
 	opts.kind = InstanceTeleport.KIND_LOBBY
 	opts.cancelPolicy = opts.cancelPolicy or InstanceTeleport.CANCEL_INITIATOR
-	opts.opcode = opts.opcode or EXP_OPCODE()
+	opts.opcode = opts.opcode or ExpeditionConfig.OPCODE
 	opts.send = opts.send or InstanceTeleport.notifyExpedition
 	return InstanceTeleport.beginGroup(opts)
 end
@@ -400,7 +367,7 @@ function InstanceTeleport.requestChannel(player, opts)
 	return InstanceTeleport.begin(player, {
 		kind = InstanceTeleport.KIND_CHANNEL,
 		destination = InstanceTeleport.DEST_OPEN_WORLD,
-		opcode = TRAVEL_OPCODE(),
+		opcode = InstanceTeleport.OPCODE,
 		forceDurationMs = math.min(InstanceTeleport.durationMsFor(player, {}), InstanceTeleport.CHANNEL_SWITCH_MAX_MS),
 		cancelPolicy = InstanceTeleport.CANCEL_INITIATOR,
 		send = InstanceTeleport.notifyTravel,
@@ -418,7 +385,7 @@ function InstanceTeleport.requestHometownGroup(opts)
 	opts = opts or {}
 	opts.kind = InstanceTeleport.KIND_HOMETOWN
 	opts.cancelPolicy = opts.cancelPolicy or InstanceTeleport.CANCEL_INITIATOR
-	opts.opcode = opts.opcode or EXP_OPCODE()
+	opts.opcode = opts.opcode or ExpeditionConfig.OPCODE
 	opts.send = opts.send or InstanceTeleport.notifyExpedition
 	return InstanceTeleport.beginGroup(opts)
 end
