@@ -79,7 +79,7 @@ function moveCreatureCallback.playerOnMoveCreature(player, creature, fromPositio
 	if InstanceWorld.canMoveCreature(player, creature, fromPosition, toPosition) then
 		return true
 	end
-	if player and player.sendCancelMessage then
+	if player then
 		player:sendCancelMessage(RETURNVALUE_NOTPOSSIBLE)
 	end
 	return false
@@ -96,16 +96,12 @@ function moveItemCallback.playerOnMoveItem(player, _item, _count, fromPosition, 
 	-- Inventory / open containers use 0xFFFF — not map tiles; occupancy does not apply.
 	-- (Without this skip, ground→backpack always fails with "Sorry, not possible.")
 	if toPosition and toPosition.x ~= 0xFFFF and not InstanceWorld.canWalk(player, toPosition) then
-		if player.sendCancelMessage then
-			player:sendCancelMessage(RETURNVALUE_NOTPOSSIBLE)
-		end
+		player:sendCancelMessage(RETURNVALUE_NOTPOSSIBLE)
 		return false
 	end
 	-- Map pickup/push: ground tile must stay inside occupancy (no walking out to drag).
 	if fromPosition and fromPosition.x ~= 0xFFFF and not InstanceWorld.canWalk(player, fromPosition) then
-		if player.sendCancelMessage then
-			player:sendCancelMessage(RETURNVALUE_NOTPOSSIBLE)
-		end
+		player:sendCancelMessage(RETURNVALUE_NOTPOSSIBLE)
 		return false
 	end
 	return true

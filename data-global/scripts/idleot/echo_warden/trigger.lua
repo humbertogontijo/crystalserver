@@ -83,11 +83,11 @@ function echoWardenTrigger.onDeath(creature, corpse, killer, mostDamageKiller, l
 	if creature:getMaster() ~= nil or mType:isRewardBoss() then
 		return true
 	end
-	local br = mType.bossRace and mType:bossRace()
+	local br = mType:bossRace()
 	if br and br ~= "" then
 		return true
 	end
-	if creature.getForgeStack and creature:getForgeStack() > 0 then
+	if creature:getForgeStack() > 0 then
 		return true
 	end
 	local stars = mType:BestiaryStars() or 0

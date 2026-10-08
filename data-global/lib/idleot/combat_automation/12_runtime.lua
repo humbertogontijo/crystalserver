@@ -33,7 +33,7 @@ local function playerHasManaShield(player)
 end
 
 local function playerInProtectionZone(player)
-	if not player or not player.getZoneType then
+	if not player then
 		return false
 	end
 	local zoneProtection = ZONE_PROTECTION or 0
@@ -221,11 +221,11 @@ function CombatAutomation.controllingPlayer(creature)
 	if not creature then
 		return nil
 	end
-	if creature.isPlayer and creature:isPlayer() then
+	if creature:isPlayer() then
 		return creature
 	end
-	local master = creature.getMaster and creature:getMaster() or nil
-	if master and master.isPlayer and master:isPlayer() then
+	local master = creature:getMaster()
+	if master and master:isPlayer() then
 		return master
 	end
 	return nil
@@ -235,8 +235,8 @@ local function sameParty(a, b)
 	if not a or not b or isRetroPVP(a) then
 		return false
 	end
-	local pa = a.getParty and a:getParty() or nil
-	local pb = b.getParty and b:getParty() or nil
+	local pa = a:getParty()
+	local pb = b:getParty()
 	return pa ~= nil and pa == pb
 end
 
@@ -255,7 +255,7 @@ end
 
 --- Another player on a PvP-enabled instance (non-optional world type).
 local function isPvpRival(player, creature)
-	if not player or not creature or not creature.isPlayer or not creature:isPlayer() then
+	if not player or not creature or not creature:isPlayer() then
 		return false
 	end
 	if creature:getId() == player:getId() then
@@ -287,7 +287,7 @@ local function sameTeamDeployment(a, b)
 			end
 		end
 	end
-	if not AltsConfig or not a.getStorageValue then
+	if not AltsConfig then
 		return false
 	end
 	local key = AltsConfig.STORAGE_COMPANION_CONTROLLER
@@ -296,10 +296,10 @@ local function sameTeamDeployment(a, b)
 	if ga and ga > 0 and gb and gb > 0 and ga == gb then
 		return true
 	end
-	if ga and ga > 0 and b.getGuid and ga == b:getGuid() then
+	if ga and ga > 0 and ga == b:getGuid() then
 		return true
 	end
-	if gb and gb > 0 and a.getGuid and gb == a:getGuid() then
+	if gb and gb > 0 and gb == a:getGuid() then
 		return true
 	end
 	return false
@@ -313,7 +313,7 @@ function CombatAutomation.isAlliedPlayer(a, b)
 	if a:getId() == b:getId() then
 		return true
 	end
-	if not a.isPlayer or not a:isPlayer() or not b.isPlayer or not b:isPlayer() then
+	if not a:isPlayer() or not b:isPlayer() then
 		return false
 	end
 	return sameParty(a, b) or sameExpedition(a, b) or sameTeamDeployment(a, b)
@@ -453,7 +453,7 @@ local function getEquippedQuiver(player)
 		return nil
 	end
 	local it = ItemType(right:getId())
-	if it and it.isQuiver and it:isQuiver() then
+	if it and it:isQuiver() then
 		return right
 	end
 	return nil
@@ -466,7 +466,7 @@ local function ammoIsReady(player, typeId)
 		return true
 	end
 	local quiver = getEquippedQuiver(player)
-	if quiver and quiver.getItemCountById and (quiver:getItemCountById(typeId) or 0) > 0 then
+	if quiver and (quiver:getItemCountById(typeId) or 0) > 0 then
 		return true
 	end
 	return false
@@ -478,7 +478,7 @@ local function clearAmmoSlotIfWrong(player, typeId)
 		return true
 	end
 	local bp = player:getSlotItem(CONST_SLOT_BACKPACK)
-	if bp and current.moveTo then
+	if bp then
 		return current:moveTo(bp) == true
 	end
 	return false
@@ -489,14 +489,11 @@ local function addItemReturnOk(ret)
 end
 
 local function canCarryAmmo(player, typeId, count)
-	if not player or not player.getFreeCapacity then
+	if not player then
 		return true
 	end
 	local it = ItemType(typeId)
-	local weight = 0
-	if it and it.getWeight then
-		weight = tonumber(it:getWeight(count)) or 0
-	end
+	local weight = tonumber(it:getWeight(count)) or 0
 	return weight <= (player:getFreeCapacity() or 0)
 end
 
@@ -510,14 +507,14 @@ local function spawnAmmo(player, typeId, count, ignoreCap)
 	local flags = ignoreCap and FLAG_NOLIMIT or 0
 
 	local quiver = getEquippedQuiver(player)
-	if quiver and quiver.addItemEx and addItemReturnOk(quiver:addItemEx(item, -1, flags)) then
+	if quiver and addItemReturnOk(quiver:addItemEx(item, -1, flags)) then
 		return true
 	end
 
 	-- Classic ammo slot: FLAG_NOLIMIT only skips cap on container→player (FLAG_CHILDISOWNER).
 	local bp = player:getSlotItem(CONST_SLOT_BACKPACK)
-	if bp and bp.addItemEx and addItemReturnOk(bp:addItemEx(item, -1, flags)) then
-		if clearAmmoSlotIfWrong(player, typeId) and item.moveToSlot and item:moveToSlot(player, CONST_SLOT_AMMO) then
+	if bp and addItemReturnOk(bp:addItemEx(item, -1, flags)) then
+		if clearAmmoSlotIfWrong(player, typeId) and item:moveToSlot(player, CONST_SLOT_AMMO) then
 			return true
 		end
 		-- Left in backpack; next tick can move it into the ammo slot.
@@ -538,10 +535,10 @@ local function placeConfiguredAmmo(player, typeId, createMissing, count, ignoreC
 	local quiver = getEquippedQuiver(player)
 	local fromInv = player:getItemById(typeId, true)
 	if fromInv then
-		if quiver and fromInv.moveTo and fromInv:moveTo(quiver) then
+		if quiver and fromInv:moveTo(quiver) then
 			return ammoIsReady(player, typeId)
 		end
-		if clearAmmoSlotIfWrong(player, typeId) and fromInv.moveToSlot and fromInv:moveToSlot(player, CONST_SLOT_AMMO) then
+		if clearAmmoSlotIfWrong(player, typeId) and fromInv:moveToSlot(player, CONST_SLOT_AMMO) then
 			return ammoIsReady(player, typeId)
 		end
 	end
@@ -670,8 +667,8 @@ local function usePotion(player, typeId)
 		doTargetCombatMana(0, player, effect.mana[1], effect.mana[2], CONST_ME_MAGIC_BLUE)
 	end
 	local pos = player:getPosition()
-	local instanceId = player.getInstanceId and player:getInstanceId() or nil
-	if instanceId ~= nil and Game.getSpectators then
+	local instanceId = player:getInstanceId()
+	if instanceId ~= nil then
 		local specs = Game.getSpectators(pos, true, true, 0, 0, 0, 0, instanceId)
 		if type(specs) == "table" then
 			for _, spec in ipairs(specs) do
@@ -793,16 +790,14 @@ local function tryCastSpellWords(player, words, param)
 	SampleSpells.ensureWords(player, words)
 
 	local castParam = (type(param) == "string" and param ~= "") and param or nil
-	if player.canCastSpell then
-		local ready
-		if castParam then
-			ready = player:canCastSpell(words, castParam)
-		else
-			ready = player:canCastSpell(words)
-		end
-		if not ready then
-			return "skip"
-		end
+	local ready
+	if castParam then
+		ready = player:canCastSpell(words, castParam)
+	else
+		ready = player:canCastSpell(words)
+	end
+	if not ready then
+		return "skip"
 	end
 
 	local result
@@ -868,9 +863,6 @@ local function useRune(player, typeId, aim)
 	if not target then
 		return false
 	end
-	if not player.castRune then
-		return false
-	end
 	-- Charge after a successful cast; only a shortage (handler may stop the hunt) pays up front.
 	local prepaid = false
 	if not supplyAvailable(player, typeId) then
@@ -902,9 +894,6 @@ local function tryUseRune(player, typeId, aim)
 		end
 	end
 	if not player:getTarget() then
-		return "skip"
-	end
-	if not player.castRune then
 		return "skip"
 	end
 	if useRune(player, typeId, aim) then
@@ -982,7 +971,7 @@ end
 --- Priority-ordered combat slots split into tiers: the elemental stance's element first,
 --- then everything else. One tier when no elemental stance is active.
 local function stanceElementTiers(player, slots)
-	local element = player and player.getElementalStance and ELEMENT_BY_STANCE[player:getElementalStance()]
+	local element = player and ELEMENT_BY_STANCE[player:getElementalStance()]
 	if not element then
 		return { slots }
 	end
@@ -1016,21 +1005,12 @@ local function currentStanceValue(player, info)
 		return nil
 	end
 	if info.virtue then
-		if player.getVirtue then
-			return player:getVirtue()
-		end
-		return nil
+		return player:getVirtue()
 	end
 	if info.elemental then
-		if player.getElementalStance then
-			return player:getElementalStance()
-		end
-		return nil
+		return player:getElementalStance()
 	end
-	if player.getStance then
-		return player:getStance()
-	end
-	return nil
+	return player:getStance()
 end
 
 --- Skip stance casts that would toggle off or thrash exclusive channels.
@@ -1107,7 +1087,7 @@ function CombatAutomation.isValidAttackTarget(player, creature)
 		return false
 	end
 
-	if player.getInstanceId and creature.getInstanceId and player:getInstanceId() ~= creature:getInstanceId() then
+	if player:getInstanceId() ~= creature:getInstanceId() then
 		return false
 	end
 
@@ -1117,12 +1097,12 @@ function CombatAutomation.isValidAttackTarget(player, creature)
 		return false
 	end
 	local instanceId = Instance.of(player)
-	if fromPos.isSightClear and not fromPos:isSightClear(toPos, true, instanceId) then
+	if not fromPos:isSightClear(toPos, true, instanceId) then
 		return false
 	end
 
 	local tile = creature:getTile()
-	if tile and tile.hasProperty and CONST_PROP_BLOCKPROJECTILE and tile:hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId) then
+	if tile and tile:hasProperty(CONST_PROP_BLOCKPROJECTILE, instanceId) then
 		return false
 	end
 
@@ -1150,13 +1130,13 @@ function CombatAutomation.isValidAttackTarget(player, creature)
 		return false
 	end
 
-	local master = creature.getMaster and creature:getMaster() or nil
-	if master and master.isPlayer and master:isPlayer() then
+	local master = creature:getMaster()
+	if master and master:isPlayer() then
 		return false
 	end
 
-	local mType = creature.getType and creature:getType()
-	if mType and mType.isAttackable and not mType:isAttackable() then
+	local mType = creature:getType()
+	if mType and not mType:isAttackable() then
 		return false
 	end
 
@@ -1169,7 +1149,7 @@ local tickVisibleMonsters = nil
 local function computeVisibleMonsters(player)
 	local result = {}
 	local playerPos = player:getPosition()
-	local spectators = Game.getSpectators(playerPos, false, false, CombatGeo.VIEWPORT_X, CombatGeo.VIEWPORT_X, CombatGeo.VIEWPORT_Y, CombatGeo.VIEWPORT_Y, player.getInstanceId and player:getInstanceId() or nil)
+	local spectators = Game.getSpectators(playerPos, false, false, CombatGeo.VIEWPORT_X, CombatGeo.VIEWPORT_X, CombatGeo.VIEWPORT_Y, CombatGeo.VIEWPORT_Y, player:getInstanceId())
 	for _, creature in ipairs(spectators) do
 		-- Pick pool is monsters only; rival players are sticky via getTarget(), never auto-picked.
 		if creature and creature:isMonster() and CombatAutomation.isValidAttackTarget(player, creature) then
@@ -1226,7 +1206,7 @@ local function partyMembersInRange(player, maxDistance)
 end
 
 local function playerHasFamiliarSummon(player)
-	if not player or not player.getSummons then
+	if not player then
 		return false
 	end
 	local summons = player:getSummons()
@@ -1235,8 +1215,8 @@ local function playerHasFamiliarSummon(player)
 	end
 	for i = 1, #summons do
 		local summon = summons[i]
-		local summonType = summon and summon.getType and summon:getType() or nil
-		if summonType and summonType.familiar and summonType:familiar() then
+		local summonType = summon and summon:getType()
+		if summonType and summonType:familiar() then
 			return true
 		end
 		-- Fallback: any summon blocks CreateFamiliarSpell.
@@ -1248,7 +1228,7 @@ local function playerHasFamiliarSummon(player)
 end
 
 local function monsterIsRanged(monster)
-	local mType = monster and monster.getType and monster:getType() or nil
+	local mType = monster and monster:getType()
 	if not mType or not mType.getTargetDistance then
 		return false
 	end
@@ -1256,15 +1236,15 @@ local function monsterIsRanged(monster)
 end
 
 local function monsterHasMaster(monster)
-	if not monster or not monster.getMaster then
+	if not monster then
 		return false
 	end
 	return monster:getMaster() ~= nil
 end
 
 local function monsterIsRewardBoss(monster)
-	local mType = monster and monster.getType and monster:getType() or nil
-	return mType and mType.isRewardBoss and mType:isRewardBoss()
+	local mType = monster and monster:getType()
+	return mType and mType:isRewardBoss()
 end
 
 --- Prefer reward bosses and the active expedition/world-boss target over trash.
@@ -1374,7 +1354,7 @@ local function knightChainCanStart(player, origin, monster, opts)
 		return false
 	end
 	local instanceId = Instance.of(player)
-	return not origin.isSightClear or origin:isSightClear(mp, true, instanceId)
+	return origin:isSightClear(mp, true, instanceId)
 end
 
 local function challengeCanAffectCreature(player, words)
@@ -1451,7 +1431,7 @@ supportSlotShouldFire = function(player, slot)
 		if playerHasFamiliarSummon(player) then
 			return false
 		end
-		if player.canCastSpell and not player:canCastSpell(words) then
+		if not player:canCastSpell(words) then
 			return false
 		end
 		return true
@@ -1464,25 +1444,16 @@ function CombatAutomation.weaponShootRange(player)
 	if not player then
 		return 1
 	end
-	local weapon = nil
-	if player.getSlotItem and CONST_SLOT_LEFT then
-		weapon = player:getSlotItem(CONST_SLOT_LEFT)
-		if not weapon and CONST_SLOT_RIGHT then
-			weapon = player:getSlotItem(CONST_SLOT_RIGHT)
-		end
-	end
+	local weapon = player:getSlotItem(CONST_SLOT_LEFT) or player:getSlotItem(CONST_SLOT_RIGHT)
 	if not weapon then
 		return 1
 	end
 	local it = ItemType(weapon:getId())
-	if not it then
-		return 1
-	end
-	local weaponType = it.getWeaponType and it:getWeaponType() or nil
+	local weaponType = it:getWeaponType()
 	if weaponType == WEAPON_NONE or weaponType == WEAPON_SHIELD or weaponType == WEAPON_AMMO then
 		return 1
 	end
-	local range = it.getShootRange and it:getShootRange() or nil
+	local range = it:getShootRange()
 	if type(range) == "number" and range > 0 then
 		return math.floor(range)
 	end
@@ -1513,10 +1484,10 @@ local function playerHasWodArea(player, wod)
 	end
 	local check = wod.check
 	if check == "additionalArea" then
-		return player.getWheelSpellAdditionalArea and player:getWheelSpellAdditionalArea(wod.name) == true
+		return player:getWheelSpellAdditionalArea(wod.name) == true
 	end
 	if check == "instantSkill" then
-		return player.instantSkillWOD and player:instantSkillWOD(wod.name) == true
+		return player:instantSkillWOD(wod.name) == true
 	end
 	return false
 end
@@ -1525,7 +1496,7 @@ local function directionTilesForArea(player, area, face)
 	if type(area) ~= "table" then
 		return nil
 	end
-	local direction = face or (player and player.getDirection and player:getDirection())
+	local direction = face or (player and player:getDirection())
 	if type(area.wodByDir) == "table" and playerHasWodArea(player, area.wod) then
 		return area.wodByDir[direction]
 	end
@@ -1652,7 +1623,7 @@ local function playerIsTrapped(player)
 	for _, d in ipairs(CombatGeo.CARDINAL_OFFSETS) do
 		local npos = Position(pos.x + d[1], pos.y + d[2], pos.z)
 		local tile = Tile(npos)
-		if tile and tile.queryAdd then
+		if tile then
 			local q = tile:queryAdd(player, FLAG_PATHFINDING or 0)
 			if q == RETURNVALUE_NOERROR or q == 0 then
 				return false
@@ -1669,7 +1640,7 @@ local function slotPassesSituationalGates(player, slot)
 		return false
 	end
 	local needHarmony = math.floor(tonumber(slot.harmonyThreshold) or 0)
-	if needHarmony > 0 and player.getHarmony then
+	if needHarmony > 0 then
 		if (player:getHarmony() or 0) < needHarmony then
 			return false
 		end
@@ -1763,7 +1734,7 @@ local function runeAimPosition(player, typeId)
 		local mpos = monster:getPosition()
 		if mpos.z == tpos.z and tileDistance(mpos, tpos) <= RUNE_AIM_RADIUS and tileDistance(ppos, mpos) <= RUNE_AIM_RANGE then
 			local n = hitsAt(mpos)
-			if n > bestCount and (not ppos.isSightClear or ppos:isSightClear(mpos, true, instanceId)) then
+			if n > bestCount and ppos:isSightClear(mpos, true, instanceId) then
 				best, bestCount = mpos, n
 			end
 		end
@@ -1866,7 +1837,7 @@ local function combatSlotsOf(config)
 end
 
 local function walkTaskActive(player)
-	return player and player.hasWalkTask and player:hasWalkTask()
+	return player and player:hasWalkTask()
 end
 
 --- The step walk must be finished before the cast tick. The first idle tick
@@ -1909,7 +1880,7 @@ local function combatSlotWillCast(player, state, slot, t)
 		if words == "" or not (CombatAutomationConfig.AllowedSpellWords and CombatAutomationConfig.AllowedSpellWords[words]) then
 			return false
 		end
-		if player.canCastSpell and not player:canCastSpell(words) then
+		if not player:canCastSpell(words) then
 			return false
 		end
 		return true
@@ -1919,19 +1890,17 @@ local function combatSlotWillCast(player, state, slot, t)
 			return false
 		end
 		local spell = getRuneSpell(slot.runeTypeId)
-		if spell and player.hasCondition then
-			local spellId = spell.id and spell:id()
+		if spell then
+			local spellId = spell:id()
 			if type(spellId) == "number" and spellId > 0 and player:hasCondition(CONDITION_SPELLCOOLDOWN, spellId) then
 				return false
 			end
-			if spell.group then
-				local group, secondary = spell:group()
-				if type(group) == "number" and group > 0 and player:hasCondition(CONDITION_SPELLGROUPCOOLDOWN, group) then
-					return false
-				end
-				if type(secondary) == "number" and secondary > 0 and player:hasCondition(CONDITION_SPELLGROUPCOOLDOWN, secondary) then
-					return false
-				end
+			local group, secondary = spell:group()
+			if type(group) == "number" and group > 0 and player:hasCondition(CONDITION_SPELLGROUPCOOLDOWN, group) then
+				return false
+			end
+			if type(secondary) == "number" and secondary > 0 and player:hasCondition(CONDITION_SPELLGROUPCOOLDOWN, secondary) then
+				return false
 			end
 		end
 		return true
@@ -2224,7 +2193,7 @@ local function targetScore(monster, ctx)
 	elseif dist <= ctx.shootRange then
 		score = score + cfg.TARGET_RANGED_IN_RANGE_BONUS
 	end
-	local itsTarget = monster.getTarget and monster:getTarget()
+	local itsTarget = monster:getTarget()
 	if itsTarget and itsTarget:getId() == ctx.player:getId() then
 		score = score + cfg.TARGET_ATTACKING_ME_BONUS
 	end
@@ -2334,7 +2303,7 @@ local function keepThroughSightLoss(player, current, state)
 	if not state or not current:isMonster() or current:isRemoved() or current:getHealth() <= 0 or not isOnScreen(player, current) then
 		return false
 	end
-	if player.getInstanceId and current.getInstanceId and player:getInstanceId() ~= current:getInstanceId() then
+	if player:getInstanceId() ~= current:getInstanceId() then
 		return false
 	end
 	local now = nowMs()
@@ -2552,7 +2521,7 @@ end
 local function unequippedId(item)
 	local id = item:getId()
 	local it = ItemType(id)
-	local back = it and it.getTransformDeEquipId and it:getTransformDeEquipId() or 0
+	local back = it and it:getTransformDeEquipId() or 0
 	return back > 0 and back or id
 end
 
@@ -2695,9 +2664,7 @@ function CombatAutomation.tick(player)
 		if player:getTarget() then
 			player:setTarget(nil)
 		end
-		if player.setFollowCreature then
-			player:setFollowCreature(nil)
-		end
+		player:setFollowCreature(nil)
 		syncAutoAttackTarget(player, state, nil)
 		endTick()
 		return

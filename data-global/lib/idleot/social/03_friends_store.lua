@@ -258,20 +258,18 @@ function FriendsStore.getFriendsWire(player)
 					vocation = name
 				end
 			end
-			if online.getOutfit then
-				local ok, look = pcall(function()
-					return online:getOutfit()
-				end)
-				if ok and type(look) == "table" then
-					outfit = {
-						type = look.lookType or look.type or 136,
-						head = look.lookHead or look.head or 0,
-						body = look.lookBody or look.body or 0,
-						legs = look.lookLegs or look.legs or 0,
-						feet = look.lookFeet or look.feet or 0,
-						addons = look.lookAddons or look.addons or 0,
-					}
-				end
+			local ok, look = pcall(function()
+				return online:getOutfit()
+			end)
+			if ok and type(look) == "table" then
+				outfit = {
+					type = look.lookType or look.type or 136,
+					head = look.lookHead or look.head or 0,
+					body = look.lookBody or look.body or 0,
+					legs = look.lookLegs or look.legs or 0,
+					feet = look.lookFeet or look.feet or 0,
+					addons = look.lookAddons or look.addons or 0,
+				}
 			end
 		end
 		out[#out + 1] = {
@@ -591,13 +589,9 @@ local function worldName()
 	if SERVER_NAME and SERVER_NAME ~= "" then
 		return tostring(SERVER_NAME)
 	end
-	if configManager and configKeys and configKeys.SERVER_NAME then
-		local ok, name = pcall(function()
-			return configManager.getString(configKeys.SERVER_NAME)
-		end)
-		if ok and type(name) == "string" and name ~= "" then
-			return name
-		end
+	local name = configManager.getString(configKeys.SERVER_NAME)
+	if name ~= "" then
+		return name
 	end
 	return "World"
 end
@@ -624,7 +618,7 @@ function FriendsStore.searchAccount(player, targetName)
 	local accountId = 0
 	-- Prefer an online player (exact name), else look up account via players table.
 	local onlineTarget = Player(name)
-	if onlineTarget and onlineTarget.getAccountId then
+	if onlineTarget then
 		accountId = tonumber(onlineTarget:getAccountId()) or 0
 	end
 	if accountId == 0 then
@@ -645,7 +639,6 @@ function FriendsStore.searchAccount(player, targetName)
 	local onlineAny = false
 	local lastLogin = 0
 	local premium = false
-	local title = ""
 	local characters = {}
 
 	local resultId = db.storeQuery(
@@ -669,14 +662,6 @@ function FriendsStore.searchAccount(player, targetName)
 			if online then
 				onlineAny = true
 				creatureId = tonumber(online:getId()) or 0
-				if title == "" and online.getTitle and type(online.getTitle) == "function" then
-					local ok, t = pcall(function()
-						return online:getTitle()
-					end)
-					if ok and type(t) == "string" then
-						title = t
-					end
-				end
 			end
 			characters[#characters + 1] = {
 				guid = tonumber(guid) or 0,
@@ -720,7 +705,7 @@ function FriendsStore.searchAccount(player, targetName)
 		lastLogin = lastLogin,
 		lastLoginText = formatLoginDate(lastLogin),
 		premium = premium,
-		title = title,
+		title = "",
 		world = worldName(),
 		characters = characters,
 	}

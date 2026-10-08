@@ -178,9 +178,9 @@ local BASE_VOCATION_ALIAS = {
 }
 
 function CombatAutomationCatalog.baseVocationKey(player)
-	if player and player.getVocation and VOCATION and VOCATION.BASE_ID then
+	if player then
 		local vocation = player:getVocation()
-		if vocation and vocation.getBaseId then
+		if vocation then
 			local baseId = vocation:getBaseId()
 			if baseId == VOCATION.BASE_ID.KNIGHT then
 				return "knight"

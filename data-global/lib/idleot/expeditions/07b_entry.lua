@@ -301,14 +301,14 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	local preAcceptedById = {}
 	if type(options.preAcceptedPlayers) == "table" then
 		for _, teammate in ipairs(options.preAcceptedPlayers) do
-			if teammate and teammate.getId then
+			if teammate then
 				preAcceptedById[teammate:getId()] = true
 			end
 		end
 	end
 	-- Direct hunt→hunt switch: teammates already accepted while still in the prior session.
 	for _, teammate in ipairs(options.preAcceptedPlayers or {}) do
-		if teammate and teammate.getGuid and not ExpeditionManager.getSessionByPlayer(teammate) then
+		if teammate and not ExpeditionManager.getSessionByPlayer(teammate) then
 			if EM_PRIV.meetsExpeditionLevel(teammate, levelMin) then
 				readyTeammates[#readyTeammates + 1] = teammate
 			else
@@ -320,7 +320,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		end
 	end
 	for _, teammate in ipairs(expectedTeammates) do
-		if teammate and teammate.getGuid and not ExpeditionManager.getSessionByPlayer(teammate) then
+		if teammate and not ExpeditionManager.getSessionByPlayer(teammate) then
 			if preAcceptedById[teammate:getId()] then
 				-- Already queued via preAcceptedPlayers.
 			elseif EM_PRIV.hasUiClient(teammate) and EM_PRIV.meetsExpeditionLevel(teammate, levelMin) then
@@ -408,7 +408,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		requiredTeammates[#requiredTeammates + 1] = teammate
 	end
 	for _, teammate in ipairs(requiredTeammates) do
-		if teammate and teammate.getGuid and teammate:getGuid() ~= hostGuid
+		if teammate and teammate:getGuid() ~= hostGuid
 			and not session.requiredHumanGuids[teammate:getGuid()]
 		then
 			session.requiredHumanGuids[teammate:getGuid()] = teammate:getName()
@@ -571,9 +571,7 @@ function EM_PRIV.teleportPlayerIntoRunningHunt(player, session)
 	-- contains() is true there, but they are not bound to the private hunt id —
 	-- skipping enterInstance leaves them stranded while monsters spawn privately.
 	local onTiles = ExpeditionInstance.contains(session.instance, player:getPosition())
-	local bound = not instanceId
-		or not player.getInstanceId
-		or player:getInstanceId() == instanceId
+	local bound = not instanceId or player:getInstanceId() == instanceId
 	if onTiles and bound then
 		return true
 	end
@@ -690,10 +688,6 @@ function EM_PRIV.startRestoredHuntOnStartup(session, snapshot)
 	local instance = session.instance
 	local spawnPos = instance and instance.entry
 	if hostGuid <= 0 or not spawnPos then
-		return false
-	end
-	if not (Game.headlessLoginBatch and Alts and Alts.deploy) then
-		logger.warn("[ExpeditionPersist] startup start failed for {}: headless login unavailable", tostring(session.key))
 		return false
 	end
 
@@ -1158,7 +1152,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 		end
 		local companionById = {}
 		for _, companion in ipairs(depCompanions) do
-			if companion and companion.getId then
+			if companion then
 				companionById[companion:getId()] = true
 			end
 		end
@@ -1167,7 +1161,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 		for _, companion in ipairs(depCompanions) do
 			local already = false
 			for _, mid in ipairs(s.playerIds or {}) do
-				if companion and companion.getId and mid == companion:getId() then
+				if companion and mid == companion:getId() then
 					already = true
 					break
 				end

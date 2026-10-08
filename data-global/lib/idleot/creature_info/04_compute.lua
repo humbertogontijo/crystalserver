@@ -88,8 +88,8 @@ function CreatureInfo.computeCombatPower(traits, weights)
 		return 0
 	end
 
-	-- Prefer engine SoT when weights are default (nil) and binding exists.
-	if weights == nil and Game and Game.computeCombatPowerFromTraits then
+	-- Default weights: the engine is the source of truth.
+	if weights == nil then
 		return tonumber(Game.computeCombatPowerFromTraits(traits)) or 0
 	end
 
@@ -139,34 +139,29 @@ function CreatureInfo.getCombatPower(ref)
 		return 0
 	end
 	if type(ref) == "userdata" then
+		-- Monster and MonsterType both expose getCombatPower.
 		if ref.getCombatPower then
 			return CreatureInfo.roundCombatPower(ref:getCombatPower() or 0)
-		end
-		if ref.getType then
-			local mType = ref:getType()
-			if mType and mType.getCombatPower then
-				return CreatureInfo.roundCombatPower(mType:getCombatPower() or 0)
-			end
 		end
 		return 0
 	end
 	if type(ref) == "number" then
-		local mType = MonsterType and MonsterType(ref) or nil
-		if mType and mType.getCombatPower then
+		local mType = MonsterType(ref)
+		if mType then
 			return CreatureInfo.roundCombatPower(mType:getCombatPower() or 0)
 		end
 		local info = CreatureInfo.getByCreatureId and CreatureInfo.getByCreatureId(ref)
-		if info and info.name and MonsterType then
+		if info and info.name then
 			mType = MonsterType(info.name)
-			if mType and mType.getCombatPower then
+			if mType then
 				return CreatureInfo.roundCombatPower(mType:getCombatPower() or 0)
 			end
 		end
 		return 0
 	end
 	if type(ref) == "string" then
-		local mType = MonsterType and MonsterType(ref) or nil
-		if mType and mType.getCombatPower then
+		local mType = MonsterType(ref)
+		if mType then
 			return CreatureInfo.roundCombatPower(mType:getCombatPower() or 0)
 		end
 	end

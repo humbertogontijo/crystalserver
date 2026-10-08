@@ -21,7 +21,7 @@ InstanceWorld.occupancyByHuntId = InstanceWorld.occupancyByHuntId or {}
 InstanceWorld._suppressHuntLeave = InstanceWorld._suppressHuntLeave or {}
 
 function InstanceWorld.suppressHuntLeave(player, suppress)
-	if not player or not player.getId then
+	if not player then
 		return
 	end
 	local pid = player:getId()
@@ -242,7 +242,7 @@ function InstanceWorld.cityForTown(town)
 	if not town then
 		return InstanceWorld.citiesById[24]
 	end
-	local name = town.getName and town:getName() or tostring(town)
+	local name = town:getName() or tostring(town)
 	if type(name) == "string" then
 		local key = townKey(name)
 		for _, settlement in ipairs(InstanceWorld.settlements) do
@@ -265,7 +265,7 @@ end
 --- Engine instance record ({key, kind, owner, private}) as of the last logout; the engine
 --- rewrites `instance` on every instance change, so login code reads this snapshot.
 function InstanceWorld.loginRecord(player)
-	if not player or not player.kv then
+	if not player then
 		return nil
 	end
 	local kv = player:kv()
@@ -347,16 +347,7 @@ function InstanceWorld.subareaIdAt(pos)
 end
 
 local function asPlayer(creature)
-	if not creature then
-		return nil
-	end
-	if creature.getPlayer then
-		return creature:getPlayer()
-	end
-	if creature.isPlayer and creature:isPlayer() then
-		return creature
-	end
-	return nil
+	return creature and creature:getPlayer()
 end
 
 --- Client resolves CIP masks locally; only hub still needs a walk AABB.
@@ -377,7 +368,7 @@ InstanceWorld._boundsSent = InstanceWorld._boundsSent or {}
 InstanceWorld._boundsPending = InstanceWorld._boundsPending or {}
 
 function InstanceWorld.scheduleSendBounds(player)
-	if not player or not player.getId then
+	if not player then
 		return
 	end
 	local pid = player:getId()
@@ -484,7 +475,7 @@ local function resolveSafeCity(player)
 	if instanceId then
 		return dest, instanceId
 	end
-	local area = InstanceWorld.cityForTown(player.getTown and player:getTown() or nil)
+	local area = InstanceWorld.cityForTown(player:getTown())
 	if not target.kind or target.kind == "stay" or target.kind == "blocked" or target.kind == "hunt" then
 		if area and area.center then
 			dest = Position(area.center.x, area.center.y, area.center.z)
@@ -570,7 +561,7 @@ local function scheduleDelayedHuntLeave(player, huntInstanceId)
 		end
 		-- Still on the private hold: leave must teleport home (never skipTeleport).
 		-- Premature city rebind is no longer done in onEngineTravel for hunt sessions.
-		if p.getInstanceId and p:getInstanceId() ~= huntInstanceId then
+		if p:getInstanceId() ~= huntInstanceId then
 			return
 		end
 		ExpeditionManager.leave(p, { silent = true, skipTeleport = false })
@@ -619,7 +610,7 @@ end
 -- back down is outside too). Private ids are left to the session checks above.
 local function strandsOutsideFence(creature, current, destPos)
 	local player = asPlayer(creature)
-	if not player or isGodPlayer(player) or not Game.canWalkInstance then
+	if not player or isGodPlayer(player) then
 		return false
 	end
 	local kind = Instance.kind(current)
@@ -777,7 +768,7 @@ function InstanceWorld.canMoveCreature(pusher, creature, _fromPos, toPos)
 	if not InstanceWorld.canWalk(creature, toPos) then
 		return false
 	end
-	if pusher and pusher ~= creature and pusher.getPosition then
+	if pusher and pusher ~= creature then
 		local pusherPos = pusher:getPosition()
 		if pusherPos and not InstanceWorld.canWalk(pusher, pusherPos) then
 			return false
@@ -787,7 +778,7 @@ function InstanceWorld.canMoveCreature(pusher, creature, _fromPos, toPos)
 end
 
 function InstanceWorld.describeCurrent(player)
-	if not player or not player.getInstanceId then
+	if not player then
 		return nil
 	end
 	local engineId = Instance.of(player)
@@ -842,7 +833,7 @@ function InstanceWorld.sendBounds(player, force)
 		return false
 	end
 	local desc = InstanceWorld.describeCurrent(player)
-	local pid = player.getId and player:getId() or 0
+	local pid = player:getId() or 0
 	local cacheKey = desc and desc.key or ""
 	if not force and InstanceWorld._boundsSent[pid] == cacheKey then
 		return true
@@ -896,13 +887,13 @@ function InstanceWorld.rescuePos(player)
 		dest = ExpeditionManager.loadReturnPos(player)
 	end
 	if not validRescueDest(dest) then
-		local town = player.getTown and player:getTown() or nil
-		if town and town.getTemplePosition then
+		local town = player:getTown()
+		if town then
 			dest = town:getTemplePosition()
 		end
 	end
 	if not validRescueDest(dest) then
-		local city = InstanceWorld.cityForTown(player.getTown and player:getTown() or nil)
+		local city = InstanceWorld.cityForTown(player:getTown())
 		if city and city.center then
 			dest = Position(city.center.x, city.center.y, city.center.z)
 		end
@@ -922,7 +913,7 @@ local function resolveTownOnlyDest(player, preferred)
 	if InstanceWorld.isTownOnlyPos(dest) then
 		return dest
 	end
-	local area = InstanceWorld.cityForTown(player.getTown and player:getTown() or nil)
+	local area = InstanceWorld.cityForTown(player:getTown())
 	if area and area.center then
 		dest = Position(area.center.x, area.center.y, area.center.z)
 		if InstanceWorld.isTownOnlyPos(dest) then
@@ -963,7 +954,7 @@ function InstanceWorld.bindOpenWorld(player, destPos)
 		return false
 	end
 
-	local cur = player.getPosition and player:getPosition() or nil
+	local cur = player:getPosition()
 	-- Same-tile setInstanceId is only legal when already on a town-only tile.
 	if sameTile(cur, destPos) and InstanceWorld.isTownOnlyPos(cur) then
 		bindCreature(player, bindId)
@@ -971,7 +962,7 @@ function InstanceWorld.bindOpenWorld(player, destPos)
 		return true
 	end
 
-	if not (player.getTile and player:getTile()) then
+	if not player:getTile() then
 		return false
 	end
 
@@ -985,13 +976,13 @@ function InstanceWorld.bindOpenWorld(player, destPos)
 		if not bindId then
 			destPos, bindId = resolveSafeCity(player)
 		end
-		cur = player.getPosition and player:getPosition() or nil
+		cur = player:getPosition()
 		if InstanceWorld.isTownOnlyPos(cur) and sameTile(cur, destPos) then
 			if bindId then
 				bindCreature(player, bindId)
 			end
 			ok = true
-		elseif bindId and player.getTile and player:getTile() and not sameTile(cur, destPos) then
+		elseif bindId and player:getTile() and not sameTile(cur, destPos) then
 			ok = InstanceWorld.withoutEngineTravel(function()
 				return player:teleportTo(destPos, false, bindId)
 			end)
@@ -1058,7 +1049,7 @@ function InstanceWorld.shouldRescue(player)
 	if livePrivateSessionById(engineId) then
 		return false
 	end
-	local pos = player.getPosition and player:getPosition() or nil
+	local pos = player:getPosition()
 	if InstanceWorld.isStrandedExpedition(player, pos) then
 		return true
 	end
@@ -1080,10 +1071,8 @@ function InstanceWorld.rescueIfStranded(player)
 	end
 	ExpeditionManager.clearActiveFlag(player)
 	ExpeditionManager.clearAreaEffects(player)
-	if player.setIdleCombat then
-		player:setIdleCombat(false)
-	end
-	if not (player.getTile and player:getTile()) then
+	player:setIdleCombat(false)
+	if not player:getTile() then
 		return false
 	end
 	local inLobby = false
@@ -1103,7 +1092,7 @@ function InstanceWorld.rescueIfStranded(player)
 end
 
 function InstanceWorld.bindLogin(player, loginPos)
-	if not player or not player.setInstanceId then
+	if not player then
 		return
 	end
 	local session = liveHuntSession(player)
@@ -1120,7 +1109,7 @@ function InstanceWorld.bindLogin(player, loginPos)
 	if LobbyInstance and LobbyInstance.restoreOnLogin(player) then
 		return
 	end
-	local pos = asWorldPos(loginPos) or (player.getPosition and player:getPosition() or nil)
+	local pos = asWorldPos(loginPos) or player:getPosition()
 	-- Bind city/settlement/hub/subarea region in place. Hunt-footprint overlap is fine for login —
 	-- the player is already standing there. Temple yank belongs to rescueIfStranded.
 	local target = pos and InstanceWorld.classify(pos) or nil
@@ -1140,7 +1129,7 @@ end
 function InstanceWorld.logNpcInstances()
 	local area, open = 0, 0
 	for _, npc in ipairs(Game.getNpcs()) do
-		if npc and npc.getInstanceId then
+		if npc then
 			if not Instance.isWorld(npc:getInstanceId()) then
 				area = area + 1
 			else
@@ -1155,10 +1144,7 @@ local FORGE_FIENDISH = 2
 local FORGE_INFLUENCED = 1
 
 local function countWorldSpawnSlots()
-	local mapName = "world"
-	if configManager and configKeys and configKeys.MAP_NAME then
-		mapName = configManager.getString(configKeys.MAP_NAME) or mapName
-	end
+	local mapName = configManager.getString(configKeys.MAP_NAME)
 	local path = DATA_DIRECTORY .. "/world/" .. mapName .. "-monster.xml"
 	local file = io.open(path, "r")
 	if not file then
@@ -1175,11 +1161,9 @@ local function countWorldSpawnSlots()
 end
 
 local function forgeLimit(key, fallback)
-	if configManager and configKeys and key then
-		local n = tonumber(configManager.getNumber(key))
-		if n and n > 0 then
-			return n
-		end
+	local n = tonumber(configManager.getNumber(key))
+	if n and n > 0 then
+		return n
 	end
 	return fallback
 end
@@ -1187,27 +1171,23 @@ end
 --- Match open-world forge density: `forgeFiendishLimit` / world spawn slots (not the
 --- server-wide cap dumped onto the handful of hunt creatures).
 function InstanceWorld.applyOpenWorldForge(monster)
-	if not monster or not monster.isForgeable or not monster:isForgeable() then
+	if not monster or not monster:isForgeable() then
 		return monster
 	end
 	local population = tonumber(InstanceWorld.worldSpawnSlots) or 0
 	if population < 1 then
 		return monster
 	end
-	local fiendishLimit = forgeLimit(configKeys and configKeys.FORGE_FIENDISH_CREATURES_LIMIT, 4)
-	local influencedLimit = forgeLimit(configKeys and configKeys.FORGE_INFLUENCED_CREATURES_LIMIT, 300)
+	local fiendishLimit = forgeLimit(configKeys.FORGE_FIENDISH_CREATURES_LIMIT, 4)
+	local influencedLimit = forgeLimit(configKeys.FORGE_INFLUENCED_CREATURES_LIMIT, 300)
 	local roll = math.random()
 	local fiendishChance = fiendishLimit / population
 	if roll < fiendishChance then
 		monster:setMonsterForgeClassification(FORGE_FIENDISH)
-		if monster.configureForgeSystem then
-			monster:configureForgeSystem()
-		end
+		monster:configureForgeSystem()
 	elseif roll < fiendishChance + (influencedLimit / population) then
 		monster:setMonsterForgeClassification(FORGE_INFLUENCED)
-		if monster.configureForgeSystem then
-			monster:configureForgeSystem()
-		end
+		monster:configureForgeSystem()
 	end
 	return monster
 end
@@ -1218,8 +1198,8 @@ function InstanceWorld.onStartup()
 		logger.info(
 			"[InstanceWorld] open-world forge rate uses {} spawn slots (fiendish {}, influenced {})",
 			InstanceWorld.worldSpawnSlots,
-			forgeLimit(configKeys and configKeys.FORGE_FIENDISH_CREATURES_LIMIT, 4),
-			forgeLimit(configKeys and configKeys.FORGE_INFLUENCED_CREATURES_LIMIT, 300)
+			forgeLimit(configKeys.FORGE_FIENDISH_CREATURES_LIMIT, 4),
+			forgeLimit(configKeys.FORGE_INFLUENCED_CREATURES_LIMIT, 300)
 		)
 	else
 		logger.warn("[InstanceWorld] world-monster.xml spawn count is 0; hunt forge rolls disabled")

@@ -18,9 +18,7 @@ function Alts.onAttachedClient(player)
 	if not player then
 		return
 	end
-	if player.setHeadless then
-		player:setHeadless(false)
-	end
+	player:setHeadless(false)
 	if Alts.isCompanion(player) then
 		Alts.clearCompanionMark(player)
 	end
@@ -66,9 +64,7 @@ function Alts.onBecameHeadless(player)
 	if not player then
 		return
 	end
-	if player.setHeadless then
-		player:setHeadless(true)
-	end
+	player:setHeadless(true)
 	local host = resolveController(player)
 	if not host or host:getId() == player:getId() or not Alts.sameAccount(host, player) then
 		return

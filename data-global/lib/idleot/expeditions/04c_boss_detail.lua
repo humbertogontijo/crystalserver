@@ -43,11 +43,9 @@ local function resolveMonsterType(creatureId, nameHint)
 end
 
 local function bosstiaryClassName(mType, fallback)
-	if mType.bossRace then
-		local className = mType:bossRace()
-		if type(className) == "string" and className ~= "" then
-			return className
-		end
+	local className = mType:bossRace()
+	if type(className) == "string" and className ~= "" then
+		return className
 	end
 	if type(fallback) == "string" and fallback ~= "" then
 		return fallback
@@ -90,11 +88,7 @@ local function buildLoot(mType)
 	for _, block in ipairs(lootList) do
 		local itemId = block and tonumber(block.itemId) or 0
 		if itemId > 0 then
-			local name = ""
-			local it = ItemType(itemId)
-			if it and it.getName then
-				name = it:getName() or ""
-			end
+			local name = ItemType(itemId):getName()
 			local maxCount = tonumber(block.maxCount) or 0
 			out[#out + 1] = {
 				itemId = itemId,
@@ -126,14 +120,14 @@ function ExpeditionBossDetail.build(player, creatureId, nameHint, bosstiaryClass
 	local stars = BOSS_STARS[className] or 3
 
 	local killCounter = 0
-	if player and player.getBosstiaryKills then
+	if player then
 		killCounter = tonumber(player:getBosstiaryKills(resolvedName)) or 0
 	end
 
 	local attackMode = 0
-	if mType.isHostile and not mType:isHostile() then
+	if not mType:isHostile() then
 		attackMode = 2
-	elseif mType.targetDistance and (tonumber(mType:targetDistance()) or 1) > 1 then
+	elseif (tonumber(mType:targetDistance()) or 1) > 1 then
 		attackMode = 1
 	end
 

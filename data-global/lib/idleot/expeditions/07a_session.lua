@@ -22,11 +22,9 @@ function EM_PRIV.syncClientMaps(session)
 		return
 	end
 	for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
-		if p.sendMapDescription then
-			local pos = p:getPosition()
-			if pos then
-				p:sendMapDescription(pos)
-			end
+		local pos = p:getPosition()
+		if pos then
+			p:sendMapDescription(pos)
 		end
 	end
 end
@@ -182,7 +180,7 @@ function ExpeditionManager.reconcilePresence(player)
 		"[Expedition] {} outside session {} area (instance={} expected={} pos={},{},{} contains={}) - leaving",
 		player:getName(),
 		tostring(session.key),
-		tostring(player.getInstanceId and player:getInstanceId() or "-"),
+		tostring(player:getInstanceId() or "-"),
 		tostring(session.instance and session.instance.instanceId or "-"),
 		pos and pos.x or "?",
 		pos and pos.y or "?",
@@ -526,7 +524,7 @@ end
 function ExpeditionManager.underleveled(players, levelMin)
 	local blocked = {}
 	for _, p in ipairs(players or {}) do
-		if p and p.getLevel and not EM_PRIV.meetsExpeditionLevel(p, levelMin) then
+		if p and not EM_PRIV.meetsExpeditionLevel(p, levelMin) then
 			blocked[#blocked + 1] = p
 		end
 	end
@@ -540,7 +538,7 @@ function EM_PRIV.playerHasExpeditionStamina(player)
 	if not configManager.getBoolean(configKeys.STAMINA_SYSTEM) then
 		return true
 	end
-	return player and player.getStamina and player:getStamina() > 0
+	return player and player:getStamina() > 0
 end
 
 --- nil when all have stamina; otherwise error naming the first blocked player.
@@ -566,7 +564,7 @@ function EM_PRIV.collectStaminaGatePlayers(host, options)
 	local list = {}
 	local seen = {}
 	local function push(p)
-		if not p or not p.getId then
+		if not p then
 			return
 		end
 		local id = p:getId()
@@ -614,7 +612,7 @@ function EM_PRIV.hasUiClient(player)
 	if not player then
 		return false
 	end
-	if player.isHeadless and player:isHeadless() then
+	if player:isHeadless() then
 		return false
 	end
 	if player.getProtocolVersion and player:getProtocolVersion() == 0 then
@@ -763,7 +761,7 @@ end
 --- Names for the boss-difficulty player boxes: the lobby roster (incl. companions).
 function EM_PRIV.collectBossDifficultyBannerNames(host, options)
 	local names = {}
-	if host and host.getName then
+	if host then
 		names[1] = host:getName()
 	end
 	local record = EM_PRIV.startLobby(host, options)

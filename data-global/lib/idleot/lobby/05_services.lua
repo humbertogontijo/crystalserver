@@ -55,9 +55,7 @@ local function leaveTraining(playerId, message, messageType)
 
 	local player = Player(playerId)
 	if player and state then
-		if player.setTraining then
-			player:setTraining(false)
-		end
+		player:setTraining(false)
 		if message and message ~= "" then
 			player:sendTextMessage(messageType or MESSAGE_EVENT_ADVANCE, message)
 		end
@@ -247,9 +245,7 @@ function LobbyServices.startTraining(player, opts)
 		targetItem = targetItem,
 		instanceId = instanceId,
 	}
-	if player.setTraining then
-		player:setTraining(true)
-	end
+	player:setTraining(true)
 	targetItem:actor(true)
 	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You have started training on an exercise dummy.")
 	sendTrainingState(player, true)

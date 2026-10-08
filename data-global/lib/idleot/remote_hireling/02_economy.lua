@@ -3,7 +3,7 @@
 RemoteHirelingEconomy = RemoteHirelingEconomy or {}
 
 local function kv(player)
-	if not player or not player.kv then
+	if not player then
 		return nil
 	end
 	return player:kv():scoped(RemoteHirelingConfig.KV_SCOPE)
@@ -228,33 +228,13 @@ local function buildSellPriceMap()
 		end
 	end
 	-- Prefer live ItemType.sellPrice (CIP denorm + NPC shops) when higher / present.
-	if ItemType then
-		for clientId, catalogSell in pairs(prices) do
-			local ok, it = pcall(ItemType, clientId)
-			if ok and it and it.getSellPrice then
-				local typed = math.floor(tonumber(it:getSellPrice()) or 0)
-				if typed > catalogSell then
-					prices[clientId] = typed
-				elseif typed > 0 and catalogSell <= 0 then
-					prices[clientId] = typed
-				end
-			end
+	for clientId, catalogSell in pairs(prices) do
+		local typed = math.floor(tonumber(ItemType(clientId):getSellPrice()) or 0)
+		if typed > catalogSell then
+			prices[clientId] = typed
 		end
 	end
 	return prices
-end
-
-local function clientIdOf(typeId)
-	if ItemType then
-		local ok, it = pcall(ItemType, typeId)
-		if ok and it and it.getClientId then
-			local cid = it:getClientId()
-			if cid and cid > 0 then
-				return cid
-			end
-		end
-	end
-	return typeId
 end
 
 local function passesFilter(typeId, filterMode, listed, listCount)
@@ -262,8 +242,7 @@ local function passesFilter(typeId, filterMode, listed, listCount)
 		-- Skipped + empty = sell everything; Accepted + empty = sell nothing.
 		return filterMode ~= 1
 	end
-	local cid = clientIdOf(typeId)
-	local hit = listed[typeId] == true or listed[cid] == true
+	local hit = listed[typeId] == true
 	if filterMode == 1 then
 		return hit
 	end
@@ -274,37 +253,15 @@ local function resolvePrice(prices, typeId)
 	if prices[typeId] then
 		return prices[typeId]
 	end
-	local cid = clientIdOf(typeId)
-	if prices[cid] then
-		return prices[cid]
-	end
 	-- Fall back to ItemType even for items not in the hireling catalog.
-	if ItemType then
-		local ok, it = pcall(ItemType, typeId)
-		if ok and it and it.getSellPrice then
-			local typed = math.floor(tonumber(it:getSellPrice()) or 0)
-			if typed > 0 then
-				return typed
-			end
-		end
-		if cid ~= typeId then
-			ok, it = pcall(ItemType, cid)
-			if ok and it and it.getSellPrice then
-				local typed = math.floor(tonumber(it:getSellPrice()) or 0)
-				if typed > 0 then
-					return typed
-				end
-			end
-		end
-	end
-	return 0
+	return math.floor(tonumber(ItemType(typeId):getSellPrice()) or 0)
 end
 
 local function isEquippedNonContainer(player, item)
 	if not player or not item then
 		return false
 	end
-	if item.isContainer and item:isContainer() then
+	if item:isContainer() then
 		return false
 	end
 	for slot = CONST_SLOT_FIRST, CONST_SLOT_LAST do
@@ -317,7 +274,7 @@ end
 
 --- Account-scoped loot pouch container.
 local function findLootPouch(player)
-	if not player or not player.getLootPouch then
+	if not player then
 		return nil
 	end
 	return player:getLootPouch()
@@ -332,7 +289,7 @@ local function collectStacks(player, ignoreEquipped)
 		if ignoreEquipped and isEquippedNonContainer(player, item) then
 			return
 		end
-		if item.isContainer and item:isContainer() then
+		if item:isContainer() then
 			local size = item:getSize() or 0
 			for i = 0, size - 1 do
 				scan(item:getItem(i))
@@ -343,7 +300,7 @@ local function collectStacks(player, ignoreEquipped)
 			end
 			return
 		end
-		if item.getTier and item:getTier() > 0 then
+		if item:getTier() > 0 then
 			return
 		end
 		local id = item:getId()
@@ -353,9 +310,7 @@ local function collectStacks(player, ignoreEquipped)
 	for slot = CONST_SLOT_FIRST, CONST_SLOT_LAST do
 		scan(player:getSlotItem(slot))
 	end
-	if player.getStoreInbox then
-		scan(player:getStoreInbox())
-	end
+	scan(player:getStoreInbox())
 	return stacks
 end
 
@@ -401,7 +356,7 @@ function RemoteHirelingEconomy.sellAll(player, ignoreEquipped, filterMode, itemI
 	end
 
 	local net = math.floor(gross * keep / 100)
-	if net > 0 and player.addMoney then
+	if net > 0 then
 		player:addMoney(net)
 	end
 
@@ -445,7 +400,7 @@ function RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
 		if it then
 			local typeId = it:getId()
 			local count = it:getCount() or 1
-			if not (it.getTier and it:getTier() > 0) and count > 0 and passesFilter(typeId, filterMode, listed, listCount) then
+			if it:getTier() == 0 and count > 0 and passesFilter(typeId, filterMode, listed, listCount) then
 				local unit = resolvePrice(prices, typeId)
 				if unit > 0 then
 					gross = gross + unit * count
@@ -465,7 +420,7 @@ function RemoteHirelingEconomy.sellLootPouch(player, filterMode, itemIds)
 	end
 
 	local net = math.floor(gross * keep / 100)
-	if net > 0 and player.addMoney then
+	if net > 0 then
 		player:addMoney(net)
 	end
 

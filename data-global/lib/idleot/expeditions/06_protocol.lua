@@ -204,7 +204,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 		for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
 			local p = Player(id)
 			local isCompanion = Alts and Alts.isCompanion and Alts.isCompanion(p)
-			local headless = p and p.isHeadless and p:isHeadless()
+			local headless = p and p:isHeadless()
 			if p and not isCompanion and not headless then
 				local name = p:getName()
 				local key = name:lower()
@@ -220,7 +220,7 @@ function ExpeditionProtocol.sendStatus(player, session)
 			if type(name) == "string" and name ~= "" then
 				local p = Player(guid)
 				-- Drop headless from pending accept display.
-				if p and p.isHeadless and p:isHeadless() then
+				if p and p:isHeadless() then
 					-- skip
 				else
 					local key = name:lower()

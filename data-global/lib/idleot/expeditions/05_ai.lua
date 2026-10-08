@@ -33,7 +33,7 @@ function ExpeditionAI.enablePersistence(player)
 		end
 	end
 	if PzTeleport.isGod(player) then
-		if player.isIdleCombat and player:isIdleCombat() then
+		if player:isIdleCombat() then
 			player:setIdleCombat(false)
 		end
 		return
@@ -41,9 +41,7 @@ function ExpeditionAI.enablePersistence(player)
 	if not player:isIdleCombat() then
 		player:setIdleCombat(true)
 	end
-	if player.kv then
-		player:kv():remove("combat-protection")
-	end
+	player:kv():remove("combat-protection")
 	if not player:getCondition(CONDITION_INFIGHT) then
 		local condition = Condition(CONDITION_INFIGHT)
 		condition:setParameter(CONDITION_PARAM_TICKS, 60000)
@@ -57,7 +55,7 @@ function ExpeditionAI.onAutoResumed(player)
 	end
 	if CombatAutomationMovement and CombatAutomationMovement.onAutoResumed then
 		CombatAutomationMovement.onAutoResumed(player)
-	elseif player.clearWalkTask then
+	else
 		player:clearWalkTask()
 	end
 	ExpeditionAI.enablePersistence(player)
@@ -90,7 +88,7 @@ local function clearPlayerCombat(player)
 	if not player then
 		return
 	end
-	if player.getFollowCreature and player:getFollowCreature() then
+	if player:getFollowCreature() then
 		player:setFollowCreature(nil)
 	end
 	player:setTarget(nil)
@@ -103,9 +101,7 @@ local function clearPlayerCombat(player)
 		CombatAutomationMovement.clearDirective(player)
 		CombatAutomationMovement.clearWalkDedupe(player)
 	end
-	if player.clearPathLeash then
-		player:clearPathLeash()
-	end
+	player:clearPathLeash()
 	-- Think pipeline stops when idleCombat clears; do not re-arm combat here.
 end
 
@@ -130,9 +126,6 @@ local function findCatchUpTile(player, anchor)
 end
 
 local function teleportNearAnchor(session, player, anchor)
-	if not player.teleportTo then
-		return
-	end
 	player:teleportTo(findCatchUpTile(player, anchor))
 	if CombatAutomationMovement then
 		CombatAutomationMovement.clearWalkDedupe(player)
@@ -239,11 +232,11 @@ function ExpeditionAI.syncPathLeash(session)
 		anchor = ExpeditionConfig.getAnchorPlayer(session)
 	end
 	local anchorId = anchor and anchor:getId() or 0
-	local anchorPos = anchor and anchor.getPosition and anchor:getPosition() or nil
+	local anchorPos = anchor and anchor:getPosition()
 	local manual = session.manualIds or {}
 	for _, id in ipairs(memberIds(session)) do
 		local player = Player(id)
-		if player and player.clearPathLeash then
+		if player then
 			if not anchorPos or PzTeleport.isGod(player) or id == anchorId or radius <= 0 or manual[id] then
 				player:clearPathLeash()
 			else
@@ -263,7 +256,7 @@ function ExpeditionAI.tick(session)
 	if session.companionIds and ExpeditionManager and ExpeditionManager.notifyHuntMemberDeath then
 		for companionId in pairs(session.companionIds) do
 			local companion = Player(companionId)
-			if not companion or (companion.getHealth and companion:getHealth() <= 0) then
+			if not companion or companion:getHealth() <= 0 then
 				ExpeditionManager.notifyHuntMemberDeath(companion or companionId, nil)
 				return
 			end

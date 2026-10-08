@@ -143,7 +143,7 @@ local function processPlayerInInstance(player)
 end
 
 function RottenBloodInstanceIcons.onMonsterThink(monster)
-	if not monster or not monster.isMonster or not monster:isMonster() then
+	if not monster or not monster:isMonster() then
 		return
 	end
 
@@ -160,26 +160,8 @@ function RottenBloodInstanceIcons.onMonsterThink(monster)
 	end
 	lastMonsterThink[monster] = currentTime
 
-	-- Engine Spectators with creature instanceId (Creature:getPlayersInRange).
-	local spectators
-	if monster.getPlayersInRange then
-		spectators = monster:getPlayersInRange(15)
-	else
-		local monsterPos = monster:getPosition()
-		if not monsterPos then
-			return
-		end
-		local instanceId = monster.getInstanceId and monster:getInstanceId() or nil
-		if instanceId ~= nil then
-			spectators = Game.getSpectators(monsterPos, false, true, 15, 15, 15, 15, instanceId)
-		else
-			spectators = Game.getSpectators(monsterPos, false, true, 15, 15, 15, 15)
-		end
-	end
-
-	for _, player in ipairs(spectators or {}) do
-		if player and player:isPlayer() then
-			processPlayerInInstance(player)
-		end
+	-- Same-instance players only (Creature:getPlayersInRange).
+	for _, player in ipairs(monster:getPlayersInRange(15)) do
+		processPlayerInInstance(player)
 	end
 end

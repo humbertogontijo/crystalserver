@@ -28,10 +28,6 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 		return
 	end
 
-	if not player.sellAllShopItems then
-		player:sendTextMessage(MESSAGE_FAILURE, "Sell all is unavailable on this server build.")
-		return
-	end
 
 	local ignoreEquipped = payload.ignoreEquipped ~= false
 	local lootPouchOnly = payload.lootPouchOnly ~= false

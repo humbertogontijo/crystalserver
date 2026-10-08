@@ -365,14 +365,11 @@ end
 
 --- Crystal boss.cooldown duration (same key as BossLever / levers).
 function ExpeditionConfig.bossCooldownDurationSec()
-	local duration = 20 * 60 * 60
-	if configManager and configKeys and configKeys.BOSS_DEFAULT_TIME_TO_FIGHT_AGAIN then
-		local n = configManager.getNumber(configKeys.BOSS_DEFAULT_TIME_TO_FIGHT_AGAIN)
-		if type(n) == "number" and n > 0 then
-			duration = n
-		end
+	local n = configManager.getNumber(configKeys.BOSS_DEFAULT_TIME_TO_FIGHT_AGAIN)
+	if n > 0 then
+		return n
 	end
-	return duration
+	return 20 * 60 * 60
 end
 
 --- Lure for a creature density count (persisted snapshots without a lure).
@@ -594,11 +591,9 @@ function ExpeditionConfig.partyBossCooldown(members, bossName)
 	for _, member in ipairs(members or {}) do
 		if member and PzTeleport.isGod(member) then
 			-- GOD may re-enter any boss regardless of lever cooldown.
-		elseif member and member.canFightBoss and not member:canFightBoss(bossName) then
+		elseif member and not member:canFightBoss(bossName) then
 			local untilTs = 0
-			if member.getBossCooldown then
-				untilTs = tonumber(member:getBossCooldown(bossName)) or 0
-			end
+			untilTs = tonumber(member:getBossCooldown(bossName)) or 0
 			local left = math.max(0, untilTs - os.time())
 			if not blocker or left > remaining then
 				remaining, blocker = left, member
@@ -635,7 +630,7 @@ function ExpeditionConfig.markBossAttempt(player, bossName)
 	if not player or type(bossName) ~= "string" or bossName == "" then
 		return false
 	end
-	local store = player.kv and player:kv()
+	local store = player:kv()
 	if not store then
 		return false
 	end
@@ -644,7 +639,7 @@ function ExpeditionConfig.markBossAttempt(player, bossName)
 end
 
 function ExpeditionConfig.clearBossAttempt(player)
-	if not player or not player.kv then
+	if not player then
 		return false
 	end
 	local store = player:kv()
@@ -661,11 +656,9 @@ function ExpeditionConfig.clearBossCooldown(players, bossName)
 	for _, player in ipairs(players) do
 		if player and PzTeleport.isGod(player) then
 			-- GOD ignores cooldown.
-		elseif player and player.setBossCooldown then
+		elseif player then
 			player:setBossCooldown(bossName, 0)
-			if player.sendBosstiaryCooldownTimer then
-				player:sendBosstiaryCooldownTimer()
-			end
+			player:sendBosstiaryCooldownTimer()
 		end
 		ExpeditionConfig.clearBossAttempt(player)
 	end
@@ -674,7 +667,7 @@ end
 
 --- Refund expedition boss cooldown when an attempt was interrupted (restart / death).
 function ExpeditionConfig.refundBossAttemptIfMarked(player)
-	if not player or not player.kv then
+	if not player then
 		return false
 	end
 	local store = player:kv()
@@ -698,7 +691,7 @@ function ExpeditionConfig.applyBossCooldown(players, bossName)
 	for _, player in ipairs(players) do
 		if player and PzTeleport.isGod(player) then
 			-- Skip cooldown so GOD can re-enter immediately.
-		elseif player and player.setBossCooldown then
+		elseif player then
 			player:setBossCooldown(bossName, untilTs)
 			ExpeditionConfig.markBossAttempt(player, bossName)
 			applied = applied + 1
@@ -709,11 +702,11 @@ end
 
 --- Race id from a living monster (identity - not the runtime creature id).
 function ExpeditionConfig.creatureIdFromMonster(monster)
-	if not monster or not monster.getType then
+	if not monster then
 		return nil
 	end
 	local mType = monster:getType()
-	if not mType or not mType.raceId then
+	if not mType then
 		return nil
 	end
 	local id = mType:raceId()

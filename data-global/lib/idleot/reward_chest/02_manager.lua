@@ -10,10 +10,6 @@ local function decodePayload(buffer)
 	return nil
 end
 
-local function encodeError(message)
-	return string.format('{"type":"error","message":%s}', string.format("%q", tostring(message or "error")))
-end
-
 local function reply(player, payloadJson)
 	if player and RewardChestConfig then
 		player:sendExtendedOpcode(RewardChestConfig.OPCODE, payloadJson)
@@ -24,21 +20,11 @@ function RewardChest.open(player)
 	if not player then
 		return false
 	end
-	if not player.openRewardChest then
-		player:sendTextMessage(MESSAGE_FAILURE, "Reward chest is unavailable on this server build.")
-		reply(player, encodeError("Reward chest is unavailable on this server build."))
-		return false
-	end
 	return player:openRewardChest()
 end
 
 function RewardChest.collect(player)
 	if not player then
-		return false
-	end
-	if not player.collectRewardChest then
-		player:sendTextMessage(MESSAGE_FAILURE, "Collect all is unavailable on this server build.")
-		reply(player, encodeError("Collect all is unavailable on this server build."))
 		return false
 	end
 	local ok = player:collectRewardChest()
@@ -47,7 +33,7 @@ function RewardChest.collect(player)
 end
 
 function RewardChest.hasLoot(player)
-	if not player or not player.getRewardList then
+	if not player then
 		return false
 	end
 	local list = player:getRewardList()

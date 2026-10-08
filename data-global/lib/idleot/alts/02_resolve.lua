@@ -7,7 +7,7 @@ function Alts.findOnlinePlayerByGuid(guid)
 		return nil
 	end
 	local direct = Player(guid)
-	if direct and direct.getGuid and direct:getGuid() == guid then
+	if direct and direct:getGuid() == guid then
 		return direct
 	end
 	for _, online in ipairs(Game.getPlayers()) do
@@ -23,7 +23,7 @@ function Alts.resolvePlayerByGuid(guid)
 	if guid <= 0 then
 		return nil
 	end
-	return Alts.findOnlinePlayerByGuid(guid) or (Game.getOfflinePlayer and Game.getOfflinePlayer(guid))
+	return Alts.findOnlinePlayerByGuid(guid) or Game.getOfflinePlayer(guid)
 end
 
 function Alts.resolveCharacter(nameOrGuid)
@@ -84,7 +84,7 @@ end
 
 --- Outfit table for portraits (online or offline Player).
 function Alts.outfitFrom(src)
-	if not src or not src.getOutfit then
+	if not src then
 		return nil
 	end
 	local ok, look = pcall(function()
@@ -108,7 +108,7 @@ function Alts.outfitFrom(src)
 end
 
 function Alts.vocationName(src)
-	local vocation = src and src.getVocation and src:getVocation() or nil
+	local vocation = src and src:getVocation()
 	if not vocation then
 		return ""
 	end
@@ -124,7 +124,7 @@ function Alts.memberProfile(src)
 		return { level = 0, vocation = "", outfit = nil }
 	end
 	return {
-		level = src.getLevel and src:getLevel() or 0,
+		level = src:getLevel() or 0,
 		vocation = Alts.vocationName(src),
 		outfit = Alts.outfitFrom(src),
 	}

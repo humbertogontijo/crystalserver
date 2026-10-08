@@ -10,7 +10,7 @@ function echoUse.onUse(player, item, fromPosition, target, toPosition, isHotkey)
 		return false
 	end
 	-- Use the item's map position (adjacent use); ignore target/toPosition.
-	local pos = item.getPosition and item:getPosition() or fromPosition
+	local pos = item:getPosition() or fromPosition
 	return EchoWarden.activateFromItem(player, item, pos)
 end
 

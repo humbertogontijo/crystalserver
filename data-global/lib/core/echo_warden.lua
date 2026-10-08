@@ -83,9 +83,7 @@ function EchoWarden.trackRaidCreature(m, raidToken)
 	end
 	EchoWarden.activeRaidCreatures[m:getId()] = raidToken or true
 	EchoWarden.registerExpeditionDeath(m)
-	if m.registerEvent then
-		m:registerEvent("EchoWardenEmpowerDodge")
-	end
+	m:registerEvent("EchoWardenEmpowerDodge")
 	-- Same bind as ExpeditionPack instance spawns when inside a private hunt shard.
 	EchoWarden.applyExpeditionMonsterBind(m)
 end
@@ -96,9 +94,7 @@ function EchoWarden.applyExpeditionMonsterBind(m)
 	if not m then
 		return
 	end
-	if m.runHealth then
-		m:runHealth(0)
-	end
+	m:runHealth(0)
 	local instanceId = Instance.of(m)
 	if not Instance.isPrivate(instanceId) then
 		return
@@ -109,7 +105,7 @@ function EchoWarden.applyExpeditionMonsterBind(m)
 	end
 	local anchor = ExpeditionConfig and ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(session)
 	local home = (anchor and anchor:getPosition()) or session.holdPos or (session.instance and session.instance.entry)
-	if m.setMasterPos and home then
+	if home then
 		m:setMasterPos(Position(home.x, home.y, home.z))
 	end
 end
@@ -135,7 +131,7 @@ function EchoWarden.findItemOnTile(tile, itemId, instanceId)
 		return nil
 	end
 	local expected = Instance.normalize(instanceId)
-	local items = tile.getItems and tile:getItems() or nil
+	local items = tile:getItems()
 	if type(items) == "table" then
 		for _, it in ipairs(items) do
 			if it and it:getId() == itemId then
@@ -146,7 +142,7 @@ function EchoWarden.findItemOnTile(tile, itemId, instanceId)
 			end
 		end
 	end
-	if Instance.isWorld(expected) and tile.getItemById then
+	if Instance.isWorld(expected) then
 		return tile:getItemById(itemId)
 	end
 	return nil
@@ -197,8 +193,8 @@ function EchoWarden.activateFromItem(player, item, position)
 	if itemId == EchoWarden.PORTAL_SPENT_ITEM_ID then
 		return true
 	end
-	local kind = item.getCustomAttribute and item:getCustomAttribute(EchoWarden.PORTAL_ATTR_KIND) or nil
-	local shared = item.getCustomAttribute and item:getCustomAttribute(EchoWarden.PORTAL_ATTR_SHARED) or nil
+	local kind = item:getCustomAttribute(EchoWarden.PORTAL_ATTR_KIND)
+	local shared = item:getCustomAttribute(EchoWarden.PORTAL_ATTR_SHARED)
 	if type(kind) ~= "string" or kind == "" then
 		-- Spent / corrupt
 		if itemId == EchoWarden.PORTAL_ITEM_ID then
@@ -212,7 +208,7 @@ function EchoWarden.activateFromItem(player, item, position)
 		return false
 	end
 	local pos = position
-	if not pos and item.getPosition then
+	if not pos then
 		pos = item:getPosition()
 	end
 	if not pos then
@@ -251,7 +247,7 @@ function EchoWarden.pickTile(center, radius)
 end
 
 function EchoWarden.registerExpeditionDeath(m)
-	if m and m.registerEvent then
+	if m then
 		m:registerEvent("IdleMonsterDeath")
 	end
 end
@@ -273,12 +269,8 @@ function EchoWarden.makeInfluenced(m, stacks)
 		return
 	end
 	stacks = math.max(1, math.min(5, math.floor(tonumber(stacks) or math.random(1, 5))))
-	if m.setForgeStack then
-		m:setForgeStack(stacks)
-	end
-	if Game.addInfluencedMonster then
-		Game.addInfluencedMonster(m)
-	end
+	m:setForgeStack(stacks)
+	Game.addInfluencedMonster(m)
 	EchoWarden.makeEmpowered(m)
 end
 
@@ -393,7 +385,7 @@ function EchoWarden.playerCompletedBestiary(player, kindName)
 		return false
 	end
 	local mt = MonsterType(kindName)
-	if not mt or not player.getBestiaryKillCount then
+	if not mt then
 		return false
 	end
 	local raceId = mt:raceId() or 0
@@ -629,23 +621,21 @@ function EchoWarden.onViewpointDiscovered(player)
 end
 
 function EchoWarden.grantDust(player)
-	if not player or not player.addForgeDusts then
+	if not player then
 		return false
 	end
 	local amount = EchoWarden.DUST_AMOUNT or 15
 	local totalDusts = player:getForgeDusts()
 	local limitDusts = player:getForgeDustLevel()
 	if totalDusts >= limitDusts then
-		if player.sendTextMessage then
-			player:sendTextMessage(
-				MESSAGE_EVENT_ADVANCE,
-				string.format(
-					"You did not receive %d Echo Warden dust for the Exaltation Forge because you have already reached the maximum of %d dust.",
-					amount,
-					limitDusts
-				)
+		player:sendTextMessage(
+			MESSAGE_EVENT_ADVANCE,
+			string.format(
+				"You did not receive %d Echo Warden dust for the Exaltation Forge because you have already reached the maximum of %d dust.",
+				amount,
+				limitDusts
 			)
-		end
+		)
 		return false
 	end
 	local granted = amount
@@ -653,17 +643,15 @@ function EchoWarden.grantDust(player)
 		granted = limitDusts - totalDusts
 	end
 	player:addForgeDusts(granted)
-	if player.sendTextMessage then
-		player:sendTextMessage(
-			MESSAGE_EVENT_ADVANCE,
-			string.format(
-				"You received %d Echo Warden dust for the Exaltation Forge. You now have %d out of a maximum of %d dusts.",
-				granted,
-				player:getForgeDusts(),
-				limitDusts
-			)
+	player:sendTextMessage(
+		MESSAGE_EVENT_ADVANCE,
+		string.format(
+			"You received %d Echo Warden dust for the Exaltation Forge. You now have %d out of a maximum of %d dusts.",
+			granted,
+			player:getForgeDusts(),
+			limitDusts
 		)
-	end
+	)
 	return true
 end
 
@@ -679,32 +667,24 @@ function EchoWarden.grantReward(player, baseKind)
 	local mt = MonsterType(baseKind)
 	local stars = (mt and mt:BestiaryStars()) or 0
 	local amount = EchoWarden.CHARMS_BY_STARS[stars] or EchoWarden.CHARMS_BY_STARS[0]
-	if player.addCharmPoints then
-		player:addCharmPoints(amount)
-	else
-		player:addMinorCharmEchoes(amount)
-	end
+	player:addCharmPoints(amount)
 	kv:set(baseKind, true)
 
 	local count = tonumber(kv:get(EchoWarden.KV_COUNT_KEY)) or 0
 	count = count + 1
 	kv:set(EchoWarden.KV_COUNT_KEY, count)
-	if player.addAchievementProgress then
-		player:addAchievementProgress("Echo Raid Initiate", 1)
-		player:addAchievementProgress("Echo Raid Hunter", 10)
-		player:addAchievementProgress("Echo Raid Walker", 25)
-		player:addAchievementProgress("Echo Raid Conqueror", 50)
-	end
+	player:addAchievementProgress("Echo Raid Initiate", 1)
+	player:addAchievementProgress("Echo Raid Hunter", 10)
+	player:addAchievementProgress("Echo Raid Walker", 25)
+	player:addAchievementProgress("Echo Raid Conqueror", 50)
 
 	local raceId = (mt and mt:raceId()) or 0
-	if raceId > 0 and player.sendLeaderMonsterKilledBanner then
+	if raceId > 0 then
 		player:sendLeaderMonsterKilledBanner(raceId, amount)
 	end
-	if player.sendTextMessage then
-		player:sendTextMessage(
-			MESSAGE_EVENT_ADVANCE,
-			string.format("Echo Warden mastery unlocked for %s (+%d Charm Points). Progress: %d kinds.", baseKind, amount, count)
-		)
-	end
+	player:sendTextMessage(
+		MESSAGE_EVENT_ADVANCE,
+		string.format("Echo Warden mastery unlocked for %s (+%d Charm Points). Progress: %d kinds.", baseKind, amount, count)
+	)
 	return true
 end

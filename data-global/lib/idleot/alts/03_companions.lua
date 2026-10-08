@@ -29,7 +29,7 @@ end
 
 --- A ProtocolGame client is attached (headless bodies report protocol version 0).
 local function hasLiveClient(player)
-	local client = player.getClient and player:getClient()
+	local client = player:getClient()
 	return client ~= nil and (tonumber(client.version) or 0) > 0
 end
 
@@ -41,7 +41,7 @@ local function isRealUiClient(player)
 	if not player then
 		return false
 	end
-	if player.isHeadless and player:isHeadless() then
+	if player:isHeadless() then
 		return false
 	end
 	if hasLiveClient(player) then
@@ -119,11 +119,11 @@ local function takePartyLeadership(controller, party, force)
 		party:addMember(controller)
 		inParty = controller:getParty() == party
 	end
-	if inParty and party.setLeader then
+	if inParty then
 		local okSet = pcall(function()
 			party:setLeader(controller)
 		end)
-		local newLeader = party.getLeader and party:getLeader() or nil
+		local newLeader = party:getLeader()
 		transferred = okSet and newLeader and newLeader:getId() == controller:getId()
 	end
 	if transferred then
@@ -185,7 +185,7 @@ function Alts.ensureControllerParty(controller, companions, opts)
 	end
 
 	for _, companion in ipairs(companions) do
-		if companion and companion.getId and not isInParty(party, companion) then
+		if companion and not isInParty(party, companion) then
 			local old = companion:getParty()
 			if old and old ~= party then
 				old:removeMember(companion)
@@ -207,9 +207,7 @@ function Alts.ensureControllerParty(controller, companions, opts)
 			end
 		end
 	end
-	if party.setSharedExperience then
-		party:setSharedExperience(true)
-	end
+	party:setSharedExperience(true)
 	return party, partyOwned, nil
 end
 
@@ -264,9 +262,7 @@ function Alts.forceJoinToParty(host, member)
 	if not joined then
 		return false, "Failed to join expedition party."
 	end
-	if party.setSharedExperience then
-		party:setSharedExperience(true)
-	end
+	party:setSharedExperience(true)
 	return true
 end
 
@@ -281,9 +277,9 @@ local function parkCompanionBeforeLogout(companion)
 	if not companion then
 		return
 	end
-	local pos = companion.getPosition and companion:getPosition() or nil
+	local pos = companion:getPosition()
 	local needPark = Instance.isPrivate(Instance.of(companion))
-	if not needPark and ExpeditionConfig and companion.getStorageValue and companion:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
+	if not needPark and ExpeditionConfig and companion:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
 		needPark = true
 	end
 	if not needPark and pos and InstanceWorld and InstanceWorld.classify then
@@ -299,7 +295,7 @@ local function parkCompanionBeforeLogout(companion)
 	local returnPos = ExpeditionManager and ExpeditionManager.loadReturnPos and ExpeditionManager.loadReturnPos(companion) or nil
 	if InstanceWorld and InstanceWorld.exitToOpenWorld then
 		IdleSafe.call("InstanceWorld.exitToOpenWorld", InstanceWorld.exitToOpenWorld, companion, returnPos)
-	elseif returnPos and companion.teleportTo then
+	elseif returnPos then
 		companion:teleportTo(returnPos)
 	end
 end
@@ -319,14 +315,12 @@ local function safeLogoutCompanion(companion, deferMs)
 			return
 		end
 		-- Exercise training keeps the body until the weapons run out; sendPing removes it then.
-		if c.isTraining and c:isTraining() ~= 0 then
+		if c:isTraining() ~= 0 then
 			return
 		end
 		parkCompanionBeforeLogout(c)
 		clearCompanionMark(c)
-		if type(Game.headlessLogout) == "function" then
-			Game.headlessLogout(c)
-		end
+		Game.headlessLogout(c)
 	end
 
 	local function tryLogout()
@@ -338,7 +332,7 @@ local function safeLogoutCompanion(companion, deferMs)
 			pendingCompanionLogoutGen[playerId] = nil
 			return
 		end
-		local hp = c.getHealth and c:getHealth() or 0
+		local hp = c:getHealth() or 0
 		if hp <= 0 and (CombatGeo.nowMs() - startedMs) < COMPANION_LOGOUT_MAX_WAIT_MS then
 			addEvent(tryLogout, COMPANION_LOGOUT_POLL_MS)
 			return
@@ -351,7 +345,7 @@ local function safeLogoutCompanion(companion, deferMs)
 	if initialDelay == nil then
 		initialDelay = COMPANION_LOGOUT_DEFER_MS
 	end
-	if companion.getHealth and companion:getHealth() <= 0 and initialDelay < COMPANION_LOGOUT_DEFER_MS then
+	if companion:getHealth() <= 0 and initialDelay < COMPANION_LOGOUT_DEFER_MS then
 		initialDelay = COMPANION_LOGOUT_DEFER_MS
 	end
 	if initialDelay <= 0 then
@@ -490,27 +484,25 @@ local function placeAt(creature, spawnPos, opts)
 end
 
 local function claimOnlineCompanion(controller, online, spawnPos, opts)
-	if online.getHealth and online:getHealth() <= 0 then
+	if online:getHealth() <= 0 then
 		safeLogoutCompanion(online)
 		return nil
 	end
 	Alts.cancelCompanionLogout(online)
-	local onlineGuid = online.getGuid and online:getGuid() or 0
+	local onlineGuid = online:getGuid() or 0
 	if onlineGuid > 0 and deployments[onlineGuid] then
 		deployments[onlineGuid] = nil
 	end
-	local onlineParty = online.getParty and online:getParty() or nil
+	local onlineParty = online:getParty()
 	if onlineParty then
-		local leader = onlineParty.getLeader and onlineParty:getLeader() or nil
+		local leader = onlineParty:getLeader()
 		if not (leader and leader:getId() == online:getId()) then
 			onlineParty:removeMember(online)
 		end
 	end
 	placeAt(online, spawnPos, opts)
 	markCompanion(online, controller)
-	if online.setHeadless then
-		online:setHeadless(true)
-	end
+	online:setHeadless(true)
 	logger.info("[Alts] {} claimed headless {} as companion", controller:getName(), online:getName())
 	return online
 end
@@ -548,9 +540,6 @@ function Alts.deploy(controller, opts)
 	if type(opts.onComplete) ~= "function" then
 		return deliverDeployResult(opts, nil, "Alt deploy requires async onComplete.")
 	end
-	if not Game.headlessLoginBatch then
-		return deliverDeployResult(opts, nil, "Headless login batch is not available on this server build.")
-	end
 
 	local spawnPos = opts.position or controller:getPosition()
 	local instanceId = Instance.normalize(opts.instanceId)
@@ -571,7 +560,7 @@ function Alts.deploy(controller, opts)
 		for _, id in ipairs(existing.companionIds or {}) do
 			local p = Player(id)
 			if p then
-				if isHeadlessCompanion(p) and p.getHealth and p:getHealth() <= 0 then
+				if isHeadlessCompanion(p) and p:getHealth() <= 0 then
 					safeLogoutCompanion(p)
 					p = nil
 				end
@@ -607,7 +596,7 @@ function Alts.deploy(controller, opts)
 	for _, name in ipairs(names) do
 		if name:lower() ~= controller:getName():lower() then
 			local online = Player(name)
-			if online and online.getId and online:getId() == controller:getId() then
+			if online and online:getId() == controller:getId() then
 				-- Deployer listed as companion (stale) - ignore.
 			elseif online then
 				local claimed = claimOnlineCompanion(controller, online, spawnPos, opts)
@@ -681,7 +670,7 @@ function Alts.undeploy(controller, opts)
 				-- Voluntary undeploy: logout immediately so leave->switch cannot redeploy
 				-- the same creature and then hit a deferred logout as a false hunt death.
 				local deferMs = 0
-				if companion.getHealth and companion:getHealth() <= 0 then
+				if companion:getHealth() <= 0 then
 					deferMs = nil
 				end
 				safeLogoutCompanion(companion, deferMs)

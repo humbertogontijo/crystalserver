@@ -54,8 +54,8 @@ function InstanceTeleport.sendArrivalEffect(player, kind)
 		return
 	end
 	local effect = arrivalEffectFor(kind) or CONST_ME_TELEPORT
-	local instanceId = player.getInstanceId and player:getInstanceId() or nil
-	if instanceId == nil or not Game.getSpectators then
+	local instanceId = player:getInstanceId()
+	if instanceId == nil then
 		pos:sendMagicEffect(effect)
 		return
 	end
@@ -108,8 +108,8 @@ function InstanceTeleport.executeHometown(player, opts)
 		return false, "Leave the expedition before recalling."
 	end
 
-	local town = player.getTown and player:getTown() or nil
-	local dest = (town and town.getTemplePosition and town:getTemplePosition()) or Position(32369, 32241, 7)
+	local town = player:getTown()
+	local dest = (town and town:getTemplePosition()) or Position(32369, 32241, 7)
 	if not executeOpenWorld(player, dest) then
 		return false, "Failed to recall to hometown."
 	end
@@ -125,8 +125,8 @@ function InstanceTeleport.executeGuild(player)
 		return false, "Leave the expedition before traveling to the guild."
 	end
 
-	local town = player.getTown and player:getTown() or nil
-	if town and town.getId then
+	local town = player:getTown()
+	if town then
 		player:setStorageValue(Storage.Quest.U9_80.AdventurersGuild.Stone, town:getId())
 	end
 	if not executeOpenWorld(player, ADVENTURERS_GUILD_POS) then

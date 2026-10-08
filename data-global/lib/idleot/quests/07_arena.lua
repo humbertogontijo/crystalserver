@@ -130,9 +130,7 @@ local function removeOwnedMonsters(session)
 			monsterOwners[mid] = nil
 			local monster = Monster(mid)
 			if monster then
-				if monster.setDropLoot then
-					monster:setDropLoot(false)
-				end
+				monster:setDropLoot(false)
 				monster:remove()
 			end
 		end
@@ -214,15 +212,11 @@ local function spawnPitMonster(session)
 		end, 1500)
 		return
 	end
-	if monster.runHealth then
-		monster:runHealth(0)
-	end
+	monster:runHealth(0)
 	-- Do NOT setDropLoot(false): Crystal skips onDeath for lootDrop=false monsters
 	-- that are not summons (creature.cpp dropCorpse), which would stall pit advances.
 	-- Arena monster loot tables are already empty.
-	if monster.unregisterEvent then
-		monster:unregisterEvent("SvargrondArenaBossDeath")
-	end
+	monster:unregisterEvent("SvargrondArenaBossDeath")
 	monster:registerEvent("IdleMonsterDeath")
 	monsterOwners[monster:getId()] = session.key
 	session.alive = 1
@@ -314,7 +308,7 @@ function QuestArena.markComplete(player, spec)
 			player:setStorageValue(stor.arena, stor.arenaId + 1)
 		end
 	end
-	if type(spec.achievement) == "string" and spec.achievement ~= "" and player.addAchievement then
+	if type(spec.achievement) == "string" and spec.achievement ~= "" then
 		player:addAchievement(spec.achievement)
 	end
 	player:sendTextMessage(
@@ -741,7 +735,7 @@ function QuestArena.patchStockHelpers()
 								movableItem:remove()
 							end
 						end
-						local creatures = tile.getCreatures and tile:getCreatures() or nil
+						local creatures = tile:getCreatures()
 						if type(creatures) == "table" then
 							for _, creature in ipairs(creatures) do
 								if creature and creature:isMonster() and not isPrivateInstance(creature) then

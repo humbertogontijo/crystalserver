@@ -20,7 +20,7 @@ local ENTRY_HOLD_LOGOUT_SEC = 90
 --- An alt switch mid-channel leaves the old body headless on an open-world (safe) tile, where
 --- headless players are removed as soon as they can log out. It still has to hop with the party.
 local function holdHeadlessForEntry(player)
-	if not (player.isHeadless and player:isHeadless()) then
+	if not player:isHeadless() then
 		return false
 	end
 	if ExpeditionPersist and ExpeditionPersist.isServerShuttingDown() then
@@ -128,7 +128,7 @@ function ExpeditionManager.onLogout(player)
 			EM_PRIV.clearActive(player)
 			return true
 		end
-		local hp = player.getHealth and player:getHealth() or 0
+		local hp = player:getHealth() or 0
 		local pendingDeath = session.pendingHuntDeath and session.pendingHuntDeath.id == player:getId()
 		if EM_PRIV.isSessionCompanion(session, player) and hp > 0 and not pendingDeath and not session.endedByDeath then
 			EM_PRIV.removeHuntMember(session, player, { skipEnded = true })

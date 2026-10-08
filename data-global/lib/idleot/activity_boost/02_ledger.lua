@@ -1,7 +1,7 @@
 ActivityBoostLedger = ActivityBoostLedger or {}
 
 local function kv(player)
-	if not player or not player.kv then
+	if not player then
 		return nil
 	end
 	return player:kv():scoped(ActivityBoostConfig.KV_SCOPE)
@@ -70,17 +70,11 @@ function ActivityBoostLedger.syncEngine(player, lots)
 	end
 	lots = lots or loadLots(player)
 	local total = sumLots(lots)
-	if player.setXpBoostTime then
-		player:setXpBoostTime(total)
-	end
+	player:setXpBoostTime(total)
 	if total > 0 then
-		if player.setXpBoostPercent then
-			player:setXpBoostPercent(ActivityBoostConfig.XP_BOOST_PERCENT or 50)
-		end
+		player:setXpBoostPercent(ActivityBoostConfig.XP_BOOST_PERCENT or 50)
 	else
-		if player.setXpBoostPercent then
-			player:setXpBoostPercent(0)
-		end
+		player:setXpBoostPercent(0)
 	end
 	return total
 end
@@ -190,7 +184,7 @@ end
 
 --- Drain consumed boost from FIFO lots (engine ticks independently; call periodically).
 function ActivityBoostLedger.reconcileWithEngine(player)
-	if not player or not player.getXpBoostTime then
+	if not player then
 		return ActivityBoostLedger.purgeExpired(player)
 	end
 	ActivityBoostLedger.purgeExpired(player)
@@ -225,7 +219,7 @@ function ActivityBoostLedger.applyOnExpeditionJoin(player)
 		return
 	end
 	local remaining = ActivityBoostLedger.purgeExpired(player)
-	if remaining > 0 and player.setXpBoostPercent then
+	if remaining > 0 then
 		player:setXpBoostPercent(ActivityBoostConfig.XP_BOOST_PERCENT or 50)
 	end
 end

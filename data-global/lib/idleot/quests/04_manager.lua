@@ -79,10 +79,7 @@ local function payKitnoRewards(player, task)
 		return
 	end
 	local skipAchievement = type(task.bossName) == "string" and task.bossName ~= ""
-	local pointsRate = 1
-	if configManager and configKeys and configKeys.RATE_KILLING_IN_THE_NAME_OF_POINTS then
-		pointsRate = configManager.getNumber(configKeys.RATE_KILLING_IN_THE_NAME_OF_POINTS) or 1
-	end
+	local pointsRate = configManager.getNumber(configKeys.RATE_KILLING_IN_THE_NAME_OF_POINTS) or 1
 	for _, reward in ipairs(task.rewards) do
 		local rtype = reward.type
 		local value = reward.value
@@ -100,7 +97,7 @@ local function payKitnoRewards(player, task)
 			if value[2] then
 				player:setStorageValue(value[2], value[4] or 0)
 			end
-		elseif rtype == "achievement" and value and value[1] and player.addAchievement then
+		elseif rtype == "achievement" and value and value[1] then
 			-- Paw & Fur boss tasks unlock an exclusive solo expedition instead.
 			if not skipAchievement then
 				player:addAchievement(value[1])
@@ -766,9 +763,7 @@ function QuestsManager.report(player, entryId, opts)
 		local spike = Storage and Storage.Quest and Storage.Quest.U10_20 and Storage.Quest.U10_20.SpikeTaskQuest
 		local fame = (spike and ((spike.Constants and spike.Constants.Spike_Fame_Points) or spike.Spike_Fame_Points)) or 44313
 		player:setStorageValue(fame, math.max(0, player:getStorageValue(fame)) + 1)
-		if player.sendTextMessage then
-			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You have received a fame point.")
-		end
+		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You have received a fame point.")
 		player:addExperience(entry.reportExp or 1000, true)
 		player:setStorageValue(entry.storageMain, -1)
 		if entry.storageDaily then
@@ -858,10 +853,8 @@ function QuestsManager.report(player, entryId, opts)
 		local trophy = spec.trophy
 		if trophy and trophy.itemId and trophy.storage and player:getStorageValue(trophy.storage) < 1 then
 			local item = player:addItem(trophy.itemId, 1)
-			if item and trophy.desc and item.setAttribute then
+			if item and trophy.desc then
 				item:setAttribute(ITEM_ATTRIBUTE_DESCRIPTION, string.format(trophy.desc, player:getName()))
-			elseif item and trophy.desc and item.setDescription then
-				item:setDescription(string.format(trophy.desc, player:getName()))
 			end
 			player:setStorageValue(trophy.storage, 1)
 			granted = granted + 1

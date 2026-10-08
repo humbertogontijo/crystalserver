@@ -146,7 +146,7 @@ function EM_PRIV.rememberHuntDeath(session, member)
 	if session.pendingHuntDeath then
 		return session.pendingHuntDeath
 	end
-	local pos = member.getPosition and member:getPosition() or nil
+	local pos = member:getPosition()
 	session.pendingHuntDeath = {
 		id = member:getId(),
 		name = member:getName(),
@@ -244,7 +244,7 @@ function EM_PRIV.teleportHumanToReturn(player)
 		return false
 	end
 	local ok = EM_PRIV.returnToLobby(player, returnPos)
-	if ok and player.getHealth and player:getHealth() > 0 then
+	if ok and player:getHealth() > 0 then
 		local now = player:getPosition()
 		if now then
 			now:sendMagicEffect(CONST_ME_TELEPORT)
@@ -441,11 +441,9 @@ function ExpeditionManager.ackHuntDeath(player)
 	if ExpeditionProtocol.sendInstanceBounds then
 		ExpeditionProtocol.sendInstanceBounds(player)
 	end
-	if player.sendMapDescription then
-		local pos = player:getPosition()
-		if pos then
-			player:sendMapDescription(pos)
-		end
+	local pos = player:getPosition()
+	if pos then
+		player:sendMapDescription(pos)
 	end
 end
 
@@ -1030,7 +1028,7 @@ performDirectSwitch = function(host, session, switchTo, preAcceptedPlayers, opts
 	local hostId = host:getId()
 	local others = {}
 	for _, p in ipairs(preAcceptedPlayers or {}) do
-		if p and p.getId and p:getId() ~= hostId then
+		if p and p:getId() ~= hostId then
 			others[#others + 1] = p
 		end
 	end
@@ -1725,7 +1723,7 @@ function ExpeditionManager.leave(player, opts)
 			InstanceWorld.suppressHuntLeave(player, false)
 		end
 		-- Hometown recall already sent its instance-teleport arrival effect.
-		if not opts.goHometown and player.getHealth and player:getHealth() > 0 then
+		if not opts.goHometown and player:getHealth() > 0 then
 			local now = player:getPosition()
 			if now then
 				now:sendMagicEffect(CONST_ME_TELEPORT)

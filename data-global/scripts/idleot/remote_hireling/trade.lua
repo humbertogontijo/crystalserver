@@ -170,9 +170,7 @@ local function ensureRemoteNpc()
 	if not npc then
 		return nil
 	end
-	if npc.setMasterPos then
-		npc:setMasterPos(REMOTE_NPC_POS)
-	end
+	npc:setMasterPos(REMOTE_NPC_POS)
 	remoteNpcId = npc:getId()
 	return npc
 end
@@ -250,15 +248,7 @@ local function depositAll(player)
 		reply(player, { type = "error", message = msg })
 		return
 	end
-	if player.depositMoney then
-		player:depositMoney(money)
-	else
-		if not player:removeMoney(money) then
-			reply(player, { type = "error", message = "Could not remove gold." })
-			return
-		end
-		player:setBankBalance((player:getBankBalance() or 0) + money)
-	end
+	player:depositMoney(money)
 	local msg = string.format("Deposited %d gold.", money)
 	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, msg)
 	reply(player, { type = "ok", message = msg })
@@ -276,22 +266,8 @@ local function withdrawAmount(player, amount)
 		reply(player, { type = "error", message = msg })
 		return
 	end
-	if player.withdrawMoney then
-		if not player:withdrawMoney(amount) then
-			local msg = "Not enough bank balance."
-			player:sendTextMessage(MESSAGE_FAILURE, msg)
-			reply(player, { type = "error", message = msg })
-			return
-		end
-	else
-		local bal = player:getBankBalance() or 0
-		if amount > bal then
-			reply(player, { type = "error", message = "Not enough bank balance." })
-			return
-		end
-		-- Fall back without Bank.withdraw: only withdraw should create coin items.
-		-- Prefer leaving gold in bank rather than calling addMoney (which banks again).
-		local msg = "Withdraw requires Bank.withdrawMoney."
+	if not player:withdrawMoney(amount) then
+		local msg = "Not enough bank balance."
 		player:sendTextMessage(MESSAGE_FAILURE, msg)
 		reply(player, { type = "error", message = msg })
 		return

@@ -76,9 +76,7 @@ function CavebotStore.resume(player)
 		return
 	end
 	endPause(player:getId())
-	if player.clearManualControl then
-		player:clearManualControl()
-	end
+	player:clearManualControl()
 end
 
 function CavebotStore.forget(player)

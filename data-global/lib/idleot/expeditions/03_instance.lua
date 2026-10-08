@@ -263,24 +263,22 @@ local function sweepTile(tile, instanceId)
 	if not tile or not instanceId then
 		return
 	end
-	local creatures = tile.getCreatures and tile:getCreatures() or nil
+	local creatures = tile:getCreatures()
 	if type(creatures) == "table" then
 		for _, creature in ipairs(creatures) do
-			if creature and creature.getInstanceId and creature:getInstanceId() == instanceId then
-				if not (creature.isPlayer and creature:isPlayer()) then
-					if creature.setDropLoot then
-						creature:setDropLoot(false)
-					end
+			if creature and creature:getInstanceId() == instanceId then
+				if not creature:isPlayer() then
+					creature:setDropLoot(false)
 					creature:remove()
 				end
 			end
 		end
 	end
-	local items = tile.getItems and tile:getItems() or nil
+	local items = tile:getItems()
 	if type(items) == "table" then
 		for i = #items, 1, -1 do
 			local item = items[i]
-			if item and item.getInstanceId and item:getInstanceId() == instanceId then
+			if item and item:getInstanceId() == instanceId then
 				item:remove()
 			end
 		end
@@ -305,7 +303,7 @@ function ExpeditionInstance.sweep(instance)
 		monster:remove()
 	end
 	for _, npc in ipairs(Game.getNpcs()) do
-		if npc and npc.getInstanceId and npc:getInstanceId() == instanceId then
+		if npc and npc:getInstanceId() == instanceId then
 			npc:remove()
 		end
 	end
@@ -369,17 +367,17 @@ local function sameInstance(creature, instanceId)
 	if instanceId == nil then
 		return true
 	end
-	return not creature.getInstanceId or creature:getInstanceId() == instanceId
+	return creature:getInstanceId() == instanceId
 end
 
 local function tileBlocksForInstance(tile, instanceId)
-	if not tile or not tile.getGround or not tile:getGround() then
+	if not tile or not tile:getGround() then
 		return true
 	end
-	if instanceId and tile.hasProperty and CONST_PROP_BLOCKSOLID then
+	if instanceId then
 		return tile:hasProperty(CONST_PROP_BLOCKSOLID, instanceId)
 	end
-	return tile.hasFlag and tile:hasFlag(TILESTATE_BLOCKSOLID)
+	return tile:hasFlag(TILESTATE_BLOCKSOLID)
 end
 
 local function isWalkable(pos, instanceId)
@@ -387,7 +385,7 @@ local function isWalkable(pos, instanceId)
 	if not tile or tileBlocksForInstance(tile, instanceId) then
 		return false
 	end
-	local creatures = tile.getCreatures and tile:getCreatures() or nil
+	local creatures = tile:getCreatures()
 	if type(creatures) == "table" then
 		for _, creature in ipairs(creatures) do
 			if sameInstance(creature, instanceId) then
@@ -396,7 +394,7 @@ local function isWalkable(pos, instanceId)
 		end
 		return true
 	end
-	local top = tile.getTopCreature and tile:getTopCreature() or nil
+	local top = tile:getTopCreature()
 	return not sameInstance(top, instanceId)
 end
 

@@ -80,9 +80,7 @@ local function releaseMember(id)
 	end
 	CombatAutomationMovement.clearDirective(player)
 	CombatAutomationMovement.clearWalkDedupe(player)
-	if player.clearPathLeash then
-		player:clearPathLeash()
-	end
+	player:clearPathLeash()
 	if idleOwned[id] then
 		idleOwned[id] = nil
 		if not CavebotStore.inExpedition(player) and player:isIdleCombat() then

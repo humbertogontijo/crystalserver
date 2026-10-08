@@ -4,7 +4,7 @@ LootSplit = LootSplit or {}
 local rrCursorByLeader = {}
 
 function LootSplit.findLootPouch(player)
-	if not player or not player.getLootPouch then
+	if not player then
 		return nil
 	end
 	return player:getLootPouch()
@@ -25,45 +25,28 @@ local function itemWorth(item)
 	if not item then
 		return 0
 	end
-	if item.getWorth then
-		return tonumber(item:getWorth()) or 0
-	end
-	local id = item:getId()
-	local count = item:getCount() or 1
-	local cfg = LootSplitConfig or {}
-	if id == (cfg.GOLD_COIN_ID or 3031) then
-		return count
-	elseif id == (cfg.PLATINUM_COIN_ID or 3035) then
-		return count * 100
-	elseif id == (cfg.CRYSTAL_COIN_ID or 3043) then
-		return count * 10000
-	end
-	return 0
+	return tonumber(item:getWorth()) or 0
 end
 
 local function playerAcceptsItem(player, item)
 	if not player or not item then
 		return false
 	end
-	if player.acceptsQuickLootItem then
-		local ok, accepted = pcall(function()
-			return player:acceptsQuickLootItem(item)
-		end)
-		if ok then
-			return accepted == true
-		end
+	local ok, accepted = pcall(function()
+		return player:acceptsQuickLootItem(item)
+	end)
+	if ok then
+		return accepted == true
 	end
 	return false
 end
 
 local function autoLootEnabled(player, isBoss)
-	if not player or not player.getFeature or not Features or not Features.AutoLoot then
+	if not player or not Features or not Features.AutoLoot then
 		return false
 	end
-	if configManager and configKeys and configManager.getBoolean then
-		if not configManager.getBoolean(configKeys.AUTOLOOT) then
-			return false
-		end
+	if not configManager.getBoolean(configKeys.AUTOLOOT) then
+		return false
 	end
 	local value = player:getFeature(Features.AutoLoot)
 	value = tonumber(value) or 0
@@ -76,14 +59,14 @@ local function autoLootEnabled(player, isBoss)
 end
 
 local function sameInstance(a, b)
-	if not a or not b or not a.getInstanceId or not b.getInstanceId then
+	if not a or not b then
 		return true
 	end
 	return a:getInstanceId() == b:getInstanceId()
 end
 
 local function inRange(corpsePos, player)
-	if not corpsePos or not player or not player.getPosition then
+	if not corpsePos or not player then
 		return false
 	end
 	local pos = player:getPosition()
@@ -103,9 +86,6 @@ local function seatCanCarry(seatMember, item)
 	if not seatMember or not item then
 		return false
 	end
-	if not seatMember.getFreeCapacity or not item.getWeight then
-		return true
-	end
 	local weight = tonumber(item:getWeight()) or 0
 	if weight <= 0 then
 		return true
@@ -118,11 +98,11 @@ local function partyMembers(party)
 	if not party then
 		return members
 	end
-	local leader = party.getLeader and party:getLeader() or nil
+	local leader = party:getLeader()
 	if leader then
 		members[#members + 1] = leader
 	end
-	local list = party.getMembers and party:getMembers() or {}
+	local list = party:getMembers() or {}
 	for _, m in ipairs(list) do
 		if m then
 			members[#members + 1] = m
@@ -181,7 +161,7 @@ end
 
 local function collectCorpseItems(corpse)
 	local items = {}
-	if not corpse or not corpse.getSize then
+	if not corpse then
 		return items
 	end
 	local size = corpse:getSize() or 0
@@ -212,9 +192,6 @@ local function trySellForInsufficientCap(player, corpse, isBoss)
 	if not autoLootEnabled(player, isBoss == true) then
 		return false
 	end
-	if not player.getFreeCapacity then
-		return false
-	end
 
 	local free = tonumber(player:getFreeCapacity()) or 0
 	if free < 100 then
@@ -230,10 +207,7 @@ local function trySellForInsufficientCap(player, corpse, isBoss)
 end
 
 local function creditLootStats(player, itemId, count)
-	if not player or not player.sendLootStats or not itemId or count <= 0 then
-		return
-	end
-	if not Game or not Game.createItem then
+	if not player or not itemId or count <= 0 then
 		return
 	end
 	local statsItem = Game.createItem(itemId, count)
@@ -254,12 +228,8 @@ local function deliverItem(destPlayer, item, statsPlayer)
 	local worth = itemWorth(item)
 
 	if isCoinItem(item) and worth > 0 then
-		if item.remove then
-			item:remove()
-		end
-		if destPlayer.addMoney then
-			destPlayer:addMoney(worth)
-		end
+		item:remove()
+		destPlayer:addMoney(worth)
 		local goldId = (LootSplitConfig and LootSplitConfig.GOLD_COIN_ID) or 3031
 		local remaining = worth
 		while remaining > 0 do
@@ -270,21 +240,19 @@ local function deliverItem(destPlayer, item, statsPlayer)
 		return true, worth
 	end
 
-	if destPlayer.collectQuickLootItem then
-		local ok, success = pcall(function()
-			return destPlayer:collectQuickLootItem(item)
-		end)
-		if ok then
-			if success == true then
-				creditLootStats(statsPlayer, itemId, count)
-				return true, 0
-			end
-			return false, 0
+	local ok, success = pcall(function()
+		return destPlayer:collectQuickLootItem(item)
+	end)
+	if ok then
+		if success == true then
+			creditLootStats(statsPlayer, itemId, count)
+			return true, 0
 		end
+		return false, 0
 	end
 
 	local pouch = LootSplit.findLootPouch(destPlayer)
-	local bp = destPlayer.getSlotItem and destPlayer:getSlotItem(CONST_SLOT_BACKPACK or 3) or nil
+	local bp = destPlayer:getSlotItem(CONST_SLOT_BACKPACK)
 	local destinations = {}
 	if pouch then
 		destinations[#destinations + 1] = pouch
@@ -297,12 +265,10 @@ local function deliverItem(destPlayer, item, statsPlayer)
 	end
 
 	local moved = false
-	if item.moveTo then
-		for _, dest in ipairs(destinations) do
-			if item:moveTo(dest) == true then
-				moved = true
-				break
-			end
+	for _, dest in ipairs(destinations) do
+		if item:moveTo(dest) == true then
+			moved = true
+			break
 		end
 	end
 	if not moved then
@@ -335,12 +301,12 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 		return false
 	end
 
-	local mType = monster.getType and monster:getType() or nil
-	if mType and mType.isRewardBoss and mType:isRewardBoss() then
+	local mType = monster:getType()
+	if mType and mType:isRewardBoss() then
 		return false
 	end
 
-	local party = owner.getParty and owner:getParty() or nil
+	local party = owner:getParty()
 	if not party then
 		return false
 	end
@@ -349,7 +315,7 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 		return false
 	end
 
-	local corpsePos = corpse.getPosition and corpse:getPosition() or monster:getPosition()
+	local corpsePos = corpse:getPosition() or monster:getPosition()
 	local seats = LootSplit.seats(party, corpsePos, monster)
 	local onExpedition = partyOnExpedition(party)
 	if onExpedition then
@@ -362,8 +328,8 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 		end
 	end
 
-	local leader = party.getLeader and party:getLeader() or owner
-	local leaderGuid = leader and leader.getGuid and leader:getGuid() or 0
+	local leader = party:getLeader() or owner
+	local leaderGuid = leader and leader:getGuid() or 0
 	local seatCount = #seats
 
 	local items = collectCorpseItems(corpse)
@@ -404,9 +370,7 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 
 	if #goldSeatMembers > 0 and goldPool > 0 then
 		for _, it in ipairs(coinItems) do
-			if it.remove then
-				it:remove()
-			end
+			it:remove()
 		end
 
 		local nGold = #goldSeatMembers
@@ -438,9 +402,7 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 				amount = amount + remainder
 			end
 			if amount > 0 then
-				if seatMember.addMoney then
-					seatMember:addMoney(amount)
-				end
+				seatMember:addMoney(amount)
 				local left = amount
 				while left > 0 do
 					local chunk = math.min(left, 100)
@@ -497,15 +459,13 @@ function LootSplit.onDropLoot(monster, corpse)
 		return
 	end
 	local owner = nil
-	if corpse.getCorpseOwner then
-		owner = Player(corpse:getCorpseOwner())
-	end
+	owner = Player(corpse:getCorpseOwner())
 	if not owner then
 		return
 	end
 	IdleSafe.call("LootSplit.onDropLoot", function()
-		local mType = monster.getType and monster:getType() or nil
-		local isBoss = mType and mType.isRewardBoss and mType:isRewardBoss()
+		local mType = monster:getType()
+		local isBoss = mType and mType:isRewardBoss()
 		trySellForInsufficientCap(owner, corpse, isBoss)
 		LootSplit.splitCorpse(monster, corpse, owner)
 	end)

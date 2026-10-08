@@ -94,9 +94,7 @@ local function monsterInfo(name)
 	end
 	local elements = bestiaryElements(mType)
 	local defense = 0
-	if mType.defense then
-		defense = mType:defense() or 0
-	end
+	defense = mType:defense() or 0
 	return {
 		raceId = raceId,
 		health = mType:maxHealth() or mType:health() or 0,

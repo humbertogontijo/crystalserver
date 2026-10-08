@@ -54,7 +54,7 @@ local function isClaimed(player, setting)
 		return true
 	end
 	if setting.useKV then
-		if not setting.questName or not player.questKV then
+		if not setting.questName then
 			return false
 		end
 		return player:questKV(setting.questName):get("completed") and true or false
@@ -78,7 +78,7 @@ local function markClaimed(player, setting)
 	if not player or not setting then
 		return
 	end
-	if setting.useKV and setting.questName and player.questKV then
+	if setting.useKV and setting.questName then
 		player:questKV(setting.questName):set("completed", true)
 		return
 	end
@@ -95,11 +95,9 @@ local function canCarry(player, weight, message)
 	if weight > 0 and checkWeightAndBackpackRoom then
 		return checkWeightAndBackpackRoom(player, weight, message or "You do not have enough capacity or room.")
 	end
-	if weight > 0 and player.getFreeCapacity then
+	if weight > 0 then
 		if (player:getFreeCapacity() / 100) < weight then
-			if player.sendTextMessage then
-				player:sendTextMessage(MESSAGE_EVENT_ADVANCE, (message or "Reward") .. " is too heavy.")
-			end
+			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, (message or "Reward") .. " is too heavy.")
 			return false
 		end
 	end
@@ -218,16 +216,14 @@ function ChestGrant.grantUid(player, uid)
 			local itemId = entry[1]
 			local count = entry[2] or 1
 			local added = container:addItem(itemId, count)
-			if added and ItemType and ItemType(itemId):isKey() and setting.keyAction then
+			if added and ItemType(itemId):isKey() and setting.keyAction then
 				added:setActionId(setting.keyAction)
 			end
 		end
-		if player.sendTextMessage then
-			player:sendTextMessage(
-				MESSAGE_EVENT_ADVANCE,
-				"You have found a " .. (getItemName and getItemName(setting.container) or "bag") .. "."
-			)
-		end
+		player:sendTextMessage(
+			MESSAGE_EVENT_ADVANCE,
+			"You have found a " .. (getItemName and getItemName(setting.container) or "bag") .. "."
+		)
 		markClaimed(player, setting)
 		return true, false, nil
 	end
@@ -251,9 +247,7 @@ function ChestGrant.grantUid(player, uid)
 		if setting.isKey and setting.storage then
 			added:setActionId(setting.storage)
 		end
-		if player.sendTextMessage then
-			player:sendTextMessage(MESSAGE_EVENT_ADVANCE, message .. ".")
-		end
+		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, message .. ".")
 	end
 	markClaimed(player, setting)
 	return true, false, nil

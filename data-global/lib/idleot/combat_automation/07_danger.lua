@@ -22,8 +22,8 @@ end
 --- { [offsetKey] = true } } with offsets from the caster.
 local shapeByName = {}
 local function directionalShape(monster)
-	local mType = monster.getType and monster:getType()
-	if not mType or not mType.getAttackList then
+	local mType = monster:getType()
+	if not mType then
 		return nil
 	end
 	local name = mType:name()
@@ -132,15 +132,15 @@ local BOSS_FRONT_PENALTY = 10 * AnchorSpot.RING_TILE
 
 local bossByName = {}
 local function isBoss(monster)
-	local mType = monster.getType and monster:getType()
+	local mType = monster:getType()
 	if not mType then
 		return false
 	end
 	local name = mType:name()
 	local cached = bossByName[name]
 	if cached == nil then
-		cached = (mType.isRewardBoss and mType:isRewardBoss())
-			or (mType.bossRaceId and (tonumber(mType:bossRaceId()) or 0) > 0)
+		cached = mType:isRewardBoss()
+			or (tonumber(mType:bossRaceId()) or 0) > 0
 			or false
 		bossByName[name] = cached
 	end

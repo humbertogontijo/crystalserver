@@ -17,13 +17,11 @@ CustomEffects.IT_AURA_LOBBY = 1102
 CustomEffects.IT_AURA_EXPEDITION = 1103
 
 -- warnUnsafeScripts only whitelists appearances.dat ids; virtual ids must opt in.
-if Game.registerMagicEffect then
-	for _, effectId in ipairs({
-		CustomEffects.CHIVALROUS_CHALLENGE_WHITE,
-		CustomEffects.IT_ARRIVAL_HOMETOWN,
-		CustomEffects.IT_ARRIVAL_LOBBY,
-		CustomEffects.IT_ARRIVAL_EXPEDITION,
-	}) do
-		Game.registerMagicEffect(effectId)
-	end
+for _, effectId in ipairs({
+	CustomEffects.CHIVALROUS_CHALLENGE_WHITE,
+	CustomEffects.IT_ARRIVAL_HOMETOWN,
+	CustomEffects.IT_ARRIVAL_LOBBY,
+	CustomEffects.IT_ARRIVAL_EXPEDITION,
+}) do
+	Game.registerMagicEffect(effectId)
 end

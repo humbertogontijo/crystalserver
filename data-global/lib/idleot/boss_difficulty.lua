@@ -49,7 +49,7 @@ function BossDifficulty.raceId(lever)
 	if not mType then
 		return 0
 	end
-	local id = mType.bossRaceId and tonumber(mType:bossRaceId()) or 0
+	local id = tonumber(mType:bossRaceId()) or 0
 	if id <= 0 then
 		id = tonumber(mType:raceId()) or 0
 	end
@@ -73,7 +73,7 @@ end
 function BossDifficulty.groupMax(players, lever)
 	local best = nil
 	for _, p in ipairs(players or {}) do
-		local skip = (Alts and Alts.isCompanion and Alts.isCompanion(p)) or (p.isHeadless and p:isHeadless())
+		local skip = (Alts and Alts.isCompanion and Alts.isCompanion(p)) or p:isHeadless()
 		if not skip then
 			local unlocked = BossDifficulty.personalMax(p, lever)
 			if not best or unlocked < best then
@@ -112,13 +112,8 @@ function BossDifficulty.apply(monster, lever, difficulty)
 	if hpMult <= 1 and dmgMult <= 1 then
 		return
 	end
-	if monster.scaleCombat then
-		monster:scaleCombat(hpMult, dmgMult)
-		return
-	end
-	local newMax = math.max(1, math.floor(monster:getMaxHealth() * hpMult))
-	monster:setMaxHealth(newMax)
-	monster:setHealth(newMax)
+	monster:scaleCombat(hpMult, dmgMult)
+	return
 end
 
 function BossDifficulty.mods(lever, difficulty)
@@ -139,7 +134,7 @@ local function bannerNames(opts)
 	end
 	if #names == 0 then
 		for _, p in ipairs(opts.players or {}) do
-			if #names < 5 and p.getName then
+			if #names < 5 then
 				names[#names + 1] = p:getName()
 			end
 		end
@@ -170,7 +165,7 @@ end
 --- opts: { lever, players, banners?, selected?, onStart(difficulty), onCancel? }
 --- Returns false when the lever has no difficulty (caller starts directly).
 function BossDifficulty.open(player, opts)
-	if not player or not opts or not BossDifficulty.isEnabled(opts.lever) or not player.sendBossDifficultySelection then
+	if not player or not opts or not BossDifficulty.isEnabled(opts.lever) then
 		return false
 	end
 	local lever = opts.lever

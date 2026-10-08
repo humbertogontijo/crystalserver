@@ -21,7 +21,7 @@ local function scanForHirelingLamp(item, hirelingId)
 	if lampId and lampId == hirelingId then
 		return item
 	end
-	if item.isContainer and item:isContainer() then
+	if item:isContainer() then
 		local size = item:getSize() or 0
 		for i = 0, size - 1 do
 			local found = scanForHirelingLamp(item:getItem(i), hirelingId)

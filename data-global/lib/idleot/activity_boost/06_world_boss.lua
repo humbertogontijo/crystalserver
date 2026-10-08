@@ -90,7 +90,7 @@ local function creatureIdForBossName(bossName)
 		end
 	end
 	local mType = MonsterType(bossName)
-	if mType and mType.raceId then
+	if mType then
 		local id = mType:raceId()
 		if type(id) == "number" and id > 0 then
 			return id
@@ -124,8 +124,8 @@ local function partyLeaderKey(player)
 	if not player then
 		return nil
 	end
-	local party = player.getParty and player:getParty()
-	if party and party.getLeader then
+	local party = player:getParty()
+	if party then
 		local leader = party:getLeader()
 		if leader then
 			return "party:" .. leader:getGuid(), leader:getName(), true
@@ -176,7 +176,7 @@ end
 
 local function rollLootForPlayer(player, bossName, mult)
 	local mType = MonsterType(bossName)
-	if not mType or not mType.getLoot then
+	if not mType then
 		return
 	end
 	local loot = mType:getLoot()
@@ -218,9 +218,7 @@ local function teardownSession(session, reason)
 	if session.bossCreatureId then
 		local monster = Monster(session.bossCreatureId)
 		if monster then
-			if monster.setDropLoot then
-				monster:setDropLoot(false)
-			end
+			monster:setDropLoot(false)
 			monster:remove()
 		end
 		session.bossCreatureId = nil
@@ -413,9 +411,7 @@ local function startBandSession(band, bossName)
 	end
 	local monster = Game.createMonster(bossName, spawnPos, false, true, nil, instance.instanceId)
 	if monster then
-		if monster.setDropLoot then
-			monster:setDropLoot(false)
-		end
+		monster:setDropLoot(false)
 		monster:registerEvent("ActivityBoostWorldBossHealth")
 		monster:registerEvent("ActivityBoostWorldBossDeath")
 		session.bossCreatureId = monster:getId()
@@ -662,7 +658,7 @@ end
 
 InstanceKinds.setHooks("worldboss", {
 	onRevive = function(p)
-		if p and p.sendTextMessage then
+		if p then
 			p:sendTextMessage(MESSAGE_EVENT_ADVANCE, "World Boss respawn - back in the fight!")
 		end
 	end,
@@ -736,8 +732,8 @@ function ActivityBoostWorldBoss.onHealthChange(creature, attacker, primaryDamage
 	end
 	local player = attacker and attacker:getPlayer()
 	if not player then
-		local master = attacker and attacker.getMaster and attacker:getMaster()
-		player = master and master.getPlayer and master:getPlayer() or nil
+		local master = attacker and attacker:getMaster()
+		player = master and master:getPlayer()
 	end
 	if not player then
 		return primaryDamage, primaryType, secondaryDamage, secondaryType

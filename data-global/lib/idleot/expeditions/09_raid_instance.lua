@@ -17,7 +17,7 @@ local function displayName(raidName)
 end
 
 local function zoneAABB(zone)
-	if not zone or not zone.getPositions then
+	if not zone then
 		return nil
 	end
 	local positions = zone:getPositions()
@@ -145,7 +145,7 @@ local function isGroundWalkable(pos, instanceId)
 	if not tile or not tile:getGround() then
 		return false
 	end
-	if instanceId and tile.hasProperty and CONST_PROP_BLOCKSOLID then
+	if instanceId then
 		return not tile:hasProperty(CONST_PROP_BLOCKSOLID, instanceId)
 	end
 	return not tile:hasFlag(TILESTATE_BLOCKSOLID)
@@ -806,7 +806,7 @@ function RaidInstance.join(player, raidName, loadout, options)
 		local pos = p:getPosition()
 		if
 			not pos
-			or (p.getInstanceId and p:getInstanceId() ~= instance.instanceId)
+			or (p:getInstanceId() ~= instance.instanceId)
 			or not ExpeditionInstance.contains(instance, pos)
 		then
 			logger.error(
@@ -841,11 +841,9 @@ function RaidInstance.join(player, raidName, loadout, options)
 			if not live or not joined then
 				return
 			end
-			if joined.sendMapDescription then
-				local landed = joined:getPosition()
-				if landed then
-					joined:sendMapDescription(landed)
-				end
+			local landed = joined:getPosition()
+			if landed then
+				joined:sendMapDescription(landed)
 			end
 			ExpeditionAI.start(live)
 			RaidInstance.broadcastActiveRaids()

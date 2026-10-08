@@ -75,7 +75,7 @@ end
 
 --- Engine follow tracks a moving target well until adjacent.
 local function followTarget(player, target)
-	local follow = player.getFollowCreature and player:getFollowCreature()
+	local follow = player:getFollowCreature()
 	if not follow or follow:getId() ~= target:getId() then
 		player:setFollowCreature(target)
 	end

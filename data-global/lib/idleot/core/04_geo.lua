@@ -246,9 +246,6 @@ end
 --- Stepping `from` -> `dest` ends outside the player's path leash radius and farther
 --- from its anchor than `from` (the engine path search's leash rule).
 function CombatGeo.fartherFromLeash(player, from, dest)
-	if not player.getPathLeashRadius or not player.getPathLeashAnchor then
-		return false
-	end
 	local radius = player:getPathLeashRadius()
 	if type(radius) ~= "number" or radius <= 0 then
 		return false

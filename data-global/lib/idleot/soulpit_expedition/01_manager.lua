@@ -76,11 +76,7 @@ function SoulPitExpedition.spawnWave(session)
 		local pos = Position(origin.x + math.random(-3, 3), origin.y + math.random(-3, 3), origin.z)
 		local monster = nil
 		local instanceId = session.instance and session.instance.instanceId or nil
-		if Game.createSoulPitMonster then
-			monster = Game.createSoulPitMonster(monsterName, pos, stack, true, true, nil, instanceId)
-		else
-			monster = Game.createMonster(monsterName, pos, true, true, nil, instanceId)
-		end
+		monster = Game.createSoulPitMonster(monsterName, pos, stack, true, true, nil, instanceId)
 		if monster then
 			monster:registerEvent("IdleMonsterDeath")
 			if stack == 40 and SoulPit and SoulPit.bossAbilities and SoulPit.possibleAbilities then
@@ -124,7 +120,7 @@ function SoulPitExpedition.onMonsterDeath(session)
 			if session.soulPitMonster then
 				for _, pid in ipairs(session.playerIds or { session.playerId }) do
 					local p = Player(pid)
-					if p and p.addAnimusMastery then
+					if p then
 						p:addAnimusMastery(session.soulPitMonster)
 						p:sendTextMessage(
 							MESSAGE_EVENT_ADVANCE,

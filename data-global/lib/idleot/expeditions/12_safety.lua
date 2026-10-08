@@ -26,7 +26,7 @@ end
 
 --- True when the player may enter / stay in an expedition (stamina system off → always ok).
 function ExpeditionSafety.hasStamina(player)
-	if not player or not player.getStamina then
+	if not player then
 		return false
 	end
 	if not configManager.getBoolean(configKeys.STAMINA_SYSTEM) then
@@ -63,7 +63,7 @@ function ExpeditionSafety.onStaminaDepleted(player)
 	if not ExpeditionManager or not ExpeditionManager.abort then
 		return
 	end
-	local name = player.getName and player:getName() or "Adventurer"
+	local name = player:getName() or "Adventurer"
 	ExpeditionManager.abort(session, string.format("%s ran out of stamina. Expedition stopped.", name))
 end
 
@@ -72,7 +72,7 @@ end
 --- abortReason: expedition abort message when stop option is enabled
 --- Returns true when retryFn succeeds (including when already ok before sell).
 function ExpeditionSafety.handleShortage(player, kind, retryFn, abortReason)
-	if not player or not player.isPlayer or not player:isPlayer() then
+	if not player or not player:isPlayer() then
 		return false
 	end
 	if type(retryFn) ~= "function" then
@@ -87,7 +87,7 @@ function ExpeditionSafety.handleShortage(player, kind, retryFn, abortReason)
 
 	local session = sessionFor(player)
 	if shouldStop(session, kind) and ExpeditionManager and ExpeditionManager.abort then
-		local name = player.getName and player:getName() or "Adventurer"
+		local name = player:getName() or "Adventurer"
 		local reason = abortReason
 		if not reason or reason == "" then
 			if kind == "gold" then

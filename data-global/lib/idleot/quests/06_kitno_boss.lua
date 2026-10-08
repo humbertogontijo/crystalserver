@@ -9,7 +9,7 @@ QuestsKitnoBoss.KV_SCOPE = "quests-kitno-boss"
 local registered = false
 
 local function kv(player)
-	if not player or not player.kv then
+	if not player then
 		return nil
 	end
 	return player:kv():scoped(QuestsKitnoBoss.KV_SCOPE)
@@ -49,8 +49,8 @@ function QuestsKitnoBoss.resolveMonsterName(bossName)
 		for i = 1, #candidates do
 			local info = CreatureInfo.get(candidates[i])
 			if info and type(info.name) == "string" and info.name ~= "" then
-				local mType = MonsterType and MonsterType(info.name)
-				if mType and mType.name then
+				local mType = MonsterType(info.name)
+				if mType then
 					local resolved = mType:name()
 					if type(resolved) == "string" and resolved ~= "" then
 						return resolved
@@ -62,8 +62,8 @@ function QuestsKitnoBoss.resolveMonsterName(bossName)
 	end
 	for i = 1, #candidates do
 		local name = candidates[i]
-		local mType = MonsterType and MonsterType(name)
-		if mType and mType.name then
+		local mType = MonsterType(name)
+		if mType then
 			local resolved = mType:name()
 			if type(resolved) == "string" and resolved ~= "" then
 				return resolved

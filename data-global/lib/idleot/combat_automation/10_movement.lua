@@ -26,9 +26,6 @@ local HOME_LEASH_MARGIN = 2
 --- A ranged anchor holding a fight spot (`directive.home`) is leashed around it (path
 --- search and tile scoring), so kiting does not drag the pack away; cleared otherwise.
 local function syncHomeLeash(player, state)
-	if not player.setPathLeash then
-		return
-	end
 	local directive = state.directive
 	local home = directive and directive.kind == "hold" and directive.home and directive.pos or nil
 	if home and not CombatAutomationMovement.rangedStance(player) then
@@ -124,7 +121,7 @@ function CombatAutomationMovement.tick(player, config)
 		return
 	end
 	-- Let walk-then-act (Use / use-with) finish without stance/hold stealing the path.
-	if player.hasWalkTask and player:hasWalkTask() then
+	if player:hasWalkTask() then
 		return
 	end
 

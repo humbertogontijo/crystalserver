@@ -71,7 +71,7 @@ local function encode(payload)
 end
 
 local function reply(player, payload)
-	if not player or not player.sendExtendedOpcode then
+	if not player then
 		return
 	end
 	player:sendExtendedOpcode(RemoteDialogConfig.OPCODE, encode(payload))
@@ -130,8 +130,8 @@ function RemoteDialog.open(player, opts)
 	end
 
 	local npc = opts.npc
-	local npcId = npc and npc.getId and npc:getId() or 0
-	local name = opts.name or (npc and npc.getName and npc:getName()) or "NPC"
+	local npcId = npc and npc:getId() or 0
+	local name = opts.name or (npc and npc:getName()) or "NPC"
 	local handler = opts.handler
 
 	local session = {
@@ -155,9 +155,7 @@ function RemoteDialog.open(player, opts)
 		local raw = handler:getMessage(MESSAGE_GREET)
 		if raw and raw ~= "" then
 			greet = raw
-			if player.getName then
-				greet = greet:gsub("|PLAYERNAME|", player:getName())
-			end
+			greet = greet:gsub("|PLAYERNAME|", player:getName())
 		end
 	end
 

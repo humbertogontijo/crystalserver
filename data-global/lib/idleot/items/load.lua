@@ -23,15 +23,15 @@ local function applyNpcOfferPrices()
 		local bestSell = math.floor(tonumber(entry.bestSell) or 0)
 		if bestBuy > 0 or bestSell > 0 then
 			local ok, itemType = pcall(ItemType, clientId)
-			if ok and itemType and itemType.getId and itemType:getId() > 0 then
-				if bestBuy > 0 and itemType.getSellPrice and itemType.setSellPrice then
+			if ok and itemType and itemType:getId() > 0 then
+				if bestBuy > 0 then
 					local current = math.floor(tonumber(itemType:getSellPrice()) or 0)
 					if bestBuy > current then
 						itemType:setSellPrice(bestBuy)
 						appliedSell = appliedSell + 1
 					end
 				end
-				if bestSell > 0 and itemType.getBuyPrice and itemType.setBuyPrice then
+				if bestSell > 0 then
 					local current = math.floor(tonumber(itemType:getBuyPrice()) or 0)
 					if bestSell > current then
 						itemType:setBuyPrice(bestSell)

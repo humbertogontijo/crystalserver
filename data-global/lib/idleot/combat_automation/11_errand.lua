@@ -145,7 +145,7 @@ local function start(player, errand, opts)
 	errand.onDone = opts.onDone
 	errand.keepGoing = opts.keepGoing
 	errands[errand.playerId] = errand
-	if player.getFollowCreature and player:getFollowCreature() then
+	if player:getFollowCreature() then
 		player:setFollowCreature(nil)
 	end
 	if not watchdog then

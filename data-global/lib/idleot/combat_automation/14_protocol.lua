@@ -9,8 +9,8 @@ function CombatAutomationProtocol.sendConfig(player, config, opts)
 		or { enabled = false, stance = "melee", rangedDistance = 3 }
 	local payload = {
 		type = "automationConfig",
-		guid = player and player.getGuid and player:getGuid() or 0,
-		name = player and player.getName and player:getName() or nil,
+		guid = player and player:getGuid() or 0,
+		name = player and player:getName(),
 		autoTarget = {
 			enabled = at.enabled == true,
 			stance = at.stance or "melee",

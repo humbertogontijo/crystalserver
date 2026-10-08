@@ -176,7 +176,7 @@ local function raceName(raceId)
 	if raceId <= 0 then
 		return ""
 	end
-	local mtype = MonsterType and MonsterType(raceId)
+	local mtype = MonsterType(raceId)
 	if mtype and mtype.getName then
 		local ok, name = pcall(function()
 			return mtype:getName()
@@ -185,13 +185,11 @@ local function raceName(raceId)
 			return name
 		end
 	end
-	if Game and Game.getBestiaryList then
-		local ids = Game.getBestiaryList(false) or {}
-		local names = Game.getBestiaryList(true) or {}
-		for i, id in pairs(ids) do
-			if tonumber(id) == raceId then
-				return tostring(names[i] or "")
-			end
+	local ids = Game.getBestiaryList(false)
+	local names = Game.getBestiaryList(true)
+	for i, id in pairs(ids) do
+		if tonumber(id) == raceId then
+			return tostring(names[i] or "")
 		end
 	end
 	return ""
@@ -207,26 +205,8 @@ local function collectBestiaryRaceIds()
 			ids[#ids + 1] = raceId
 		end
 	end
-	if Game and Game.getBestiaryList then
-		local listed = Game.getBestiaryList(false)
-		if type(listed) == "table" then
-			for _, raceId in pairs(listed) do
-				push(raceId)
-			end
-		end
-		-- Some builds return ids keyed by raceId when called without bool.
-		if #ids == 0 then
-			listed = Game.getBestiaryList()
-			if type(listed) == "table" then
-				for k, v in pairs(listed) do
-					if type(v) == "number" then
-						push(v)
-					elseif type(k) == "number" and type(v) == "string" then
-						push(k)
-					end
-				end
-			end
-		end
+	for _, raceId in pairs(Game.getBestiaryList(false)) do
+		push(raceId)
 	end
 	return ids
 end
@@ -293,15 +273,9 @@ local function buildMonsterGrid(level, blacklist)
 			local exclusive = false
 			local exp = 1
 			if mtype then
-				if mtype.isPreyable then
-					preyable = mtype:isPreyable() ~= false
-				end
-				if mtype.isPreyExclusive then
-					exclusive = mtype:isPreyExclusive() == true
-				end
-				if mtype.experience then
-					exp = tonumber(mtype:experience()) or 1
-				end
+				preyable = mtype:isPreyable() ~= false
+				exclusive = mtype:isPreyExclusive() == true
+				exp = tonumber(mtype:experience()) or 1
 				if mtype.BestiaryStars then
 					stars = tonumber(mtype:BestiaryStars()) or 1
 				end
@@ -345,7 +319,7 @@ end
 
 local function applySlotUnlockRules(record, data)
 	local host = hostOf(record)
-	local hostPremium = host and host.isPremium and host:isPremium() == true or false
+	local hostPremium = host and host:isPremium() == true or false
 	local slot2 = data.prey[2]
 	if slot2 then
 		if hostPremium then
@@ -368,10 +342,8 @@ local function syncCombatCacheForPlayer(player, data)
 	if not player then
 		return
 	end
-	if player.clearTeamPreyBonuses then
-		player:clearTeamPreyBonuses()
-	end
-	if not data or not player.setTeamPreyBonus then
+	player:clearTeamPreyBonuses()
+	if not data then
 		return
 	end
 	for _, slot in ipairs(data.prey or {}) do
@@ -397,7 +369,7 @@ end
 
 --- A player left a lobby: drop that lobby's prey from their combat cache.
 function LobbyBonus.clearCombatCache(player)
-	if player and player.clearTeamPreyBonuses then
+	if player then
 		player:clearTeamPreyBonuses()
 	end
 end
@@ -452,13 +424,10 @@ local function payGold(player, amount)
 	if amount <= 0 then
 		return true
 	end
-	if player.removeMoneyBank then
-		if not player:removeMoneyBank(amount) then
-			return false, "Not enough gold."
-		end
-		return true
+	if not player:removeMoneyBank(amount) then
+		return false, "Not enough gold."
 	end
-	return false, "Gold payment unavailable."
+	return true
 end
 
 local function payPreyCards(player, amount)
@@ -466,11 +435,11 @@ local function payPreyCards(player, amount)
 	if amount <= 0 then
 		return true
 	end
-	local have = player.getPreyCards and player:getPreyCards() or 0
+	local have = player:getPreyCards() or 0
 	if have < amount then
 		return false, "Not enough Prey Wildcard cards."
 	end
-	if player.usePreyCards and player:usePreyCards(amount) then
+	if player:usePreyCards(amount) then
 		return true
 	end
 	-- Refuse rather than desync the card balance.
@@ -478,7 +447,7 @@ local function payPreyCards(player, amount)
 end
 
 function LobbyBonus.canManagePreySlot3(player)
-	return player ~= nil and player.preyThirdSlot ~= nil and player:preyThirdSlot() == true
+	return player ~= nil and player:preyThirdSlot() == true
 end
 
 function LobbyBonus.nextXpBoostPrice(data)
@@ -488,10 +457,7 @@ function LobbyBonus.nextXpBoostPrice(data)
 end
 
 local function configNumber(key, fallback)
-	if configManager and configManager.getNumber and key then
-		return configManager.getNumber(key) or fallback
-	end
-	return fallback
+	return configManager.getNumber(key) or fallback
 end
 
 function LobbyBonus.getWire(player, record)
@@ -567,14 +533,11 @@ function LobbyBonus.getWire(player, record)
 end
 
 local function vocationBaseId(src)
-	local voc = src and src.getVocation and src:getVocation() or nil
+	local voc = src and src:getVocation()
 	if not voc then
 		return nil
 	end
-	if voc.getBaseId then
-		return tonumber(voc:getBaseId())
-	end
-	return voc.getId and tonumber(voc:getId()) or nil
+	return tonumber(voc:getBaseId())
 end
 
 --- Expected party XP share for the lobby line-up (alts weigh half).
@@ -590,7 +553,7 @@ function LobbyBonus.computePartyXpPreview(record)
 		else
 			realCount = realCount + 1
 		end
-		local src = Player(m.guid) or (Game.getOfflinePlayer and Game.getOfflinePlayer(m.guid)) or nil
+		local src = Player(m.guid) or Game.getOfflinePlayer(m.guid)
 		local baseId = vocationBaseId(src)
 		if baseId and not unique[baseId] and uniqueCount < 4 then
 			unique[baseId] = true

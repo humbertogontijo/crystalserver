@@ -163,7 +163,7 @@ end
 --- BossLever:spawnForm hook: later forms of a chained lever fight join the session
 --- running that lever in the form's instance.
 local function onLeverFormSpawned(monster, lever)
-	if not monster or not monster.getInstanceId or not ExpeditionManager then
+	if not monster or not ExpeditionManager then
 		return
 	end
 	local instanceId = monster:getInstanceId()
@@ -353,7 +353,7 @@ local function isLeverBossMonster(monster, lever)
 		return true
 	end
 	local mType = monster:getType()
-	return mType and mType.isRewardBoss and mType:isRewardBoss() or false
+	return mType and mType:isRewardBoss() or false
 end
 
 --- Run the lever's own spawn inside the private instance and bind what it created.
@@ -550,7 +550,7 @@ end
 --- Lever boss session fighting in `creature`'s instance when `creature` is that lever's
 --- final boss (covers forms the session never bound, e.g. script-respawned ones).
 local function unownedFinalBossSession(creature)
-	if not creature.getInstanceId or not ExpeditionManager.getSessionByInstanceId then
+	if not ExpeditionManager.getSessionByInstanceId then
 		return nil
 	end
 	local session = ExpeditionManager.getSessionByInstanceId(creature:getInstanceId())

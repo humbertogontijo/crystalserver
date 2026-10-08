@@ -34,7 +34,7 @@ end
 
 --- Drop deferred walk-then-act so Creature:autoWalk is not permanently blocked.
 local function clearPendingWalkAction(creature)
-	if creature and creature.clearWalkTask then
+	if creature then
 		creature:clearWalkTask()
 	end
 end
@@ -59,7 +59,7 @@ local function logWalkFail(creature, dest, reason, extra)
 	if not logger or not logger.warn then
 		return
 	end
-	local id = creature and creature.getId and creature:getId() or 0
+	local id = creature and creature:getId() or 0
 	local key = string.format("%s:%s", tostring(reason), walkDestKey(dest) or "?")
 	local now = nowMs()
 	local prev = lastPathFailLogById[id]
@@ -67,8 +67,8 @@ local function logWalkFail(creature, dest, reason, extra)
 		return
 	end
 	lastPathFailLogById[id] = { key = key, at = now }
-	local from = creature and creature.getPosition and creature:getPosition() or nil
-	local name = creature and creature.getName and creature:getName() or "?"
+	local from = creature and creature:getPosition()
+	local name = creature and creature:getName() or "?"
 	local instanceId = Instance.of(creature)
 	logger.warn(
 		"[CombatAutomation] {} {} from {} to {} dist={} instance={}{}",
@@ -122,7 +122,7 @@ end
 --- failed search (see `walkBlocked`) without a warning.
 --- `quiet` = never warn (halt tile walks: the caller repicks on `walkBlocked`).
 function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreConditions, reach, quiet, minReach)
-	if not creature or not dest or not creature.autoWalk then
+	if not creature or not dest then
 		return false
 	end
 	local ppos = creature:getPosition()
@@ -150,7 +150,7 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 
 	-- A pending walk-then-act (Use / use-with) owns the path until it fires or fails.
 	-- Do not clear it for soft repaths — that broke echo portal / tame under idle combat.
-	if creature.hasWalkTask and creature:hasWalkTask() then
+	if creature:hasWalkTask() then
 		if not force and not ignoreConditions then
 			return true
 		end
@@ -193,7 +193,7 @@ function CombatAutomationMovement.queueWalkToward(creature, dest, force, ignoreC
 	end
 
 	-- Walk refused (e.g. walkTask raced in): clear and retry once with force.
-	if creature.hasWalkTask and creature:hasWalkTask() then
+	if creature:hasWalkTask() then
 		clearPendingWalkAction(creature)
 		if creature:autoWalk(path, 0, true, true) == true then
 			lastQueuedWalkById[id] = { key = key, at = now, posKey = pkey }
@@ -212,7 +212,7 @@ end
 --- MANUAL_CONTROL_MS old. With `sinceMs`, only steps taken after it
 --- count (an errand ignores the steps that came before it).
 function CombatAutomationMovement.isManual(player, sinceMs)
-	if not player or not player.isManualControl then
+	if not player then
 		return false
 	end
 	local graceMs = settings.MANUAL_CONTROL_MS
@@ -225,7 +225,7 @@ local isManual = CombatAutomationMovement.isManual
 
 --- Never drops a follow the player started (manual control).
 local function clearFollowIfAny(player)
-	if player and player.getFollowCreature and player:getFollowCreature() and not isManual(player) then
+	if player and player:getFollowCreature() and not isManual(player) then
 		player:setFollowCreature(nil)
 	end
 end
@@ -267,7 +267,7 @@ local function walkTowardCreature(player, creature, reach, maxSearch)
 	if type(path) ~= "table" or #path == 0 then
 		return false
 	end
-	if stuck and player.clearWalkTask then
+	if stuck then
 		player:clearWalkTask()
 	end
 	if player:autoWalk(path, 0, stuck and true or false, true) == true then
@@ -275,13 +275,6 @@ local function walkTowardCreature(player, creature, reach, maxSearch)
 		return true
 	end
 	return false
-end
-
-local function sightClear(player, from, to)
-	if not from.isSightClear then
-		return true
-	end
-	return from:isSightClear(to, true, Instance.of(player))
 end
 
 --- Reposition attempts (danger dodges, formation steps) at most this often.

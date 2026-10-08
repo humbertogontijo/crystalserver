@@ -51,7 +51,7 @@ function TokenMarket.quote(player, tokenId, n, useCarried)
 	end
 	local rest = n - quote.carried
 	local unit = fallbackPrice(tokenId)
-	if rest > 0 and Game.quoteMarketSellOffers then
+	if rest > 0 then
 		local amount, gold = Game.quoteMarketSellOffers(player, tokenId, rest, unit)
 		quote.market = amount or 0
 		quote.marketGold = gold or 0
@@ -88,7 +88,7 @@ function TokenMarket.acquire(player, tokenId, n, extraGold)
 	end
 
 	local bought, paid = 0, 0
-	if q.market > 0 and Game.consumeMarketSellOffers then
+	if q.market > 0 then
 		bought, paid = Game.consumeMarketSellOffers(player, tokenId, q.market, fallbackPrice(tokenId))
 	end
 

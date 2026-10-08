@@ -32,7 +32,7 @@ function CavebotPack.release(run, mid)
 end
 
 function CavebotPack.targetsMember(monster, members)
-	local target = monster.getTarget and monster:getTarget() or nil
+	local target = monster:getTarget()
 	return target ~= nil and members[target:getId()] == true
 end
 local targetsMember = CavebotPack.targetsMember

@@ -184,7 +184,7 @@ function LobbyRoomStamp.shell(variant)
 	for ly = 0, LobbyConfig.ROOM_FLOOR_H - 1 do
 		for lx = 0, LobbyConfig.ROOM_FLOOR_W - 1 do
 			local tile = ensureGround(Position(fo.x + lx, fo.y + ly, fo.z), floorId)
-			if tile and tile.setFlag then
+			if tile then
 				tile:setFlag(TILESTATE_PROTECTIONZONE)
 			end
 		end
@@ -273,7 +273,7 @@ function LobbyRoomStamp.leverCenter(variant, lever)
 			end
 			clearItems(dst)
 			local tile = ensureGround(dst, groundId)
-			if tile and tile.setFlag then
+			if tile then
 				tile:setFlag(TILESTATE_PROTECTIONZONE)
 			end
 			for _, id in ipairs(copies) do

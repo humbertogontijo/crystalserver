@@ -42,7 +42,7 @@ end
 
 --- Room the player is standing in (by engine instance id and the room's current variant), if any.
 function LobbyInstance.roomForPlayer(player)
-	if not player or not player.getInstanceId then
+	if not player then
 		return nil
 	end
 	local room = LobbyInstance.roomByInstanceId(player:getInstanceId())
@@ -187,7 +187,7 @@ end
 
 --- Lever slot of `player` in a lever-boss room (member order), nil when none or taken.
 local function slotPosition(room, record, player, taken)
-	if not room.slots or not player.getGuid then
+	if not room.slots then
 		return nil
 	end
 	local index = memberIndex(record, player:getGuid())
@@ -250,14 +250,14 @@ local function removeInstanceThings(room)
 			local tile = Tile(Position(o.x + lx, o.y + ly, o.z))
 			if tile then
 				for _, c in ipairs(tile:getCreatures() or {}) do
-					if not c:isPlayer() and c.getInstanceId and c:getInstanceId() == room.instanceId then
+					if not c:isPlayer() and c:getInstanceId() == room.instanceId then
 						c:remove()
 					end
 				end
 				local items = tile:getItems() or {}
 				for i = #items, 1, -1 do
 					local it = items[i]
-					if it and it.getInstanceId and it:getInstanceId() == room.instanceId then
+					if it and it:getInstanceId() == room.instanceId then
 						it:remove()
 					end
 				end
@@ -391,12 +391,12 @@ function LobbyInstance.enterNow(creature, record, opts)
 	if not room then
 		return false, err
 	end
-	local player = creature.getPlayer and creature:getPlayer() or creature
+	local player = creature:getPlayer() or creature
 	local alreadyIn = LobbyInstance.isInRoom(player, record)
 	if alreadyIn and not opts.position then
 		return true
 	end
-	if player and player.isPlayer and player:isPlayer() and not alreadyIn then
+	if player and player:isPlayer() and not alreadyIn then
 		saveReturnPos(player)
 	end
 	local dest = opts.position or LobbyInstance.arrivalPosition(room, record, player)

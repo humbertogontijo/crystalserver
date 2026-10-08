@@ -92,10 +92,7 @@ function ProductHirelingSync.loadAllFromDatabase()
 end
 
 function ProductHirelingSync.ensurePlayerHirelingsLoaded(player)
-	if not player or not player.isPlayer or not player:isPlayer() then
-		return false
-	end
-	if not player.hasHirelings then
+	if not player or not player:isPlayer() then
 		return false
 	end
 	if player:hasHirelings() then

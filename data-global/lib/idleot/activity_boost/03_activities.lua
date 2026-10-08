@@ -1,7 +1,7 @@
 ActivityBoostActivities = ActivityBoostActivities or {}
 
 local function kv(player)
-	if not player or not player.kv then
+	if not player then
 		return nil
 	end
 	return player:kv():scoped(ActivityBoostConfig.KV_SCOPE)

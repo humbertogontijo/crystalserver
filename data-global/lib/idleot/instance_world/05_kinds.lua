@@ -141,12 +141,8 @@ function InstanceKinds.onPrepareDeath(player)
 	end
 	local rules = InstanceKinds.rulesFor(player)
 	if rules.deathPenalty == false then
-		if player.setDropLoot then
-			player:setDropLoot(false)
-		end
-		if player.setSkillLoss then
-			player:setSkillLoss(false)
-		end
+		player:setDropLoot(false)
+		player:setSkillLoss(false)
 	end
 	return true
 end

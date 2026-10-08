@@ -343,7 +343,7 @@ local function retreatIfCritical(player, state)
 		state.retreating = nil
 		return false
 	end
-	local anchor = player.getPathLeashAnchor and player:getPathLeashAnchor() or nil
+	local anchor = player:getPathLeashAnchor()
 	local best, bestThreat, bestAnchor = nil, here, nil
 	for _, off in ipairs(geo.NEIGHBOUR_OFFSETS) do
 		local pos = Position(ppos.x + off[1], ppos.y + off[2], ppos.z)

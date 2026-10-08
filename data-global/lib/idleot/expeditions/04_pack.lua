@@ -55,8 +55,8 @@ end
 -- ---------------------------------------------------------------------------
 
 local function raceOf(monster)
-	local mType = monster.getType and monster:getType() or nil
-	return mType and mType.raceId and (tonumber(mType:raceId()) or 0) or 0
+	local mType = monster:getType()
+	return mType and (tonumber(mType:raceId()) or 0) or 0
 end
 
 local function isFiendishHunt(session)
@@ -81,13 +81,11 @@ local function routeSightKey(route, pos)
 end
 
 local function makeFiendish(session, monster)
-	if not monster or not monster.setMonsterForgeClassification then
+	if not monster then
 		return false
 	end
 	monster:setMonsterForgeClassification(FORGE_FIENDISH)
-	if monster.configureForgeSystem then
-		monster:configureForgeSystem()
-	end
+	monster:configureForgeSystem()
 	session.forcedFiendishId = monster:getId()
 	return true
 end
@@ -101,7 +99,7 @@ function ExpeditionPack.applyForcedFiendish(session)
 	local best, bestKey, fallback, fallbackKey = nil, math.huge, nil, math.huge
 	for mid in pairs(session.tracked or {}) do
 		local monster = Monster(mid)
-		if monster and monster:getHealth() > 0 and (not monster.isForgeable or monster:isForgeable()) then
+		if monster and monster:getHealth() > 0 and monster:isForgeable() then
 			local key = route and routeSightKey(route, monster:getPosition()) or 0
 			if raceOf(monster) == targetRace then
 				if not best or key < bestKey then
@@ -144,7 +142,7 @@ end
 -- ---------------------------------------------------------------------------
 
 function ExpeditionPack.onInstanceMonsterSpawn(monster, _position)
-	if not monster or not monster.getInstanceId then
+	if not monster then
 		return
 	end
 	local instanceId = monster:getInstanceId()
@@ -246,7 +244,7 @@ function ExpeditionPack.spawn(session)
 		session.populated = nil
 		session.forcedFiendishId = nil
 		session.fiendishKilled = nil
-		local blocks = Game.createInstanceSpawns and Game.createInstanceSpawns(instanceId) or 0
+		local blocks = Game.createInstanceSpawns(instanceId)
 		session.spawnBlocks = blocks
 		session.populated = true
 		if blocks <= 0 then

@@ -6,14 +6,14 @@ PzTeleport.FAIL_MESSAGE = "You can only teleport from a protection zone."
 PzTeleport.PZ_LOCKED_MESSAGE = "You cannot teleport while PZ-locked."
 
 function PzTeleport.isGod(player)
-	if not player or not player.getGroup then
+	if not player then
 		return false
 	end
 	local group = player:getGroup()
-	if not group or not group.getId then
+	if not group then
 		return false
 	end
-	local godId = GROUP_TYPE_GOD or 6
+	local godId = GROUP_TYPE_GOD
 	return group:getId() == godId
 end
 
@@ -33,7 +33,7 @@ function PzTeleport.isCombatLocked(player)
 	if not player then
 		return true
 	end
-	return player.isPzLocked and player:isPzLocked() and true or false
+	return player:isPzLocked() and true or false
 end
 
 function PzTeleport.isAllowed(player)

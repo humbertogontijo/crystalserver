@@ -22,13 +22,7 @@ local function collectOwnedItemIds(player)
 			return
 		end
 		owned[item:getId()] = true
-		if item.getClientId then
-			local clientId = item:getClientId()
-			if clientId and clientId > 0 then
-				owned[clientId] = true
-			end
-		end
-		if item.isContainer and item:isContainer() then
+		if item:isContainer() then
 			local size = item:getSize() or 0
 			for i = 0, size - 1 do
 				scan(item:getItem(i))
@@ -41,9 +35,7 @@ local function collectOwnedItemIds(player)
 	end
 
 	-- Account-scoped loot pouch (slot 12 is only an empty handle).
-	if player.getLootPouch then
-		scan(player:getLootPouch())
-	end
+	scan(player:getLootPouch())
 
 	return owned
 end

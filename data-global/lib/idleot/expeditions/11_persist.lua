@@ -19,9 +19,6 @@ function ExpeditionPersist.sessionKeyFromHostGuid(hostGuid)
 end
 
 function ExpeditionPersist.isServerShuttingDown()
-	if not Game or not Game.getGameState then
-		return false
-	end
 	local state = Game.getGameState()
 	return state == GAME_STATE_SHUTDOWN or state == GAME_STATE_CLOSED
 end
@@ -75,7 +72,7 @@ function ExpeditionPersist.snapshotFromSession(session)
 	if host and host:getGuid() == hostGuid then
 		accountId = host:getAccountId()
 	else
-		local offline = Game.getOfflinePlayer and Game.getOfflinePlayer(hostGuid)
+		local offline = Game.getOfflinePlayer(hostGuid)
 		accountId = offline and offline:getAccountId() or 0
 	end
 
@@ -142,8 +139,8 @@ local function setMemberPointer(guid, sessionKey)
 	if guid <= 0 then
 		return
 	end
-	local offline = Game.getOfflinePlayer and Game.getOfflinePlayer(guid)
-	if offline and offline.kv then
+	local offline = Game.getOfflinePlayer(guid)
+	if offline then
 		local kvStore = offline:kv()
 		if kvStore then
 			if sessionKey then
@@ -154,7 +151,7 @@ local function setMemberPointer(guid, sessionKey)
 		end
 	end
 	local online = Alts and Alts.findOnlinePlayerByGuid and Alts.findOnlinePlayerByGuid(guid)
-	if online and online.kv then
+	if online then
 		local kvStore = online:kv()
 		if kvStore then
 			if sessionKey then
@@ -209,7 +206,7 @@ local function snapshotAccountId(snapshot)
 	if accountId > 0 then
 		return accountId
 	end
-	local offline = Game.getOfflinePlayer and Game.getOfflinePlayer(math.floor(tonumber(snapshot.hostGuid) or 0))
+	local offline = Game.getOfflinePlayer(math.floor(tonumber(snapshot.hostGuid) or 0))
 	accountId = offline and offline:getAccountId() or 0
 	snapshot.accountId = accountId
 	return accountId

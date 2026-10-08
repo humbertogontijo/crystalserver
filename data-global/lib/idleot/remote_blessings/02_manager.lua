@@ -60,7 +60,7 @@ local function resolveTarget(controller, nameOrGuid)
 end
 
 local function saveIfNeeded(player)
-	if not player or not player.save then
+	if not player then
 		return
 	end
 	local live = Player(player:getName())
@@ -81,7 +81,7 @@ local function charge(controller, price)
 end
 
 function RemoteBlessings.getAutoRebuy(player)
-	if not player or not player.kv then
+	if not player then
 		return false
 	end
 	local v = player:kv():get(RemoteBlessingsConfig.KV_AUTO_REBUY)
@@ -89,7 +89,7 @@ function RemoteBlessings.getAutoRebuy(player)
 end
 
 function RemoteBlessings.setAutoRebuy(player, enabled)
-	if not player or not player.kv then
+	if not player then
 		return
 	end
 	player:kv():set(RemoteBlessingsConfig.KV_AUTO_REBUY, enabled and 1 or 0)
@@ -99,14 +99,8 @@ local function dialogSnapshot(player)
 	local blesses = {}
 	local blessCount = 0
 	for id = 1, 8 do
-		local playerCount = 0
-		local storeCount = 0
-		if player.getBlessingCount then
-			playerCount = tonumber(player:getBlessingCount(id)) or 0
-			storeCount = tonumber(player:getBlessingCount(id, true)) or 0
-		elseif player.hasBlessing and player:hasBlessing(id) then
-			playerCount = 1
-		end
+		local playerCount = tonumber(player:getBlessingCount(id)) or 0
+		local storeCount = tonumber(player:getBlessingCount(id, true)) or 0
 		if id > 1 and (playerCount + storeCount) >= 1 then
 			blessCount = blessCount + 1
 		end
@@ -117,11 +111,9 @@ local function dialogSnapshot(player)
 		}
 	end
 
-	local promoted = player.isPromoted and player:isPromoted() == true
+	local promoted = player:isPromoted() == true
 	local premium = false
-	if player.isPremium then
-		premium = player:isPremium() == true
-	end
+	premium = player:isPremium() == true
 	local skillReduction = math.floor(8 * blessCount)
 	local promotionReduction = promoted and 30 or 0
 	local minReduction = skillReduction + promotionReduction
@@ -133,15 +125,13 @@ local function dialogSnapshot(player)
 	end
 
 	local skull = 0
-	if player.getSkull then
-		local s = player:getSkull()
-		if s == SKULL_RED or s == SKULL_BLACK then
-			skull = 1
-			equipLoss = 100
-		end
+	local s = player:getSkull()
+	if s == SKULL_RED or s == SKULL_BLACK then
+		skull = 1
+		equipLoss = 100
 	end
 	local aol = 0
-	local neck = player.getSlotItem and player:getSlotItem(CONST_SLOT_NECKLACE)
+	local neck = player:getSlotItem(CONST_SLOT_NECKLACE)
 	if neck and neck:getId() == (ITEM_AMULETOFLOSS or 3057) then
 		aol = 1
 		if skull == 0 then
