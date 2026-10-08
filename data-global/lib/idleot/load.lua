@@ -3,6 +3,7 @@
 -- Instance helpers InstanceWorld needs at load time.
 dofile(DATA_DIRECTORY .. "/lib/idleot/core/load.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/stages.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/boss_lever.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/pz_teleport.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/custom_effects.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/knight_challenge.lua")
