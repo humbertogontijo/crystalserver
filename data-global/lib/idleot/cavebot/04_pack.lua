@@ -152,6 +152,36 @@ function CavebotPack.chasers(run, members, anchorPos, now, includeStuck)
 	return out
 end
 
+--- One tick's view of the pack, shared by adoptEngaged, lureCount and the leash: `aggro`
+--- = live monsters (not summons) targeting a member on the anchor's screen (on every
+--- member's screen with `allMembers`), each once; `chasers` (CavebotPack.chasers with the
+--- stuck ones) is filled in by Cavebot.step once the pack is tracked.
+function CavebotPack.snapshot(run, anchor, members, allMembers)
+	local vx, vy = geo.VIEWPORT_X, geo.VIEWPORT_Y
+	local aggro, seen = {}, {}
+	local function scan(viewer)
+		for _, creature in ipairs(Game.getSpectators(viewer:getPosition(), false, false, vx, vx, vy, vy, viewer:getInstanceId())) do
+			local mid = creature:getId()
+			if not seen[mid] then
+				seen[mid] = true
+				if creature:isMonster() and creature:getHealth() > 0 and not creature:getMaster() and targetsMember(creature, members) then
+					aggro[#aggro + 1] = creature
+				end
+			end
+		end
+	end
+	scan(anchor)
+	if allMembers then
+		for id in pairs(members) do
+			local member = id ~= anchor:getId() and Player(id)
+			if member then
+				scan(member)
+			end
+		end
+	end
+	return { now = nowMs(), aggro = aggro, chasers = {} }
+end
+
 local function memberPlayers(members, anchor)
 	local players = {}
 	for id in pairs(members) do
@@ -167,15 +197,15 @@ local function memberPlayers(members, anchor)
 end
 
 --- What the lure counts: live monsters (not summons) on the anchor's screen that target
---- a member and that some member can attack, plus every chaser (`CavebotPack.chasers`)
---- on a member off that screen but on that member's screen, each once. An idle monster or one on another player
---- never follows the walk; one behind a wall (no clear shot from anyone) or sealed on an
---- island never arrives, so counting them would hold a halt forever.
---- `members`: set of member ids. Returns the count and the load: their summed health
---- fractions (two monsters at half health weigh as one).
-function CavebotPack.lureCount(run, anchor, members)
+--- a member and that some member can attack, plus every chaser (`pack.chasers`, not
+--- given up on) on a member off that screen but on that member's screen, each once. An
+--- idle monster or one on another player never follows the walk; one behind a wall (no
+--- clear shot from anyone) or sealed on an island never arrives, so counting them would
+--- hold a halt forever. `pack`: CavebotPack.snapshot; `members`: set of member ids.
+--- Returns the count and the load: their summed health fractions (two monsters at half
+--- health weigh as one).
+function CavebotPack.lureCount(pack, anchor, members)
 	local pos = anchor:getPosition()
-	local vx, vy = geo.VIEWPORT_X, geo.VIEWPORT_Y
 	local players = memberPlayers(members, anchor)
 	local n, load, counted = 0, 0, {}
 	local function count(monster)
@@ -183,8 +213,9 @@ function CavebotPack.lureCount(run, anchor, members)
 		n = n + 1
 		load = load + monster:getHealth() / math.max(1, monster:getMaxHealth())
 	end
-	for _, creature in ipairs(Game.getSpectators(pos, false, false, vx, vx, vy, vy, anchor:getInstanceId())) do
-		if creature:isMonster() and creature:getHealth() > 0 and not creature:getMaster() and targetsMember(creature, members) and not sealedIn(creature:getPosition(), creature:getInstanceId()) then
+	for _, creature in ipairs(pack.aggro) do
+		local mpos = creature:getPosition()
+		if geo.isInViewport(pos, mpos) and not sealedIn(mpos, creature:getInstanceId()) then
 			for _, member in ipairs(players) do
 				if CombatAutomation.isValidAttackTarget(member, creature) then
 					count(creature)
@@ -193,8 +224,8 @@ function CavebotPack.lureCount(run, anchor, members)
 			end
 		end
 	end
-	for _, chaser in ipairs(CavebotPack.chasers(run, members, pos, nowMs())) do
-		if not counted[chaser.monster:getId()] then
+	for _, chaser in ipairs(pack.chasers) do
+		if not counted[chaser.monster:getId()] and (chaser.state.lagStuckUntil or 0) <= pack.now then
 			count(chaser.monster)
 		end
 	end
@@ -205,24 +236,19 @@ end
 -- Open-world runs: aggro-based tracking
 -- ---------------------------------------------------------------------------
 
---- Track monsters (not summons) on a member's screen that target a member; drop
---- tracked monsters that are neither engaged nor on the party any more.
-function CavebotPack.adoptEngaged(run, members)
-	local vx, vy = geo.VIEWPORT_X, geo.VIEWPORT_Y
+--- Track monsters (not summons) on a member's screen that target a member (`pack.aggro`,
+--- a snapshot over every member); drop tracked monsters that are neither engaged nor on
+--- the party any more.
+function CavebotPack.adoptEngaged(run, members, pack)
 	local seen = {}
-	for id in pairs(members) do
-		local member = Player(id)
-		if member then
-			for _, creature in ipairs(Game.getSpectators(member:getPosition(), false, false, vx, vx, vy, vy, member:getInstanceId())) do
-				local mid = creature:getId()
-				if creature:isMonster() and creature:getHealth() > 0 and not creature:getMaster() and targetsMember(creature, members) and not ownedByOther(run, mid) then
-					seen[mid] = true
-					if not run.tracked[mid] then
-						run.tracked[mid] = true
-						owners[mid] = run.id
-						creature:registerEvent("CavebotMonsterDeath")
-					end
-				end
+	for _, creature in ipairs(pack.aggro) do
+		local mid = creature:getId()
+		if not ownedByOther(run, mid) then
+			seen[mid] = true
+			if not run.tracked[mid] then
+				run.tracked[mid] = true
+				owners[mid] = run.id
+				creature:registerEvent("CavebotMonsterDeath")
 			end
 		end
 	end

@@ -19,6 +19,35 @@ end
 
 logoutEvent:register()
 
+-- Party changes regroup open-world runs (CavebotService regroups on the next tick, once
+-- the change is applied: these callbacks run before it and only allow it).
+local partyJoin = EventCallback("CavebotPartyJoin")
+
+function partyJoin.partyOnJoin(_party, player)
+	CavebotService.onMembershipChange(player)
+	return true
+end
+
+partyJoin:register()
+
+local partyLeave = EventCallback("CavebotPartyLeave")
+
+function partyLeave.partyOnLeave(_party, player)
+	CavebotService.onMembershipChange(player)
+	return true
+end
+
+partyLeave:register()
+
+local partyDisband = EventCallback("CavebotPartyDisband")
+
+function partyDisband.partyOnDisband(_party)
+	CavebotService.requestRegroup()
+	return true
+end
+
+partyDisband:register()
+
 -- Open-world runs: monsters adopted by CavebotPack.adoptEngaged.
 local monsterDeath = CreatureEvent("CavebotMonsterDeath")
 

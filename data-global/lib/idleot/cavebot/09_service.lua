@@ -5,10 +5,17 @@
 -- paused anchor is never replaced. Members get idle combat (250 ms think cadence,
 -- manual-control detection) while they are in a run; a disconnected member leaves it.
 -- Monsters are tracked only once they target a member (CavebotPack.adoptEngaged).
+--
+-- Each run walks on its own Scope loop (Cavebot.step every CavebotConfig.TICK_MS). Runs
+-- are regrouped only when something changes who walks with whom: the cavebot or AUTO
+-- attack toggled, a logout, a party join / leave / disband, a player changing layer
+-- (player.instanceChanged), or a run tick finding a member that no longer fits its run
+-- (dead, another layer or party leader, in an expedition). Enrolled players outside every
+-- run are looked at again every WAITING_RECHECK_MS.
 
 CavebotService = CavebotService or {}
 
--- playerId -> true: cavebot flag and AUTO attack on (checked for a layer every tick)
+-- playerId -> true: cavebot flag and AUTO attack on
 local enrolled = {}
 -- runId -> run
 local runs = {}
@@ -16,7 +23,11 @@ local runs = {}
 local runOf = {}
 -- playerId -> true: idle combat turned on by the service
 local idleOwned = {}
-local tickEvent = nil
+local regroupEvent, recheckEvent = nil, nil
+
+-- Enrolled players outside every run (dead, in a city, ...) are checked again this often:
+-- a revival in place changes nothing the events above see.
+local WAITING_RECHECK_MS = 5000
 
 local function groupLeaderId(player)
 	local party = player:getParty()
@@ -49,6 +60,10 @@ local function eligibleLayer(player)
 	return key
 end
 
+local function runIdOf(player, key)
+	return string.format("%s|%d", key, groupLeaderId(player))
+end
+
 local function ownIdleCombat(player)
 	if not player:isIdleCombat() then
 		player:setIdleCombat(true)
@@ -77,25 +92,20 @@ local function releaseMember(id)
 	CavebotProtocol.sendState(player)
 end
 
-local function newRun(runId, instanceKey)
-	local run = {
-		open = true,
-		id = runId,
-		instanceId = instanceKey,
-		ids = {},
-		tracked = {},
-		engaged = {},
-		releasedUntil = {},
-		kills = 0,
-	}
-	runs[runId] = run
-	return run
-end
-
-local function closeRun(run)
-	runs[run.id] = nil
-	CavebotPack.clearOwners(run.id)
-end
+--- Open-world runs as cavebot hosts (cavebot/02_run.lua).
+local openHost = {
+	memberIds = function(run)
+		return run.ids or {}
+	end,
+	anchor = function(run)
+		local anchor = run.anchorPlayerId and Player(run.anchorPlayerId)
+		return anchor and anchor:getHealth() > 0 and anchor or nil
+	end,
+	route = function(run)
+		return run.route
+	end,
+	adopt = true,
+}
 
 local function resetWalk(run)
 	run.cave = nil
@@ -104,8 +114,8 @@ local function resetWalk(run)
 end
 
 --- Keep the anchor while it is a living member; else elect (Cavebot.bestAnchor).
-local function electAnchor(run, members)
-	local current = run.anchorPlayerId and members[run.anchorPlayerId] and Player(run.anchorPlayerId)
+local function electAnchor(run)
+	local current = run.anchorPlayerId and runOf[run.anchorPlayerId] == run.id and Player(run.anchorPlayerId)
 	if current and current:getHealth() > 0 then
 		return current
 	end
@@ -149,21 +159,38 @@ local function ensureRoute(run, anchor)
 	return route ~= nil
 end
 
-local function tickRun(run)
-	local members = Cavebot.memberSet(run)
+local regroup
+
+--- Regroup on the next tick (several changes in one tick regroup once).
+function CavebotService.requestRegroup()
+	if not regroupEvent then
+		regroupEvent = addEvent(regroup, 0)
+	end
+end
+
+--- True while every member still belongs to this run (alive, same layer and leader).
+local function membersFit(run)
 	for _, id in ipairs(run.ids) do
 		local player = Player(id)
-		if player then
-			ownIdleCombat(player)
+		local key = player and eligibleLayer(player)
+		if not key or runIdOf(player, key) ~= run.id then
+			return false
 		end
 	end
-	local anchor = electAnchor(run, members)
+	return true
+end
+
+local function stepRun(run)
+	if not membersFit(run) then
+		return CavebotService.requestRegroup()
+	end
+	for _, id in ipairs(run.ids) do
+		ownIdleCombat(Player(id))
+	end
+	local anchor = electAnchor(run)
 	if not anchor or not ensureRoute(run, anchor) then
 		for _, id in ipairs(run.ids) do
-			local player = Player(id)
-			if player then
-				CombatAutomationMovement.clearDirective(player)
-			end
+			CombatAutomationMovement.clearDirective(Player(id))
 		end
 		return
 	end
@@ -171,17 +198,37 @@ local function tickRun(run)
 		Cavebot.start(run)
 		Cavebot.resume(run, anchor)
 	end
-	Cavebot.syncManual(run)
-	CavebotPack.adoptEngaged(run, members)
-	CavebotPack.tickPack(run, anchor:getPosition(), members)
-	Cavebot.tick(run, anchor, members)
-	Cavebot.syncDirectives(run)
+	Cavebot.step(run)
 end
 
-local schedule
+local function newRun(runId, instanceKey)
+	local run = {
+		open = true,
+		host = openHost,
+		id = runId,
+		instanceId = instanceKey,
+		ids = {},
+		tracked = {},
+		engaged = {},
+		releasedUntil = {},
+		kills = 0,
+	}
+	run.scope = Scope.new({ name = "cavebot:" .. runId, instanceId = instanceKey })
+	run.scope:every(CavebotConfig.TICK_MS, function()
+		stepRun(run)
+	end)
+	runs[runId] = run
+	return run
+end
 
-local function tick()
-	tickEvent = nil
+local function closeRun(run)
+	runs[run.id] = nil
+	run.scope:dispose()
+	CavebotPack.clearOwners(run.id)
+end
+
+regroup = function()
+	regroupEvent = nil
 	local groups = {}
 	for id in pairs(enrolled) do
 		local player = Player(id)
@@ -190,7 +237,7 @@ local function tick()
 		else
 			local key = eligibleLayer(player)
 			if key then
-				local runId = string.format("%s|%d", key, groupLeaderId(player))
+				local runId = runIdOf(player, key)
 				local group = groups[runId]
 				if not group then
 					group = { key = key, ids = {}, set = {} }
@@ -222,14 +269,19 @@ local function tick()
 				CavebotProtocol.sendState(Player(id))
 			end
 		end
-		tickRun(run)
 	end
-	schedule()
-end
-
-schedule = function()
-	if not tickEvent and next(enrolled) then
-		tickEvent = addEvent(tick, CavebotConfig.TICK_MS)
+	local waiting = false
+	for id in pairs(enrolled) do
+		if not runOf[id] then
+			waiting = true
+			break
+		end
+	end
+	if waiting and not recheckEvent then
+		recheckEvent = addEvent(function()
+			recheckEvent = nil
+			CavebotService.requestRegroup()
+		end, WAITING_RECHECK_MS)
 	end
 end
 
@@ -266,15 +318,21 @@ function CavebotService.refresh(player)
 	local id = player:getId()
 	if CavebotStore.isEnabled(player) then
 		enrolled[id] = true
-		schedule()
 	else
 		enrolled[id] = nil
-		if runOf[id] then
-			releaseMember(id)
-		end
 	end
+	CavebotService.requestRegroup()
 	CavebotProtocol.sendState(player)
 end
+
+--- A party or layer change of `player`: regroup when it (or its party) runs the cavebot.
+function CavebotService.onMembershipChange(player)
+	if player and (enrolled[player:getId()] or runOf[player:getId()]) then
+		CavebotService.requestRegroup()
+	end
+end
+
+IdleEvents.on("player.instanceChanged", CavebotService.onMembershipChange, "CavebotService")
 
 function CavebotService.onLogout(player)
 	local id = player:getId()
@@ -285,4 +343,5 @@ function CavebotService.onLogout(player)
 	idleOwned[id] = nil
 	CavebotStore.forget(player)
 	CavebotProtocol.forget(player)
+	CavebotService.requestRegroup()
 end

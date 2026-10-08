@@ -17,6 +17,8 @@
 --   monster.died (monster, killer)                     product-tracked monster died (expeditions, raids)
 --   zone.itemAdded (zone, item)                        item placed inside a zone
 --   zone.itemRemoved (zone, item)                      item removed from a zone (transform: removed then added)
+--   player.instanceChanged (player)                    player bound to another instance / layer (or its
+--                                                      client re-attached); InstanceWorld bounds hook
 --   player.walkDone (player, completed)                the player's queued walk ran out or was cancelled
 --                                                      (next tick; any walk, scripted or client)
 --

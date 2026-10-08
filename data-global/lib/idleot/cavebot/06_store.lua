@@ -8,8 +8,17 @@ CavebotStore = CavebotStore or {}
 
 local PAUSE_MS_DEFAULT = 3000
 
--- playerId -> pausedUntil (ms)
+-- playerId -> pausedUntil (ms); cleared by the pause's own timer (pauseEvents)
 local pausedUntil = {}
+local pauseEvents = {}
+
+local function endPause(id)
+	pausedUntil[id] = nil
+	if pauseEvents[id] then
+		stopEvent(pauseEvents[id])
+		pauseEvents[id] = nil
+	end
+end
 
 local function autoTargetOf(player)
 	if not player then
@@ -45,24 +54,22 @@ function CavebotStore.pauseMs()
 end
 
 function CavebotStore.pause(player)
-	if player then
-		pausedUntil[player:getId()] = CombatGeo.nowMs() + CavebotStore.pauseMs()
+	if not player then
+		return
 	end
+	local id, ms = player:getId(), CavebotStore.pauseMs()
+	endPause(id)
+	pausedUntil[id] = CombatGeo.nowMs() + ms
+	pauseEvents[id] = addEvent(function()
+		pauseEvents[id] = nil
+		pausedUntil[id] = nil
+	end, ms)
 end
 
 --- Milliseconds left on the player's pause (0 when not paused).
 function CavebotStore.pausedMs(player)
-	local id = player and player:getId()
-	local untilMs = id and pausedUntil[id]
-	if not untilMs then
-		return 0
-	end
-	local left = untilMs - CombatGeo.nowMs()
-	if left <= 0 then
-		pausedUntil[id] = nil
-		return 0
-	end
-	return left
+	local untilMs = player and pausedUntil[player:getId()]
+	return untilMs and math.max(0, untilMs - CombatGeo.nowMs()) or 0
 end
 
 --- Hand the player's movement back to the AI now: ends a pause and manual control.
@@ -70,7 +77,7 @@ function CavebotStore.resume(player)
 	if not player then
 		return
 	end
-	pausedUntil[player:getId()] = nil
+	endPause(player:getId())
 	if player.clearManualControl then
 		player:clearManualControl()
 	end
@@ -78,7 +85,7 @@ end
 
 function CavebotStore.forget(player)
 	if player then
-		pausedUntil[player:getId()] = nil
+		endPause(player:getId())
 	end
 end
 
@@ -89,7 +96,7 @@ function CavebotStore.pauseReason(player, _run)
 	if CombatAutomationMovement.isManual(player) then
 		return "manual"
 	end
-	if CavebotStore.pausedMs(player) > 0 then
+	if pausedUntil[player:getId()] then
 		return "pause"
 	end
 	if not CavebotStore.attackOn(player) then

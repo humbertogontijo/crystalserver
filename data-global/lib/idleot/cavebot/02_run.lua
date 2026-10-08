@@ -3,13 +3,40 @@
 -- (CavebotService) is a plain table with `open = true`.
 --
 -- run = {
---   route (open runs; expeditions read ExpeditionConfig.caveRoute(run.catalog)),
---   lure, cave, tracked, engaged, releasedUntil, lastKillAt, kills, metrics,
+--   host, scope, lure, cave, tracked, engaged, releasedUntil, lastKillAt, kills, metrics,
 --   manualIds (id -> true: paused members), pauseReasons (id -> reason), anchorPlayerId,
---   open, id, instanceId, ids, routeSource, huntName (open runs only),
+--   open, id, instanceId, ids, route, routeSource, huntName (open runs only),
 -- }
+--
+-- run.host: what the walker needs from the system that owns the run (open-world runs
+-- carry their own; expedition sessions use Cavebot.sessionHost):
+--   memberIds(run) -> ids          anchor(run) -> player|nil      route(run) -> route|nil
+--   alive(run) -> bool             walks(run) -> bool (the walker runs this tick)
+--   notify(run)                    walker state changed (beyond CavebotProtocol.sendRun)
+--   onStart(run)                   a walk started
+--   priorityTarget(run) -> monster|nil   halts the walk on sight, detoured to (Fiendish)
+--   onPauseChange(run, player, reason, prev)
+--   directives(run) -> opts        Cavebot.syncDirectives options
+--   adopt                          true: track only monsters that target a member
+--   metrics = { tick(run, anchor, ids), onLap(run, ms), onHalt(run, visible), onBlockerHalt(run) }
+-- Every field but memberIds / anchor / route is optional.
 
 Cavebot = Cavebot or {}
+
+--- The run's host (open-world runs carry their own; sessions use Cavebot.sessionHost).
+function Cavebot.hostOf(run)
+	return run.host or Cavebot.sessionHost
+end
+local hostOf = Cavebot.hostOf
+
+--- `run.host.metrics[name](run, ...)` when the host records it.
+function Cavebot.metric(run, name, ...)
+	local metrics = hostOf(run).metrics
+	local fn = metrics and metrics[name]
+	if fn then
+		fn(run, ...)
+	end
+end
 
 -- Party anchor: lower rank wins (knight → paladin → monk → anyone else).
 Cavebot.ANCHOR_VOCATION_RANK = {
@@ -62,23 +89,11 @@ function Cavebot.isOpen(run)
 end
 
 function Cavebot.routeOf(run)
-	if not run then
-		return nil
-	end
-	if run.route then
-		return run.route
-	end
-	return run.catalog and ExpeditionConfig and ExpeditionConfig.caveRoute(run.catalog) or nil
+	return run and hostOf(run).route(run) or nil
 end
 
 function Cavebot.memberIds(run)
-	if not run then
-		return {}
-	end
-	if run.open then
-		return run.ids or {}
-	end
-	return ExpeditionManager.sessionMemberIds(run) or {}
+	return run and hostOf(run).memberIds(run) or {}
 end
 
 --- Member ids as a set (id -> true).
@@ -91,14 +106,7 @@ function Cavebot.memberSet(run)
 end
 
 function Cavebot.anchorOf(run)
-	if not run then
-		return nil
-	end
-	if run.open then
-		local anchor = run.anchorPlayerId and Player(run.anchorPlayerId)
-		return anchor and anchor:getHealth() > 0 and anchor or nil
-	end
-	return ExpeditionConfig.getAnchorPlayer and ExpeditionConfig.getAnchorPlayer(run) or nil
+	return run and hostOf(run).anchor(run) or nil
 end
 
 --- Walker state changed (mode, manual, kills): refresh the members' status.
@@ -106,8 +114,9 @@ function Cavebot.notify(run)
 	if not run then
 		return
 	end
-	if not run.open and ExpeditionManager and ExpeditionManager.broadcastStatus then
-		ExpeditionManager.broadcastStatus(run)
+	local host = hostOf(run)
+	if host.notify then
+		host.notify(run)
 	end
 	if CavebotProtocol then
 		CavebotProtocol.sendRun(run)

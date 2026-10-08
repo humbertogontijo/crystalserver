@@ -219,30 +219,17 @@ function ExpeditionPack.pullMonstersToAnchor(session)
 	end
 end
 
-function ExpeditionPack.tickLure(session)
-	if huntEnded(session) or session.lureFinished then
-		return
-	end
-	if not isLureHunt(session) then
-		ExpeditionPack.pullMonstersToAnchor(session)
-		return
-	end
-	if not session.spawnsCreated then
-		return
-	end
-	local anchor = anchorOf(session)
-	local anchorPos = anchor and anchor:getPosition() or nil
-	if not anchorPos then
-		return
-	end
-	session.tracked = session.tracked or {}
-	session.engaged = session.engaged or {}
-	session.releasedUntil = session.releasedUntil or {}
+--- True while the session's cavebot walks its route (Cavebot.step): a lure hunt with its
+--- spawns up that has not ended.
+function ExpeditionPack.walksCave(session)
+	return not huntEnded(session) and not session.lureFinished and isLureHunt(session) and session.spawnsCreated == true
+end
 
-	local members = Cavebot.memberSet(session)
-	CavebotPack.tickPack(session, anchorPos, members)
-	ExpeditionMetrics.tick(session, anchor, ExpeditionManager.sessionMemberIds(session))
-	Cavebot.tick(session, anchor, members)
+--- Fights without a route (boss, raid, arena): their monsters are pulled to the anchor.
+function ExpeditionPack.tickPull(session)
+	if not huntEnded(session) and not session.lureFinished and not isLureHunt(session) then
+		ExpeditionPack.pullMonstersToAnchor(session)
+	end
 end
 
 -- ---------------------------------------------------------------------------

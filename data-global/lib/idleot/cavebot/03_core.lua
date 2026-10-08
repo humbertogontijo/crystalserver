@@ -105,8 +105,9 @@ function Cavebot.start(run)
 		cave.entryIdx = 1
 	end
 	run.cave = cave
-	if not Cavebot.isOpen(run) then
-		run.state = "hunting"
+	local host = Cavebot.hostOf(run)
+	if host.onStart then
+		host.onStart(run)
 	end
 	Cavebot.notify(run)
 end
@@ -219,7 +220,7 @@ local function advance(run, cave, route, now)
 	cave.idx = cave.idx % #route.waypoints + 1
 	if cave.idx == 1 then
 		cave.lap = cave.lap + 1
-		ExpeditionMetrics.onLap(run, now - (cave.lapStartedAt or now))
+		Cavebot.metric(run, "onLap", now - (cave.lapStartedAt or now))
 		cave.lapStartedAt = now
 	end
 end
@@ -300,14 +301,14 @@ local function enterHalt(run, cave, anchor, now, visible, center, steps)
 	setMode(cave, "halt")
 	cave.haltAt = now
 	chooseHaltPos(run, cave, anchor, now, center, steps)
-	ExpeditionMetrics.onHalt(run, visible)
+	Cavebot.metric(run, "onHalt", visible)
 end
 
 local function enterBlockerHalt(run, cave, now, blocker)
 	setMode(cave, "halt")
 	cave.blockerId = blocker:getId()
 	cave.haltAt = now
-	ExpeditionMetrics.onBlockerHalt(run)
+	Cavebot.metric(run, "onBlockerHalt")
 end
 
 --- An attackable monster on a tile next to the anchor in the travel direction.
@@ -408,7 +409,7 @@ end
 local function tickParked(run, cave, visible)
 	if visible > 0 then
 		if not cave.fought then
-			ExpeditionMetrics.onHalt(run, visible)
+			Cavebot.metric(run, "onHalt", visible)
 		end
 		cave.fought = true
 	else
@@ -425,28 +426,31 @@ end
 --- member it chases (its lock), `anchor` = the largest distance from one to the anchor
 --- (the halt box), `laggers` = engaged entries of the chasers outside the resume
 --- distances, `adjacent` = chasers next to the anchor. A chaser given up on
---- (`lagStuckUntil`) counts again once it is back inside the resume distances.
-local function packLag(run, here, members, now)
+--- (`lagStuckUntil`) counts again once it is back inside the resume distances. Only
+--- chasers on `members` count (`pack.chasers` holds those of every member).
+local function packLag(pack, here, members, now)
 	local resumeTarget = CavebotConfig.LURE_LAG_RESUME_SQM
 	local resumeAnchor = CavebotConfig.LURE_LEASH_SQM - 2
 	local lag = { target = 0, anchor = 0, adjacent = 0, laggers = {} }
-	for _, chaser in ipairs(CavebotPack.chasers(run, members, here, now, true)) do
-		local mpos = chaser.monster:getPosition()
-		local toTarget = chebyshev(mpos, chaser.target:getPosition())
-		local toAnchor = chebyshev(mpos, here)
-		local inside = toTarget <= resumeTarget and toAnchor <= resumeAnchor
-		local state = chaser.state
-		if inside then
-			state.lagStuckUntil = nil
-		end
-		if toAnchor <= 1 then
-			lag.adjacent = lag.adjacent + 1
-		end
-		if (state.lagStuckUntil or 0) <= now then
-			lag.target = math.max(lag.target, toTarget)
-			lag.anchor = math.max(lag.anchor, toAnchor)
-			if not inside then
-				lag.laggers[#lag.laggers + 1] = state
+	for _, chaser in ipairs(pack.chasers) do
+		if members[chaser.target:getId()] then
+			local mpos = chaser.monster:getPosition()
+			local toTarget = chebyshev(mpos, chaser.target:getPosition())
+			local toAnchor = chebyshev(mpos, here)
+			local inside = toTarget <= resumeTarget and toAnchor <= resumeAnchor
+			local state = chaser.state
+			if inside then
+				state.lagStuckUntil = nil
+			end
+			if toAnchor <= 1 then
+				lag.adjacent = lag.adjacent + 1
+			end
+			if (state.lagStuckUntil or 0) <= now then
+				lag.target = math.max(lag.target, toTarget)
+				lag.anchor = math.max(lag.anchor, toAnchor)
+				if not inside then
+					lag.laggers[#lag.laggers + 1] = state
+				end
 			end
 		end
 	end
@@ -470,8 +474,8 @@ end
 --- pack is in, or when the lag has not shrunk for LURE_LAG_STALL_MS — the chasers it
 --- waited for are then given up on for PULL_STALL_MS. `cave.paceProgress` = { lag, at }
 --- while waiting.
-local function updateLeash(run, cave, here, now, members)
-	local lag = packLag(run, here, members, now)
+local function updateLeash(pack, cave, here, now, members)
+	local lag = packLag(pack, here, members, now)
 	if not leashWants(lag, cave.paceProgress ~= nil) then
 		cave.paceProgress = nil
 		return false
@@ -627,10 +631,11 @@ local function trackStill(cave, here, now)
 end
 
 -- ---------------------------------------------------------------------------
--- Tick (ExpeditionPack.tickLure / CavebotService, every TICK_MS)
+-- Tick (Cavebot.step, every TICK_MS)
 -- ---------------------------------------------------------------------------
 
-function Cavebot.tick(run, anchor, members)
+--- One walk tick. `pack`: this tick's CavebotPack.snapshot.
+function Cavebot.tick(run, anchor, members, pack)
 	local cave, route = run.cave, routeOf(run)
 	if not cave or not route then
 		return
@@ -640,7 +645,7 @@ function Cavebot.tick(run, anchor, members)
 	local prevMode = cave.mode
 	local manual = run.manualIds or {}
 
-	local visible, load = CavebotPack.lureCount(run, anchor, members)
+	local visible, load = CavebotPack.lureCount(pack, anchor, members)
 	cave.visible, cave.load = visible, load
 	-- The anchor's player leads: the route waits for Cavebot.resume.
 	if manual[anchor:getId()] then
@@ -665,7 +670,8 @@ function Cavebot.tick(run, anchor, members)
 	if not lureFull then
 		cave.fullSpent = nil
 	end
-	local fiendish = not Cavebot.isOpen(run) and ExpeditionPack.forcedFiendish(run) or nil
+	local host = Cavebot.hostOf(run)
+	local fiendish = host.priorityTarget and host.priorityTarget(run) or nil
 	if cave.parked then
 		tickParked(run, cave, visible)
 	else
@@ -686,7 +692,7 @@ function Cavebot.tick(run, anchor, members)
 			elseif lureFull and not cave.fullSpent then
 				enterLureFullHalt(run, cave, route, anchor, here, now, visible)
 			else
-				setMode(cave, updateLeash(run, cave, here, now, leashMembers) and "pace" or "walk")
+				setMode(cave, updateLeash(pack, cave, here, now, leashMembers) and "pace" or "walk")
 				if cave.mode == "walk" then
 					tickWalk(run, cave, route, anchor, here, now, visible, load)
 				end
@@ -698,6 +704,32 @@ function Cavebot.tick(run, anchor, members)
 	if prevMode ~= cave.mode and run.cave == cave then
 		Cavebot.notify(run)
 	end
+end
+
+--- One walker tick of a run (expedition sessions and open-world runs alike): paused
+--- members, pack tracking, the route walk (while the host walks it) and the movement
+--- directives.
+function Cavebot.step(run)
+	local host = Cavebot.hostOf(run)
+	Cavebot.syncManual(run, host.onPauseChange and function(player, reason, prev)
+		host.onPauseChange(run, player, reason, prev)
+	end)
+	local anchor = Cavebot.anchorOf(run)
+	if anchor and run.cave and (not host.walks or host.walks(run)) then
+		local members = Cavebot.memberSet(run)
+		local pack = CavebotPack.snapshot(run, anchor, members, host.adopt)
+		if host.adopt then
+			CavebotPack.adoptEngaged(run, members, pack)
+		end
+		CavebotPack.tickPack(run, anchor:getPosition(), members)
+		pack.chasers = CavebotPack.chasers(run, members, anchor:getPosition(), nowMs(), true)
+		Cavebot.metric(run, "tick", anchor, Cavebot.memberIds(run))
+		Cavebot.tick(run, anchor, members, pack)
+	end
+	if host.alive and not host.alive(run) then
+		return
+	end
+	Cavebot.syncDirectives(run, host.directives and host.directives(run))
 end
 
 --- Directive for the anchor: walk the route (luring), wait for stragglers, or hold

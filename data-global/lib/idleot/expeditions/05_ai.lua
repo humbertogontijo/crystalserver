@@ -190,11 +190,30 @@ function ExpeditionAI.stopPlayer(session, player)
 	clearPlayerCombat(player)
 end
 
---- Paused members (manual control, a paused cavebot, AUTO attack off; Cavebot.syncManual).
---- Pausing restarts catch-up tracking; a resumable pause (manual / paused cavebot)
---- tells that client so it can offer Resume Auto.
-function ExpeditionAI.syncManual(session)
-	Cavebot.syncManual(session, function(player, reason, prev)
+--- How the cavebot walker sees an expedition session (run host, cavebot/02_run.lua).
+Cavebot.sessionHost = {
+	memberIds = memberIds,
+	anchor = function(session)
+		return ExpeditionConfig.getAnchorPlayer(session)
+	end,
+	route = function(session)
+		return session.catalog and ExpeditionConfig.caveRoute(session.catalog) or nil
+	end,
+	alive = function(session)
+		return session.state ~= "ended" and not session.endedByDeath
+	end,
+	walks = ExpeditionPack.walksCave,
+	notify = function(session)
+		ExpeditionManager.broadcastStatus(session)
+	end,
+	onStart = function(session)
+		session.state = "hunting"
+	end,
+	priorityTarget = ExpeditionPack.forcedFiendish,
+	--- Paused members (manual control, a paused cavebot, AUTO attack off). Pausing restarts
+	--- catch-up tracking; a resumable pause (manual / paused cavebot) tells that client so
+	--- it can offer Resume Auto.
+	onPauseChange = function(session, player, reason, prev)
 		if reason and not prev and session._catchUp then
 			session._catchUp[player:getId()] = nil
 		end
@@ -202,8 +221,13 @@ function ExpeditionAI.syncManual(session)
 		if now ~= was then
 			ExpeditionProtocol.sendManualControl(player, now)
 		end
-	end)
-end
+	end,
+	--- Raids fight without an anchor.
+	directives = function(session)
+		return { noAnchor = sessionKind(session) == "raid", holdPos = session.holdPos }
+	end,
+	metrics = ExpeditionMetrics,
+}
 
 function ExpeditionAI.syncPathLeash(session)
 	if not session then
@@ -227,14 +251,6 @@ function ExpeditionAI.syncPathLeash(session)
 			end
 		end
 	end
-end
-
---- Movement directives (Cavebot.syncDirectives): raids fight without an anchor.
-function ExpeditionAI.syncDirectives(session)
-	if not session then
-		return
-	end
-	Cavebot.syncDirectives(session, { noAnchor = sessionKind(session) == "raid", holdPos = session.holdPos })
 end
 
 function ExpeditionAI.tick(session)
@@ -276,17 +292,12 @@ function ExpeditionAI.tick(session)
 		ExpeditionBoss.ensureKillableSession(session)
 	end
 
-	ExpeditionAI.syncManual(session)
-
-	-- Map-spawn hunts: pack tracking + cave walker (boss / raid: pull to anchor).
-	if ExpeditionPack and ExpeditionPack.tickLure then
-		ExpeditionPack.tickLure(session)
-		if session.state == "ended" then
-			return
-		end
+	-- Map-spawn hunts walk their cave route; boss / raid / arena pull to the anchor.
+	Cavebot.step(session)
+	if session.state == "ended" then
+		return
 	end
-
-	ExpeditionAI.syncDirectives(session)
+	ExpeditionPack.tickPull(session)
 	ExpeditionAI.syncPathLeash(session)
 
 	local anchor = nil
@@ -332,7 +343,7 @@ function ExpeditionAI.start(session)
 			suggestAutoOn(player)
 		end
 	end
-	ExpeditionAI.syncDirectives(session)
+	Cavebot.syncDirectives(session, Cavebot.sessionHost.directives(session))
 	ExpeditionAI.syncPathLeash(session)
 end
 

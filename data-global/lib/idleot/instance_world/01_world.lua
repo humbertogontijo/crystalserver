@@ -397,6 +397,7 @@ function InstanceWorld.scheduleSendBounds(player)
 		local p = Player(id)
 		if p then
 			InstanceWorld.sendBounds(p, true)
+			IdleEvents.emit("player.instanceChanged", p)
 		end
 	end, 50, pid)
 end
