@@ -6,10 +6,13 @@ local loginEvent = CreatureEvent("RewardChestLogin")
 function loginEvent.onLogin(player)
 	player:registerEvent("RewardChestOpcode")
 	if RewardChest and RewardChest.sendStatus then
+		local pid = player:getId()
 		addEvent(function()
-			if player and player:isPlayer() then
-				RewardChest.sendStatus(player)
+			local p = Player(pid)
+			if not p then
+				return
 			end
+			RewardChest.sendStatus(p)
 		end, 1500)
 	end
 	return true
