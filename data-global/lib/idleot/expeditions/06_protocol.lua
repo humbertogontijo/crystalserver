@@ -18,15 +18,17 @@ function ExpeditionProtocol.sendGodFlags(player)
 	})
 end
 
+--- Catalog paging limits per extended-opcode JSON blob.
+local CATALOG_PAGE_SIZE = 60
+local CATALOG_PAGE_BYTES = 48000
+
 --- Split catalog rows into pages whose encoded rows fit CATALOG_PAGE_BYTES
 --- (extended-opcode strings are capped at 64KB) and at most CATALOG_PAGE_SIZE rows.
 local function catalogPages(catalog)
-	local maxRows = ExpeditionConfig.CATALOG_PAGE_SIZE or 60
-	local maxBytes = ExpeditionConfig.CATALOG_PAGE_BYTES or 48000
 	local pages, chunk, bytes = {}, {}, 0
 	for _, row in ipairs(catalog) do
 		local size = #JsonParser.encode(row) + 1
-		if #chunk > 0 and (#chunk >= maxRows or bytes + size > maxBytes) then
+		if #chunk > 0 and (#chunk >= CATALOG_PAGE_SIZE or bytes + size > CATALOG_PAGE_BYTES) then
 			pages[#pages + 1] = chunk
 			chunk, bytes = {}, 0
 		end
@@ -39,7 +41,7 @@ end
 
 function ExpeditionProtocol.sendCatalog(player)
 	local god = PzTeleport.isGod(player)
-	local pages = catalogPages(ExpeditionConfig.catalogForClient(player))
+	local pages = catalogPages(ExpeditionProtocol.catalogRows(player))
 	local ok = true
 	for page, chunk in ipairs(pages) do
 		local sent = ExpeditionProtocol.send(player, {

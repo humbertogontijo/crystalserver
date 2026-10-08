@@ -62,9 +62,6 @@ function ExpeditionConfig.enrichCatalogFromCreatureInfo()
 	if ExpeditionConfig.sortCatalogForDisplay then
 		ExpeditionConfig.sortCatalogForDisplay(ExpeditionConfig.Catalog)
 	end
-	if ExpeditionConfig.buildCatalogDisplayMetadata then
-		ExpeditionConfig.buildCatalogDisplayMetadata()
-	end
 end
 
 function ExpeditionConfig.enrichRaidLevelsFromCreatureInfo()

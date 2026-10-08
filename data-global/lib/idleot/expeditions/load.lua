@@ -11,6 +11,7 @@ local files = {
 	"04d_metrics.lua",
 	"05_ai.lua",
 	"06_protocol.lua",
+	"06a_catalog_rows.lua",
 	"07_manager.lua",
 	"08_sample_spells.lua",
 	"09_raid_instance.lua",
