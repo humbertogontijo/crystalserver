@@ -24,19 +24,6 @@ local function metaKv()
 	return kv.scoped("lobby")
 end
 
-local function decode(raw)
-	if type(raw) == "table" then
-		return raw
-	end
-	if type(raw) == "string" and raw ~= "" then
-		local ok, decoded = pcall(JsonParser.decode, raw)
-		if ok and type(decoded) == "table" then
-			return decoded
-		end
-	end
-	return nil
-end
-
 local function sanitizeTitle(raw, fallback)
 	local title = tostring(raw or ""):gsub("[^\32-\126]", ""):gsub("^%s+", ""):gsub("%s+$", "")
 	if #title > LobbyConfig.TITLE_MAX_LEN then
@@ -146,7 +133,7 @@ local function ensureLoaded()
 	end
 	local list = {}
 	for _, key in ipairs(keys) do
-		local record = normalizeRecord(decode(store:get(key)))
+		local record = normalizeRecord(IdleUtil.decodeTable(store:get(key)))
 		if record and tostring(record.id) == tostring(key) then
 			list[#list + 1] = record
 		else

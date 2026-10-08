@@ -1,11 +1,6 @@
 ExpeditionProtocol = ExpeditionProtocol or {}
 
-function ExpeditionProtocol.send(player, payload)
-	if not player then
-		return false
-	end
-	return player:sendExtendedOpcode(ExpeditionConfig.OPCODE, JsonParser.encode(payload))
-end
+ExpeditionProtocol.send = IdleUtil.jsonSender(ExpeditionConfig.OPCODE)
 
 --- Sync staff flag for GOD spectators (/goto into hunts) without paging the full catalog.
 function ExpeditionProtocol.sendGodFlags(player)

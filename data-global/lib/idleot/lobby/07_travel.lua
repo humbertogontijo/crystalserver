@@ -9,7 +9,7 @@ local function replyError(player, message)
 		return
 	end
 	player:sendTextMessage(MESSAGE_FAILURE, tostring(message or "Travel failed."))
-	player:sendExtendedOpcode(LobbyConfig.TRAVEL_OPCODE, JsonParser.encode({ type = "error", message = tostring(message or "") }))
+	IdleUtil.sendJson(player, LobbyConfig.TRAVEL_OPCODE, { type = "error", message = tostring(message or "") })
 end
 
 --- Channel into the player's lobby room. Never creates a lobby.

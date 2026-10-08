@@ -5,12 +5,7 @@
 -- server -> client: lobby, lobbies, invite, inviteCleared, call, callCleared, alts, error
 LobbyProtocol = LobbyProtocol or {}
 
-function LobbyProtocol.send(player, payload)
-	if not player then
-		return false
-	end
-	return player:sendExtendedOpcode(LobbyConfig.OPCODE, JsonParser.encode(payload))
-end
+LobbyProtocol.send = IdleUtil.jsonSender(LobbyConfig.OPCODE)
 
 function LobbyProtocol.sendError(player, message)
 	return LobbyProtocol.send(player, { type = "error", message = tostring(message or "Lobby error.") })

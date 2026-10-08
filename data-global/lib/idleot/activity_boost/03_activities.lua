@@ -7,15 +7,6 @@ local function kv(player)
 	return player:kv():scoped(ActivityBoostConfig.KV_SCOPE)
 end
 
-local function dayKey()
-	return os.date("%Y-%m-%d")
-end
-
-local function decodeMap(raw)
-	local decoded = JsonParser.decode(raw)
-	return type(decoded) == "table" and decoded or {}
-end
-
 local function encodeMap(map)
 	return JsonParser.encode(map or {})
 end
@@ -26,7 +17,7 @@ local function ensureBoostDay(player)
 	if not store then
 		return nil
 	end
-	local today = dayKey()
+	local today = IdleUtil.dayKey()
 	local saved = store:get("activityDay")
 	if saved ~= today then
 		store:set("activityDay", today)
@@ -79,7 +70,7 @@ local function isCredited(player, activityId)
 	if not store then
 		return false
 	end
-	local credited = decodeMap(store:get("credited") or "{}")
+	local credited = IdleUtil.decodeTable(store:get("credited")) or {}
 	return credited[tostring(activityId)] == true
 end
 
@@ -88,7 +79,7 @@ local function markCredited(player, activityId)
 	if not store then
 		return
 	end
-	local credited = decodeMap(store:get("credited") or "{}")
+	local credited = IdleUtil.decodeTable(store:get("credited")) or {}
 	credited[tostring(activityId)] = true
 	store:set("credited", encodeMap(credited))
 end

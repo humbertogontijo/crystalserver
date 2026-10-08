@@ -1,8 +1,6 @@
 TokenServices = TokenServices or {}
 
-local function reply(player, payload)
-	player:sendExtendedOpcode(TokenServicesConfig.OPCODE, JsonParser.encode(payload))
-end
+local reply = IdleUtil.jsonSender(TokenServicesConfig.OPCODE)
 
 local function tokenSnapshot(player, tokenId)
 	local price, source = TokenMarket.unitPrice(player, tokenId)

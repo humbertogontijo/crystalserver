@@ -27,13 +27,6 @@ local groupByPlayerId = {}
 
 local nextGroupSeq = 1
 
-local function nowMs()
-	if type(systemTime) == "function" then
-		return math.floor(systemTime())
-	end
-	return os.time() * 1000
-end
-
 local function encodePayload(payload)
 	if JsonParser and JsonParser.encode then
 		local ok, encoded = pcall(JsonParser.encode, payload)
@@ -269,7 +262,7 @@ function InstanceTeleport.beginGroup(opts)
 		memberIds = memberIds,
 		cancelPolicy = cancelPolicy,
 		durationMs = durationMs,
-		startedAt = nowMs(),
+		startedAt = CombatGeo.nowMs(),
 		opcode = tonumber(opts.opcode),
 		send = opts.send,
 		onComplete = opts.onComplete,
@@ -348,7 +341,7 @@ function InstanceTeleport.adoptMember(fromPlayer, toPlayer)
 	end
 	local remaining = 0
 	if not pending.timerElapsed then
-		remaining = math.max(0, (pending.durationMs or 0) - (nowMs() - (pending.startedAt or nowMs())))
+		remaining = math.max(0, (pending.durationMs or 0) - (CombatGeo.nowMs() - (pending.startedAt or CombatGeo.nowMs())))
 	end
 	notifyMember(pending, toId, {
 		type = "channelStart",

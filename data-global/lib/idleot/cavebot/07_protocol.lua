@@ -11,9 +11,7 @@ CavebotProtocol = CavebotProtocol or {}
 -- playerId -> last encoded frame
 local lastSent = {}
 
-local function send(player, payload)
-	return player:sendExtendedOpcode(ExpeditionConfig and ExpeditionConfig.OPCODE or CombatAutomationConfig.OPCODE, JsonParser.encode(payload))
-end
+local send = IdleUtil.jsonSender(CombatAutomationConfig.OPCODE)
 
 local function phaseOf(run)
 	local cave = run.cave

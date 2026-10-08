@@ -21,23 +21,7 @@ local ELEMENT_INDEX = {
 	[COMBAT_HEALING] = 7,
 }
 
-local encode = JsonParser.encode
-
-local function decode(buffer)
-	local decoded = JsonParser.decode(buffer)
-	return type(decoded) == "table" and decoded or nil
-end
-
-local function send(player, payload)
-	if not player or not HuntFinderConfig then
-		return false
-	end
-	local encoded = encode(payload)
-	if not encoded then
-		return false
-	end
-	return player:sendExtendedOpcode(HuntFinderConfig.OPCODE, encoded)
-end
+local send = IdleUtil.jsonSender(HuntFinderConfig.OPCODE)
 
 local function collectNames(raw)
 	local out = {}
@@ -163,7 +147,7 @@ function HuntFinderProtocol.handle(player, buffer)
 	if not player or type(buffer) ~= "string" or buffer == "" then
 		return
 	end
-	local payload = decode(buffer)
+	local payload = IdleUtil.decodeTable(buffer)
 	if type(payload) ~= "table" then
 		return
 	end

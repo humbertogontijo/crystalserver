@@ -1,15 +1,6 @@
 SoftDeathProtocol = SoftDeathProtocol or {}
 
-function SoftDeathProtocol.send(player, payload)
-	if not player or not SoftDeathConfig then
-		return false
-	end
-	local encoded = JsonParser and JsonParser.encode and JsonParser.encode(payload) or nil
-	if not encoded then
-		return false
-	end
-	return player:sendExtendedOpcode(SoftDeathConfig.OPCODE, encoded)
-end
+SoftDeathProtocol.send = IdleUtil.jsonSender(SoftDeathConfig.OPCODE)
 
 --- Notify client that the local player is soft-downed (knock-out UI; not GameServerDeath).
 function SoftDeathProtocol.sendDowned(player, opts)

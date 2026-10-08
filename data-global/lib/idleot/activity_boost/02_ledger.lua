@@ -7,10 +7,6 @@ local function kv(player)
 	return player:kv():scoped(ActivityBoostConfig.KV_SCOPE)
 end
 
-local function dayKey()
-	return os.date("%Y-%m-%d")
-end
-
 --- Same epoch Daily Reward uses (updated in GlobalServerSave).
 local function lastServerSave()
 	if GetDailyRewardLastServerSave then
@@ -28,7 +24,7 @@ function ActivityBoostLedger.ensureDailyEarnDay(player)
 	if not store then
 		return
 	end
-	local today = dayKey()
+	local today = IdleUtil.dayKey()
 	if store:get("dailyEarnedDay") ~= today then
 		store:set("dailyEarnedDay", today)
 		store:set("dailyEarnedSec", 0)
@@ -162,7 +158,7 @@ end
 function ActivityBoostLedger.resetDailyEarned(player)
 	local store = kv(player)
 	if store then
-		store:set("dailyEarnedDay", dayKey())
+		store:set("dailyEarnedDay", IdleUtil.dayKey())
 		store:set("dailyEarnedSec", 0)
 	end
 end

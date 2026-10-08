@@ -98,10 +98,7 @@ end
 
 --- Wall-clock ms (OTSYS_TIME). os.clock() is CPU time and os.time() has 1 s resolution.
 function CombatGeo.nowMs()
-	if type(systemTime) == "function" then
-		return math.floor(systemTime())
-	end
-	return math.floor(os.time() * 1000)
+	return math.floor(systemTime())
 end
 
 --- Chebyshev distance; math.huge when either is missing or they are on different floors.

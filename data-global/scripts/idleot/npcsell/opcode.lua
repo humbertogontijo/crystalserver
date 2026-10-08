@@ -4,23 +4,6 @@
 
 local NPCSELL_OPCODE = 123
 
-local function toItemIds(raw)
-	local out = {}
-	if type(raw) ~= "table" then
-		return out
-	end
-	for _, value in ipairs(raw) do
-		local id = tonumber(value)
-		if id and id > 0 then
-			out[#out + 1] = math.floor(id)
-			if #out >= 512 then
-				break
-			end
-		end
-	end
-	return out
-end
-
 local loginEvent = CreatureEvent("NpcSellLogin")
 
 function loginEvent.onLogin(player)
@@ -53,7 +36,7 @@ function opcodeEvent.onExtendedOpcode(player, opcode, buffer)
 	local ignoreEquipped = payload.ignoreEquipped ~= false
 	local lootPouchOnly = payload.lootPouchOnly ~= false
 	local filterMode = tonumber(payload.filterMode) == 1 and 1 or 0
-	local itemIds = toItemIds(payload.itemIds)
+	local itemIds = IdleUtil.toItemIds(payload.itemIds)
 
 	player:sellAllShopItems(ignoreEquipped, filterMode, itemIds, lootPouchOnly)
 end

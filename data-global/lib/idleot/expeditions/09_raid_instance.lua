@@ -140,10 +140,6 @@ function RaidInstance.sendActiveRaids(player)
 	})
 end
 
-local function sameTilePos(a, b)
-	return a and b and a.x == b.x and a.y == b.y and a.z == b.z
-end
-
 local function isGroundWalkable(pos, instanceId)
 	local tile = Tile(pos)
 	if not tile or not tile:getGround() then
@@ -184,7 +180,7 @@ local function remapPosition(raid, pos)
 	local resolved = mapped
 	if not isGroundWalkable(mapped, instance.instanceId) or (reserved and reserved[mappedKey]) then
 		resolved = ExpeditionInstance.randomWalkable(instance, instance.entry, reserved)
-	elseif sameTilePos(mapped, instance.entry) then
+	elseif CombatGeo.sameTile(mapped, instance.entry) then
 		resolved = ExpeditionInstance.randomAttackRangeWalkable(instance, instance.entry, 1, reserved)
 			or ExpeditionInstance.randomWalkable(instance, instance.entry, reserved)
 	end
@@ -198,7 +194,7 @@ local function resolveRaidSpawnPosition(raid, preferred, area)
 	if
 		preferred
 		and isGroundWalkable(preferred, instance and instance.instanceId)
-		and not sameTilePos(preferred, instance and instance.entry)
+		and not CombatGeo.sameTile(preferred, instance and instance.entry)
 		and not (reserved and preferredKey and reserved[preferredKey])
 	then
 		return claimRaidSpawn(raid, preferred)
@@ -1137,7 +1133,7 @@ function RaidInstance.installHooks()
 						return false
 					end
 					-- Re-check entry avoidance at spawn time (map may have loaded since schedule).
-					if sameTilePos(spawnPos, inst.entry) then
+					if CombatGeo.sameTile(spawnPos, inst.entry) then
 						spawnPos = resolveRaidSpawnPosition(raid, nil) or spawnPos
 					end
 					local monster = nil

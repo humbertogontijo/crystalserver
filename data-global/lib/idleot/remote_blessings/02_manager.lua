@@ -1,8 +1,6 @@
 RemoteBlessings = RemoteBlessings or {}
 
-local function reply(player, payload)
-	player:sendExtendedOpcode(RemoteBlessingsConfig.OPCODE, JsonParser.encode(payload))
-end
+local reply = IdleUtil.jsonSender(RemoteBlessingsConfig.OPCODE)
 
 local function unitPrice(player, blessId)
 	blessId = tonumber(blessId) or 0

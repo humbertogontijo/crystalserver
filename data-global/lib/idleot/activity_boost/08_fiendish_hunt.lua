@@ -13,11 +13,6 @@ end
 
 local encode = JsonParser.encode
 
-local function decode(raw)
-	local decoded = JsonParser.decode(raw)
-	return type(decoded) == "table" and decoded or {}
-end
-
 local function fiendishHpMult()
 	return tonumber(ActivityBoostConfig.FIENDISH_HP_MULT) or 3.6
 end
@@ -213,14 +208,14 @@ function ActivityBoostFiendishHunt.get(player)
 	end
 	if ActivityBoostActivities and ActivityBoostActivities.isComplete
 		and ActivityBoostActivities.isComplete(player, "fiendish_hunt") then
-		local data = decode(store:get(KV_KEY) or "")
+		local data = IdleUtil.decodeTable(store:get(KV_KEY)) or {}
 		if type(data) == "table" and data.expeditionId then
 			data.complete = true
 			return data
 		end
 		return { complete = true }
 	end
-	local data = decode(store:get(KV_KEY) or "")
+	local data = IdleUtil.decodeTable(store:get(KV_KEY)) or {}
 	if type(data) ~= "table" or not data.expeditionId or not offerStillValid(player, data) then
 		data = pickOffer(player)
 		if data then

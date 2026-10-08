@@ -400,10 +400,6 @@ local function isWalkable(pos, instanceId)
 	return not sameInstance(top, instanceId)
 end
 
-local function sameTilePos(a, b)
-	return a and b and a.x == b.x and a.y == b.y and a.z == b.z
-end
-
 function ExpeditionInstance.reservePos(reserved, pos)
 	if not reserved or not pos then
 		return
@@ -416,7 +412,7 @@ local function isReserved(reserved, pos)
 end
 
 local function canUseSpawnTile(pos, avoid, reserved, instanceId)
-	return isWalkable(pos, instanceId) and not sameTilePos(pos, avoid) and not isReserved(reserved, pos)
+	return isWalkable(pos, instanceId) and not CombatGeo.sameTile(pos, avoid) and not isReserved(reserved, pos)
 end
 
 --- Random walkable SQM inside the instance occupancy / AABB.

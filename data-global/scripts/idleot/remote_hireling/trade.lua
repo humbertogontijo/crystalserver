@@ -25,23 +25,13 @@ local HIRELING_BUTTONS = {
 --- @type number|nil
 local remoteNpcId = nil
 
-local function escapeStr(s)
-	s = tostring(s or "")
-	s = s:gsub("\\", "\\\\")
-	s = s:gsub('"', '\\"')
-	s = s:gsub("\n", "\\n")
-	s = s:gsub("\r", "\\r")
-	s = s:gsub("\t", "\\t")
-	return '"' .. s .. '"'
-end
-
 local function encodeJson(payload)
 	if payload.type == "bank" then
 		return string.format(
 			'{"type":"bank","balance":%d,"inventory":%d,"message":%s}',
 			tonumber(payload.balance) or 0,
 			tonumber(payload.inventory) or 0,
-			escapeStr(payload.message or "")
+			IdleUtil.jsonString(payload.message or "")
 		)
 	end
 	if payload.type == "sold" then
@@ -50,7 +40,7 @@ local function encodeJson(payload)
 			tonumber(payload.gold) or 0,
 			tonumber(payload.items) or 0,
 			tonumber(payload.taxPercent) or 0,
-			escapeStr(payload.message or "")
+			IdleUtil.jsonString(payload.message or "")
 		)
 	end
 	if payload.type == "status" then
@@ -66,9 +56,9 @@ local function encodeJson(payload)
 		)
 	end
 	if payload.type == "ok" then
-		return '{"type":"ok","message":' .. escapeStr(payload.message or "") .. "}"
+		return '{"type":"ok","message":' .. IdleUtil.jsonString(payload.message or "") .. "}"
 	end
-	return '{"type":"error","message":' .. escapeStr(payload.message or "error") .. "}"
+	return '{"type":"error","message":' .. IdleUtil.jsonString(payload.message or "error") .. "}"
 end
 
 local function reply(player, payload)
@@ -88,23 +78,6 @@ function RemoteHirelingPushStatus(player)
 	pushStatus(player)
 end
 
-local function toItemIds(raw)
-	local out = {}
-	if type(raw) ~= "table" then
-		return out
-	end
-	for _, value in ipairs(raw) do
-		local id = tonumber(value)
-		if id and id > 0 then
-			out[#out + 1] = math.floor(id)
-			if #out >= 512 then
-				break
-			end
-		end
-	end
-	return out
-end
-
 local function handleSellAll(player, payload)
 	if not RemoteHirelingEconomy or not RemoteHirelingEconomy.sellAll then
 		reply(player, { type = "error", message = "Auto-sell is unavailable." })
@@ -113,7 +86,7 @@ local function handleSellAll(player, payload)
 
 	local ignoreEquipped = payload.ignoreEquipped ~= false
 	local filterMode = tonumber(payload.filterMode) == 1 and 1 or 0
-	local itemIds = toItemIds(payload.itemIds)
+	local itemIds = IdleUtil.toItemIds(payload.itemIds)
 
 	local gold, items, taxPercent = RemoteHirelingEconomy.sellAll(player, ignoreEquipped, filterMode, itemIds)
 	if RemoteHirelingEconomy.setSellFilter then
@@ -169,7 +142,7 @@ local function handleSetAutoSellConfig(player, payload)
 		if filterMode ~= 1 then
 			filterMode = 0
 		end
-		RemoteHirelingEconomy.setSellFilter(player, filterMode, toItemIds(payload.itemIds))
+		RemoteHirelingEconomy.setSellFilter(player, filterMode, IdleUtil.toItemIds(payload.itemIds))
 	end
 	pushStatus(player)
 	reply(player, { type = "ok", message = "Auto-sell options updated." })

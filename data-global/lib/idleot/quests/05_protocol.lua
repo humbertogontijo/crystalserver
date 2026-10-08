@@ -1,11 +1,6 @@
 QuestsProtocol = QuestsProtocol or {}
 
-function QuestsProtocol.send(player, payload)
-	if not player or not QuestsConfig then
-		return
-	end
-	player:sendExtendedOpcode(QuestsConfig.OPCODE, JsonParser.encode(payload))
-end
+QuestsProtocol.send = IdleUtil.jsonSender(QuestsConfig.OPCODE)
 
 local function resolveQuestTarget(controller, nameOrGuid, requireOnline)
 	if not controller then

@@ -7,11 +7,7 @@ local function template(key)
 	return type(key) == "string" and LetterConfig.TEMPLATES[key] or nil
 end
 
-local function reply(player, payload)
-	if player then
-		player:sendExtendedOpcode(LetterConfig.OPCODE, JsonParser.encode(payload))
-	end
-end
+local reply = IdleUtil.jsonSender(LetterConfig.OPCODE)
 
 local function sendError(player, message)
 	player:sendTextMessage(MESSAGE_FAILURE, message)

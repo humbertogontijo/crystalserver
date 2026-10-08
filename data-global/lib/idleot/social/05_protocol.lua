@@ -1,11 +1,6 @@
 SocialProtocol = SocialProtocol or {}
 
-function SocialProtocol.send(player, payload)
-	if not player then
-		return false
-	end
-	return player:sendExtendedOpcode(SocialConfig.OPCODE, JsonParser.encode(payload))
-end
+SocialProtocol.send = IdleUtil.jsonSender(SocialConfig.OPCODE)
 
 function SocialProtocol.sendError(player, message)
 	return SocialProtocol.send(player, {

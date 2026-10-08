@@ -1,15 +1,6 @@
 ActivityBoostProtocol = ActivityBoostProtocol or {}
 
-function ActivityBoostProtocol.send(player, payload)
-	if not player or not ActivityBoostConfig then
-		return false
-	end
-	local encoded = JsonParser and JsonParser.encode and JsonParser.encode(payload) or nil
-	if not encoded then
-		return false
-	end
-	return player:sendExtendedOpcode(ActivityBoostConfig.OPCODE, encoded)
-end
+ActivityBoostProtocol.send = IdleUtil.jsonSender(ActivityBoostConfig.OPCODE)
 
 function ActivityBoostProtocol.sendState(player)
 	if not player then

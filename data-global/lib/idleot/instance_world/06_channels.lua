@@ -127,7 +127,7 @@ local function sendChannels(player)
 	local list, err = InstanceWorld.listChannels(player)
 	local payload = list or { error = err }
 	payload.type = "instanceChannels"
-	player:sendExtendedOpcode(InstanceTeleport.OPCODE, JsonParser.encode(payload))
+	IdleUtil.sendJson(player, InstanceTeleport.OPCODE, payload)
 end
 InstanceWorld.sendChannels = sendChannels
 

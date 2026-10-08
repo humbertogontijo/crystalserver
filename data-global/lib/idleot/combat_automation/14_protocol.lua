@@ -1,15 +1,6 @@
 CombatAutomationProtocol = CombatAutomationProtocol or {}
 
-local function send(player, payload)
-	if not player then
-		return false
-	end
-	local opcode = CombatAutomationConfig.OPCODE
-	if ExpeditionConfig and ExpeditionConfig.OPCODE then
-		opcode = ExpeditionConfig.OPCODE
-	end
-	return player:sendExtendedOpcode(opcode, JsonParser.encode(payload))
-end
+local send = IdleUtil.jsonSender(CombatAutomationConfig.OPCODE)
 
 function CombatAutomationProtocol.sendConfig(player, config, opts)
 	opts = opts or {}

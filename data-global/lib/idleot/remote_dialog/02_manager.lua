@@ -18,16 +18,6 @@ RemoteDialog = RemoteDialog or {}
 --- @type table<number, table> playerId → session
 local sessions = {}
 
-local function escapeStr(s)
-	s = tostring(s or "")
-	s = s:gsub("\\", "\\\\")
-	s = s:gsub('"', '\\"')
-	s = s:gsub("\n", "\\n")
-	s = s:gsub("\r", "\\r")
-	s = s:gsub("\t", "\\t")
-	return '"' .. s .. '"'
-end
-
 local function encodeOutfit(outfit)
 	if type(outfit) ~= "table" then
 		return "null"
@@ -53,7 +43,7 @@ local function encodeButtons(buttons)
 		parts[#parts + 1] = string.format(
 			'{"id":%d,"text":%s}',
 			tonumber(b.id) or i,
-			escapeStr(b.text or "")
+			IdleUtil.jsonString(b.text or "")
 		)
 	end
 	return "[" .. table.concat(parts, ",") .. "]"
@@ -63,21 +53,21 @@ local function encode(payload)
 	if payload.type == "opened" then
 		return string.format(
 			'{"type":"opened","dialogId":%s,"name":%s,"greet":%s,"outfit":%s,"buttons":%s,"npcId":%d}',
-			escapeStr(payload.dialogId or ""),
-			escapeStr(payload.name or "NPC"),
-			escapeStr(payload.greet or ""),
+			IdleUtil.jsonString(payload.dialogId or ""),
+			IdleUtil.jsonString(payload.name or "NPC"),
+			IdleUtil.jsonString(payload.greet or ""),
 			encodeOutfit(payload.outfit),
 			encodeButtons(payload.buttons),
 			tonumber(payload.npcId) or 0
 		)
 	end
 	if payload.type == "say" then
-		return '{"type":"say","message":' .. escapeStr(payload.message or "") .. "}"
+		return '{"type":"say","message":' .. IdleUtil.jsonString(payload.message or "") .. "}"
 	end
 	if payload.type == "closed" then
 		return '{"type":"closed"}'
 	end
-	return '{"type":"error","message":' .. escapeStr(payload.message or "error") .. "}"
+	return '{"type":"error","message":' .. IdleUtil.jsonString(payload.message or "error") .. "}"
 end
 
 local function reply(player, payload)

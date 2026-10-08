@@ -34,15 +34,11 @@ local function emptyPreySlot(index, state)
 	}
 end
 
-local function buyDayKey()
-	return os.date("%Y-%m-%d")
-end
-
 local function defaultBonuses()
 	return {
 		xpBoost = { timeLeft = 0, percent = LobbyConfig.XP_BOOST_PERCENT },
 		buyCount = 1,
-		buyDay = buyDayKey(),
+		buyDay = IdleUtil.dayKey(),
 		lastDrainAt = 0,
 		prey = {
 			emptyPreySlot(1, STATE_INACTIVE),
