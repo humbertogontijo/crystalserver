@@ -18,6 +18,9 @@
 #include "lua/functions/core/game/zone_functions.hpp"
 
 #include "game/zones/zone.hpp"
+#include "creatures/monsters/monster.hpp"
+#include "creatures/npcs/npc.hpp"
+#include "creatures/players/player.hpp"
 #include "game/game.hpp"
 #include "game/instance_registry.hpp"
 #include "items/item.hpp"

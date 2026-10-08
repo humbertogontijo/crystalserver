@@ -239,17 +239,22 @@ function Context:useWith(player, itemId, position, opts)
 	return PlayerErrand.useWith(player, itemId, position, self:errandOpts(opts))
 end
 
+function Context:pickUp(player, position, itemId, opts)
+	return PlayerErrand.pickUp(player, position, itemId, self:errandOpts(opts))
+end
+
 --- Run `job(player, done)` for `player` after its earlier jobs, in order (never before the
 --- next tick, and only while the AI drives the player: paused or under manual control, its
 --- jobs wait); the job calls `done()` once finished (typically from an errand's onDone).
-function Context:queue(player, job)
+--- `onDrop()` runs instead of the job when it is dropped unrun (the player logged out).
+function Context:queue(player, job, onDrop)
 	local id = player:getId()
 	local jobs = self.jobs[id]
 	if not jobs then
 		jobs = {}
 		self.jobs[id] = jobs
 	end
-	jobs[#jobs + 1] = job
+	jobs[#jobs + 1] = { run = job, drop = onDrop }
 	self:after(0, function()
 		self:runJob(id)
 	end)
@@ -284,9 +289,12 @@ function Context:runJob(id)
 		end
 	end
 	if not player then
+		if job.drop then
+			pcall(job.drop)
+		end
 		return done()
 	end
-	local ok, err = pcall(job, player, done)
+	local ok, err = pcall(job.run, player, done)
 	if not ok then
 		logger.error("[ExpeditionBossMechanics] {}: job failed: {}", self.name, tostring(err))
 		done()
@@ -319,6 +327,8 @@ function Context:duty(active, job)
 						return release()
 					end
 					job(p, release)
+				end, function()
+					busy[id] = nil
 				end)
 			end
 		end
@@ -366,6 +376,8 @@ function Context:crossParty(portal, across)
 								done()
 							end,
 						})
+					end, function()
+						crossing[id] = nil
 					end)
 				end
 			end
@@ -426,6 +438,8 @@ function Context:rewardChests(itemIds)
 								done()
 							end,
 						})
+					end, function()
+						chest.queued[id] = nil
 					end)
 				end
 			end

@@ -10,8 +10,20 @@ CavebotPack = CavebotPack or {}
 local geo = CombatGeo
 local chebyshev, nowMs = geo.chebyshev, geo.nowMs
 
--- monsterId -> open run id (adopted monsters; expedition kills go through ExpeditionPack)
+-- monsterId -> open run id (adopted monsters; expedition kills go through ExpeditionPack).
+-- One run owns a monster until it dies or that run drops it.
 local owners = {}
+
+local function disown(run, mid)
+	if owners[mid] == run.id then
+		owners[mid] = nil
+	end
+end
+
+local function ownedByOther(run, mid)
+	local owner = owners[mid]
+	return owner ~= nil and owner ~= run.id and CavebotService ~= nil and CavebotService.getRun(owner) ~= nil
+end
 
 --- Stop tracking a far / stalled monster (it is not re-tracked for a while).
 function CavebotPack.release(run, mid)
@@ -62,7 +74,7 @@ function CavebotPack.tickPack(run, anchorPos, members)
 			run.tracked[mid] = nil
 			run.engaged[mid] = nil
 			run.alive = math.max(0, (run.alive or 1) - 1)
-			owners[mid] = nil
+			disown(run, mid)
 		end
 	end
 
@@ -103,10 +115,11 @@ function CavebotPack.tickPack(run, anchorPos, members)
 	end
 end
 
---- No standable tile around `pos`: a monster there (an island spawn) never comes.
-function CavebotPack.sealedIn(pos)
+--- No standable tile around `pos` in `instanceId`: a monster there (an island spawn)
+--- never comes.
+function CavebotPack.sealedIn(pos, instanceId)
 	for _, off in ipairs(geo.NEIGHBOUR_OFFSETS) do
-		if geo.tileStandable(Position(pos.x + off[1], pos.y + off[2], pos.z)) then
+		if geo.tileStandable(Position(pos.x + off[1], pos.y + off[2], pos.z), instanceId) then
 			return false
 		end
 	end
@@ -130,7 +143,7 @@ function CavebotPack.chasers(run, members, anchorPos, now, includeStuck)
 			if target and members[target:getId()] then
 				local mpos, tpos = monster:getPosition(), target:getPosition()
 				local inSight = geo.isInViewport(anchorPos, mpos) or geo.isInViewport(tpos, mpos)
-				if mpos.z == z and tpos.z == z and inSight and not sealedIn(mpos) then
+				if mpos.z == z and tpos.z == z and inSight and not sealedIn(mpos, monster:getInstanceId()) then
 					out[#out + 1] = { monster = monster, state = state, target = target }
 				end
 			end
@@ -171,7 +184,7 @@ function CavebotPack.lureCount(run, anchor, members)
 		load = load + monster:getHealth() / math.max(1, monster:getMaxHealth())
 	end
 	for _, creature in ipairs(Game.getSpectators(pos, false, false, vx, vx, vy, vy, anchor:getInstanceId())) do
-		if creature:isMonster() and creature:getHealth() > 0 and not creature:getMaster() and targetsMember(creature, members) and not sealedIn(creature:getPosition()) then
+		if creature:isMonster() and creature:getHealth() > 0 and not creature:getMaster() and targetsMember(creature, members) and not sealedIn(creature:getPosition(), creature:getInstanceId()) then
 			for _, member in ipairs(players) do
 				if CombatAutomation.isValidAttackTarget(member, creature) then
 					count(creature)
@@ -201,8 +214,8 @@ function CavebotPack.adoptEngaged(run, members)
 		local member = Player(id)
 		if member then
 			for _, creature in ipairs(Game.getSpectators(member:getPosition(), false, false, vx, vx, vy, vy, member:getInstanceId())) do
-				if creature:isMonster() and creature:getHealth() > 0 and not creature:getMaster() and targetsMember(creature, members) then
-					local mid = creature:getId()
+				local mid = creature:getId()
+				if creature:isMonster() and creature:getHealth() > 0 and not creature:getMaster() and targetsMember(creature, members) and not ownedByOther(run, mid) then
 					seen[mid] = true
 					if not run.tracked[mid] then
 						run.tracked[mid] = true
@@ -216,7 +229,7 @@ function CavebotPack.adoptEngaged(run, members)
 	for mid in pairs(run.tracked) do
 		if not seen[mid] and not run.engaged[mid] then
 			run.tracked[mid] = nil
-			owners[mid] = nil
+			disown(run, mid)
 		end
 	end
 end

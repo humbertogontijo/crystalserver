@@ -40,11 +40,12 @@ function ExpeditionManager.scheduleSessionExit(session, opts)
 	local endMsg = opts.endMsg
 	local delayMs = tonumber(opts.delayMs) or (ExpeditionConfig.LOOT_GRACE_MS or 5000)
 	local key = session.key
-	if session.waitingEvent then
-		stopEvent(session.waitingEvent)
-		session.waitingEvent = nil
+	if session.exitEvent then
+		stopEvent(session.exitEvent)
+		session.exitEvent = nil
 	end
 	local function exitSession()
+		session.exitEvent = nil
 		local s = ExpeditionManager.getSessionByKey(key)
 		if not s or s.state == "ended" then
 			return
@@ -74,7 +75,7 @@ function ExpeditionManager.scheduleSessionExit(session, opts)
 			onComplete = exitSession,
 		})
 	if not channeled then
-		session.waitingEvent = addEvent(exitSession, delayMs)
+		session.exitEvent = addEvent(exitSession, delayMs)
 	end
 end
 

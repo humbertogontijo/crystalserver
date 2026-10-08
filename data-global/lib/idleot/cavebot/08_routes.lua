@@ -14,14 +14,26 @@ local RETRY_MS = 60000
 -- Catalog route validation grid: waypoint bounding box grown by this many tiles.
 local CATALOG_MARGIN = 8
 
--- catalog hunt id -> { { grid, ok }, ... } (one per walk component that checked it)
-local catalogChecks = {}
--- "subareaId:z" -> { { grid, route, failedAt }, ... }
-local generated = {}
+-- Per layer (blocking items and doors differ between instances):
+--   catalog[hunt id] -> { { grid, ok }, ... } (one per walk component that checked it)
+--   generated[z] -> { { grid, route, failedAt }, ... }
+local caches = {}
 
-local function nowMs()
-	return CombatGeo.nowMs()
+local function cacheOf(instanceKey)
+	local cache = caches[instanceKey]
+	if not cache then
+		cache = { catalog = {}, generated = {} }
+		caches[instanceKey] = cache
+	end
+	return cache
 end
+
+--- Drop the routes and walk grids cached for `instanceKey` (the layer was released).
+function CavebotRoutes.forget(instanceKey)
+	caches[instanceKey] = nil
+end
+
+local nowMs = CombatGeo.nowMs
 
 local function runtimeRoute(waypoints, lure)
 	return {
@@ -72,7 +84,8 @@ end
 
 --- The anchor's walk component (bounded to the route's box) holds every waypoint.
 local function catalogWalkable(hunt, waypoints, anchorPos, instanceKey)
-	local checks = catalogChecks[hunt.id]
+	local catalog = cacheOf(instanceKey).catalog
+	local checks = catalog[hunt.id]
 	local cached = findIn(checks, anchorPos)
 	if cached then
 		return cached.ok
@@ -100,7 +113,7 @@ local function catalogWalkable(hunt, waypoints, anchorPos, instanceKey)
 	end
 	if not checks then
 		checks = {}
-		catalogChecks[hunt.id] = checks
+		catalog[hunt.id] = checks
 	end
 	checks[#checks + 1] = { grid = grid, ok = ok }
 	if not ok then
@@ -192,8 +205,8 @@ end
 
 local function generatedRoute(anchor, instanceKey)
 	local pos = anchor:getPosition()
-	local key = string.format("%d:%d", Instance.subareaId(instanceKey) or 0, pos.z)
-	local list = generated[key]
+	local generated = cacheOf(instanceKey).generated
+	local list = generated[pos.z]
 	local entry = findIn(list, pos)
 	if entry and (entry.route or nowMs() - entry.failedAt < RETRY_MS) then
 		return entry.route
@@ -207,7 +220,7 @@ local function generatedRoute(anchor, instanceKey)
 		entry = { grid = grid }
 		list = list or {}
 		list[#list + 1] = entry
-		generated[key] = list
+		generated[pos.z] = list
 	end
 	entry.route, entry.failedAt = route, nowMs()
 	if route then

@@ -242,6 +242,31 @@ function PlayerErrand.use(player, position, itemId, opts)
 	end, opts)
 end
 
+--- Walk next to map item `itemId` (or the first present of a list of ids) at `position`
+--- and pick it up into the backpack, as a drag onto the inventory would (capacity and
+--- free slots apply). Ends "missing" when the item is gone, or a refused move's reason.
+function PlayerErrand.pickUp(player, position, itemId, opts)
+	return start(player, {
+		dest = position,
+		reach = 1,
+		advance = function(errand, p)
+			if not approach(errand, p) then
+				return false
+			end
+			local item = inInstance(p, function()
+				return itemOnTile(position, itemId)
+			end)
+			if not item then
+				return true, false, "missing"
+			end
+			if item:moveToSlot(p, CONST_SLOT_WHEREEVER) then
+				return true, true
+			end
+			return true, false, "refused"
+		end,
+	}, opts)
+end
+
 --- Walk within `opts.reach` (default 1) of `position` and use carried item `itemId` on map
 --- item `opts.targetId` there (an id or a list: the first present), or on the position
 --- itself, as a click on that tile.

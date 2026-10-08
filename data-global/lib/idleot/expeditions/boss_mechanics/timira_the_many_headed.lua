@@ -1,5 +1,5 @@
 -- Timira the Many-Headed (Marapur), run by the stock encounter script.
--- Stage 1: everyone picks up a bucket at the nearest bucket spot, fills it at the shallow
+-- Stage 1: everyone picks up a bucket from the nearest bucket spot, fills it at the shallow
 -- water while it sparkles and pours it on the shattered water, until the water takes shape.
 -- Stage 2: everyone opens the reward chest and walks through the portal, then uses the
 -- corrupted water (stock cooldown 8s per player) until the next portal opens.
@@ -79,6 +79,18 @@ local function sparkling(position)
 	return false
 end
 
+--- Bucket spots that still hold the empty bucket the stock fight lays out.
+local function bucketsLeft()
+	local spots = {}
+	for _, pos in ipairs(BUCKET_SPOTS) do
+		local tile = Tile(pos)
+		if tile and tile:getItemById(EMPTY_BUCKET) then
+			spots[#spots + 1] = pos
+		end
+	end
+	return spots
+end
+
 local function dropBuckets(player)
 	for _, id in ipairs(BUCKETS) do
 		local count = player:getItemCount(id)
@@ -121,15 +133,11 @@ local function bucketRound(ctx, p, done)
 			end,
 		})
 	else
-		ctx:walkTo(p, nearest(BUCKET_SPOTS, p:getPosition()), {
-			reach = 1,
-			onDone = function(_, ok)
-				if ok then
-					p:addItem(EMPTY_BUCKET, 1)
-				end
-				finished(nil, ok)
-			end,
-		})
+		local spot = nearest(bucketsLeft(), p:getPosition())
+		if not spot then
+			return ctx:after(RETRY_MS, done)
+		end
+		ctx:pickUp(p, spot, EMPTY_BUCKET, { onDone = finished })
 	end
 end
 

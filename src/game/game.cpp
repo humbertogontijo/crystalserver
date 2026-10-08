@@ -4900,6 +4900,23 @@ void Game::playerStopAutoWalk(uint32_t playerId) {
 	player->stopWalk();
 }
 
+ReturnValue Game::checkUseItem(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, bool useWith) const {
+	if (!player || !item || item->isMultiUse() != useWith) {
+		return RETURNVALUE_CANNOTUSETHISOBJECT;
+	}
+
+	const bool canUseHouseItem = !g_configManager().getBoolean(ONLY_INVITED_CAN_MOVE_HOUSE_ITEMS) || InternalGame::playerCanUseItemOnHouseTile(player, item);
+	if (!canUseHouseItem) {
+		return item->hasOwner() && !item->isOwner(player) ? RETURNVALUE_ITEMISNOTYOURS : RETURNVALUE_CANNOTUSETHISOBJECT;
+	}
+
+	const ItemType &it = Item::items[item->getID()];
+	if ((it.isRune() || it.type == ITEM_TYPE_POTION) && player->walkExhausted()) {
+		return RETURNVALUE_YOUAREEXHAUSTED;
+	}
+	return RETURNVALUE_NOERROR;
+}
+
 void Game::playerUseItemEx(uint32_t playerId, const Position &fromPos, uint8_t fromStackPos, uint16_t fromItemId, const Position &toPos, uint8_t toStackPos, uint16_t toItemId) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
 	const auto &player = getPlayerByID(playerId);
@@ -4919,17 +4936,13 @@ void Game::playerUseItemEx(uint32_t playerId, const Position &fromPos, uint8_t f
 	}
 
 	const auto &item = thing->getItem();
-	if (!item || !item->isMultiUse() || item->getID() != fromItemId) {
+	if (!item || item->getID() != fromItemId) {
 		player->sendCancelMessage(RETURNVALUE_CANNOTUSETHISOBJECT);
 		return;
 	}
 
-	bool canUseHouseItem = !g_configManager().getBoolean(ONLY_INVITED_CAN_MOVE_HOUSE_ITEMS) || InternalGame::playerCanUseItemOnHouseTile(player, item);
-	if (!canUseHouseItem && item->hasOwner() && !item->isOwner(player)) {
-		player->sendCancelMessage(RETURNVALUE_ITEMISNOTYOURS);
-		return;
-	} else if (!canUseHouseItem) {
-		player->sendCancelMessage(RETURNVALUE_CANNOTUSETHISOBJECT);
+	if (const ReturnValue useRet = checkUseItem(player, item, true); useRet != RETURNVALUE_NOERROR) {
+		player->sendCancelMessage(useRet);
 		return;
 	}
 
@@ -4943,13 +4956,6 @@ void Game::playerUseItemEx(uint32_t playerId, const Position &fromPos, uint8_t f
 	}
 
 	const ItemType &it = Item::items[item->getID()];
-	if (it.isRune() || it.type == ITEM_TYPE_POTION) {
-		if (player->walkExhausted()) {
-			player->sendCancelMessage(RETURNVALUE_YOUAREEXHAUSTED);
-			return;
-		}
-	}
-
 	if (ret != RETURNVALUE_NOERROR) {
 		if (ret == RETURNVALUE_TOOFARAWAY) {
 			Position itemPos = fromPos;
@@ -5068,7 +5074,7 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 	}
 
 	const auto &item = thing->getItem();
-	if (!item || item->isMultiUse() || item->getID() != itemId) {
+	if (!item || item->getID() != itemId) {
 		player->sendCancelMessage(RETURNVALUE_CANNOTUSETHISOBJECT);
 		return;
 	}
@@ -5084,23 +5090,12 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 		return;
 	}
 
-	bool canUseHouseItem = !g_configManager().getBoolean(ONLY_INVITED_CAN_MOVE_HOUSE_ITEMS) || InternalGame::playerCanUseItemOnHouseTile(player, item);
-	if (!canUseHouseItem && item->hasOwner() && !item->isOwner(player)) {
-		player->sendCancelMessage(RETURNVALUE_ITEMISNOTYOURS);
-		return;
-	} else if (!canUseHouseItem) {
-		player->sendCancelMessage(RETURNVALUE_CANNOTUSETHISOBJECT);
+	if (const ReturnValue useRet = checkUseItem(player, item, false); useRet != RETURNVALUE_NOERROR) {
+		player->sendCancelMessage(useRet);
 		return;
 	}
 
 	const ItemType &it = Item::items[item->getID()];
-	if (it.isRune() || it.type == ITEM_TYPE_POTION) {
-		if (player->walkExhausted()) {
-			player->sendCancelMessage(RETURNVALUE_YOUAREEXHAUSTED);
-			return;
-		}
-	}
-
 	ReturnValue ret = g_actions().canUse(player, pos);
 	if (ret != RETURNVALUE_NOERROR) {
 		if (ret == RETURNVALUE_TOOFARAWAY) {

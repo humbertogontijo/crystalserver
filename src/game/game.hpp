@@ -487,6 +487,10 @@ public:
 	void playerAutoWalk(uint32_t playerId, const std::vector<Direction> &listDir);
 	void forcePlayerAutoWalk(uint32_t playerId, const std::vector<Direction> &listDir);
 	void playerStopAutoWalk(uint32_t playerId);
+	// Checks every Use / Use-with of `item` by `player` shares, client or scripted: the use
+	// kind matches the item (multi-use only with a target), house item ownership and the
+	// rune/potion walk exhaust. Range and action exhaust stay with the caller.
+	ReturnValue checkUseItem(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, bool useWith) const;
 	void playerUseItemEx(uint32_t playerId, const Position &fromPos, uint8_t fromStackPos, uint16_t fromItemId, const Position &toPos, uint8_t toStackPos, uint16_t toItemId);
 	void playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPos, uint8_t index, uint16_t itemId);
 	void playerUseWithCreature(uint32_t playerId, const Position &fromPos, uint8_t fromStackPos, uint32_t creatureId, uint16_t itemId);

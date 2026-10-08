@@ -1685,12 +1685,17 @@ int PlayerFunctions::luaPlayerUseItem(lua_State* L) {
 	}
 
 	if (ret == RETURNVALUE_NOERROR) {
+		ret = g_game().checkUseItem(player, item, useWith);
+	}
+	if (ret == RETURNVALUE_NOERROR) {
 		ret = g_actions().canUse(player, fromPos);
 	}
 	if (ret == RETURNVALUE_NOERROR && useWith) {
-		ret = item->isMultiUse() ? g_actions().canUse(player, toPos, item) : RETURNVALUE_CANNOTUSETHISOBJECT;
+		ret = g_actions().canUse(player, toPos, item);
 	}
-	if (ret == RETURNVALUE_NOERROR && !player->canDoAction()) {
+	const ItemType &it = Item::items[item->getID()];
+	const bool potionAction = it.isRune() || it.type == ITEM_TYPE_POTION;
+	if (ret == RETURNVALUE_NOERROR && !(potionAction ? player->canDoPotionAction() : player->canDoAction())) {
 		ret = RETURNVALUE_YOUAREEXHAUSTED;
 	}
 	if (ret != RETURNVALUE_NOERROR) {
@@ -1700,7 +1705,11 @@ int PlayerFunctions::luaPlayerUseItem(lua_State* L) {
 	}
 
 	player->resetIdleTime();
-	player->setNextActionTask(nullptr);
+	if (potionAction) {
+		player->setNextPotionActionTask(nullptr);
+	} else {
+		player->setNextActionTask(nullptr);
+	}
 	const auto &useItem = g_game().resolveInstancedMapItem(player, item);
 	InstanceActorScope instanceActorScope(player);
 	bool ok = false;

@@ -586,6 +586,7 @@ function CombatAutomationMovement.bestAnchorSpot(anchor, opts)
 		return nil
 	end
 	local z = center.z
+	local instanceId = anchor and anchor:getInstanceId()
 	local bosses = bossFronts(anchor)
 	local team = {}
 	for _, entry in ipairs(opts.team or {}) do
@@ -593,7 +594,7 @@ function CombatAutomationMovement.bestAnchorSpot(anchor, opts)
 	end
 	local ctx = AnchorSpot.context({
 		standable = function(x, y)
-			return geo.tileStandable(Position(x, y, z)) ~= nil
+			return geo.tileStandable(Position(x, y, z), instanceId) ~= nil
 		end,
 		sightClear = function(x, y, tx, ty)
 			return sightClear(anchor, Position(x, y, z), Position(tx, ty, z))
@@ -603,7 +604,7 @@ function CombatAutomationMovement.bestAnchorSpot(anchor, opts)
 		end or nil,
 		passable = opts.avoidMonsters and function(x, y)
 			local tile = Tile(Position(x, y, z))
-			local top = tile and tile:getTopCreature(anchor:getInstanceId())
+			local top = tile and tile:getTopCreature(instanceId)
 			return not (top and top:isMonster())
 		end or nil,
 	}, team)
