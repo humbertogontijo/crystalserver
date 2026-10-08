@@ -171,6 +171,6 @@ function SoftDeath.endDowned(player, opts)
 	end
 
 	ExpeditionAI.enablePersistence(player)
-	CombatAutomation.ensureLoop(player)
+	CombatAutomationStore.getConfig(player)
 	return true
 end

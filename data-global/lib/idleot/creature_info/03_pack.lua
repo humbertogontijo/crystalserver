@@ -28,32 +28,6 @@ function CreatureInfo.getByCreatureId(creatureId)
 	return info
 end
 
---- Spawn-weighted mean of generated creature combatPower (density not applied).
-function CreatureInfo.compositionCombatPower(creatures)
-	local weighted, weightSum = 0, 0
-	if type(creatures) ~= "table" then
-		return 0
-	end
-	for _, row in ipairs(creatures) do
-		local id = row and tonumber(row.creatureId)
-		local pct = row and tonumber(row.percent) or 0
-		local power = 0
-		if id and pct > 0 then
-			local info = CreatureInfo.getByCreatureId(id)
-			power = info and tonumber(info.combatPower) or tonumber(row.combatPower) or 0
-		end
-		if power > 0 and pct > 0 then
-			local w = pct / 100
-			weighted = weighted + w * power
-			weightSum = weightSum + w
-		end
-	end
-	if weightSum <= 0 then
-		return 0
-	end
-	return weighted / weightSum
-end
-
 --- (Σ share_i × creatureCP_i) × max(1, density)^densityExp.
 --- creatureDensity is the engaged pack (largest hold), not the tour; counts only
 --- weight the mix (percent otherwise). Must match Python hunt_combat_power_from_shares.

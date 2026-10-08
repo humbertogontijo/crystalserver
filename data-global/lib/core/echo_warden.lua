@@ -31,8 +31,6 @@ EchoWarden.INFLUENCED_SHARE_OF_NON_WARDEN = 30
 
 EchoWarden.WARDEN_HP_MULT = 3.0
 EchoWarden.WARDEN_ATK_MULT = 1.5
-EchoWarden.USE_CPP_ATK = true
-
 EchoWarden.AURA_RANGE = 5
 EchoWarden.AURA_MS = 2000
 EchoWarden.EMPOWER_DODGE_CHANCE = 15 -- percent chance empowered mobs fully dodge a hit
@@ -362,13 +360,8 @@ function EchoWarden.makeWarden(w, kindName, raidToken)
 	if not w then
 		return
 	end
-	if EchoWarden.USE_CPP_ATK and w.applyEchoWarden then
-		w:applyEchoWarden(EchoWarden.WARDEN_HP_MULT, EchoWarden.WARDEN_ATK_MULT)
-		w:removeIcon("warden")
-	else
-		w:setMaxHealth(math.floor(w:getMaxHealth() * EchoWarden.WARDEN_HP_MULT))
-		w:setHealth(w:getMaxHealth())
-	end
+	w:applyEchoWarden(EchoWarden.WARDEN_HP_MULT, EchoWarden.WARDEN_ATK_MULT)
+	w:removeIcon("warden")
 	w:setStorageValue(EchoWarden.STORAGE_IS_WARDEN, 1)
 	EchoWarden.activeWardens[w:getId()] = kindName
 	EchoWarden.trackRaidCreature(w, raidToken)

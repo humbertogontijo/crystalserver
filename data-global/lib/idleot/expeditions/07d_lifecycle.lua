@@ -309,17 +309,9 @@ function ExpeditionManager.onLogin(player)
 	end
 	player:registerEvent("ExpeditionExtendedOpcode")
 	player:registerEvent("ExpeditionPlayerLogout")
-	-- CombatAutomationLogin also arms the loop; only ensure opcode + sample spells here
-	-- so we do not double-send empty automationConfig and wipe a client upload race.
-	if CombatAutomation and CombatAutomation.ensureLoop then
-		pcall(function()
-			if CombatAutomationStore and CombatAutomationStore.getConfig then
-				CombatAutomationStore.getConfig(player)
-			else
-				CombatAutomation.ensureLoop(player)
-			end
-		end)
-	end
+	-- Loads the loadout without sending it: CombatAutomationLogin sends the config, so a
+	-- second (possibly empty) automationConfig here could wipe a client upload race.
+	CombatAutomationStore.getConfig(player)
 	SampleSpells.ensure(player)
 
 	ExpeditionConfig.refundBossAttemptIfMarked(player)

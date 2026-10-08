@@ -319,17 +319,6 @@ function InstanceTeleport.markReady(groupKey)
 	return true
 end
 
-function InstanceTeleport.markReadyForPlayer(player)
-	if not player then
-		return false
-	end
-	local groupKey = groupByPlayerId[player:getId()]
-	if not groupKey then
-		return false
-	end
-	return InstanceTeleport.markReady(groupKey)
-end
-
 --- Alt switch: the UI moved from `fromPlayer` (a group member) to `toPlayer`. The new body
 --- joins the channel with the remaining time; `fromPlayer` stays in so it still hops.
 function InstanceTeleport.adoptMember(fromPlayer, toPlayer)
@@ -428,8 +417,4 @@ function InstanceTeleport.cancel(player)
 		pcall(onCancel, memberIds, playerId)
 	end
 	return true
-end
-
-function InstanceTeleport.cancelAllForPlayer(player)
-	return InstanceTeleport.cancel(player)
 end

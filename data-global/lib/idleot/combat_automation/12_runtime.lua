@@ -2970,17 +2970,3 @@ function CombatAutomation.onThink(player, _interval)
 		CombatAutomation.tick(player)
 	end
 end
-
---- Ensure loadout is in runtime state so onThink can tick (think pipeline owns the loop).
-function CombatAutomation.ensureLoop(player)
-	if player and CombatAutomationStore and CombatAutomationStore.getConfig then
-		CombatAutomationStore.getConfig(player)
-	end
-end
-
-function CombatAutomation.stopLoop(player)
-	-- Think pipeline stops naturally when shouldRunLoop is false / idleCombat clears.
-	if player then
-		CombatAutomation.clearState(player)
-	end
-end

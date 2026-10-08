@@ -175,10 +175,6 @@ local function lobbyOf(player)
 	return LobbyStore.getForPlayer(player)
 end
 
-function LobbyBonus.isMember(player)
-	return lobbyOf(player) ~= nil
-end
-
 local function raceName(raceId)
 	raceId = tonumber(raceId) or 0
 	if raceId <= 0 then

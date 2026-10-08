@@ -643,17 +643,6 @@ function EM_PRIV.countHumanMembers(session)
 	end)
 end
 
-function EM_PRIV.clearBossAttemptsForSession(session)
-	if not session or session.role ~= "boss" then
-		return
-	end
-	for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
-		if ExpeditionConfig.clearBossAttempt then
-			ExpeditionConfig.clearBossAttempt(p)
-		end
-	end
-end
-
 --- Online players among `memberIds` (every fighter: humans and headless companions alike).
 local function onlineMembers(memberIds)
 	local players = {}

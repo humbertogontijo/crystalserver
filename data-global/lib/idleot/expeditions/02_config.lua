@@ -186,10 +186,6 @@ local function catalogFloorOffset(entry)
 	return tonumber(entry and entry.floorOffset) or 0
 end
 
-local function catalogEntryScore(entry)
-	return tonumber(entry and entry.score) or 0
-end
-
 --- Levels are derived from combat power; sort by each entry's own power.
 function ExpeditionConfig.sortCatalogForDisplay(catalog)
 	if type(catalog) ~= "table" then

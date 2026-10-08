@@ -238,17 +238,6 @@ function FriendsStore.isFriend(player, nameOrGuid)
 	return false
 end
 
-function FriendsStore.getFriendNames(player)
-	local names = {}
-	for _, f in ipairs(FriendsStore.load(player).friends) do
-		names[#names + 1] = f.name
-	end
-	table.sort(names, function(a, b)
-		return a:lower() < b:lower()
-	end)
-	return names
-end
-
 function FriendsStore.getFriendsWire(player)
 	local out = {}
 	for _, f in ipairs(FriendsStore.load(player).friends) do

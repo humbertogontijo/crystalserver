@@ -6,16 +6,6 @@ ActivityBoostWorldBoss.schedule = ActivityBoostWorldBoss.schedule or {}
 -- Cooldown per band+boss so the same boss in another band stays available.
 ActivityBoostWorldBoss.bossCooldownUntil = ActivityBoostWorldBoss.bossCooldownUntil or {}
 
-local function bandForLevel(level)
-	level = tonumber(level) or 0
-	for _, band in ipairs(ActivityBoostConfig.LEVEL_BANDS or {}) do
-		if level >= (band.levelMin or 0) and level <= (band.levelMax or 99999) then
-			return band
-		end
-	end
-	return nil
-end
-
 local function lootMultForRank(rank)
 	local table_ = ActivityBoostConfig.WORLD_BOSS_LOOT_MULT or {}
 	local floor = ActivityBoostConfig.WORLD_BOSS_LOOT_MULT_FLOOR or 0.15
@@ -296,40 +286,6 @@ function ActivityBoostWorldBoss.listActive()
 		return (a.levelMin or 0) < (b.levelMin or 0)
 	end)
 	return out
-end
-
-local function nextUnixForClock(clock, now)
-	now = now or os.time()
-	local h, m = tostring(clock or ""):match("^(%d+):(%d+)$")
-	h, m = tonumber(h), tonumber(m)
-	if not h or not m then
-		return nil
-	end
-	local t = os.date("*t", now)
-	t.hour = h
-	t.min = m
-	t.sec = 0
-	local at = os.time(t)
-	if at <= now then
-		at = at + 24 * 60 * 60
-	end
-	return at
-end
-
---- Upcoming session slots sorted by soonest time.
-local function upcomingSessions(now)
-	now = now or os.time()
-	local slots = {}
-	for index, clock in ipairs(ActivityBoostConfig.WORLD_BOSS_SESSION_TIMES or {}) do
-		local at = nextUnixForClock(clock, now)
-		if at then
-			slots[#slots + 1] = { index = index, clock = clock, at = at }
-		end
-	end
-	table.sort(slots, function(a, b)
-		return a.at < b.at
-	end)
-	return slots
 end
 
 --- One row per (band, boss). Same boss can appear in multiple bands.

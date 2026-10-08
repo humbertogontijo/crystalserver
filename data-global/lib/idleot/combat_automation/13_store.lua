@@ -432,7 +432,6 @@ function CombatAutomationStore.applyToRuntime(player, config)
 	elseif autoResumed and CombatAutomationMovement then
 		CombatAutomationMovement.onAutoResumed(player)
 	end
-	CombatAutomation.ensureLoop(player)
 	if CavebotStore then
 		CavebotStore.onConfigChanged(player)
 	end
@@ -513,6 +512,5 @@ function CombatAutomationStore.onLogin(player)
 end
 
 function CombatAutomationStore.onLogout(player)
-	CombatAutomation.stopLoop(player)
 	CombatAutomation.clearState(player)
 end

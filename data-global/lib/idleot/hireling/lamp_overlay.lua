@@ -57,49 +57,6 @@ function Player:findHirelingLamp(hirelingId)
 	return nil
 end
 
-local function checkHouseAccess(hireling)
-	if not hireling or hireling.active == 0 then
-		return false
-	end
-
-	local tile = hireling:getPosition():getTile()
-	if not tile then
-		return false
-	end
-
-	local house = tile:getHouse()
-	if not house then
-		return false
-	end
-	local player = Player(hireling:getOwnerId())
-	if not player then
-		player = Game.getOfflinePlayer(hireling:getOwnerId())
-	end
-
-	if house:getOwnerGuid() == hireling:getOwnerId() then
-		return true
-	end
-
-	logger.debug("Returning Hireling: {} to owner '{}' Inbox", hireling:getName(), player:getName())
-	if not player:findHirelingLamp(hireling:getId()) then
-		local inbox = player:getStoreInbox()
-		if not inbox then
-			return false
-		end
-
-		local lamp = inbox:addItem(HIRELING_LAMP, 1, INDEX_WHEREEVER, FLAG_NOLIMIT)
-		if lamp then
-			lamp:setAttribute(ITEM_ATTRIBUTE_DESCRIPTION, "This mysterious lamp summons your very own personal hireling.\nThis item cannot be traded.\nThis magic lamp is the home of " .. hireling:getName() .. ".")
-			lamp:setCustomAttribute("Hireling", hireling:getId())
-		end
-	end
-
-	player:save()
-	hireling.active = 0
-	hireling.cid = -1
-	hireling:setPosition({ x = 0, y = 0, z = 0 })
-end
-
 function Hireling:returnToLamp(player_id)
 	if self.active ~= 1 then
 		return
