@@ -829,9 +829,7 @@ end
 local function notifyAutomationCast(player, slot, words, label, exhaustMs)
 	-- Runes are thrown silently; their words only label the client cast flash.
 	if words and words ~= "" and not (slot and slot.kind == "rune") then
-		pcall(function()
-			player:say(words, spellTalkType())
-		end)
+		player:say(words, spellTalkType())
 	end
 	local payload = {
 		slotId = slot and slot.id or "",

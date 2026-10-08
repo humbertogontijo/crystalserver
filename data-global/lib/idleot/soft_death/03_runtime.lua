@@ -17,10 +17,8 @@ local function clearCorpse(entry)
 		return
 	end
 	local item = Item(entry.corpseUid)
-	if item and item.remove then
-		pcall(function()
-			item:remove()
-		end)
+	if item then
+		item:remove()
 	end
 	entry.corpseUid = nil
 end
@@ -167,7 +165,7 @@ function SoftDeath.endDowned(player, opts)
 	end
 
 	if opts.runCallback ~= false and entry and type(entry.onRevive) == "function" then
-		pcall(entry.onRevive, player)
+		IdleSafe.call("SoftDeath.onRevive", entry.onRevive, player)
 	end
 
 	ExpeditionAI.enablePersistence(player)

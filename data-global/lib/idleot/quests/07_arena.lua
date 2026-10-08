@@ -362,7 +362,7 @@ function QuestArena.begin(session)
 	end
 	-- Cancel the boss spawn timer if join armed one.
 	ExpeditionManager.scope(session):cancel("bossSpawn")
-	pcall(ExpeditionPack.clear, session)
+	IdleSafe.call("ExpeditionPack.clear", ExpeditionPack.clear, session)
 	prepareAndSpawn(session, 1)
 end
 

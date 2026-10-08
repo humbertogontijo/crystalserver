@@ -80,7 +80,7 @@ local function knockout(player, kind)
 	local delay = InstanceKinds.respawnSec(kind)
 	local hooks = InstanceKinds._hooks[kind] or {}
 	if hooks.beforeKnockout then
-		pcall(hooks.beforeKnockout, player)
+		IdleSafe.call("InstanceKinds.beforeKnockout", hooks.beforeKnockout, player)
 	end
 	if not (SoftDeath and SoftDeath.beginDowned) then
 		return false

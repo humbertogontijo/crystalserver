@@ -68,7 +68,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	if player:getStorageValue(ExpeditionConfig.STORAGE_ACTIVE) == 1 then
 		EM_PRIV.clearActive(player)
 		if Alts and Alts.undeploy then
-			pcall(Alts.undeploy, player)
+			IdleSafe.call("Alts.undeploy", Alts.undeploy, player)
 		end
 		ExpeditionProtocol.sendEnded(player)
 	end
@@ -427,7 +427,7 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 	-- Auto-pull Ready members (skip accept modal). Attach silently, then enter or wait.
 	for _, teammate in ipairs(readyTeammates) do
 		if Alts and Alts.forceJoinToParty then
-			pcall(Alts.forceJoinToParty, player, teammate)
+			IdleSafe.call("Alts.forceJoinToParty", Alts.forceJoinToParty, player, teammate)
 		end
 		ExpeditionManager.attachFriendToSession(teammate, session, player, { skipMaybeStart = true })
 		teammate:sendTextMessage(
@@ -605,7 +605,7 @@ function ExpeditionManager.syncSessionClientIfNeeded(player)
 	player:registerEvent("ExpeditionPlayerDeath")
 	ExpeditionAI.enablePersistence(player)
 	if ExpeditionAI and ExpeditionAI.start then
-		pcall(ExpeditionAI.start, session)
+		IdleSafe.call("ExpeditionAI.start", ExpeditionAI.start, session)
 	end
 	ExpeditionProtocol.sendCatalog(player)
 	if RaidInstance and RaidInstance.sendActiveRaids then
@@ -616,7 +616,7 @@ function ExpeditionManager.syncSessionClientIfNeeded(player)
 	addEvent(function()
 		local p = Player(pid)
 		if p and ExpeditionManager.getSessionByKey(sessionKey) and CombatAutomation and CombatAutomation.resyncAttackTarget then
-			pcall(CombatAutomation.resyncAttackTarget, p)
+			IdleSafe.call("CombatAutomation.resyncAttackTarget", CombatAutomation.resyncAttackTarget, p)
 		end
 	end, ExpeditionConfig.ENTRY_CLIENT_SYNC_MS or 500)
 	return true
@@ -816,7 +816,7 @@ function EM_PRIV.startRestoredHuntOnStartup(session, snapshot)
 		live.awaitingHumanGuids = nil
 		ExpeditionConfig.pickAnchor(live)
 		if ExpeditionPersist and ExpeditionPersist.writeSession and ExpeditionPersist.isPersistableHunt(live) then
-			pcall(ExpeditionPersist.writeSession, live)
+			IdleSafe.call("ExpeditionPersist.writeSession", ExpeditionPersist.writeSession, live)
 		end
 
 		addEvent(function()
@@ -1056,7 +1056,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 		EM_PRIV.applyEntryBossCooldown(s, ExpeditionManager.sessionMemberIds(s))
 		ExpeditionConfig.pickAnchor(s)
 		if ExpeditionPersist and ExpeditionPersist.writeSession and ExpeditionPersist.isPersistableHunt(s) then
-			pcall(ExpeditionPersist.writeSession, s)
+			IdleSafe.call("ExpeditionPersist.writeSession", ExpeditionPersist.writeSession, s)
 		end
 		local sessionKey = s.key
 		local role = contentRole
@@ -1891,9 +1891,7 @@ function EM_PRIV.disbandExpeditionParty(session)
 	if not leader or leader:getId() ~= host:getId() then
 		return
 	end
-	pcall(function()
-		party:disband()
-	end)
+	party:disband()
 end
 
 function EM_PRIV.cleanupSession(session, player, opts)
@@ -1904,11 +1902,7 @@ function EM_PRIV.cleanupSession(session, player, opts)
 	EM_PRIV.notifyLobbies(EM_PRIV.sessionMemberIds(session))
 	ExpeditionAI.stop(session)
 	if session.kind == "arena" or session.role == "arena" then
-		if QuestArena and QuestArena.onSessionCleanup then
-			pcall(QuestArena.onSessionCleanup, session, opts)
-		elseif QuestArena and QuestArena.clear then
-			pcall(QuestArena.clear, session)
-		end
+		IdleSafe.call("QuestArena.onSessionCleanup", QuestArena.onSessionCleanup, session, opts)
 	elseif session.role == "boss" and session.kind ~= "raid" then
 		ExpeditionBoss.clear(session)
 	elseif session.kind ~= "raid" then
@@ -1940,7 +1934,7 @@ function EM_PRIV.cleanupSession(session, player, opts)
 		EM_PRIV.disbandExpeditionParty(session)
 	end
 	if ExpeditionPersist and ExpeditionPersist.clearSession and not ExpeditionPersist.isServerShuttingDown() and not session.persistedForRestart then
-		pcall(ExpeditionPersist.clearSession, session)
+		IdleSafe.call("ExpeditionPersist.clearSession", ExpeditionPersist.clearSession, session)
 	end
 	IdleEvents.emit("session.ended", session)
 end

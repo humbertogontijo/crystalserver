@@ -97,7 +97,7 @@ local function withInstantTalk(handler, fn)
 	end
 	local prevDelay = handler.talkDelayTimeForOutgoingMessages
 	handler.talkDelayTimeForOutgoingMessages = 0
-	pcall(fn)
+	IdleSafe.call("RemoteDialog.withInstantTalk", fn)
 	handler.talkDelayTimeForOutgoingMessages = prevDelay or 1
 end
 
@@ -205,7 +205,7 @@ function RemoteDialog.close(player, silent)
 		return
 	end
 	if session.onClose then
-		pcall(session.onClose, player)
+		IdleSafe.call("RemoteDialog.onClose", session.onClose, player)
 	end
 
 	local npc = session.npcId and Npc(session.npcId) or nil
@@ -217,7 +217,7 @@ function RemoteDialog.close(player, silent)
 				handler:onSay(npc, player, TALKTYPE_PRIVATE_PN, "bye")
 			end)
 		elseif handler.removeInteraction then
-			pcall(handler.removeInteraction, handler, npc, player)
+			IdleSafe.call("RemoteDialog.removeInteraction", handler.removeInteraction, handler, npc, player)
 		end
 	end
 
@@ -246,7 +246,7 @@ function RemoteDialog.handleSay(player, text)
 	forwardPrivatePn(session, player, text)
 
 	if session.onSay then
-		pcall(session.onSay, player, text)
+		IdleSafe.call("RemoteDialog.onSay", session.onSay, player, text)
 	end
 
 	if lower == "bye" or lower == "farewell" then

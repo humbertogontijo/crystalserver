@@ -261,14 +261,14 @@ function InstanceTeleport.requestLobby(player, record, opts)
 				end
 			end
 			if opts.onComplete then
-				pcall(opts.onComplete, p, ok, err)
+				IdleSafe.call("InstanceTeleport.requestLobby.onComplete", opts.onComplete, p, ok, err)
 			elseif not ok and err then
 				p:sendTextMessage(MESSAGE_FAILURE, err)
 			end
 		end,
 		onCancel = function(memberIds)
 			if opts.onCancel then
-				pcall(opts.onCancel, Player(memberIds and memberIds[1] or playerId))
+				IdleSafe.call("InstanceTeleport.requestLobby.onCancel", opts.onCancel, Player(memberIds and memberIds[1] or playerId))
 			end
 		end,
 	})

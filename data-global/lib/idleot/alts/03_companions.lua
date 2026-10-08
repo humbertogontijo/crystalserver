@@ -115,10 +115,8 @@ local function takePartyLeadership(controller, party, force)
 		end
 	end
 	if not inParty then
-		pcall(function()
-			party:addInvite(controller)
-			party:addMember(controller)
-		end)
+		party:addInvite(controller)
+		party:addMember(controller)
 		inParty = controller:getParty() == party
 	end
 	if inParty and party.setLeader then
@@ -131,9 +129,7 @@ local function takePartyLeadership(controller, party, force)
 	if transferred then
 		return party, false, true
 	end
-	pcall(function()
-		party:disband()
-	end)
+	party:disband()
 	local newParty = Party(controller)
 	if not newParty then
 		return nil, false, false
@@ -192,17 +188,13 @@ function Alts.ensureControllerParty(controller, companions, opts)
 		if companion and companion.getId and not isInParty(party, companion) then
 			local old = companion:getParty()
 			if old and old ~= party then
-				pcall(function()
-					old:removeMember(companion)
-				end)
+				old:removeMember(companion)
 			end
 			local invited = party:addInvite(companion)
 			local joined = party:addMember(companion)
 			if not joined then
-				pcall(function()
-					party:addInvite(companion)
-					joined = party:addMember(companion)
-				end)
+				party:addInvite(companion)
+				joined = party:addMember(companion)
 			end
 			if not joined then
 				logger.warn(
@@ -240,13 +232,9 @@ function Alts.forceJoinToParty(host, member)
 			end
 		end
 		if leader and leader:getId() == member:getId() and others == 0 then
-			pcall(function()
-				old:disband()
-			end)
+			old:disband()
 		else
-			pcall(function()
-				old:removeMember(member)
-			end)
+			old:removeMember(member)
 		end
 	end
 
@@ -270,10 +258,8 @@ function Alts.forceJoinToParty(host, member)
 	party:addInvite(member)
 	local joined = party:addMember(member)
 	if not joined then
-		pcall(function()
-			party:addInvite(member)
-			joined = party:addMember(member)
-		end)
+		party:addInvite(member)
+		joined = party:addMember(member)
 	end
 	if not joined then
 		return false, "Failed to join expedition party."
@@ -312,11 +298,9 @@ local function parkCompanionBeforeLogout(companion)
 	-- Persist open-world loginPosition: C++ logout saves getPosition().
 	local returnPos = ExpeditionManager and ExpeditionManager.loadReturnPos and ExpeditionManager.loadReturnPos(companion) or nil
 	if InstanceWorld and InstanceWorld.exitToOpenWorld then
-		pcall(InstanceWorld.exitToOpenWorld, companion, returnPos)
+		IdleSafe.call("InstanceWorld.exitToOpenWorld", InstanceWorld.exitToOpenWorld, companion, returnPos)
 	elseif returnPos and companion.teleportTo then
-		pcall(function()
-			companion:teleportTo(returnPos)
-		end)
+		companion:teleportTo(returnPos)
 	end
 end
 
@@ -439,7 +423,7 @@ local function applyCompanionAutoRebuy(companion)
 	addEvent(function()
 		local c = Player(companionId)
 		if c then
-			pcall(RemoteBlessings.tryAutoRebuy, c)
+			IdleSafe.call("RemoteBlessings.tryAutoRebuy", RemoteBlessings.tryAutoRebuy, c)
 		end
 	end, 0)
 end
@@ -519,9 +503,7 @@ local function claimOnlineCompanion(controller, online, spawnPos, opts)
 	if onlineParty then
 		local leader = onlineParty.getLeader and onlineParty:getLeader() or nil
 		if not (leader and leader:getId() == online:getId()) then
-			pcall(function()
-				onlineParty:removeMember(online)
-			end)
+			onlineParty:removeMember(online)
 		end
 	end
 	placeAt(online, spawnPos, opts)
@@ -694,9 +676,7 @@ function Alts.undeploy(controller, opts)
 				-- headlessLogout -> removeCreature -> onRemoveCreature leaveParty (force).
 				-- Avoid party:removeMember first; double leave/disband can desync map sectors.
 				if opts.returnPos then
-					pcall(function()
-						companion:teleportTo(opts.returnPos)
-					end)
+					companion:teleportTo(opts.returnPos)
 				end
 				-- Voluntary undeploy: logout immediately so leave->switch cannot redeploy
 				-- the same creature and then hit a deferred logout as a false hunt death.
@@ -706,9 +686,7 @@ function Alts.undeploy(controller, opts)
 				end
 				safeLogoutCompanion(companion, deferMs)
 			elseif party and companion:getParty() == party then
-				pcall(function()
-					party:removeMember(companion)
-				end)
+				party:removeMember(companion)
 			end
 		end
 	end
@@ -726,9 +704,7 @@ function Alts.undeploy(controller, opts)
 			end
 		end
 		if onlyLeader then
-			pcall(function()
-				party:disband()
-			end)
+			party:disband()
 		end
 	end
 

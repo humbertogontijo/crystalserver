@@ -211,25 +211,9 @@ function RemoteBlessings.buy(controller, nameOrGuid)
 	if not okCharge then
 		return false, chargeErr
 	end
-	if target.addMissingBless then
-		target:addMissingBless(false, false)
-	else
-		for id = 2, 6 do
-			if not target:hasBlessing(id) then
-				target:addBlessing(id, 1)
-			end
-		end
-	end
-	if target.sendBlessStatus then
-		pcall(function()
-			target:sendBlessStatus()
-		end)
-	end
-	if target.getPosition then
-		pcall(function()
-			target:getPosition():sendMagicEffect(CONST_ME_HOLYAREA)
-		end)
-	end
+	target:addMissingBless(false, false)
+	target:sendBlessStatus()
+	target:getPosition():sendMagicEffect(CONST_ME_HOLYAREA)
 	saveIfNeeded(target)
 	local targetName = target:getName()
 	if targetName:lower() == controller:getName():lower() then
@@ -256,16 +240,8 @@ function RemoteBlessings.buyOne(controller, blessId, nameOrGuid)
 		return false, chargeErr
 	end
 	target:addBlessing(blessId, 1)
-	if target.sendBlessStatus then
-		pcall(function()
-			target:sendBlessStatus()
-		end)
-	end
-	if target.getPosition then
-		pcall(function()
-			target:getPosition():sendMagicEffect(CONST_ME_HOLYAREA)
-		end)
-	end
+	target:sendBlessStatus()
+	target:getPosition():sendMagicEffect(CONST_ME_HOLYAREA)
 	saveIfNeeded(target)
 	local name = (Blessings and Blessings.All and Blessings.All[blessId] and Blessings.All[blessId].name) or ("blessing #" .. blessId)
 	local targetName = target:getName()

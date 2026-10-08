@@ -49,9 +49,7 @@ local function leaveTraining(playerId, message, messageType)
 		stopEvent(state.event)
 	end
 	if state and state.targetItem then
-		pcall(function()
-			state.targetItem:actor(false)
-		end)
+		state.targetItem:actor(false)
 	end
 	trainingByPlayerId[playerId] = nil
 
@@ -252,9 +250,7 @@ function LobbyServices.startTraining(player, opts)
 	if player.setTraining then
 		player:setTraining(true)
 	end
-	pcall(function()
-		targetItem:actor(true)
-	end)
+	targetItem:actor(true)
 	player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "You have started training on an exercise dummy.")
 	sendTrainingState(player, true)
 	trainingByPlayerId[playerId].event = addEvent(trainingTick, 0, playerId, weaponId)

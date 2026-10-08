@@ -187,7 +187,7 @@ function ExpeditionPack.finishFiendishHunt(session)
 	for _, member in ipairs(ExpeditionManager.onlinePlayers(session)) do
 		member:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Fiendish slain - hunt complete!")
 		if ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.onClear then
-			pcall(ActivityBoostFiendishHunt.onClear, member, session)
+			IdleSafe.call("ActivityBoostFiendishHunt.onClear", ActivityBoostFiendishHunt.onClear, member, session)
 		end
 	end
 

@@ -33,9 +33,7 @@ opcodeEvent:register()
 local deathEvent = CreatureEvent("ExpeditionPlayerDeath")
 
 function deathEvent.onDeath(player, corpse, killer, mostDamageKiller, lastHitUnjustified, mostDamageUnjustified)
-	pcall(function()
-		ExpeditionManager.onDeath(player)
-	end)
+	IdleSafe.call("ExpeditionManager.onDeath", ExpeditionManager.onDeath, player)
 	return true
 end
 
@@ -78,9 +76,9 @@ local thinkCallback = EventCallback("CombatAutomationPlayerOnThink")
 function thinkCallback.playerOnThink(player, interval)
 	-- Engine think owns per-player combat cadence (idleCombat 250ms).
 	-- Session AI is only ExpeditionAI.start's scope loop — do not call ExpeditionAI.tick here.
-	pcall(PlayerErrand.think, player)
-	pcall(CombatAutomation.onThink, player, interval)
-	pcall(ExpeditionManager.syncSessionClientIfNeeded, player)
+	IdleSafe.call("PlayerErrand.think", PlayerErrand.think, player)
+	IdleSafe.call("CombatAutomation.onThink", CombatAutomation.onThink, player, interval)
+	IdleSafe.call("ExpeditionManager.syncSessionClientIfNeeded", ExpeditionManager.syncSessionClientIfNeeded, player)
 end
 
 thinkCallback:register()

@@ -223,7 +223,7 @@ function ActivityBoostActivities.onServerSave()
 	for _, player in ipairs(Game.getPlayers()) do
 		ensureBoostDay(player)
 		ActivityBoostLedger.clear(player)
-		pcall(ActivityBoostProtocol.sendState, player)
+		IdleSafe.call("ActivityBoostProtocol.sendState", ActivityBoostProtocol.sendState, player)
 	end
 end
 

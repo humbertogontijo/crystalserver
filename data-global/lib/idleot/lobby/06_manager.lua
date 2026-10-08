@@ -30,9 +30,7 @@ end
 
 local function closeChannel(host)
 	if host then
-		pcall(function()
-			host:closeTeamChannel(TEAM_CHANNEL_CLOSED)
-		end)
+		host:closeTeamChannel(TEAM_CHANNEL_CLOSED)
 	end
 end
 
@@ -57,17 +55,13 @@ local function inviteToChannel(host, member)
 		if record then
 			sendChannelHint(record, member)
 		end
-		pcall(function()
-			host:inviteToTeamChannel(member)
-		end)
+		host:inviteToTeamChannel(member)
 	end
 end
 
 local function excludeFromChannel(host, member)
 	if host and member and host:getGuid() ~= member:getGuid() then
-		pcall(function()
-			host:excludeFromTeamChannel(member)
-		end)
+		host:excludeFromTeamChannel(member)
 	end
 end
 
@@ -78,9 +72,7 @@ function LobbyManager.openChannel(record)
 		return
 	end
 	sendChannelHint(record, host)
-	pcall(function()
-		host:createTeamChannel(LobbyManager.channelName(record))
-	end)
+	host:createTeamChannel(LobbyManager.channelName(record))
 	for _, m in ipairs(record.members) do
 		inviteToChannel(host, online(m.guid))
 	end

@@ -71,7 +71,7 @@ function ExpeditionManager.onLogout(player)
 			return true
 		end
 		if ExpeditionPersist.isPersistableHunt(session) then
-			pcall(ExpeditionPersist.writeSession, session)
+			IdleSafe.call("ExpeditionPersist.writeSession", ExpeditionPersist.writeSession, session)
 			session.persistedForRestart = true
 		end
 		if Alts and Alts.getDeployment and Alts.getDeployment(player) then
@@ -80,18 +80,10 @@ function ExpeditionManager.onLogout(player)
 				if member and member:getId() ~= player:getId() and EM_PRIV.isSessionCompanion(session, member) then
 					EM_PRIV.removeHuntMember(session, member, { skipEnded = true })
 					EM_PRIV.clearActive(member)
-					pcall(function()
-						if Alts.safeLogoutCompanion then
-							Alts.safeLogoutCompanion(member)
-						elseif Game.headlessLogout then
-							Game.headlessLogout(member)
-						end
-					end)
+					IdleSafe.call("Alts.safeLogoutCompanion", Alts.safeLogoutCompanion, member)
 				end
 			end
-			pcall(function()
-				Alts.undeploy(player)
-			end)
+			IdleSafe.call("Alts.undeploy", Alts.undeploy, player)
 		end
 		EM_PRIV.clearActive(player)
 		return true
@@ -104,18 +96,10 @@ function ExpeditionManager.onLogout(player)
 				-- Tear companions out of the session and logout after primary disconnect.
 				EM_PRIV.removeHuntMember(session, member, { skipEnded = true })
 				EM_PRIV.clearActive(member)
-				pcall(function()
-					if Alts.safeLogoutCompanion then
-						Alts.safeLogoutCompanion(member)
-					elseif Game.headlessLogout then
-						Game.headlessLogout(member)
-					end
-				end)
+				IdleSafe.call("Alts.safeLogoutCompanion", Alts.safeLogoutCompanion, member)
 			end
 		end
-		pcall(function()
-			Alts.undeploy(player)
-		end)
+		IdleSafe.call("Alts.undeploy", Alts.undeploy, player)
 	end
 
 	if session.kind == "raid" and RaidInstance and RaidInstance.leave then
@@ -257,11 +241,7 @@ function ExpeditionManager.onClientSwitched(oldPlayer, newPlayer)
 	if oldInSession then
 		session.companionIds = session.companionIds or {}
 		session.companionIds[oldId] = true
-		if Alts and Alts.onBecameHeadless then
-			pcall(Alts.onBecameHeadless, oldPlayer)
-		elseif oldPlayer.setHeadless then
-			oldPlayer:setHeadless(true)
-		end
+		IdleSafe.call("Alts.onBecameHeadless", Alts.onBecameHeadless, oldPlayer)
 	end
 
 	local previousHostId = session.playerId
@@ -446,11 +426,11 @@ function ExpeditionManager.onStartup()
 	EM_PRIV.sessionsByKey = {}
 	EM_PRIV.sessionsByPlayerId = {}
 	EM_PRIV.leavePendingByPlayerId = {}
-	pcall(ExpeditionPersist.loadAll)
-	pcall(ExpeditionPersist.restoreAllOnStartup)
+	IdleSafe.call("ExpeditionPersist.loadAll", ExpeditionPersist.loadAll)
+	IdleSafe.call("ExpeditionPersist.restoreAllOnStartup", ExpeditionPersist.restoreAllOnStartup)
 	logger.info("[Expedition] manager ready ({} catalog entries)", #ExpeditionConfig.Catalog)
 end
 
 function ExpeditionManager.onServerSave()
-	pcall(ExpeditionPersist.saveAllLive, EM_PRIV.sessionsByKey)
+	IdleSafe.call("ExpeditionPersist.saveAllLive", ExpeditionPersist.saveAllLive, EM_PRIV.sessionsByKey)
 end

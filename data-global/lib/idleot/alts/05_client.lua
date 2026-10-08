@@ -6,7 +6,7 @@ local function resolveController(player)
 	if type(Alts.controllerResolver) ~= "function" then
 		return nil
 	end
-	local ok, controller = pcall(Alts.controllerResolver, player)
+	local ok, controller = IdleSafe.call("Alts.controllerResolver", Alts.controllerResolver, player)
 	if ok then
 		return controller
 	end
@@ -42,21 +42,21 @@ function Alts.onClientAttached(player)
 	Alts.onAttachedClient(player)
 
 	if LobbyManager and LobbyManager.onClientAttached then
-		pcall(LobbyManager.onClientAttached, player)
+		IdleSafe.call("LobbyManager.onClientAttached", LobbyManager.onClientAttached, player)
 	end
 	if LobbyServices and LobbyServices.onClientAttached then
-		pcall(LobbyServices.onClientAttached, player)
+		IdleSafe.call("LobbyServices.onClientAttached", LobbyServices.onClientAttached, player)
 	end
 	if ExpeditionManager and ExpeditionManager.syncSessionClientIfNeeded then
-		pcall(ExpeditionManager.syncSessionClientIfNeeded, player)
+		IdleSafe.call("ExpeditionManager.syncSessionClientIfNeeded", ExpeditionManager.syncSessionClientIfNeeded, player)
 	end
 	-- Attached bodies are already bound, so the login-time instance bind never pushes identity.
 	if InstanceWorld and InstanceWorld.scheduleSendBounds then
-		pcall(InstanceWorld.scheduleSendBounds, player)
+		IdleSafe.call("InstanceWorld.scheduleSendBounds", InstanceWorld.scheduleSendBounds, player)
 	end
 	-- Discovery skips clientless logins; push cyclopedia map state now that a UI exists.
 	if DiscoverySystem and DiscoverySystem.onClientAttached then
-		pcall(DiscoverySystem.onClientAttached, player)
+		IdleSafe.call("DiscoverySystem.onClientAttached", DiscoverySystem.onClientAttached, player)
 	end
 end
 
@@ -95,7 +95,7 @@ function Alts.onClientDetached(player)
 	end
 	-- Lobby handoff first so the headless body is re-marked under the new host.
 	if LobbyManager and LobbyManager.onClientDetached then
-		pcall(LobbyManager.onClientDetached, player)
+		IdleSafe.call("LobbyManager.onClientDetached", LobbyManager.onClientDetached, player)
 	end
 	Alts.onBecameHeadless(player)
 end

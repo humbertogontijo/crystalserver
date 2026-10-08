@@ -48,7 +48,7 @@ function EM_PRIV.beginExpeditionHunt(session, contentRole)
 	ExpeditionAI.start(session)
 	for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
 		if ActivityBoostLedger and ActivityBoostLedger.applyOnExpeditionJoin then
-			pcall(ActivityBoostLedger.applyOnExpeditionJoin, p)
+			IdleSafe.call("ActivityBoostLedger.applyOnExpeditionJoin", ActivityBoostLedger.applyOnExpeditionJoin, p)
 		end
 	end
 end
@@ -385,34 +385,14 @@ function ExpeditionManager.clearAreaEffects(player)
 	if not player then
 		return
 	end
-	if type(onPlayerLeaveRottenArea) == "function" then
-		pcall(onPlayerLeaveRottenArea, player)
-	elseif player.removeIcon then
-		pcall(function()
-			player:removeIcon("rotten-hazard")
-			player:removeIcon("rotten-area")
-			player:removeIcon("white-cross")
-		end)
-	end
-	if player.setHazardSystemPoints then
-		pcall(function()
-			player:setHazardSystemPoints(0)
-		end)
-	end
+	onPlayerLeaveRottenArea(player)
+	player:setHazardSystemPoints(0)
 	-- Restore world hazard (e.g. Gnomprona) if still standing in a hazard zone.
-	if player.updateHazard then
-		pcall(function()
-			player:updateHazard()
-		end)
-	end
+	player:updateHazard()
 	-- Agony fields (Darklight Core) use CONDITION_AGONY with ticks=-1 while standing
 	-- on the tile; instance teleports skip step-out so strip it on expedition leave.
-	if player.removeCondition then
-		pcall(function()
-			player:removeCondition(CONDITION_AGONY, CONDITIONID_COMBAT)
-			player:removeCondition(CONDITION_AGONY, CONDITIONID_DEFAULT)
-		end)
-	end
+	player:removeCondition(CONDITION_AGONY, CONDITIONID_COMBAT)
+	player:removeCondition(CONDITION_AGONY, CONDITIONID_DEFAULT)
 end
 
 function ExpeditionManager.sanitizeAutomation(loadout, player)
@@ -714,9 +694,9 @@ function EM_PRIV.syncHuntPersist(session)
 		return
 	end
 	if ExpeditionPersist.isPersistableHunt(session) then
-		pcall(ExpeditionPersist.writeSession, session)
+		IdleSafe.call("ExpeditionPersist.writeSession", ExpeditionPersist.writeSession, session)
 	elseif ExpeditionPersist.clearSession and not ExpeditionPersist.isServerShuttingDown() then
-		pcall(ExpeditionPersist.clearSession, session)
+		IdleSafe.call("ExpeditionPersist.clearSession", ExpeditionPersist.clearSession, session)
 	end
 end
 
@@ -1013,7 +993,7 @@ function EM_PRIV.registerSessionMember(session, member, host, opts)
 	if isCompanion then
 		session.companionIds[memberId] = true
 		if Alts and Alts.markCompanion then
-			pcall(Alts.markCompanion, member, host)
+			IdleSafe.call("Alts.markCompanion", Alts.markCompanion, member, host)
 		end
 		EM_PRIV.saveReturn(member, hostWorldPos)
 	else

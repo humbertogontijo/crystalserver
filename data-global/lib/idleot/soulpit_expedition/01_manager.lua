@@ -87,7 +87,7 @@ function SoulPitExpedition.spawnWave(session)
 				local abilityName = SoulPit.possibleAbilities[math.random(1, #SoulPit.possibleAbilities)]
 				local ability = SoulPit.bossAbilities[abilityName]
 				if ability and ability.apply then
-					pcall(ability.apply, monster)
+					IdleSafe.call("SoulPit.bossAbilities." .. abilityName, ability.apply, monster)
 				end
 			end
 			spawned = spawned + 1
@@ -221,7 +221,7 @@ function SoulPitExpedition.start(player)
 	session.alive = 0
 	-- Cancel the boss spawn timer if join armed one.
 	ExpeditionManager.scope(session):cancel("bossSpawn")
-	pcall(ExpeditionPack.clear, session)
+	IdleSafe.call("ExpeditionPack.clear", ExpeditionPack.clear, session)
 	-- First wave shortly after enter.
 	ExpeditionManager.scope(session):timer("wave", 2000, function()
 		SoulPitExpedition.spawnWave(session)

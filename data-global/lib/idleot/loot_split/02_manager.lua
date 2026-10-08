@@ -238,14 +238,8 @@ local function creditLootStats(player, itemId, count)
 	end
 	local statsItem = Game.createItem(itemId, count)
 	if statsItem then
-		pcall(function()
-			player:sendLootStats(statsItem, count)
-		end)
-		if statsItem.remove then
-			pcall(function()
-				statsItem:remove()
-			end)
-		end
+		player:sendLootStats(statsItem, count)
+		statsItem:remove()
 	end
 end
 
@@ -509,7 +503,7 @@ function LootSplit.onDropLoot(monster, corpse)
 	if not owner then
 		return
 	end
-	pcall(function()
+	IdleSafe.call("LootSplit.onDropLoot", function()
 		local mType = monster.getType and monster:getType() or nil
 		local isBoss = mType and mType.isRewardBoss and mType:isRewardBoss()
 		trySellForInsufficientCap(owner, corpse, isBoss)

@@ -1135,7 +1135,7 @@ performDirectSwitch = function(host, session, switchTo, preAcceptedPlayers, opts
 		if not p or ExpeditionManager.isInExpedition(p) then
 			return
 		end
-		pcall(EM_PRIV.returnToLobby, p)
+		IdleSafe.call("ExpeditionManager.returnToLobby", EM_PRIV.returnToLobby, p)
 	end
 	exitIfNotInExpedition(host)
 	for _, p in ipairs(others) do

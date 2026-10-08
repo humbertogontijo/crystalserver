@@ -200,7 +200,7 @@ local function halt(copy)
 	end
 	copy.alive = false
 	for _, encounter in pairs(copy.encounters) do
-		pcall(encounter.cancelEvents, encounter)
+		IdleSafe.call("EncounterInstances.halt", encounter.cancelEvents, encounter)
 	end
 	copy.scope:dispose()
 end

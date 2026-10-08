@@ -32,7 +32,7 @@ end
 
 local function sendError(player, message)
 	if type(Alts.errorSink) == "function" then
-		pcall(Alts.errorSink, player, message)
+		IdleSafe.call("Alts.errorSink", Alts.errorSink, player, message)
 	elseif player then
 		player:sendTextMessage(MESSAGE_FAILURE, tostring(message))
 	end

@@ -6,7 +6,7 @@ local loginEvent = CreatureEvent("ActivityBoostLogin")
 
 function loginEvent.onLogin(player)
 	player:registerEvent("ActivityBoostOpcode")
-	pcall(ActivityBoostActivities.onLogin, player)
+	IdleSafe.call("ActivityBoostActivities.onLogin", ActivityBoostActivities.onLogin, player)
 	addEvent(function()
 		local p = Player(player:getId())
 		if p and ActivityBoostProtocol and ActivityBoostProtocol.sendState then
@@ -73,7 +73,7 @@ bossHealth:register()
 local bossDeath = CreatureEvent("ActivityBoostWorldBossDeath")
 
 function bossDeath.onDeath(creature, corpse, killer, mostDamageKiller, lastHitUnjustified, mostDamageUnjustified)
-	pcall(ActivityBoostWorldBoss.onBossDeath, creature)
+	IdleSafe.call("ActivityBoostWorldBoss.onBossDeath", ActivityBoostWorldBoss.onBossDeath, creature)
 	return true
 end
 
@@ -83,11 +83,9 @@ local think = GlobalEvent("ActivityBoostThink")
 
 function think.onThink(interval)
 	for _, player in ipairs(Game.getPlayers()) do
-		pcall(function()
-			ActivityBoostLedger.reconcileWithEngine(player)
-		end)
+		IdleSafe.call("ActivityBoostLedger.reconcileWithEngine", ActivityBoostLedger.reconcileWithEngine, player)
 	end
-	pcall(ActivityBoostWorldBoss.tick)
+	IdleSafe.call("ActivityBoostWorldBoss.tick", ActivityBoostWorldBoss.tick)
 	return true
 end
 
@@ -97,7 +95,7 @@ think:register()
 local startup = GlobalEvent("ActivityBoostWorldBossStartup")
 
 function startup.onStartup()
-	pcall(ActivityBoostWorldBoss.ensureAllBands)
+	IdleSafe.call("ActivityBoostWorldBoss.ensureAllBands", ActivityBoostWorldBoss.ensureAllBands)
 	return true
 end
 

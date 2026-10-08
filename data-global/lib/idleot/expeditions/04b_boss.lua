@@ -69,9 +69,7 @@ function ExpeditionBoss.ensureKillable(monster, opts)
 	for _, name in ipairs(killGates(monster, opts)) do
 		monster:unregisterEvent(name)
 	end
-	pcall(function()
-		monster:immune(false)
-	end)
+	monster:immune(false)
 	return true
 end
 
@@ -302,7 +300,7 @@ local function finishBoss(session, opts)
 			BossDifficulty.unlock(member, lever, session.bossDifficulty)
 		end
 		if victory and ActivityBoostActivities and ActivityBoostActivities.onBossExpeditionVictory then
-			pcall(ActivityBoostActivities.onBossExpeditionVictory, member, session)
+			IdleSafe.call("ActivityBoostActivities.onBossExpeditionVictory", ActivityBoostActivities.onBossExpeditionVictory, member, session)
 		end
 	end
 

@@ -227,9 +227,7 @@ function SampleSpells.ensure(player)
 	end
 	-- Premium-gated strikes (Energy Strike, etc.).
 	if not player:isPremium() then
-		pcall(function()
-			player:addPremiumDays(365)
-		end)
+		player:addPremiumDays(365)
 	end
 	return taught
 end

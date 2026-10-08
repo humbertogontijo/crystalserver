@@ -357,7 +357,7 @@ function Context:runJob(id)
 	end
 	if not player then
 		if job.drop then
-			pcall(job.drop)
+			IdleSafe.call("BossMechanics.drop." .. tostring(id), job.drop)
 		end
 		return done()
 	end

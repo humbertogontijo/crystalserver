@@ -151,7 +151,7 @@ local function completeGroup(groupKey)
 		end
 	end
 	if onComplete then
-		pcall(onComplete, memberIds)
+		IdleSafe.call("InstanceTeleport.onComplete", onComplete, memberIds)
 	end
 end
 
@@ -382,7 +382,7 @@ function InstanceTeleport.cancel(player)
 	end
 
 	if onCancel then
-		pcall(onCancel, memberIds, playerId)
+		IdleSafe.call("InstanceTeleport.onCancel", onCancel, memberIds, playerId)
 	end
 	return true
 end

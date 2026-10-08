@@ -8,7 +8,7 @@ function loginEvent.onLogin(player)
 		addEvent(function(pid)
 			local p = Player(pid)
 			if p then
-				pcall(RemoteBlessings.tryAutoRebuy, p)
+				IdleSafe.call("RemoteBlessings.tryAutoRebuy", RemoteBlessings.tryAutoRebuy, p)
 			end
 		end, 1500, player:getId())
 	end
