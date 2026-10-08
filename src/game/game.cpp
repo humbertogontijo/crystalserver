@@ -1190,6 +1190,7 @@ void Game::releaseInstance(InstanceId id) {
 	if (!registry.markClosing(id)) {
 		g_logger().warn("[Game::releaseInstance] {} was not live (ignored)", id);
 	}
+	g_callbacks().executeCallback(EventCallback_t::instanceOnRelease, &EventCallback::instanceOnRelease, id.toKey());
 	g_instanceSpawns().clear(id);
 	// Soft check: actors still bound to this id will collide if the channel is reopened early.
 	for (const auto &[creatureId, creature] : getMonsters()) {

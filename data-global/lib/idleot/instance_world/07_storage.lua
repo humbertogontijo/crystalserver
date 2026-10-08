@@ -8,7 +8,7 @@
 -- unchanged.
 --
 -- Game.getStorageValue/setStorageValue are defined in data/libs (loaded after product
--- libs), so install() runs from scripts/idleot.
+-- libs), so install() runs from scripts/idleot. Layers drop on "instance.released".
 
 InstanceStorage = InstanceStorage or { layers = {} }
 
@@ -55,10 +55,6 @@ function InstanceStorage.install()
 		layers[id] = layers[id] or {}
 		layers[id][key] = (value == -1 or value == nil) and UNSET or value
 	end
-
-	local release = Game.releaseInstance
-	function Game.releaseInstance(instanceId, ...)
-		InstanceStorage.clear(instanceId)
-		return release(instanceId, ...)
-	end
 end
+
+IdleEvents.on("instance.released", InstanceStorage.clear)

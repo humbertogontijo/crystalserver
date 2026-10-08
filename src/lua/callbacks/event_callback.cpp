@@ -1405,3 +1405,20 @@ void EventCallback::mapOnLoad(const std::string &mapFullPath) const {
 
 	getScriptInterface()->callVoidFunction(1);
 }
+
+void EventCallback::instanceOnRelease(const std::string &instanceKey) const {
+	if (!getScriptInterface()->reserveScriptEnv()) {
+		g_logger().error("[{} - Instance {}] Call stack overflow. Too many lua script calls being nested.", __FUNCTION__, instanceKey);
+		return;
+	}
+
+	ScriptEnvironment* scriptEnvironment = getScriptInterface()->getScriptEnv();
+	scriptEnvironment->setScriptId(getScriptId(), getScriptInterface());
+
+	lua_State* L = getScriptInterface()->getLuaState();
+	getScriptInterface()->pushFunction(getScriptId());
+
+	LuaScriptInterface::pushString(L, instanceKey);
+
+	getScriptInterface()->callVoidFunction(1);
+}

@@ -80,4 +80,6 @@ enum class EventCallback_t : uint16_t {
 	zoneAfterCreatureEnter,
 	zoneAfterCreatureLeave,
 	mapOnLoad,
+	// Instance
+	instanceOnRelease,
 };

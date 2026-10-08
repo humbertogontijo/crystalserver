@@ -1008,7 +1008,6 @@ function RaidInstance.installHooks()
 	end
 	hooksInstalled = true
 
-	local originalTryStart = Raid.tryStart
 	function Raid:tryStart(force)
 		if not force and not self:canStart() then
 			return false
@@ -1049,14 +1048,11 @@ function RaidInstance.installHooks()
 		return originalReset(self)
 	end
 
-	local originalEnterStage = Encounter.enterStage
-	function Encounter:enterStage(stageNumber, abort)
-		local ok = originalEnterStage(self, stageNumber, abort)
-		if ok and isRaidEncounter(self) and RaidInstance.hasInstance(self) then
-			RaidInstance.onEnterStage(self, stageNumber)
+	IdleEvents.on("encounter.stage", function(encounter, stageNumber)
+		if isRaidEncounter(encounter) and RaidInstance.hasInstance(encounter) then
+			RaidInstance.onEnterStage(encounter, stageNumber)
 		end
-		return ok
-	end
+	end)
 
 	local originalNextStage = Encounter.nextStage
 	function Encounter:nextStage()
@@ -1221,8 +1217,6 @@ function RaidInstance.installHooks()
 		end
 	end
 
-	-- Keep originalTryStart reference silenced (replaced).
-	_ = originalTryStart
 	logger.info("[RaidInstance] Encounter/Raid hooks installed")
 end
 

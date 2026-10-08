@@ -33,6 +33,8 @@ function CavebotRoutes.forget(instanceKey)
 	caches[instanceKey] = nil
 end
 
+IdleEvents.on("instance.released", CavebotRoutes.forget)
+
 local nowMs = CombatGeo.nowMs
 
 local function runtimeRoute(waypoints, lure)

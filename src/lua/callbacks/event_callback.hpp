@@ -179,4 +179,7 @@ public:
 	void zoneAfterCreatureLeave(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Creature> &creature) const;
 
 	void mapOnLoad(const std::string &mapFullPath) const;
+
+	// Instance
+	void instanceOnRelease(const std::string &instanceKey) const;
 };
