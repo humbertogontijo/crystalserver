@@ -2018,13 +2018,11 @@ bool Game::removeCreature(const std::shared_ptr<Creature> &creature, bool isLogo
 
 		tile->removeCreature(creature);
 
-		const Position &tilePosition = tile->getPosition();
-
 		// Send to client
 		size_t i = 0;
 		for (const auto &spectator : playersSpectators) {
 			if (const auto &player = spectator->getPlayer()) {
-				player->sendRemoveTileThing(tilePosition, oldStackPosVector[i++]);
+				player->sendRemoveTileThing(tile, oldStackPosVector[i++]);
 			}
 		}
 

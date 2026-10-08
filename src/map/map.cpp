@@ -461,6 +461,9 @@ void Map::moveCreature(const std::shared_ptr<Creature> &creature, const std::sha
 		if (stackpos != -1) {
 			const auto &player = spectator->getPlayer();
 			player->sendCreatureMove(creature, newPos, newTile->getStackposOfCreature(player, creature), oldPos, stackpos, teleport);
+			if (stackpos < 10 && oldTile->fillsClientStack(player)) {
+				player->sendUpdateTile(oldTile, oldPos);
+			}
 		}
 	}
 

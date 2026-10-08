@@ -104,7 +104,7 @@ end
 
 local function occupiedByOther(dest, creature)
 	local tile = Tile(dest)
-	local top = tile and tile:getTopCreature()
+	local top = tile and tile:getTopCreature(creature:getInstanceId())
 	return top ~= nil and top:getId() ~= creature:getId()
 end
 

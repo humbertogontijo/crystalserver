@@ -632,10 +632,7 @@ void Tile::onRemoveTileItem(const CreatureVector &spectators, const std::vector<
 	size_t i = 0;
 	for (const auto &spectator : spectators) {
 		if (const auto &tmpPlayer = spectator->getPlayer()) {
-			const int32_t stackpos = oldStackPosVector[i++];
-			if (stackpos != -1) {
-				tmpPlayer->sendRemoveTileThing(cylinderMapPos, stackpos);
-			}
+			tmpPlayer->sendRemoveTileThing(static_self_cast<Tile>(), oldStackPosVector[i++]);
 		}
 	}
 
@@ -1705,6 +1702,34 @@ int32_t Tile::getStackposOfItem(const std::shared_ptr<Player> &player, const std
 		}
 	}
 	return -1;
+}
+
+bool Tile::fillsClientStack(const std::shared_ptr<Player> &player) const {
+	if (!player) {
+		return false;
+	}
+
+	const InstanceId viewerInstanceId = player->getInstanceId();
+	int32_t n = (ground && ground->countsTowardClientMapStack(viewerInstanceId)) ? 1 : 0;
+	if (const TileItemVector* items = getItemList()) {
+		for (const auto &item : *items) {
+			if (item && item->countsTowardClientMapStack(viewerInstanceId) && ++n >= 10) {
+				return true;
+			}
+		}
+	}
+
+	if (const CreatureVector* creatures = getCreatures()) {
+		for (const auto &creature : *creatures) {
+			if (!creature || creature->isRemoved() || !creature->isAlive()) {
+				continue;
+			}
+			if (player->canSeeCreature(creature) && ++n >= 10) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 size_t Tile::getFirstIndex() const {

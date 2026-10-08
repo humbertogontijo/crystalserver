@@ -1071,6 +1071,8 @@ public:
 	void sendAddTileItem(const std::shared_ptr<Tile> &itemTile, const Position &pos, const std::shared_ptr<Item> &item);
 	void sendUpdateTileItem(const std::shared_ptr<Tile> &updateTile, const Position &pos, const std::shared_ptr<Item> &item);
 	void sendRemoveTileThing(const Position &pos, int32_t stackpos) const;
+	// Call after the thing left `tile`; resends the whole tile when a hidden thing slides into view.
+	void sendRemoveTileThing(const std::shared_ptr<Tile> &tile, int32_t stackpos);
 	void sendUpdateTileCreature(const std::shared_ptr<Creature> &creature);
 	void sendUpdateTile(const std::shared_ptr<Tile> &updateTile, const Position &pos) const;
 

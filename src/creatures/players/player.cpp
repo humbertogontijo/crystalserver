@@ -7518,6 +7518,17 @@ void Player::sendRemoveTileThing(const Position &pos, int32_t stackpos) const {
 	}
 }
 
+void Player::sendRemoveTileThing(const std::shared_ptr<Tile> &tile, int32_t stackpos) {
+	if (stackpos == -1 || !client || !tile) {
+		return;
+	}
+	if (stackpos < 10 && tile->fillsClientStack(getPlayer())) {
+		client->sendUpdateTile(tile, tile->getPosition());
+		return;
+	}
+	client->sendRemoveTileThing(tile->getPosition(), stackpos);
+}
+
 void Player::sendUpdateTileCreature(const std::shared_ptr<Creature> &creature) {
 	if (client) {
 		const auto &tile = creature->getTile();
@@ -9136,6 +9147,8 @@ void Player::onThink(uint32_t interval) {
 
 	// Idle combat: 250ms cycle drives playerOnThink; skip stock 1s callback to avoid double ticks.
 	if (!idleCombat) {
+		// Creature::onThink's actor scope has already closed here.
+		InstanceActorScope instanceActorScope(getPlayer());
 		g_callbacks().executeCallback(EventCallback_t::playerOnThink, &EventCallback::playerOnThink, getPlayer(), interval);
 	}
 }
@@ -9170,6 +9183,8 @@ void Player::startIdleCombatThink() {
 			if (!player || !player->isIdleCombat()) {
 				return;
 			}
+			// Dispatcher cycles carry no actor scope; Lua tile / spectator lookups need one.
+			InstanceActorScope instanceActorScope(player);
 			g_callbacks().executeCallback(EventCallback_t::playerOnThink, &EventCallback::playerOnThink, player, Player::IDLE_COMBAT_THINK_INTERVAL);
 		},
 		"Player::idleCombatThink");

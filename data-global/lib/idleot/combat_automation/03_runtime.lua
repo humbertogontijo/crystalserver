@@ -137,6 +137,11 @@ local function slotShouldFire(slot, hpPercent, manaPercent, player)
 	if slotIgnoresTriggerStat(slot) then
 		return true
 	end
+	-- Cures (exana pox/flam/vis/kor/mort) are condition-gated, not HP-gated.
+	local cure = slot.kind == "spell" and CombatAutomationConfig.cureConditionForWords(slot.words)
+	if cure then
+		return player ~= nil and player:hasCondition(cure)
+	end
 	-- Healing spells are always HP-threshold gated.
 	if group == "healing" then
 		return hpPercent <= healHpThreshold(slot)
@@ -820,16 +825,20 @@ local function tryCastSpellWords(player, words, param)
 	return "fail"
 end
 
--- Canary `lua_enums.cpp` does not register TALKTYPE_SPELL_USE, so the global is nil and
--- `creature:say` falls back to TALKTYPE_MONSTER_SAY (looks like a regular/monster line).
--- Wire value matches SpeakClasses::TALKTYPE_SPELL_USE / OTC MessageSpell = 9.
-local TALKTYPE_SPELL_USE_WIRE = 9
+--- Spell words talk type, same as a typed cast (Player::saySpell): emoteSpells → orange
+--- monster say, otherwise a regular yellow say.
+local function spellTalkType()
+	if configManager.getBoolean(configKeys.EMOTE_SPELLS) then
+		return TALKTYPE_MONSTER_SAY
+	end
+	return TALKTYPE_SAY
+end
 
 local function notifyAutomationCast(player, slot, words, label, exhaustMs)
 	-- Runes are thrown silently; their words only label the client cast flash.
 	if words and words ~= "" and not (slot and slot.kind == "rune") then
 		pcall(function()
-			player:say(words, TALKTYPE_SPELL_USE_WIRE)
+			player:say(words, spellTalkType())
 		end)
 	end
 	local payload = {

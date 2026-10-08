@@ -14,23 +14,6 @@ local function isHeadlessCompanion(player)
 	return ctrl and ctrl > 0
 end
 
---- True only when a live ProtocolGame UI is attached (not headless / protocol 0).
-local function isRealUiClient(player)
-	if not player then
-		return false
-	end
-	if isHeadlessCompanion(player) then
-		return false
-	end
-	if player.isHeadless and player:isHeadless() then
-		return false
-	end
-	if player.getProtocolVersion and player:getProtocolVersion() == 0 then
-		return false
-	end
-	return true
-end
-
 local function markCompanion(companion, controller)
 	if not companion or not controller then
 		return
@@ -42,6 +25,33 @@ local function clearCompanionMark(companion)
 	if companion then
 		companion:setStorageValue(AltsConfig.STORAGE_COMPANION_CONTROLLER, -1)
 	end
+end
+
+--- A ProtocolGame client is attached (headless bodies report protocol version 0).
+local function hasLiveClient(player)
+	local client = player.getClient and player:getClient()
+	return client ~= nil and (tonumber(client.version) or 0) > 0
+end
+
+--- True when a UI client drives this body (not headless, not a companion). A live client
+--- always counts: the companion mark survives a server restart mid-hunt, and a fresh login
+--- (unlike reclaiming a headless body, Alts.onClientAttached) never cleared it, which left
+--- the character without lobby / expedition UI for good. Such a stale mark is dropped here.
+local function isRealUiClient(player)
+	if not player then
+		return false
+	end
+	if player.isHeadless and player:isHeadless() then
+		return false
+	end
+	if hasLiveClient(player) then
+		if isHeadlessCompanion(player) then
+			logger.info("[Alts] {} logged in with a client: clearing a stale companion mark", player:getName())
+			clearCompanionMark(player)
+		end
+		return true
+	end
+	return not isHeadlessCompanion(player)
 end
 
 function Alts.isCompanion(player)

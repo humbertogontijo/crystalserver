@@ -37,6 +37,24 @@ CombatAutomationConfig.TARGET_SIGHT_GRACE_MS = 1000
 -- Stance roles: Chebyshev distance kept from the focus (close / ranged) or adjacent
 -- (melee). Knights are melee-locked; monks close; paladins close or ranged; mages ranged.
 CombatAutomationConfig.RANGED_DISTANCE_DEFAULT = 3
+
+-- Cure spells fire only while the caster has the condition they dispel (matching
+-- data/scripts/spells/healing/cure_*.lua COMBAT_PARAM_DISPEL), never on HP/mana.
+-- Condition globals are looked up at call time (enums load after libs).
+CombatAutomationConfig.CureConditionByWords = {
+	["exana pox"] = "CONDITION_POISON",
+	["exana flam"] = "CONDITION_FIRE",
+	["exana vis"] = "CONDITION_ENERGY",
+	["exana kor"] = "CONDITION_BLEEDING",
+	["exana mort"] = "CONDITION_CURSED",
+}
+
+--- Condition type a cure spell removes, or nil when `words` is not a cure.
+function CombatAutomationConfig.cureConditionForWords(words)
+	local name = CombatAutomationConfig.CureConditionByWords[tostring(words or ""):lower()]
+	local condition = name and _G[name]
+	return type(condition) == "number" and condition or nil
+end
 CombatAutomationConfig.STANCE_DISTANCE = { melee = 1, close = 1, ranged = CombatAutomationConfig.RANGED_DISTANCE_DEFAULT }
 
 local function vocationKey(player)

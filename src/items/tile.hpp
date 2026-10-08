@@ -216,6 +216,8 @@ public:
 	int32_t getClientIndexOfCreature(const std::shared_ptr<Player> &player, const std::shared_ptr<Creature> &creature) const;
 	int32_t getStackposOfCreature(const std::shared_ptr<Player> &player, const std::shared_ptr<Creature> &creature) const;
 	int32_t getStackposOfItem(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item) const;
+	// The client keeps only 10 stack entries; once full, removing one reveals a thing it never received.
+	bool fillsClientStack(const std::shared_ptr<Player> &player) const;
 
 	// cylinder implementations
 	ReturnValue queryAdd(int32_t index, const std::shared_ptr<Thing> &thing, uint32_t count, uint32_t flags, const std::shared_ptr<Creature> &actor = nullptr) override;

@@ -308,9 +308,10 @@ local function blockerAhead(anchor, here, target)
 		offsets[2] = { fx, 0 }
 		offsets[3] = { 0, fy }
 	end
+	local instanceId = anchor:getInstanceId()
 	for _, off in ipairs(offsets) do
 		local tile = Tile(Position(here.x + off[1], here.y + off[2], here.z))
-		local top = tile and tile:getTopCreature()
+		local top = tile and tile:getTopCreature(instanceId)
 		if top and top:isMonster() and CombatAutomation.isValidAttackTarget(anchor, top) then
 			return top
 		end
