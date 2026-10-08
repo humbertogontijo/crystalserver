@@ -8339,7 +8339,7 @@ void ProtocolGame::sendPartyPlayerMana(const std::shared_ptr<Player> &target, ui
 	NetworkMessage msg;
 	msg.addByte(0x8B);
 	msg.add<uint32_t>(cid);
-	msg.addByte(11); // party mana (percent + absolute)
+	msg.addByte(17); // party mana (percent + absolute); stock type 11 is percent only
 	msg.addByte(percent);
 	msg.add<uint32_t>(mana);
 	msg.add<uint32_t>(maxMana);
@@ -8381,7 +8381,7 @@ void ProtocolGame::sendPartyPlayerVocation(const std::shared_ptr<Player> &target
 	NetworkMessage msg;
 	msg.addByte(0x8B);
 	msg.add<uint32_t>(cid);
-	msg.addByte(13); // vocation + level (IdleOT party HUD)
+	msg.addByte(18); // vocation + level; stock type 13 is vocation only
 	msg.addByte(target->getVocation()->getClientId());
 	msg.add<uint16_t>(static_cast<uint16_t>(std::min<uint32_t>(target->getLevel(), 0xFFFF)));
 	writeToOutputBuffer(msg);
@@ -8395,7 +8395,7 @@ void ProtocolGame::sendPlayerVocation(const std::shared_ptr<Player> &target) {
 	NetworkMessage msg;
 	msg.addByte(0x8B);
 	msg.add<uint32_t>(target->getID());
-	msg.addByte(13); // vocation + level (IdleOT party HUD)
+	msg.addByte(18); // vocation + level; stock type 13 is vocation only
 	msg.addByte(target->getVocation()->getClientId());
 	msg.add<uint16_t>(static_cast<uint16_t>(std::min<uint32_t>(target->getLevel(), 0xFFFF)));
 	writeToOutputBuffer(msg);
