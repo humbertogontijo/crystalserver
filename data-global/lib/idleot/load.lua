@@ -1,7 +1,8 @@
 -- Product libs (not stock Canary/Crystal). Load order matters.
--- data/core.lua runs this before data/libs; core/load.lua brings the Instance helpers
--- InstanceWorld needs at load time.
+-- data/core.lua runs this after data/libs and data/stages.lua; core/load.lua brings the
+-- Instance helpers InstanceWorld needs at load time.
 dofile(DATA_DIRECTORY .. "/lib/idleot/core/load.lua")
+dofile(DATA_DIRECTORY .. "/lib/idleot/stages.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/pz_teleport.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/custom_effects.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/knight_challenge.lua")
