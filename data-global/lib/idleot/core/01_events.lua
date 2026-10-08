@@ -5,7 +5,7 @@
 --
 -- Events (arguments):
 --   instance.released (instanceKey)                    engine released an instance (any kind)
---   session.started (session)                          expedition session created
+--   session.started (session)                          expedition party entered its instance
 --   session.ended (session)                            expedition session cleaned up
 --   member.paused (session, player)                    AI stopped driving a member (manual / pause)
 --   member.resumed (session, player)                   AI drives the member again
@@ -15,7 +15,8 @@
 --   monster.died (monster, killer)                     product-tracked monster died (expeditions, raids)
 --   zone.itemAdded (zone, item)                        item placed inside a zone
 --   zone.itemRemoved (zone, item)                      item removed from a zone (transform: removed then added)
---   player.walkDone (player, arrived)                  a scripted walk (player:walkTo) ended
+--   player.walkDone (player, completed)                the player's queued walk ran out or was cancelled
+--                                                      (next tick; any walk, scripted or client)
 --
 -- Prefer Scope:on (02_scope.lua) in session / instance code: it unsubscribes on dispose.
 

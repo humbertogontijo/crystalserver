@@ -70,6 +70,7 @@ enum class EventCallback_t : uint16_t {
 	playerOnThink,
 	playerOnSoulSealsFight,
 	playerOnKilledMonster,
+	playerOnWalkEnd,
 	// Monster
 	monsterOnDropLoot,
 	monsterPostDropLoot,

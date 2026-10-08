@@ -1219,6 +1219,25 @@ void EventCallback::playerOnThink(std::shared_ptr<Player> player, uint32_t inter
 	getScriptInterface()->callVoidFunction(2);
 }
 
+void EventCallback::playerOnWalkEnd(const std::shared_ptr<Player> &player, bool completed) const {
+	if (!getScriptInterface()->reserveScriptEnv()) {
+		g_logger().error("[{}] player {}. Call stack overflow. Too many lua script calls being nested.", __FUNCTION__, player->getName());
+		return;
+	}
+
+	ScriptEnvironment* scriptEnvironment = getScriptInterface()->getScriptEnv();
+	scriptEnvironment->setScriptId(getScriptId(), getScriptInterface());
+
+	lua_State* L = getScriptInterface()->getLuaState();
+	getScriptInterface()->pushFunction(getScriptId());
+
+	LuaScriptInterface::pushUserdata<Player>(L, player);
+	LuaScriptInterface::setMetatable(L, -1, "Player");
+	LuaScriptInterface::pushBoolean(L, completed);
+
+	getScriptInterface()->callVoidFunction(2);
+}
+
 // Monster
 void EventCallback::monsterOnDropLoot(const std::shared_ptr<Monster> &monster, const std::shared_ptr<Container> &corpse) const {
 	if (!LuaScriptInterface::reserveScriptEnv()) {

@@ -6609,10 +6609,12 @@ void Player::onWalkAborted() {
 	manualWalking = false;
 	setNextWalkActionTask(nullptr);
 	sendCancelWalk();
+	g_callbacks().executeCallback(EventCallback_t::playerOnWalkEnd, &EventCallback::playerOnWalkEnd, getPlayer(), false);
 }
 
 void Player::onWalkComplete() {
 	manualWalking = false;
+	g_callbacks().executeCallback(EventCallback_t::playerOnWalkEnd, &EventCallback::playerOnWalkEnd, getPlayer(), true);
 
 	if (hasCondition(CONDITION_FEARED)) {
 		/**
