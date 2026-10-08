@@ -19,19 +19,12 @@ local stages = {
 local changeEvent = nil
 local revertEvent = nil
 
---- Phase swaps must keep the private expedition instance and rebind ownership.
+--- Phase swaps keep the private expedition instance (the session rebinds by race).
 local function spawnPhaseMonster(name, position, instanceId)
-	local monster = nil
 	if not Instance.isWorld(instanceId) then
-		monster = Game.createMonster(name, position, true, true, nil, instanceId)
-	else
-		monster = Game.createMonster(name, position, true, true)
+		return Game.createMonster(name, position, true, true, nil, instanceId)
 	end
-
-	if monster and ExpeditionBoss and ExpeditionBoss.onPhaseSpawned then
-		pcall(ExpeditionBoss.onPhaseSpawned, monster)
-	end
-	return monster
+	return Game.createMonster(name, position, true, true)
 end
 
 local function revert(cid, name)

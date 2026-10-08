@@ -2,9 +2,7 @@
 -- {kind, subarea} without moving. Channels are numbered as on the top bar (1-based).
 local instanceCommand = TalkAction("/instance")
 
-local function channelLabel(channel)
-	return string.format("%02d", (tonumber(channel) or 0) + 1)
-end
+local channelLabel = InstanceWorld.channelLabel
 
 local function describe(player)
 	local key = Instance.of(player)

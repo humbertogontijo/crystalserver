@@ -302,11 +302,8 @@ function ExpeditionPack.clear(session)
 		ExpeditionMetrics.log(session)
 	end
 	local instanceId = session.instance and session.instance.instanceId
-	if instanceId and Game.clearInstanceSpawns then
+	if instanceId then
 		Game.clearInstanceSpawns(instanceId)
-	end
-	if session.instance and session.instance.zone then
-		session.instance.zone:removeMonsters()
 	end
 	for mid, key in pairs(monsterOwners) do
 		if key == session.key then

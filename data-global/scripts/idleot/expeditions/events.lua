@@ -83,29 +83,6 @@ end
 
 thinkCallback:register()
 
--- Immediate eject when a player leaves the expedition/raid zone (e.g. GM teleport).
-local zoneLeaveCallback = EventCallback("ExpeditionZoneAfterLeave")
-
-function zoneLeaveCallback.zoneAfterCreatureLeave(zone, creature)
-	local player = creature and creature:getPlayer()
-	if not player or not ExpeditionManager or not ExpeditionManager.getSessionByPlayer then
-		return
-	end
-	local session = ExpeditionManager.getSessionByPlayer(player)
-	if not session or not session.entered or session.reconciling then
-		return
-	end
-	local instZone = session.instance and session.instance.zone
-	if not instZone or instZone ~= zone then
-		return
-	end
-	pcall(function()
-		ExpeditionManager.reconcilePresence(player)
-	end)
-end
-
-zoneLeaveCallback:register()
-
 local startup = GlobalEvent("ExpeditionStartup")
 
 function startup.onStartup()

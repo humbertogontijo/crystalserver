@@ -162,38 +162,6 @@ function ExpeditionBoss.bindBoss(session, monster)
 	return true
 end
 
---- Optional hook if a Crystal script notifies after remove()+createMonster.
---- Expedition also rebinds by shared bossRaceId in getBoss/rebindBossIfNeeded.
-function ExpeditionBoss.onPhaseSpawned(monster)
-	if not monster or not monster.getInstanceId or not ExpeditionManager then
-		return false
-	end
-	local instanceId = monster:getInstanceId()
-	if Instance.isWorld(instanceId) then
-		return false
-	end
-
-	local seen = {}
-	for _, ownerKey in pairs(bossOwners) do
-		if ownerKey and not seen[ownerKey] then
-			seen[ownerKey] = true
-			local session = ExpeditionManager.getSessionByKey(ownerKey)
-			if (
-				session
-				and session.state == "hunting"
-				and session.instance
-				and session.instance.instanceId == instanceId
-			) then
-				local role = session.role or (session.catalog and session.catalog.role)
-				if role == "boss" then
-					return ExpeditionBoss.bindBoss(session, monster)
-				end
-			end
-		end
-	end
-	return false
-end
-
 --- BossLever:spawnForm hook: later forms of a chained lever fight join the session
 --- running that lever in the form's instance.
 local function onLeverFormSpawned(monster, lever)
@@ -667,9 +635,6 @@ function ExpeditionBoss.clear(session)
 	clearDespawn(session)
 	stopEncounterCopy(session)
 	ExpeditionBossMechanics.stop(session)
-	if session.instance and session.instance.zone then
-		session.instance.zone:removeMonsters()
-	end
 	local lever = sessionLever(session)
 	if lever and session.instance then
 		lever:clearEncounter(session.instance.instanceId)

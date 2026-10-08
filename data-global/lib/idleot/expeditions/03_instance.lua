@@ -26,14 +26,6 @@ function ExpeditionInstance.free(instanceId)
 	Game.releaseInstance(instanceId)
 end
 
-function ExpeditionInstance.origin(_instanceId)
-	return nil
-end
-
-function ExpeditionInstance.isInReservedArea(_pos)
-	return false
-end
-
 local function occupancyContains(occ, x, y)
 	if not occ then
 		return true
@@ -272,10 +264,6 @@ local function spawnBounds(instance)
 	return 0, 0, 0, 0
 end
 
-function ExpeditionInstance.worldToSlot(_instance, x, y, z)
-	return Position(x, y, z)
-end
-
 function ExpeditionInstance.hasGround(pos)
 	local tile = Tile(pos)
 	return tile and tile:getGround() ~= nil
@@ -374,10 +362,8 @@ function ExpeditionInstance.teardown(instance)
 		return
 	end
 	instance._tornDown = true
-	local id = instance.instanceId or instance.slot
 	ExpeditionInstance.sweep(instance)
-	ExpeditionInstance.free(id)
-	instance.slot = nil
+	ExpeditionInstance.free(instance.instanceId)
 end
 
 --- True while the instance has not been torn down and the engine still owns its key.
