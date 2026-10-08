@@ -461,13 +461,9 @@ function CaveRoute.lureAlongWalk(path, spawns, walk, stride)
 	return lureFromDensity(median)
 end
 
---- Closed walk over env.spawns (floor env.z); nil when nothing is walkable. Returns
---- { path, waypoints (hold = true on holds), holds, lure, lapSteps, tourSpawns (indices
---- into env.spawns, cluster order), entryRoute (entry → path[1], empty when none) }.
-function CaveRoute.build(env)
-	local spawns, z = env.spawns, env.z
-	local rawStandable = env.standable
-	-- Coordinates of every probed tile: keys only decode for 0 <= y < 65536.
+--- Memoised `rawStandable` plus the coordinates of every probed tile (keys only
+--- decode for 0 <= y < 65536).
+local function probeCache(rawStandable)
 	local cache, coords = {}, {}
 	local function standable(x, y)
 		local k = tileKey(x, y)
@@ -486,10 +482,12 @@ function CaveRoute.build(env)
 		end
 		return keyXY(k)
 	end
-	local bfs = env.bfs or CaveRoute.makeBfs(standable)
-	local lapMax = env.lapMax or CaveRoute.LAP_MAX_STEPS
-	local maxClusters = env.maxClusters or CaveRoute.MAX_CLUSTERS
+	return standable, xyOf
+end
 
+--- Steps 1-2: spawn clusters (dense ones only when there are any), each with its hold
+--- tile (`key`) and that tile's AnchorSpot ring; clusters sharing a hold collapse.
+local function pickClusters(spawns, standable, bfs, teamFits, maxClusters)
 	local groups = CaveRoute.clusterSpawns(spawns, standable, bfs)
 	local dense = {}
 	for _, g in ipairs(groups) do
@@ -500,28 +498,33 @@ function CaveRoute.build(env)
 	if #dense > 0 then
 		groups = dense
 	end
-
 	local clusters, seenVisit = {}, {}
 	for gi = 1, math.min(#groups, maxClusters) do
 		local g = groups[gi]
-		local vx, vy = pickVisit(spawns, g, standable, env.teamFits)
+		local vx, vy, _, ring = pickVisit(spawns, g, standable, teamFits)
 		if vx and not seenVisit[tileKey(vx, vy)] then
 			seenVisit[tileKey(vx, vy)] = true
 			local copy = {}
 			for n, s in ipairs(g) do
 				copy[n] = s
 			end
-			clusters[#clusters + 1] = { spawns = copy, key = tileKey(vx, vy) }
+			clusters[#clusters + 1] = { spawns = copy, key = tileKey(vx, vy), ring = ring }
 		end
 	end
-	if #clusters == 0 then
-		return nil
-	end
+	return clusters
+end
 
-	local targets = {}
+local function holdKeys(clusters)
+	local keys = {}
 	for i, c in ipairs(clusters) do
-		targets[i] = c.key
+		keys[i] = c.key
 	end
+	return keys
+end
+
+--- Walk distances between every pair of holds, and each hold's BFS parent tree.
+local function distanceMatrix(clusters, bfs, xyOf)
+	local targets = holdKeys(clusters)
 	local trees, d = {}, {}
 	for i, c in ipairs(clusters) do
 		local x, y = xyOf(c.key)
@@ -532,7 +535,11 @@ function CaveRoute.build(env)
 			d[i][j] = dist[other.key] or UNREACHABLE
 		end
 	end
+	return trees, d
+end
 
+--- Step 3: merge holds closer than HOLD_MIN_GAP; the matrix shrinks to the kept ones.
+local function mergeCloseHolds(spawns, clusters, trees, d)
 	local keptIds = spaceHolds(spawns, clusters, d, CaveRoute.HOLD_MIN_GAP)
 	local kClusters, kTrees, kd = {}, {}, {}
 	for a, i in ipairs(keptIds) do
@@ -543,53 +550,51 @@ function CaveRoute.build(env)
 			kd[a][b] = d[i][j]
 		end
 	end
-	clusters, trees, d = kClusters, kTrees, kd
-	targets = {}
-	for i, c in ipairs(clusters) do
-		targets[i] = c.key
-	end
+	return kClusters, kTrees, kd
+end
 
-	local entry = env.entry
-	local entryKey, entryDist, entryParent = nil, nil, nil
-	if entry and floor(tonumber(entry.z) or -1) == z then
-		entryKey = tileKey(floor(entry.x), floor(entry.y))
+--- The hold the tour starts from: the one nearest the entry when it reaches any,
+--- else the densest (1). Also returns the entry key and its BFS (for entryRoute).
+local function entryStart(entry, z, clusters, standable, bfs)
+	if not entry or floor(tonumber(entry.z) or -1) ~= z then
+		return 1
 	end
-	local start = 1 -- densest cluster
-	if entryKey and standable(floor(entry.x), floor(entry.y)) then
-		entryDist, entryParent = bfs(floor(entry.x), floor(entry.y), nil, targets)
-		local any = false
-		for _, c in ipairs(clusters) do
-			if entryDist[c.key] then
-				any = true
-				break
-			end
-		end
-		if any then
-			local best
-			for i, c in ipairs(clusters) do
-				local di = entryDist[c.key] or UNREACHABLE
-				if not best or di < (entryDist[clusters[best].key] or UNREACHABLE) then
-					best = i
-				end
-			end
-			start = best
+	local ex, ey = floor(entry.x), floor(entry.y)
+	local entryKey = tileKey(ex, ey)
+	if not standable(ex, ey) then
+		return 1, entryKey
+	end
+	local entryDist, entryParent = bfs(ex, ey, nil, holdKeys(clusters))
+	local best
+	for i, c in ipairs(clusters) do
+		local di = entryDist[c.key]
+		if di and (not best or di < entryDist[clusters[best].key]) then
+			best = i
 		end
 	end
+	return best or 1, entryKey, entryDist, entryParent
+end
+
+--- Steps 4-5: closed tour over the holds reachable from `start`, pruned to the lap cap.
+local function planTour(spawns, clusters, d, start, lapMax)
 	local reachable = {}
 	for j = 1, #clusters do
 		if d[start][j] < UNREACHABLE then
 			reachable[#reachable + 1] = j
 		end
 	end
-
 	local weights = {}
 	for i, c in ipairs(clusters) do
 		weights[i] = slotsOf(spawns, c.spawns)
 	end
-	local tour = pruneForLap(start, reachable, weights, d, lapMax)
+	return pruneForLap(start, reachable, weights, d, lapMax)
+end
 
+--- The tour expanded into its closed walk: tile keys, plus walk index -> cluster index
+--- for every hold on it.
+local function expandTour(tour, clusters, trees)
 	local pathKeys = { clusters[tour[1]].key }
-	local visitIdx = { [1] = true }
+	local holdAt = { [1] = tour[1] }
 	if #tour > 1 then
 		for i, a in ipairs(tour) do
 			local b = tour[i % #tour + 1]
@@ -598,22 +603,25 @@ function CaveRoute.build(env)
 				pathKeys[#pathKeys + 1] = leg[n]
 			end
 			if i < #tour then
-				visitIdx[#pathKeys] = true
+				holdAt[#pathKeys] = b
 			end
 		end
 		pathKeys[#pathKeys] = nil -- the closing step lands back on pathKeys[1]
 	end
+	return pathKeys, holdAt
+end
 
+--- Step 6: walk indices kept as waypoints (sorted): holds, dead-end turn tiles and
+--- one every WAYPOINT_GAP steps.
+local function waypointIndices(pathKeys, holdAt)
 	local n = #pathKeys
 	local keep = {}
-	for i in pairs(visitIdx) do
+	for i in pairs(holdAt) do
 		keep[i] = true
 	end
 	if n >= 3 then
 		for i = 1, n do
-			local prev = pathKeys[(i - 2) % n + 1]
-			local nxt = pathKeys[i % n + 1]
-			if prev == nxt then
+			if pathKeys[(i - 2) % n + 1] == pathKeys[i % n + 1] then
 				keep[i] = true
 			end
 		end
@@ -621,11 +629,32 @@ function CaveRoute.build(env)
 	for i = 1, n, CaveRoute.WAYPOINT_GAP do
 		keep[i] = true
 	end
-	local wpIdx = {}
+	local idx = {}
 	for i in pairs(keep) do
-		wpIdx[#wpIdx + 1] = i
+		idx[#idx + 1] = i
 	end
-	table.sort(wpIdx)
+	table.sort(idx)
+	return idx
+end
+
+--- Closed walk over env.spawns (floor env.z); nil when nothing is walkable. Returns
+--- { path, waypoints (hold = true on holds), holds ({ x, y, z, ring }: ring = the
+--- hold's standable neighbours), lure, lapSteps, tourSpawns (indices into env.spawns,
+--- cluster order), entryRoute (entry → path[1], empty when none) }.
+function CaveRoute.build(env)
+	local spawns, z = env.spawns, env.z
+	local standable, xyOf = probeCache(env.standable)
+	local bfs = env.bfs or CaveRoute.makeBfs(standable)
+
+	local clusters = pickClusters(spawns, standable, bfs, env.teamFits, env.maxClusters or CaveRoute.MAX_CLUSTERS)
+	if #clusters == 0 then
+		return nil
+	end
+	local trees, d = distanceMatrix(clusters, bfs, xyOf)
+	clusters, trees, d = mergeCloseHolds(spawns, clusters, trees, d)
+	local start, entryKey, entryDist, entryParent = entryStart(env.entry, z, clusters, standable, bfs)
+	local tour = planTour(spawns, clusters, d, start, env.lapMax or CaveRoute.LAP_MAX_STEPS)
+	local pathKeys, holdAt = expandTour(tour, clusters, trees)
 
 	local path, pathXY = {}, {}
 	for i, k in ipairs(pathKeys) do
@@ -634,9 +663,9 @@ function CaveRoute.build(env)
 		pathXY[i] = { x, y }
 	end
 	local waypoints = {}
-	for _, i in ipairs(wpIdx) do
+	for _, i in ipairs(waypointIndices(pathKeys, holdAt)) do
 		local p = path[i]
-		waypoints[#waypoints + 1] = { x = p.x, y = p.y, z = z, hold = visitIdx[i] or nil }
+		waypoints[#waypoints + 1] = { x = p.x, y = p.y, z = z, hold = holdAt[i] and true or nil }
 	end
 
 	local tourSpawns = {}
@@ -646,23 +675,24 @@ function CaveRoute.build(env)
 		end
 	end
 	local holdIdx = {}
-	for i in pairs(visitIdx) do
+	for i in pairs(holdAt) do
 		holdIdx[#holdIdx + 1] = i
 	end
 	table.sort(holdIdx)
 	local holds = {}
 	for h, i in ipairs(holdIdx) do
-		holds[h] = { x = path[i].x, y = path[i].y, z = z }
+		holds[h] = { x = path[i].x, y = path[i].y, z = z, ring = clusters[holdAt[i]].ring }
 	end
 
 	local entryRoute = {}
-	if entryKey and entryDist and entryDist[pathKeys[1]] then
+	if entryDist and entryDist[pathKeys[1]] then
 		for i, k in ipairs(pathTo(entryParent, entryKey, pathKeys[1])) do
 			local x, y = xyOf(k)
 			entryRoute[i] = { x = x, y = y, z = z }
 		end
 	end
 
+	local n = #pathKeys
 	return {
 		path = path,
 		waypoints = waypoints,
