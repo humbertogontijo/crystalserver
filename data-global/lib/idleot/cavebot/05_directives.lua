@@ -21,6 +21,7 @@ function Cavebot.syncManual(run, onChange)
 			reasons[id] = reason
 			if not before[id] then
 				CombatAutomationMovement.onManualControl(player)
+				IdleEvents.emit("member.paused", run, player)
 			end
 		end
 		if player and reason ~= before[id] then
@@ -41,6 +42,7 @@ function Cavebot.syncManual(run, onChange)
 			if anchor and anchor:getId() == id and run.cave then
 				Cavebot.resume(run, anchor)
 			end
+			IdleEvents.emit("member.resumed", run, player)
 		end
 	end
 	if changed and CavebotProtocol then

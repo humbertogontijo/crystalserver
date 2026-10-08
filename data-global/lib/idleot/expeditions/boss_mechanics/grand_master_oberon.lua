@@ -32,4 +32,4 @@ ExpeditionBossMechanics.register("Grand Master Oberon", function(ctx)
 			ctx:walkTo(walker, bossPos, { reach = APPROACH_RANGE })
 		end
 	end)
-end)
+end, { immunity = { IMMUNE_EVENT } })

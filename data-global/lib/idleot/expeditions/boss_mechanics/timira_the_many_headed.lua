@@ -42,41 +42,27 @@ local FIRST_PORTAL, SECOND_PORTAL = Position(33787, 32699, 10), Position(33804, 
 local CORRUPTED_WATER_COOLDOWN_MS = 8500 -- stock: 8s per player between uses
 local PORTAL_DELAY_MS = 2000
 local WATER_WALK_TTL_MS = 15000 -- walking plus waiting for the next sparkle (every ~8s)
+local SPARKLE_MS = 1800 -- stock: the sparkles go away on the next 2s water tick
 local RETRY_MS = 1000 -- after a failed round (blocked path, refused use)
 
 local function nearest(positions, from)
 	local best, bestDist = nil, nil
 	for _, pos in ipairs(positions) do
-		local dist = math.max(math.abs(pos.x - from.x), math.abs(pos.y - from.y))
-		if pos.z == from.z and (not bestDist or dist < bestDist) then
+		local dist = CombatGeo.chebyshev(pos, from)
+		if dist ~= math.huge and (not bestDist or dist < bestDist) then
 			best, bestDist = pos, dist
 		end
 	end
 	return best
 end
 
-local function within(player, position, range)
-	local pos = player:getPosition()
-	return pos.z == position.z and math.max(math.abs(pos.x - position.x), math.abs(pos.y - position.y)) <= range
-end
-
 local function dropPosition(positions, position)
 	for index, pos in ipairs(positions) do
-		if pos.x == position.x and pos.y == position.y and pos.z == position.z then
+		if CombatGeo.sameTile(pos, position) then
 			table.remove(positions, index)
 			return
 		end
 	end
-end
-
-local function sparkling(position)
-	local tile = Tile(position)
-	for _, id in ipairs(SPARKLES) do
-		if tile and tile:getItemById(id) then
-			return true
-		end
-	end
-	return false
 end
 
 --- Bucket spots that still hold the empty bucket the stock fight lays out.
@@ -120,10 +106,10 @@ local function bucketRound(ctx, p, done)
 			reach = 1,
 			ttlMs = WATER_WALK_TTL_MS,
 			waitUntil = function()
-				return sparkling(water) or ctx:stage() ~= FIRST_STAGE
+				return CombatGeo.nowMs() < ctx.sparklingUntil or ctx:stage() ~= FIRST_STAGE
 			end,
 			onDone = function(_, ok, reason)
-				if reason == "timeout" and #ctx.reachableWater > 1 and not within(p, water, 1) then
+				if reason == "timeout" and #ctx.reachableWater > 1 and CombatGeo.chebyshev(p:getPosition(), water) > 1 then
 					dropPosition(ctx.reachableWater, water)
 				end
 				if not ok or ctx:stage() ~= FIRST_STAGE then
@@ -171,6 +157,10 @@ ExpeditionBossMechanics.register("Timira the Many-Headed", function(ctx)
 		ctx.reachableWater[index] = position
 	end
 	ctx.corruptedWaterReady = {}
+	ctx.sparklingUntil = 0
+	ctx:onItemCreated(SPARKLES, function()
+		ctx.sparklingUntil = CombatGeo.nowMs() + SPARKLE_MS
+	end)
 	local function inStage(stage)
 		return function()
 			return ctx:stage() == stage

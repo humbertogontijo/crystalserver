@@ -28,16 +28,17 @@ local function retrySpawn(session)
 	end)
 end
 
---- HEALTHCHANGE kill-gates only (phase transforms must stay registered).
+--- HEALTHCHANGE kill-gates only (phase transforms must stay registered); boss mechanics
+--- add the immunity events they play (ExpeditionBossMechanics.register opts.immunity).
 --- tentuglysHeadPhase: CIP tentacle teleport/arena (absolute multi-floor).
---- facelessHealth: CIP immortality / elemental absorb cleared only by arena tiles.
---- OberonImmunity: CIP immunity cleared by answering Oberon's taunt.
 local KILL_GATE_HEALTHCHANGE = {
 	["monster.invulnerable"] = true,
 	["tentuglysHeadPhase"] = true,
-	["facelessHealth"] = true,
-	["OberonImmunity"] = true,
 }
+
+local function isKillGateHealthChange(name)
+	return KILL_GATE_HEALTHCHANGE[name] or ExpeditionBossMechanics.isImmunityEvent(name)
+end
 
 --- Kill-gate events of `monster` (opts.keepPrepareDeath: lever arenas keep PREPAREDEATH,
 --- their phase transforms run there).
@@ -50,7 +51,7 @@ local function killGates(monster, opts)
 		if type(events) == "table" then
 			for j = 1, #events do
 				local name = events[j]
-				if name and name ~= "" and (eventType ~= CREATURE_EVENT_HEALTHCHANGE or KILL_GATE_HEALTHCHANGE[name]) then
+				if name and name ~= "" and (eventType ~= CREATURE_EVENT_HEALTHCHANGE or isKillGateHealthChange(name)) then
 					gates[#gates + 1] = name
 				end
 			end
@@ -157,6 +158,7 @@ function ExpeditionBoss.bindBoss(session, monster)
 	if not lever then
 		ExpeditionBoss.ensureKillable(monster)
 	end
+	IdleEvents.emit("boss.bound", session, monster)
 	return true
 end
 

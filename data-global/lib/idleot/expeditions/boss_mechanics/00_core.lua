@@ -6,52 +6,50 @@
 -- items through the engine (stock actions, routed to the fight's encounter copy), step on
 -- tiles and portals, say words. Only party members the AI drives ("agents": not paused or
 -- under manual control) are sent around; the others play it themselves. Bosses with a
--- mechanic keep their immunity scripts; ExpeditionBoss strips them as a fallback when the
--- boss stays immune too long (or right away for bosses without a mechanic).
+-- mechanic keep the immunity events they declare (register opts.immunity); ExpeditionBoss
+-- strips them as a fallback when the boss stays immune too long (or right away for bosses
+-- without a mechanic).
+--
+-- A mechanic reacts to what the fight does (IdleEvents): stage changes (onStage), immunity
+-- events on the boss (onBossEvent / whileBossHasEvent), items the encounter script creates
+-- (onItemCreated). Its timers and subscriptions live in a child of the session's Scope and
+-- end with the fight. Standing goals (duty, crossParty, rewardChests) and queued jobs share
+-- one tick, and run at once when a paused member is handed back to the AI.
 
 ExpeditionBossMechanics = ExpeditionBossMechanics or {}
 ExpeditionBossMechanics.mechanics = ExpeditionBossMechanics.mechanics or {}
 
-local POLL_MS = 500
 local CROSSING_HOLD_MS = 30000 -- catch-up teleports wait while the party walks to another floor
-local SWEEP_MS = 500 -- standing goals (duties, crossings, chests) look for idle agents
+local TICK_MS = 500 -- standing goals look for idle agents; queued jobs of members driven again
+
+local immunityEvents = {} -- lowercased creature event name -> true
 
 local Context = {}
 Context.__index = Context
 
+--- True while the fight runs (session hunting, encounter copy alive); also returns the session.
 function Context:live()
-	if self.stopped or (self.copy and not self.copy.alive) then
-		return false
-	end
-	local session = ExpeditionManager.getSessionByKey(self.sessionKey)
-	return session ~= nil and session.state == "hunting", session
+	return self.scope:alive(), self.session
 end
 
---- `fn()` after `delayMs`, in the instance's scope, unless the mechanic stopped.
+--- `fn()` after `delayMs`, in the instance, unless the mechanic stopped.
 function Context:after(delayMs, fn)
-	local eventId
-	eventId = addEvent(function()
-		self.events[eventId] = nil
-		if self:live() then
-			Game.runInInstance(self.instanceId, fn)
-		end
-	end, delayMs)
-	self.events[eventId] = true
+	return self.scope:after(delayMs, fn)
 end
 
---- `fn()` every `intervalMs` until the mechanic stops.
-function Context:every(intervalMs, fn)
-	local function step()
-		fn()
-		self:after(intervalMs, step)
-	end
-	self:after(intervalMs, step)
+--- `fn()` every `intervalMs` until the mechanic stops (`name` replaces a loop of that name).
+function Context:every(intervalMs, fn, name)
+	return self.scope:every(intervalMs, fn, name)
 end
 
 --- `fn()` now and every `intervalMs` until the mechanic stops.
 function Context:sweep(intervalMs, fn)
-	Game.runInInstance(self.instanceId, fn)
-	self:every(intervalMs, fn)
+	return self.scope:sweep(intervalMs, fn)
+end
+
+--- IdleEvents subscription for the mechanic's lifetime.
+function Context:on(event, fn)
+	return self.scope:on(event, fn)
 end
 
 local function present(self, player)
@@ -60,9 +58,11 @@ end
 
 --- Party members standing in the instance (gods spectate).
 function Context:players()
-	local _, session = self:live()
 	local players = {}
-	for _, id in ipairs(session and ExpeditionManager.sessionMemberIds(session) or {}) do
+	if not self:live() then
+		return players
+	end
+	for _, id in ipairs(ExpeditionManager.sessionMemberIds(self.session)) do
 		local player = Player(id)
 		if player and present(self, player) then
 			players[#players + 1] = player
@@ -73,11 +73,11 @@ end
 
 --- True while the AI drives `player`: in the fight, not paused, not under manual control.
 function Context:isAgent(player)
-	local live, session = self:live()
-	if not live or not player or not present(self, player) then
+	if not player or not self:live() or not present(self, player) then
 		return false
 	end
-	if session.manualIds and session.manualIds[player:getId()] then
+	local manual = self.session.manualIds
+	if manual and manual[player:getId()] then
 		return false
 	end
 	return not CombatAutomationMovement.isManual(player)
@@ -97,12 +97,9 @@ end
 local function nearestOf(players, position, range)
 	local best, bestDist = nil, nil
 	for _, player in ipairs(players) do
-		local pos = player:getPosition()
-		if pos.z == position.z then
-			local dist = math.max(math.abs(pos.x - position.x), math.abs(pos.y - position.y))
-			if (not range or dist <= range) and (not bestDist or dist < bestDist) then
-				best, bestDist = player, dist
-			end
+		local dist = CombatGeo.chebyshev(player:getPosition(), position)
+		if dist ~= math.huge and (not range or dist <= range) and (not bestDist or dist < bestDist) then
+			best, bestDist = player, dist
 		end
 	end
 	return best
@@ -119,8 +116,7 @@ end
 
 --- Agents to send on errands, sparing the anchor (it holds the fight) unless it is alone.
 function Context:runners()
-	local _, session = self:live()
-	local anchor = session and ExpeditionConfig.getAnchorPlayer(session)
+	local anchor = self:live() and ExpeditionConfig.getAnchorPlayer(self.session)
 	local agents, runners = self:agents(), {}
 	for _, player in ipairs(agents) do
 		if not anchor or player:getId() ~= anchor:getId() then
@@ -134,11 +130,10 @@ function Context:runners()
 end
 
 function Context:boss()
-	local _, session = self:live()
-	return session and ExpeditionBoss.getBoss(session) or nil
+	return self:live() and ExpeditionBoss.getBoss(self.session) or nil
 end
 
---- True while `monster` has the creature event `name` registered (any event type).
+--- True while `monster` has the creature event `name` registered (HEALTHCHANGE unless `eventType`).
 function ExpeditionBossMechanics.hasEvent(monster, name, eventType)
 	local events = monster and monster:getEvents(eventType or CREATURE_EVENT_HEALTHCHANGE)
 	if type(events) ~= "table" then
@@ -157,12 +152,84 @@ function Context:bossHasEvent(eventName)
 	return ExpeditionBossMechanics.hasEvent(self:boss(), eventName)
 end
 
---- Every `intervalMs` while the bound boss has immunity event `eventName`: `fn(boss)`.
+--- `onAdded(monster)` (next tick) whenever a monster of the fight gains creature event
+--- `eventName`, and right away for the bound boss when it already has it (bosses can spawn
+--- with it); `onRemoved(monster)` when one loses it.
+function Context:onBossEvent(eventName, onAdded, onRemoved)
+	local wanted = eventName:lower()
+	local function ours(creature, name)
+		return type(name) == "string" and name:lower() == wanted and creature:isMonster() and creature:getInstanceId() == self.instanceId
+	end
+	local function added(monsterId)
+		self:after(0, function()
+			local monster = Monster(monsterId)
+			if monster and ExpeditionBossMechanics.hasEvent(monster, eventName) then
+				onAdded(monster)
+			end
+		end)
+	end
+	self:on("creature.eventRegistered", function(creature, name)
+		if ours(creature, name) then
+			added(creature:getId())
+		end
+	end)
+	self:on("boss.bound", function(session, monster)
+		if session == self.session then
+			added(monster:getId())
+		end
+	end)
+	if onRemoved then
+		self:on("creature.eventUnregistered", function(creature, name)
+			if ours(creature, name) then
+				onRemoved(creature)
+			end
+		end)
+	end
+	local boss = self:boss()
+	if boss then
+		added(boss:getId())
+	end
+end
+
+--- While a boss of the fight has creature event `eventName`: `fn(boss)` now and every
+--- `intervalMs` (for answers that may need repeating).
 function Context:whileBossHasEvent(eventName, intervalMs, fn)
-	self:every(intervalMs, function()
-		local boss = self:boss()
+	local loop = "while:" .. eventName
+	local bossId = nil
+	local function step()
+		local boss = bossId and Monster(bossId)
 		if boss and ExpeditionBossMechanics.hasEvent(boss, eventName) then
 			fn(boss)
+		else
+			self.scope:cancel(loop)
+		end
+	end
+	self:onBossEvent(eventName, function(boss)
+		if bossId == boss:getId() and self.scope:pending(loop) then
+			return
+		end
+		bossId = boss:getId()
+		self:every(intervalMs, step, loop)
+		step()
+	end, function(boss)
+		if boss:getId() == bossId then
+			self.scope:cancel(loop)
+		end
+	end)
+end
+
+--- `fn(item)` for every item of `itemIds` the fight's encounter script creates.
+function Context:onItemCreated(itemIds, fn)
+	if not self.copy then
+		return
+	end
+	local wanted = {}
+	for _, id in ipairs(itemIds) do
+		wanted[id] = true
+	end
+	EncounterInstances.watchItems(self.copy, function(item)
+		if wanted[item:getId()] and self:live() then
+			self.scope:run(fn, item)
 		end
 	end)
 end
@@ -195,7 +262,7 @@ function Context:findArenaTiles(predicate)
 end
 
 -- Errands (PlayerErrand) that end with the mechanic, or once the player is paused or taken
--- over by hand; keepGoing / onDone run in the instance's scope.
+-- over by hand; keepGoing / waitUntil / onDone run in the instance.
 
 function Context:errandOpts(opts)
 	opts = opts or {}
@@ -208,16 +275,21 @@ function Context:errandOpts(opts)
 		if not self:isAgent(player) then
 			return false
 		end
-		return not keepGoing or Game.runInInstance(self.instanceId, keepGoing, player)
+		if not keepGoing then
+			return true
+		end
+		local ok, keep = self.scope:run(keepGoing, player)
+		return ok and keep
 	end
 	if waitUntil then
 		wrapped.waitUntil = function(player)
-			return Game.runInInstance(self.instanceId, waitUntil, player)
+			local ok, ready = self.scope:run(waitUntil, player)
+			return ok and ready
 		end
 	end
 	wrapped.onDone = onDone and function(player, ok, reason)
 		if self:live() then
-			Game.runInInstance(self.instanceId, onDone, player, ok, reason)
+			self.scope:run(onDone, player, ok, reason)
 		end
 	end or nil
 	return wrapped
@@ -245,8 +317,9 @@ end
 
 --- Run `job(player, done)` for `player` after its earlier jobs, in order (never before the
 --- next tick, and only while the AI drives the player: paused or under manual control, its
---- jobs wait); the job calls `done()` once finished (typically from an errand's onDone).
---- `onDrop()` runs instead of the job when it is dropped unrun (the player logged out).
+--- jobs wait for the tick that finds it driven again); the job calls `done()` once finished
+--- (typically from an errand's onDone). `onDrop()` runs instead of the job when it is
+--- dropped unrun (the player logged out).
 function Context:queue(player, job, onDrop)
 	local id = player:getId()
 	local jobs = self.jobs[id]
@@ -268,9 +341,6 @@ function Context:runJob(id)
 	end
 	local player = Player(id)
 	if player and not self:isAgent(player) then
-		self:after(SWEEP_MS, function()
-			self:runJob(id)
-		end)
 		return
 	end
 	self.running[id] = true
@@ -286,6 +356,8 @@ function Context:runJob(id)
 			self:after(0, function()
 				self:runJob(id)
 			end)
+		elseif self.jobs[id] == jobs then
+			self.jobs[id] = nil
 		end
 	end
 	if not player then
@@ -301,12 +373,34 @@ function Context:runJob(id)
 	end
 end
 
+--- Standing goal: `fn()` now and on every mechanic tick.
+function Context:goal(fn)
+	self.goals[#self.goals + 1] = fn
+	fn()
+end
+
+function Context:tick()
+	for _, goal in ipairs(self.goals) do
+		local ok, err = pcall(goal)
+		if not ok then
+			logger.error("[ExpeditionBossMechanics] {}: goal failed: {}", self.name, tostring(err))
+		end
+	end
+	local waiting = {}
+	for id in pairs(self.jobs) do
+		waiting[#waiting + 1] = id
+	end
+	for _, id in ipairs(waiting) do
+		self:runJob(id)
+	end
+end
+
 --- While `active()` holds, every agent keeps `job(player, done)` going: it is queued again
 --- each time the previous run finished, so members taken over by hand (or paused) pick
 --- their duty back up once the AI drives them again.
 function Context:duty(active, job)
 	local busy = {}
-	self:sweep(SWEEP_MS, function()
+	self:goal(function()
 		if not active() then
 			return
 		end
@@ -344,9 +438,9 @@ function Context:crossParty(portal, across)
 	local function arrived(player)
 		return across(player:getPosition())
 	end
-	self:sweep(SWEEP_MS, function()
-		local _, session = self:live()
-		if not session then
+	self:goal(function()
+		local live, session = self:live()
+		if not live then
 			return
 		end
 		local anchor = ExpeditionConfig.getAnchorPlayer(session)
@@ -394,30 +488,38 @@ function Context:stage()
 	return self.copy and self.copy.encounter.currentStage or nil
 end
 
---- Once the encounter enters `stage`, wait `delayMs` and run `fn`.
+--- Once the encounter enters `stage` (or right away when it is there), wait `delayMs` and run `fn`.
 function Context:onStage(stage, delayMs, fn)
-	local function poll()
-		if self:stage() == stage then
-			self:after(delayMs, fn)
-		else
-			self:after(POLL_MS, poll)
-		end
+	if not self.copy then
+		return
 	end
-	poll()
+	local unsubscribe, fired = nil, false
+	local function fire()
+		if fired then
+			return
+		end
+		fired = true
+		if unsubscribe then
+			unsubscribe()
+		end
+		self:after(delayMs, fn)
+	end
+	unsubscribe = self:on("encounter.stage", function(encounter, stageNumber)
+		if encounter == self.copy.encounter and stageNumber == stage then
+			fire()
+		end
+	end)
+	if self:stage() == stage then
+		fire()
+	end
 end
 
 --- Every agent on its floor opens each chest of `itemIds` the stock script places (stage
 --- rewards) once, before its next move; members taken over by hand open it once the AI
 --- drives them again.
 function Context:rewardChests(itemIds)
-	if not self.copy then
-		return
-	end
-	local wanted, chests = {}, {}
-	for _, id in ipairs(itemIds) do
-		wanted[id] = true
-	end
-	local function sweep()
+	local chests = {}
+	local function openChests()
 		for _, chest in ipairs(chests) do
 			for _, player in ipairs(self:agents()) do
 				local id = player:getId()
@@ -445,20 +547,27 @@ function Context:rewardChests(itemIds)
 			end
 		end
 	end
-	EncounterInstances.watchItems(self.copy, function(item)
-		local itemId = item:getId()
-		if wanted[itemId] then
-			chests[#chests + 1] = { itemId = itemId, position = item:getPosition(), opened = {}, queued = {} }
-			sweep()
-		end
+	self:onItemCreated(itemIds, function(item)
+		chests[#chests + 1] = { itemId = item:getId(), position = item:getPosition(), opened = {}, queued = {} }
+		openChests()
 	end)
-	self:every(SWEEP_MS, sweep)
+	self:goal(openChests)
 end
 
 --- `mechanic(ctx)` plays boss `name`'s mechanic (boss name, or encounter name for
---- encounter-run fights) in expeditions.
-function ExpeditionBossMechanics.register(name, mechanic)
-	ExpeditionBossMechanics.mechanics[name:lower()] = { name = name, run = mechanic }
+--- encounter-run fights) in expeditions. `opts.immunity`: creature events that make the boss
+--- immune until the mechanic is played (kept on the boss; stripped only when it stalls).
+function ExpeditionBossMechanics.register(name, mechanic, opts)
+	local immunity = opts and opts.immunity or {}
+	ExpeditionBossMechanics.mechanics[name:lower()] = { name = name, run = mechanic, immunity = immunity }
+	for _, eventName in ipairs(immunity) do
+		immunityEvents[eventName:lower()] = true
+	end
+end
+
+--- True when a registered mechanic declares creature event `name` as its boss's immunity.
+function ExpeditionBossMechanics.isImmunityEvent(name)
+	return type(name) == "string" and immunityEvents[name:lower()] == true
 end
 
 local function mechanicOf(lever)
@@ -483,19 +592,30 @@ function ExpeditionBossMechanics.start(session, lever, copy)
 	end
 	local ctx = setmetatable({
 		name = mechanic.name,
-		sessionKey = session.key,
+		session = session,
 		instanceId = session.instance.instanceId,
 		lever = lever,
 		copy = copy,
-		events = {},
 		jobs = {},
 		running = {},
+		goals = {},
 	}, Context)
+	ctx.scope = ExpeditionManager.scope(session):child({
+		name = "mechanic:" .. mechanic.name,
+		alive = function()
+			return session.bossMechanic == ctx and session.state == "hunting" and (not copy or copy.alive)
+		end,
+	})
 	session.bossMechanic = ctx
-	local ok, err = pcall(mechanic.run, ctx)
-	if not ok then
-		logger.error("[ExpeditionBossMechanics] {} failed to start: {}", mechanic.name, tostring(err))
-	end
+	local ok = ctx.scope:run(mechanic.run, ctx)
+	ctx:every(TICK_MS, function()
+		ctx:tick()
+	end)
+	ctx:on("member.resumed", function(run)
+		if run == session then
+			ctx:tick()
+		end
+	end)
 	return ok
 end
 
@@ -507,11 +627,5 @@ function ExpeditionBossMechanics.stop(session)
 	end
 	session.bossMechanic = nil
 	session.catchUpHeldUntil = nil
-	ctx.stopped = true
-	for eventId in pairs(ctx.events) do
-		stopEvent(eventId)
-	end
-	ctx.events = {}
-	ctx.jobs = {}
-	ctx.running = {}
+	ctx.scope:dispose()
 end

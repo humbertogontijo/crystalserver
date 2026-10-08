@@ -7,8 +7,10 @@
 --   instance.released (instanceKey)                    engine released an instance (any kind)
 --   session.started (session)                          expedition party entered its instance
 --   session.ended (session)                            expedition session cleaned up
---   member.paused (session, player)                    AI stopped driving a member (manual / pause)
---   member.resumed (session, player)                   AI drives the member again
+--   member.paused (run, player)                        AI stopped driving a member (manual / pause);
+--                                                      run: expedition session or open-world cave run
+--   member.resumed (run, player)                       AI drives the member again
+--   boss.bound (session, monster)                      expedition bound a (new form of a) boss
 --   encounter.stage (encounter, stageNumber)           an Encounter (stock or instance copy) entered a stage
 --   creature.eventRegistered (creature, eventName)     creature event registered on a creature
 --   creature.eventUnregistered (creature, eventName)   creature event unregistered from a creature
