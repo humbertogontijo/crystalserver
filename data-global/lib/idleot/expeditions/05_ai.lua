@@ -319,8 +319,8 @@ function ExpeditionAI.stop(session)
 	if not session then
 		return
 	end
-	if session.scope then
-		session.scope:cancel("ai")
+	if session.lifetime then
+		session.lifetime:cancel("ai")
 	end
 	session._catchUp = nil
 	local manual = session.manualIds or {}

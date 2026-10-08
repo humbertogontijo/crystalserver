@@ -308,7 +308,7 @@ function RaidInstance.provision(raid)
 		graceStarted = false,
 		tearingDown = false,
 	}
-	session.scope = Scope.new({
+	session.lifetime = Scope.new({
 		name = "raid:" .. raid.name,
 		instanceId = instanceId,
 		alive = function()
@@ -346,7 +346,7 @@ function RaidInstance.scheduleDespawn(session)
 	end
 	local raidName = session.raidName
 	local ms = ExpeditionConfig.raidDespawnMs(raidName, session.raid)
-	session.scope:timer("despawn", ms, function()
+	session.lifetime:timer("despawn", ms, function()
 		if session.graceStarted then
 			return
 		end
@@ -371,7 +371,7 @@ function RaidInstance.teardown(raidName, opts)
 		return
 	end
 	session.tearingDown = true
-	session.scope:dispose()
+	session.lifetime:dispose()
 
 	local raid = session.raid
 	local playerIds = {}
@@ -430,7 +430,7 @@ function RaidInstance.onEnterStage(raid, stageNumber)
 		local baseMs = ExpeditionConfig.RAID_CLEAR_ELIGIBLE_DELAY_MS or 5000
 		local delayMs = math.max(baseMs, spawnMs + 2000)
 		session.clearEligibleAt = os.time() + math.ceil(delayMs / 1000)
-		session.scope:timer("clearEligible", math.ceil(delayMs / 1000) * 1000, function()
+		session.lifetime:timer("clearEligible", math.ceil(delayMs / 1000) * 1000, function()
 			RaidInstance.watchTick(session)
 		end)
 		logger.info("[RaidInstance] last stage started for {}", raid.name)
@@ -574,7 +574,7 @@ local function beginGrace(session)
 			onComplete = finish,
 		})
 	if not channeled then
-		session.scope:timer("grace", graceMs, finish)
+		session.lifetime:timer("grace", graceMs, finish)
 	end
 end
 
@@ -601,7 +601,7 @@ end
 
 --- Coalesce a recount into the next tick (a burst of deaths counts once).
 function RaidInstance.requestCount(session)
-	session.scope:timer("count", 0, function()
+	session.lifetime:timer("count", 0, function()
 		RaidInstance.watchTick(session)
 	end)
 end

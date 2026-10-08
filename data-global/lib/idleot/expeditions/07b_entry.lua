@@ -1871,8 +1871,8 @@ function EM_PRIV.cleanupSession(session, player, opts)
 	elseif session.kind ~= "raid" then
 		ExpeditionPack.clear(session)
 	end
-	if session.scope then
-		session.scope:dispose()
+	if session.lifetime then
+		session.lifetime:dispose()
 	end
 	ExpeditionInstance.teardown(session.instance)
 	if session.key then

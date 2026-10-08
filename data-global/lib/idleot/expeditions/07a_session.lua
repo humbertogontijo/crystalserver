@@ -416,7 +416,7 @@ end
 --- encounter copies, ...) run in the session's instance while it is the live session for
 --- its key, and end in cleanupSession.
 function ExpeditionManager.scope(session)
-	local scope = session.scope
+	local scope = session.lifetime
 	if not scope then
 		scope = Scope.new({
 			name = "session:" .. tostring(session.key),
@@ -427,7 +427,7 @@ function ExpeditionManager.scope(session)
 				return not session._cleaned and EM_PRIV.sessionsByKey[session.key] == session
 			end,
 		})
-		session.scope = scope
+		session.lifetime = scope
 	end
 	return scope
 end
