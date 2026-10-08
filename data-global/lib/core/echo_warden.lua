@@ -63,22 +63,6 @@ EchoWarden.activeRaidCreatures = EchoWarden.activeRaidCreatures or {}
 EchoWarden._glowLoop = false
 EchoWarden._subareaArmed = EchoWarden._subareaArmed or {} -- placeId -> {x,y,z,expires}
 
-function EchoWarden.sendEffect(pos, effect, instanceId)
-	if not pos or not effect then
-		return
-	end
-	local id = Instance.normalize(instanceId)
-	if Instance.isWorld(id) or not Game.getSpectators then
-		pos:sendMagicEffect(effect)
-		return
-	end
-	for _, player in ipairs(Game.getSpectators(pos, true, true, 0, 0, 0, 0, id) or {}) do
-		if player then
-			pos:sendMagicEffect(effect, player)
-		end
-	end
-end
-
 function EchoWarden.createRaidMonster(kindName, pos, instanceId)
 	if not kindName or not pos then
 		return nil
@@ -247,7 +231,7 @@ function EchoWarden.activateFromItem(player, item, position)
 		item:remove()
 	end
 
-	EchoWarden.sendEffect(center, CONST_ME_AGONY, raidInstance)
+	center:sendMagicEffect(CONST_ME_AGONY)
 	EchoWarden.runRaid(kind, center, raidInstance, player)
 	return true
 end
@@ -491,7 +475,7 @@ function EchoWarden.spawnPortal(px, py, pz, kindName, instanceId, shared)
 	if shared or Instance.isWorld(id) then
 		portal:setCustomAttribute(EchoWarden.PORTAL_ATTR_SHARED, "1")
 	end
-	EchoWarden.sendEffect(pos, CONST_ME_TELEPORT, id)
+	pos:sendMagicEffect(CONST_ME_TELEPORT)
 	local ttl = (shared or Instance.isWorld(id)) and EchoWarden.SUBAREA_ARM_TTL_MS or EchoWarden.PORTAL_TTL_MS
 	addEvent(function(qx, qy, qz, expectedInstanceId)
 		local t = Tile(Position(qx, qy, qz))

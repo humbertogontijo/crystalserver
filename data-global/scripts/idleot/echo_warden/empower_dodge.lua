@@ -17,10 +17,7 @@ function dodge.onHealthChange(creature, attacker, primaryDamage, primaryType, se
 	if math.random(1, 100) > EchoWarden.EMPOWER_DODGE_CHANCE then
 		return primaryDamage, primaryType, secondaryDamage, secondaryType
 	end
-	local pos = creature:getPosition()
-	if pos and CONST_ME_DODGE then
-		EchoWarden.sendEffect(pos, CONST_ME_DODGE, Instance.of(creature))
-	end
+	creature:getPosition():sendMagicEffect(CONST_ME_DODGE)
 	return 0, primaryType, 0, secondaryType
 end
 

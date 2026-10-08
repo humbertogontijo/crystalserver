@@ -586,11 +586,9 @@ function EM_PRIV.teleportPlayerIntoRunningHunt(player, session)
 	if not entered then
 		return false
 	end
-	if ExpeditionInstance.sendMagicEffect then
-		ExpeditionInstance.sendMagicEffect(session.instance, player:getPosition(), CONST_ME_TELEPORT)
-	else
+	Game.runInInstance(player:getInstanceId(), function()
 		player:getPosition():sendMagicEffect(CONST_ME_TELEPORT)
-	end
+	end)
 	return true
 end
 

@@ -482,13 +482,11 @@ local function schedulePreSpawn(session, planned, remainingMs, intervalMs)
 		return
 	end
 
-	for _, entry in ipairs(planned) do
-		if ExpeditionInstance.sendMagicEffect then
-			ExpeditionInstance.sendMagicEffect(session.instance, entry.pos, CONST_ME_TELEPORT)
-		else
+	Game.runInInstance(session.instance.instanceId, function()
+		for _, entry in ipairs(planned) do
 			entry.pos:sendMagicEffect(CONST_ME_TELEPORT)
 		end
-	end
+	end)
 
 	ExpeditionManager.scope(session):timer("bossSpawn", intervalMs, function()
 		schedulePreSpawn(session, planned, remainingMs - intervalMs, intervalMs)

@@ -826,11 +826,9 @@ function RaidInstance.join(player, raidName, loadout, options)
 			ExpeditionProtocol.sendError(p, "Could not enter the raid arena.")
 			return
 		end
-		if ExpeditionInstance.sendMagicEffect then
-			ExpeditionInstance.sendMagicEffect(instance, pos, CONST_ME_TELEPORT)
-		else
+		Game.runInInstance(instance.instanceId, function()
 			pos:sendMagicEffect(CONST_ME_TELEPORT)
-		end
+		end)
 		ExpeditionManager.markEntered(bound)
 		p:sendTextMessage(
 			MESSAGE_EVENT_ADVANCE,
@@ -1106,15 +1104,11 @@ function RaidInstance.installHooks()
 			if position then
 				if self.timeToSpawnMonsters >= 1000 then
 					for i = 1, self.timeToSpawnMonsters / 1000 do
-						self:addEvent(function(flashPos, flashInstance)
-							if flashPos then
-								if ExpeditionInstance.sendMagicEffect then
-									ExpeditionInstance.sendMagicEffect(flashInstance, flashPos, CONST_ME_TELEPORT)
-								else
-									flashPos:sendMagicEffect(CONST_ME_TELEPORT)
-								end
-							end
-						end, i * 1000, position, instance)
+						self:addEvent(function(flashPos)
+							Game.runInInstance(scheduledKey, function()
+								flashPos:sendMagicEffect(CONST_ME_TELEPORT)
+							end)
+						end, i * 1000, position)
 					end
 				end
 				local name = config.name

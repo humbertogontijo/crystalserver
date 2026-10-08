@@ -201,11 +201,9 @@ local function spawnPitMonster(session)
 	removeOwnedMonsters(session)
 	local summon = pit.summon or pit.center
 	local pos = Position(summon.x, summon.y, summon.z)
-	if ExpeditionInstance and ExpeditionInstance.sendMagicEffect then
-		ExpeditionInstance.sendMagicEffect(session.instance, pos, CONST_ME_TELEPORT)
-	else
+	Game.runInInstance(session.instance.instanceId, function()
 		pos:sendMagicEffect(CONST_ME_TELEPORT)
-	end
+	end)
 	local monster = ExpeditionInstance.createMonsterExclusive
 			and ExpeditionInstance.createMonsterExclusive(name, pos, session.instance)
 		or (ExpeditionInstance.isLive(session.instance) and Game.createMonster(name, pos, false, true, nil, session.instance.instanceId))
@@ -282,11 +280,9 @@ local function prepareAndSpawn(session, pitIndex)
 		end
 		local summon = pit.summon or pit.center
 		local pos = Position(summon.x, summon.y, summon.z)
-		if ExpeditionInstance and ExpeditionInstance.sendMagicEffect then
-			ExpeditionInstance.sendMagicEffect(s.instance, pos, CONST_ME_TELEPORT)
-		else
+		Game.runInInstance(s.instance.instanceId, function()
 			pos:sendMagicEffect(CONST_ME_TELEPORT)
-		end
+		end)
 		if remaining <= 1 then
 			s.arenaFlashEvent = nil
 			spawnPitMonster(s)

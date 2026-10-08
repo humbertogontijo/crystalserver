@@ -559,24 +559,3 @@ function ExpeditionInstance.randomAttackRangeWalkable(instance, center, radius, 
 
 	return ExpeditionInstance.randomWalkable(instance, center, reserved)
 end
-
---- Broadcast a magic effect only to players in this instance (shared hunt tiles).
-function ExpeditionInstance.sendMagicEffect(instance, pos, effect)
-	if not pos or not pos.sendMagicEffect or not effect then
-		return
-	end
-	local instanceId = instance and instance.instanceId
-	if instanceId == nil or not Game.getSpectators then
-		pos:sendMagicEffect(effect)
-		return
-	end
-	local spectators = Game.getSpectators(pos, true, true, 0, 0, 0, 0, instanceId)
-	if type(spectators) ~= "table" then
-		return
-	end
-	for _, player in ipairs(spectators) do
-		if player then
-			pos:sendMagicEffect(effect, player)
-		end
-	end
-end
