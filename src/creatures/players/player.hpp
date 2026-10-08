@@ -732,9 +732,6 @@ public:
 	const Position &getLoginPosition() const {
 		return loginPosition;
 	}
-	void setLoginPosition(const Position &pos) {
-		loginPosition = pos;
-	}
 	/// Snapshot the current tile as login position; no-op inside private instances.
 	void captureLoginPosition();
 

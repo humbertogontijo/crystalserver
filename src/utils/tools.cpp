@@ -1644,6 +1644,9 @@ const char* getReturnMessage(ReturnValue value) {
 		case RETURNVALUE_NOTENOUGHHARMONY:
 			return "You do not have enough harmony.";
 
+		case RETURNVALUE_CANNOTLEAVEINSTANCE:
+			return "You cannot leave an instance area.";
+
 		// Any unhandled ReturnValue will go enter here
 		default:
 			return "Unknown error.";

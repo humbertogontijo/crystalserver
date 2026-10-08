@@ -1351,6 +1351,7 @@ void LuaEnums::initReturnValueEnums(lua_State* L) {
 	registerEnum(L, RETURNVALUE_ITEMISNOTYOURS);
 	registerEnum(L, RETURNVALUE_ITEMUNTRADEABLE);
 	registerEnum(L, RETURNVALUE_NOTENOUGHHARMONY);
+	registerEnum(L, RETURNVALUE_CANNOTLEAVEINSTANCE);
 }
 
 // Reload

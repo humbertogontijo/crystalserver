@@ -18,6 +18,7 @@
 #pragma once
 
 #include "game/instance_id.hpp"
+#include "game/movement/position.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -28,10 +29,22 @@ class Creature;
 class Player;
 class Monster;
 class Npc;
-struct Position;
 
 // Forward declaration para CreatureVector
 using CreatureVector = std::vector<std::shared_ptr<Creature>>;
+
+struct SpectatorsCacheKey {
+	Position pos;
+	InstanceId instanceId;
+
+	bool operator==(const SpectatorsCacheKey &other) const {
+		return pos == other.pos && instanceId == other.instanceId;
+	}
+
+	friend size_t hash_value(const SpectatorsCacheKey &key) {
+		return phmap::HashState().combine(0, std::hash<Position> {}(key.pos), key.instanceId.value());
+	}
+};
 
 struct SpectatorsCache {
 	struct FloorData {
@@ -117,7 +130,7 @@ public:
 	}
 
 private:
-	static phmap::flat_hash_map<uint64_t, SpectatorsCache> spectatorsCache;
+	static phmap::flat_hash_map<SpectatorsCacheKey, SpectatorsCache> spectatorsCache;
 
 	Spectators find(const Position &centerPos, bool multifloor = false, bool onlyPlayers = false, bool onlyMonsters = false, bool onlyNpcs = false, int32_t minRangeX = 0, int32_t maxRangeX = 0, int32_t minRangeY = 0, int32_t maxRangeY = 0, bool useCache = true, InstanceId instanceId = InstanceId::Any);
 	CreatureVector getSpectators(const Position &centerPos, bool multifloor = false, bool onlyPlayers = false, bool onlyMonsters = false, bool onlyNpcs = false, int32_t minRangeX = 0, int32_t maxRangeX = 0, int32_t minRangeY = 0, int32_t maxRangeY = 0, InstanceId instanceId = InstanceId::Any);

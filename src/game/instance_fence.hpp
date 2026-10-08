@@ -84,9 +84,6 @@ public:
 	/** XY bounding box of the registered fence geometry (any floor); nullopt when none. */
 	[[nodiscard]] std::optional<Aabb> boundsFor(InstanceId instanceId) const;
 	[[nodiscard]] bool hasPrivateFence(InstanceId instanceId) const;
-	/** Walkable floors registered for `instanceId`; empty = every floor. */
-	[[nodiscard]] std::vector<uint8_t> floorsFor(InstanceId instanceId) const;
-
 private:
 	[[nodiscard]] const Fence* fenceFor(InstanceId instanceId) const;
 	[[nodiscard]] bool hubContainsXY(int32_t x, int32_t y) const;

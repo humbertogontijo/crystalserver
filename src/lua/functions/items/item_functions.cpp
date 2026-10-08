@@ -86,7 +86,6 @@ void ItemFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Item", "decay", ItemFunctions::luaItemDecay);
 
 	Lua::registerMethod(L, "Item", "serializeAttributes", ItemFunctions::luaItemSerializeAttributes);
-	Lua::registerMethod(L, "Item", "unserializeAttributes", ItemFunctions::luaItemUnserializeAttributes);
 	Lua::registerMethod(L, "Item", "moveToSlot", ItemFunctions::luaItemMoveToSlot);
 
 	Lua::registerMethod(L, "Item", "getDescription", ItemFunctions::luaItemGetDescription);
@@ -755,27 +754,6 @@ int ItemFunctions::luaItemSerializeAttributes(lua_State* L) {
 	size_t attributesSize;
 	const char* attributes = propWriteStream.getStream(attributesSize);
 	lua_pushlstring(L, attributes, attributesSize);
-	return 1;
-}
-
-int ItemFunctions::luaItemUnserializeAttributes(lua_State* L) {
-	// item:unserializeAttributes(attributes)
-	const auto &item = Lua::getUserdataShared<Item>(L, 1);
-	if (!item) {
-		Lua::pushBoolean(L, false);
-		return 1;
-	}
-
-	size_t attributesSize = 0;
-	const char* attributes = lua_tolstring(L, 2, &attributesSize);
-	if (!attributes || attributesSize == 0) {
-		Lua::pushBoolean(L, true);
-		return 1;
-	}
-
-	PropStream propStream;
-	propStream.init(attributes, attributesSize);
-	Lua::pushBoolean(L, item->unserializeAttr(propStream));
 	return 1;
 }
 

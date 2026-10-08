@@ -186,13 +186,13 @@ public:
 	bool routeInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destPos);
 	bool canWalkInstance(const std::shared_ptr<Creature> &creature, const Position &toPos);
 	/** Open-world layer a player must switch to on reaching `pos` (another subarea region);
-	 *  nullopt keeps the current key (private/non-open-world key, unknown tile, same region or an owned connector). */
+	 *  nullopt keeps the current key (private/non-open-world key, unknown tile, same region or an owned connector).
+	 *  Side-effect free: the channel is only opened by refreshOpenWorldInstance. */
 	[[nodiscard]] std::optional<InstanceId> openWorldSwitchTarget(const std::shared_ptr<Player> &player, const Position &pos);
 	/** Applies openWorldSwitchTarget for the player's current tile. Returns true when the layer changed. */
 	bool refreshOpenWorldInstance(const std::shared_ptr<Player> &player);
 	/** Moves the player onto `target` (a precomputed openWorldSwitchTarget) when it differs from its layer. */
 	bool refreshOpenWorldInstance(const std::shared_ptr<Player> &player, std::optional<InstanceId> target);
-	void disableWorldSpawns();
 	/** Binds a player that is about to be placed (login / headless spawn) and returns where to
 	 *  place them. Order: persisted instance record, InstanceWorld.bindLogin, the main layer of
 	 *  the login tile, then the Adventurers' hub (relocating to it). Never leaves World. */
@@ -205,7 +205,6 @@ public:
 	[[nodiscard]] std::optional<InstanceId> loadPersistedInstance(const std::shared_ptr<Player> &player) const;
 	/** Re-bind creature instanceId from active InstanceWorld session (expedition hunt). */
 	void syncCreatureInstance(const std::shared_ptr<Creature> &creature);
-	bool consumeInstanceFenceMessage();
 	/** Instance of the creature currently in InstanceActorScope (World if none). */
 	static InstanceId getInstanceActorId();
 	/** Instance of the active InstanceActorScope; nullopt when no actor / id scope is open. */
@@ -729,6 +728,8 @@ public:
 	const phmap::parallel_flat_hash_map<uint32_t, std::shared_ptr<Player>> &getPlayers() const {
 		return players;
 	}
+	// Online players sharing an account (alts / headless companions), in login order.
+	std::vector<std::shared_ptr<Player>> getOnlineAccountPlayers(uint32_t accountId) const;
 	const std::map<uint32_t, std::shared_ptr<Monster>> &getMonsters() const {
 		return monsters;
 	}
@@ -1024,6 +1025,7 @@ private:
 	std::unordered_map<std::string, std::weak_ptr<Player>> m_deadPlayers;
 	phmap::parallel_flat_hash_map<uint32_t, std::shared_ptr<Player>> players;
 	phmap::parallel_flat_hash_map<uint32_t, std::shared_ptr<Player>> playersByGUID;
+	phmap::flat_hash_map<uint32_t, std::vector<uint32_t>> playerIdsByAccount;
 	phmap::flat_hash_map<std::string, std::weak_ptr<Player>> mappedPlayerNames;
 	phmap::parallel_flat_hash_map<uint32_t, std::shared_ptr<Guild>> guilds;
 	phmap::flat_hash_map<uint16_t, std::shared_ptr<Item>> uniqueItems;
@@ -1092,8 +1094,6 @@ private:
 	uint64_t lastMapLoadTime = 0;
 
 	phmap::flat_hash_map<InstanceKind, WorldType_t> kindWorldTypes;
-	bool pendingInstanceFenceMessage = false;
-
 	ServiceManager* serviceManager = nullptr;
 
 	void updatePlayersRecord() const;

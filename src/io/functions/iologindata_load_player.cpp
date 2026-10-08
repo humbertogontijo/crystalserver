@@ -179,8 +179,8 @@ bool IOLoginDataLoad::loadPlayerBasicInfo(const std::shared_ptr<Player> &player,
 	bool foundOnlineAccountBank = false;
 	const auto accountId = player->getAccountId();
 	if (accountId != 0) {
-		for (const auto &[_, other] : g_game().getPlayers()) {
-			if (!other || other.get() == player.get() || other->getAccountId() != accountId) {
+		for (const auto &other : g_game().getOnlineAccountPlayers(accountId)) {
+			if (other == player) {
 				continue;
 			}
 			accountBankBalance = other->getBankBalance();
@@ -765,8 +765,8 @@ void IOLoginDataLoad::loadAccountLootPouch(const std::shared_ptr<Player> &player
 	}
 
 	// Prefer an online alt's shared pouch so unsaved loot is not overwritten on login.
-	for (const auto &[_, other] : g_game().getPlayers()) {
-		if (!other || other.get() == player.get() || other->getAccountId() != accountId) {
+	for (const auto &other : g_game().getOnlineAccountPlayers(accountId)) {
+		if (other == player) {
 			continue;
 		}
 		if (const auto &shared = other->getAccountLootPouch()) {

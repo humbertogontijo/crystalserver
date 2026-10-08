@@ -240,14 +240,11 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "allocateInstance", GameFunctions::luaGameAllocateInstance);
 	Lua::registerMethod(L, "Game", "releaseInstance", GameFunctions::luaGameReleaseInstance);
 	Lua::registerMethod(L, "Game", "isPrivateInstance", GameFunctions::luaGameIsPrivateInstance);
-	Lua::registerMethod(L, "Game", "getInstanceInfo", GameFunctions::luaGameGetInstanceInfo);
 	Lua::registerMethod(L, "Game", "isInstanceLive", GameFunctions::luaGameIsInstanceLive);
 	Lua::registerMethod(L, "Game", "getInstanceMembers", GameFunctions::luaGameGetInstanceMembers);
 	Lua::registerMethod(L, "Game", "getInstanceMonsters", GameFunctions::luaGameGetInstanceMonsters);
-	Lua::registerMethod(L, "Game", "getInstances", GameFunctions::luaGameGetInstances);
 	Lua::registerMethod(L, "Game", "parseInstance", GameFunctions::luaGameParseInstance);
 	Lua::registerMethod(L, "Game", "instanceKey", GameFunctions::luaGameInstanceKey);
-	Lua::registerMethod(L, "Game", "getInstanceFloors", GameFunctions::luaGameGetInstanceFloors);
 	Lua::registerMethod(L, "Game", "getSubareaAt", GameFunctions::luaGameGetSubareaAt);
 	Lua::registerMethod(L, "Game", "getSubareaInfo", GameFunctions::luaGameGetSubareaInfo);
 	Lua::registerMethod(L, "Game", "isSubareaInstancesEnabled", GameFunctions::luaGameIsSubareaInstancesEnabled);
@@ -258,7 +255,6 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "setInstanceHubFence", GameFunctions::luaGameSetInstanceHubFence);
 	Lua::registerMethod(L, "Game", "setInstanceAreaFence", GameFunctions::luaGameSetInstanceAreaFence);
 	Lua::registerMethod(L, "Game", "setInstancePrivateFence", GameFunctions::luaGameSetInstancePrivateFence);
-	Lua::registerMethod(L, "Game", "clearInstancePrivateFence", GameFunctions::luaGameClearInstancePrivateFence);
 	Lua::registerMethod(L, "Game", "runInInstance", GameFunctions::luaGameRunInInstance);
 	Lua::registerMethod(L, "Game", "getInstanceScope", GameFunctions::luaGameGetInstanceScope);
 	Lua::registerMethod(L, "Game", "createInstanceSpawns", GameFunctions::luaGameCreateInstanceSpawns);
@@ -267,7 +263,6 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "setInstanceFloors", GameFunctions::luaGameSetInstanceFloors);
 	Lua::registerMethod(L, "Game", "canWalkInstance", GameFunctions::luaGameCanWalkInstance);
 	Lua::registerMethod(L, "Game", "computeCombatPowerFromTraits", GameFunctions::luaGameComputeCombatPowerFromTraits);
-	Lua::registerMethod(L, "Game", "disableWorldSpawns", GameFunctions::luaGameDisableWorldSpawns);
 	Lua::registerMethod(L, "Game", "getNpcs", GameFunctions::luaGameGetNpcs);
 	Lua::registerMethod(L, "Game", "getMonsters", GameFunctions::luaGameGetMonsters);
 
@@ -312,7 +307,6 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "hasEffect", GameFunctions::luaGameHasEffect);
 	Lua::registerMethod(L, "Game", "registerMagicEffect", GameFunctions::luaGameRegisterMagicEffect);
 	Lua::registerMethod(L, "Game", "getOfflinePlayer", GameFunctions::luaGameGetOfflinePlayer);
-	Lua::registerMethod(L, "Game", "headlessLogin", GameFunctions::luaGameHeadlessLogin);
 	Lua::registerMethod(L, "Game", "headlessLoginBatch", GameFunctions::luaGameHeadlessLoginBatch);
 	Lua::registerMethod(L, "Game", "headlessLogout", GameFunctions::luaGameHeadlessLogout);
 	Lua::registerMethod(L, "Game", "getNormalizedPlayerName", GameFunctions::luaGameGetNormalizedPlayerName);
@@ -776,38 +770,6 @@ int GameFunctions::luaGameReleaseInstance(lua_State* L) {
 	return 1;
 }
 
-namespace {
-	void pushInstanceInfo(lua_State* L, InstanceId id) {
-		const auto &registry = g_instanceRegistry();
-		const auto* record = registry.find(id);
-		lua_createtable(L, 0, 12);
-		Lua::setField(L, "key", id.toKey());
-		Lua::setField(L, "kind", std::string(instanceKindName(id.kind())));
-		Lua::setField(L, "subareaId", id.subareaId());
-		Lua::setField(L, "channel", id.channel());
-		Lua::pushBoolean(L, registry.isLive(id));
-		lua_setfield(L, -2, "live");
-		Lua::pushBoolean(L, registry.isPrivate(id));
-		lua_setfield(L, -2, "private");
-		Lua::setField(L, "owner", record ? record->owner : std::string {});
-		Lua::setField(L, "tag", record ? record->tag : std::string {});
-		Lua::setField(L, "createdAt", record ? record->createdAt : 0);
-		Lua::setField(L, "players", registry.playerCount(id));
-		Lua::setField(L, "worldType", static_cast<int32_t>(g_game().getWorldType(id)));
-	}
-}
-
-int GameFunctions::luaGameGetInstanceInfo(lua_State* L) {
-	// Game.getInstanceInfo(instance) -> {key, kind, subareaId, channel, live, private, owner, tag, createdAt, players, worldType} | nil
-	const auto id = Lua::requireInstanceId(L, 1);
-	if (!id || (!g_instanceRegistry().isLive(*id) && !g_instanceRegistry().find(*id))) {
-		lua_pushnil(L);
-		return 1;
-	}
-	pushInstanceInfo(L, *id);
-	return 1;
-}
-
 int GameFunctions::luaGameIsInstanceLive(lua_State* L) {
 	// Game.isInstanceLive(instance[, owner]) -> live (and owned by `owner` when given)
 	std::optional<InstanceId> id;
@@ -860,18 +822,6 @@ int GameFunctions::luaGameGetInstanceMonsters(lua_State* L) {
 		}
 		Lua::pushUserdata<Monster>(L, monster);
 		Lua::setMetatable(L, -1, "Monster");
-		lua_rawseti(L, -2, ++index);
-	}
-	return 1;
-}
-
-int GameFunctions::luaGameGetInstances(lua_State* L) {
-	// Game.getInstances() -> {info, ...} for every registered instance
-	const auto ids = g_instanceRegistry().all();
-	lua_createtable(L, static_cast<int>(ids.size()), 0);
-	int index = 0;
-	for (const auto &id : ids) {
-		pushInstanceInfo(L, id);
 		lua_rawseti(L, -2, ++index);
 	}
 	return 1;
@@ -1201,16 +1151,6 @@ int GameFunctions::luaGameGetInstanceScope(lua_State* L) {
 	return 1;
 }
 
-int GameFunctions::luaGameClearInstancePrivateFence(lua_State* L) {
-	// Game.clearInstancePrivateFence(instanceId)
-	const auto instanceId = Lua::requireInstanceId(L, 1);
-	if (instanceId) {
-		g_instanceFences().clearPrivateFence(*instanceId);
-	}
-	Lua::pushBoolean(L, instanceId.has_value());
-	return 1;
-}
-
 int GameFunctions::luaGameCreateInstanceSpawns(lua_State* L) {
 	// Game.createInstanceSpawns(instanceId) -> spawn block count
 	const auto instanceId = Lua::requireInstanceId(L, 1);
@@ -1322,23 +1262,6 @@ int GameFunctions::luaGameSetInstanceFloors(lua_State* L) {
 	return 1;
 }
 
-int GameFunctions::luaGameGetInstanceFloors(lua_State* L) {
-	// Game.getInstanceFloors(instanceId) -> {z, ...} | nil (every floor)
-	const auto instanceId = Lua::requireInstanceId(L, 1);
-	const auto floors = instanceId ? g_instanceFences().floorsFor(*instanceId) : std::vector<uint8_t> {};
-	if (floors.empty()) {
-		lua_pushnil(L);
-		return 1;
-	}
-	lua_createtable(L, static_cast<int>(floors.size()), 0);
-	int index = 0;
-	for (const auto z : floors) {
-		lua_pushnumber(L, z);
-		lua_rawseti(L, -2, ++index);
-	}
-	return 1;
-}
-
 int GameFunctions::luaGameCanWalkInstance(lua_State* L) {
 	// Game.canWalkInstance(creature, position)
 	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
@@ -1378,13 +1301,6 @@ int GameFunctions::luaGameComputeCombatPowerFromTraits(lua_State* L) {
 	const double meanElement = read("meanElementPercent", "mean_element_percent");
 	const double speed = read("speed");
 	lua_pushnumber(L, computeCombatPowerFromTraits(health, expectedDps, expectedHealDps, armor, defense, mitigation, meanElement, speed));
-	return 1;
-}
-
-int GameFunctions::luaGameDisableWorldSpawns(lua_State* L) {
-	// Game.disableWorldSpawns()
-	g_game().disableWorldSpawns();
-	Lua::pushBoolean(L, true);
 	return 1;
 }
 
@@ -1966,86 +1882,6 @@ int GameFunctions::luaGameGetOfflinePlayer(lua_State* L) {
 		Lua::setMetatable(L, -1, "Player");
 	}
 
-	return 1;
-}
-
-int GameFunctions::luaGameHeadlessLogin(lua_State* L) {
-	// Game.headlessLogin(name or guid[, position[, instanceId = nil]])
-	// Places a headless Player (no ProtocolGame) online.
-	// NOTE: DB load is synchronous on the dispatcher — prefer headlessLoginBatch for multi-login.
-	Position position;
-	const bool hasPosition = lua_gettop(L) >= 2 && !Lua::isNil(L, 2);
-	if (hasPosition) {
-		position = Lua::getPosition(L, 2);
-	}
-	std::optional<InstanceId> explicitId;
-	if (!Lua::readInstanceId(L, 3, explicitId)) {
-		lua_pushnil(L);
-		return 1;
-	}
-	// World = bind from the placement position (InstanceWorld.bindLogin).
-	const InstanceId instanceId = explicitId.value_or(InstanceId::World);
-
-	std::shared_ptr<Player> existing = nullptr;
-	std::string name;
-	uint32_t guid = 0;
-	if (Lua::isNumber(L, 1)) {
-		guid = Lua::getNumber<uint32_t>(L, 1);
-		existing = g_game().getPlayerByGUID(guid, false);
-		if (!existing) {
-			name = IOLoginData::getNameByGuid(guid);
-		}
-	} else if (Lua::isString(L, 1)) {
-		name = Lua::getString(L, 1);
-		existing = g_game().getPlayerByName(name, false);
-	} else {
-		lua_pushnil(L);
-		return 1;
-	}
-
-	if (existing) {
-		// Refuse stealing a live UI client session.
-		if (!existing->isHeadless() && existing->getProtocolVersion() > 0) {
-			lua_pushnil(L);
-			return 1;
-		}
-		reclaimHeadlessPlayer(existing, position, hasPosition, instanceId);
-		Lua::pushUserdata<Player>(L, existing);
-		Lua::setMetatable(L, -1, "Player");
-		return 1;
-	}
-
-	if (name.empty() && guid == 0) {
-		lua_pushnil(L);
-		return 1;
-	}
-
-	auto player = std::make_shared<Player>(nullptr, InstanceId::World);
-	const bool loaded = guid != 0
-		? IOLoginData::loadPlayerById(player, guid, false)
-		: IOLoginData::loadPlayerByName(player, name, false);
-	if (!loaded) {
-		g_logger().warn("[Game.headlessLogin] load failed for '{}'/guid {}", name, guid);
-		lua_pushnil(L);
-		return 1;
-	}
-
-	name = player->getName();
-	if (!player->getGUID()) {
-		lua_pushnil(L);
-		return 1;
-	}
-
-	if (!placeHeadlessPlayer(player, position, hasPosition, instanceId)) {
-		g_logger().warn("[Game.headlessLogin] could not place '{}'", name);
-		lua_pushnil(L);
-		return 1;
-	}
-
-	g_logger().info("[Game.headlessLogin] '{}' online (headless)", player->getName());
-
-	Lua::pushUserdata<Player>(L, player);
-	Lua::setMetatable(L, -1, "Player");
 	return 1;
 }
 

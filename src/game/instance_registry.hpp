@@ -66,6 +66,7 @@ public:
 	};
 
 	static InstanceRegistry &getInstance();
+	[[nodiscard]] static PickHints hintsFor(const std::shared_ptr<Player> &player);
 
 	/** 0 = unlimited. */
 	void setKindCapacity(InstanceKind kind, uint32_t maxPlayers);
@@ -89,9 +90,6 @@ public:
 	[[nodiscard]] bool isPrivate(InstanceId instanceId) const;
 	/** Live channel ids of {kind, subareaId}, ascending (channel 0 included for open-world kinds). */
 	[[nodiscard]] std::vector<InstanceId> channelsOf(InstanceKind kind, uint32_t subareaId) const;
-	/** Every registered instance (implicit main channels only once opened). */
-	[[nodiscard]] std::vector<InstanceId> all() const;
-
 	/** Per-instance PvP override; false when the instance is not live. */
 	bool setWorldType(InstanceId instanceId, WorldType_t type);
 	[[nodiscard]] std::optional<WorldType_t> worldType(InstanceId instanceId) const;
@@ -104,6 +102,8 @@ public:
 	/** Online players currently bound to `instanceId`. */
 	[[nodiscard]] uint32_t playerCount(InstanceId instanceId) const;
 	[[nodiscard]] std::vector<uint32_t> members(InstanceId instanceId) const;
+	/** Instances with at least one online player. */
+	[[nodiscard]] std::vector<InstanceId> occupiedInstances() const;
 
 	/** Monster on the map joins the registry (Game::addMonster). */
 	void setMonsterInstance(uint32_t monsterId, InstanceId instanceId);
@@ -122,10 +122,13 @@ public:
 	 * 3) the channel holding most of the player's party (lowest on ties) with room,
 	 * 4) the lowest public channel with room,
 	 * 5) a newly opened channel.
-	 * Gods bypass the cap.
+	 * Gods bypass the cap. With `commit` false nothing is opened: the result may be a channel
+	 * that does not exist yet, to be claimed later with openPublic.
 	 */
 	[[nodiscard]] std::optional<InstanceId> pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const std::shared_ptr<Player> &player = nullptr);
-	[[nodiscard]] std::optional<InstanceId> pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const PickHints &hints);
+	[[nodiscard]] std::optional<InstanceId> pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const PickHints &hints, bool commit = true);
+	/** Opens `instanceId` as a public channel; false when it is reserved or closing. */
+	bool openPublic(InstanceId instanceId);
 
 	/**
 	 * Refreshes emptiness of every public non-main channel and returns the ones empty for at
@@ -146,6 +149,7 @@ private:
 		[[nodiscard]] bool contains(InstanceId instanceId, uint32_t creatureId) const;
 		[[nodiscard]] std::vector<uint32_t> ids(InstanceId instanceId) const;
 		[[nodiscard]] std::optional<InstanceId> instanceOf(uint32_t creatureId) const;
+		[[nodiscard]] std::vector<InstanceId> instances() const;
 
 	private:
 		phmap::flat_hash_map<InstanceId, phmap::flat_hash_set<uint32_t>> idsByInstance;
@@ -153,6 +157,7 @@ private:
 	};
 
 	Instance &emplace(InstanceId id, bool reserved, std::string owner, std::string tag);
+	[[nodiscard]] std::optional<InstanceId> freeChannel(InstanceKind kind, uint32_t subareaId, bool reserved) const;
 	[[nodiscard]] uint32_t playerCountExcluding(InstanceId instanceId, uint32_t playerId) const;
 
 	std::array<uint32_t, static_cast<size_t>(InstanceKind::Count)> capacityByKind {};

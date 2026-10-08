@@ -1210,10 +1210,10 @@ bool Item::isVisibleInInstance(InstanceId viewerInstanceId) const {
 	if (!instanceId.isWorld()) {
 		return instanceId == viewerInstanceId;
 	}
-	if (!viewerInstanceId.isWorld() && isStatefulMapTemplate()) {
+	if (!viewerInstanceId.isWorld()) {
 		const auto &parent = getParent();
 		const auto &tile = parent ? parent->getTile() : nullptr;
-		if (tile && tile->findStatefulMapFork(*this, viewerInstanceId)) {
+		if (tile && tile->hasFlag(TILESTATE_INSTANCE_ITEMS) && isStatefulMapTemplate() && tile->findStatefulMapFork(*this, viewerInstanceId)) {
 			return false;
 		}
 	}

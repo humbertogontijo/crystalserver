@@ -403,12 +403,11 @@ void IOLoginData::increaseBankBalance(uint32_t guid, uint64_t bankBalance) {
 	}
 
 	const auto newBalance = result->getNumber<uint64_t>("balance");
-	for (const auto &[_, player] : g_game().getPlayers()) {
-		if (player && player->getAccountId() == accountId) {
-			player->setBankBalance(newBalance);
-			player->sendResourceBalance(RESOURCE_BANK, newBalance);
-			break; // setBankBalance syncs the rest of the account
-		}
+	const auto accountPlayers = g_game().getOnlineAccountPlayers(accountId);
+	if (!accountPlayers.empty()) {
+		// setBankBalance syncs the rest of the account.
+		accountPlayers.front()->setBankBalance(newBalance);
+		accountPlayers.front()->sendResourceBalance(RESOURCE_BANK, newBalance);
 	}
 }
 

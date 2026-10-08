@@ -1193,12 +1193,8 @@ void Game::releaseInstance(InstanceId id) {
 	g_callbacks().executeCallback(EventCallback_t::instanceOnRelease, &EventCallback::instanceOnRelease, id.toKey());
 	g_instanceSpawns().clear(id);
 	// Soft check: actors still bound to this id will collide if the channel is reopened early.
-	for (const auto &[creatureId, creature] : getMonsters()) {
-		(void)creatureId;
-		if (creature && creature->getInstanceId() == id) {
-			g_logger().warn("[Game::releaseInstance] monster still on instance {} ({})", id, creature->getName());
-			break;
-		}
+	if (const auto remaining = registry.monsterCount(id); remaining > 0) {
+		g_logger().warn("[Game::releaseInstance] {} monsters still on instance {}", remaining, id);
 	}
 	g_instanceFences().clearPrivateFence(id);
 	registry.release(id);
@@ -1351,7 +1347,7 @@ std::optional<InstanceId> Game::openWorldSwitchTarget(const std::shared_ptr<Play
 	if (main.isWorld()) {
 		return std::nullopt;
 	}
-	return g_instanceRegistry().pickChannel(main.kind(), main.subareaId(), std::nullopt, player);
+	return g_instanceRegistry().pickChannel(main.kind(), main.subareaId(), std::nullopt, InstanceRegistry::hintsFor(player), false);
 }
 
 bool Game::refreshOpenWorldInstance(const std::shared_ptr<Player> &player) {
@@ -1365,37 +1361,18 @@ bool Game::refreshOpenWorldInstance(const std::shared_ptr<Player> &player, std::
 	if (!player || player->isRemoved() || !target || *target == player->getInstanceId()) {
 		return false;
 	}
+	// The peeked channel may have been claimed (reserved) by a script since; pick again, committing.
+	if (!g_instanceRegistry().openPublic(*target)) {
+		target = g_instanceRegistry().pickChannel(target->kind(), target->subareaId(), std::nullopt, player);
+		if (!target || *target == player->getInstanceId()) {
+			return false;
+		}
+	}
 	player->moveToInstance(*target);
 	g_instanceSpawns().ensureOpenWorld(*target);
 	// HUD instance info, KV marker and other Lua-side per-layer state.
 	callInstanceWorld("onSubareaSwitch", player, player->getPosition(), true);
 	return true;
-}
-
-void Game::disableWorldSpawns() {
-	// Keep the loaded blocks: InstanceSpawns clones them into private instances.
-	const auto stopAll = [](SpawnsMonster &spawns) {
-		for (const auto &spawn : spawns.getspawnMonsterList()) {
-			if (spawn) {
-				spawn->stopEvent();
-				spawn->removeSpawnedCreatures();
-			}
-		}
-	};
-	stopAll(map.spawnsMonster);
-	for (auto &custom : map.spawnsMonsterCustomMaps) {
-		stopAll(custom);
-	}
-
-	std::vector<std::shared_ptr<Monster>> leftover;
-	for (const auto &[id, monster] : getMonsters()) {
-		if (monster && monster->getInstanceId().isWorld() && !monster->getMaster()) {
-			leftover.push_back(monster);
-		}
-	}
-	for (const auto &monster : leftover) {
-		removeCreature(monster, false);
-	}
 }
 
 Position Game::bindPlayerInstance(const std::shared_ptr<Player> &player) {
@@ -1512,12 +1489,6 @@ void Game::syncCreatureInstance(const std::shared_ptr<Creature> &creature) {
 		return;
 	}
 	callInstanceWorld("syncCreatureInstance", creature, creature->getPosition(), false);
-}
-
-bool Game::consumeInstanceFenceMessage() {
-	const bool pending = pendingInstanceFenceMessage;
-	pendingInstanceFenceMessage = false;
-	return pending;
 }
 
 std::shared_ptr<Cylinder> Game::internalGetCylinder(const std::shared_ptr<Player> &player, const Position &pos) {
@@ -2456,10 +2427,7 @@ ReturnValue Game::internalMoveCreature(const std::shared_ptr<Creature> &creature
 
 	// check if we can move the creature to the destination
 	if (!canWalkInstance(creature, toTile->getPosition())) {
-		if (creature->getPlayer()) {
-			pendingInstanceFenceMessage = true;
-		}
-		return RETURNVALUE_NOTPOSSIBLE;
+		return creature->getPlayer() ? RETURNVALUE_CANNOTLEAVEINSTANCE : RETURNVALUE_NOTPOSSIBLE;
 	}
 
 	const auto &movingPlayer = creature->getPlayer();
@@ -2497,8 +2465,8 @@ ReturnValue Game::internalMoveCreature(const std::shared_ptr<Creature> &creature
 		}
 
 		if (!canWalkInstance(creature, subCylinder->getPosition())) {
-			if (creature->getPlayer()) {
-				pendingInstanceFenceMessage = true;
+			if (movingPlayer) {
+				movingPlayer->sendCancelMessage(RETURNVALUE_CANNOTLEAVEINSTANCE);
 			}
 			break;
 		}
@@ -7227,8 +7195,8 @@ void Game::playerQuickLootBlackWhitelist(uint32_t playerId, QuickLootFilter_t fi
 		return;
 	}
 
-	for (const auto &[_, other] : getPlayers()) {
-		if (!other || other.get() == player.get() || other->getAccountId() != accountId) {
+	for (const auto &other : getOnlineAccountPlayers(accountId)) {
+		if (other == player) {
 			continue;
 		}
 		other->quickLootFilter = filter;
@@ -12860,6 +12828,12 @@ void Game::addPlayer(const std::shared_ptr<Player> &player) {
 	wildcardTree->insert(lowercase_name);
 	players[player->getID()] = player;
 	playersByGUID[player->getGUID()] = player;
+	if (const auto accountId = player->getAccountId(); accountId != 0) {
+		auto &ids = playerIdsByAccount[accountId];
+		if (std::ranges::find(ids, player->getID()) == ids.end()) {
+			ids.push_back(player->getID());
+		}
+	}
 	g_instanceRegistry().setPlayerInstance(player->getID(), player->getInstanceId());
 }
 
@@ -12869,7 +12843,28 @@ void Game::removePlayer(const std::shared_ptr<Player> &player) {
 	wildcardTree->remove(lowercase_name);
 	players.erase(player->getID());
 	playersByGUID.erase(player->getGUID());
+	if (const auto it = playerIdsByAccount.find(player->getAccountId()); it != playerIdsByAccount.end()) {
+		std::erase(it->second, player->getID());
+		if (it->second.empty()) {
+			playerIdsByAccount.erase(it);
+		}
+	}
 	g_instanceRegistry().removePlayer(player->getID());
+}
+
+std::vector<std::shared_ptr<Player>> Game::getOnlineAccountPlayers(uint32_t accountId) const {
+	std::vector<std::shared_ptr<Player>> result;
+	const auto it = playerIdsByAccount.find(accountId);
+	if (it == playerIdsByAccount.end()) {
+		return result;
+	}
+	result.reserve(it->second.size());
+	for (const auto playerId : it->second) {
+		if (const auto playerIt = players.find(playerId); playerIt != players.end() && playerIt->second) {
+			result.push_back(playerIt->second);
+		}
+	}
+	return result;
 }
 
 void Game::addNpc(const std::shared_ptr<Npc> &npc) {

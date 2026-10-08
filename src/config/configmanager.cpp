@@ -449,7 +449,6 @@ bool ConfigManager::load() {
 	loadIntConfig(L, WHEEL_ATELIER_ROTATE_REGULAR_COST, "wheelAtelierRotateRegularCost", 250000);
 	loadIntConfig(L, WHEEL_POINTS_PER_LEVEL, "wheelPointsPerLevel", 1);
 	loadIntConfig(L, WHITE_SKULL_TIME, "whiteSkullTime", 15 * 60 * 1000);
-	loadIntConfig(L, WEBSOCKET_GAME_PORT, "websocketGamePort", 0);
 	loadIntConfig(L, WORLD_ID, "worldId", 0);
 
 	loadStringConfig(L, CORE_DIRECTORY, "coreDirectory", "data");

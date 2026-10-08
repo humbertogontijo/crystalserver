@@ -283,6 +283,18 @@ std::string LuaScriptInterface::getMetricsScope(int params) const {
 	LuaScriptInterface* scriptInterface;
 	getScriptEnv()->getEventInfo(scriptId, scriptInterface, callbackId, timerEvent);
 
+	// Labels are per (script, timer, function) and stable; building them (lua_getinfo + formatting)
+	// on every call is too costly for hot callbacks.
+	const void* functionPtr = luaState && lua_isfunction(luaState, -(params + 1)) ? lua_topointer(luaState, -(params + 1)) : nullptr;
+	static thread_local phmap::flat_hash_map<std::tuple<int32_t, bool, const void*>, std::string> labels;
+	const auto key = std::make_tuple(scriptId, timerEvent, functionPtr);
+	if (const auto it = labels.find(key); it != labels.end()) {
+		return it->second;
+	}
+	if (labels.size() >= 8192) {
+		labels.clear();
+	}
+
 	std::string name;
 	if (scriptId == EVENT_ID_LOADING) {
 		name = "loading";
@@ -301,7 +313,7 @@ std::string LuaScriptInterface::getMetricsScope(int params) const {
 
 	// One script file registers many callbacks; the called function's source line tells them apart.
 	std::string function = "?";
-	if (luaState && lua_isfunction(luaState, -(params + 1))) {
+	if (functionPtr) {
 		lua_Debug ar;
 		lua_pushvalue(luaState, -(params + 1));
 		if (lua_getinfo(luaState, ">S", &ar) != 0 && ar.source) {
@@ -315,7 +327,7 @@ std::string LuaScriptInterface::getMetricsScope(int params) const {
 		}
 	}
 
-	return fmt::format("{}:{}:{}", name, timerEvent ? "timer" : "<direct>", function);
+	return labels.emplace(key, fmt::format("{}:{}:{}", name, timerEvent ? "timer" : "<direct>", function)).first->second;
 #else
 	(void)params;
 	return {};

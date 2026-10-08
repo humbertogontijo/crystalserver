@@ -165,7 +165,6 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "isHeadless", PlayerFunctions::luaPlayerIsHeadless);
 	Lua::registerMethod(L, "Player", "setHeadless", PlayerFunctions::luaPlayerSetHeadless);
 	Lua::registerMethod(L, "Player", "switchClientTo", PlayerFunctions::luaPlayerSwitchClientTo);
-	Lua::registerMethod(L, "Player", "isInSafeInstance", PlayerFunctions::luaPlayerIsInSafeInstance);
 	Lua::registerMethod(L, "Player", "leavesWhenClientReleased", PlayerFunctions::luaPlayerLeavesWhenClientReleased);
 
 	Lua::registerMethod(L, "Player", "getFreeCapacity", PlayerFunctions::luaPlayerGetFreeCapacity);
@@ -193,7 +192,6 @@ void PlayerFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Player", "getSkullTime", PlayerFunctions::luaPlayerGetSkullTime);
 	Lua::registerMethod(L, "Player", "setSkullTime", PlayerFunctions::luaPlayerSetSkullTime);
-	Lua::registerMethod(L, "Player", "clearAttacked", PlayerFunctions::luaPlayerClearAttacked);
 	Lua::registerMethod(L, "Player", "getDeathPenalty", PlayerFunctions::luaPlayerGetDeathPenalty);
 
 	Lua::registerMethod(L, "Player", "getExperience", PlayerFunctions::luaPlayerGetExperience);
@@ -256,9 +254,6 @@ void PlayerFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Player", "getTown", PlayerFunctions::luaPlayerGetTown);
 	Lua::registerMethod(L, "Player", "setTown", PlayerFunctions::luaPlayerSetTown);
-	Lua::registerMethod(L, "Player", "setLoginPosition", PlayerFunctions::luaPlayerSetLoginPosition);
-	Lua::registerMethod(L, "Player", "captureLoginPosition", PlayerFunctions::luaPlayerCaptureLoginPosition);
-
 	Lua::registerMethod(L, "Player", "getGuild", PlayerFunctions::luaPlayerGetGuild);
 	Lua::registerMethod(L, "Player", "setGuild", PlayerFunctions::luaPlayerSetGuild);
 
@@ -1765,18 +1760,6 @@ int PlayerFunctions::luaPlayerSwitchClientTo(lua_State* L) {
 	return 1;
 }
 
-int PlayerFunctions::luaPlayerIsInSafeInstance(lua_State* L) {
-	// player:isInSafeInstance()
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (!player) {
-		Lua::pushBoolean(L, false);
-		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
-		return 1;
-	}
-	Lua::pushBoolean(L, player->isInSafeInstance());
-	return 1;
-}
-
 int PlayerFunctions::luaPlayerLeavesWhenClientReleased(lua_State* L) {
 	// player:leavesWhenClientReleased()
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
@@ -2221,18 +2204,6 @@ int PlayerFunctions::luaPlayerSetSkullTime(lua_State* L) {
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
 	if (player) {
 		player->setSkullTicks(Lua::getNumber<int64_t>(L, 2));
-		Lua::pushBoolean(L, true);
-	} else {
-		lua_pushnil(L);
-	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerClearAttacked(lua_State* L) {
-	// player:clearAttacked() — clear yellow-mark attackedSet
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (player) {
-		player->clearAttacked();
 		Lua::pushBoolean(L, true);
 	} else {
 		lua_pushnil(L);
@@ -2939,30 +2910,6 @@ int PlayerFunctions::luaPlayerSetTown(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerSetLoginPosition(lua_State* L) {
-	// player:setLoginPosition(position)
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (!player) {
-		lua_pushnil(L);
-		return 1;
-	}
-	player->setLoginPosition(Lua::getPosition(L, 2));
-	Lua::pushBoolean(L, true);
-	return 1;
-}
-
-int PlayerFunctions::luaPlayerCaptureLoginPosition(lua_State* L) {
-	// player:captureLoginPosition()
-	const auto &player = Lua::getUserdataShared<Player>(L, 1);
-	if (!player) {
-		lua_pushnil(L);
-		return 1;
-	}
-	player->captureLoginPosition();
-	Lua::pushPosition(L, player->getLoginPosition());
 	return 1;
 }
 

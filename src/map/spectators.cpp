@@ -17,19 +17,10 @@
 
 #include "map/spectators.hpp"
 
-#include <limits>
-
 #include "creatures/creature.hpp"
 #include "game/game.hpp"
 
-namespace {
-uint64_t spectatorCacheKey(const Position &pos, InstanceId instanceId) {
-	uint64_t loc = (static_cast<uint64_t>(pos.x) << 40) | (static_cast<uint64_t>(pos.y) << 16) | static_cast<uint64_t>(pos.z);
-	return loc ^ (instanceId.value() * 0x9E3779B97F4A7C15ULL);
-}
-}
-
-phmap::flat_hash_map<uint64_t, SpectatorsCache> Spectators::spectatorsCache;
+phmap::flat_hash_map<SpectatorsCacheKey, SpectatorsCache> Spectators::spectatorsCache;
 
 void Spectators::clearCache() {
 	spectatorsCache.clear();
@@ -200,7 +191,7 @@ Spectators Spectators::find(const Position &centerPos, bool multifloor, bool onl
 		return *this;
 	}
 
-	const uint64_t cacheKey = spectatorCacheKey(centerPos, instanceId);
+	const SpectatorsCacheKey cacheKey { centerPos, instanceId };
 	const auto &it = spectatorsCache.find(cacheKey);
 	const bool cacheFound = it != spectatorsCache.end();
 	if (cacheFound) {

@@ -138,7 +138,6 @@ class PlayerFunctions {
 	static int luaPlayerIsHeadless(lua_State* L);
 	static int luaPlayerSetHeadless(lua_State* L);
 	static int luaPlayerSwitchClientTo(lua_State* L);
-	static int luaPlayerIsInSafeInstance(lua_State* L);
 	static int luaPlayerLeavesWhenClientReleased(lua_State* L);
 
 	static int luaPlayerGetKills(lua_State* L);
@@ -173,7 +172,6 @@ class PlayerFunctions {
 
 	static int luaPlayerGetSkullTime(lua_State* L);
 	static int luaPlayerSetSkullTime(lua_State* L);
-	static int luaPlayerClearAttacked(lua_State* L);
 	static int luaPlayerGetDeathPenalty(lua_State* L);
 
 	static int luaPlayerGetExperience(lua_State* L);
@@ -236,9 +234,6 @@ class PlayerFunctions {
 
 	static int luaPlayerGetTown(lua_State* L);
 	static int luaPlayerSetTown(lua_State* L);
-	static int luaPlayerSetLoginPosition(lua_State* L);
-	static int luaPlayerCaptureLoginPosition(lua_State* L);
-
 	static int luaPlayerGetGuild(lua_State* L);
 	static int luaPlayerSetGuild(lua_State* L);
 

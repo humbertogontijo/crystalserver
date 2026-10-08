@@ -457,12 +457,6 @@ std::optional<InstanceId> Lua::parseInstanceId(lua_State* L, int32_t arg) {
 		case LUA_TNONE:
 		case LUA_TNIL:
 			return std::nullopt;
-		case LUA_TNUMBER:
-			// Only 0 is meaningful as a number (legacy "open world"); structured ids are keys.
-			if (lua_tonumber(L, arg) == 0) {
-				return InstanceId::World;
-			}
-			return std::nullopt;
 		case LUA_TSTRING: {
 			size_t len = 0;
 			const char* text = lua_tolstring(L, arg, &len);

@@ -2245,10 +2245,6 @@ void Player::sendCancelMessage(const std::string &msg) const {
 }
 
 void Player::sendCancelMessage(ReturnValue message) const {
-	if (message == RETURNVALUE_NOTPOSSIBLE && g_game().consumeInstanceFenceMessage()) {
-		sendCancelMessage("You cannot leave an instance area.");
-		return;
-	}
 	sendCancelMessage(getReturnMessage(message));
 }
 
@@ -8730,11 +8726,8 @@ void Player::setBankBalance(uint64_t balance) {
 		return;
 	}
 
-	for (const auto &[_, other] : g_game().getPlayers()) {
-		if (!other || other.get() == this || other->getAccountId() != accountId) {
-			continue;
-		}
-		if (other->bankBalance == balance) {
+	for (const auto &other : g_game().getOnlineAccountPlayers(accountId)) {
+		if (other.get() == this || other->bankBalance == balance) {
 			continue;
 		}
 		other->bankBalance = balance;
@@ -12281,6 +12274,10 @@ void Player::onRemoveTileItem(const std::shared_ptr<Tile> &fromTile, const Posit
 void Player::onCreatureAppear(const std::shared_ptr<Creature> &creature, bool isLogin) {
 	Creature::onCreatureAppear(creature, isLogin);
 
+	if (idleCombat && creature == getPlayer()) {
+		startIdleCombatThink();
+	}
+
 	if (isLogin && creature == getPlayer()) {
 		onEquipInventory();
 
@@ -12371,6 +12368,7 @@ void Player::onRemoveCreature(const std::shared_ptr<Creature> &creature, bool is
 	Creature::onRemoveCreature(creature, isLogout);
 
 	if (const auto &player = getPlayer(); player == creature) {
+		stopIdleCombatThink();
 		if (isLogout) {
 			onDeEquipInventory();
 
@@ -12935,8 +12933,8 @@ std::shared_ptr<Container> Player::getLootPouch() {
 		const bool iHaveOpen = getContainerID(accountLootPouch) != -1;
 		bool otherHasOpen = false;
 		if (!iHaveOpen) {
-			for (const auto &[_, other] : g_game().getPlayers()) {
-				if (!other || other.get() == this || other->getAccountLootPouch() != accountLootPouch) {
+			for (const auto &other : g_game().getOnlineAccountPlayers(getAccountId())) {
+				if (other.get() == this || other->getAccountLootPouch() != accountLootPouch) {
 					continue;
 				}
 				if (other->getContainerID(accountLootPouch) != -1) {
@@ -12996,8 +12994,8 @@ void Player::handOffAccountLootPouch() {
 	if (!accountLootPouch || accountLootPouch->getParent().get() != this) {
 		return;
 	}
-	for (const auto &[_, other] : g_game().getPlayers()) {
-		if (other && other.get() != this && !other->isRemoved() && other->getAccountLootPouch() == accountLootPouch) {
+	for (const auto &other : g_game().getOnlineAccountPlayers(getAccountId())) {
+		if (other.get() != this && !other->isRemoved() && other->getAccountLootPouch() == accountLootPouch) {
 			accountLootPouch->setParent(other);
 			return;
 		}

@@ -130,10 +130,8 @@ void InstanceSpawns::ensureOccupiedOpenWorld() {
 	if (!g_subareas().enabled()) {
 		return;
 	}
-	for (const auto &[id, player] : g_game().getPlayers()) {
-		if (player && !player->isRemoved()) {
-			ensureOpenWorld(player->getInstanceId());
-		}
+	for (const auto &instanceId : g_instanceRegistry().occupiedInstances()) {
+		ensureOpenWorld(instanceId);
 	}
 }
 

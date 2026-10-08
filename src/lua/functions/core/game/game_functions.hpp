@@ -40,14 +40,11 @@ private:
 	static int luaGameAllocateInstance(lua_State* L);
 	static int luaGameReleaseInstance(lua_State* L);
 	static int luaGameIsPrivateInstance(lua_State* L);
-	static int luaGameGetInstanceInfo(lua_State* L);
 	static int luaGameIsInstanceLive(lua_State* L);
 	static int luaGameGetInstanceMembers(lua_State* L);
 	static int luaGameGetInstanceMonsters(lua_State* L);
-	static int luaGameGetInstances(lua_State* L);
 	static int luaGameParseInstance(lua_State* L);
 	static int luaGameInstanceKey(lua_State* L);
-	static int luaGameGetInstanceFloors(lua_State* L);
 	static int luaGameGetSubareaAt(lua_State* L);
 	static int luaGameGetSubareaInfo(lua_State* L);
 	static int luaGameIsSubareaInstancesEnabled(lua_State* L);
@@ -58,7 +55,6 @@ private:
 	static int luaGameSetInstanceHubFence(lua_State* L);
 	static int luaGameSetInstanceAreaFence(lua_State* L);
 	static int luaGameSetInstancePrivateFence(lua_State* L);
-	static int luaGameClearInstancePrivateFence(lua_State* L);
 	static int luaGameRunInInstance(lua_State* L);
 	static int luaGameGetInstanceScope(lua_State* L);
 	static int luaGameCreateInstanceSpawns(lua_State* L);
@@ -67,7 +63,6 @@ private:
 	static int luaGameSetInstanceFloors(lua_State* L);
 	static int luaGameCanWalkInstance(lua_State* L);
 	static int luaGameComputeCombatPowerFromTraits(lua_State* L);
-	static int luaGameDisableWorldSpawns(lua_State* L);
 	static int luaGameGetNpcs(lua_State* L);
 	static int luaGameGetMonsters(lua_State* L);
 
@@ -111,9 +106,7 @@ private:
 	static int luaGameReload(lua_State* L);
 
 	static int luaGameGetOfflinePlayer(lua_State* L);
-	// Headless account companions (no ProtocolGame): login near controller for squad expeditions.
-	static int luaGameHeadlessLogin(lua_State* L);
-	// Async batch: DB load off ThreadPool, place on dispatcher, then Lua callback(players|nil, err|nil).
+	// Headless account companions (no ProtocolGame). Async batch: DB load off ThreadPool, place on dispatcher, then Lua callback(players|nil, err|nil).
 	static int luaGameHeadlessLoginBatch(lua_State* L);
 	static int luaGameHeadlessLogout(lua_State* L);
 	static int luaGameGetNormalizedPlayerName(lua_State* L);

@@ -54,7 +54,7 @@ InstanceRegistry::Instance &InstanceRegistry::emplace(InstanceId id, bool reserv
 	return channels.insert_or_assign(id.channel(), std::move(record)).first->second;
 }
 
-std::optional<InstanceId> InstanceRegistry::allocate(InstanceKind kind, uint32_t subareaId, const AllocOptions &options) {
+std::optional<InstanceId> InstanceRegistry::freeChannel(InstanceKind kind, uint32_t subareaId, bool reserved) const {
 	if (!isAllocatableKind(kind)) {
 		return std::nullopt;
 	}
@@ -63,7 +63,7 @@ std::optional<InstanceId> InstanceRegistry::allocate(InstanceKind kind, uint32_t
 	// Reserved sessions walk forward from the last number handed out; public overflow layers
 	// take the lowest free number so players see small channel numbers.
 	uint32_t start = first;
-	if (options.reserved) {
+	if (reserved) {
 		if (const auto it = nextReservedByGroup.find(group); it != nextReservedByGroup.end()) {
 			start = it->second;
 		}
@@ -84,14 +84,24 @@ std::optional<InstanceId> InstanceRegistry::allocate(InstanceKind kind, uint32_t
 		if (playerCount(id) > 0) {
 			continue;
 		}
-		if (options.reserved) {
-			nextReservedByGroup[group] = number + 1;
-		}
-		emplace(id, options.reserved, options.owner, options.tag);
 		return id;
 	}
-	g_logger().error("[InstanceRegistry::allocate] no free channel for {}:{}", instanceKindName(kind), subareaId);
 	return std::nullopt;
+}
+
+std::optional<InstanceId> InstanceRegistry::allocate(InstanceKind kind, uint32_t subareaId, const AllocOptions &options) {
+	const auto id = freeChannel(kind, subareaId, options.reserved);
+	if (!id) {
+		if (isAllocatableKind(kind)) {
+			g_logger().error("[InstanceRegistry::allocate] no free channel for {}:{}", instanceKindName(kind), subareaId);
+		}
+		return std::nullopt;
+	}
+	if (options.reserved) {
+		nextReservedByGroup[groupKey(kind, subareaId)] = static_cast<uint32_t>(id->channel()) + 1;
+	}
+	emplace(*id, options.reserved, options.owner, options.tag);
+	return id;
 }
 
 void InstanceRegistry::open(InstanceId instanceId) {
@@ -102,6 +112,14 @@ void InstanceRegistry::open(InstanceId instanceId) {
 	if (!channels.contains(instanceId.channel())) {
 		emplace(instanceId, false, {}, {});
 	}
+}
+
+bool InstanceRegistry::openPublic(InstanceId instanceId) {
+	if (const auto* record = find(instanceId); record && (record->reserved || record->state != State::Live)) {
+		return false;
+	}
+	open(instanceId);
+	return true;
 }
 
 bool InstanceRegistry::markClosing(InstanceId instanceId) {
@@ -177,17 +195,6 @@ std::vector<InstanceId> InstanceRegistry::channelsOf(InstanceKind kind, uint32_t
 			out.emplace_back(kind, subareaId, number);
 		}
 	}
-	return out;
-}
-
-std::vector<InstanceId> InstanceRegistry::all() const {
-	std::vector<InstanceId> out;
-	for (const auto &[group, channels] : channelsByGroup) {
-		for (const auto &[number, record] : channels) {
-			out.push_back(record.id);
-		}
-	}
-	std::sort(out.begin(), out.end());
 	return out;
 }
 
@@ -273,6 +280,15 @@ std::optional<InstanceId> InstanceRegistry::CreatureIndex::instanceOf(uint32_t c
 	return it != instanceById.end() ? std::optional<InstanceId>(it->second) : std::nullopt;
 }
 
+std::vector<InstanceId> InstanceRegistry::CreatureIndex::instances() const {
+	std::vector<InstanceId> out;
+	out.reserve(idsByInstance.size());
+	for (const auto &[instanceId, _] : idsByInstance) {
+		out.push_back(instanceId);
+	}
+	return out;
+}
+
 void InstanceRegistry::setPlayerInstance(uint32_t playerId, InstanceId instanceId) {
 	playerIndex.bind(playerId, instanceId);
 }
@@ -298,6 +314,10 @@ std::vector<uint32_t> InstanceRegistry::members(InstanceId instanceId) const {
 	return playerIndex.ids(instanceId);
 }
 
+std::vector<InstanceId> InstanceRegistry::occupiedInstances() const {
+	return playerIndex.instances();
+}
+
 void InstanceRegistry::setMonsterInstance(uint32_t monsterId, InstanceId instanceId) {
 	monsterIndex.bind(monsterId, instanceId);
 }
@@ -318,7 +338,7 @@ std::vector<uint32_t> InstanceRegistry::monsters(InstanceId instanceId) const {
 	return monsterIndex.ids(instanceId);
 }
 
-std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const std::shared_ptr<Player> &player) {
+InstanceRegistry::PickHints InstanceRegistry::hintsFor(const std::shared_ptr<Player> &player) {
 	PickHints hints;
 	if (player) {
 		hints.playerId = player->getID();
@@ -331,10 +351,14 @@ std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint3
 			}
 		}
 	}
-	return pickChannel(kind, subareaId, preferred, hints);
+	return hints;
 }
 
-std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const PickHints &hints) {
+std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const std::shared_ptr<Player> &player) {
+	return pickChannel(kind, subareaId, preferred, hintsFor(player));
+}
+
+std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const PickHints &hints, bool commit) {
 	if (!isAllocatableKind(kind)) {
 		return std::nullopt;
 	}
@@ -363,7 +387,9 @@ std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint3
 		const auto* record = find(id);
 		const bool blocked = record && (record->reserved || record->state != State::Live);
 		if (!blocked && room(*preferred)) {
-			open(id);
+			if (commit) {
+				open(id);
+			}
 			return id;
 		}
 	}
@@ -389,18 +415,22 @@ std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint3
 	}
 	if (partyChannel) {
 		const InstanceId id(kind, subareaId, *partyChannel);
-		open(id);
+		if (commit) {
+			open(id);
+		}
 		return id;
 	}
 
 	for (const auto &id : channelsOf(kind, subareaId)) {
 		if (isPublic(id.channel()) && room(id.channel())) {
-			open(id);
+			if (commit) {
+				open(id);
+			}
 			return id;
 		}
 	}
 
-	return allocate(kind, subareaId, AllocOptions { .reserved = false });
+	return commit ? allocate(kind, subareaId, AllocOptions { .reserved = false }) : freeChannel(kind, subareaId, false);
 }
 
 std::vector<InstanceId> InstanceRegistry::sweepIdle(int64_t nowMs, int64_t graceMs) {

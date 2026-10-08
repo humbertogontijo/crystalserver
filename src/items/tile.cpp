@@ -40,7 +40,7 @@ const std::shared_ptr<Tile> &Tile::nullptr_tile = real_nullptr_tile;
 
 namespace {
 	bool itemPropertyAppliesForInstance(const std::shared_ptr<Item> &item, ItemProperty prop, InstanceId instanceId) {
-		return item && item->isVisibleInInstance(instanceId) && item->hasProperty(prop);
+		return item && item->hasProperty(prop) && item->isVisibleInInstance(instanceId);
 	}
 
 	bool statefulForkMatchesReference(const Item &reference, const Item &candidate) {
@@ -117,6 +117,10 @@ bool Tile::hasProperty(ItemProperty prop) const {
 }
 
 bool Tile::hasProperty(ItemProperty prop, InstanceId instanceId) const {
+	if (!hasFlag(TILESTATE_INSTANCE_ITEMS)) {
+		return hasProperty(prop);
+	}
+
 	if (ground && itemPropertyAppliesForInstance(ground, prop, instanceId)) {
 		return true;
 	}
@@ -171,7 +175,7 @@ bool Tile::hasProperty(const std::shared_ptr<Item> &exclude, ItemProperty prop) 
 
 std::shared_ptr<Item> Tile::findStatefulMapFork(const Item &reference, InstanceId instanceId) const {
 	const TileItemVector* itemList = getItemList();
-	if (!itemList || instanceId.isWorld()) {
+	if (!itemList || instanceId.isWorld() || !hasFlag(TILESTATE_INSTANCE_ITEMS)) {
 		return nullptr;
 	}
 
@@ -294,6 +298,10 @@ std::shared_ptr<MagicField> Tile::getFieldItem() const {
 }
 
 std::shared_ptr<MagicField> Tile::getFieldItem(InstanceId instanceId) const {
+	if (!hasFlag(TILESTATE_MAGICFIELD) && !hasFlag(TILESTATE_INSTANCE_ITEMS)) {
+		return nullptr;
+	}
+
 	if (ground && ground->getMagicField() && ground->isVisibleInInstance(instanceId)) {
 		return ground->getMagicField();
 	}
@@ -1989,6 +1997,7 @@ void Tile::updateTileFlags(const std::shared_ptr<Item> &item) {
 
 void Tile::setTileFlags(const std::shared_ptr<Item> &item) {
 	if (skipSharedTileFlags(item)) {
+		setFlag(TILESTATE_INSTANCE_ITEMS);
 		return;
 	}
 
@@ -2079,6 +2088,19 @@ void Tile::setTileFlags(const std::shared_ptr<Item> &item) {
 }
 
 void Tile::resetTileFlags(const std::shared_ptr<Item> &item) {
+	if (hasFlag(TILESTATE_INSTANCE_ITEMS)) {
+		// `item` may still be listed (transform / replace); setTileFlags re-adds the bit for its successor.
+		bool remaining = ground && ground != item && skipSharedTileFlags(ground);
+		if (const TileItemVector* items = getItemList(); items && !remaining) {
+			remaining = std::ranges::any_of(*items, [&item](const std::shared_ptr<Item> &other) {
+				return other != item && skipSharedTileFlags(other);
+			});
+		}
+		if (!remaining) {
+			resetFlag(TILESTATE_INSTANCE_ITEMS);
+		}
+	}
+
 	if (skipSharedTileFlags(item)) {
 		return;
 	}

@@ -111,16 +111,6 @@ bool InstanceFenceRegistry::hasPrivateFence(InstanceId instanceId) const {
 	return privateById.contains(instanceId);
 }
 
-std::vector<uint8_t> InstanceFenceRegistry::floorsFor(InstanceId instanceId) const {
-	if (const auto it = floorsByInstanceId.find(instanceId); it != floorsByInstanceId.end()) {
-		return it->second;
-	}
-	if (const Fence* fence = fenceFor(instanceId); fence && !fence->allFloors) {
-		return fence->floors;
-	}
-	return {};
-}
-
 void InstanceFenceRegistry::setFloors(InstanceId instanceId, const std::vector<uint8_t> &floors, bool allFloors) {
 	if (instanceId.kind() == InstanceKind::Hub) {
 		hubFence.floors = floors;
