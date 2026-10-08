@@ -29,7 +29,9 @@ only ever see keys.
   Reserved channel numbers only move forward per `{kind, subarea}`, so a key
   captured by a script never silently points at a newer session.
 - `pickChannel(kind, subareaId, preferred, player)` returns the public channel
-  a player should join (preferred → lowest with room → new).
+  a player should join (explicit `preferred` → current channel of that
+  subarea → party's channel → lowest with room → new). Channel numbers belong
+  to their subarea and never carry over when crossing into another one.
 - `isLive`, `isPrivate`, `find` (owner, tag, state), `members`, `release`.
   World and implicit main channels (channel 0 of open-world kinds and hub) are
   always live.

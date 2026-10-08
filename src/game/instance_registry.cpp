@@ -4,6 +4,7 @@
 
 #include "game/instance_registry.hpp"
 
+#include "creatures/players/grouping/party.hpp"
 #include "creatures/players/player.hpp"
 #include "enums/account_group_type.hpp"
 #include "game/instance_fence.hpp"
@@ -267,6 +268,11 @@ std::vector<uint32_t> InstanceRegistry::CreatureIndex::ids(InstanceId instanceId
 	return out;
 }
 
+std::optional<InstanceId> InstanceRegistry::CreatureIndex::instanceOf(uint32_t creatureId) const {
+	const auto it = instanceById.find(creatureId);
+	return it != instanceById.end() ? std::optional<InstanceId>(it->second) : std::nullopt;
+}
+
 void InstanceRegistry::setPlayerInstance(uint32_t playerId, InstanceId instanceId) {
 	playerIndex.bind(playerId, instanceId);
 }
@@ -313,18 +319,35 @@ std::vector<uint32_t> InstanceRegistry::monsters(InstanceId instanceId) const {
 }
 
 std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const std::shared_ptr<Player> &player) {
+	PickHints hints;
+	if (player) {
+		hints.playerId = player->getID();
+		hints.bypassCap = isGod(player);
+		if (const auto &party = player->getParty()) {
+			for (const auto &member : party->getPlayers()) {
+				if (member && member != player) {
+					hints.companions.push_back(member->getID());
+				}
+			}
+		}
+	}
+	return pickChannel(kind, subareaId, preferred, hints);
+}
+
+std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const PickHints &hints) {
 	if (!isAllocatableKind(kind)) {
 		return std::nullopt;
 	}
 	const uint32_t cap = kindCapacity(kind);
-	const bool god = isGod(player);
-	const uint32_t self = player ? player->getID() : 0;
 
 	const auto room = [&](uint16_t channel) {
-		if (god || cap == 0) {
+		if (hints.bypassCap || cap == 0) {
 			return true;
 		}
-		return playerCountExcluding(InstanceId(kind, subareaId, channel), self) < cap;
+		return playerCountExcluding(InstanceId(kind, subareaId, channel), hints.playerId) < cap;
+	};
+	const auto inGroup = [&](InstanceId id) {
+		return id.kind() == kind && id.subareaId() == subareaId;
 	};
 	const auto isPublic = [&](uint16_t channel) {
 		if (channel == 0 && hasImplicitMainChannel(kind)) {
@@ -334,7 +357,7 @@ std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint3
 		return record && !record->reserved && record->state == State::Live;
 	};
 
-	// Same layer number as before (opened on demand) so groups crossing together stay together.
+	// Explicit channel request: opened on demand.
 	if (preferred) {
 		const InstanceId id(kind, subareaId, *preferred);
 		const auto* record = find(id);
@@ -343,6 +366,31 @@ std::optional<InstanceId> InstanceRegistry::pickChannel(InstanceKind kind, uint3
 			open(id);
 			return id;
 		}
+	}
+
+	if (const auto current = playerIndex.instanceOf(hints.playerId); current && inGroup(*current) && isPublic(current->channel()) && room(current->channel())) {
+		return *current;
+	}
+
+	// Ordered so ties go to the lowest channel.
+	std::map<uint16_t, uint32_t> partyByChannel;
+	for (const auto companion : hints.companions) {
+		if (const auto at = playerIndex.instanceOf(companion); at && inGroup(*at) && isPublic(at->channel())) {
+			++partyByChannel[at->channel()];
+		}
+	}
+	std::optional<uint16_t> partyChannel;
+	uint32_t partyBest = 0;
+	for (const auto &[channel, count] : partyByChannel) {
+		if (count > partyBest && room(channel)) {
+			partyBest = count;
+			partyChannel = channel;
+		}
+	}
+	if (partyChannel) {
+		const InstanceId id(kind, subareaId, *partyChannel);
+		open(id);
+		return id;
 	}
 
 	for (const auto &id : channelsOf(kind, subareaId)) {

@@ -58,6 +58,13 @@ public:
 		std::string tag;
 	};
 
+	/** Who is picking a channel: their player id, cap bypass (gods) and party companions. */
+	struct PickHints {
+		uint32_t playerId = 0;
+		bool bypassCap = false;
+		std::vector<uint32_t> companions;
+	};
+
 	static InstanceRegistry &getInstance();
 
 	/** 0 = unlimited. */
@@ -108,13 +115,17 @@ public:
 	[[nodiscard]] std::vector<uint32_t> monsters(InstanceId instanceId) const;
 
 	/**
-	 * Public channel a player should join on {kind, subareaId}:
-	 * 1) `preferred` when it is live/public (or 0) and has room,
-	 * 2) the lowest public channel with room,
-	 * 3) a newly opened channel.
-	 * Gods bypass the cap (they land on `preferred` or channel 0).
+	 * Public channel a player should join on {kind, subareaId}. Channel numbers belong to their
+	 * subarea, so a channel number never carries over from another subarea:
+	 * 1) `preferred` (an explicit channel request) when it is live/public (or 0) and has room,
+	 * 2) the player's current channel when they already are on this {kind, subarea},
+	 * 3) the channel holding most of the player's party (lowest on ties) with room,
+	 * 4) the lowest public channel with room,
+	 * 5) a newly opened channel.
+	 * Gods bypass the cap.
 	 */
 	[[nodiscard]] std::optional<InstanceId> pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const std::shared_ptr<Player> &player = nullptr);
+	[[nodiscard]] std::optional<InstanceId> pickChannel(InstanceKind kind, uint32_t subareaId, std::optional<uint16_t> preferred, const PickHints &hints);
 
 	/**
 	 * Refreshes emptiness of every public non-main channel and returns the ones empty for at
@@ -134,6 +145,7 @@ private:
 		[[nodiscard]] uint32_t count(InstanceId instanceId) const;
 		[[nodiscard]] bool contains(InstanceId instanceId, uint32_t creatureId) const;
 		[[nodiscard]] std::vector<uint32_t> ids(InstanceId instanceId) const;
+		[[nodiscard]] std::optional<InstanceId> instanceOf(uint32_t creatureId) const;
 
 	private:
 		phmap::flat_hash_map<InstanceId, phmap::flat_hash_set<uint32_t>> idsByInstance;

@@ -1351,7 +1351,7 @@ std::optional<InstanceId> Game::openWorldSwitchTarget(const std::shared_ptr<Play
 	if (main.isWorld()) {
 		return std::nullopt;
 	}
-	return g_instanceRegistry().pickChannel(main.kind(), main.subareaId(), current.channel(), player);
+	return g_instanceRegistry().pickChannel(main.kind(), main.subareaId(), std::nullopt, player);
 }
 
 bool Game::refreshOpenWorldInstance(const std::shared_ptr<Player> &player) {

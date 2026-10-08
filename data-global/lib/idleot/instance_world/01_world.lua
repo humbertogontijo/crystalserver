@@ -57,18 +57,11 @@ function InstanceWorld.areaIdentity(area)
 	return kind, subareaId
 end
 
---- Public channel of {kind, subareaId} for `player`: keeps their current channel number
---- when it has room, otherwise the lowest non-full one (engine pickChannel). nil when the
+--- Public channel of {kind, subareaId} for `player`: their current one when already there,
+--- else their party's, else the lowest non-full one (engine pickChannel). nil when the
 --- engine cannot open one; callers must not invent a key.
 function InstanceWorld.pickInstance(player, kind, subareaId)
-	local preferred = nil
-	if player and player.getInstanceId then
-		local current = Instance.of(player)
-		if not Instance.isWorld(current) and not Instance.isPrivate(current) then
-			preferred = Instance.channel(current)
-		end
-	end
-	local picked = Game.pickInstanceChannel(kind, subareaId, preferred, player)
+	local picked = Game.pickInstanceChannel(kind, subareaId, nil, player)
 	if not picked then
 		logger.error("[InstanceWorld] no channel available for {}:{}", tostring(kind), tostring(subareaId))
 	end

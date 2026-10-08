@@ -173,4 +173,45 @@ suite<"instance_registry"> instanceRegistryTest = [] {
 		const auto picked = registry.pickChannel(InstanceKind::City, 8, reservedId->channel());
 		expect(picked.has_value() && *picked != *reservedId) << "reserved channels are never picked";
 	};
+
+	test("pickChannel does not carry the channel number into another subarea") = [] {
+		InstanceRegistry registry;
+		const auto second = registry.pickChannel(InstanceKind::City, 8, uint16_t { 1 });
+		expect(second.has_value() && second->channel() == 1);
+		registry.setPlayerInstance(1, *second);
+
+		const auto entered = registry.pickChannel(InstanceKind::City, 9, std::nullopt, InstanceRegistry::PickHints { .playerId = 1 });
+		expect(entered.has_value() && entered->channel() == 0) << "lowest channel of the new subarea";
+		expect(!registry.isLive(InstanceId(InstanceKind::City, 9, 1))) << "no empty channel opened to match";
+	};
+
+	test("pickChannel keeps the current channel within the same subarea") = [] {
+		InstanceRegistry registry;
+		const auto second = registry.pickChannel(InstanceKind::City, 8, uint16_t { 1 });
+		expect(second.has_value());
+		registry.setPlayerInstance(1, *second);
+
+		const auto picked = registry.pickChannel(InstanceKind::City, 8, std::nullopt, InstanceRegistry::PickHints { .playerId = 1 });
+		expect(picked.has_value() && *picked == *second);
+	};
+
+	test("pickChannel follows the party into a subarea") = [] {
+		InstanceRegistry registry;
+		registry.setKindCapacity(InstanceKind::City, 2);
+		const InstanceId origin(InstanceKind::City, 8, 0);
+		registry.setPlayerInstance(1, origin);
+
+		const auto partyLayer = registry.pickChannel(InstanceKind::City, 9, uint16_t { 2 });
+		expect(partyLayer.has_value());
+		registry.setPlayerInstance(2, *partyLayer);
+		registry.setPlayerInstance(3, InstanceId(InstanceKind::City, 9, 0));
+
+		const InstanceRegistry::PickHints hints { .playerId = 1, .companions = { 2 } };
+		const auto picked = registry.pickChannel(InstanceKind::City, 9, std::nullopt, hints);
+		expect(picked.has_value() && *picked == *partyLayer) << "joins the party, not the lowest channel";
+
+		registry.setPlayerInstance(4, *partyLayer);
+		const auto full = registry.pickChannel(InstanceKind::City, 9, std::nullopt, hints);
+		expect(full.has_value() && full->channel() == 0) << "a full party channel falls back to the lowest with room";
+	};
 };
