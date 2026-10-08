@@ -215,8 +215,8 @@ public:
 	/** Instance a new item inside `cylinder` is born in: holder creature/item, else the scoped actor. */
 	static InstanceId getCylinderInstanceId(const std::shared_ptr<Cylinder> &cylinder);
 	/** Birth instance for created creatures/items: explicit id, else the master, else the actor
-	 *  scope, else (off-map) World. On the map with no scope the area under `position` is used —
-	 *  reported as an inference at `site`, and refused (nullopt) when instanceStrict is on. */
+	 *  scope, else (off-map) World. On the map with no scope it is refused (nullopt) and reported
+	 *  at `site`; only world-level code (Positional scope) takes the area under `position`. */
 	static std::optional<InstanceId> resolveBirthInstance(std::optional<InstanceId> explicitId, const std::shared_ptr<Creature> &master, const Position* position, std::string_view site);
 
 	uint64_t getLastMapLoadTime() const {
@@ -529,9 +529,10 @@ public:
 
 	/**
 	 * Collect one item into the player's managed loot/obtain container (capacity-aware).
-	 * Public for Lua `Player:collectQuickLootItem` (LootSplit).
+	 * Public for Lua `Player:collectQuickLootItem` (LootSplit). `collectAll` ignores the
+	 * accept/skip list and always allows the main-backpack fallback (reward chest collect-all).
 	 */
-	ReturnValue internalCollectManagedItems(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, ObjectCategory_t category, bool isLootContainer = true);
+	ReturnValue internalCollectManagedItems(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item, ObjectCategory_t category, bool isLootContainer = true, bool collectAll = false);
 
 	// Auto loot
 	void schedulePlayerQuickLoot(const std::shared_ptr<Player> &player, const Position &pos, uint16_t itemId, uint8_t stackPos, const std::shared_ptr<Item> &defaultItem, bool lootAllCorpses, bool autoLoot);
@@ -885,7 +886,7 @@ public:
 	 * @brief Finds the managed container for loot or obtain based on the given parameters.
 	 *
 	 * @param player Pointer to the player object.
-	 * @param fallbackConsumed Reference to a boolean flag indicating whether a fallback has been consumed.
+	 * @param fallbackConsumed Reference to a boolean flag indicating whether the main-backpack fallback is used up or not allowed (callers start it at !quickLootFallbackToMainContainer).
 	 * @param category The category of the object.
 	 *
 	 * @note If it's enabled in config.lua to use the gold pouch to store any item, then the system will check whether the player has a loot pouch.
@@ -987,7 +988,7 @@ private:
 	 * @param player Pointer to the player object.
 	 * @param lootContainer Reference to the loot container.
 	 * @param containerIterator Iterator for the current container.
-	 * @param fallbackConsumed Reference to a boolean flag indicating whether a fallback has been consumed.
+	 * @param fallbackConsumed Reference to a boolean flag indicating whether the main-backpack fallback is used up or not allowed (callers start it at !quickLootFallbackToMainContainer).
 	 * @return True if fallback logic was handled, false otherwise.
 	 */
 	bool handleFallbackLogic(const std::shared_ptr<Player> &player, std::shared_ptr<Container> &lootContainer, ContainerIterator &containerIterator, const bool &fallbackConsumed);
@@ -1009,7 +1010,7 @@ private:
 	 * @param player Pointer to the player object.
 	 * @param lootContainer Pointer to the loot container.
 	 * @param item Pointer to the item being looted.
-	 * @param fallbackConsumed Reference to a boolean flag indicating whether a fallback has been consumed.
+	 * @param fallbackConsumed Reference to a boolean flag indicating whether the main-backpack fallback is used up or not allowed (callers start it at !quickLootFallbackToMainContainer).
 	 * @return Return value indicating success or error.
 	 */
 	ReturnValue processLootItems(const std::shared_ptr<Player> &player, std::shared_ptr<Container> lootContainer, const std::shared_ptr<Item> &item, bool &fallbackConsumed);

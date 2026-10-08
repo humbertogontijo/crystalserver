@@ -141,8 +141,6 @@ bool ConfigManager::load() {
 	loadBoolConfig(L, ONLY_PREMIUM_ACCOUNT, "onlyPremiumAccount", false);
 	// Off by default: needs the generated region index (lib/idleot/subareas); deploy/config.idleot.lua turns it on.
 	loadBoolConfig(L, OPEN_WORLD_SUBAREA_INSTANCES, "openWorldSubareaInstances", false);
-	// Off: inferred instances (no explicit id / actor scope) are logged and counted. On: refused.
-	loadBoolConfig(L, INSTANCE_STRICT, "instanceStrict", false);
 	loadBoolConfig(L, PARTY_AUTO_SHARE_EXPERIENCE, "partyAutoShareExperience", true);
 	loadBoolConfig(L, PARTY_SHARE_LOOT_BOOSTS, "partyShareLootBoosts", true);
 	loadBoolConfig(L, PREY_ENABLED, "preySystemEnabled", true);

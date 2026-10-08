@@ -4,7 +4,6 @@
 
 #include "game/instance_strict.hpp"
 
-#include "config/configmanager.hpp"
 #include "lib/metrics/metrics.hpp"
 #include "lua/functions/lua_functions_loader.hpp"
 #include "lua/scripts/luascript.hpp"
@@ -34,26 +33,20 @@ namespace {
 	}
 }
 
-bool isInstanceStrict() {
-	return g_configManager().getBoolean(INSTANCE_STRICT);
-}
-
 uint64_t instanceInferenceCount(std::string_view site) {
 	const auto &counts = countsBySite();
 	const auto it = counts.find(std::string(site));
 	return it != counts.end() ? it->second : 0;
 }
 
-bool reportInstanceInference(std::string_view site, std::string_view detail) {
-	const bool strict = isInstanceStrict();
+void reportInstanceInference(std::string_view site, std::string_view detail) {
 	const uint64_t count = ++countsBySite()[std::string(site)];
 	g_metrics().addCounter("instance_inferred_total", 1, { { "site", std::string(site) } });
 
 	if (count <= kAlwaysLog || count % kLogEvery == 0) {
 		const std::string message = fmt::format(
-			"[Instance] {} {} without an explicit instance or actor scope{}{} (occurrence {})",
+			"[Instance] {} without an explicit instance or actor scope{}{} (occurrence {})",
 			site,
-			strict ? "refused" : "inferred",
 			detail.empty() ? "" : ": ",
 			detail,
 			count
@@ -61,5 +54,4 @@ bool reportInstanceInference(std::string_view site, std::string_view detail) {
 		const std::string traceback = luaTraceback(message);
 		g_logger().warn("{}", traceback.empty() ? message : traceback);
 	}
-	return strict;
 }

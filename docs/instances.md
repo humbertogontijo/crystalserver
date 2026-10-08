@@ -45,8 +45,8 @@ only ever see keys.
    `InstanceWorld`); the umbrella `scripts/ci/check-instance-setters.sh`
    enforces it.
 2. **No position fallback.** Code must pass the instance explicitly or run
-   under an actor scope. Guessing from a tile position is reported as an
-   inference (see strict mode) and refused when `instanceStrict = true`.
+   under an actor scope. An unscoped create is refused and reported (see
+   unscoped calls).
 3. **Capture the key up front.** Callbacks that run later (`addEvent`, death
    events, phased boss timers) capture the key when they are scheduled and
    check `Instance.isLive(key[, owner])` before acting. Never re-read a
@@ -68,7 +68,7 @@ engine calls which layer they run in:
 | Creature | packet dispatch, NPC/creature events, conditions, move events | the actor's current instance |
 | Instance | `Game.runInInstance(key, fn)`, item decay, `addEvent` restore | the captured key |
 | Positional | startup, global events, raids | open-world layer at each position (by design, not reported) |
-| None | — | inference: reported, refused in strict mode |
+| None | — | reported; creates are refused, reads span all layers |
 
 `addEvent` and engine tasks capture the scope when scheduled
 (`Game::bindInstanceScope`) and restore it when they run, capturing the id
@@ -90,13 +90,13 @@ private}`. On login, before placement, `Game::bindPlayerInstance`:
 
 Reconnects keep the attached player's current instance.
 
-## Strict mode
+## Unscoped calls
 
-`instanceStrict` (`config.lua`) gates every place that used to guess. Each
-call to `reportInstanceInference(site)` increments
+The engine never guesses an instance from a position. Each unscoped call
+reports `reportInstanceInference(site)`, which increments
 `instance_inferred_total{site}` and logs a rate-limited warning with the Lua
-traceback. With `instanceStrict = false` the inference proceeds; with `true`
-the operation is refused.
+traceback. Creates are refused; read-only lookups, combat and effects span
+every layer, and items added to an unscoped tile land on World.
 
 Sites: `Game.createMonster`, `Game.createNpc`, `Game.generateNpc`,
 `Game.createItem`, `Game.createContainer`, `Game.createSoulPitMonster`,

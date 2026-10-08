@@ -449,17 +449,6 @@ bool Creature::getNextStep(Direction &dir, uint32_t &) {
 }
 
 bool Creature::startAutoWalk(const std::vector<Direction> &listDir, bool ignoreConditions /* = false*/, bool immediate /* = false*/, uint32_t walkFlags /* = 0*/) {
-	// Preserve a pending walk-then-act path (use-with). Those approaches are started via
-	// forcePlayerAutoWalk (ignoreConditions=true). Non-forced walks (expedition AI, client)
-	// must not replace that specific path.
-	if (!ignoreConditions) {
-		if (const auto &player = getPlayer()) {
-			if (player->hasWalkTask()) {
-				return false;
-			}
-		}
-	}
-
 	listWalkDir.clear();
 	// Always assign (including 0) so C++ follow/client walks never inherit Lua
 	// FLAG_IGNOREBLOCKCREATURE from a prior aborted expedition path.
@@ -1183,6 +1172,10 @@ void Creature::goToFollowCreature() {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
 	const auto &followCreature = getFollowCreature();
 	if (!followCreature) {
+		return;
+	}
+	// A pending walk-then-act (use / move from afar) keeps its path; follow resumes after it.
+	if (const auto &player = getPlayer(); player && player->hasWalkTask()) {
 		return;
 	}
 

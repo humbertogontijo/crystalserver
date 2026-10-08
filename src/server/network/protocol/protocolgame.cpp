@@ -2078,6 +2078,8 @@ void ProtocolGame::parseAutoWalk(NetworkMessage &msg) {
 		return;
 	}
 
+	// A map click replaces a pending walk-then-act, like a step key does (Game::playerMove).
+	player->setNextWalkActionTask(nullptr);
 	g_game().playerAutoWalk(player->getID(), path);
 }
 

@@ -1230,6 +1230,11 @@ int CreatureFunctions::luaCreatureAutoWalk(lua_State* L) {
 	// previous step's delay has elapsed, like client input; it never steps early.
 	// Single-step paths always start that way (startAutoWalk, size == 1).
 	const bool immediate = Lua::getBoolean(L, 5, false);
+	// Script walks (expedition AI) do not replace a player's pending walk-then-act path.
+	if (const auto &player = creature->getPlayer(); player && !ignoreConditions && player->hasWalkTask()) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
 	const bool started = creature->startAutoWalk(dirList, ignoreConditions, immediate, flags);
 	Lua::pushBoolean(L, started);
 	return 1;

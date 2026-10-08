@@ -5163,6 +5163,10 @@ int PlayerFunctions::luaPlayerOpenMarket(lua_State* L) {
 		return 1;
 	}
 
+	// Depot boxes are shared across lockers; a market opened before any locker pins depot 1.
+	if (player->getLastDepotId() == -1) {
+		player->setLastDepotId(1);
+	}
 	player->sendMarketEnter(player->getLastDepotId());
 	Lua::pushBoolean(L, true);
 	return 1;

@@ -9844,7 +9844,7 @@ ReturnValue Player::addItemFromStash(uint16_t itemId, uint32_t itemCount) {
 	const auto &thisPtr = static_self_cast<Player>();
 	std::vector<std::shared_ptr<Container>> containersCache;
 	size_t cacheIndex = 0;
-	bool fallbackConsumed = false;
+	bool fallbackConsumed = !quickLootFallbackToMainContainer;
 	uint32_t freeStackSpace = 0;
 	std::vector<std::shared_ptr<Item>> stackableItemsCache;
 	const auto &mainBackpack = getBackpack();

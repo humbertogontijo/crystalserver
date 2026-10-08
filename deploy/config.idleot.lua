@@ -65,7 +65,3 @@ generateLuaApiDocs = false
 openWorldSubareaInstances = true
 -- Empty public channels > 0 (overflow layers) are torn down after this many seconds.
 instanceChannelIdleSeconds = 120
--- Creates/effects/moves must carry an explicit instance or run inside an actor scope.
--- false: inferred instances are logged (with a Lua traceback) and counted in
--- instance_inferred_total{site}; true: they are refused.
-instanceStrict = true
