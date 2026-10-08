@@ -2,7 +2,8 @@
 -- (CombatAutomationMovement.bestAnchorSpot) and hunt generation, which loads this
 -- file through lupa to place the cave route holds
 -- (packages/asset-pipeline features/expedition/crystal/lua_anchor_spot.py).
--- Pure Lua (5.1 - 5.4): no engine API, tiles come through `env` callbacks.
+-- Pure Lua (5.1 - 5.4): no engine API (only the pure CombatGeo helpers), tiles come
+-- through `env` callbacks.
 --
 -- Room for the monster ring around the anchor first, then a cast slot for every
 -- member on one side of the box (members never trapped across it), the more
@@ -40,22 +41,8 @@ AnchorSpot.WALK_STEP = 1
 --- four ranged members around a melee anchor.
 AnchorSpot.DEFAULT_TEAM = { 4, 4, 4, 4 }
 
-local NEIGHBOURS = {
-	{ 0, -1 },
-	{ 1, 0 },
-	{ 0, 1 },
-	{ -1, 0 },
-	{ 1, -1 },
-	{ 1, 1 },
-	{ -1, 1 },
-	{ -1, -1 },
-}
-local CARDINALS = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } }
-
-local function tileKey(x, y)
-	return x * 65536 + y
-end
-AnchorSpot.tileKey = tileKey
+local NEIGHBOURS, CARDINALS = CombatGeo.NEIGHBOUR_OFFSETS, CombatGeo.CARDINAL_OFFSETS
+local tileKey = CombatGeo.tileKey
 
 --- Search inputs: memoized `standable`, team slot distances (`team`, at least 2 each,
 --- farthest first) and the score bound of the team term.

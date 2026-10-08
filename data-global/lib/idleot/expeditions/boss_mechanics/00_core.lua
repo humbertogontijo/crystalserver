@@ -58,17 +58,12 @@ end
 
 --- Party members standing in the instance (gods spectate).
 function Context:players()
-	local players = {}
 	if not self:live() then
-		return players
+		return {}
 	end
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(self.session)) do
-		local player = Player(id)
-		if player and present(self, player) then
-			players[#players + 1] = player
-		end
-	end
-	return players
+	return ExpeditionManager.onlinePlayers(self.session, function(player)
+		return present(self, player)
+	end)
 end
 
 --- True while the AI drives `player`: in the fight, not paused, not under manual control.

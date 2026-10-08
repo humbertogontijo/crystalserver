@@ -9,9 +9,7 @@ local CELL = 64
 local index = nil -- [z][cellKey] = { entry, ... } in catalog order
 local indexedCatalog = nil
 
-local function cellKey(cx, cy)
-	return cx * 65536 + cy
-end
+local cellKey = CombatGeo.tileKey
 
 local function footprint(hunt)
 	local occ = hunt.id and InstanceWorld.occupancyByHuntId[hunt.id] or nil

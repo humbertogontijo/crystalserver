@@ -1,4 +1,5 @@
--- Shared tile / distance helpers for combat automation and expeditions.
+-- Shared tile / distance helpers for every product module. The pure part (keys,
+-- offsets, bounds, occupancy, Progress) also runs in the asset pipeline (lupa).
 
 CombatGeo = CombatGeo or {}
 
@@ -19,6 +20,81 @@ CombatGeo.NEIGHBOUR_OFFSETS = {
 	{ -1, 1 },
 	{ -1, -1 },
 }
+
+--- Integer key of a tile on one floor (x, y < 65536); `keyXY` inverts it.
+function CombatGeo.tileKey(x, y)
+	return x * 65536 + y
+end
+
+function CombatGeo.keyXY(key)
+	local x = math.floor(key / 65536)
+	return x, key - x * 65536
+end
+
+--- "x,y,z" key of a position (nil for nil).
+function CombatGeo.posKey(pos)
+	return pos and string.format("%d,%d,%d", pos.x, pos.y, pos.z) or nil
+end
+
+--- Engine Position of a plain {x, y, z} table (nil for nil).
+function CombatGeo.toPosition(p)
+	return p and Position(p.x, p.y, p.z) or nil
+end
+
+--- Bounding box x1, y1, x2, y2 of a list of {x, y} points (nil when empty).
+function CombatGeo.bounds(points)
+	local x1, y1, x2, y2 = math.huge, math.huge, -math.huge, -math.huge
+	for _, p in ipairs(points) do
+		x1, y1 = math.min(x1, p.x), math.min(y1, p.y)
+		x2, y2 = math.max(x2, p.x), math.max(y2, p.y)
+	end
+	if x1 > x2 then
+		return nil
+	end
+	return x1, y1, x2, y2
+end
+
+--- Raw occupancy bit mask { originX, originY, width, height, bits } (LSB first,
+--- row-major; the Game.setInstancePrivateFence layout).
+function CombatGeo.maskContains(mask, x, y)
+	local lx, ly = x - mask.originX, y - mask.originY
+	if lx < 0 or ly < 0 or lx >= mask.width or ly >= mask.height then
+		return false
+	end
+	local i = ly * mask.width + lx
+	local byte = mask.bits:byte(math.floor(i / 8) + 1) or 0
+	return math.floor(byte / 2 ^ (i % 8)) % 2 == 1
+end
+
+--- Occupancy test of an engine mask (`occ:contains`) or a raw bit mask.
+function CombatGeo.occupancyContains(occ, x, y)
+	if occ.contains then
+		return occ:contains(x, y) and true or false
+	end
+	return CombatGeo.maskContains(occ, x, y)
+end
+
+--- Stall timer for a value that should keep shrinking (a distance, a lag): a plain
+--- { best, at } table, so it can live in any state table.
+CombatGeo.Progress = {}
+
+function CombatGeo.Progress.new(now)
+	return { best = math.huge, at = now }
+end
+
+--- True when `value` is a new best (the stall clock restarts).
+function CombatGeo.Progress.improve(progress, value, now)
+	if value < progress.best then
+		progress.best, progress.at = value, now
+		return true
+	end
+	return false
+end
+
+--- No new best for more than `ms`.
+function CombatGeo.Progress.stalled(progress, now, ms)
+	return now - progress.at > ms
+end
 
 --- Wall-clock ms (OTSYS_TIME). os.clock() is CPU time and os.time() has 1 s resolution.
 function CombatGeo.nowMs()

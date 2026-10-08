@@ -260,6 +260,21 @@ function CavebotPack.adoptEngaged(run, members, pack)
 	end
 end
 
+--- Kill bookkeeping shared by open runs and expedition sessions; true when `mid`
+--- was one of the run's tracked monsters.
+function CavebotPack.noteKill(run, mid)
+	if run.engaged then
+		run.engaged[mid] = nil
+	end
+	run.lastKillAt = nowMs()
+	if run.tracked and run.tracked[mid] then
+		run.tracked[mid] = nil
+		run.kills = (run.kills or 0) + 1
+		return true
+	end
+	return false
+end
+
 --- An adopted monster died.
 function CavebotPack.onMonsterDeath(creature)
 	local mid = creature and creature:getId()
@@ -272,12 +287,7 @@ function CavebotPack.onMonsterDeath(creature)
 	if not run then
 		return
 	end
-	run.engaged[mid] = nil
-	run.lastKillAt = nowMs()
-	if run.tracked[mid] then
-		run.tracked[mid] = nil
-		run.kills = (run.kills or 0) + 1
-	end
+	CavebotPack.noteKill(run, mid)
 end
 
 IdleEvents.on("monster.died", CavebotPack.onMonsterDeath, "CavebotPack")

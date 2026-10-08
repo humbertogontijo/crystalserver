@@ -172,12 +172,12 @@ local function catchUpMember(session, player, anchor)
 		return
 	end
 	local now = geo.nowMs()
-	local track = session._catchUp[pid]
-	if not track or dist < track.dist then
-		session._catchUp[pid] = { dist = dist, at = now }
+	local track = session._catchUp[pid] or geo.Progress.new(now)
+	session._catchUp[pid] = track
+	if geo.Progress.improve(track, dist, now) then
 		return
 	end
-	if now - track.at > CombatAutomationConfig.CATCH_UP_STALL_MS then
+	if geo.Progress.stalled(track, now, CombatAutomationConfig.CATCH_UP_STALL_MS) then
 		session._catchUp[pid] = nil
 		teleportNearAnchor(session, player, anchor)
 	end

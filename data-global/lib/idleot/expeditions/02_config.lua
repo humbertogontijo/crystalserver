@@ -82,38 +82,14 @@ ExpeditionConfig.BOSS_TIME_TO_DEFEAT_SEC = 20 * 60
 ExpeditionConfig.BOSS_MECHANIC_STALL_SEC = 60
 -- Fallback when raids.xml interval2 is missing (matches typical interval2=1440).
 ExpeditionConfig.RAID_DESPAWN_FALLBACK_MS = 24 * 60 * 60 * 1000
---- Living members eligible to be the party anchor (online, HP > 0, not dead-flagged).
-local function livingAnchorCandidates(session)
-	local out = {}
-	if not session then
-		return out
-	end
-	local dead = session.deadPlayerIds
-	local ids = {}
-	if type(session.playerIds) == "table" and #session.playerIds > 0 then
-		ids = session.playerIds
-	elseif session.playerId then
-		ids = { session.playerId }
-	end
-	for _, id in ipairs(ids) do
-		if not (dead and dead[id]) then
-			local p = Player(id)
-			if p and p:getHealth() > 0 then
-				out[#out + 1] = p
-			end
-		end
-	end
-	return out
-end
-
---- Pick session.anchorPlayerId (Cavebot.bestAnchor). Every member is a candidate:
+--- Pick session.anchorPlayerId (Cavebot.electAnchor over living, not dead-flagged members). Every member is a candidate:
 --- inside an expedition the cavebot only pauses, it is never stopped.
 function ExpeditionConfig.pickAnchor(session)
 	if not session then
 		return nil
 	end
-	local candidates = livingAnchorCandidates(session)
-	if #candidates == 0 then
+	local anchor = Cavebot.electAnchor(ExpeditionManager.sessionMemberIds(session), session.deadPlayerIds)
+	if not anchor then
 		-- Fallback: host if online, else first listed id.
 		if session.playerId and Player(session.playerId) then
 			session.anchorPlayerId = session.playerId
@@ -127,9 +103,8 @@ function ExpeditionConfig.pickAnchor(session)
 		return nil
 	end
 
-	local bestId = Cavebot.bestAnchor(candidates):getId()
-	session.anchorPlayerId = bestId
-	return bestId
+	session.anchorPlayerId = anchor:getId()
+	return session.anchorPlayerId
 end
 
 function ExpeditionConfig.getAnchorPlayer(session)
@@ -643,24 +618,12 @@ function ExpeditionConfig.bossDifficultyLever(catalog)
 	return nil
 end
 
-local function occupancyContains(occ, x, y)
-	local lx, ly = x - occ.originX, y - occ.originY
-	if lx < 0 or ly < 0 or lx >= occ.width or ly >= occ.height then
-		return false
-	end
-	local i = ly * occ.width + lx
-	local byte = occ.bits:byte(math.floor(i / 8) + 1) or 0
-	return bit.band(byte, bit.lshift(1, i % 8)) ~= 0
-end
-
 --- Occupancy mask (Game.setInstancePrivateFence layout) of the tiles in `positions`,
 --- with their sorted floors.
 local function occupancyOf(positions)
-	local x1, y1, x2, y2 = math.huge, math.huge, -math.huge, -math.huge
+	local x1, y1, x2, y2 = CombatGeo.bounds(positions)
 	local floorSet, floors = {}, {}
 	for _, p in ipairs(positions) do
-		x1, y1 = math.min(x1, p.x), math.min(y1, p.y)
-		x2, y2 = math.max(x2, p.x), math.max(y2, p.y)
 		if not floorSet[p.z] then
 			floorSet[p.z] = true
 			floors[#floors + 1] = p.z
@@ -687,7 +650,7 @@ local function occupancyOf(positions)
 		width = width,
 		height = height,
 		bits = table.concat(chars),
-		contains = occupancyContains,
+		contains = CombatGeo.maskContains,
 	}
 	return occupancy, floors
 end

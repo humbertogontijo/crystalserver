@@ -21,9 +21,8 @@ function EM_PRIV.syncClientMaps(session)
 	if not session then
 		return
 	end
-	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local p = Player(mid)
-		if p and p.sendMapDescription then
+	for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
+		if p.sendMapDescription then
 			local pos = p:getPosition()
 			if pos then
 				p:sendMapDescription(pos)
@@ -47,9 +46,8 @@ function EM_PRIV.beginExpeditionHunt(session, contentRole)
 		ExpeditionPack.spawn(session)
 	end
 	ExpeditionAI.start(session)
-	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local p = Player(mid)
-		if p and ActivityBoostLedger and ActivityBoostLedger.applyOnExpeditionJoin then
+	for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
+		if ActivityBoostLedger and ActivityBoostLedger.applyOnExpeditionJoin then
 			pcall(ActivityBoostLedger.applyOnExpeditionJoin, p)
 		end
 	end
@@ -203,15 +201,24 @@ function ExpeditionManager.sessionMemberIds(session)
 	return {}
 end
 
+--- Online members, optionally kept only when `filter(player)` is true.
+function ExpeditionManager.onlinePlayers(session, filter)
+	local out = {}
+	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
+		local player = Player(id)
+		if player and (not filter or filter(player)) then
+			out[#out + 1] = player
+		end
+	end
+	return out
+end
+
 function ExpeditionManager.broadcastStatus(session)
 	if not session then
 		return
 	end
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local player = Player(id)
-		if player then
-			ExpeditionProtocol.sendStatus(player, session)
-		end
+	for _, player in ipairs(ExpeditionManager.onlinePlayers(session)) do
+		ExpeditionProtocol.sendStatus(player, session)
 	end
 end
 
@@ -624,41 +631,24 @@ function EM_PRIV.hasUiClient(player)
 end
 
 function EM_PRIV.collectSessionHumans(session)
-	local humans = {}
-	if not session then
-		return humans
-	end
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local p = Player(id)
-		-- Headless (companions or disconnected alts) never need switch accept prompts.
-		if p and not EM_PRIV.isSessionCompanion(session, p) and EM_PRIV.hasUiClient(p) then
-			humans[#humans + 1] = p
-		end
-	end
-	return humans
+	-- Headless (companions or disconnected alts) never need switch accept prompts.
+	return ExpeditionManager.onlinePlayers(session, function(p)
+		return not EM_PRIV.isSessionCompanion(session, p) and EM_PRIV.hasUiClient(p)
+	end)
 end
 
 function EM_PRIV.countHumanMembers(session)
-	if not session then
-		return 0
-	end
-	local n = 0
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local p = Player(id)
-		if p and not EM_PRIV.isSessionCompanion(session, p) then
-			n = n + 1
-		end
-	end
-	return n
+	return #ExpeditionManager.onlinePlayers(session, function(p)
+		return not EM_PRIV.isSessionCompanion(session, p)
+	end)
 end
 
 function EM_PRIV.clearBossAttemptsForSession(session)
 	if not session or session.role ~= "boss" then
 		return
 	end
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local p = Player(id)
-		if p and ExpeditionConfig.clearBossAttempt then
+	for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
+		if ExpeditionConfig.clearBossAttempt then
 			ExpeditionConfig.clearBossAttempt(p)
 		end
 	end

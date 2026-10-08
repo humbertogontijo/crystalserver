@@ -85,22 +85,19 @@ function ExpeditionPersist.snapshotFromSession(session)
 	local companionMembers = {}
 
 	-- The host stays human even when a client detach re-marked its body as a companion.
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local member = Player(id)
-		if member then
-			local guid = member:getGuid()
-			if guid == hostGuid or not isCompanion(session, member) then
-				if not seenHuman[guid] then
-					seenHuman[guid] = true
-					humanGuids[#humanGuids + 1] = guid
-					local account = member:getAccountId()
-					if guid == hostGuid or not humanByAccount[account] then
-						humanByAccount[account] = guid
-					end
+	for _, member in ipairs(ExpeditionManager.onlinePlayers(session)) do
+		local guid = member:getGuid()
+		if guid == hostGuid or not isCompanion(session, member) then
+			if not seenHuman[guid] then
+				seenHuman[guid] = true
+				humanGuids[#humanGuids + 1] = guid
+				local account = member:getAccountId()
+				if guid == hostGuid or not humanByAccount[account] then
+					humanByAccount[account] = guid
 				end
-			else
-				companionMembers[#companionMembers + 1] = member
 			end
+		else
+			companionMembers[#companionMembers + 1] = member
 		end
 	end
 

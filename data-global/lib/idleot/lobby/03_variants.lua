@@ -253,17 +253,11 @@ local function stampLeverCenter(variant, lever)
 		leverPos = fallbackLeverPos(slots)
 		leverId = LobbyConfig.LEVER_FALLBACK_ID
 	end
-	local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
-	local function grow(p)
-		minX, minY = math.min(minX, p.x), math.min(minY, p.y)
-		maxX, maxY = math.max(maxX, p.x), math.max(maxY, p.y)
-	end
+	local points = { leverPos }
 	for _, s in ipairs(slots) do
-		grow(s)
+		points[#points + 1] = s
 	end
-	if leverPos then
-		grow(leverPos)
-	end
+	local minX, minY, maxX, maxY = CombatGeo.bounds(points)
 	local size = LobbyConfig.CENTER_SIZE
 	if maxX - minX + 1 > size or maxY - minY + 1 > size then
 		logger.warn("[Lobby] lever room of {} does not fit the {}x{} center", lever.name, size, size)

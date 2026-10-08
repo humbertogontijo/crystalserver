@@ -46,13 +46,10 @@ function ExpeditionManager.scheduleSessionExit(session, opts)
 			return
 		end
 		local anyOnline = false
-		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session) or {}) do
-			local p = Player(mid)
-			if p then
-				anyOnline = true
-				if endMsg then
-					p:sendTextMessage(MESSAGE_EVENT_ADVANCE, endMsg)
-				end
+		for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
+			anyOnline = true
+			if endMsg then
+				p:sendTextMessage(MESSAGE_EVENT_ADVANCE, endMsg)
 			end
 		end
 		if anyOnline then

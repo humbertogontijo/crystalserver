@@ -632,14 +632,11 @@ function EM_PRIV.syncRunningHuntClients(session)
 	if not session or not session.entered then
 		return
 	end
-	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local member = Player(mid)
-		if member then
-			if member.getProtocolVersion and member:getProtocolVersion() > 0 then
-				ExpeditionManager.syncSessionClientIfNeeded(member)
-			else
-				ExpeditionProtocol.sendStatus(member, session)
-			end
+	for _, member in ipairs(ExpeditionManager.onlinePlayers(session)) do
+		if member.getProtocolVersion and member:getProtocolVersion() > 0 then
+			ExpeditionManager.syncSessionClientIfNeeded(member)
+		else
+			ExpeditionProtocol.sendStatus(member, session)
 		end
 	end
 end
@@ -1004,9 +1001,8 @@ end
 function EM_PRIV.missingRosterMembers(session)
 	local presentGuids = {}
 	local presentNames = {}
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local p = Player(id)
-		if p and p:getHealth() > 0 then
+	for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
+		if p:getHealth() > 0 then
 			presentGuids[p:getGuid()] = true
 			presentNames[p:getName():lower()] = true
 		end
@@ -1132,11 +1128,8 @@ function ExpeditionManager.startExpeditionEntry(session)
 							catalog.id
 						)
 						local message = string.format("%s could not enter %s, so nobody enters.", p:getName(), catalog.name)
-						for _, otherId in ipairs(ExpeditionManager.sessionMemberIds(s)) do
-							local other = Player(otherId)
-							if other then
-								ExpeditionProtocol.sendError(other, message)
-							end
+						for _, other in ipairs(ExpeditionManager.onlinePlayers(s)) do
+							ExpeditionProtocol.sendError(other, message)
 						end
 						ExpeditionManager.leaveAll(s, { silent = true })
 						return false
@@ -1197,13 +1190,7 @@ function ExpeditionManager.startExpeditionEntry(session)
 	end
 
 	local function enterAfterPrep(s, liveHost)
-		local members = {}
-		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(s)) do
-			local p = Player(mid)
-			if p then
-				members[#members + 1] = p
-			end
-		end
+		local members = ExpeditionManager.onlinePlayers(s)
 		local staminaErr = EM_PRIV.partyStaminaError(members)
 		if staminaErr then
 			ExpeditionProtocol.sendError(liveHost, staminaErr)
@@ -1456,15 +1443,12 @@ function ExpeditionManager.cancelWaitingSession(session, reason)
 			end
 		end
 	end
-	for _, id in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local p = Player(id)
-		if p then
-			p:sendTextMessage(MESSAGE_EVENT_ADVANCE, message)
-			EM_PRIV.clearActive(p)
-			ExpeditionManager.clearAreaEffects(p)
-			ExpeditionProtocol.sendEnded(p)
-			p:unregisterEvent("ExpeditionPlayerDeath")
-		end
+	for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
+		p:sendTextMessage(MESSAGE_EVENT_ADVANCE, message)
+		EM_PRIV.clearActive(p)
+		ExpeditionManager.clearAreaEffects(p)
+		ExpeditionProtocol.sendEnded(p)
+		p:unregisterEvent("ExpeditionPlayerDeath")
 	end
 	if Alts and Alts.getDeployment and Alts.getDeployment(Player(session.playerId)) then
 		local host = Player(session.playerId)
@@ -1610,9 +1594,8 @@ function ExpeditionManager.acceptTeamInvite(player)
 	if not host then
 		-- Try resolve by guid from invite.
 		host = nil
-		for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-			local p = Player(mid)
-			if p and p:getGuid() == invite.hostGuid then
+		for _, p in ipairs(ExpeditionManager.onlinePlayers(session)) do
+			if p:getGuid() == invite.hostGuid then
 				host = p
 				break
 			end

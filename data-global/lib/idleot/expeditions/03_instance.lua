@@ -26,16 +26,6 @@ function ExpeditionInstance.free(instanceId)
 	Game.releaseInstance(instanceId)
 end
 
-local function occupancyContains(occ, x, y)
-	if not occ then
-		return true
-	end
-	if occ.contains then
-		return occ:contains(x, y) and true or false
-	end
-	return true
-end
-
 --- Declared floors only (spawn/center/boundary z). Missing z is outside the instance.
 function ExpeditionInstance.floorsFromSpec(spec, fallbackZ)
 	spec = spec or {}
@@ -92,7 +82,7 @@ function ExpeditionInstance.contains(instance, pos)
 		return false
 	end
 	if instance.occupancy then
-		return occupancyContains(instance.occupancy, pos.x, pos.y)
+		return CombatGeo.occupancyContains(instance.occupancy, pos.x, pos.y)
 	end
 	local origin = instance.origin
 	if not origin then
@@ -414,22 +404,15 @@ local function sameTilePos(a, b)
 	return a and b and a.x == b.x and a.y == b.y and a.z == b.z
 end
 
-function ExpeditionInstance.posKey(pos)
-	if not pos then
-		return nil
-	end
-	return string.format("%d,%d,%d", pos.x, pos.y, pos.z)
-end
-
 function ExpeditionInstance.reservePos(reserved, pos)
 	if not reserved or not pos then
 		return
 	end
-	reserved[ExpeditionInstance.posKey(pos)] = true
+	reserved[CombatGeo.posKey(pos)] = true
 end
 
 local function isReserved(reserved, pos)
-	return reserved and reserved[ExpeditionInstance.posKey(pos)] == true
+	return reserved and reserved[CombatGeo.posKey(pos)] == true
 end
 
 local function canUseSpawnTile(pos, avoid, reserved, instanceId)
@@ -463,7 +446,7 @@ function ExpeditionInstance.randomWalkable(instance, avoid, reserved, area)
 		local x = math.random(minX, maxX)
 		local y = math.random(minY, maxY)
 		local pos = Position(x, y, z)
-		if (not instance.occupancy or occupancyContains(instance.occupancy, x, y)) and canUseSpawnTile(pos, avoid, reserved, instance.instanceId) then
+		if (not instance.occupancy or CombatGeo.occupancyContains(instance.occupancy, x, y)) and canUseSpawnTile(pos, avoid, reserved, instance.instanceId) then
 			return pos
 		end
 	end
@@ -476,7 +459,7 @@ function ExpeditionInstance.randomWalkable(instance, avoid, reserved, area)
 					local x, y = pivot.x + dx, pivot.y + dy
 					if x >= minX and x <= maxX and y >= minY and y <= maxY then
 						local pos = Position(x, y, pivot.z)
-						if (not instance.occupancy or occupancyContains(instance.occupancy, x, y)) and canUseSpawnTile(pos, avoid, reserved, instance.instanceId) then
+						if (not instance.occupancy or CombatGeo.occupancyContains(instance.occupancy, x, y)) and canUseSpawnTile(pos, avoid, reserved, instance.instanceId) then
 							neighbours[#neighbours + 1] = pos
 						end
 					end
@@ -502,7 +485,7 @@ local function collectRingWalkable(center, radius, instance, reserved)
 				local x, y = center.x + dx, center.y + dy
 				if x >= minX and x <= maxX and y >= minY and y <= maxY then
 					local pos = Position(x, y, center.z)
-					if (not instance.occupancy or occupancyContains(instance.occupancy, x, y)) and canUseSpawnTile(pos, nil, reserved, instance.instanceId) then
+					if (not instance.occupancy or CombatGeo.occupancyContains(instance.occupancy, x, y)) and canUseSpawnTile(pos, nil, reserved, instance.instanceId) then
 						candidates[#candidates + 1] = pos
 					end
 				end

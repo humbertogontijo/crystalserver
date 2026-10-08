@@ -180,7 +180,7 @@ local function remapPosition(raid, pos)
 	end
 	local reserved = raidSpawnReserved(raid)
 	local mapped = Position(pos.x, pos.y, pos.z)
-	local mappedKey = ExpeditionInstance.posKey(mapped)
+	local mappedKey = CombatGeo.posKey(mapped)
 	local resolved = mapped
 	if not isGroundWalkable(mapped, instance.instanceId) or (reserved and reserved[mappedKey]) then
 		resolved = ExpeditionInstance.randomWalkable(instance, instance.entry, reserved)
@@ -194,7 +194,7 @@ end
 local function resolveRaidSpawnPosition(raid, preferred, area)
 	local instance = raid._raidInstance
 	local reserved = raidSpawnReserved(raid)
-	local preferredKey = preferred and ExpeditionInstance.posKey(preferred)
+	local preferredKey = preferred and CombatGeo.posKey(preferred)
 	if
 		preferred
 		and isGroundWalkable(preferred, instance and instance.instanceId)

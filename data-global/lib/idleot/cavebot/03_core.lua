@@ -35,10 +35,10 @@
 --
 -- run.cave = {
 --   mode = "walk" | "pace" | "halt", idx (waypoint), lap, entryIdx (entry walk),
---   progress = { dist, at }, still = { pos, since }, visible, load, fullSpent,
+--   progress = Progress { best, at }, still = { pos, since }, visible, load, fullSpent,
 --   haltPos, haltCenter, haltSteps, haltReached, haltAt, haltSetAt, haltExclude, haltRepicks, haltFallback,
---   blockerId, paceProgress = { lag, at }, lapStartedAt, parked, fought,
---   detour, detourProgress = { dist, at }, fiendishIgnoreUntil, fiendishHp, fiendishHitAt,
+--   blockerId, paceProgress = Progress, lapStartedAt, parked, fought,
+--   detour, detourProgress = Progress, fiendishIgnoreUntil, fiendishHp, fiendishHitAt,
 --   manual,
 -- }
 
@@ -49,9 +49,7 @@ local chebyshev, nowMs, sameTile, signOf = geo.chebyshev, geo.nowMs, geo.sameTil
 
 local routeOf = Cavebot.routeOf
 
-local function toPosition(p)
-	return p and Position(p.x, p.y, p.z) or nil
-end
+local toPosition, Progress = geo.toPosition, geo.Progress
 
 --- Monsters on screen that send the walk straight to the next hold.
 function Cavebot.lureMax(run)
@@ -99,7 +97,7 @@ function Cavebot.start(run)
 		idx = 1,
 		lap = 0,
 		lapStartedAt = now,
-		progress = { dist = math.huge, at = now },
+		progress = Progress.new(now),
 	}
 	if #route.entry > 0 then
 		cave.entryIdx = 1
@@ -161,7 +159,7 @@ function Cavebot.resume(run, anchor)
 	cave.still = nil
 	cave.detour = nil
 	cave.paceProgress = nil
-	cave.progress = { dist = math.huge, at = now }
+	cave.progress = Progress.new(now)
 	if cave.parked then
 		return
 	end
@@ -204,7 +202,7 @@ function Cavebot.isWalking(run)
 end
 
 local function advance(run, cave, route, now)
-	cave.progress = { dist = math.huge, at = now }
+	cave.progress = Progress.new(now)
 	if cave.entryIdx then
 		cave.entryIdx = cave.entryIdx + 1
 		if cave.entryIdx > #route.entry then
@@ -274,7 +272,7 @@ end
 --- other tile) it takes the most open free tile next to it once, then fights where
 --- it stands.
 local function repickHaltPos(run, cave, anchor, here, now, failed)
-	cave.haltExclude[AnchorSpot.tileKey(failed.x, failed.y)] = true
+	cave.haltExclude[CombatGeo.tileKey(failed.x, failed.y)] = true
 	local spot
 	if cave.haltRepicks < CavebotConfig.HALT_REPICK_MAX then
 		cave.haltRepicks = cave.haltRepicks + 1
@@ -472,8 +470,8 @@ end
 
 --- True while the anchor stands still for the pack. No time cap: a wait ends when the
 --- pack is in, or when the lag has not shrunk for LURE_LAG_STALL_MS — the chasers it
---- waited for are then given up on for PULL_STALL_MS. `cave.paceProgress` = { lag, at }
---- while waiting.
+--- waited for are then given up on for PULL_STALL_MS. `cave.paceProgress` tracks
+--- the best total lag while waiting.
 local function updateLeash(pack, cave, here, now, members)
 	local lag = packLag(pack, here, members, now)
 	if not leashWants(lag, cave.paceProgress ~= nil) then
@@ -481,10 +479,11 @@ local function updateLeash(pack, cave, here, now, members)
 		return false
 	end
 	local total = lag.target + lag.anchor
-	local progress = cave.paceProgress
-	if not progress or total < progress.lag then
-		cave.paceProgress = { lag = total, at = now }
-	elseif now - progress.at > CavebotConfig.LURE_LAG_STALL_MS then
+	cave.paceProgress = cave.paceProgress or Progress.new(now)
+	if Progress.improve(cave.paceProgress, total, now) then
+		return true
+	end
+	if Progress.stalled(cave.paceProgress, now, CavebotConfig.LURE_LAG_STALL_MS) then
 		local untilMs = now + CavebotConfig.PULL_STALL_MS
 		for _, state in ipairs(lag.laggers) do
 			state.lagStuckUntil = untilMs
@@ -518,7 +517,7 @@ local function updateDetour(cave, here, now, fiendish, inSight)
 	if cave.detour then
 		if not fiendish or inSight then
 			cave.detour = nil
-			cave.progress = { dist = math.huge, at = now }
+			cave.progress = Progress.new(now)
 		end
 		return
 	end
@@ -528,7 +527,7 @@ local function updateDetour(cave, here, now, fiendish, inSight)
 	local fpos = fiendish:getPosition()
 	if chebyshev(here, fpos) <= CavebotConfig.FIENDISH_DETOUR_SQM then
 		cave.detour = { x = fpos.x, y = fpos.y, z = fpos.z }
-		cave.detourProgress = { dist = math.huge, at = now }
+		cave.detourProgress = Progress.new(now)
 	end
 end
 
@@ -536,16 +535,15 @@ end
 --- and the Fiendish ignored for FIENDISH_IGNORE_MS.
 local function tickDetour(cave, anchor, here, now)
 	local progress = cave.detourProgress
-	local dist = chebyshev(here, cave.detour)
-	if dist < progress.dist then
-		progress.dist = dist
-		progress.at = now
-	elseif CombatAutomationMovement.walkBlocked(anchor, toPosition(cave.detour))
-		or now - progress.at > CavebotConfig.WAYPOINT_STALL_MS
+	if Progress.improve(progress, chebyshev(here, cave.detour), now) then
+		return
+	end
+	if CombatAutomationMovement.walkBlocked(anchor, toPosition(cave.detour))
+		or Progress.stalled(progress, now, CavebotConfig.WAYPOINT_STALL_MS)
 	then
 		cave.detour = nil
 		cave.fiendishIgnoreUntil = now + CavebotConfig.FIENDISH_IGNORE_MS
-		cave.progress = { dist = math.huge, at = now }
+		cave.progress = Progress.new(now)
 	end
 end
 
@@ -574,12 +572,12 @@ local function tickWalk(run, cave, route, anchor, here, now, visible, load)
 		return
 	end
 	local progress = cave.progress
-	if dist < progress.dist then
-		progress.dist = dist
+	if Progress.improve(progress, dist, now) then
+		return
+	end
+	if visible > 0 then
 		progress.at = now
-	elseif visible > 0 then
-		progress.at = now
-	elseif now - progress.at > CavebotConfig.WAYPOINT_STALL_MS then
+	elseif Progress.stalled(progress, now, CavebotConfig.WAYPOINT_STALL_MS) then
 		advance(run, cave, route, now)
 	end
 end

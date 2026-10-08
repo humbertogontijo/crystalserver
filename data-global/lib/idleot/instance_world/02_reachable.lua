@@ -8,9 +8,7 @@ local CELL = 64
 
 local index = nil
 
-local function cellKey(cx, cy)
-	return cx * 65536 + cy
-end
+local cellKey = CombatGeo.tileKey
 
 local function addFence(x1, y1, x2, y2, floorSet, occ)
 	local fence = { x1 = x1, y1 = y1, x2 = x2, y2 = y2, floorSet = floorSet, occ = occ }

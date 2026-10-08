@@ -84,6 +84,18 @@ function Cavebot.bestAnchor(players)
 	return best
 end
 
+--- Best living (online, HP > 0) player among `ids`, skipping ids flagged in `skip`.
+function Cavebot.electAnchor(ids, skip)
+	local candidates = {}
+	for _, id in ipairs(ids) do
+		local player = not (skip and skip[id]) and Player(id)
+		if player and player:getHealth() > 0 then
+			candidates[#candidates + 1] = player
+		end
+	end
+	return candidates[1] and Cavebot.bestAnchor(candidates) or nil
+end
+
 function Cavebot.isOpen(run)
 	return run ~= nil and run.open == true
 end

@@ -171,7 +171,7 @@ end
 local function distinctTiles(spawns)
 	local seen, n = {}, 0
 	for _, s in ipairs(spawns) do
-		local k = s.x * 65536 + s.y
+		local k = CombatGeo.tileKey(s.x, s.y)
 		if not seen[k] then
 			seen[k] = true
 			n = n + 1

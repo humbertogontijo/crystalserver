@@ -25,7 +25,7 @@
 --   entry = { x, y, z },                  -- optional: where the party arrives
 --   teamFits = function(x, y) -> bool,    -- optional hold tiebreak
 --   bfs = function(x, y, maxDepth, targetKeys) -> dist, parent, -- optional (engine
---         WalkGrid:bfs); keyed by AnchorSpot.tileKey, same neighbour order
+--         WalkGrid:bfs); keyed by CombatGeo.tileKey, same neighbour order
 --   lapMax, maxClusters,                  -- optional (LAP_MAX_STEPS, MAX_CLUSTERS)
 -- }
 
@@ -53,18 +53,10 @@ CaveRoute.HOLD_TEAM_FIT_BONUS = 2
 local UNREACHABLE = 1000000
 
 -- Same order as AnchorSpot and the engine WalkGrid.
-local NEIGHBOURS = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 }, { 1, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 } }
+local NEIGHBOURS = CombatGeo.NEIGHBOUR_OFFSETS
+local tileKey, keyXY = CombatGeo.tileKey, CombatGeo.keyXY
 
 local floor = math.floor
-
-local function tileKey(x, y)
-	return x * 65536 + y
-end
-
-local function keyXY(key)
-	local x = floor(key / 65536)
-	return x, key - x * 65536
-end
 
 --- Pure Lua 8-connected walk distances and parents from (sx, sy) over `standable`
 --- (the start always counts). With `targets` (keys) it stops once every target other

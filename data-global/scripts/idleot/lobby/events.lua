@@ -48,9 +48,8 @@ function logoutEvent.onLogout(player)
 			-- Controller disconnect: alts must not stay online headless.
 			local session = ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player)
 			if session then
-				for _, id in ipairs(ExpeditionManager.sessionMemberIds(session) or {}) do
-					local member = Player(id)
-					if member and member:getId() ~= player:getId() and Alts.isCompanion(member) then
+				for _, member in ipairs(ExpeditionManager.onlinePlayers(session)) do
+					if member:getId() ~= player:getId() and Alts.isCompanion(member) then
 						ExpeditionManager.leave(member, { silent = true, skipTeamUndeploy = true })
 					end
 				end

@@ -16,7 +16,7 @@ local monsterOwners = {}
 local FORGE_FIENDISH = 2
 
 local geo = CombatGeo
-local chebyshev, nowMs = geo.chebyshev, geo.nowMs
+local chebyshev = geo.chebyshev
 
 local function huntEnded(session)
 	return not session or session.state == "ended"
@@ -184,13 +184,10 @@ function ExpeditionPack.finishFiendishHunt(session)
 	session.lureFinished = true
 	ExpeditionManager.broadcastStatus(session)
 
-	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session) or {}) do
-		local member = Player(mid)
-		if member then
-			member:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Fiendish slain - hunt complete!")
-			if ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.onClear then
-				pcall(ActivityBoostFiendishHunt.onClear, member, session)
-			end
+	for _, member in ipairs(ExpeditionManager.onlinePlayers(session)) do
+		member:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Fiendish slain - hunt complete!")
+		if ActivityBoostFiendishHunt and ActivityBoostFiendishHunt.onClear then
+			pcall(ActivityBoostFiendishHunt.onClear, member, session)
 		end
 	end
 
@@ -272,19 +269,14 @@ function ExpeditionPack.onMonsterDeath(creature)
 	if not session or huntEnded(session) then
 		return
 	end
-	if session.engaged then
-		session.engaged[monsterId] = nil
-	end
-	session.lastKillAt = nowMs()
+	local counted = CavebotPack.noteKill(session, monsterId)
 	local killedFiendish = session.forcedFiendishId == monsterId
 	if killedFiendish then
 		session.forcedFiendishId = nil
 		session.fiendishKilled = true
 	end
-	if key and session.tracked and session.tracked[monsterId] then
-		session.tracked[monsterId] = nil
+	if counted then
 		session.alive = math.max(0, (session.alive or 1) - 1)
-		session.kills = (session.kills or 0) + 1
 		ExpeditionManager.broadcastStatus(session)
 	end
 	if killedFiendish then

@@ -113,25 +113,17 @@ local function resetWalk(run)
 	run.releasedUntil = {}
 end
 
---- Keep the anchor while it is a living member; else elect (Cavebot.bestAnchor).
+--- Keep the anchor while it is a living member; else elect (Cavebot.electAnchor).
 local function electAnchor(run)
 	local current = run.anchorPlayerId and runOf[run.anchorPlayerId] == run.id and Player(run.anchorPlayerId)
 	if current and current:getHealth() > 0 then
 		return current
 	end
-	local candidates = {}
-	for _, id in ipairs(run.ids) do
-		local player = Player(id)
-		if player and player:getHealth() > 0 then
-			candidates[#candidates + 1] = player
-		end
-	end
-	if #candidates == 0 then
-		run.anchorPlayerId = nil
+	local anchor = Cavebot.electAnchor(run.ids)
+	run.anchorPlayerId = anchor and anchor:getId()
+	if not anchor then
 		return nil
 	end
-	local anchor = Cavebot.bestAnchor(candidates)
-	run.anchorPlayerId = anchor:getId()
 	if run.cave then
 		Cavebot.resume(run, anchor)
 	end

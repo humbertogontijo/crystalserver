@@ -293,19 +293,16 @@ local function finishBoss(session, opts)
 	local midMsg = victory and "Boss defeated! Looting..." or "Time expired! Expedition failed."
 	local endMsg = victory and "Expedition complete." or "Expedition failed."
 
-	for _, mid in ipairs(ExpeditionManager.sessionMemberIds(session)) do
-		local member = Player(mid)
-		if member then
-			member:setFollowCreature(nil)
-			member:setTarget(nil)
-			member:sendTextMessage(MESSAGE_EVENT_ADVANCE, midMsg)
-			ExpeditionConfig.clearBossAttempt(member)
-			if victory and lever and session.bossDifficulty and BossDifficulty then
-				BossDifficulty.unlock(member, lever, session.bossDifficulty)
-			end
-			if victory and ActivityBoostActivities and ActivityBoostActivities.onBossExpeditionVictory then
-				pcall(ActivityBoostActivities.onBossExpeditionVictory, member, session)
-			end
+	for _, member in ipairs(ExpeditionManager.onlinePlayers(session)) do
+		member:setFollowCreature(nil)
+		member:setTarget(nil)
+		member:sendTextMessage(MESSAGE_EVENT_ADVANCE, midMsg)
+		ExpeditionConfig.clearBossAttempt(member)
+		if victory and lever and session.bossDifficulty and BossDifficulty then
+			BossDifficulty.unlock(member, lever, session.bossDifficulty)
+		end
+		if victory and ActivityBoostActivities and ActivityBoostActivities.onBossExpeditionVictory then
+			pcall(ActivityBoostActivities.onBossExpeditionVictory, member, session)
 		end
 	end
 

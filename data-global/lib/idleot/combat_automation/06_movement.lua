@@ -38,12 +38,7 @@ local function clearPendingWalkAction(creature)
 	end
 end
 
-local function walkDestKey(pos)
-	if not pos then
-		return nil
-	end
-	return string.format("%d,%d,%d", pos.x, pos.y, pos.z)
-end
+local walkDestKey = geo.posKey
 
 local function dirsForAutoWalkFromGetPathTo(path)
 	if type(path) ~= "table" or #path == 0 then
@@ -78,8 +73,8 @@ local function logWalkFail(creature, dest, reason, extra)
 		"[CombatAutomation] {} {} from {} to {} dist={} instance={}{}",
 		reason,
 		name,
-		from and string.format("%d,%d,%d", from.x, from.y, from.z) or "?",
-		dest and string.format("%d,%d,%d", dest.x, dest.y, dest.z) or "?",
+		walkDestKey(from) or "?",
+		walkDestKey(dest) or "?",
 		chebyshev(from, dest),
 		instanceId,
 		extra and (" " .. extra) or ""
@@ -427,7 +422,7 @@ local function lineDanger(player)
 			else
 				local facing = shape[monster:getDirection()]
 				for _, off in ipairs(facing and facing.list or {}) do
-					local key = (mpos.x + off[1]) * 65536 + (mpos.y + off[2])
+					local key = geo.tileKey(mpos.x + off[1], mpos.y + off[2])
 					tiles[key] = (tiles[key] or 0) + 1
 				end
 			end
@@ -439,7 +434,7 @@ end
 --- Casters whose line covers `pos` (exact diagonals of a caster turning toward it
 --- stay clear).
 local function linesCovering(lines, pos)
-	local count = lines.tiles[pos.x * 65536 + pos.y] or 0
+	local count = lines.tiles[geo.tileKey(pos.x, pos.y)] or 0
 	for _, caster in ipairs(lines.mine) do
 		local dx, dy = pos.x - caster.pos.x, pos.y - caster.pos.y
 		local adx, ady = math.abs(dx), math.abs(dy)
@@ -569,7 +564,7 @@ end
 --- Expedition halt tile: the best `AnchorSpot` tile within `steps` walking steps (over
 --- standable ground; a blocked walk repicks) of `center`, less BOSS_FRONT_PENALTY in a
 --- boss front. `opts`: center (Position, default the anchor), steps, team
---- ({ { id, slotDist }, ... }), exclude (set of `AnchorSpot.tileKey` keys that failed
+--- ({ { id, slotDist }, ... }), exclude (set of `CombatGeo.tileKey` keys that failed
 --- to path), avoidMonsters (never pick or walk through a tile a monster stands on; the
 --- ring still counts it). Returns pos, score, ring, unserved.
 function CombatAutomationMovement.bestAnchorSpot(anchor, opts)
@@ -797,7 +792,7 @@ local function memberCandidates(ctx)
 		for dx = -r, r do
 			for dy = -r, r do
 				local x, y = center.x + dx, center.y + dy
-				local key = x * 65536 + y
+				local key = geo.tileKey(x, y)
 				if not seen[key] then
 					seen[key] = true
 					out[#out + 1] = Position(x, y, center.z)
