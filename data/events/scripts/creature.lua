@@ -24,20 +24,6 @@ local function removeCombatProtection(playerUid)
 	end, time * 1000, playerUid)
 end
 
-
---- Product: companions / headless party members have IP 0. Stock "combat-protection"
---- makes monsters retarget them and deal no damage. Idle hunters in expeditions must
---- take full risk; keep the open-world disconnect shield outside expeditions.
-local function skipDisconnectCombatProtection(player)
-	if not player then
-		return false
-	end
-	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
-		return true
-	end
-	return false
-end
-
 function Creature:onTargetCombat(target)
 	if not self then
 		return true
@@ -47,8 +33,8 @@ function Creature:onTargetCombat(target)
 		if self:isMonster() then
 			local isProtected = target:kv():get("combat-protection") or 0
 
-			if target:getIp() == 0 and not skipDisconnectCombatProtection(target) then
-				-- Disconnected (open world): monster shall ignore attacking the player.
+			-- Product: headless expedition hunters (IP 0) take full risk; the shield stays open-world only.
+			if target:getIp() == 0 and not ExpeditionManager.getSessionByPlayer(target) then -- If player is disconnected, monster shall ignore to attack the player
 				if target:isPzLocked() then
 					return true
 				end

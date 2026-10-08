@@ -622,6 +622,44 @@ function LobbyBonus.effectivePrey(player, raceId)
 	return nil
 end
 
+--- Stock onGainExperience hook: an active team XP boost replaces the personal one (whose
+--- timer pauses). Returns its percent, or nil when the personal boost applies.
+function LobbyBonus.teamXpBoostPercent(player)
+	local percent, active = LobbyBonus.effectiveXpBoost(player)
+	if not active then
+		return nil
+	end
+	LobbyBonus.touchDrain(player)
+	return percent
+end
+
+local PREY_BONUS_EXPERIENCE = 2
+local PREY_BONUS_LOOT = 3
+
+--- Team prey on raceId replaces the personal slot (including a personal bonus of another type).
+local function teamPreyPercent(player, raceId, bonusType, personal)
+	local teamPrey = LobbyBonus.effectivePrey(player, raceId)
+	if not teamPrey then
+		return personal(player, raceId)
+	end
+	LobbyBonus.touchDrain(player)
+	return teamPrey.bonusType == bonusType and (teamPrey.bonusPercent or 0) or 0
+end
+
+--- Stock onGainExperience hook: experience multiplier percent (100 = no bonus).
+function LobbyBonus.preyExperiencePercent(player, raceId)
+	return 100 + teamPreyPercent(player, raceId, PREY_BONUS_EXPERIENCE, function(p, race)
+		return p:getPreyExperiencePercentage(race) - 100
+	end)
+end
+
+--- Stock ondroploot_prey hook: prey loot chance percent.
+function LobbyBonus.preyLootPercent(player, raceId)
+	return teamPreyPercent(player, raceId, PREY_BONUS_LOOT, function(p, race)
+		return p:getPreyLootPercentage(race)
+	end)
+end
+
 --- Store gate for the Lobby XP Boost offer: disabled reason (nil when buyable) and the next price.
 function LobbyBonus.canBuyXpBoost(player)
 	local record = lobbyOf(player)

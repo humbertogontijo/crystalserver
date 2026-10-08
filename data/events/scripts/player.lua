@@ -132,7 +132,7 @@ local function useStamina(player, isStaminaEnabled)
 	end
 	if isStaminaEnabled then
 		player:setStamina(staminaMinutes)
-		if staminaMinutes == 0 and ExpeditionSafety and ExpeditionSafety.onStaminaDepleted then
+		if staminaMinutes == 0 then
 			ExpeditionSafety.onStaminaDepleted(player)
 		end
 	end
@@ -496,20 +496,11 @@ function Player:onGainExperience(target, exp, rawExp)
 		self:addCondition(soulCondition)
 	end
 
-	-- Apply XP Boost (Store or Daily Reward)
-	local xpBoostPercent = 0
-	local teamXpPercent, hasTeamXpBoost = 0, false
-	if LobbyBonus and LobbyBonus.effectiveXpBoost then
-		teamXpPercent, hasTeamXpBoost = LobbyBonus.effectiveXpBoost(self)
-	end
-	if hasTeamXpBoost then
-		-- Team XP boost replaces personal; pause personal timer (do not drain).
-		if LobbyBonus.touchDrain then
-			LobbyBonus.touchDrain(self)
-		end
-		xpBoostPercent = teamXpPercent
-	else
+	-- Apply XP Boost (Store or Daily Reward); product: an active team boost replaces it
+	local xpBoostPercent = LobbyBonus.teamXpBoostPercent(self)
+	if not xpBoostPercent then
 		useStaminaXpBoost(self)
+
 		local xpBoostTimeLeft = self:getXpBoostTime()
 		local hasXpBoost = xpBoostTimeLeft > 0
 		xpBoostPercent = hasXpBoost and self:getXpBoostPercent() or 0
@@ -535,19 +526,7 @@ function Player:onGainExperience(target, exp, rawExp)
 	if configManager.getBoolean(configKeys.PREY_ENABLED) then
 		local monsterType = target:getType()
 		if monsterType and monsterType:raceId() > 0 then
-			local raceId = monsterType:raceId()
-			local teamPrey = LobbyBonus and LobbyBonus.effectivePrey and LobbyBonus.effectivePrey(self, raceId) or nil
-			if teamPrey then
-				if LobbyBonus.touchDrain then
-					LobbyBonus.touchDrain(self)
-				end
-				-- Team prey on this race replaces personal (including non-XP personal).
-				if teamPrey.bonusType == 2 then -- Experience
-					exp = math.ceil((exp * (100 + (teamPrey.bonusPercent or 0))) / 100)
-				end
-			else
-				exp = math.ceil((exp * self:getPreyExperiencePercentage(raceId)) / 100)
-			end
+			exp = math.ceil((exp * LobbyBonus.preyExperiencePercent(self, monsterType:raceId())) / 100)
 		end
 	end
 
