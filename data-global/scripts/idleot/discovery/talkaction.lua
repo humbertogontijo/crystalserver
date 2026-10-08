@@ -1,4 +1,4 @@
--- Discovery System debug tool (the system itself runs automatically - see discovery_system.lua).
+-- Discovery System debug tool (the system itself runs automatically - see system.lua).
 -- Usage:
 --   /disco                    -> resend DiscoveryData (refresh the Cyclopedia Map tab)
 --   /disco status             -> summary per main area + subareas in progress

@@ -1,6 +1,6 @@
 -- AUTO-GENERATED from the Cipsoft client subarea masks (map.dat + subarea-*.bmp.lzma).
 -- Pixel-exact surface footprints, 1 px = 1 tile. Underground subareas have no mask
--- (add them by hand in discovery_system.lua).
+-- (add them by hand in scripts/idleot/discovery/system.lua).
 -- rects = space-separated "x1,y1,x2,y2" runs (string keeps the chunk under Lua's
 -- 65536-constant limit; parsed to a flat array at startup).
 DiscoveryGeometry = {
