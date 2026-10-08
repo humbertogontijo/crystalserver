@@ -96,6 +96,7 @@ void MonsterFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Monster", "walkTo", MonsterFunctions::luaMonsterWalkTo);
 
 	Lua::registerMethod(L, "Monster", "applyEchoWarden", MonsterFunctions::luaMonsterApplyEchoWarden);
+	Lua::registerMethod(L, "Monster", "setEchoGlow", MonsterFunctions::luaMonsterSetEchoGlow);
 	Lua::registerMethod(L, "Monster", "scaleCombat", MonsterFunctions::luaMonsterScaleCombat);
 	Lua::registerMethod(L, "Monster", "getCombatPower", MonsterFunctions::luaMonsterGetCombatPower);
 
@@ -989,6 +990,20 @@ int MonsterFunctions::luaMonsterApplyEchoWarden(lua_State* L) {
 	const float hpMult = Lua::getNumber<float>(L, 2, 1.0f);
 	const float atkMult = Lua::getNumber<float>(L, 3, 1.0f);
 	Lua::pushBoolean(L, monster->applyEchoWarden(hpMult, atkMult));
+	return 1;
+}
+
+int MonsterFunctions::luaMonsterSetEchoGlow(lua_State* L) {
+	// monster:setEchoGlow(state) -- 0 warden, 1 empowered
+	const auto &monster = Lua::getUserdataShared<Monster>(L, 1);
+	if (!monster) {
+		Lua::reportErrorFunc(Lua::getErrorDesc(LUA_ERROR_MONSTER_NOT_FOUND));
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	monster->setEchoGlow(Lua::getNumber<int8_t>(L, 2));
+	Lua::pushBoolean(L, true);
 	return 1;
 }
 

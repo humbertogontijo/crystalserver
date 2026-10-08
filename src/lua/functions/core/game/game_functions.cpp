@@ -226,6 +226,8 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "createMonsterType", GameFunctions::luaGameCreateMonsterType);
 
 	Lua::registerMethod(L, "Game", "getSpectators", GameFunctions::luaGameGetSpectators);
+	Lua::registerMethod(L, "Game", "scanMonsters", GameFunctions::luaGameScanMonsters);
+	Lua::registerMethod(L, "Game", "tileMask", GameFunctions::luaGameTileMask);
 
 	Lua::registerMethod(L, "Game", "getBoostedCreature", GameFunctions::luaGameGetBoostedCreature);
 	Lua::registerMethod(L, "Game", "getBestiaryList", GameFunctions::luaGameGetBestiaryList);
@@ -234,6 +236,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "consumeMarketSellOffers", GameFunctions::luaGameConsumeMarketSellOffers);
 
 	Lua::registerMethod(L, "Game", "getPlayers", GameFunctions::luaGameGetPlayers);
+	Lua::registerMethod(L, "Game", "getAccountPlayers", GameFunctions::luaGameGetAccountPlayers);
 	Lua::registerMethod(L, "Game", "loadMap", GameFunctions::luaGameLoadMap);
 	Lua::registerMethod(L, "Game", "loadMapChunk", GameFunctions::luaGameloadMapChunk);
 	Lua::registerMethod(L, "Game", "loadOccupancyMask", GameFunctions::luaGameLoadOccupancyMask);
@@ -460,6 +463,236 @@ int GameFunctions::luaGameGetSpectators(lua_State* L) {
 	return 1;
 }
 
+namespace {
+	int32_t optIntField(lua_State* L, int32_t arg, const char* key, int32_t fallback) {
+		lua_getfield(L, arg, key);
+		const int32_t value = lua_isnumber(L, -1) ? static_cast<int32_t>(lua_tonumber(L, -1)) : fallback;
+		lua_pop(L, 1);
+		return value;
+	}
+
+	bool optBoolField(lua_State* L, int32_t arg, const char* key) {
+		lua_getfield(L, arg, key);
+		const bool value = lua_toboolean(L, -1) != 0;
+		lua_pop(L, 1);
+		return value;
+	}
+
+	std::optional<Position> optPositionField(lua_State* L, int32_t arg, const char* key) {
+		lua_getfield(L, arg, key);
+		std::optional<Position> value;
+		if (lua_istable(L, -1)) {
+			value = Lua::getPosition(L, lua_gettop(L));
+		}
+		lua_pop(L, 1);
+		return value;
+	}
+}
+
+int GameFunctions::luaGameScanMonsters(lua_State* L) {
+	// Game.scanMonsters(center[, {rangeX = 8, rangeY = 6, instance, sightFrom, outsidePz,
+	//   attackable, noSummons, noPlayerSummons, targeting = {creatureId, ...}}])
+	// Live monsters on the center floor, filtered in one pass. `instance` keeps only that
+	// instance's monsters; `sightFrom` requires a clear, shootable line from that tile.
+	const Position center = Lua::getPosition(L, 1);
+	int32_t rangeX = 8;
+	int32_t rangeY = 6;
+	std::optional<InstanceId> explicitId;
+	std::optional<Position> sightFrom;
+	bool outsidePz = false;
+	bool attackable = false;
+	bool noSummons = false;
+	bool noPlayerSummons = false;
+	std::optional<phmap::flat_hash_set<uint32_t>> targeting;
+	if (Lua::isTable(L, 2)) {
+		rangeX = std::max(0, optIntField(L, 2, "rangeX", rangeX));
+		rangeY = std::max(0, optIntField(L, 2, "rangeY", rangeY));
+		lua_getfield(L, 2, "instance");
+		const bool ok = Lua::readInstanceId(L, lua_gettop(L), explicitId);
+		lua_pop(L, 1);
+		if (!ok) {
+			lua_pushnil(L);
+			return 1;
+		}
+		sightFrom = optPositionField(L, 2, "sightFrom");
+		outsidePz = optBoolField(L, 2, "outsidePz");
+		attackable = optBoolField(L, 2, "attackable");
+		noSummons = optBoolField(L, 2, "noSummons");
+		noPlayerSummons = optBoolField(L, 2, "noPlayerSummons");
+		lua_getfield(L, 2, "targeting");
+		if (lua_istable(L, -1)) {
+			auto &ids = targeting.emplace();
+			const auto count = lua_objlen(L, -1);
+			for (size_t i = 1; i <= count; ++i) {
+				lua_rawgeti(L, -1, static_cast<int>(i));
+				ids.insert(static_cast<uint32_t>(lua_tonumber(L, -1)));
+				lua_pop(L, 1);
+			}
+		}
+		lua_pop(L, 1);
+	}
+	const InstanceId instanceId = explicitId.value_or(Game::getInstanceScope().value_or(InstanceId::Any));
+
+	Spectators spectators;
+	spectators.find<Monster>(center, false, rangeX, rangeX, rangeY, rangeY, true, instanceId);
+
+	lua_createtable(L, static_cast<int>(spectators.size()), 0);
+	int index = 0;
+	for (const auto &creature : spectators) {
+		const auto &monster = creature->getMonster();
+		if (!monster || monster->isRemoved() || monster->getHealth() <= 0) {
+			continue;
+		}
+		const InstanceId monsterInstance = monster->getInstanceId();
+		if (explicitId && monsterInstance != *explicitId) {
+			continue;
+		}
+		if (attackable && !monster->isAttackable()) {
+			continue;
+		}
+		if (noSummons || noPlayerSummons) {
+			const auto &master = monster->getMaster();
+			if (master && (noSummons || master->getPlayer())) {
+				continue;
+			}
+		}
+		if (targeting) {
+			const auto &target = monster->getAttackedCreature();
+			if (!target || !targeting->contains(target->getID())) {
+				continue;
+			}
+		}
+		const auto &tile = monster->getTile();
+		if (outsidePz && tile && tile->hasFlag(TILESTATE_PROTECTIONZONE)) {
+			continue;
+		}
+		if (sightFrom) {
+			if (!g_game().isSightClear(*sightFrom, monster->getPosition(), true, monsterInstance)) {
+				continue;
+			}
+			if (tile && tile->hasProperty(CONST_PROP_BLOCKPROJECTILE, monsterInstance)) {
+				continue;
+			}
+		}
+		Lua::pushUserdata<Monster>(L, monster);
+		Lua::setMetatable(L, -1, "Monster");
+		lua_rawseti(L, -2, ++index);
+	}
+	return 1;
+}
+
+int GameFunctions::luaGameTileMask(lua_State* L) {
+	// Game.tileMask(center, radius[, {instance, self = creature, sightTo = position or {position, ...}}])
+	// -> { [x * 65536 + y] = flags } for the standable tiles of the (2r+1)^2 box:
+	// 1 standable, 2 free (no other creature of the instance), 4 clear sight to every
+	// `sightTo` tile, and the count of free 8-neighbours in bits 3-6 (flags >> 3).
+	const Position center = Lua::getPosition(L, 1);
+	const int32_t radius = std::clamp(Lua::getNumber<int32_t>(L, 2, 1), 0, 15);
+	std::optional<InstanceId> instanceId;
+	std::shared_ptr<Creature> self;
+	std::vector<Position> sightTo;
+	if (Lua::isTable(L, 3)) {
+		lua_getfield(L, 3, "instance");
+		const bool ok = Lua::readInstanceId(L, lua_gettop(L), instanceId);
+		lua_pop(L, 1);
+		if (!ok) {
+			lua_pushnil(L);
+			return 1;
+		}
+		lua_getfield(L, 3, "self");
+		if (lua_isuserdata(L, -1)) {
+			self = Lua::getCreature(L, lua_gettop(L));
+		}
+		lua_pop(L, 1);
+		lua_getfield(L, 3, "sightTo");
+		if (lua_istable(L, -1)) {
+			const int32_t list = lua_gettop(L);
+			lua_getfield(L, list, "x");
+			const bool single = !lua_isnil(L, -1);
+			lua_pop(L, 1);
+			if (single) {
+				sightTo.push_back(Lua::getPosition(L, list));
+			} else {
+				const auto count = lua_objlen(L, list);
+				for (size_t i = 1; i <= count; ++i) {
+					lua_rawgeti(L, list, static_cast<int>(i));
+					if (lua_istable(L, -1)) {
+						sightTo.push_back(Lua::getPosition(L, lua_gettop(L)));
+					}
+					lua_pop(L, 1);
+				}
+			}
+		}
+		lua_pop(L, 1);
+	}
+
+	constexpr uint8_t STANDABLE = 1;
+	constexpr uint8_t FREE = 2;
+	constexpr uint8_t SIGHT = 4;
+	// One ring wider than the result so border tiles can count their neighbours.
+	const int32_t outer = radius + 1;
+	const int32_t side = outer * 2 + 1;
+	std::vector<uint8_t> flags(static_cast<size_t>(side * side), 0);
+	const auto at = [&](int32_t dx, int32_t dy) -> uint8_t & {
+		return flags[static_cast<size_t>((dy + outer) * side + (dx + outer))];
+	};
+	const InstanceId sightInstance = instanceId.value_or(InstanceId::World);
+	for (int32_t dy = -outer; dy <= outer; ++dy) {
+		for (int32_t dx = -outer; dx <= outer; ++dx) {
+			const int32_t x = center.x + dx;
+			const int32_t y = center.y + dy;
+			if (x < 0 || y < 0 || x > 0xFFFF || y > 0xFFFF) {
+				continue;
+			}
+			const Position pos(static_cast<uint16_t>(x), static_cast<uint16_t>(y), center.z);
+			const auto &tile = g_game().map.getTile(pos);
+			if (!tile || !tile->isStandable(instanceId)) {
+				continue;
+			}
+			uint8_t value = STANDABLE;
+			bool occupied = false;
+			if (const auto &creatures = tile->getCreatures()) {
+				for (const auto &other : *creatures) {
+					if (other != self && (!instanceId || other->getInstanceId() == *instanceId)) {
+						occupied = true;
+						break;
+					}
+				}
+			}
+			if (!occupied) {
+				value |= FREE;
+			}
+			if (!sightTo.empty() && std::abs(dx) <= radius && std::abs(dy) <= radius
+			    && std::ranges::all_of(sightTo, [&](const Position &to) { return g_game().isSightClear(pos, to, true, sightInstance); })) {
+				value |= SIGHT;
+			}
+			at(dx, dy) = value;
+		}
+	}
+
+	lua_createtable(L, 0, (radius * 2 + 1) * (radius * 2 + 1));
+	for (int32_t dy = -radius; dy <= radius; ++dy) {
+		for (int32_t dx = -radius; dx <= radius; ++dx) {
+			const uint8_t value = at(dx, dy);
+			if (value == 0) {
+				continue;
+			}
+			int32_t freeNeighbours = 0;
+			for (int32_t ny = -1; ny <= 1; ++ny) {
+				for (int32_t nx = -1; nx <= 1; ++nx) {
+					if ((nx != 0 || ny != 0) && (at(dx + nx, dy + ny) & FREE)) {
+						++freeNeighbours;
+					}
+				}
+			}
+			lua_pushnumber(L, static_cast<lua_Number>(static_cast<int64_t>(center.x + dx) * 65536 + (center.y + dy)));
+			lua_pushnumber(L, value | (freeNeighbours << 3));
+			lua_rawset(L, -3);
+		}
+	}
+	return 1;
+}
+
 int GameFunctions::luaGameGetBoostedCreature(lua_State* L) {
 	// Game.getBoostedCreature()
 	Lua::pushString(L, g_game().getBoostedMonsterName());
@@ -637,6 +870,19 @@ int GameFunctions::luaGameGetPlayers(lua_State* L) {
 	int index = 0;
 	for (const auto &playerEntry : g_game().getPlayers()) {
 		Lua::pushUserdata<Player>(L, playerEntry.second);
+		Lua::setMetatable(L, -1, "Player");
+		lua_rawseti(L, -2, ++index);
+	}
+	return 1;
+}
+
+int GameFunctions::luaGameGetAccountPlayers(lua_State* L) {
+	// Game.getAccountPlayers(accountId)
+	const auto players = g_game().getOnlineAccountPlayers(Lua::getNumber<uint32_t>(L, 1));
+	lua_createtable(L, static_cast<int>(players.size()), 0);
+	int index = 0;
+	for (const auto &player : players) {
+		Lua::pushUserdata<Player>(L, player);
 		Lua::setMetatable(L, -1, "Player");
 		lua_rawseti(L, -2, ++index);
 	}

@@ -194,17 +194,13 @@ public:
 	/** Moves the player onto `target` (a precomputed openWorldSwitchTarget) when it differs from its layer. */
 	bool refreshOpenWorldInstance(const std::shared_ptr<Player> &player, std::optional<InstanceId> target);
 	/** Binds a player that is about to be placed (login / headless spawn) and returns where to
-	 *  place them. Order: persisted instance record, InstanceWorld.bindLogin, the main layer of
+	 *  place them. Order: persisted instance record, playerOnInstanceBind, the main layer of
 	 *  the login tile, then the Adventurers' hub (relocating to it). Never leaves World. */
 	Position bindPlayerInstance(const std::shared_ptr<Player> &player);
 	Position bindPlayerInstance(const std::shared_ptr<Player> &player, const Position &placePos);
-	/** Reconnect onto a live body: keeps its current layer (the DB login position is stale). */
-	void rebindAttachedPlayer(const std::shared_ptr<Player> &player);
 	/** Typed instance record (KV `instance` = {key, kind, owner}) restored on the next login. */
 	void persistPlayerInstance(const std::shared_ptr<Player> &player, InstanceId id);
 	[[nodiscard]] std::optional<InstanceId> loadPersistedInstance(const std::shared_ptr<Player> &player) const;
-	/** Re-bind creature instanceId from active InstanceWorld session (expedition hunt). */
-	void syncCreatureInstance(const std::shared_ptr<Creature> &creature);
 	/** Instance of the creature currently in InstanceActorScope (World if none). */
 	static InstanceId getInstanceActorId();
 	/** Instance of the active InstanceActorScope; nullopt when no actor / id scope is open. */
@@ -947,7 +943,6 @@ private:
 	/** Layer an item takes when added to `toCylinder`: the holding player's, its own, the
 	 *  destination container's, or the acting scope's (bare tile). */
 	static InstanceId addedItemInstance(const std::shared_ptr<Cylinder> &destCylinder, const std::shared_ptr<Cylinder> &toCylinder, const std::shared_ptr<Item> &item);
-	bool callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult);
 	std::unordered_map<uint8_t, std::string> m_worldTypesNames;
 
 	std::map<uint16_t, Achievement> m_achievements;

@@ -59,6 +59,11 @@ enum TextColor_t : uint8_t;
  */
 class EventCallback {
 private:
+	/** Runs the Lua handler with the arguments `pushArgs(L)` pushes (it returns their count).
+	 *  With `returnsValue` the handler's boolean result is returned, else true. */
+	template <typename PushArgs>
+	bool call(const char* name, bool returnsValue, PushArgs &&pushArgs) const;
+
 	EventCallback_t m_callbackType = EventCallback_t::none; ///< The type of the event callback.
 	std::string m_scriptTypeName; ///< The name associated with the script type.
 	std::string m_callbackName; ///< The name of the callback.
@@ -128,6 +133,8 @@ public:
 	ReturnValue creatureOnTargetCombat(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &target) const;
 	void creatureOnDrainHealth(const std::shared_ptr<Creature> &creature, const std::shared_ptr<Creature> &attacker, CombatType_t &typePrimary, int32_t &damagePrimary, CombatType_t &typeSecondary, int32_t &damageSecondary, TextColor_t &colorPrimary, TextColor_t &colorSecondary) const;
 	void creatureOnCombat(std::shared_ptr<Creature> attacker, std::shared_ptr<Creature> target, CombatDamage &damage) const;
+	/** A teleport / travel is about to move `creature` to `destination`; false blocks it. */
+	bool creatureOnInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destination) const;
 
 	// Party
 	bool partyOnJoin(const std::shared_ptr<Party> &party, const std::shared_ptr<Player> &player) const;
@@ -166,21 +173,38 @@ public:
 	void playerOnThink(std::shared_ptr<Player> player, uint32_t interval) const;
 	bool playerOnSoulSealsFight(const std::shared_ptr<Player> &player, const std::string &monsterName) const;
 	void playerOnKilledMonster(const std::shared_ptr<Player> &player, const std::shared_ptr<Monster> &monster) const;
-	/** The player's queued walk ran out (`completed`) or was cancelled. */
-	void playerOnWalkEnd(const std::shared_ptr<Player> &player, bool completed) const;
+	/** The player's queued walk ran out (`completed`) or was cancelled / blocked (`result`). Fired after the walk is cleared. */
+	void playerOnWalkEnd(const std::shared_ptr<Player> &player, bool completed, ReturnValue result) const;
+	/** Idle-combat cycle (Player::IDLE_COMBAT_THINK_INTERVAL); stock playerOnThink keeps its own cadence. */
+	void playerOnIdleCombatThink(const std::shared_ptr<Player> &player, uint32_t interval) const;
+	/** The player moved to another instance layer (also the login bind, before it is placed on the map). */
+	void playerOnChangeInstance(const std::shared_ptr<Player> &player, const std::string &fromKey, const std::string &toKey) const;
+	/** Login / headless spawn binding, before the engine's open-world and hub fallbacks. */
+	void playerOnInstanceBind(const std::shared_ptr<Player> &player, const Position &position) const;
+	/** The client finished entering the world (fresh login or reattach). */
+	void playerOnClientReady(const std::shared_ptr<Player> &player) const;
+	/** A client attached to a body that stayed online (headless / reconnect). */
+	void playerOnClientAttach(const std::shared_ptr<Player> &player) const;
+	/** The client left while the body stays online. */
+	void playerOnClientDetach(const std::shared_ptr<Player> &player) const;
+	/** The player is back in play after a death or a soft despawn. */
+	void playerOnRevive(const std::shared_ptr<Player> &player) const;
+	void playerOnBountyTaskClaimed(const std::shared_ptr<Player> &player) const;
+	/** Boss difficulty dialog: action 0 = start, 1 = cancel, 2 = preview. */
+	void playerOnBossDifficulty(const std::shared_ptr<Player> &player, uint8_t action, uint16_t difficulty, uint32_t selectionContext) const;
 
 	// Monster
 	void monsterOnDropLoot(const std::shared_ptr<Monster> &monster, const std::shared_ptr<Container> &corpse) const;
 	void monsterPostDropLoot(const std::shared_ptr<Monster> &monster, const std::shared_ptr<Container> &corpse) const;
 	void monsterOnSpawn(const std::shared_ptr<Monster> &monster, const Position &position) const;
+	/** The monster left the map (death, despawn, script removal). */
+	void monsterOnRemove(const std::shared_ptr<Monster> &monster) const;
 
 	// Zone
 	bool zoneBeforeCreatureEnter(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Creature> &creature) const;
 	bool zoneBeforeCreatureLeave(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Creature> &creature) const;
 	void zoneAfterCreatureEnter(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Creature> &creature) const;
 	void zoneAfterCreatureLeave(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Creature> &creature) const;
-	void zoneOnItemAdded(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Item> &item) const;
-	void zoneOnItemRemoved(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Item> &item) const;
 
 	void mapOnLoad(const std::string &mapFullPath) const;
 

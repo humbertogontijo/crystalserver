@@ -1238,91 +1238,17 @@ void Game::setInstanceKindWorldType(InstanceKind kind, std::optional<WorldType_t
 	}
 }
 
-bool Game::callInstanceWorld(const char* method, const std::shared_ptr<Creature> &creature, const Position &pos, bool defaultResult) {
-	auto &scriptInterface = g_scripts().getScriptInterface();
-	lua_State* L = scriptInterface.getLuaState();
-	if (!L || !creature) {
-		return defaultResult;
-	}
-	// A* (WalkParallel) must not touch Lua: setCreatureMetatable/pushPosition/protectedCall
-	// are ignored in async mode and then report "Stack size changed!". Occupancy fences
-	// are still enforced on the serial walk in internalMoveCreature; queryAdd already
-	// applies instance-scoped BLOCKSOLID for physical walls.
-	if (g_dispatcher().context().isAsync()) {
-		return defaultResult;
-	}
-	if (!Lua::reserveScriptEnv()) {
-		g_logger().error("[Game::callInstanceWorld] Lua call stack overflow ({})", method);
-		return defaultResult;
-	}
-
-	ScriptEnvironment* env = Lua::getScriptEnv();
-	env->setScriptId(EVENT_ID_USER, &scriptInterface);
-
-	lua_getglobal(L, "InstanceWorld");
-	if (lua_type(L, -1) != LUA_TTABLE) {
-		lua_pop(L, 1);
-		Lua::resetScriptEnv();
-		return defaultResult;
-	}
-	lua_getfield(L, -1, method);
-	lua_remove(L, -2);
-	if (lua_type(L, -1) != LUA_TFUNCTION) {
-		lua_pop(L, 1);
-		Lua::resetScriptEnv();
-		return defaultResult;
-	}
-	Lua::pushUserdata<Creature>(L, creature);
-	Lua::setCreatureMetatable(L, -1, creature);
-	Lua::pushPosition(L, pos);
-	return scriptInterface.callFunction(2);
-}
-
-static void callActivityBoostOnBountyClaim(const std::shared_ptr<Player> &player) {
-	if (!player) {
-		return;
-	}
-	auto &scriptInterface = g_scripts().getScriptInterface();
-	lua_State* L = scriptInterface.getLuaState();
-	if (!L) {
-		return;
-	}
-	if (g_dispatcher().context().isAsync()) {
-		return;
-	}
-	if (!Lua::reserveScriptEnv()) {
-		g_logger().error("[Game] ActivityBoost bounty claim Lua call stack overflow");
-		return;
-	}
-
-	ScriptEnvironment* env = Lua::getScriptEnv();
-	env->setScriptId(EVENT_ID_USER, &scriptInterface);
-
-	lua_getglobal(L, "ActivityBoostActivities");
-	if (lua_type(L, -1) != LUA_TTABLE) {
-		lua_pop(L, 1);
-		Lua::resetScriptEnv();
-		return;
-	}
-	lua_getfield(L, -1, "onBountyTaskClaimed");
-	lua_remove(L, -2);
-	if (lua_type(L, -1) != LUA_TFUNCTION) {
-		lua_pop(L, 1);
-		Lua::resetScriptEnv();
-		return;
-	}
-	Lua::pushUserdata<Player>(L, player);
-	Lua::setMetatable(L, -1, "Player");
-	scriptInterface.callFunction(1);
-}
-
 bool Game::routeInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destPos) {
+	// A* (WalkParallel) must not touch Lua; occupancy fences still apply on the serial walk.
+	if (!creature || g_dispatcher().context().isAsync()) {
+		return true;
+	}
 	static thread_local bool routing = false;
 	if (routing) {
 		return true;
 	}
 	routing = true;
-	const bool ok = callInstanceWorld("onEngineTravel", creature, destPos, true);
+	const bool ok = g_callbacks().checkCallback(EventCallback_t::creatureOnInstanceTravel, &EventCallback::creatureOnInstanceTravel, creature, destPos);
 	routing = false;
 	return ok;
 }
@@ -1370,8 +1296,6 @@ bool Game::refreshOpenWorldInstance(const std::shared_ptr<Player> &player, std::
 	}
 	player->moveToInstance(*target);
 	g_instanceSpawns().ensureOpenWorld(*target);
-	// HUD instance info, KV marker and other Lua-side per-layer state.
-	callInstanceWorld("onSubareaSwitch", player, player->getPosition(), true);
 	return true;
 }
 
@@ -1408,7 +1332,7 @@ Position Game::bindPlayerInstance(const std::shared_ptr<Player> &player, const P
 		}
 	}
 
-	callInstanceWorld("bindLogin", player, placePos, true);
+	g_callbacks().executeCallback(EventCallback_t::playerOnInstanceBind, &EventCallback::playerOnInstanceBind, player, placePos);
 
 	if (player->getInstanceId().isWorld()) {
 		const InstanceId main = g_instanceFences().instanceForPosition(placePos);
@@ -1434,17 +1358,6 @@ Position Game::bindPlayerInstance(const std::shared_ptr<Player> &player, const P
 
 	g_instanceSpawns().ensureOpenWorld(player->getInstanceId());
 	return placeAt;
-}
-
-void Game::rebindAttachedPlayer(const std::shared_ptr<Player> &player) {
-	if (!player) {
-		return;
-	}
-	if (player->getInstanceId().isWorld()) {
-		reportInstanceInference("reconnect", player->getName());
-		callInstanceWorld("bindLogin", player, player->getPosition(), true);
-	}
-	g_instanceSpawns().ensureOpenWorld(player->getInstanceId());
 }
 
 void Game::persistPlayerInstance(const std::shared_ptr<Player> &player, InstanceId id) {
@@ -1482,13 +1395,6 @@ std::optional<InstanceId> Game::loadPersistedInstance(const std::shared_ptr<Play
 		}
 	}
 	return id;
-}
-
-void Game::syncCreatureInstance(const std::shared_ptr<Creature> &creature) {
-	if (!creature || !creature->getPlayer() || !creature->getInstanceId().isWorld()) {
-		return;
-	}
-	callInstanceWorld("syncCreatureInstance", creature, creature->getPosition(), false);
 }
 
 std::shared_ptr<Cylinder> Game::internalGetCylinder(const std::shared_ptr<Player> &player, const Position &pos) {
@@ -2020,6 +1926,10 @@ bool Game::removeCreature(const std::shared_ptr<Creature> &creature, bool isLogo
 	creature->setRemoved();
 
 	removeCreatureCheck(creature);
+
+	if (const auto &monster = creature->getMonster()) {
+		g_callbacks().executeCallback(EventCallback_t::monsterOnRemove, &EventCallback::monsterOnRemove, monster);
+	}
 
 	for (const auto &summon : creature->getSummons()) {
 		summon->setSkillLoss(false);
@@ -3721,12 +3631,6 @@ void Game::addMoney(const std::shared_ptr<Cylinder> &cylinder, uint64_t money, u
 std::shared_ptr<Item> Game::resolveInstancedMapItem(const std::shared_ptr<Player> &player, const std::shared_ptr<Item> &item) {
 	if (!player || !item) {
 		return item;
-	}
-	if (player->getInstanceId().isWorld()) {
-		syncCreatureInstance(player);
-		if (player->getInstanceId().isWorld()) {
-			return item;
-		}
 	}
 	return resolveInstancedMapItem(player->getInstanceId(), item);
 }
@@ -11269,7 +11173,7 @@ void Game::playerBountyTaskClaimReward(uint32_t playerId) {
 		g_iobountytasks().claimTaskReward(target);
 
 		if (hadCompletedTask) {
-			callActivityBoostOnBountyClaim(target);
+			g_callbacks().executeCallback(EventCallback_t::playerOnBountyTaskClaimed, &EventCallback::playerOnBountyTaskClaimed, target);
 		}
 
 		syncCompanionTaskBoardUi(viewer, target);

@@ -95,6 +95,7 @@ void CreatureFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Creature", "getPathTo", CreatureFunctions::luaCreatureGetPathTo);
 	Lua::registerMethod(L, "Creature", "move", CreatureFunctions::luaCreatureMove);
 	Lua::registerMethod(L, "Creature", "autoWalk", CreatureFunctions::luaCreatureAutoWalk);
+	Lua::registerMethod(L, "Creature", "getWalkDestination", CreatureFunctions::luaCreatureGetWalkDestination);
 	Lua::registerMethod(L, "Creature", "getZoneType", CreatureFunctions::luaCreatureGetZoneType);
 	Lua::registerMethod(L, "Creature", "getZones", CreatureFunctions::luaCreatureGetZones);
 	Lua::registerMethod(L, "Creature", "setIcon", CreatureFunctions::luaCreatureSetIcon);
@@ -1172,6 +1173,18 @@ int CreatureFunctions::luaCreatureMove(lua_State* L) {
 			return 1;
 		}
 		lua_pushnumber(L, g_game().internalMoveCreature(creature, tile, Lua::getNumber<uint32_t>(L, 3)));
+	}
+	return 1;
+}
+
+int CreatureFunctions::luaCreatureGetWalkDestination(lua_State* L) {
+	// creature:getWalkDestination() -> tile the queued walk ends on, nil when not walking
+	const auto &creature = Lua::getUserdataShared<Creature>(L, 1);
+	const auto destination = creature ? creature->getWalkDestination() : std::nullopt;
+	if (destination) {
+		Lua::pushPosition(L, *destination);
+	} else {
+		lua_pushnil(L);
 	}
 	return 1;
 }

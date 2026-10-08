@@ -4560,6 +4560,7 @@ bool Player::spawn() {
 	g_game().addCreatureCheck(static_self_cast<Player>());
 	g_game().addPlayer(static_self_cast<Player>());
 	static_self_cast<Player>()->onChangeZone(static_self_cast<Player>()->getZoneType());
+	g_callbacks().executeCallback(EventCallback_t::playerOnRevive, &EventCallback::playerOnRevive, static_self_cast<Player>());
 	return true;
 }
 
@@ -4739,6 +4740,7 @@ bool Player::softSpawn(const Position &pos, std::optional<InstanceId> instance) 
 	g_game().addPlayerMana(self);
 	onChangeZone(getZoneType());
 	sendStats();
+	g_callbacks().executeCallback(EventCallback_t::playerOnRevive, &EventCallback::playerOnRevive, self);
 	return true;
 }
 
@@ -6602,15 +6604,19 @@ void Player::setFaction(Faction_t factionId) {
 }
 
 void Player::onWalkAborted() {
+	onWalkFailed(RETURNVALUE_NOERROR);
+}
+
+void Player::onWalkFailed(ReturnValue result) {
 	manualWalking = false;
 	setNextWalkActionTask(nullptr);
 	sendCancelWalk();
-	g_callbacks().executeCallback(EventCallback_t::playerOnWalkEnd, &EventCallback::playerOnWalkEnd, getPlayer(), false);
+	g_callbacks().executeCallback(EventCallback_t::playerOnWalkEnd, &EventCallback::playerOnWalkEnd, getPlayer(), false, result);
 }
 
 void Player::onWalkComplete() {
 	manualWalking = false;
-	g_callbacks().executeCallback(EventCallback_t::playerOnWalkEnd, &EventCallback::playerOnWalkEnd, getPlayer(), true);
+	g_callbacks().executeCallback(EventCallback_t::playerOnWalkEnd, &EventCallback::playerOnWalkEnd, getPlayer(), true, RETURNVALUE_NOERROR);
 
 	if (hasCondition(CONDITION_FEARED)) {
 		/**
@@ -9140,12 +9146,9 @@ void Player::onThink(uint32_t interval) {
 	// Wheel of destiny major spells
 	wheel()->onThink();
 
-	// Idle combat: 250ms cycle drives playerOnThink; skip stock 1s callback to avoid double ticks.
-	if (!idleCombat) {
-		// Creature::onThink's actor scope has already closed here.
-		InstanceActorScope instanceActorScope(getPlayer());
-		g_callbacks().executeCallback(EventCallback_t::playerOnThink, &EventCallback::playerOnThink, getPlayer(), interval);
-	}
+	// Creature::onThink's actor scope has already closed here.
+	InstanceActorScope instanceActorScope(getPlayer());
+	g_callbacks().executeCallback(EventCallback_t::playerOnThink, &EventCallback::playerOnThink, getPlayer(), interval);
 }
 
 void Player::setIdleCombat(bool enabled) {
@@ -9180,7 +9183,7 @@ void Player::startIdleCombatThink() {
 			}
 			// Dispatcher cycles carry no actor scope; Lua tile / spectator lookups need one.
 			InstanceActorScope instanceActorScope(player);
-			g_callbacks().executeCallback(EventCallback_t::playerOnThink, &EventCallback::playerOnThink, player, Player::IDLE_COMBAT_THINK_INTERVAL);
+			g_callbacks().executeCallback(EventCallback_t::playerOnIdleCombatThink, &EventCallback::playerOnIdleCombatThink, player, Player::IDLE_COMBAT_THINK_INTERVAL);
 		},
 		"Player::idleCombatThink");
 }
@@ -9531,6 +9534,12 @@ void Player::sendCreatureLight(const std::shared_ptr<Creature> &creature) const 
 void Player::sendCreatureIcon(const std::shared_ptr<Creature> &creature) const {
 	if (client && !client->oldProtocol) {
 		client->sendCreatureIcon(creature);
+	}
+}
+
+void Player::sendCreatureEchoGlow(const std::shared_ptr<Monster> &monster) const {
+	if (client && !client->oldProtocol) {
+		client->sendCreatureEchoGlow(monster);
 	}
 }
 

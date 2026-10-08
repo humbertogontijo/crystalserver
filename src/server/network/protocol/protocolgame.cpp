@@ -60,6 +60,8 @@
 #include "io/ioweeklytasks.hpp"
 #include "items/items_classification.hpp"
 #include "items/weapons/weapons.hpp"
+#include "lua/callbacks/event_callback.hpp"
+#include "lua/callbacks/events_callbacks.hpp"
 #include "lua/creature/creatureevent.hpp"
 #include "lua/modules/modules.hpp"
 #include "lua/scripts/lua_environment.hpp"
@@ -615,39 +617,6 @@ namespace {
 // OTC same-socket alt switch (Proto::GameServerCharacterSwitch).
 constexpr uint8_t SERVER_CHARACTER_SWITCH = 0x0D;
 
-void callAltsPlayerMethod(const std::shared_ptr<Player> &player, const char* method) {
-	if (!player || !method) {
-		return;
-	}
-	auto &scriptInterface = g_scripts().getScriptInterface();
-	lua_State* L = scriptInterface.getLuaState();
-	if (!L) {
-		return;
-	}
-	if (!Lua::reserveScriptEnv()) {
-		g_logger().error("[Alts] Lua call stack overflow ({})", method);
-		return;
-	}
-	ScriptEnvironment* env = Lua::getScriptEnv();
-	env->setScriptId(EVENT_ID_USER, &scriptInterface);
-	lua_getglobal(L, "Alts");
-	if (lua_type(L, -1) != LUA_TTABLE) {
-		lua_pop(L, 1);
-		Lua::resetScriptEnv();
-		return;
-	}
-	lua_getfield(L, -1, method);
-	lua_remove(L, -2);
-	if (lua_type(L, -1) != LUA_TFUNCTION) {
-		lua_pop(L, 1);
-		Lua::resetScriptEnv();
-		return;
-	}
-	Lua::pushUserdata<Player>(L, player);
-	Lua::setMetatable(L, -1, "Player");
-	scriptInterface.callFunction(1);
-}
-
 } // namespace
 
 void ProtocolGame::detachClient() {
@@ -656,7 +625,7 @@ void ProtocolGame::detachClient() {
 		// Creature may stay online (idle hunt / VIP stay). Notify Lua before clearing client
 		// so protocolVersion becomes 0 and headless leadership handoff can run.
 		if (!player->isRemoved() && player->staysOnlineWithoutClient()) {
-			callAltsPlayerMethod(player, "onClientDetached");
+			g_callbacks().executeCallback(EventCallback_t::playerOnClientDetach, &EventCallback::playerOnClientDetach, player);
 		}
 		player->client.reset();
 		player = nullptr;
@@ -869,6 +838,7 @@ void ProtocolGame::login(const std::string &name, uint32_t accountId, OperatingS
 		g_ioweeklytasks().checkWeeklyRewardsOnLogin(player);
 
 		acceptPackets = true;
+		g_callbacks().executeCallback(EventCallback_t::playerOnClientReady, &EventCallback::playerOnClientReady, player);
 	} else {
 		if (eventConnect != 0 || !g_configManager().getBoolean(REPLACE_KICK_ON_LOGIN)) {
 			// Already trying to connect
@@ -938,7 +908,6 @@ void ProtocolGame::attachToPlayer(const std::shared_ptr<Player> &target, Operati
 	player->sendStanceProtocol();
 	player->resyncSpellCooldowns();
 
-	g_game().rebindAttachedPlayer(player);
 	sendAddCreature(player, player->getPosition(), 0, true);
 	player->lastIP = player->getIP();
 	player->lastLoad = OTSYS_TIME();
@@ -947,13 +916,14 @@ void ProtocolGame::attachToPlayer(const std::shared_ptr<Player> &target, Operati
 	acceptPackets = true;
 
 	// Headless body reclaim: no CreatureEvent onLogin — promote team host / party if needed.
-	callAltsPlayerMethod(player, "onClientAttached");
+	g_callbacks().executeCallback(EventCallback_t::playerOnClientAttach, &EventCallback::playerOnClientAttach, player);
 
 	// Fresh ProtocolGame has an empty knownCreatureSet — re-push party show-status
 	// (health/mana + vocation/level) so party HUD labels survive client reopen.
 	if (const auto &party = player->getParty()) {
 		party->updatePlayerStatus(player);
 	}
+	g_callbacks().executeCallback(EventCallback_t::playerOnClientReady, &EventCallback::playerOnClientReady, player);
 }
 
 void ProtocolGame::logout(bool displayEffect, bool forced) {
@@ -1211,6 +1181,14 @@ void ProtocolGame::writeToOutputBuffer(NetworkMessage &msg) {
 	g_dispatcher().safeCall([self = getThis(), msg = std::move(msg)] {
 		self->getOutputBuffer(msg.getLength())->append(msg);
 	});
+	if (!pendingEchoGlows.empty()) {
+		const auto glows = std::exchange(pendingEchoGlows, {});
+		for (const auto &weak : glows) {
+			if (const auto monster = weak.lock()) {
+				sendCreatureEchoGlow(monster);
+			}
+		}
+	}
 }
 
 void ProtocolGame::parsePacket(NetworkMessage &msg) {
@@ -4254,6 +4232,24 @@ void ProtocolGame::sendCreatureIcon(const std::shared_ptr<Creature> &creature) {
 	// Type 14 for this
 	msg.addByte(14);
 	addCreatureIcon(msg, creature);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCreatureEchoGlow(const std::shared_ptr<Monster> &monster) {
+	if (!monster || !player || oldProtocol || monster->getEchoGlow() < 0) {
+		return;
+	}
+	// Not known yet: AddCreature queues it once the creature is described.
+	if (!knownCreatureSet.contains(monster->getID())) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x8B);
+	msg.add<uint32_t>(monster->getID());
+	msg.addByte(15);
+	msg.addByte(1);
+	msg.addByte(static_cast<uint8_t>(monster->getEchoGlow()));
 	writeToOutputBuffer(msg);
 }
 
@@ -9718,6 +9714,12 @@ void ProtocolGame::AddCreature(NetworkMessage &msg, const std::shared_ptr<Creatu
 
 	msg.addByte(player->canWalkthroughEx(creature) ? 0x00 : 0x01);
 
+	if (!known && !oldProtocol) {
+		if (const auto monster = creature->getMonster(); monster && monster->getEchoGlow() >= 0) {
+			pendingEchoGlows.emplace_back(monster);
+		}
+	}
+
 	if (isOTCR) {
 		msg.addString(creature->getShader()); // g_game.enableFeature(GameCreatureShader)
 		msg.addByte(static_cast<uint8_t>(creature->getAttachedEffectList().size())); // g_game.enableFeature(GameCreatureAttachedEffect)
@@ -12309,52 +12311,11 @@ void ProtocolGame::parseBossDifficultySelection(NetworkMessage &msg) {
 		msg.getByte();
 	}
 
-	// Route to Lua BossDifficulty (lever-owned difficulty: unlock clamp, preview, start / cancel).
-	auto callBossDifficulty = [&](const char* method, bool withDifficulty) {
-		auto &scriptInterface = g_scripts().getScriptInterface();
-		lua_State* L = scriptInterface.getLuaState();
-		if (!L) {
-			return;
-		}
-		if (!Lua::reserveScriptEnv()) {
-			g_logger().error("[BossDiffSel] Lua call stack overflow ({})", method);
-			return;
-		}
-		ScriptEnvironment* env = Lua::getScriptEnv();
-		env->setScriptId(EVENT_ID_USER, &scriptInterface);
-		lua_getglobal(L, "BossDifficulty");
-		if (lua_type(L, -1) != LUA_TTABLE) {
-			lua_pop(L, 1);
-			Lua::resetScriptEnv();
-			return;
-		}
-		lua_getfield(L, -1, method);
-		lua_remove(L, -2);
-		if (lua_type(L, -1) != LUA_TFUNCTION) {
-			lua_pop(L, 1);
-			Lua::resetScriptEnv();
-			return;
-		}
-		Lua::pushUserdata<Player>(L, player);
-		Lua::setMetatable(L, -1, "Player");
-		int params = 1;
-		if (withDifficulty) {
-			lua_pushnumber(L, difficulty);
-			lua_pushnumber(L, selectionContext);
-			params = 3;
-		}
-		scriptInterface.callFunction(params);
-	};
-
+	// Lever-owned difficulty (unlock clamp, preview, start / cancel) lives in Lua.
+	g_callbacks().executeCallback(EventCallback_t::playerOnBossDifficulty, &EventCallback::playerOnBossDifficulty, player, action == 0x00 || action == 0x02 ? action : uint8_t { 0x01 }, difficulty, selectionContext);
 	if (action == 0x02) {
-		// Spinner preview — refresh mods / keep selection clamped to unlock max.
-		callBossDifficulty("onPreview", true);
+		// Spinner preview keeps the dialog open.
 		return;
-	}
-	if (action == 0x00) {
-		callBossDifficulty("onStart", true);
-	} else {
-		callBossDifficulty("onCancel", false);
 	}
 	// Start (after handling) or Cancel -> close the dialog
 	NetworkMessage out;

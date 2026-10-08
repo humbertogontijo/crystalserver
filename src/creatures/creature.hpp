@@ -25,6 +25,8 @@
 #include "map/map_const.hpp"
 #include "utils/utils_definitions.hpp"
 
+enum ReturnValue : uint16_t;
+
 class CreatureEvent;
 class Condition;
 class Map;
@@ -212,6 +214,8 @@ public:
 	}
 
 	int32_t getWalkSize();
+	/** Tile the queued walk ends on; nullopt when no walk is queued. */
+	std::optional<Position> getWalkDestination();
 
 	int32_t getWalkDelay(Direction dir = DIRECTION_NONE);
 	int64_t getTimeSinceLastMove() const;
@@ -356,6 +360,10 @@ public:
 	// walk events
 	virtual void onWalk(Direction &dir);
 	virtual void onWalkAborted() { }
+	/** A queued walk ended on a step the map refused (`result`). */
+	virtual void onWalkFailed(ReturnValue) {
+		onWalkAborted();
+	}
 	virtual void onWalkComplete() { }
 
 	// follow functions

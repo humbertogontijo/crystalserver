@@ -88,6 +88,33 @@ void EventCallback::setType(EventCallback_t type) {
 	m_callbackType = type;
 }
 
+template <typename PushArgs>
+bool EventCallback::call(const char* name, bool returnsValue, PushArgs &&pushArgs) const {
+	if (!LuaScriptInterface::reserveScriptEnv()) {
+		g_logger().error("[EventCallback::{}] Call stack overflow. Too many lua script calls being nested.", name);
+		return false;
+	}
+
+	ScriptEnvironment* scriptEnvironment = LuaScriptInterface::getScriptEnv();
+	scriptEnvironment->setScriptId(getScriptId(), getScriptInterface());
+
+	lua_State* L = getScriptInterface()->getLuaState();
+	getScriptInterface()->pushFunction(getScriptId());
+	const int params = pushArgs(L);
+	if (returnsValue) {
+		return getScriptInterface()->callFunction(params);
+	}
+	getScriptInterface()->callVoidFunction(params);
+	return true;
+}
+
+namespace {
+	void pushPlayer(lua_State* L, const std::shared_ptr<Player> &player) {
+		LuaScriptInterface::pushUserdata<Player>(L, player);
+		LuaScriptInterface::setMetatable(L, -1, "Player");
+	}
+}
+
 // Lua functions
 // Creature
 bool EventCallback::creatureOnChangeOutfit(const std::shared_ptr<Creature> &creature, const Outfit_t &outfit) const {
@@ -291,6 +318,15 @@ void EventCallback::creatureOnCombat(std::shared_ptr<Creature> attacker, std::sh
 	}
 
 	getScriptInterface()->resetScriptEnv();
+}
+
+bool EventCallback::creatureOnInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destination) const {
+	return call(__FUNCTION__, true, [&](lua_State* L) {
+		LuaScriptInterface::pushUserdata<Creature>(L, creature);
+		LuaScriptInterface::setCreatureMetatable(L, -1, creature);
+		LuaScriptInterface::pushPosition(L, destination);
+		return 2;
+	});
 }
 
 // Party
@@ -1219,23 +1255,83 @@ void EventCallback::playerOnThink(std::shared_ptr<Player> player, uint32_t inter
 	getScriptInterface()->callVoidFunction(2);
 }
 
-void EventCallback::playerOnWalkEnd(const std::shared_ptr<Player> &player, bool completed) const {
-	if (!getScriptInterface()->reserveScriptEnv()) {
-		g_logger().error("[{}] player {}. Call stack overflow. Too many lua script calls being nested.", __FUNCTION__, player->getName());
-		return;
-	}
+void EventCallback::playerOnWalkEnd(const std::shared_ptr<Player> &player, bool completed, ReturnValue result) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		pushPlayer(L, player);
+		LuaScriptInterface::pushBoolean(L, completed);
+		lua_pushnumber(L, result);
+		return 3;
+	});
+}
 
-	ScriptEnvironment* scriptEnvironment = getScriptInterface()->getScriptEnv();
-	scriptEnvironment->setScriptId(getScriptId(), getScriptInterface());
+void EventCallback::playerOnIdleCombatThink(const std::shared_ptr<Player> &player, uint32_t interval) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		pushPlayer(L, player);
+		lua_pushnumber(L, interval);
+		return 2;
+	});
+}
 
-	lua_State* L = getScriptInterface()->getLuaState();
-	getScriptInterface()->pushFunction(getScriptId());
+void EventCallback::playerOnChangeInstance(const std::shared_ptr<Player> &player, const std::string &fromKey, const std::string &toKey) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		pushPlayer(L, player);
+		LuaScriptInterface::pushString(L, fromKey);
+		LuaScriptInterface::pushString(L, toKey);
+		return 3;
+	});
+}
 
-	LuaScriptInterface::pushUserdata<Player>(L, player);
-	LuaScriptInterface::setMetatable(L, -1, "Player");
-	LuaScriptInterface::pushBoolean(L, completed);
+void EventCallback::playerOnInstanceBind(const std::shared_ptr<Player> &player, const Position &position) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		pushPlayer(L, player);
+		LuaScriptInterface::pushPosition(L, position);
+		return 2;
+	});
+}
 
-	getScriptInterface()->callVoidFunction(2);
+void EventCallback::playerOnClientReady(const std::shared_ptr<Player> &player) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		pushPlayer(L, player);
+		return 1;
+	});
+}
+
+void EventCallback::playerOnClientAttach(const std::shared_ptr<Player> &player) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		pushPlayer(L, player);
+		return 1;
+	});
+}
+
+void EventCallback::playerOnClientDetach(const std::shared_ptr<Player> &player) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		pushPlayer(L, player);
+		return 1;
+	});
+}
+
+void EventCallback::playerOnRevive(const std::shared_ptr<Player> &player) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		pushPlayer(L, player);
+		return 1;
+	});
+}
+
+void EventCallback::playerOnBountyTaskClaimed(const std::shared_ptr<Player> &player) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		pushPlayer(L, player);
+		return 1;
+	});
+}
+
+void EventCallback::playerOnBossDifficulty(const std::shared_ptr<Player> &player, uint8_t action, uint16_t difficulty, uint32_t selectionContext) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		pushPlayer(L, player);
+		lua_pushnumber(L, action);
+		lua_pushnumber(L, difficulty);
+		lua_pushnumber(L, selectionContext);
+		return 4;
+	});
 }
 
 // Monster
@@ -1308,6 +1404,14 @@ void EventCallback::monsterOnSpawn(const std::shared_ptr<Monster> &monster, cons
 	LuaScriptInterface::pushPosition(L, position);
 
 	return getScriptInterface()->callVoidFunction(2);
+}
+
+void EventCallback::monsterOnRemove(const std::shared_ptr<Monster> &monster) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		LuaScriptInterface::pushUserdata<Monster>(L, monster);
+		LuaScriptInterface::setMetatable(L, -1, "Monster");
+		return 1;
+	});
 }
 
 bool EventCallback::zoneBeforeCreatureEnter(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Creature> &creature) const {
@@ -1404,37 +1508,6 @@ void EventCallback::zoneAfterCreatureLeave(const std::shared_ptr<Zone> &zone, co
 	LuaScriptInterface::setCreatureMetatable(L, -1, creature);
 
 	getScriptInterface()->callVoidFunction(2);
-}
-
-namespace {
-	void callZoneItem(const EventCallback &callback, const char* name, const std::shared_ptr<Zone> &zone, const std::shared_ptr<Item> &item) {
-		if (!LuaScriptInterface::reserveScriptEnv()) {
-			g_logger().error("[EventCallback::{} - Zone {}] Call stack overflow. Too many lua script calls being nested.", name, zone->getName());
-			return;
-		}
-
-		ScriptEnvironment* scriptEnvironment = LuaScriptInterface::getScriptEnv();
-		scriptEnvironment->setScriptId(callback.getScriptId(), callback.getScriptInterface());
-
-		lua_State* L = callback.getScriptInterface()->getLuaState();
-		callback.getScriptInterface()->pushFunction(callback.getScriptId());
-
-		LuaScriptInterface::pushUserdata<Zone>(L, zone);
-		LuaScriptInterface::setMetatable(L, -1, "Zone");
-
-		LuaScriptInterface::pushUserdata<Item>(L, item);
-		LuaScriptInterface::setItemMetatable(L, -1, item);
-
-		callback.getScriptInterface()->callVoidFunction(2);
-	}
-}
-
-void EventCallback::zoneOnItemAdded(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Item> &item) const {
-	callZoneItem(*this, __FUNCTION__, zone, item);
-}
-
-void EventCallback::zoneOnItemRemoved(const std::shared_ptr<Zone> &zone, const std::shared_ptr<Item> &item) const {
-	callZoneItem(*this, __FUNCTION__, zone, item);
 }
 
 void EventCallback::mapOnLoad(const std::string &mapFullPath) const {

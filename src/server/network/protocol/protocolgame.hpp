@@ -60,6 +60,7 @@ class WeeklyTaskData;
 class Item;
 class Party;
 class Creature;
+class Monster;
 class MonsterType;
 class Npc;
 
@@ -455,6 +456,7 @@ private:
 
 	void sendCreatureLight(const std::shared_ptr<Creature> &creature);
 	void sendCreatureIcon(const std::shared_ptr<Creature> &creature);
+	void sendCreatureEchoGlow(const std::shared_ptr<Monster> &monster);
 	void sendUpdateCreature(const std::shared_ptr<Creature> &creature);
 	void sendWorldLight(const LightInfo &lightInfo);
 	void sendTibiaTime(int32_t time);
@@ -603,6 +605,9 @@ private:
 	friend class PlayerAttachedEffects;
 
 	std::unordered_set<uint32_t> knownCreatureSet;
+	// Echo-glowing monsters added to the client by the message being built; their glow
+	// follows that message (AddCreature has no field for it).
+	std::vector<std::weak_ptr<Monster>> pendingEchoGlows;
 	std::vector<Position> deferredMapTiles;
 	std::shared_ptr<Player> player = nullptr;
 

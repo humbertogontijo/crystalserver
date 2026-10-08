@@ -249,6 +249,11 @@ public:
 	float getDefenseMultiplier() const;
 
 	bool applyEchoWarden(float hpMult, float atkMult);
+	/// Echo Raid outline (0 warden, 1 empowered; -1 none), pushed to every client that knows the monster.
+	int8_t getEchoGlow() const {
+		return echoGlow;
+	}
+	void setEchoGlow(int8_t state);
 	/// Scale HP and attack for bosses/hunts (no forge/warden icons). Idempotent once.
 	bool scaleCombat(float hpMult, float atkMult = 1.0f);
 
@@ -346,6 +351,7 @@ private:
 
 	bool echoWarden = false;
 	float echoAtkMult = 1.0f;
+	int8_t echoGlow = -1;
 	bool combatScaled = false;
 	float combatAtkMult = 1.0f;
 

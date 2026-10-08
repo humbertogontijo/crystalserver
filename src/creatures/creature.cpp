@@ -48,6 +48,7 @@ void Creature::setInstanceIdUnseen(InstanceId id) {
 	} else if (getMonster()) {
 		g_instanceRegistry().updateMonsterInstance(getID(), id);
 	}
+	const InstanceId oldInstanceId = instanceId;
 	instanceId = id;
 	Spectators::clearCache();
 	// Summons placed with the master must share the private id before appear.
@@ -55,6 +56,10 @@ void Creature::setInstanceIdUnseen(InstanceId id) {
 		if (summon) {
 			summon->setInstanceId(id);
 		}
+	}
+
+	if (const auto &player = getPlayer()) {
+		g_callbacks().executeCallback(EventCallback_t::playerOnChangeInstance, &EventCallback::playerOnChangeInstance, player, oldInstanceId.toKey(), id.toKey());
 	}
 }
 
@@ -148,6 +153,10 @@ void Creature::setInstanceId(InstanceId id) {
 			summon->setInstanceId(id);
 		}
 	}
+
+	if (const auto &player = getPlayer()) {
+		g_callbacks().executeCallback(EventCallback_t::playerOnChangeInstance, &EventCallback::playerOnChangeInstance, player, oldInstanceId.toKey(), id.toKey());
+	}
 }
 
 Creature::~Creature() {
@@ -228,6 +237,17 @@ int32_t Creature::getWalkDelay(Direction dir) {
 int32_t Creature::getWalkSize() {
 	auto ret = std::distance(listWalkDir.begin(), listWalkDir.end());
 	return static_cast<int32_t>(ret);
+}
+
+std::optional<Position> Creature::getWalkDestination() {
+	if (listWalkDir.empty()) {
+		return std::nullopt;
+	}
+	Position pos = getPosition();
+	for (const Direction dir : listWalkDir) {
+		pos = getNextPosition(dir, pos);
+	}
+	return pos;
 }
 
 void Creature::onThink(uint32_t interval) {
@@ -325,18 +345,27 @@ void Creature::onCreatureWalk() {
 				if (ret != RETURNVALUE_NOERROR) {
 					if (std::shared_ptr<Player> player = getPlayer()) {
 						player->sendCancelMessage(ret);
-						player->sendCancelWalk();
+						if (getFollowCreature()) {
+							player->sendCancelWalk();
+						} else {
+							// The client already stopped; the remaining steps start from the wrong tile.
+							listWalkDir.clear();
+							autoWalkFlags = 0;
+							stopEventWalk();
+							onWalkFailed(ret);
+						}
 					}
 
 					forceUpdateFollowPath = true;
 				}
 			} else {
-				if (listWalkDir.empty()) {
-					onWalkComplete();
-				}
-
+				// Clear before notifying so a walk started from the handler survives.
+				const bool completed = listWalkDir.empty();
 				stopEventWalk();
 				autoWalkFlags = 0;
+				if (completed) {
+					onWalkComplete();
+				}
 			}
 		}
 

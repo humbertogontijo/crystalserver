@@ -512,13 +512,6 @@ std::shared_ptr<Thing> Tile::getTopVisibleThing(const std::shared_ptr<Creature> 
 void Tile::notifyZonesItemAdded(const std::shared_ptr<Item> &item) {
 	for (const auto &zone : getZones()) {
 		zone->itemAdded(item);
-		g_callbacks().executeCallback(EventCallback_t::zoneOnItemAdded, &EventCallback::zoneOnItemAdded, zone, item);
-	}
-}
-
-void Tile::notifyZonesItemRemoved(const std::shared_ptr<Item> &item) {
-	for (const auto &zone : getZones()) {
-		g_callbacks().executeCallback(EventCallback_t::zoneOnItemRemoved, &EventCallback::zoneOnItemRemoved, zone, item);
 	}
 }
 
@@ -643,7 +636,6 @@ void Tile::onUpdateTileItem(const std::shared_ptr<Item> &oldItem, const ItemType
 	for (const auto &zone : getZones()) {
 		zone->itemRemoved(oldItem);
 	}
-	notifyZonesItemRemoved(oldItem);
 	notifyZonesItemAdded(newItem);
 }
 
@@ -679,7 +671,6 @@ void Tile::onRemoveTileItem(const CreatureVector &spectators, const std::vector<
 	for (const auto &spectator : spectators) {
 		spectator->onRemoveTileItem(static_self_cast<Tile>(), cylinderMapPos, iType, item);
 	}
-	notifyZonesItemRemoved(item);
 
 	if (!hasFlag(TILESTATE_PROTECTIONZONE) || g_configManager().getBoolean(CLEAN_PROTECTION_ZONES)) {
 		const auto &items = getItemList();

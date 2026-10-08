@@ -873,6 +873,7 @@ public:
 	// walk events
 	void onWalk(Direction &dir) override;
 	void onWalkAborted() override;
+	void onWalkFailed(ReturnValue result) override;
 	void onWalkComplete() override;
 
 	/** True while a deferred walk-then-act approach is in progress (path not finished yet). */
@@ -1086,6 +1087,7 @@ public:
 	void sendCreatureChangeVisible(const std::shared_ptr<Creature> &creature, bool visible);
 	void sendCreatureLight(const std::shared_ptr<Creature> &creature) const;
 	void sendCreatureIcon(const std::shared_ptr<Creature> &creature) const;
+	void sendCreatureEchoGlow(const std::shared_ptr<Monster> &monster) const;
 	void sendUpdateCreature(const std::shared_ptr<Creature> &creature) const;
 	void sendCreatureWalkthrough(const std::shared_ptr<Creature> &creature, bool walkthrough) const;
 	void sendCreatureShield(const std::shared_ptr<Creature> &creature) const;

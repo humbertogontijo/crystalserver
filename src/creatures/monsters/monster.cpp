@@ -2780,6 +2780,20 @@ void Monster::scaleMaxHealth(float hpMult) {
 	runAwayHealth = static_cast<int32_t>(std::ceil(static_cast<float>(runAwayHealth) * hpMult));
 }
 
+void Monster::setEchoGlow(int8_t state) {
+	if (echoGlow == state) {
+		return;
+	}
+	echoGlow = state;
+	if (state < 0) {
+		return;
+	}
+	const auto self = static_self_cast<Monster>();
+	for (const auto &spectator : Spectators::around<Player>(getPosition(), getInstanceId())) {
+		spectator->getPlayer()->sendCreatureEchoGlow(self);
+	}
+}
+
 bool Monster::applyEchoWarden(float hpMult, float atkMult) {
 	if (echoWarden) {
 		return false;

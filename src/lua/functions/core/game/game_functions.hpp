@@ -26,6 +26,8 @@ private:
 	static int luaGameCreateNpcType(lua_State* L);
 
 	static int luaGameGetSpectators(lua_State* L);
+	static int luaGameScanMonsters(lua_State* L);
+	static int luaGameTileMask(lua_State* L);
 
 	static int luaGameGetBoostedCreature(lua_State* L);
 	static int luaGameGetBestiaryList(lua_State* L);
@@ -34,6 +36,7 @@ private:
 	static int luaGameConsumeMarketSellOffers(lua_State* L);
 
 	static int luaGameGetPlayers(lua_State* L);
+	static int luaGameGetAccountPlayers(lua_State* L);
 	static int luaGameLoadMap(lua_State* L);
 	static int luaGameloadMapChunk(lua_State* L);
 	static int luaGameLoadOccupancyMask(lua_State* L);
