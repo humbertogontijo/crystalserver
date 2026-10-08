@@ -19,7 +19,7 @@ exist here or do not apply. This file records what is worth taking.
 | Auto haste (+ PZ), utito, party buffs, familiar | support group, `isHasteSpell`, `PARTY_BUFF_BY_WORDS`, `FAMILIAR_WORDS` |
 | Targeting priority / ignore | target scoring (`TARGET_*` bonuses), store ignore lists |
 | Presets / profiles | loadouts + presets (`13_store.lua`, `14_protocol.lua`) |
-| Cavebot waypoints, luring, stop/walk by pack size, stuck recovery | catalog routes + holds, `lureMax`, `06_movement.lua`, `cavebot/03_core.lua` |
+| Cavebot waypoints, luring, stop/walk by pack size, stuck recovery | catalog routes + holds, `lureMax`, `combat_automation/10_movement.lua`, `cavebot/03a_state.lua` |
 | Low-supply alarm / refill | not applicable: supplies are bought per use; `ExpeditionSafety.handleShortage` stops the run when gold runs out |
 
 ## Done in this pass
