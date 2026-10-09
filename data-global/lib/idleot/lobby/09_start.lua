@@ -262,6 +262,12 @@ function LobbyStart.request(player, msg)
 	if levelErr then
 		return false, levelErr
 	end
+	if record.role == "boss" and not PzTeleport.isGod(player) then
+		local availabilityErr = ExpeditionConfig.bossAvailabilityError(catalog)
+		if availabilityErr then
+			return false, availabilityErr
+		end
+	end
 	if LobbyStart.bossCooldown(record) > 0 then
 		-- No message: the lobby card shows the cooldown timer; resync a stale client.
 		LobbyProtocol.broadcast(record)

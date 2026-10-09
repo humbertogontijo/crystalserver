@@ -119,6 +119,14 @@ function ExpeditionManager.join(player, expeditionId, _role, loadout, lure, opti
 		end
 	end
 
+	if contentRole == "boss" and not PzTeleport.isGod(player) then
+		local availabilityErr = ExpeditionConfig.bossAvailabilityError(catalog)
+		if availabilityErr then
+			ExpeditionProtocol.sendError(player, availabilityErr)
+			return
+		end
+	end
+
 	local levelMin = catalog.levelMin or 1
 	if not EM_PRIV.meetsExpeditionLevel(player, levelMin) then
 		ExpeditionProtocol.sendError(

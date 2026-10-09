@@ -1239,8 +1239,8 @@ local function monsterIsFocusBoss(player, monster, session)
 		return true
 	end
 	if session.kind == "worldboss" then
-		local wb = ActivityBoostWorldBoss.active[session.bandId]
-		if wb and wb.bossCreatureId and monster:getId() == wb.bossCreatureId then
+		local wb = ActivityBoostWorldBoss.active[session.entryId]
+		if ActivityBoostWorldBoss.isBossMonster(wb, monster:getId()) then
 			return true
 		end
 		local bossName = (wb and wb.bossName) or (session.catalog and session.catalog.name)

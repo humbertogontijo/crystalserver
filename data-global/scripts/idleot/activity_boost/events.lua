@@ -92,13 +92,13 @@ think:register()
 local startup = GlobalEvent("ActivityBoostWorldBossStartup")
 
 function startup.onStartup()
-	IdleSafe.call("ActivityBoostWorldBoss.ensureAllBands", ActivityBoostWorldBoss.ensureAllBands)
+	IdleSafe.call("ActivityBoostWorldBoss.ensureAll", ActivityBoostWorldBoss.ensureAll)
 	return true
 end
 
 startup:register()
 
--- Optional daily refresh at configured clock times (rotates bosses).
+-- Daily clock pulses reset World Boss entry respawns.
 local function registerWorldBossClock(index, clock)
 	local ev = GlobalEvent("ActivityBoostWorldBossSession" .. tostring(index))
 	function ev.onTime(interval)

@@ -1,10 +1,9 @@
 ActivityBoostWorldBoss = ActivityBoostWorldBoss or {}
 
--- Active sessions keyed by band id (one fight per band arena).
+-- Live fights keyed by World Boss entry id (one private instance per entry).
 ActivityBoostWorldBoss.active = ActivityBoostWorldBoss.active or {}
-ActivityBoostWorldBoss.schedule = ActivityBoostWorldBoss.schedule or {}
--- Cooldown per band+boss so the same boss in another band stays available.
-ActivityBoostWorldBoss.bossCooldownUntil = ActivityBoostWorldBoss.bossCooldownUntil or {}
+-- Entry respawn after a kill: entry id -> unix time it can be fought again.
+ActivityBoostWorldBoss.respawnUntil = ActivityBoostWorldBoss.respawnUntil or {}
 
 local function lootMultForRank(rank)
 	local table_ = ActivityBoostConfig.WORLD_BOSS_LOOT_MULT or {}
@@ -12,97 +11,36 @@ local function lootMultForRank(rank)
 	return table_[rank] or floor
 end
 
-local function cooldownKey(bandId, bossName)
-	return tostring(bandId) .. ":" .. tostring(bossName or "")
+local function respawnPending(entryId, now)
+	local untilTs = ActivityBoostWorldBoss.respawnUntil[entryId] or 0
+	return untilTs > (now or os.time()), untilTs
 end
 
-local function poolForBand(bandId)
-	local pool = ActivityBoostConfig.WORLD_BOSS_BY_BAND[bandId]
-	if pool and #pool > 0 then
-		return pool
+local function respawnSecFor(entry)
+	local sec = tonumber(entry and entry.respawnSec)
+	if sec and sec > 0 then
+		return sec
 	end
-	return ActivityBoostConfig.WORLD_BOSS_NAMES
+	return ActivityBoostConfig.WORLD_BOSS_COOLDOWN_SEC or 1800
 end
 
-local function bossOnCooldown(bandId, bossName, now)
-	now = now or os.time()
-	local untilTs = ActivityBoostWorldBoss.bossCooldownUntil[cooldownKey(bandId, bossName)] or 0
-	return untilTs > now, untilTs
-end
-
-local function pickBossName(bandId, sessionIndex)
-	local list = poolForBand(bandId)
-	if #list == 0 then
-		return "Glooth Fairy"
+--- Per-player boss cooldown after a kill: the boss's own timer, else the server default (20h).
+local function fightAgainSecFor(entry)
+	local sec = tonumber(entry and entry.fightAgainSec)
+	if sec and sec > 0 then
+		return sec
 	end
-	local seed = (os.date("%Y%m%d") + 0)
-	local bandHash = 0
-	for i = 1, #tostring(bandId) do
-		bandHash = bandHash + string.byte(tostring(bandId), i)
-	end
-	local idx = ((seed + bandHash * 17 + (sessionIndex or 0) * 31) % #list) + 1
-	return list[idx]
+	return ExpeditionConfig.bossCooldownDurationSec()
 end
 
-local function firstAvailableBoss(bandId, now)
-	now = now or os.time()
-	for _, bossName in ipairs(poolForBand(bandId)) do
-		local onCd = bossOnCooldown(bandId, bossName, now)
-		if not onCd then
-			return bossName
+local function bossNamesOf(entry)
+	local names = { entry.name }
+	for _, add in ipairs(entry.adds or {}) do
+		if add.boss then
+			names[#names + 1] = add.name
 		end
 	end
-	return nil
-end
-
-local function bossInBandPool(bandId, bossName)
-	if type(bossName) ~= "string" or bossName == "" then
-		return false
-	end
-	for _, name in ipairs(poolForBand(bandId)) do
-		if name == bossName then
-			return true
-		end
-	end
-	return false
-end
-
-local function creatureIdForBossName(bossName)
-	if type(bossName) ~= "string" or bossName == "" then
-		return nil
-	end
-	local key = bossName:lower()
-	-- Prefer resolved world-boss pool (CreatureInfo race id at config load).
-	for _, boss in ipairs(ActivityBoostConfig.WORLD_BOSSES or {}) do
-		if boss.name and tostring(boss.name):lower() == key then
-			local id = tonumber(boss.creatureId)
-			if id and id > 0 then
-				return id
-			end
-			break
-		end
-	end
-	local info = CreatureInfo.get(bossName)
-	local id = info and tonumber(info.creatureId)
-	if id and id > 0 then
-		return id
-	end
-	local mType = MonsterType(bossName)
-	if mType then
-		local id = mType:raceId()
-		if type(id) == "number" and id > 0 then
-			return id
-		end
-	end
-	for _, entry in ipairs(ExpeditionConfig.Catalog) do
-		if entry.name and tostring(entry.name):lower() == key then
-			local id = tonumber(entry.creatureId) or tonumber(entry.bossRaceId)
-			if id and id > 0 then
-				return id
-			end
-		end
-	end
-	return nil
+	return names
 end
 
 local function isFraggedToday(player)
@@ -152,12 +90,11 @@ local function meterList(session)
 end
 
 local function broadcastMeter(session)
-	local ranking = meterList(session)
 	local payload = {
 		type = "worldBossMeter",
-		band = session.bandId,
-		bossName = session.bossName,
-		ranking = ranking,
+		id = session.entryId,
+		bossName = session.label,
+		ranking = meterList(session),
 	}
 	for _, pid in ipairs(session.playerIds or {}) do
 		local p = Player(pid)
@@ -170,11 +107,11 @@ end
 local function rollLootForPlayer(player, bossName, mult)
 	local mType = MonsterType(bossName)
 	if not mType then
-		return
+		return {}
 	end
 	local loot = mType:getLoot()
 	if type(loot) ~= "table" then
-		return
+		return {}
 	end
 	mult = tonumber(mult) or 1
 	local given = {}
@@ -193,13 +130,36 @@ local function rollLootForPlayer(player, bossName, mult)
 			end
 		end
 	end
-	if #given > 0 then
-		player:sendTextMessage(
-			MESSAGE_LOOT,
-			"World boss loot: " .. table.concat(given, ", ")
-		)
-	else
-		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "World boss loot: nothing this time.")
+	return given
+end
+
+local function sessionMonsterIds(session)
+	local ids = {}
+	for id in pairs(session.baseMaxHealth or {}) do
+		ids[#ids + 1] = id
+	end
+	return ids
+end
+
+--- Boss + adds max HP follow the joined player count (keeps the current HP fraction).
+local function rescaleHealth(session)
+	if not session or session.bossDead or session.tearingDown then
+		return
+	end
+	local mult = ActivityBoostConfig.worldBossPlayerHpMult(#(session.playerIds or {}))
+	if session.hpMult == mult then
+		return
+	end
+	session.hpMult = mult
+	for id, baseMax in pairs(session.baseMaxHealth or {}) do
+		local monster = Monster(id)
+		if monster then
+			local oldMax = math.max(1, monster:getMaxHealth())
+			local newMax = math.max(1, math.ceil(baseMax * mult))
+			local hp = monster:getHealth()
+			monster:setMaxHealth(newMax)
+			monster:setHealth(math.max(1, math.floor(hp * newMax / oldMax)))
+		end
 	end
 end
 
@@ -209,17 +169,17 @@ local function teardownSession(session, reason)
 	end
 	session.tearingDown = true
 	session.scope:dispose()
-	if session.bossCreatureId then
-		local monster = Monster(session.bossCreatureId)
+	for _, id in ipairs(sessionMonsterIds(session)) do
+		local monster = Monster(id)
 		if monster then
 			monster:setDropLoot(false)
 			monster:remove()
 		end
-		session.bossCreatureId = nil
 	end
+	session.baseMaxHealth = {}
 	local playerIds = session.playerIds or {}
-	for _, pid in ipairs(playerIds) do
-		local p = Player(pid)
+	for i = #playerIds, 1, -1 do
+		local p = Player(playerIds[i])
 		if p then
 			ActivityBoostWorldBoss.leave(p, { silent = true, force = true, reason = reason })
 		end
@@ -227,46 +187,89 @@ local function teardownSession(session, reason)
 	if session.instance then
 		ExpeditionInstance.teardown(session.instance)
 	end
-	if ActivityBoostWorldBoss.active[session.bandId] == session then
-		ActivityBoostWorldBoss.active[session.bandId] = nil
+	if ActivityBoostWorldBoss.active[session.entryId] == session then
+		ActivityBoostWorldBoss.active[session.entryId] = nil
 	end
 	ActivityBoostWorldBoss.broadcastSchedule()
 end
 
---- True while `session` is still the band's live fight (timers captured it earlier).
+--- True while `session` is still the entry's live fight (timers captured it earlier).
 local function isCurrentSession(session)
 	return session ~= nil
-		and ActivityBoostWorldBoss.active[session.bandId] == session
+		and ActivityBoostWorldBoss.active[session.entryId] == session
 		and not session.tearingDown
 		and Instance.isLive(session.key, session.owner)
 end
 
-function ActivityBoostWorldBoss.listActive()
-	local out = {}
+local function liveSession(entryId)
+	local session = ActivityBoostWorldBoss.active[entryId]
+	if session and not session.tearingDown and not session.bossDead then
+		return session
+	end
+	return nil
+end
+
+--- Session that owns monster `creatureId` (boss, twin boss or add).
+function ActivityBoostWorldBoss.sessionForMonster(creatureId)
 	for _, session in pairs(ActivityBoostWorldBoss.active) do
-		if session and not session.tearingDown then
-			local band = nil
-			for _, b in ipairs(ActivityBoostConfig.LEVEL_BANDS or {}) do
-				if b.id == session.bandId then
-					band = b
-					break
-				end
-			end
-			out[#out + 1] = {
-				band = session.bandId,
-				bandName = band and band.name or session.bandId,
-				levelMin = band and band.levelMin or 0,
-				levelMax = band and band.levelMax or 9999,
-				bossName = session.bossName,
-				creatureId = creatureIdForBossName(session.bossName),
-				startedAt = session.startedAt,
-				endsAt = session.endsAt,
-				joinUntil = session.joinUntil,
-				players = #(session.playerIds or {}),
-				joinable = not session.bossDead
-					and not session.tearingDown
-					and not bossOnCooldown(session.bandId, session.bossName, os.time()),
-			}
+		if session.baseMaxHealth and session.baseMaxHealth[creatureId] then
+			return session
+		end
+	end
+	return nil
+end
+
+function ActivityBoostWorldBoss.isBossMonster(session, creatureId)
+	return session ~= nil and session.bossIds ~= nil and session.bossIds[creatureId] == true
+end
+
+local function scheduleRow(entry, now)
+	local session = ActivityBoostWorldBoss.active[entry.id]
+	local live = session and not session.tearingDown and not session.bossDead
+	local onRespawn, respawnAt = respawnPending(entry.id, now)
+	local available, availableAt = ExpeditionConfig.bossAvailability(entry, now)
+	local state, nextAt = "NOW", now
+	if not available then
+		state, nextAt = "LOCKED", availableAt
+	elseif onRespawn then
+		state, nextAt = "COOLDOWN", respawnAt
+	elseif live then
+		state = "ACTIVE"
+	end
+	return {
+		id = entry.id,
+		bossName = entry.name,
+		label = ActivityBoostConfig.worldBossLabel(entry),
+		displayName = entry.displayName,
+		creatureId = tonumber(entry.creatureId),
+		levelMin = entry.levelMin,
+		family = entry.family or "Misc",
+		difficulty = entry.difficulty or 0,
+		variantOf = entry.variantOf,
+		arena = entry.room == nil,
+		nextAt = nextAt,
+		nextClock = state,
+		cooldownUntil = onRespawn and respawnAt or 0,
+		active = live and true or false,
+		joinable = available and not onRespawn,
+		players = live and #(session.playerIds or {}) or 0,
+		available = available,
+		availableAt = availableAt,
+		availabilityLabel = ExpeditionConfig.availabilityLabel(entry, now),
+		endsAt = live and session.endsAt or 0,
+	}
+end
+
+function ActivityBoostWorldBoss.listActive()
+	local now = os.time()
+	local out = {}
+	for entryId, session in pairs(ActivityBoostWorldBoss.active) do
+		local entry = ActivityBoostConfig.worldBoss(entryId)
+		if entry and session and not session.tearingDown then
+			local row = scheduleRow(entry, now)
+			row.startedAt = session.startedAt
+			row.joinUntil = session.joinUntil
+			out[#out + 1] = row
 		end
 	end
 	table.sort(out, function(a, b)
@@ -275,54 +278,12 @@ function ActivityBoostWorldBoss.listActive()
 	return out
 end
 
---- One row per (band, boss). Same boss can appear in multiple bands.
+--- One row per World Boss entry (base boss or gap variant).
 function ActivityBoostWorldBoss.listSchedule()
 	local now = os.time()
 	local out = {}
-	for _, band in ipairs(ActivityBoostConfig.LEVEL_BANDS or {}) do
-		local session = ActivityBoostWorldBoss.active[band.id]
-		local sessionLive = session
-			and not session.tearingDown
-			and not session.bossDead
-		local pool = poolForBand(band.id)
-		for _, bossName in ipairs(pool) do
-			local onCooldown, cooldownUntil = bossOnCooldown(band.id, bossName, now)
-			local isThisFight = sessionLive and session.bossName == bossName
-			local otherFight = sessionLive and session.bossName ~= bossName
-			local joinable = false
-			local nextAt = 0
-			local nextClock = ""
-			if onCooldown then
-				nextAt = cooldownUntil
-				nextClock = "COOLDOWN"
-			elseif isThisFight then
-				nextAt = now
-				nextClock = "NOW"
-				joinable = true
-			elseif otherFight then
-				nextAt = session.endsAt or 0
-				nextClock = "BUSY"
-			else
-				-- Arena free and boss off cooldown: join starts this fight.
-				nextAt = now
-				nextClock = "NOW"
-				joinable = true
-			end
-			out[#out + 1] = {
-				band = band.id,
-				bandName = band.name,
-				levelMin = band.levelMin or 0,
-				levelMax = band.levelMax or 9999,
-				bossName = bossName,
-				creatureId = creatureIdForBossName(bossName),
-				nextAt = nextAt,
-				nextClock = nextClock,
-				cooldownUntil = onCooldown and cooldownUntil or 0,
-				active = isThisFight and true or false,
-				joinable = joinable,
-				players = isThisFight and #(session.playerIds or {}) or 0,
-			}
-		end
+	for _, entry in ipairs(ActivityBoostConfig.WORLD_BOSSES or {}) do
+		out[#out + 1] = scheduleRow(entry, now)
 	end
 	return out
 end
@@ -339,44 +300,102 @@ function ActivityBoostWorldBoss.broadcastSchedule()
 	end
 end
 
-local onBossDeath
-
-local function startBandSession(band, bossName)
-	if ActivityBoostWorldBoss.active[band.id] then
-		teardownSession(ActivityBoostWorldBoss.active[band.id], "replaced")
+--- Instance spec: the boss's own spawn room, else the generic arena.
+local function roomSpec(entry)
+	local room = entry.room
+	if type(room) == "table" and room.center then
+		local z = room.center.z
+		return {
+			center = room.center,
+			entry = room.entry,
+			boundary = room.boundary,
+			occupancy = room.occupancyMask,
+			floors = { z },
+			bossPos = room.center,
+		}
 	end
-	bossName = bossName or firstAvailableBoss(band.id) or pickBossName(band.id, 0)
-	if not bossName then
-		return
-	end
-	local arena = ActivityBoostConfig.WORLD_BOSS_ARENA or {}
-	-- The arena's own region is the subarea; the band is only a label (tag) and the owner
-	-- is unique per fight so stale timers can never match a later fight of the same band.
-	local arenaSubarea = arena.center and InstanceWorld.subareaIdAt(Position(arena.center.x, arena.center.y, arena.center.z)) or 0
-	local owner = string.format("worldboss_%s_%d", tostring(band.id), os.time())
-	local instanceId = ExpeditionInstance.allocate("worldboss", arenaSubarea, owner, band.id)
-	if not instanceId then
-		logger.error("[ActivityBoost] world boss: no instance for band {}", band.id)
-		return
-	end
-	local buildOpts = {
-		id = "worldboss_" .. band.id,
-		region = "worldboss_" .. band.id,
-		kind = "worldboss",
+	local arena = ActivityBoostConfig.WORLD_BOSS_ARENA
+	return {
 		center = arena.center,
 		boundary = arena.boundary,
+		bossPos = arena.center,
 	}
-	local instance, err = ExpeditionInstance.build(instanceId, buildOpts, os.time())
+end
+
+local function spawnNear(name, pos, instance)
+	local instanceId = instance.instanceId
+	local monster = Game.createMonster(name, pos, false, false, nil, instanceId)
+	if monster then
+		return monster
+	end
+	local reserved = {}
+	ExpeditionInstance.reservePos(reserved, pos)
+	for radius = 1, 3 do
+		local near = ExpeditionInstance.randomAttackRangeWalkable(instance, pos, radius, reserved)
+		if near then
+			monster = Game.createMonster(name, near, false, false, nil, instanceId)
+			if monster then
+				return monster
+			end
+			ExpeditionInstance.reservePos(reserved, near)
+		end
+	end
+	return Game.createMonster(name, pos, false, true, nil, instanceId)
+end
+
+local onBossDeath
+
+local function trackMonster(session, monster, isBoss, difficultyMults)
+	monster:setDropLoot(false)
+	monster:registerEvent("IdleMonsterDeath")
+	if isBoss then
+		monster:registerEvent("ActivityBoostWorldBossHealth")
+		if difficultyMults then
+			monster:scaleCombat(difficultyMults[1], difficultyMults[2])
+		end
+		session.bossIds[monster:getId()] = true
+		session.bossesAlive = session.bossesAlive + 1
+	end
+	session.baseMaxHealth[monster:getId()] = monster:getMaxHealth()
+end
+
+local function startEntrySession(entry)
+	local existing = ActivityBoostWorldBoss.active[entry.id]
+	if existing then
+		teardownSession(existing, "replaced")
+	end
+	local spec = roomSpec(entry)
+	local subarea = InstanceWorld.subareaIdAt(Position(spec.center.x, spec.center.y, spec.center.z)) or 0
+	-- Owner is unique per fight so stale timers can never match a later fight of the same entry.
+	local owner = string.format("worldboss_%s_%d", entry.id, os.time())
+	local instanceId = ExpeditionInstance.allocate("worldboss", subarea, owner, entry.id)
+	if not instanceId then
+		logger.error("[ActivityBoost] world boss: no instance for {}", entry.id)
+		return nil
+	end
+	local instance, err = ExpeditionInstance.build(instanceId, {
+		id = "worldboss_" .. entry.id,
+		region = "worldboss_" .. entry.id,
+		kind = "worldboss",
+		center = spec.center,
+		entry = spec.entry,
+		boundary = spec.boundary,
+		occupancy = spec.occupancy,
+		floors = spec.floors,
+	}, os.time())
 	if not instance then
 		ExpeditionInstance.free(instanceId)
-		logger.error("[ActivityBoost] world boss build failed {}: {}", band.id, err or "?")
-		return
+		logger.error("[ActivityBoost] world boss build failed {}: {}", entry.id, err or "?")
+		return nil
 	end
 
 	local now = os.time()
+	local fightSec = ActivityBoostConfig.WORLD_BOSS_FIGHT_SEC or 1200
 	local session = {
-		bandId = band.id,
-		bossName = bossName,
+		entryId = entry.id,
+		entry = entry,
+		bossName = entry.name,
+		label = ActivityBoostConfig.worldBossLabel(entry),
 		key = instanceId,
 		owner = owner,
 		instance = instance,
@@ -384,69 +403,79 @@ local function startBandSession(band, bossName)
 		memberKeys = {},
 		damage = {},
 		playerDamage = {},
+		bossIds = {},
+		bossesAlive = 0,
+		baseMaxHealth = {},
+		hpMult = 1,
 		startedAt = now,
-		joinUntil = now + (ActivityBoostConfig.WORLD_BOSS_FIGHT_SEC or 1200),
-		endsAt = now + (ActivityBoostConfig.WORLD_BOSS_FIGHT_SEC or 1200),
-		bossCreatureId = nil,
+		joinUntil = now + fightSec,
+		endsAt = now + fightSec,
 		bossDead = false,
 		tearingDown = false,
 	}
 	session.scope = Scope.new({
-		name = "worldboss:" .. tostring(band.id),
+		name = "worldboss:" .. entry.id,
 		instanceId = instanceId,
 		alive = function()
 			return isCurrentSession(session)
 		end,
 	})
-	ActivityBoostWorldBoss.active[band.id] = session
+	ActivityBoostWorldBoss.active[entry.id] = session
 
-	local spawnPos = Position(
-		(arena.center and arena.center.x) or 33688,
-		(arena.center and arena.center.y) or 31937,
-		(arena.center and arena.center.z) or 9
-	)
-	if instance.entry then
-		spawnPos = Position(instance.entry.x, instance.entry.y, instance.entry.z)
+	local hpMult, dmgMult = ActivityBoostConfig.worldBossDifficultyMults(entry)
+	local difficulty = (hpMult > 1 or dmgMult > 1) and { hpMult, dmgMult } or nil
+	local bossPos = Position(spec.bossPos.x, spec.bossPos.y, spec.bossPos.z)
+	local boss = Game.createMonster(entry.name, bossPos, false, true, nil, instanceId)
+	if boss then
+		trackMonster(session, boss, true, difficulty)
+	else
+		logger.error("[ActivityBoost] failed to spawn world boss {}", entry.name)
 	end
-	local monster = Game.createMonster(bossName, spawnPos, false, true, nil, instance.instanceId)
-	if monster then
-		monster:setDropLoot(false)
-		monster:registerEvent("ActivityBoostWorldBossHealth")
-		monster:registerEvent("IdleMonsterDeath")
-		session.bossCreatureId = monster:getId()
-		session.scope:on("monster.died", function(dead)
-			if dead:getId() == session.bossCreatureId then
+	for _, add in ipairs(entry.adds or {}) do
+		local monster = spawnNear(add.name, Position(add.x, add.y, add.z), instance)
+		if monster then
+			trackMonster(session, monster, add.boss == true, add.boss and difficulty or nil)
+		end
+	end
+	if session.bossesAlive == 0 then
+		teardownSession(session, "spawnfailed")
+		return nil
+	end
+
+	session.scope:on("monster.died", function(dead)
+		if session.bossIds[dead:getId()] then
+			session.bossIds[dead:getId()] = nil
+			session.baseMaxHealth[dead:getId()] = nil
+			session.bossesAlive = session.bossesAlive - 1
+			if session.bossesAlive <= 0 then
 				onBossDeath(session)
 			end
-		end)
-	else
-		logger.error("[ActivityBoost] failed to spawn world boss {}", bossName)
-	end
+		else
+			session.baseMaxHealth[dead:getId()] = nil
+		end
+	end)
 
-	session.scope:after((ActivityBoostConfig.WORLD_BOSS_FIGHT_SEC or 1200) * 1000, function()
+	session.scope:after(fightSec * 1000, function()
 		if session.bossDead then
 			return
 		end
 		Game.broadcastMessage(
-			string.format("World Boss (%s): time expired - %s escaped.", band.name, session.bossName or "boss"),
+			string.format("World Boss: time expired - %s escaped.", session.label),
 			MESSAGE_EVENT_ADVANCE
 		)
 		teardownSession(session, "timeout")
 	end)
+	return session
 end
 
-function ActivityBoostWorldBoss.ensureAllBands()
+function ActivityBoostWorldBoss.ensureAll()
 	ActivityBoostWorldBoss.broadcastSchedule()
 end
 
 function ActivityBoostWorldBoss.startSession(sessionIndex)
-	-- Timed world-event pulse: clear cooldowns; fights start when players join.
+	-- Timed world-event pulse: entry respawns reset; per-player boss cooldowns stay.
 	sessionIndex = tonumber(sessionIndex) or 0
-	for _, band in ipairs(ActivityBoostConfig.LEVEL_BANDS or {}) do
-		for _, bossName in ipairs(poolForBand(band.id)) do
-			ActivityBoostWorldBoss.bossCooldownUntil[cooldownKey(band.id, bossName)] = nil
-		end
-	end
+	ActivityBoostWorldBoss.respawnUntil = {}
 	Game.broadcastMessage(
 		string.format("World Boss window open (slot %d)! Join any available fight from Expeditions.", sessionIndex),
 		MESSAGE_EVENT_ADVANCE
@@ -454,10 +483,9 @@ function ActivityBoostWorldBoss.startSession(sessionIndex)
 	ActivityBoostWorldBoss.broadcastSchedule()
 end
 
-function ActivityBoostWorldBoss.join(player, bandId, bossName)
-	if not player then
-		return false, "Invalid player."
-	end
+--- Join gate: daily cap, event window, level >= levelMin (no top cap), personal boss
+--- cooldown, entry respawn. Returns ok, errorMessage.
+local function canJoin(player, entry)
 	if isFraggedToday(player) then
 		local cap = tonumber(ActivityBoostConfig.WORLD_BOSS_DAILY_CAP) or 3
 		return false, string.format("You already claimed %d world bosses today. Come back after server save.", cap)
@@ -465,78 +493,69 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 	if ExpeditionManager.getSessionByPlayer(player) then
 		return false, "Leave your current expedition first."
 	end
-	local band = nil
-	for _, b in ipairs(ActivityBoostConfig.LEVEL_BANDS or {}) do
-		if b.id == bandId then
-			band = b
-			break
-		end
+	local label = ActivityBoostConfig.worldBossLabel(entry)
+	local available = ExpeditionConfig.bossAvailability(entry)
+	if not available then
+		local when = ExpeditionConfig.availabilityLabel(entry)
+		return false, string.format("%s is not available right now (%s).", label, when or "event only")
 	end
-	if not band then
-		return false, "Unknown level band."
+	if PzTeleport.isGod(player) then
+		return true
 	end
-	if not (PzTeleport.isGod(player)) then
-		local level = player:getLevel()
-		if level < (band.levelMin or 0) or level > (band.levelMax or 99999) then
-			return false, string.format("This world boss is for levels %d–%d.", band.levelMin, band.levelMax)
-		end
+	if player:getLevel() < entry.levelMin then
+		return false, string.format("%s requires level %d.", label, entry.levelMin)
 	end
-	if bossName and not bossInBandPool(bandId, bossName) then
-		return false, "That boss is not offered in this level band."
+	if not player:canFightBoss(entry.name) then
+		local left = math.max(0, (tonumber(player:getBossCooldown(entry.name)) or 0) - os.time())
+		return false, string.format(
+			"You must wait %s to face %s again.",
+			ExpeditionConfig.formatBossCooldownRemaining(left),
+			entry.name
+		)
 	end
-
-	local session = ActivityBoostWorldBoss.active[bandId]
-	if session and not session.tearingDown and not session.bossDead then
-		if bossName and session.bossName ~= bossName then
-			return false, string.format("%s is fighting in this arena right now. Pick that fight or wait.", session.bossName)
-		end
-	else
-		local wanted = bossName
-		if wanted then
-			if bossOnCooldown(bandId, wanted) then
-				return false, "That world boss is recovering (30 minute cooldown after defeat)."
-			end
-		else
-			wanted = firstAvailableBoss(bandId)
-			if not wanted then
-				return false, "All world bosses in this band are on cooldown."
-			end
-		end
-		if session then
-			teardownSession(session, "replaced")
-		end
-		startBandSession(band, wanted)
-		session = ActivityBoostWorldBoss.active[bandId]
+	if respawnPending(entry.id) then
+		return false, string.format("%s has not respawned yet.", label)
 	end
-
-	if not session or session.tearingDown or session.bossDead then
-		return false, "That world boss is not available right now."
-	end
-	if bossOnCooldown(bandId, session.bossName) then
-		return false, "World boss is recovering (30 minute cooldown after defeat)."
-	end
-	if PzTeleport.isCombatLocked(player)
-		and not (PzTeleport.isGod(player))
-	then
+	if PzTeleport.isCombatLocked(player) then
 		return false, PzTeleport.PZ_LOCKED_MESSAGE or "You cannot teleport while PZ-locked."
+	end
+	return true
+end
+
+function ActivityBoostWorldBoss.join(player, entryId)
+	if not player then
+		return false, "Invalid player."
+	end
+	local entry = ActivityBoostConfig.worldBoss(entryId)
+	if not entry then
+		return false, "Unknown world boss."
+	end
+	local ok, err = canJoin(player, entry)
+	if not ok then
+		return false, err
+	end
+
+	local session = liveSession(entry.id) or startEntrySession(entry)
+	if not session then
+		return false, "That world boss is not available right now."
 	end
 
 	ExpeditionManager.saveReturnPos(player)
-	ExpeditionManager.markActiveFlag(player, "worldboss:" .. bandId)
+	ExpeditionManager.markActiveFlag(player, "worldboss:" .. entry.id)
 
-	local key = "worldboss:" .. bandId .. ":p" .. player:getGuid()
+	local key = "worldboss:" .. entry.id .. ":p" .. player:getGuid()
 	local member = {
 		key = key,
 		playerId = player:getId(),
 		guid = player:getGuid(),
 		playerIds = session.playerIds,
 		kind = "worldboss",
-		bandId = bandId,
+		entryId = entry.id,
 		-- role=boss so status + mid-screen boss crest track the world boss.
 		role = "boss",
 		catalog = {
-			id = "worldboss:" .. bandId,
-			name = session.bossName,
+			id = "worldboss:" .. entry.id,
+			name = entry.name,
 			kind = "worldboss",
 			role = "boss",
 		},
@@ -548,6 +567,7 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 	session.playerIds[#session.playerIds + 1] = player:getId()
 	session.memberKeys[player:getId()] = key
 	ExpeditionManager.bindSession(member)
+	rescaleHealth(session)
 
 	player:registerEvent("ExpeditionPlayerDeath")
 
@@ -556,29 +576,29 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 		if not liveMember or liveMember.key ~= key then
 			return false
 		end
-		local liveSession = ActivityBoostWorldBoss.active[bandId]
-		if not liveSession or liveSession.tearingDown or liveSession.bossDead then
+		local current = liveSession(entry.id)
+		if not current then
 			ActivityBoostWorldBoss.leave(p, { silent = true, force = true })
 			return false, "That world boss is not available right now."
 		end
-		local instance = liveSession.instance
+		local instance = current.instance
 		if not InstanceWorld.enterInstance(p, instance.instanceId, instance.entry) then
-			logger.error("[ActivityBoost] enterInstance failed for {} into world boss {}", p:getName(), liveSession.bossName)
+			logger.error("[ActivityBoost] enterInstance failed for {} into world boss {}", p:getName(), current.label)
 			ActivityBoostWorldBoss.leave(p, { silent = true, force = true })
 			return false
 		end
 		liveMember.entered = true
 		p:sendTextMessage(
 			MESSAGE_EVENT_ADVANCE,
-			string.format("Joined World Boss: %s (%s band). Open PvP; no death penalty.", liveSession.bossName, band.name)
+			string.format("Joined World Boss: %s. Open PvP; no death penalty.", current.label)
 		)
 		ExpeditionProtocol.sendStatus(p, liveMember)
 		ActivityBoostWorldBoss.broadcastSchedule()
-		broadcastMeter(liveSession)
+		broadcastMeter(current)
 		return true
 	end
 
-	local ok, err = InstanceTeleport.armSoloExpedition(player, {
+	local armed, armErr = InstanceTeleport.armSoloExpedition(player, {
 		onComplete = function(p)
 			finishWorldBossEnter(p)
 		end,
@@ -588,9 +608,9 @@ function ActivityBoostWorldBoss.join(player, bandId, bossName)
 			end
 		end,
 	})
-	if not ok then
+	if not armed then
 		ActivityBoostWorldBoss.leave(player, { silent = true, force = true })
-		return false, err or "Could not start world boss teleport."
+		return false, armErr or "Could not start world boss teleport."
 	end
 	ExpeditionProtocol.sendStatus(player, member)
 	return true
@@ -600,7 +620,7 @@ function ActivityBoostWorldBoss.withdrawDamage(player)
 	local session = nil
 	local member = ExpeditionManager.getSessionByPlayer(player)
 	if member and member.kind == "worldboss" then
-		session = ActivityBoostWorldBoss.active[member.bandId]
+		session = ActivityBoostWorldBoss.active[member.entryId]
 	end
 	if not session or not player then
 		return
@@ -653,7 +673,7 @@ function ActivityBoostWorldBoss.leave(player, opts)
 	if not member or member.kind ~= "worldboss" then
 		return
 	end
-	local session = ActivityBoostWorldBoss.active[member.bandId]
+	local session = ActivityBoostWorldBoss.active[member.entryId]
 	if session and not session.bossDead and not opts.force then
 		ActivityBoostWorldBoss.withdrawDamage(player)
 	end
@@ -670,6 +690,7 @@ function ActivityBoostWorldBoss.leave(player, opts)
 		if session.memberKeys then
 			session.memberKeys[pid] = nil
 		end
+		rescaleHealth(session)
 	end
 
 	ExpeditionManager.unbindSession(member)
@@ -689,14 +710,8 @@ function ActivityBoostWorldBoss.onHealthChange(creature, attacker, primaryDamage
 	if not creature or not creature:isMonster() then
 		return primaryDamage, primaryType, secondaryDamage, secondaryType
 	end
-	local session = nil
-	for _, s in pairs(ActivityBoostWorldBoss.active) do
-		if s.bossCreatureId == creature:getId() then
-			session = s
-			break
-		end
-	end
-	if not session or session.bossDead then
+	local session = ActivityBoostWorldBoss.sessionForMonster(creature:getId())
+	if not session or session.bossDead or not ActivityBoostWorldBoss.isBossMonster(session, creature:getId()) then
 		return primaryDamage, primaryType, secondaryDamage, secondaryType
 	end
 	local player = attacker and attacker:getPlayer()
@@ -723,8 +738,7 @@ function ActivityBoostWorldBoss.onHealthChange(creature, attacker, primaryDamage
 	if not key then
 		return primaryDamage, primaryType, secondaryDamage, secondaryType
 	end
-	session.damage[key] = session.damage[key]
-		or { name = name, damage = 0, isParty = isParty, memberGuids = {} }
+	session.damage[key] = session.damage[key] or { name = name, damage = 0, isParty = isParty, memberGuids = {} }
 	session.damage[key].damage = (session.damage[key].damage or 0) + dmg
 	session.damage[key].name = name
 	session.damage[key].memberGuids[player:getGuid()] = true
@@ -752,9 +766,10 @@ onBossDeath = function(session)
 		return
 	end
 	session.bossDead = true
-	session.bossCreatureId = nil
-	ActivityBoostWorldBoss.bossCooldownUntil[cooldownKey(session.bandId, session.bossName)] = os.time()
-		+ (ActivityBoostConfig.WORLD_BOSS_COOLDOWN_SEC or 1800)
+	local entry = session.entry
+	local now = os.time()
+	ActivityBoostWorldBoss.respawnUntil[entry.id] = now + respawnSecFor(entry)
+	local cooldownUntil = now + fightAgainSecFor(entry)
 	local ranking = meterList(session)
 
 	local guidToPlayer = {}
@@ -765,6 +780,7 @@ onBossDeath = function(session)
 		end
 	end
 
+	local cap = tonumber(ActivityBoostConfig.WORLD_BOSS_DAILY_CAP) or 3
 	for _, row in ipairs(ranking) do
 		local recipients = {}
 		if row.isParty then
@@ -782,11 +798,23 @@ onBossDeath = function(session)
 			end
 		end
 		for _, p in ipairs(recipients) do
-			rollLootForPlayer(p, session.bossName, row.lootMult)
+			local given = {}
+			for _, bossName in ipairs(bossNamesOf(entry)) do
+				for _, line in ipairs(rollLootForPlayer(p, bossName, row.lootMult)) do
+					given[#given + 1] = line
+				end
+			end
+			if #given > 0 then
+				p:sendTextMessage(MESSAGE_LOOT, "World boss loot: " .. table.concat(given, ", "))
+			else
+				p:sendTextMessage(MESSAGE_EVENT_ADVANCE, "World boss loot: nothing this time.")
+			end
+			if not PzTeleport.isGod(p) then
+				p:setBossCooldown(entry.name, cooldownUntil)
+				p:sendBosstiaryCooldownTimer()
+			end
 			noteWorldBossFrag(p)
-			local frags = 0
-			frags = ActivityBoostActivities.getWorldBossFragsToday(p)
-			local cap = tonumber(ActivityBoostConfig.WORLD_BOSS_DAILY_CAP) or 3
+			local frags = ActivityBoostActivities.getWorldBossFragsToday(p)
 			p:sendTextMessage(
 				MESSAGE_EVENT_ADVANCE,
 				string.format(
@@ -800,17 +828,13 @@ onBossDeath = function(session)
 		end
 	end
 
-	Game.broadcastMessage(
-		string.format("World Boss defeated: %s (%s band)!", session.bossName, session.bandId),
-		MESSAGE_EVENT_ADVANCE
-	)
+	Game.broadcastMessage(string.format("World Boss defeated: %s!", session.label), MESSAGE_EVENT_ADVANCE)
 
-	-- Loot window, then the arena closes; clients refresh again once the cooldown ends.
-	local cooldownSec = ActivityBoostConfig.WORLD_BOSS_COOLDOWN_SEC or 1800
+	-- Loot window, then the room closes; clients refresh again once the entry respawns.
 	session.scope:after(8000, function()
 		teardownSession(session, "cleared")
 	end)
-	addEvent(ActivityBoostWorldBoss.broadcastSchedule, (cooldownSec + 1) * 1000)
+	addEvent(ActivityBoostWorldBoss.broadcastSchedule, (respawnSecFor(entry) + 1) * 1000)
 end
 
 function ActivityBoostWorldBoss.onServerSave()

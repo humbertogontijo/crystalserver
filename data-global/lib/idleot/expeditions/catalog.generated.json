@@ -131356,423 +131356,115 @@
       "stationary": false
     },
     {
-      "id": 564,
+      "id": 1562,
       "kind": "hunt",
       "role": "boss",
-      "name": "Doctor Perhaps",
-      "levelMin": 18,
-      "recommendedLevel": 30,
-      "bosstiaryClass": "Bane",
+      "name": "Sharpclaw",
+      "levelMin": 50,
+      "recommendedLevel": 85,
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 475,
-      "region": 564,
+      "hp": 3300,
+      "region": 1562,
       "center": {
-        "x": 32747,
-        "y": 31455,
-        "z": 6
-      },
-      "creatureIds": [
-        564
-      ],
-      "creatureId": 564,
-      "combatPower": 130.05,
-      "score": 1475,
-      "floors": [
-        6
-      ]
-    },
-    {
-      "id": 566,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Mephiles",
-      "levelMin": 18,
-      "recommendedLevel": 30,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 415,
-      "region": 566,
-      "center": {
-        "x": 32760,
-        "y": 31458,
-        "z": 4
-      },
-      "creatureIds": [
-        566
-      ],
-      "creatureId": 566,
-      "combatPower": 151.26,
-      "score": 1415,
-      "floors": [
-        4
-      ]
-    },
-    {
-      "id": 670,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Glitterscale",
-      "levelMin": 20,
-      "recommendedLevel": 35,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 1000,
-      "region": 670,
-      "center": {
-        "x": 32230,
-        "y": 32125,
+        "x": 33119,
+        "y": 32003,
         "z": 9
       },
       "creatureIds": [
-        670
+        1562
       ],
-      "creatureId": 670,
-      "combatPower": 203.8,
-      "score": 2000,
+      "creatureId": 1562,
+      "combatPower": 802.04,
+      "score": 5300,
       "floors": [
         9
       ]
     },
     {
-      "id": 565,
+      "id": 1559,
       "kind": "hunt",
       "role": "boss",
-      "name": "Dirtbeard",
-      "levelMin": 25,
-      "recommendedLevel": 40,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 630,
-      "region": 565,
-      "center": {
-        "x": 32746,
-        "y": 31461,
-        "z": 5
-      },
-      "creatureIds": [
-        565
-      ],
-      "creatureId": 565,
-      "combatPower": 232.87,
-      "score": 1630,
-      "floors": [
-        5
-      ]
-    },
-    {
-      "id": 486,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Diseased Dan",
-      "levelMin": 25,
-      "recommendedLevel": 40,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 800,
-      "region": 486,
-      "center": {
-        "x": 32706,
-        "y": 31189,
-        "z": 8
-      },
-      "creatureIds": [
-        486
-      ],
-      "creatureId": 486,
-      "combatPower": 247.12,
-      "score": 1800,
-      "floors": [
-        8
-      ]
-    },
-    {
-      "id": 671,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Heoni",
-      "levelMin": 25,
-      "recommendedLevel": 45,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 900,
-      "region": 671,
-      "center": {
-        "x": 33232,
-        "y": 31750,
-        "z": 4
-      },
-      "creatureIds": [
-        671
-      ],
-      "creatureId": 671,
-      "combatPower": 272.64,
-      "score": 1900,
-      "floors": [
-        4
-      ]
-    },
-    {
-      "id": 900,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Bibby Bloodbath",
-      "levelMin": 30,
-      "recommendedLevel": 50,
+      "name": "Black Vixen",
+      "levelMin": 50,
+      "recommendedLevel": 85,
       "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 1200,
-      "region": 900,
+      "hp": 3200,
+      "region": 1559,
       "center": {
-        "x": 32622,
-        "y": 31826,
-        "z": 7
+        "x": 33450,
+        "y": 32034,
+        "z": 9
       },
       "creatureIds": [
-        900
+        1559
       ],
-      "creatureId": 900,
-      "combatPower": 329.75,
-      "score": 3200,
+      "creatureId": 1559,
+      "combatPower": 832.26,
+      "score": 5200,
       "floors": [
-        7
+        9
       ]
     },
     {
-      "id": 484,
+      "id": 1558,
       "kind": "hunt",
       "role": "boss",
-      "name": "Diseased Fred",
-      "levelMin": 30,
-      "recommendedLevel": 50,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 1100,
-      "region": 484,
-      "center": {
-        "x": 32703,
-        "y": 31123,
-        "z": 7
-      },
-      "creatureIds": [
-        484
-      ],
-      "creatureId": 484,
-      "combatPower": 344.09,
-      "score": 2100,
-      "floors": [
-        7
-      ]
-    },
-    {
-      "id": 485,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Diseased Bill",
-      "levelMin": 30,
-      "recommendedLevel": 50,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 1000,
-      "region": 485,
-      "center": {
-        "x": 32668,
-        "y": 31122,
-        "z": 7
-      },
-      "creatureIds": [
-        485
-      ],
-      "creatureId": 485,
-      "combatPower": 348.92,
-      "score": 2000,
-      "floors": [
-        7
-      ]
-    },
-    {
-      "id": 568,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Monstor",
-      "levelMin": 35,
-      "recommendedLevel": 55,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 960,
-      "region": 568,
-      "center": {
-        "x": 32754,
-        "y": 31459,
-        "z": 2
-      },
-      "creatureIds": [
-        568
-      ],
-      "creatureId": 568,
-      "combatPower": 418.51,
-      "score": 1960,
-      "floors": [
-        2
-      ]
-    },
-    {
-      "id": 567,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Boogey",
-      "levelMin": 35,
-      "recommendedLevel": 60,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 930,
-      "region": 567,
-      "center": {
-        "x": 32750,
-        "y": 31461,
-        "z": 3
-      },
-      "creatureIds": [
-        567
-      ],
-      "creatureId": 567,
-      "combatPower": 447.33,
-      "score": 1930,
-      "floors": [
-        3
-      ]
-    },
-    {
-      "id": 569,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Evil Mastermind",
-      "levelMin": 40,
-      "recommendedLevel": 65,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 1295,
-      "region": 569,
-      "center": {
-        "x": 32753,
-        "y": 31458,
-        "z": 1
-      },
-      "creatureIds": [
-        569
-      ],
-      "creatureId": 569,
-      "combatPower": 555.43,
-      "score": 2295,
-      "floors": [
-        1
-      ]
-    },
-    {
-      "id": 46,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Black Knight",
-      "levelMin": 40,
-      "recommendedLevel": 70,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 1800,
-      "region": 46,
-      "center": {
-        "x": 32874,
-        "y": 31946,
-        "z": 11
-      },
-      "creatureIds": [
-        46
-      ],
-      "creatureId": 46,
-      "combatPower": 578.67,
-      "score": 2800,
-      "floors": [
-        11
-      ]
-    },
-    {
-      "id": 1578,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Dazed Leaf Golem",
+      "name": "Darkfang",
       "levelMin": 50,
       "recommendedLevel": 85,
-      "bosstiaryClass": "Bane",
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 10000,
-      "region": 1578,
+      "hp": 4800,
+      "region": 1558,
       "center": {
-        "x": 33307,
-        "y": 31288,
-        "z": 8
+        "x": 33062,
+        "y": 31890,
+        "z": 9
       },
       "creatureIds": [
-        1578
+        1558
       ],
-      "creatureId": 1578,
-      "combatPower": 834.9,
-      "score": 11000,
+      "creatureId": 1558,
+      "combatPower": 843.56,
+      "score": 6800,
       "floors": [
-        8
+        9
       ]
     },
     {
-      "id": 85,
+      "id": 1981,
       "kind": "hunt",
       "role": "boss",
-      "name": "Vashresamun",
+      "name": "Katex Blood Tongue",
       "levelMin": 55,
       "recommendedLevel": 95,
-      "bosstiaryClass": "Bane",
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 4000,
-      "region": 85,
+      "hp": 6300,
+      "region": 1981,
       "center": {
-        "x": 33121,
-        "y": 32655,
-        "z": 15
+        "x": 33152,
+        "y": 32289,
+        "z": 12
       },
       "creatureIds": [
-        85
+        1981
       ],
-      "creatureId": 85,
-      "combatPower": 994.4,
-      "score": 5000,
+      "creatureId": 1981,
+      "combatPower": 1022.57,
+      "score": 8300,
       "floors": [
-        15
+        12
       ]
     },
     {
@@ -131804,227 +131496,255 @@
       ]
     },
     {
-      "id": 87,
+      "id": 1560,
       "kind": "hunt",
       "role": "boss",
-      "name": "Dipthrah",
-      "levelMin": 65,
-      "recommendedLevel": 105,
-      "bosstiaryClass": "Bane",
+      "name": "Bloodback",
+      "levelMin": 60,
+      "recommendedLevel": 100,
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 4200,
-      "region": 87,
+      "hp": 5200,
+      "region": 1560,
       "center": {
-        "x": 33097,
-        "y": 32589,
-        "z": 15
+        "x": 33184,
+        "y": 32016,
+        "z": 8
       },
       "creatureIds": [
-        87
+        1560
       ],
-      "creatureId": 87,
-      "combatPower": 1175.35,
-      "score": 5200,
+      "creatureId": 1560,
+      "combatPower": 1076.07,
+      "score": 7200,
       "floors": [
-        15
+        8
       ]
     },
     {
-      "id": 90,
+      "id": 1984,
       "kind": "hunt",
       "role": "boss",
-      "name": "Omruc",
-      "levelMin": 65,
-      "recommendedLevel": 105,
-      "bosstiaryClass": "Bane",
+      "name": "Utua Stone Sting",
+      "levelMin": 60,
+      "recommendedLevel": 100,
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 4300,
-      "region": 90,
+      "hp": 6400,
+      "region": 1984,
       "center": {
-        "x": 33201,
-        "y": 33001,
-        "z": 14
+        "x": 33087,
+        "y": 32245,
+        "z": 12
       },
       "creatureIds": [
-        90
+        1984
       ],
-      "creatureId": 90,
-      "combatPower": 1226.42,
-      "score": 5300,
+      "creatureId": 1984,
+      "combatPower": 1100.66,
+      "score": 8400,
       "floors": [
-        14
+        12
       ]
     },
     {
-      "id": 86,
+      "id": 1983,
       "kind": "hunt",
       "role": "boss",
-      "name": "Mahrdis",
-      "levelMin": 70,
-      "recommendedLevel": 115,
-      "bosstiaryClass": "Bane",
+      "name": "Srezz Yellow Eyes",
+      "levelMin": 60,
+      "recommendedLevel": 100,
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 3900,
-      "region": 86,
+      "hp": 6200,
+      "region": 1983,
       "center": {
-        "x": 33191,
-        "y": 32957,
-        "z": 15
+        "x": 33122,
+        "y": 32285,
+        "z": 12
       },
       "creatureIds": [
-        86
+        1983
       ],
-      "creatureId": 86,
-      "combatPower": 1354.13,
-      "score": 4900,
+      "creatureId": 1983,
+      "combatPower": 1108.49,
+      "score": 8200,
       "floors": [
-        15
+        12
       ]
     },
     {
-      "id": 417,
+      "id": 1982,
       "kind": "hunt",
       "role": "boss",
-      "name": "Latrivan",
-      "levelMin": 70,
-      "recommendedLevel": 115,
-      "bosstiaryClass": "Bane",
+      "name": "Yirkas Blue Scales",
+      "levelMin": 60,
+      "recommendedLevel": 100,
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 25000,
-      "region": 417,
+      "hp": 6300,
+      "region": 1982,
       "center": {
-        "x": 33228,
-        "y": 31728,
-        "z": 11
+        "x": 33154,
+        "y": 32252,
+        "z": 12
       },
       "creatureIds": [
-        417
+        1982
       ],
-      "creatureId": 417,
-      "combatPower": 1374.74,
-      "score": 26000,
+      "creatureId": 1982,
+      "combatPower": 1121.39,
+      "score": 8300,
       "floors": [
-        11
+        12
       ]
     },
     {
-      "id": 88,
+      "id": 1561,
       "kind": "hunt",
       "role": "boss",
-      "name": "Rahemos",
+      "name": "Shadowpelt",
       "levelMin": 75,
       "recommendedLevel": 125,
-      "bosstiaryClass": "Bane",
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 3700,
-      "region": 88,
+      "hp": 6000,
+      "region": 1561,
       "center": {
-        "x": 33076,
-        "y": 32780,
-        "z": 14
+        "x": 33384,
+        "y": 32114,
+        "z": 9
       },
       "creatureIds": [
-        88
+        1561
       ],
-      "creatureId": 88,
-      "combatPower": 1574.4,
-      "score": 4700,
+      "creatureId": 1561,
+      "combatPower": 1545.56,
+      "score": 8000,
       "floors": [
-        14
+        9
       ]
     },
     {
-      "id": 91,
+      "id": 1390,
       "kind": "hunt",
       "role": "boss",
-      "name": "Ashmunrah",
-      "levelMin": 80,
-      "recommendedLevel": 130,
-      "bosstiaryClass": "Bane",
+      "name": "Tazhadur",
+      "levelMin": 85,
+      "recommendedLevel": 140,
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 5000,
-      "region": 91,
+      "hp": 10000,
+      "region": 1390,
       "center": {
-        "x": 33179,
-        "y": 32888,
-        "z": 11
+        "x": 32018,
+        "y": 32465,
+        "z": 8
       },
       "creatureIds": [
-        91
+        1390
       ],
-      "creatureId": 91,
-      "combatPower": 1711.2,
-      "score": 6000,
+      "creatureId": 1390,
+      "combatPower": 1933.46,
+      "score": 12000,
       "floors": [
-        11
+        8
       ]
     },
     {
-      "id": 84,
+      "id": 1379,
       "kind": "hunt",
       "role": "boss",
-      "name": "Morguthis",
-      "levelMin": 80,
-      "recommendedLevel": 135,
-      "bosstiaryClass": "Bane",
+      "name": "Gelidrazah the Frozen",
+      "levelMin": 85,
+      "recommendedLevel": 140,
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 4800,
-      "region": 84,
+      "hp": 10000,
+      "region": 1379,
       "center": {
-        "x": 33170,
-        "y": 32693,
-        "z": 14
+        "x": 32077,
+        "y": 32401,
+        "z": 8
       },
       "creatureIds": [
-        84
+        1379
       ],
-      "creatureId": 84,
-      "combatPower": 1797.27,
-      "score": 5800,
+      "creatureId": 1379,
+      "combatPower": 1940.97,
+      "score": 12000,
       "floors": [
-        14
+        8
       ]
     },
     {
-      "id": 89,
+      "id": 1389,
       "kind": "hunt",
       "role": "boss",
-      "name": "Thalas",
-      "levelMin": 80,
-      "recommendedLevel": 135,
-      "bosstiaryClass": "Bane",
+      "name": "Kalyassa",
+      "levelMin": 90,
+      "recommendedLevel": 150,
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 4100,
-      "region": 89,
+      "hp": 10000,
+      "region": 1389,
       "center": {
-        "x": 33396,
-        "y": 32839,
-        "z": 14
+        "x": 32078,
+        "y": 32458,
+        "z": 8
       },
       "creatureIds": [
-        89
+        1389
       ],
-      "creatureId": 89,
-      "combatPower": 1850.75,
-      "score": 5100,
+      "creatureId": 1389,
+      "combatPower": 2184.95,
+      "score": 12000,
       "floors": [
-        14
+        8
+      ]
+    },
+    {
+      "id": 1375,
+      "kind": "hunt",
+      "role": "boss",
+      "name": "Zorvorax",
+      "levelMin": 95,
+      "recommendedLevel": 155,
+      "bosstiaryClass": "Archfoe",
+      "encounter": "solo",
+      "maxPlayers": 1,
+      "minPlayers": 1,
+      "hp": 10000,
+      "region": 1375,
+      "center": {
+        "x": 32015,
+        "y": 32396,
+        "z": 8
+      },
+      "creatureIds": [
+        1375
+      ],
+      "creatureId": 1375,
+      "combatPower": 2245.31,
+      "score": 12000,
+      "floors": [
+        8
       ]
     },
     {
@@ -132056,90 +131776,6 @@
       ]
     },
     {
-      "id": 1585,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Thawing Dragon Lord",
-      "levelMin": 95,
-      "recommendedLevel": 160,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 25000,
-      "region": 1585,
-      "center": {
-        "x": 33361,
-        "y": 31316,
-        "z": 5
-      },
-      "creatureIds": [
-        1585
-      ],
-      "creatureId": 1585,
-      "combatPower": 2344.09,
-      "score": 26000,
-      "floors": [
-        5
-      ]
-    },
-    {
-      "id": 1829,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Mozradek",
-      "levelMin": 100,
-      "recommendedLevel": 170,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 28000,
-      "region": 1829,
-      "center": {
-        "x": 33932,
-        "y": 31450,
-        "z": 9
-      },
-      "creatureIds": [
-        1829
-      ],
-      "creatureId": 1829,
-      "combatPower": 2670.13,
-      "score": 29000,
-      "floors": [
-        9
-      ]
-    },
-    {
-      "id": 1827,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Xogixath",
-      "levelMin": 105,
-      "recommendedLevel": 175,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 35000,
-      "region": 1827,
-      "center": {
-        "x": 33801,
-        "y": 31474,
-        "z": 8
-      },
-      "creatureIds": [
-        1827
-      ],
-      "creatureId": 1827,
-      "combatPower": 2751.94,
-      "score": 36000,
-      "floors": [
-        8
-      ]
-    },
-    {
       "id": 1727,
       "kind": "hunt",
       "role": "boss",
@@ -132168,87 +131804,87 @@
       ]
     },
     {
-      "id": 2106,
+      "id": 2103,
       "kind": "hunt",
       "role": "boss",
-      "name": "Enusat the Onyx Wing",
+      "name": "Amenef the Burning",
+      "levelMin": 105,
+      "recommendedLevel": 175,
+      "bosstiaryClass": "Archfoe",
+      "encounter": "solo",
+      "maxPlayers": 1,
+      "minPlayers": 1,
+      "hp": 26000,
+      "region": 2103,
+      "center": {
+        "x": 33849,
+        "y": 31787,
+        "z": 10
+      },
+      "creatureIds": [
+        2103
+      ],
+      "creatureId": 2103,
+      "combatPower": 2822.69,
+      "score": 28000,
+      "floors": [
+        10
+      ]
+    },
+    {
+      "id": 2104,
+      "kind": "hunt",
+      "role": "boss",
+      "name": "Sister Hetai",
       "levelMin": 110,
       "recommendedLevel": 180,
-      "bosstiaryClass": "Bane",
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
       "hp": 25000,
-      "region": 2106,
+      "region": 2104,
       "center": {
-        "x": 33800,
-        "y": 31549,
-        "z": 8
+        "x": 33833,
+        "y": 31496,
+        "z": 9
       },
       "creatureIds": [
-        2106
+        2104
       ],
-      "creatureId": 2106,
-      "combatPower": 2954.37,
-      "score": 26000,
+      "creatureId": 2104,
+      "combatPower": 2905.8,
+      "score": 27000,
       "floors": [
-        8
+        9
       ]
     },
     {
-      "id": 1583,
+      "id": 1515,
       "kind": "hunt",
       "role": "boss",
-      "name": "Preceptor Lazare",
+      "name": "Kroazur",
       "levelMin": 110,
       "recommendedLevel": 185,
       "bosstiaryClass": "Bane",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 16000,
-      "region": 1583,
+      "hp": 3000,
+      "region": 1515,
       "center": {
-        "x": 33373,
-        "y": 31333,
-        "z": 3
+        "x": 33591,
+        "y": 32305,
+        "z": 10
       },
       "creatureIds": [
-        1583
+        1515
       ],
-      "creatureId": 1583,
-      "combatPower": 3123,
-      "score": 17000,
+      "creatureId": 1515,
+      "combatPower": 3044.23,
+      "score": 4000,
       "floors": [
-        3
-      ]
-    },
-    {
-      "id": 1582,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Grand Commander Soeren",
-      "levelMin": 115,
-      "recommendedLevel": 190,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 17000,
-      "region": 1582,
-      "center": {
-        "x": 33378,
-        "y": 31320,
-        "z": 2
-      },
-      "creatureIds": [
-        1582
-      ],
-      "creatureId": 1582,
-      "combatPower": 3193.72,
-      "score": 18000,
-      "floors": [
-        2
+        10
       ]
     },
     {
@@ -132280,199 +131916,115 @@
       ]
     },
     {
-      "id": 1828,
+      "id": 2105,
       "kind": "hunt",
       "role": "boss",
-      "name": "Bragrumol",
+      "name": "Neferi the Spy",
       "levelMin": 115,
       "recommendedLevel": 195,
-      "bosstiaryClass": "Bane",
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 38000,
-      "region": 1828,
+      "hp": 28000,
+      "region": 2105,
       "center": {
-        "x": 33807,
-        "y": 31596,
+        "x": 33871,
+        "y": 31552,
         "z": 8
       },
       "creatureIds": [
-        1828
+        2105
       ],
-      "creatureId": 1828,
-      "combatPower": 3377.75,
-      "score": 39000,
+      "creatureId": 2105,
+      "combatPower": 3402.1,
+      "score": 30000,
       "floors": [
         8
       ]
     },
     {
-      "id": 1584,
+      "id": 1890,
       "kind": "hunt",
       "role": "boss",
-      "name": "Grand Canon Dominus",
-      "levelMin": 115,
-      "recommendedLevel": 195,
-      "bosstiaryClass": "Bane",
+      "name": "Irgix The Flimsy",
+      "levelMin": 120,
+      "recommendedLevel": 200,
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 15000,
-      "region": 1584,
+      "hp": 24000,
+      "region": 1890,
       "center": {
-        "x": 33384,
-        "y": 31283,
-        "z": 6
-      },
-      "creatureIds": [
-        1584
-      ],
-      "creatureId": 1584,
-      "combatPower": 3380.81,
-      "score": 16000,
-      "floors": [
-        6
-      ]
-    },
-    {
-      "id": 416,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Golgordan",
-      "levelMin": 115,
-      "recommendedLevel": 195,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 40000,
-      "region": 416,
-      "center": {
-        "x": 33236,
-        "y": 31728,
-        "z": 11
-      },
-      "creatureIds": [
-        416
-      ],
-      "creatureId": 416,
-      "combatPower": 3401.66,
-      "score": 41000,
-      "floors": [
-        11
-      ]
-    },
-    {
-      "id": 1770,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Custodian",
-      "levelMin": 125,
-      "recommendedLevel": 205,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 47000,
-      "region": 1770,
-      "center": {
-        "x": 33377,
-        "y": 32825,
+        "x": 33467,
+        "y": 31399,
         "z": 8
       },
       "creatureIds": [
-        1770
+        1890
       ],
-      "creatureId": 1770,
-      "combatPower": 3585.35,
-      "score": 48000,
+      "creatureId": 1890,
+      "combatPower": 3522.26,
+      "score": 26000,
       "floors": [
         8
       ]
     },
     {
-      "id": 1778,
+      "id": 1891,
       "kind": "hunt",
       "role": "boss",
-      "name": "Gaffir",
+      "name": "Unaz the Mean",
       "levelMin": 125,
       "recommendedLevel": 205,
-      "bosstiaryClass": "Bane",
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 48500,
-      "region": 1778,
+      "hp": 28000,
+      "region": 1891,
       "center": {
-        "x": 33395,
-        "y": 32673,
-        "z": 4
+        "x": 33565,
+        "y": 31496,
+        "z": 8
       },
       "creatureIds": [
-        1778
+        1891
       ],
-      "creatureId": 1778,
-      "combatPower": 3677.18,
-      "score": 49500,
+      "creatureId": 1891,
+      "combatPower": 3663.4,
+      "score": 30000,
       "floors": [
-        4
+        8
       ]
     },
     {
-      "id": 1791,
+      "id": 1892,
       "kind": "hunt",
       "role": "boss",
-      "name": "Guard Captain Quaid",
-      "levelMin": 125,
-      "recommendedLevel": 210,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 55000,
-      "region": 1791,
-      "center": {
-        "x": 33390,
-        "y": 32661,
-        "z": 3
-      },
-      "creatureIds": [
-        1791
-      ],
-      "creatureId": 1791,
-      "combatPower": 3798.01,
-      "score": 56000,
-      "floors": [
-        3
-      ]
-    },
-    {
-      "id": 1579,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Grand Chaplain Gaunder",
+      "name": "Vok the Freakish",
       "levelMin": 130,
-      "recommendedLevel": 215,
-      "bosstiaryClass": "Bane",
+      "recommendedLevel": 220,
+      "bosstiaryClass": "Archfoe",
       "encounter": "solo",
       "maxPlayers": 1,
       "minPlayers": 1,
-      "hp": 18000,
-      "region": 1579,
+      "hp": 32000,
+      "region": 1892,
       "center": {
-        "x": 33366,
-        "y": 31326,
-        "z": 5
+        "x": 33508,
+        "y": 31486,
+        "z": 9
       },
       "creatureIds": [
-        1579
+        1892
       ],
-      "creatureId": 1579,
-      "combatPower": 3978.1,
-      "score": 19000,
+      "creatureId": 1892,
+      "combatPower": 4067.16,
+      "score": 34000,
       "floors": [
-        5
+        9
       ]
     },
     {
@@ -132532,34 +132084,6 @@
       ]
     },
     {
-      "id": 775,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Tanjis",
-      "levelMin": 145,
-      "recommendedLevel": 245,
-      "bosstiaryClass": "Bane",
-      "encounter": "lever",
-      "maxPlayers": 5,
-      "minPlayers": 1,
-      "hp": 30000,
-      "region": 775,
-      "center": {
-        "x": 33645,
-        "y": 31239,
-        "z": 11
-      },
-      "creatureIds": [
-        775
-      ],
-      "creatureId": 775,
-      "combatPower": 4837.95,
-      "score": 31000,
-      "floors": [
-        11
-      ]
-    },
-    {
       "id": 1753,
       "kind": "hunt",
       "role": "boss",
@@ -132613,62 +132137,6 @@
       "score": 62000,
       "floors": [
         9
-      ]
-    },
-    {
-      "id": 415,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Ushuriel",
-      "levelMin": 160,
-      "recommendedLevel": 265,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 31500,
-      "region": 415,
-      "center": {
-        "x": 33166,
-        "y": 31728,
-        "z": 11
-      },
-      "creatureIds": [
-        415
-      ],
-      "creatureId": 415,
-      "combatPower": 5543.39,
-      "score": 32500,
-      "floors": [
-        11
-      ]
-    },
-    {
-      "id": 418,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Annihilon",
-      "levelMin": 160,
-      "recommendedLevel": 265,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 46500,
-      "region": 418,
-      "center": {
-        "x": 33197,
-        "y": 31690,
-        "z": 11
-      },
-      "creatureIds": [
-        418
-      ],
-      "creatureId": 418,
-      "combatPower": 5590.41,
-      "score": 47500,
-      "floors": [
-        11
       ]
     },
     {
@@ -132753,34 +132221,6 @@
       "score": 52000,
       "floors": [
         15
-      ]
-    },
-    {
-      "id": 774,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Obujos",
-      "levelMin": 185,
-      "recommendedLevel": 310,
-      "bosstiaryClass": "Bane",
-      "encounter": "lever",
-      "maxPlayers": 5,
-      "minPlayers": 1,
-      "hp": 35000,
-      "region": 774,
-      "center": {
-        "x": 33437,
-        "y": 31265,
-        "z": 11
-      },
-      "creatureIds": [
-        774
-      ],
-      "creatureId": 774,
-      "combatPower": 7261.43,
-      "score": 36000,
-      "floors": [
-        11
       ]
     },
     {
@@ -132893,62 +132333,6 @@
       "score": 222000,
       "floors": [
         13
-      ]
-    },
-    {
-      "id": 414,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Madareth",
-      "levelMin": 195,
-      "recommendedLevel": 325,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 75000,
-      "region": 414,
-      "center": {
-        "x": 33197,
-        "y": 31757,
-        "z": 11
-      },
-      "creatureIds": [
-        414
-      ],
-      "creatureId": 414,
-      "combatPower": 7913.46,
-      "score": 76000,
-      "floors": [
-        11
-      ]
-    },
-    {
-      "id": 434,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Zugurosh",
-      "levelMin": 200,
-      "recommendedLevel": 330,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 90500,
-      "region": 434,
-      "center": {
-        "x": 33139,
-        "y": 31692,
-        "z": 11
-      },
-      "creatureIds": [
-        434
-      ],
-      "creatureId": 434,
-      "combatPower": 7947.23,
-      "score": 91500,
-      "floors": [
-        11
       ]
     },
     {
@@ -133148,34 +132532,6 @@
       ]
     },
     {
-      "id": 773,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Jaul",
-      "levelMin": 275,
-      "recommendedLevel": 455,
-      "bosstiaryClass": "Bane",
-      "encounter": "lever",
-      "maxPlayers": 5,
-      "minPlayers": 1,
-      "hp": 90000,
-      "region": 773,
-      "center": {
-        "x": 33545,
-        "y": 31274,
-        "z": 11
-      },
-      "creatureIds": [
-        773
-      ],
-      "creatureId": 773,
-      "combatPower": 13710.37,
-      "score": 91000,
-      "floors": [
-        11
-      ]
-    },
-    {
       "id": 1225,
       "kind": "hunt",
       "role": "boss",
@@ -133341,34 +132697,6 @@
       "score": 292000,
       "floors": [
         14
-      ]
-    },
-    {
-      "id": 403,
-      "kind": "hunt",
-      "role": "boss",
-      "name": "Hellgorak",
-      "levelMin": 340,
-      "recommendedLevel": 570,
-      "bosstiaryClass": "Bane",
-      "encounter": "solo",
-      "maxPlayers": 1,
-      "minPlayers": 1,
-      "hp": 25850,
-      "region": 403,
-      "center": {
-        "x": 33104,
-        "y": 31722,
-        "z": 11
-      },
-      "creatureIds": [
-        403
-      ],
-      "creatureId": 403,
-      "combatPower": 19942.03,
-      "score": 26850,
-      "floors": [
-        11
       ]
     },
     {
@@ -135308,11 +134636,11 @@
       "combatPower": 23.2,
       "creatureId": null
     },
-    "roshamuul.gaz": {
-      "levelMin": 1,
-      "recommendedLevel": 1,
-      "combatPower": 0,
-      "creatureId": null
+    "roshamuul.gaz'haragoth": {
+      "levelMin": 595,
+      "recommendedLevel": 995,
+      "combatPower": 50454.71,
+      "creatureId": 1003
     },
     "roshamuul.mawhawk": {
       "levelMin": 100,
@@ -135730,7 +135058,7 @@
     "rookgaard.rottietherotworm1": "boss",
     "rookgaard.rottietherotworm2": "boss",
     "rookgaard.teleskor": "boss",
-    "roshamuul.gaz": "monster",
+    "roshamuul.gaz'haragoth": "boss",
     "roshamuul.mawhawk": "boss",
     "roshamuul.omrafir": "boss",
     "svargrond.barbaria": "boss",
@@ -135891,7 +135219,7 @@
     "rookgaard.rottietherotworm1": 86400000,
     "rookgaard.rottietherotworm2": 86400000,
     "rookgaard.teleskor": 86400000,
-    "roshamuul.gaz": 86400000,
+    "roshamuul.gaz'haragoth": 86400000,
     "roshamuul.mawhawk": 86400000,
     "roshamuul.omrafir": 86400000,
     "svargrond.barbaria": 86400000,

@@ -57,6 +57,9 @@ function LobbyProtocol.lobbyWire(record, viewer)
 	local room = LobbyInstance.getRoom(record)
 	local difficultyLever = record.role == "boss"
 		and ExpeditionConfig.bossDifficultyLever(ExpeditionConfig.getById(record.expeditionId, "boss"))
+	local bossUnavailable = record.role == "boss"
+		and ExpeditionConfig.availabilityLabel(ExpeditionConfig.getById(record.expeditionId, "boss"))
+		or nil
 	local bossCooldown = nil
 	local cooldownSec, blockerName = LobbyStart.bossCooldown(record)
 	if cooldownSec > 0 then
@@ -82,6 +85,7 @@ function LobbyProtocol.lobbyWire(record, viewer)
 		bossDifficulty = difficultyLever and (record.bossDifficulty or 0) or nil,
 		bossDifficultyMax = difficultyLever and BossDifficulty.max(difficultyLever) or nil,
 		bossCooldown = bossCooldown,
+		bossUnavailable = bossUnavailable,
 		leverRoom = LobbyVariants.hasLeverRoom(record),
 		state = LobbyManager.state(record),
 		members = members,

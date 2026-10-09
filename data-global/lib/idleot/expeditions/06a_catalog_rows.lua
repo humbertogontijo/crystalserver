@@ -96,6 +96,7 @@ end
 --- Catalog rows `player` may see, slimmed for the client hunt finder / boss list.
 function ExpeditionProtocol.catalogRows(player)
 	local out = {}
+	local now = os.time()
 	for _, entry in ipairs(ExpeditionConfig.Catalog) do
 		local include = true
 		if entry.exclusiveKitno then
@@ -220,6 +221,15 @@ function ExpeditionProtocol.catalogRows(player)
 				local difficultyLever = ExpeditionConfig.bossDifficultyLever(entry)
 				if difficultyLever then
 					row.bossDifficultyMax = BossDifficulty.max(difficultyLever)
+				end
+				if type(entry.availability) == "table" and next(entry.availability) ~= nil then
+					local available, nextAt = ExpeditionConfig.bossAvailability(entry, now)
+					row.availability = entry.availability
+					row.available = available
+					row.availableAt = nextAt
+					if not available then
+						row.availabilityLabel = ExpeditionConfig.availabilityLabel(entry, now)
+					end
 				end
 			else
 				row.city = entry.city

@@ -24,7 +24,6 @@ function ActivityBoostProtocol.sendState(player)
 				worldBossFragsToday = fragsToday,
 				fraggedToday = fragsToday >= cap,
 				sessionTimes = ActivityBoostConfig.WORLD_BOSS_SESSION_TIMES or {},
-				bands = ActivityBoostConfig.LEVEL_BANDS or {},
 			},
 		})
 	end)
@@ -66,7 +65,7 @@ function ActivityBoostProtocol.handle(player, buffer)
 		return
 	end
 	if action == "joinWorldBoss" then
-		local ok, err = ActivityBoostWorldBoss.join(player, data.band, data.boss or data.bossName)
+		local ok, err = ActivityBoostWorldBoss.join(player, data.id)
 		if ok then
 			ActivityBoostProtocol.sendState(player)
 		else

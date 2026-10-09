@@ -547,27 +547,147 @@ function ExpeditionConfig.bossLeverInstanceSpec(catalog, lever)
 	}
 end
 
---- Prefer catalog.encounter (access-based); bosstiaryClass is display-only.
+--- catalog.encounter is access-based (BossLever = lever, solo teleport room = solo).
 function ExpeditionConfig.bossEncounter(catalog)
-	if not catalog then
-		return "lever"
-	end
-	local encounter = catalog.encounter
-	if encounter == "solo" or encounter == "lever" then
-		return encounter
-	end
-	local class = catalog.bosstiaryClass
-	if class == "Bane" then
+	if catalog and catalog.encounter == "solo" then
 		return "solo"
-	end
-	if class == "Archfoe" or class == "Nemesis" then
-		return "lever"
 	end
 	return "lever"
 end
 
 function ExpeditionConfig.isSoloBoss(catalog)
 	return ExpeditionConfig.bossEncounter(catalog) == "solo"
+end
+
+-- os.date("*t").wday: 1 = Sunday.
+local WEEKDAY_INDEX = {
+	sunday = 1,
+	monday = 2,
+	tuesday = 3,
+	wednesday = 4,
+	thursday = 5,
+	friday = 6,
+	saturday = 7,
+}
+
+local function monthDay(s)
+	local m, d = tostring(s or ""):match("^(%d%d)%-(%d%d)$")
+	if not m then
+		return nil
+	end
+	return tonumber(m) * 100 + tonumber(d)
+end
+
+local function dateRuleMatches(rule, t)
+	if type(rule.weekday) == "table" then
+		local hit = false
+		for _, day in ipairs(rule.weekday) do
+			if WEEKDAY_INDEX[tostring(day):lower()] == t.wday then
+				hit = true
+				break
+			end
+		end
+		if not hit then
+			return false
+		end
+	end
+	if type(rule.dayOfMonth) == "table" then
+		local hit = false
+		for _, day in ipairs(rule.dayOfMonth) do
+			if tonumber(day) == t.day then
+				hit = true
+				break
+			end
+		end
+		if not hit then
+			return false
+		end
+	end
+	if type(rule.dateRange) == "table" then
+		local from, to = monthDay(rule.dateRange.from), monthDay(rule.dateRange.to)
+		local today = t.month * 100 + t.day
+		if from and to then
+			local inside
+			if from <= to then
+				inside = today >= from and today <= to
+			else
+				inside = today >= from or today <= to
+			end
+			if not inside then
+				return false
+			end
+		end
+	end
+	return true
+end
+
+--- GlobalStorage value at a dotted path ("WorldBoard.ThawingMiniWorldChange").
+local function worldFlagActive(rule)
+	local path = rule.worldFlagStorage
+	if type(path) ~= "string" or path == "" then
+		return true
+	end
+	local node = GlobalStorage
+	for part in path:gmatch("[^%.]+") do
+		node = type(node) == "table" and node[part] or nil
+	end
+	if type(node) ~= "number" then
+		return false
+	end
+	return (tonumber(Game.getStorageValue(node)) or 0) >= 1
+end
+
+local function hasDateRule(rule)
+	return rule.weekday ~= nil or rule.dayOfMonth ~= nil or rule.dateRange ~= nil
+end
+
+--- Event window of a catalog / World Boss entry (`availability` from boss_availability.json).
+--- Returns available, nextAt (unix start of the next open day; 0 when unknown or open now).
+function ExpeditionConfig.bossAvailability(entry, now)
+	local rule = entry and entry.availability
+	if type(rule) ~= "table" or next(rule) == nil then
+		return true, 0
+	end
+	now = now or os.time()
+	local today = os.date("*t", now)
+	if dateRuleMatches(rule, today) and worldFlagActive(rule) then
+		return true, 0
+	end
+	if not hasDateRule(rule) then
+		return false, 0
+	end
+	for offset = 1, 400 do
+		local ts = os.time({ year = today.year, month = today.month, day = today.day + offset, hour = 0, min = 0, sec = 0 })
+		if dateRuleMatches(rule, os.date("*t", ts)) then
+			return false, ts
+		end
+	end
+	return false, 0
+end
+
+--- "Available Tuesday" / "Next: Dec 01" / "Event only" (ASCII; shared by server messages).
+function ExpeditionConfig.availabilityLabel(entry, now)
+	local available, nextAt = ExpeditionConfig.bossAvailability(entry, now)
+	if available then
+		return nil
+	end
+	if (tonumber(nextAt) or 0) <= 0 then
+		return "Event only"
+	end
+	if nextAt - (now or os.time()) < 7 * 86400 then
+		return "Available " .. os.date("%A", nextAt)
+	end
+	return "Next: " .. os.date("%b %d", nextAt)
+end
+
+--- Join/start rejection while an event boss is out of its window (nil when available).
+function ExpeditionConfig.bossAvailabilityError(entry, now)
+	local label = ExpeditionConfig.availabilityLabel(entry, now)
+	if not label then
+		return nil
+	end
+	local name = entry and (entry.name or entry.bossName) or "This boss"
+	return string.format("%s is not available right now (%s).", tostring(name), label)
 end
 
 function ExpeditionConfig.formatBossCooldownRemaining(remainingSec)

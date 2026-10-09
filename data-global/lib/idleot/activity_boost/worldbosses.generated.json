@@ -1,0 +1,2945 @@
+{
+  "bosses": [
+    {
+      "id": "mornenion",
+      "name": "Mornenion",
+      "creatureId": 765,
+      "levelMin": 10,
+      "combatPower": 55.76,
+      "family": "Rookgaard",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "robby_the_reckless",
+      "name": "Robby the Reckless",
+      "creatureId": 764,
+      "levelMin": 10,
+      "combatPower": 55.84,
+      "family": "Rookgaard",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "ekatrix",
+      "name": "Ekatrix",
+      "creatureId": 1140,
+      "levelMin": 10,
+      "combatPower": 58.18,
+      "family": "Rookgaard",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "oodok_witchmaster",
+      "name": "Oodok Witchmaster",
+      "creatureId": 1129,
+      "levelMin": 10,
+      "combatPower": 59.65,
+      "family": "Rookgaard",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "jesse_the_wicked",
+      "name": "Jesse the Wicked",
+      "creatureId": 763,
+      "levelMin": 12,
+      "combatPower": 82.24,
+      "family": "Rookgaard",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "elvira_hammerthrust",
+      "name": "Elvira Hammerthrust",
+      "creatureId": 766,
+      "levelMin": 15,
+      "combatPower": 91.55,
+      "family": "Rookgaard",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "arthom_the_hunter",
+      "name": "Arthom the Hunter",
+      "creatureId": 1128,
+      "levelMin": 15,
+      "combatPower": 114.48,
+      "family": "Rookgaard",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "doctor_perhaps",
+      "name": "Doctor Perhaps",
+      "creatureId": 564,
+      "levelMin": 18,
+      "combatPower": 130.05,
+      "family": "Edron Tower",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32749,
+          "y": 31452,
+          "z": 6
+        },
+        "entry": {
+          "x": 32755,
+          "y": 31451,
+          "z": 6
+        },
+        "boundary": {
+          "x": 32746,
+          "y": 31449,
+          "w": 11,
+          "h": 7,
+          "z": 6
+        },
+        "occupancy": {
+          "originX": 32746,
+          "originY": 31449,
+          "width": 11,
+          "height": 7,
+          "bits": "b0f5eff8ff8fc1fffe17"
+        }
+      },
+      "adds": [
+        {
+          "name": "Vampire Pig",
+          "x": 32749,
+          "y": 31450,
+          "z": 6
+        },
+        {
+          "name": "Berserker Chicken",
+          "x": 32753,
+          "y": 31450,
+          "z": 6
+        },
+        {
+          "name": "Mad Scientist",
+          "x": 32751,
+          "y": 31451,
+          "z": 6
+        },
+        {
+          "name": "Zombie",
+          "x": 32753,
+          "y": 31451,
+          "z": 6
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "groam",
+      "name": "Groam",
+      "creatureId": 736,
+      "levelMin": 18,
+      "combatPower": 150.79,
+      "family": "Rookgaard",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "mephiles",
+      "name": "Mephiles",
+      "creatureId": 566,
+      "levelMin": 18,
+      "combatPower": 151.26,
+      "family": "Edron Tower",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32760,
+          "y": 31458,
+          "z": 4
+        },
+        "entry": {
+          "x": 32759,
+          "y": 31452,
+          "z": 4
+        },
+        "boundary": {
+          "x": 32759,
+          "y": 31452,
+          "w": 4,
+          "h": 11,
+          "z": 4
+        },
+        "occupancy": {
+          "originX": 32759,
+          "originY": 31452,
+          "width": 4,
+          "height": 11,
+          "bits": "67feffffff0f"
+        }
+      },
+      "adds": [
+        {
+          "name": "Gozzler",
+          "x": 32761,
+          "y": 31457,
+          "z": 4
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "glitterscale",
+      "name": "Glitterscale",
+      "creatureId": 670,
+      "levelMin": 20,
+      "combatPower": 203.8,
+      "family": "Misc",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32230,
+          "y": 32125,
+          "z": 9
+        },
+        "entry": {
+          "x": 32225,
+          "y": 32131,
+          "z": 9
+        },
+        "boundary": {
+          "x": 32225,
+          "y": 32121,
+          "w": 11,
+          "h": 12,
+          "z": 9
+        },
+        "occupancy": {
+          "originX": 32225,
+          "originY": 32121,
+          "width": 11,
+          "height": 12,
+          "bits": "30c09ffffef7ffffffff7ffffbdf3efc01"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90
+    },
+    {
+      "id": "dirtbeard",
+      "name": "Dirtbeard",
+      "creatureId": 565,
+      "levelMin": 25,
+      "combatPower": 232.87,
+      "family": "Edron Tower",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32747,
+          "y": 31460,
+          "z": 5
+        },
+        "entry": {
+          "x": 32744,
+          "y": 31455,
+          "z": 5
+        },
+        "boundary": {
+          "x": 32744,
+          "y": 31455,
+          "w": 6,
+          "h": 11,
+          "z": 5
+        },
+        "occupancy": {
+          "originX": 32744,
+          "originY": 31455,
+          "width": 6,
+          "height": 11,
+          "bits": "c3f03cdff77d9eee03"
+        }
+      },
+      "adds": [
+        {
+          "name": "Pirate Marauder",
+          "x": 32745,
+          "y": 31459,
+          "z": 5
+        },
+        {
+          "name": "Killer Rabbit",
+          "x": 32746,
+          "y": 31459,
+          "z": 5
+        },
+        {
+          "name": "Pirate Marauder",
+          "x": 32744,
+          "y": 31461,
+          "z": 5
+        },
+        {
+          "name": "Pirate Cutthroat",
+          "x": 32746,
+          "y": 31462,
+          "z": 5
+        },
+        {
+          "name": "Pirate Marauder",
+          "x": 32747,
+          "y": 31462,
+          "z": 5
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "diseased_dan",
+      "name": "Diseased Dan",
+      "creatureId": 486,
+      "levelMin": 25,
+      "combatPower": 247.12,
+      "family": "Diseased",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32707,
+          "y": 31190,
+          "z": 8
+        },
+        "entry": {
+          "x": 32703,
+          "y": 31187,
+          "z": 8
+        },
+        "boundary": {
+          "x": 32703,
+          "y": 31187,
+          "w": 8,
+          "h": 7,
+          "z": 8
+        },
+        "occupancy": {
+          "originX": 32703,
+          "originY": 31187,
+          "width": 8,
+          "height": 7,
+          "bits": "fffffffefffffe"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90
+    },
+    {
+      "id": "heoni",
+      "name": "Heoni",
+      "creatureId": 671,
+      "levelMin": 25,
+      "combatPower": 272.64,
+      "family": "Misc",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33232,
+          "y": 31750,
+          "z": 4
+        },
+        "entry": {
+          "x": 33232,
+          "y": 31754,
+          "z": 4
+        },
+        "boundary": {
+          "x": 33229,
+          "y": 31748,
+          "w": 7,
+          "h": 7,
+          "z": 4
+        },
+        "occupancy": {
+          "originX": 33229,
+          "originY": 31748,
+          "width": 7,
+          "height": 7,
+          "bits": "a1dfcfcbe7e301"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90
+    },
+    {
+      "id": "bibby_bloodbath",
+      "name": "Bibby Bloodbath",
+      "creatureId": 900,
+      "levelMin": 30,
+      "combatPower": 329.75,
+      "family": "Misc",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32622,
+          "y": 31826,
+          "z": 7
+        },
+        "entry": {
+          "x": 32628,
+          "y": 31821,
+          "z": 7
+        },
+        "boundary": {
+          "x": 32617,
+          "y": 31821,
+          "w": 13,
+          "h": 11,
+          "z": 7
+        },
+        "occupancy": {
+          "originX": 32617,
+          "originY": 31821,
+          "width": 13,
+          "height": 11,
+          "bits": "7aeffffffffffffffffffff7fffefffff37f"
+        }
+      },
+      "adds": [
+        {
+          "name": "Orc Warrior",
+          "x": 32623,
+          "y": 31822,
+          "z": 7
+        },
+        {
+          "name": "Orc Warlord",
+          "x": 32620,
+          "y": 31825,
+          "z": 7
+        }
+      ],
+      "respawnSec": 1768
+    },
+    {
+      "id": "diseased_fred",
+      "name": "Diseased Fred",
+      "creatureId": 484,
+      "levelMin": 30,
+      "combatPower": 344.09,
+      "family": "Diseased",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32703,
+          "y": 31122,
+          "z": 7
+        },
+        "entry": {
+          "x": 32704,
+          "y": 31116,
+          "z": 7
+        },
+        "boundary": {
+          "x": 32701,
+          "y": 31115,
+          "w": 11,
+          "h": 14,
+          "z": 7
+        },
+        "occupancy": {
+          "originX": 32701,
+          "originY": 31115,
+          "width": 11,
+          "height": 14,
+          "bits": "30c08ffffce7bde71dfe79fff30f7ff881070400"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90
+    },
+    {
+      "id": "diseased_bill",
+      "name": "Diseased Bill",
+      "creatureId": 485,
+      "levelMin": 30,
+      "combatPower": 348.92,
+      "family": "Diseased",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32668,
+          "y": 31122,
+          "z": 7
+        },
+        "entry": {
+          "x": 32667,
+          "y": 31128,
+          "z": 7
+        },
+        "boundary": {
+          "x": 32665,
+          "y": 31120,
+          "w": 8,
+          "h": 9,
+          "z": 7
+        },
+        "occupancy": {
+          "originX": 32665,
+          "originY": 31120,
+          "width": 8,
+          "height": 9,
+          "bits": "b8beeffd7f7c7c7c7c"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90
+    },
+    {
+      "id": "monstor",
+      "name": "Monstor",
+      "creatureId": 568,
+      "levelMin": 35,
+      "combatPower": 418.51,
+      "family": "Edron Tower",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32754,
+          "y": 31459,
+          "z": 2
+        },
+        "entry": {
+          "x": 32748,
+          "y": 31457,
+          "z": 2
+        },
+        "boundary": {
+          "x": 32748,
+          "y": 31456,
+          "w": 11,
+          "h": 8,
+          "z": 2
+        },
+        "occupancy": {
+          "originX": 32748,
+          "originY": 31456,
+          "width": 11,
+          "height": 8,
+          "bits": "fe9ffffdfef17ffff90f16"
+        }
+      },
+      "adds": [
+        {
+          "name": "Acid Blob",
+          "x": 32751,
+          "y": 31460,
+          "z": 2
+        },
+        {
+          "name": "Acid Blob",
+          "x": 32755,
+          "y": 31461,
+          "z": 2
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "boogey",
+      "name": "Boogey",
+      "creatureId": 567,
+      "levelMin": 35,
+      "combatPower": 447.33,
+      "family": "Edron Tower",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32749,
+          "y": 31457,
+          "z": 3
+        },
+        "entry": {
+          "x": 32755,
+          "y": 31454,
+          "z": 3
+        },
+        "boundary": {
+          "x": 32747,
+          "y": 31454,
+          "w": 9,
+          "h": 8,
+          "z": 3
+        },
+        "occupancy": {
+          "originX": 32747,
+          "originY": 31454,
+          "width": 9,
+          "height": 8,
+          "bits": "9c79fffec5e8d76ffe"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90
+    },
+    {
+      "id": "evil_mastermind",
+      "name": "Evil Mastermind",
+      "creatureId": 569,
+      "levelMin": 40,
+      "combatPower": 555.43,
+      "family": "Edron Tower",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32752,
+          "y": 31458,
+          "z": 1
+        },
+        "entry": {
+          "x": 32758,
+          "y": 31456,
+          "z": 1
+        },
+        "boundary": {
+          "x": 32748,
+          "y": 31453,
+          "w": 11,
+          "h": 11,
+          "z": 1
+        },
+        "occupancy": {
+          "originX": 32748,
+          "originY": 31453,
+          "width": 11,
+          "height": 11,
+          "bits": "f8f09fc1a69ccffee663ce66f31f3e00"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90
+    },
+    {
+      "id": "black_knight",
+      "name": "Black Knight",
+      "creatureId": 46,
+      "levelMin": 40,
+      "combatPower": 578.67,
+      "family": "Misc",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 32874,
+          "y": 31946,
+          "z": 11
+        },
+        "entry": {
+          "x": 32868,
+          "y": 31945,
+          "z": 11
+        },
+        "boundary": {
+          "x": 32867,
+          "y": 31941,
+          "w": 15,
+          "h": 15,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 32867,
+          "originY": 31941,
+          "width": 15,
+          "height": 15,
+          "bits": "c003f807ff87fff3f7ffffffffdff7ffffffffdfffffcfffe1ffc01d00"
+        }
+      },
+      "adds": [
+        {
+          "name": "Bonelord",
+          "x": 32868,
+          "y": 31949,
+          "z": 11
+        },
+        {
+          "name": "Scorpion",
+          "x": 32870,
+          "y": 31949,
+          "z": 11
+        },
+        {
+          "name": "Scorpion",
+          "x": 32878,
+          "y": 31949,
+          "z": 11
+        },
+        {
+          "name": "Bonelord",
+          "x": 32880,
+          "y": 31949,
+          "z": 11
+        }
+      ],
+      "respawnSec": 80
+    },
+    {
+      "id": "dazed_leaf_golem",
+      "name": "Dazed Leaf Golem",
+      "creatureId": 1578,
+      "levelMin": 50,
+      "combatPower": 834.9,
+      "family": "Falcon Bastion",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33307,
+          "y": 31288,
+          "z": 8
+        },
+        "entry": {
+          "x": 33305,
+          "y": 31282,
+          "z": 8
+        },
+        "boundary": {
+          "x": 33300,
+          "y": 31279,
+          "w": 17,
+          "h": 17,
+          "z": 8
+        },
+        "occupancy": {
+          "originX": 33300,
+          "originY": 31279,
+          "width": 17,
+          "height": 17,
+          "bits": "0002800f803f007f00ff03ff07fe0ffc3ffefffefffdffe3ffcfff9fff3cfe60f081c00000"
+        }
+      },
+      "adds": [
+        {
+          "name": "Falcon Knight",
+          "x": 33308,
+          "y": 31286,
+          "z": 8
+        }
+      ],
+      "respawnSec": 60
+    },
+    {
+      "id": "wrathful_archivist",
+      "name": "Wrathful Archivist",
+      "creatureId": 2681,
+      "levelMin": 55,
+      "combatPower": 945.3,
+      "family": "Between the Lines",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "vashresamun",
+      "name": "Vashresamun",
+      "creatureId": 85,
+      "levelMin": 55,
+      "combatPower": 994.4,
+      "family": "Pharaohs",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33121,
+          "y": 32655,
+          "z": 15
+        },
+        "entry": {
+          "x": 33127,
+          "y": 32653,
+          "z": 15
+        },
+        "boundary": {
+          "x": 33116,
+          "y": 32651,
+          "w": 14,
+          "h": 11,
+          "z": 15
+        },
+        "occupancy": {
+          "originX": 33116,
+          "originY": 32651,
+          "width": 14,
+          "height": 11,
+          "bits": "1002fec1fff8ffffbffffffffbfffc0ffe012100"
+        }
+      },
+      "adds": [
+        {
+          "name": "Magicthrower",
+          "x": 33120,
+          "y": 32651,
+          "z": 15
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33125,
+          "y": 32651,
+          "z": 15
+        },
+        {
+          "name": "Banshee",
+          "x": 33123,
+          "y": 32652,
+          "z": 15
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33116,
+          "y": 32655,
+          "z": 15
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33116,
+          "y": 32657,
+          "z": 15
+        },
+        {
+          "name": "Banshee",
+          "x": 33123,
+          "y": 32659,
+          "z": 15
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33120,
+          "y": 32661,
+          "z": 15
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33125,
+          "y": 32661,
+          "z": 15
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "blight_mariner",
+      "name": "Blight Mariner",
+      "creatureId": 2682,
+      "levelMin": 60,
+      "combatPower": 1105.1,
+      "family": "Between the Lines",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "dipthrah",
+      "name": "Dipthrah",
+      "creatureId": 87,
+      "levelMin": 65,
+      "combatPower": 1175.35,
+      "family": "Pharaohs",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33097,
+          "y": 32589,
+          "z": 15
+        },
+        "entry": {
+          "x": 33091,
+          "y": 32587,
+          "z": 15
+        },
+        "boundary": {
+          "x": 33091,
+          "y": 32586,
+          "w": 14,
+          "h": 9,
+          "z": 15
+        },
+        "occupancy": {
+          "originX": 33091,
+          "originY": 32586,
+          "width": 14,
+          "height": 9,
+          "bits": "c6c07ff0fffb3ffe8ffff3ffff07c600"
+        }
+      },
+      "adds": [
+        {
+          "name": "Bonelord",
+          "x": 33093,
+          "y": 32587,
+          "z": 15
+        },
+        {
+          "name": "Bonelord",
+          "x": 33098,
+          "y": 32587,
+          "z": 15
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33099,
+          "y": 32587,
+          "z": 15
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33103,
+          "y": 32588,
+          "z": 15
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33104,
+          "y": 32588,
+          "z": 15
+        },
+        {
+          "name": "Bonelord",
+          "x": 33095,
+          "y": 32590,
+          "z": 15
+        },
+        {
+          "name": "Bonelord",
+          "x": 33101,
+          "y": 32590,
+          "z": 15
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33103,
+          "y": 32592,
+          "z": 15
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33104,
+          "y": 32592,
+          "z": 15
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33099,
+          "y": 32593,
+          "z": 15
+        },
+        {
+          "name": "Bonelord",
+          "x": 33098,
+          "y": 32594,
+          "z": 15
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "omruc",
+      "name": "Omruc",
+      "creatureId": 90,
+      "levelMin": 65,
+      "combatPower": 1226.42,
+      "family": "Pharaohs",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33201,
+          "y": 33001,
+          "z": 14
+        },
+        "entry": {
+          "x": 33195,
+          "y": 33001,
+          "z": 14
+        },
+        "boundary": {
+          "x": 33195,
+          "y": 32997,
+          "w": 13,
+          "h": 11,
+          "z": 14
+        },
+        "occupancy": {
+          "originX": 33195,
+          "originY": 32997,
+          "width": 13,
+          "height": 11,
+          "bits": "f0017ff01ffff7fffdfffff77ffc077fc007"
+        }
+      },
+      "adds": [
+        {
+          "name": "Magicthrower",
+          "x": 33199,
+          "y": 32997,
+          "z": 14
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33203,
+          "y": 32997,
+          "z": 14
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33200,
+          "y": 33000,
+          "z": 14
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33203,
+          "y": 33000,
+          "z": 14
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33195,
+          "y": 33001,
+          "z": 14
+        },
+        {
+          "name": "Magicthrower",
+          "x": 33207,
+          "y": 33001,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33195,
+          "y": 33003,
+          "z": 14
+        },
+        {
+          "name": "Stalker",
+          "x": 33202,
+          "y": 33003,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33207,
+          "y": 33003,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33200,
+          "y": 33004,
+          "z": 14
+        },
+        {
+          "name": "Stalker",
+          "x": 33201,
+          "y": 33004,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33203,
+          "y": 33004,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33199,
+          "y": 33007,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33203,
+          "y": 33007,
+          "z": 14
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "inkwing",
+      "name": "Inkwing",
+      "creatureId": 2679,
+      "levelMin": 65,
+      "combatPower": 1257.01,
+      "family": "Between the Lines",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "mahrdis",
+      "name": "Mahrdis",
+      "creatureId": 86,
+      "levelMin": 70,
+      "combatPower": 1354.13,
+      "family": "Pharaohs",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33191,
+          "y": 32957,
+          "z": 15
+        },
+        "entry": {
+          "x": 33185,
+          "y": 32951,
+          "z": 15
+        },
+        "boundary": {
+          "x": 33185,
+          "y": 32946,
+          "w": 12,
+          "h": 14,
+          "z": 15
+        },
+        "occupancy": {
+          "originX": 33185,
+          "originY": 32946,
+          "width": 12,
+          "height": 14,
+          "bits": "f0801ff8c13ff6f6f6fffffffffff6f6c63ff8010b"
+        }
+      },
+      "adds": [
+        {
+          "name": "Flamethrower",
+          "x": 33187,
+          "y": 32949,
+          "z": 15
+        },
+        {
+          "name": "Flamethrower",
+          "x": 33194,
+          "y": 32949,
+          "z": 15
+        },
+        {
+          "name": "Dragon",
+          "x": 33187,
+          "y": 32954,
+          "z": 15
+        },
+        {
+          "name": "Dragon",
+          "x": 33191,
+          "y": 32955,
+          "z": 15
+        },
+        {
+          "name": "Dragon Lord",
+          "x": 33195,
+          "y": 32955,
+          "z": 15
+        },
+        {
+          "name": "Flamethrower",
+          "x": 33187,
+          "y": 32957,
+          "z": 15
+        },
+        {
+          "name": "Flamethrower",
+          "x": 33194,
+          "y": 32957,
+          "z": 15
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "sir_leonard",
+      "name": "Sir Leonard",
+      "creatureId": 2680,
+      "levelMin": 70,
+      "combatPower": 1371.97,
+      "family": "Between the Lines",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "latrivan",
+      "name": "Latrivan",
+      "creatureId": 417,
+      "levelMin": 70,
+      "combatPower": 1374.74,
+      "family": "Inquisition",
+      "displayName": "Latrivan & Golgordan",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33228,
+          "y": 31728,
+          "z": 11
+        },
+        "entry": {
+          "x": 33225,
+          "y": 31722,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33224,
+          "y": 31722,
+          "w": 17,
+          "h": 13,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33224,
+          "originY": 31722,
+          "width": 17,
+          "height": 13,
+          "bits": "fefffeffffffffffffffffffffffffffffffffffffffffffffefef0f"
+        }
+      },
+      "adds": [
+        {
+          "name": "Golgordan",
+          "x": 33236,
+          "y": 31728,
+          "z": 11,
+          "boss": true
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "rahemos",
+      "name": "Rahemos",
+      "creatureId": 88,
+      "levelMin": 75,
+      "combatPower": 1574.4,
+      "family": "Pharaohs",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33076,
+          "y": 32780,
+          "z": 14
+        },
+        "entry": {
+          "x": 33082,
+          "y": 32777,
+          "z": 14
+        },
+        "boundary": {
+          "x": 33073,
+          "y": 32777,
+          "w": 14,
+          "h": 9,
+          "z": 14
+        },
+        "occupancy": {
+          "originX": 33073,
+          "originY": 32777,
+          "width": 14,
+          "height": 9,
+          "bits": "1c87ffe7fffffffeffffeffffb7f1c07"
+        }
+      },
+      "adds": [
+        {
+          "name": "Magicthrower",
+          "x": 33079,
+          "y": 32781,
+          "z": 14
+        },
+        {
+          "name": "Warlock",
+          "x": 33081,
+          "y": 32781,
+          "z": 14
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "ashmunrah",
+      "name": "Ashmunrah",
+      "creatureId": 91,
+      "levelMin": 80,
+      "combatPower": 1711.2,
+      "family": "Pharaohs",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33179,
+          "y": 32888,
+          "z": 11
+        },
+        "entry": {
+          "x": 33175,
+          "y": 32883,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33175,
+          "y": 32883,
+          "w": 9,
+          "h": 7,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33175,
+          "originY": 32883,
+          "width": 9,
+          "height": 7,
+          "bits": "fffdfdffffff3f0f"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90
+    },
+    {
+      "id": "morguthis",
+      "name": "Morguthis",
+      "creatureId": 84,
+      "levelMin": 80,
+      "combatPower": 1797.27,
+      "family": "Pharaohs",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33172,
+          "y": 32694,
+          "z": 14
+        },
+        "entry": {
+          "x": 33166,
+          "y": 32691,
+          "z": 14
+        },
+        "boundary": {
+          "x": 33162,
+          "y": 32691,
+          "w": 12,
+          "h": 7,
+          "z": 14
+        },
+        "occupancy": {
+          "originX": 33162,
+          "originY": 32691,
+          "width": 12,
+          "height": 7,
+          "bits": "7bf33ffefffffeff3f7b03"
+        }
+      },
+      "adds": [
+        {
+          "name": "Shredderthrower",
+          "x": 33162,
+          "y": 32691,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33166,
+          "y": 32691,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33167,
+          "y": 32691,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33171,
+          "y": 32691,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33162,
+          "y": 32697,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33166,
+          "y": 32697,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33167,
+          "y": 32697,
+          "z": 14
+        },
+        {
+          "name": "Shredderthrower",
+          "x": 33171,
+          "y": 32697,
+          "z": 14
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "thalas",
+      "name": "Thalas",
+      "creatureId": 89,
+      "levelMin": 80,
+      "combatPower": 1850.75,
+      "family": "Pharaohs",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33396,
+          "y": 32839,
+          "z": 14
+        },
+        "entry": {
+          "x": 33395,
+          "y": 32845,
+          "z": 14
+        },
+        "boundary": {
+          "x": 33393,
+          "y": 32835,
+          "w": 8,
+          "h": 14,
+          "z": 14
+        },
+        "occupancy": {
+          "originX": 33393,
+          "originY": 32835,
+          "width": 8,
+          "height": 14,
+          "bits": "7effffffffffff7e3c3c3c3cffff"
+        }
+      },
+      "adds": [
+        {
+          "name": "Slime",
+          "x": 33397,
+          "y": 32836,
+          "z": 14
+        },
+        {
+          "name": "Slime",
+          "x": 33398,
+          "y": 32837,
+          "z": 14
+        },
+        {
+          "name": "Slime",
+          "x": 33397,
+          "y": 32839,
+          "z": 14
+        },
+        {
+          "name": "Necromancer",
+          "x": 33394,
+          "y": 32840,
+          "z": 14
+        },
+        {
+          "name": "Slime",
+          "x": 33396,
+          "y": 32840,
+          "z": 14
+        },
+        {
+          "name": "Necromancer",
+          "x": 33397,
+          "y": 32843,
+          "z": 14
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "sir_leopold",
+      "name": "Sir Leopold",
+      "creatureId": 2694,
+      "levelMin": 90,
+      "combatPower": 2196.68,
+      "family": "Between the Lines",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "thawing_dragon_lord",
+      "name": "Thawing Dragon Lord",
+      "creatureId": 1585,
+      "levelMin": 95,
+      "combatPower": 2344.09,
+      "family": "Misc",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33361,
+          "y": 31316,
+          "z": 5
+        },
+        "entry": {
+          "x": 33358,
+          "y": 31313,
+          "z": 5
+        },
+        "boundary": {
+          "x": 33358,
+          "y": 31313,
+          "w": 7,
+          "h": 5,
+          "z": 5
+        },
+        "occupancy": {
+          "originX": 33358,
+          "originY": 31313,
+          "width": 7,
+          "height": 5,
+          "bits": "d3ffebff07"
+        }
+      },
+      "adds": [],
+      "respawnSec": 1109
+    },
+    {
+      "id": "chikhaton",
+      "name": "Chikhaton",
+      "creatureId": 647,
+      "levelMin": 95,
+      "combatPower": 2405.24,
+      "family": "Misc",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "mozradek",
+      "name": "Mozradek",
+      "creatureId": 1829,
+      "levelMin": 100,
+      "combatPower": 2670.13,
+      "family": "Kilmaresh",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33932,
+          "y": 31450,
+          "z": 9
+        },
+        "entry": {
+          "x": 33938,
+          "y": 31448,
+          "z": 9
+        },
+        "boundary": {
+          "x": 33928,
+          "y": 31446,
+          "w": 22,
+          "h": 8,
+          "z": 9
+        },
+        "occupancy": {
+          "originX": 33928,
+          "originY": 31446,
+          "width": 22,
+          "height": 8,
+          "bits": "70000c7ac0e7fffcfbffff7ff8df0ffce3037c700004"
+        }
+      },
+      "adds": [
+        {
+          "name": "Priestess of the Wild Sun",
+          "x": 33934,
+          "y": 31446,
+          "z": 9
+        },
+        {
+          "name": "Burning Gladiator",
+          "x": 33932,
+          "y": 31448,
+          "z": 9
+        },
+        {
+          "name": "Black Sphinx Acolyte",
+          "x": 33938,
+          "y": 31448,
+          "z": 9
+        },
+        {
+          "name": "Burning Gladiator",
+          "x": 33945,
+          "y": 31449,
+          "z": 9
+        },
+        {
+          "name": "Burning Gladiator",
+          "x": 33928,
+          "y": 31451,
+          "z": 9
+        },
+        {
+          "name": "Priestess of the Wild Sun",
+          "x": 33931,
+          "y": 31452,
+          "z": 9
+        }
+      ],
+      "respawnSec": 1109
+    },
+    {
+      "id": "xogixath",
+      "name": "Xogixath",
+      "creatureId": 1827,
+      "levelMin": 105,
+      "combatPower": 2751.94,
+      "family": "Kilmaresh",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33800,
+          "y": 31475,
+          "z": 8
+        },
+        "entry": {
+          "x": 33794,
+          "y": 31473,
+          "z": 8
+        },
+        "boundary": {
+          "x": 33786,
+          "y": 31472,
+          "w": 19,
+          "h": 13,
+          "z": 8
+        },
+        "occupancy": {
+          "originX": 33786,
+          "originY": 31472,
+          "width": 19,
+          "height": 13,
+          "bits": "003200fe0ef8f7f0ff87ff3f00ef33ff8ffd3fdcfff1fec7ff1ffe07400800"
+        }
+      },
+      "adds": [
+        {
+          "name": "Crypt Warden",
+          "x": 33789,
+          "y": 31479,
+          "z": 8
+        },
+        {
+          "name": "Scorpion",
+          "x": 33792,
+          "y": 31479,
+          "z": 8
+        },
+        {
+          "name": "Sphinx",
+          "x": 33797,
+          "y": 31480,
+          "z": 8
+        },
+        {
+          "name": "Crypt Warden",
+          "x": 33793,
+          "y": 31482,
+          "z": 8
+        }
+      ],
+      "respawnSec": 1109
+    },
+    {
+      "id": "enusat_the_onyx_wing",
+      "name": "Enusat the Onyx Wing",
+      "creatureId": 2106,
+      "levelMin": 110,
+      "combatPower": 2954.37,
+      "family": "Kilmaresh",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33801,
+          "y": 31548,
+          "z": 8
+        },
+        "entry": {
+          "x": 33797,
+          "y": 31548,
+          "z": 8
+        },
+        "boundary": {
+          "x": 33797,
+          "y": 31547,
+          "w": 9,
+          "h": 6,
+          "z": 8
+        },
+        "occupancy": {
+          "originX": 33797,
+          "originY": 31547,
+          "width": 9,
+          "height": 6,
+          "bits": "20fefdffffef1f"
+        }
+      },
+      "adds": [],
+      "respawnSec": 60
+    },
+    {
+      "id": "preceptor_lazare",
+      "name": "Preceptor Lazare",
+      "creatureId": 1583,
+      "levelMin": 110,
+      "combatPower": 3123,
+      "family": "Falcon Bastion",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33376,
+          "y": 31337,
+          "z": 3
+        },
+        "entry": {
+          "x": 33373,
+          "y": 31341,
+          "z": 3
+        },
+        "boundary": {
+          "x": 33373,
+          "y": 31336,
+          "w": 6,
+          "h": 6,
+          "z": 3
+        },
+        "occupancy": {
+          "originX": 33373,
+          "originY": 31336,
+          "width": 6,
+          "height": 6,
+          "bits": "d87f1ec703"
+        }
+      },
+      "adds": [],
+      "respawnSec": 60
+    },
+    {
+      "id": "ayana_the_crimson_curse",
+      "name": "Ayana the Crimson Curse",
+      "creatureId": 2404,
+      "levelMin": 115,
+      "combatPower": 3150.66,
+      "family": "Misc",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "grand_commander_soeren",
+      "name": "Grand Commander Soeren",
+      "creatureId": 1582,
+      "levelMin": 115,
+      "combatPower": 3193.72,
+      "family": "Falcon Bastion",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33377,
+          "y": 31320,
+          "z": 2
+        },
+        "entry": {
+          "x": 33379,
+          "y": 31316,
+          "z": 2
+        },
+        "boundary": {
+          "x": 33374,
+          "y": 31316,
+          "w": 6,
+          "h": 7,
+          "z": 2
+        },
+        "occupancy": {
+          "originX": 33374,
+          "originY": 31316,
+          "width": 6,
+          "height": 7,
+          "bits": "e06f7fdfd700"
+        }
+      },
+      "adds": [],
+      "respawnSec": 60
+    },
+    {
+      "id": "bragrumol",
+      "name": "Bragrumol",
+      "creatureId": 1828,
+      "levelMin": 115,
+      "combatPower": 3377.75,
+      "family": "Kilmaresh",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33808,
+          "y": 31597,
+          "z": 8
+        },
+        "entry": {
+          "x": 33804,
+          "y": 31595,
+          "z": 8
+        },
+        "boundary": {
+          "x": 33804,
+          "y": 31595,
+          "w": 8,
+          "h": 6,
+          "z": 8
+        },
+        "occupancy": {
+          "originX": 33804,
+          "originY": 31595,
+          "width": 8,
+          "height": 6,
+          "bits": "ffffff7f1f07"
+        }
+      },
+      "adds": [],
+      "respawnSec": 1109
+    },
+    {
+      "id": "grand_canon_dominus",
+      "name": "Grand Canon Dominus",
+      "creatureId": 1584,
+      "levelMin": 115,
+      "combatPower": 3380.81,
+      "family": "Falcon Bastion",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33384,
+          "y": 31282,
+          "z": 6
+        },
+        "entry": {
+          "x": 33378,
+          "y": 31287,
+          "z": 6
+        },
+        "boundary": {
+          "x": 33378,
+          "y": 31279,
+          "w": 14,
+          "h": 13,
+          "z": 6
+        },
+        "occupancy": {
+          "originX": 33378,
+          "originY": 31279,
+          "width": 14,
+          "height": 13,
+          "bits": "e00038001f8003e00038000cf0affffff137ec047c000f"
+        }
+      },
+      "adds": [],
+      "respawnSec": 60
+    },
+    {
+      "id": "custodian",
+      "name": "Custodian",
+      "creatureId": 1770,
+      "levelMin": 125,
+      "combatPower": 3585.35,
+      "family": "Issavi Guards",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33377,
+          "y": 32825,
+          "z": 8
+        },
+        "entry": {
+          "x": 33371,
+          "y": 32819,
+          "z": 8
+        },
+        "boundary": {
+          "x": 33367,
+          "y": 32817,
+          "w": 17,
+          "h": 17,
+          "z": 8
+        },
+        "occupancy": {
+          "originX": 33367,
+          "originY": 32817,
+          "width": 17,
+          "height": 17,
+          "bits": "0007e0fff0ffe7e7cffffffbfdfffffffff7bfef7ffffff7ffcffd9eff3f3f7ff81f000700"
+        }
+      },
+      "adds": [],
+      "respawnSec": 60
+    },
+    {
+      "id": "gaffir",
+      "name": "Gaffir",
+      "creatureId": 1778,
+      "levelMin": 125,
+      "combatPower": 3677.18,
+      "family": "Issavi Guards",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33395,
+          "y": 32673,
+          "z": 4
+        },
+        "entry": {
+          "x": 33390,
+          "y": 32679,
+          "z": 4
+        },
+        "boundary": {
+          "x": 33390,
+          "y": 32668,
+          "w": 9,
+          "h": 14,
+          "z": 4
+        },
+        "occupancy": {
+          "originX": 33390,
+          "originY": 32668,
+          "width": 9,
+          "height": 14,
+          "bits": "ffffe7faf7efdfbf7ffffffe7cef8700"
+        }
+      },
+      "adds": [],
+      "respawnSec": 60
+    },
+    {
+      "id": "guard_captain_quaid",
+      "name": "Guard Captain Quaid",
+      "creatureId": 1791,
+      "levelMin": 125,
+      "combatPower": 3798.01,
+      "family": "Issavi Guards",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33391,
+          "y": 32660,
+          "z": 3
+        },
+        "entry": {
+          "x": 33387,
+          "y": 32654,
+          "z": 3
+        },
+        "boundary": {
+          "x": 33387,
+          "y": 32654,
+          "w": 12,
+          "h": 13,
+          "z": 3
+        },
+        "occupancy": {
+          "originX": 33387,
+          "originY": 32654,
+          "width": 12,
+          "height": 13,
+          "bits": "7fd0ffef3fefff7fffbffeff7f7ffff5fdffff0f"
+        }
+      },
+      "adds": [],
+      "respawnSec": 60
+    },
+    {
+      "id": "grand_chaplain_gaunder",
+      "name": "Grand Chaplain Gaunder",
+      "creatureId": 1579,
+      "levelMin": 130,
+      "combatPower": 3978.1,
+      "family": "Falcon Bastion",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33366,
+          "y": 31326,
+          "z": 5
+        },
+        "entry": {
+          "x": 33362,
+          "y": 31332,
+          "z": 5
+        },
+        "boundary": {
+          "x": 33362,
+          "y": 31322,
+          "w": 10,
+          "h": 13,
+          "z": 5
+        },
+        "occupancy": {
+          "originX": 33362,
+          "originY": 31322,
+          "width": 10,
+          "height": 13,
+          "bits": "7003ffffffff1fb2ff0007fcff3ff08003"
+        }
+      },
+      "adds": [
+        {
+          "name": "Falcon Knight",
+          "x": 33364,
+          "y": 31326,
+          "z": 5
+        },
+        {
+          "name": "Falcon Paladin",
+          "x": 33363,
+          "y": 31330,
+          "z": 5
+        }
+      ],
+      "respawnSec": 60
+    },
+    {
+      "id": "lisa",
+      "name": "Lisa",
+      "creatureId": 1059,
+      "levelMin": 130,
+      "combatPower": 4004.97,
+      "family": "Misc",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "tanjis",
+      "name": "Tanjis",
+      "creatureId": 775,
+      "levelMin": 145,
+      "combatPower": 4837.95,
+      "family": "Deeplings",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33645,
+          "y": 31239,
+          "z": 11
+        },
+        "entry": {
+          "x": 33644,
+          "y": 31244,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33641,
+          "y": 31236,
+          "w": 9,
+          "h": 9,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33641,
+          "originY": 31236,
+          "width": 9,
+          "height": 9,
+          "bits": "ffffffc78f1f3c7c7cf801"
+        }
+      },
+      "adds": [],
+      "respawnSec": 1800
+    },
+    {
+      "id": "ushuriel",
+      "name": "Ushuriel",
+      "creatureId": 415,
+      "levelMin": 160,
+      "combatPower": 5543.39,
+      "family": "Inquisition",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33166,
+          "y": 31728,
+          "z": 11
+        },
+        "entry": {
+          "x": 33162,
+          "y": 31722,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33157,
+          "y": 31722,
+          "w": 19,
+          "h": 13,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33157,
+          "originY": 31722,
+          "width": 19,
+          "height": 13,
+          "bits": "a02a40ff85febffefffffffffffffbffffffffffffffffbffebfd07f01aa02"
+        }
+      },
+      "adds": [
+        {
+          "name": "Eye of the Seven",
+          "x": 33162,
+          "y": 31722,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33164,
+          "y": 31722,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33166,
+          "y": 31722,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33168,
+          "y": 31722,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33170,
+          "y": 31722,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33160,
+          "y": 31723,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33172,
+          "y": 31723,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33158,
+          "y": 31724,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33174,
+          "y": 31724,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33158,
+          "y": 31732,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33174,
+          "y": 31732,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33160,
+          "y": 31733,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33172,
+          "y": 31733,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33162,
+          "y": 31734,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33164,
+          "y": 31734,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33166,
+          "y": 31734,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33168,
+          "y": 31734,
+          "z": 11
+        },
+        {
+          "name": "Eye of the Seven",
+          "x": 33170,
+          "y": 31734,
+          "z": 11
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "annihilon",
+      "name": "Annihilon",
+      "creatureId": 418,
+      "levelMin": 160,
+      "combatPower": 5590.41,
+      "family": "Inquisition",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33197,
+          "y": 31690,
+          "z": 11
+        },
+        "entry": {
+          "x": 33191,
+          "y": 31688,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33188,
+          "y": 31686,
+          "w": 19,
+          "h": 19,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33188,
+          "originY": 31686,
+          "width": 19,
+          "height": 19,
+          "bits": "e03f80ff03ff7ff8ffe3ffbffffffffffffffffffffffffffffffffffffffffffffbff8fff3ffcff81ff03780f00"
+        }
+      },
+      "adds": [
+        {
+          "name": "Hell Hole",
+          "x": 33193,
+          "y": 31686,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33197,
+          "y": 31686,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33201,
+          "y": 31686,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33190,
+          "y": 31688,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33204,
+          "y": 31688,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33188,
+          "y": 31691,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33206,
+          "y": 31691,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33188,
+          "y": 31695,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33206,
+          "y": 31695,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33188,
+          "y": 31699,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33206,
+          "y": 31699,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33190,
+          "y": 31702,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33204,
+          "y": 31702,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33193,
+          "y": 31704,
+          "z": 11
+        },
+        {
+          "name": "Hell Hole",
+          "x": 33201,
+          "y": 31704,
+          "z": 11
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "clavius",
+      "name": "Clavius",
+      "creatureId": 2755,
+      "levelMin": 185,
+      "combatPower": 7199.5,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "obujos",
+      "name": "Obujos",
+      "creatureId": 774,
+      "levelMin": 185,
+      "combatPower": 7261.43,
+      "family": "Deeplings",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33437,
+          "y": 31265,
+          "z": 11
+        },
+        "entry": {
+          "x": 33436,
+          "y": 31270,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33433,
+          "y": 31262,
+          "w": 8,
+          "h": 9,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33433,
+          "originY": 31262,
+          "width": 8,
+          "height": 9,
+          "bits": "7f7f7ffef8f8783c18"
+        }
+      },
+      "adds": [],
+      "respawnSec": 1800
+    },
+    {
+      "id": "adlerauge",
+      "name": "Adlerauge",
+      "creatureId": 2754,
+      "levelMin": 190,
+      "combatPower": 7325.59,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "madareth",
+      "name": "Madareth",
+      "creatureId": 414,
+      "levelMin": 195,
+      "combatPower": 7913.46,
+      "family": "Inquisition",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33197,
+          "y": 31757,
+          "z": 11
+        },
+        "entry": {
+          "x": 33191,
+          "y": 31756,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33189,
+          "y": 31754,
+          "w": 17,
+          "h": 15,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33189,
+          "originY": 31754,
+          "width": 17,
+          "height": 15,
+          "bits": "e00fe03ff8fffbffffffffffbfff3fff7ffefffeffffffffffefff0ffe03b803"
+        }
+      },
+      "adds": [
+        {
+          "name": "Pillar",
+          "x": 33190,
+          "y": 31756,
+          "z": 11
+        },
+        {
+          "name": "Pillar",
+          "x": 33204,
+          "y": 31756,
+          "z": 11
+        },
+        {
+          "name": "Pillar",
+          "x": 33197,
+          "y": 31761,
+          "z": 11
+        },
+        {
+          "name": "Pillar",
+          "x": 33190,
+          "y": 31766,
+          "z": 11
+        },
+        {
+          "name": "Pillar",
+          "x": 33204,
+          "y": 31766,
+          "z": 11
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "zugurosh",
+      "name": "Zugurosh",
+      "creatureId": 434,
+      "levelMin": 200,
+      "combatPower": 7947.23,
+      "family": "Inquisition",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33139,
+          "y": 31692,
+          "z": 11
+        },
+        "entry": {
+          "x": 33133,
+          "y": 31686,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33123,
+          "y": 31685,
+          "w": 21,
+          "h": 16,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33123,
+          "originY": 31685,
+          "width": 21,
+          "height": 16,
+          "bits": "001100f94ff0ff1ffffff7fffffffffffffff7ffffffffffffffffffffffffeffffff8ff0ff29f008800"
+        }
+      },
+      "adds": [
+        {
+          "name": "Deaththrower",
+          "x": 33131,
+          "y": 31685,
+          "z": 11
+        },
+        {
+          "name": "Deaththrower",
+          "x": 33135,
+          "y": 31685,
+          "z": 11
+        },
+        {
+          "name": "Deaththrower",
+          "x": 33126,
+          "y": 31686,
+          "z": 11
+        },
+        {
+          "name": "Deaththrower",
+          "x": 33140,
+          "y": 31686,
+          "z": 11
+        },
+        {
+          "name": "Deaththrower",
+          "x": 33126,
+          "y": 31699,
+          "z": 11
+        },
+        {
+          "name": "Deaththrower",
+          "x": 33140,
+          "y": 31699,
+          "z": 11
+        },
+        {
+          "name": "Deaththrower",
+          "x": 33131,
+          "y": 31700,
+          "z": 11
+        },
+        {
+          "name": "Deaththrower",
+          "x": 33135,
+          "y": 31700,
+          "z": 11
+        }
+      ],
+      "respawnSec": 90
+    },
+    {
+      "id": "bullwark",
+      "name": "Bullwark",
+      "creatureId": 1060,
+      "levelMin": 200,
+      "combatPower": 8121.59,
+      "family": "Misc",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "overseer_osverger",
+      "name": "Overseer Osverger",
+      "creatureId": 2756,
+      "levelMin": 225,
+      "combatPower": 9955.57,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "michael_the_stalwart",
+      "name": "Michael the Stalwart",
+      "creatureId": 2753,
+      "levelMin": 235,
+      "combatPower": 10928.27,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "the_gravedigger",
+      "name": "The Gravedigger",
+      "creatureId": 2721,
+      "levelMin": 240,
+      "combatPower": 10953.8,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "the_gravedigger_d2",
+      "name": "The Gravedigger",
+      "creatureId": 2721,
+      "levelMin": 250,
+      "combatPower": 11658.76,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": [],
+      "difficulty": 2,
+      "variantOf": "the_gravedigger"
+    },
+    {
+      "id": "court_warlock",
+      "name": "Court Warlock",
+      "creatureId": 2741,
+      "levelMin": 265,
+      "combatPower": 12997.73,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "jaul",
+      "name": "Jaul",
+      "creatureId": 773,
+      "levelMin": 275,
+      "combatPower": 13710.37,
+      "family": "Deeplings",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33545,
+          "y": 31274,
+          "z": 11
+        },
+        "entry": {
+          "x": 33541,
+          "y": 31274,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33541,
+          "y": 31271,
+          "w": 9,
+          "h": 8,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33541,
+          "originY": 31271,
+          "width": 9,
+          "height": 8,
+          "bits": "70e4f8fbf7ffff7f48"
+        }
+      },
+      "adds": [],
+      "respawnSec": 1800
+    },
+    {
+      "id": "court_warlock_d7",
+      "name": "Court Warlock",
+      "creatureId": 2741,
+      "levelMin": 300,
+      "combatPower": 15900.64,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": [],
+      "difficulty": 7,
+      "variantOf": "court_warlock"
+    },
+    {
+      "id": "jaul_d5",
+      "name": "Jaul",
+      "creatureId": 773,
+      "levelMin": 300,
+      "combatPower": 15904.72,
+      "family": "Deeplings",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33545,
+          "y": 31274,
+          "z": 11
+        },
+        "entry": {
+          "x": 33541,
+          "y": 31274,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33541,
+          "y": 31271,
+          "w": 9,
+          "h": 8,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33541,
+          "originY": 31271,
+          "width": 9,
+          "height": 8,
+          "bits": "70e4f8fbf7ffff7f48"
+        }
+      },
+      "adds": [],
+      "respawnSec": 1800,
+      "difficulty": 5,
+      "variantOf": "jaul"
+    },
+    {
+      "id": "hellgorak",
+      "name": "Hellgorak",
+      "creatureId": 403,
+      "levelMin": 340,
+      "combatPower": 19942.03,
+      "family": "Inquisition",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33104,
+          "y": 31722,
+          "z": 11
+        },
+        "entry": {
+          "x": 33098,
+          "y": 31719,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33096,
+          "y": 31717,
+          "w": 17,
+          "h": 15,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33096,
+          "originY": 31717,
+          "width": 17,
+          "height": 15,
+          "bits": "f01ff07ff0fff1fff7ffffffffffffffffffffffffffffffffffffffffffff7f"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90
+    },
+    {
+      "id": "hellgorak_d1",
+      "name": "Hellgorak",
+      "creatureId": 403,
+      "levelMin": 350,
+      "combatPower": 20584.93,
+      "family": "Inquisition",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33104,
+          "y": 31722,
+          "z": 11
+        },
+        "entry": {
+          "x": 33098,
+          "y": 31719,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33096,
+          "y": 31717,
+          "w": 17,
+          "h": 15,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33096,
+          "originY": 31717,
+          "width": 17,
+          "height": 15,
+          "bits": "f01ff07ff0fff1fff7ffffffffffffffffffffffffffffffffffffffffffff7f"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90,
+      "difficulty": 1,
+      "variantOf": "hellgorak"
+    },
+    {
+      "id": "jaul_d16",
+      "name": "Jaul",
+      "creatureId": 773,
+      "levelMin": 350,
+      "combatPower": 20619.52,
+      "family": "Deeplings",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33545,
+          "y": 31274,
+          "z": 11
+        },
+        "entry": {
+          "x": 33541,
+          "y": 31274,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33541,
+          "y": 31271,
+          "w": 9,
+          "h": 8,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33541,
+          "originY": 31271,
+          "width": 9,
+          "height": 8,
+          "bits": "70e4f8fbf7ffff7f48"
+        }
+      },
+      "adds": [],
+      "respawnSec": 1800,
+      "difficulty": 16,
+      "variantOf": "jaul"
+    },
+    {
+      "id": "court_warlock_d19",
+      "name": "Court Warlock",
+      "creatureId": 2741,
+      "levelMin": 350,
+      "combatPower": 20746.4,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": [],
+      "difficulty": 19,
+      "variantOf": "court_warlock"
+    },
+    {
+      "id": "hellgorak_d9",
+      "name": "Hellgorak",
+      "creatureId": 403,
+      "levelMin": 400,
+      "combatPower": 25650.65,
+      "family": "Inquisition",
+      "source": "open",
+      "room": {
+        "center": {
+          "x": 33104,
+          "y": 31722,
+          "z": 11
+        },
+        "entry": {
+          "x": 33098,
+          "y": 31719,
+          "z": 11
+        },
+        "boundary": {
+          "x": 33096,
+          "y": 31717,
+          "w": 17,
+          "h": 15,
+          "z": 11
+        },
+        "occupancy": {
+          "originX": 33096,
+          "originY": 31717,
+          "width": 17,
+          "height": 15,
+          "bits": "f01ff07ff0fff1fff7ffffffffffffffffffffffffffffffffffffffffffff7f"
+        }
+      },
+      "adds": [],
+      "respawnSec": 90,
+      "difficulty": 9,
+      "variantOf": "hellgorak"
+    },
+    {
+      "id": "eldritch_dragon_lord",
+      "name": "Eldritch Dragon Lord",
+      "creatureId": 2739,
+      "levelMin": 520,
+      "combatPower": 40505.73,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "ice_horror",
+      "name": "Ice Horror",
+      "creatureId": 2733,
+      "levelMin": 545,
+      "combatPower": 43292.42,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": []
+    },
+    {
+      "id": "eldritch_dragon_lord_d8",
+      "name": "Eldritch Dragon Lord",
+      "creatureId": 2739,
+      "levelMin": 600,
+      "combatPower": 50828.38,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": [],
+      "difficulty": 8,
+      "variantOf": "eldritch_dragon_lord"
+    },
+    {
+      "id": "ice_horror_d6",
+      "name": "Ice Horror",
+      "creatureId": 2733,
+      "levelMin": 605,
+      "combatPower": 51593.42,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": [],
+      "difficulty": 6,
+      "variantOf": "ice_horror"
+    },
+    {
+      "id": "eldritch_dragon_lord_d20",
+      "name": "Eldritch Dragon Lord",
+      "creatureId": 2739,
+      "levelMin": 700,
+      "combatPower": 65893.4,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": [],
+      "difficulty": 20,
+      "variantOf": "eldritch_dragon_lord"
+    },
+    {
+      "id": "ice_horror_d17",
+      "name": "Ice Horror",
+      "creatureId": 2733,
+      "levelMin": 705,
+      "combatPower": 66442.67,
+      "family": "Winter 2025",
+      "source": "ready",
+      "arena": "generic",
+      "adds": [],
+      "difficulty": 17,
+      "variantOf": "ice_horror"
+    }
+  ]
+}

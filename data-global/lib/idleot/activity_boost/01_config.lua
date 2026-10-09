@@ -29,7 +29,7 @@ ActivityBoostConfig.ACTIVITIES = {
 		goal = 3,
 		rewardSec = 10 * 60,
 		destination = "expeditions_solo",
-		destinationLabel = "Expeditions · Solo Bosses",
+		destinationLabel = "Expeditions - Bosses - Solo",
 	},
 	{
 		id = "world_boss",
@@ -38,7 +38,7 @@ ActivityBoostConfig.ACTIVITIES = {
 		goal = 3,
 		rewardSec = 10 * 60,
 		destination = "expeditions_world",
-		destinationLabel = "Expeditions · World Bosses",
+		destinationLabel = "Expeditions - Live - World Bosses",
 	},
 	{
 		id = "fiendish_hunt",
@@ -62,100 +62,23 @@ ActivityBoostConfig.ACTIVITIES = {
 
 ActivityBoostConfig.WORLD_BOSS_DAILY_CAP = 3
 
--- Tight player join gates. Same boss may appear in several adjacent bands.
-ActivityBoostConfig.LEVEL_BANDS = {
-	{ id = "50", name = "50–99", levelMin = 50, levelMax = 99 },
-	{ id = "100", name = "100–149", levelMin = 100, levelMax = 149 },
-	{ id = "150", name = "150–199", levelMin = 150, levelMax = 199 },
-	{ id = "200", name = "200–249", levelMin = 200, levelMax = 249 },
-	{ id = "250", name = "250–299", levelMin = 250, levelMax = 299 },
-	{ id = "300", name = "300–349", levelMin = 300, levelMax = 349 },
-	{ id = "350", name = "350–399", levelMin = 350, levelMax = 399 },
-	{ id = "400", name = "400–499", levelMin = 400, levelMax = 499 },
-	{ id = "500", name = "500–599", levelMin = 500, levelMax = 599 },
-	{ id = "600", name = "600–799", levelMin = 600, levelMax = 799 },
-	{ id = "800", name = "800+", levelMin = 800, levelMax = 9999 },
-}
-
--- Curated Crystal world-boss roster (names only). Stats come from creature_info/creatures.generated.json.
-ActivityBoostConfig.WORLD_BOSS_NAMES = {
-	"Kroazur",
-	"Mr. Punish",
-	"Chikhaton",
-	"Sir Leonard",
-	"The Welter",
-	"Sister Hetai",
-	"Azerus",
-	"Amenef the Burning",
-	"Unaz the Mean",
-	"Leiden",
-	"Horadron",
-	"Vok the Freakish",
-	"Gralvalon",
-	"The Ravager",
-	"Lisa",
-	"Glooth Fairy",
-	"Bullwark",
-	"Brain Head",
-	"Professor Maxxen",
-	"Lloyd",
-	"The Sandking",
-	"Deep Terror",
-	"Versperoth",
-	"Doctor Marrow",
-	"Tremor Worm",
-	"Apocalypse",
-	"Lady Tenebris",
-	"The Time Guardian",
-	"The Freezing Time Guardian",
-	"The Blazing Time Guardian",
-	"Brother Worm",
-	"Deathstrike",
-	"Anomaly",
-	"Rupture",
-	"Eradicator",
-	"Outburst",
-	"Gnomevil",
-	"The False God",
-	"The Souldespoiler",
-	"Plagueroot",
-	"Malofur Mangrinder",
-	"Maxxenius",
-	"Alptramun",
-	"Izcandar the Banished",
-	"Prince Drazzak",
-	"Abyssador",
-	"The Baron from Below",
-	"The Hungry Baron from Below",
-	"The Count of the Core",
-	"The Duke of the Depths",
-	"Ragiaz",
-	"Mazoran",
-	"Plagirath",
-	"Tarbaz",
-	"Razzagorn",
-	"Zamulosh",
-	"Goshnar's Malice",
-	"Goshnar's Cruelty",
-	"Goshnar's Spite",
-	"Goshnar's Hatred",
-	"Goshnar's Greed",
-	"The Rootkraken",
-	"The Last Lore Keeper",
-}
-
--- Resolved at load: { name, recommendedLevel, levelMin, combatPower, creatureId, bands }.
-ActivityBoostConfig.WORLD_BOSSES = nil
-
--- Shared Oramond Glooth Fairy arena (instance-bound private copy).
+-- Shared generic arena (Oramond Glooth Fairy room) for World Bosses with no spawn room.
 ActivityBoostConfig.WORLD_BOSS_ARENA = {
 	center = { x = 33688, y = 31937, z = 9 },
 	boundary = { x = 33678, y = 31922, w = 22, h = 22 },
 }
 
 ActivityBoostConfig.WORLD_BOSS_SESSION_TIMES = { "12:00", "20:00" }
+-- Entry respawn after a kill for generic-arena bosses (open spawns use their natural spawntime).
 ActivityBoostConfig.WORLD_BOSS_COOLDOWN_SEC = 30 * 60
 ActivityBoostConfig.WORLD_BOSS_FIGHT_SEC = 20 * 60
+
+-- Boss + adds max HP grow with joined players: 1 + (players - 1) * PER_PLAYER, capped.
+ActivityBoostConfig.WORLD_BOSS_HP_PER_EXTRA_PLAYER = 0.35
+ActivityBoostConfig.WORLD_BOSS_HP_MULT_MAX = 8
+
+-- BossDifficulty multipliers for gap variants (mirrors BossDifficulty.DEFAULTS).
+ActivityBoostConfig.WORLD_BOSS_DIFFICULTY = { max = 25, hpPerLevel = 0.04, dmgPerLevel = 0.03 }
 
 ActivityBoostConfig.WORLD_BOSS_LOOT_MULT = {
 	[1] = 1.0,
@@ -166,137 +89,101 @@ ActivityBoostConfig.WORLD_BOSS_LOOT_MULT = {
 }
 ActivityBoostConfig.WORLD_BOSS_LOOT_MULT_FLOOR = 0.15
 
--- Minimum roster size per band; sparse bands borrow adjacent bosses (gap fill).
-ActivityBoostConfig.WORLD_BOSS_MIN_PER_BAND = 6
+-- Per-boss entries from worldbosses.generated.json (`make generate`), sorted by levelMin.
+ActivityBoostConfig.WORLD_BOSSES = {}
+ActivityBoostConfig.WORLD_BOSS_BY_ID = {}
 
---- Map player level → LEVEL_BANDS index (1-based).
-function ActivityBoostConfig.bandIndexForLevel(level)
-	level = tonumber(level) or 1
-	local bands = ActivityBoostConfig.LEVEL_BANDS or {}
-	for i, band in ipairs(bands) do
-		if level >= (band.levelMin or 0) and level <= (band.levelMax or 99999) then
-			return i
-		end
-	end
-	if #bands > 0 and level >= (bands[#bands].levelMin or 0) then
-		return #bands
-	end
-	return 1
+local function decodeHex(hex)
+	return (tostring(hex or ""):gsub("%x%x", function(byte)
+		return string.char(tonumber(byte, 16))
+	end))
 end
 
---- Neighbor bands only: primary from recommendedLevel, ±1 when near band edges (high/low stretch).
-function ActivityBoostConfig.bandsForBoss(boss)
-	local bands = ActivityBoostConfig.LEVEL_BANDS or {}
-	local level = tonumber(boss and boss.recommendedLevel) or tonumber(boss and boss.levelMin) or 1
-	local primary = ActivityBoostConfig.bandIndexForLevel(level)
-	local out = {}
-	local seen = {}
-	local function addIdx(idx)
-		if idx >= 1 and idx <= #bands then
-			local id = bands[idx].id
-			if not seen[id] then
-				seen[id] = true
-				out[#out + 1] = id
-			end
-		end
-	end
-	addIdx(primary)
-	local band = bands[primary]
-	if band then
-		local span = math.max(1, (band.levelMax or level) - (band.levelMin or level))
-		local edge = math.max(10, math.floor(span * 0.2))
-		if level >= (band.levelMax or level) - edge then
-			addIdx(primary + 1)
-		end
-		if level <= (band.levelMin or level) + edge then
-			addIdx(primary - 1)
-		end
-	end
-	return out
-end
-
-local function resolveBossEntry(name)
-	local info = CreatureInfo.get(name)
-	if not info then
-		logger.warn("[ActivityBoost] world boss {} missing from creature_info", name)
-		return {
-			name = name,
-			recommendedLevel = 1,
-			levelMin = 1,
-			combatPower = 0,
-			creatureId = nil,
-		}
+local function roomOccupancy(room)
+	local occ = room and room.occupancy
+	if type(occ) ~= "table" then
+		return nil
 	end
 	return {
-		name = name,
-		recommendedLevel = tonumber(info.recommendedLevel) or tonumber(info.levelMin) or 1,
-		levelMin = tonumber(info.levelMin) or 1,
-		combatPower = tonumber(info.combatPower) or 0,
-		creatureId = info.creatureId,
-		hp = tonumber(info.hp) or 0,
-		exp = tonumber(info.exp) or 0,
+		originX = tonumber(occ.originX),
+		originY = tonumber(occ.originY),
+		width = tonumber(occ.width),
+		height = tonumber(occ.height),
+		bits = decodeHex(occ.bits),
+		contains = CombatGeo.maskContains,
 	}
 end
 
-local function fillBandGaps(byBand)
-	local bands = ActivityBoostConfig.LEVEL_BANDS or {}
-	local minPer = ActivityBoostConfig.WORLD_BOSS_MIN_PER_BAND or 6
-	for i, band in ipairs(bands) do
-		local pool = byBand[band.id]
-		if pool and #pool < minPer then
-			for _, delta in ipairs({ -1, 1 }) do
-				local neighbor = bands[i + delta]
-				if neighbor then
-					local source = byBand[neighbor.id] or {}
-					for _, bossName in ipairs(source) do
-						if #pool >= minPer then
-							break
-						end
-						local found = false
-						for _, existing in ipairs(pool) do
-							if existing == bossName then
-								found = true
-								break
-							end
-						end
-						if not found then
-							pool[#pool + 1] = bossName
-						end
-					end
-				end
+function ActivityBoostConfig.loadWorldBosses()
+	local path = DATA_DIRECTORY .. "/lib/idleot/activity_boost/worldbosses.generated.json"
+	local file = io.open(path, "r")
+	if not file then
+		logger.error("[ActivityBoost] missing worldbosses.generated.json at {}", path)
+		return
+	end
+	local content = file:read("*a")
+	file:close()
+	local data = JsonParser.decode(content)
+	if type(data) ~= "table" or type(data.bosses) ~= "table" then
+		logger.error("[ActivityBoost] worldbosses.generated.json decode failed")
+		return
+	end
+	local list, byId = {}, {}
+	for _, entry in ipairs(data.bosses) do
+		if type(entry) == "table" and entry.id and entry.name then
+			entry.id = tostring(entry.id)
+			entry.levelMin = tonumber(entry.levelMin) or 1
+			entry.difficulty = tonumber(entry.difficulty) or 0
+			entry.adds = type(entry.adds) == "table" and entry.adds or {}
+			if type(entry.room) == "table" then
+				entry.room.occupancyMask = roomOccupancy(entry.room)
 			end
+			list[#list + 1] = entry
+			byId[entry.id] = entry
 		end
 	end
-end
-
---- Resolve boss entries + per-band boss pools (run once after config load).
-function ActivityBoostConfig.resolveWorldBossPools()
-	local names = ActivityBoostConfig.WORLD_BOSS_NAMES or {}
-	local bosses = {}
-	local byBand = {}
-	for _, band in ipairs(ActivityBoostConfig.LEVEL_BANDS or {}) do
-		byBand[band.id] = {}
-	end
-	for _, name in ipairs(names) do
-		if type(name) == "string" and name ~= "" then
-			local boss = resolveBossEntry(name)
-			bosses[#bosses + 1] = boss
-			local bandIds = boss.bands
-			if type(bandIds) ~= "table" or #bandIds == 0 then
-				bandIds = ActivityBoostConfig.bandsForBoss(boss)
-			end
-			boss.bands = bandIds
-			for _, bandId in ipairs(bandIds) do
-				local pool = byBand[bandId]
-				if pool then
-					pool[#pool + 1] = name
-				end
-			end
+	table.sort(list, function(a, b)
+		if a.levelMin ~= b.levelMin then
+			return a.levelMin < b.levelMin
 		end
-	end
-	fillBandGaps(byBand)
-	ActivityBoostConfig.WORLD_BOSSES = bosses
-	ActivityBoostConfig.WORLD_BOSS_BY_BAND = byBand
+		return a.id < b.id
+	end)
+	ActivityBoostConfig.WORLD_BOSSES = list
+	ActivityBoostConfig.WORLD_BOSS_BY_ID = byId
+	logger.info("[ActivityBoost] loaded {} world boss entries", #list)
 end
 
-ActivityBoostConfig.resolveWorldBossPools()
+function ActivityBoostConfig.worldBoss(entryId)
+	if entryId == nil then
+		return nil
+	end
+	return ActivityBoostConfig.WORLD_BOSS_BY_ID[tostring(entryId)]
+end
+
+--- Name shown for an entry ("Latrivan & Golgordan", "Jaul (Difficulty 5)").
+function ActivityBoostConfig.worldBossLabel(entry)
+	if not entry then
+		return "World Boss"
+	end
+	local label = entry.displayName or entry.name
+	if (entry.difficulty or 0) > 0 then
+		label = string.format("%s (Difficulty %d)", label, entry.difficulty)
+	end
+	return label
+end
+
+--- hp, dmg multipliers of a gap variant (1, 1 for base entries).
+function ActivityBoostConfig.worldBossDifficultyMults(entry)
+	local d = math.max(0, tonumber(entry and entry.difficulty) or 0)
+	local cfg = ActivityBoostConfig.WORLD_BOSS_DIFFICULTY
+	d = math.min(d, cfg.max)
+	return 1 + d * cfg.hpPerLevel, 1 + d * cfg.dmgPerLevel
+end
+
+function ActivityBoostConfig.worldBossPlayerHpMult(players)
+	local n = math.max(1, tonumber(players) or 1)
+	local mult = 1 + (n - 1) * ActivityBoostConfig.WORLD_BOSS_HP_PER_EXTRA_PLAYER
+	return math.min(mult, ActivityBoostConfig.WORLD_BOSS_HP_MULT_MAX)
+end
+
+ActivityBoostConfig.loadWorldBosses()
