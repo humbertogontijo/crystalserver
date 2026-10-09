@@ -424,6 +424,7 @@ bool ConfigManager::load() {
 	loadIntConfig(L, STORE_COIN_TYPE, "storeCoinType", 0);
 	loadIntConfig(L, STOREINBOX_MAXLIMIT, "storeInboxMaxLimit", 2000);
 	loadIntConfig(L, T_CONST, "temporaryConst", 2);
+	loadIntConfig(L, TASK_BOARD_DOUBLE_KILL_SECONDS, "taskBoardDoubleKillSeconds", 60 * 60);
 	loadIntConfig(L, TASK_HUNTING_BONUS_REROLL_PRICE, "taskHuntingBonusRerollPrice", 1);
 	loadIntConfig(L, TASK_HUNTING_FREE_REROLL_TIME, "taskHuntingFreeRerollTime", 72000);
 	loadIntConfig(L, TASK_HUNTING_LIMIT_EXHAUST, "taskHuntingLimitedTasksExhaust", 72000);
@@ -450,6 +451,11 @@ bool ConfigManager::load() {
 	loadIntConfig(L, WORLD_ID, "worldId", 0);
 
 	loadStringConfig(L, CORE_DIRECTORY, "coreDirectory", "data");
+	// Player KV scopes the engine reads but the datapack writes ("" = off): a monster-name key in
+	// the marker scope shows the Animus-style bestiary mastery marker; "map-percent" in the
+	// map scope feeds the Cyclopedia map-exploration titles.
+	loadStringConfig(L, BESTIARY_MASTERY_MARKER_SCOPE, "bestiaryMasteryMarkerScope", "");
+	loadStringConfig(L, CYCLOPEDIA_MAP_PERCENT_SCOPE, "cyclopediaMapPercentScope", "");
 	loadStringConfig(L, DATA_DIRECTORY, "dataPackDirectory", "data-global");
 	loadStringConfig(L, DEFAULT_PRIORITY, "defaultPriority", "high");
 	loadStringConfig(L, DISCORD_WEBHOOK_URL, "discordWebhookURL", "");

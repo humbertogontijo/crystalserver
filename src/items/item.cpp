@@ -43,6 +43,21 @@
 
 Items Item::items;
 
+namespace {
+	phmap::flat_hash_set<uint16_t> &instanceTemplateTypes() {
+		static phmap::flat_hash_set<uint16_t> types;
+		return types;
+	}
+}
+
+void Item::setInstanceTemplateType(uint16_t itemId, bool enabled) {
+	if (enabled) {
+		instanceTemplateTypes().insert(itemId);
+	} else {
+		instanceTemplateTypes().erase(itemId);
+	}
+}
+
 std::shared_ptr<Item> Item::createItemBatch(uint16_t itemId, uint32_t count, InstanceId instanceId, bool wrappable /* = false*/) {
 	const auto &item = Item::CreateItem(itemId, count, instanceId, nullptr, wrappable, true);
 	return item;
@@ -1235,8 +1250,7 @@ bool Item::isMapTemplateItem() const {
 		return false;
 	}
 
-	// Echo Raid portals: dynamically placed on the World layer, forked per private shard like doors.
-	if (id == ITEM_ECHO_WARDEN_PORTAL || id == ITEM_ECHO_WARDEN_PORTAL_SPENT) {
+	if (instanceTemplateTypes().contains(id)) {
 		return true;
 	}
 
@@ -1274,8 +1288,8 @@ bool Item::isStatefulMapTemplate() const {
 		return false;
 	}
 
-	// Echo portals must fork/claim per instance even though they are not loadedFromMap.
-	if (id == ITEM_ECHO_WARDEN_PORTAL || id == ITEM_ECHO_WARDEN_PORTAL_SPENT) {
+	// Fork/claim per instance even though they are not loadedFromMap.
+	if (instanceTemplateTypes().contains(id)) {
 		return true;
 	}
 

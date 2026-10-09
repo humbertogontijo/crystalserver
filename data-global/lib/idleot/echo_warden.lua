@@ -11,6 +11,8 @@ EchoWarden = EchoWarden or {}
 -- ----------------------------- TUNABLES -------------------------------------
 EchoWarden.PORTAL_ITEM_ID = 54133
 EchoWarden.PORTAL_SPENT_ITEM_ID = 54134 -- per-instance tombstone (hides World-layer template)
+Game.setInstanceTemplateItem(EchoWarden.PORTAL_ITEM_ID)
+Game.setInstanceTemplateItem(EchoWarden.PORTAL_SPENT_ITEM_ID)
 EchoWarden.PORTAL_ATTR_KIND = "echoKind"
 EchoWarden.PORTAL_ATTR_SHARED = "echoShared" -- "1" = World-layer scheduled/shared portal
 EchoWarden.PORTAL_TTL_MS = 120000 -- unused shared/corpse portal cleanup

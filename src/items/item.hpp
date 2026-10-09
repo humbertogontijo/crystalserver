@@ -678,6 +678,9 @@ public:
 	bool isMapTemplateItem() const;
 	/** Interactive map fixtures (levers, lamps, doors) that can be forked per instance. */
 	bool isStatefulMapTemplate() const;
+	/** Item types placed at runtime on the World layer that still fork per instance like
+	 * stateful map fixtures (set from Lua: Game.setInstanceTemplateItem). */
+	static void setInstanceTemplateType(uint16_t itemId, bool enabled);
 
 	bool isDecayDisabled() const {
 		return decayDisabled;

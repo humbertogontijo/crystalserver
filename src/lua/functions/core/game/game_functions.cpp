@@ -229,6 +229,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "scanMonsters", GameFunctions::luaGameScanMonsters);
 	Lua::registerMethod(L, "Game", "tileMask", GameFunctions::luaGameTileMask);
 	Lua::registerMethod(L, "Game", "areaHits", GameFunctions::luaGameAreaHits);
+	Lua::registerMethod(L, "Game", "setInstanceTemplateItem", GameFunctions::luaGameSetInstanceTemplateItem);
 
 	Lua::registerMethod(L, "Game", "getBoostedCreature", GameFunctions::luaGameGetBoostedCreature);
 	Lua::registerMethod(L, "Game", "getBestiaryList", GameFunctions::luaGameGetBestiaryList);
@@ -769,6 +770,15 @@ int GameFunctions::luaGameAreaHits(lua_State* L) {
 		lua_pushnumber(L, hits);
 		lua_rawseti(L, -2, static_cast<int>(i));
 	}
+	return 1;
+}
+
+int GameFunctions::luaGameSetInstanceTemplateItem(lua_State* L) {
+	// Game.setInstanceTemplateItem(itemId[, enabled = true])
+	// Items of this type placed on the World layer fork per instance like doors and levers.
+	const auto itemId = Lua::getNumber<uint16_t>(L, 1);
+	Item::setInstanceTemplateType(itemId, Lua::getBoolean(L, 2, true));
+	Lua::pushBoolean(L, true);
 	return 1;
 }
 

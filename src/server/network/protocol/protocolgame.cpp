@@ -87,6 +87,12 @@
 // This "getIteration" function will allow us to get the total number of iterations that run within a specific map
 // Very useful to send the total amount in certain bytes in the ProtocolGame class
 namespace {
+	// Datapack-kept bestiary mastery marker: a monster-name key in the configured player KV scope.
+	bool hasBestiaryMasteryMarker(const std::shared_ptr<Player> &player, const std::string &monsterName) {
+		const auto &scope = g_configManager().getString(BESTIARY_MASTERY_MARKER_SCOPE);
+		return !scope.empty() && player->kv()->scoped(scope)->get(monsterName).has_value();
+	}
+
 	template <typename T>
 	uint16_t getVectorIterationIncreaseCount(T &vector) {
 		uint16_t totalIterationCount = 0;
@@ -2972,8 +2978,7 @@ void ProtocolGame::parseBestiarysendMonsterData(NetworkMessage &msg) {
 	if (player->animusMastery().has(mtype->name)) {
 		newmsg.add<uint16_t>(static_cast<uint16_t>(std::round((player->animusMastery().getExperienceMultiplier() - 1) * 1000))); // Animus Mastery Bonus
 		newmsg.add<uint16_t>(player->animusMastery().getPoints()); // Animus Mastery Points
-	} else if (player->kv()->scoped("echo_warden")->get(mtype->name)) {
-		// Echo Warden first-kill mastery (CIP: Bestiary indicator like Animus)
+	} else if (hasBestiaryMasteryMarker(player, mtype->name)) {
 		newmsg.add<uint16_t>(1);
 		newmsg.add<uint16_t>(1);
 	} else {
@@ -3661,8 +3666,8 @@ void ProtocolGame::parseBestiarySendCreatures(NetworkMessage &msg) {
 		const auto monsterType = g_monsters().getMonsterType(it_.second);
 		if (monsterType && player->animusMastery().has(it_.second)) {
 			newmsg.add<uint16_t>(static_cast<uint16_t>(std::round((player->animusMastery().getExperienceMultiplier() - 1) * 1000))); // Animus Mastery Bonus
-		} else if (player->kv()->scoped("echo_warden")->get(it_.second)) {
-			newmsg.add<uint16_t>(1); // Echo Warden mastery marker (CIP Animus-like)
+		} else if (hasBestiaryMasteryMarker(player, it_.second)) {
+			newmsg.add<uint16_t>(1); // datapack mastery marker (Animus-like)
 		} else {
 			newmsg.add<uint16_t>(0);
 		}

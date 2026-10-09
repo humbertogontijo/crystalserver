@@ -16,6 +16,13 @@ maxPlayersOutsidePZPerAccount = 4
 -- Bestiary
 bestiaryKillMultiplier = 2
 showLootsInBestiary = true
+-- Player KV scopes written by product Lua: Echo Warden first kills show the
+-- bestiary mastery marker; discovery keeps the Cyclopedia map percent.
+bestiaryMasteryMarkerScope = "echo_warden"
+cyclopediaMapPercentScope = "discovery"
+
+-- Task board: store-bought double-kill boosts last this long.
+taskBoardDoubleKillSeconds = 60 * 60
 
 -- Loot and bank
 autoLoot = true

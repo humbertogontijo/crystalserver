@@ -17,6 +17,7 @@
 
 #include "creatures/players/cyclopedia/player_title.hpp"
 
+#include "config/configmanager.hpp"
 #include "creatures/appearance/mounts/mounts.hpp"
 #include "creatures/monsters/monsters.hpp"
 #include "creatures/players/player.hpp"
@@ -277,8 +278,12 @@ bool PlayerTitle::checkTask(uint32_t amount) const {
 }
 
 bool PlayerTitle::checkMap(uint32_t amount) const {
-	// Discovery System: overall explored-areas percent, maintained by data-global/scripts/idleot/discovery/system.lua
-	const auto percentKV = m_player.kv()->scoped("discovery")->get("map-percent");
+	// Overall explored-areas percent, kept by the datapack in the configured player KV scope.
+	const auto &scope = g_configManager().getString(CYCLOPEDIA_MAP_PERCENT_SCOPE);
+	if (scope.empty()) {
+		return false;
+	}
+	const auto percentKV = m_player.kv()->scoped(scope)->get("map-percent");
 	return percentKV && percentKV.has_value() && static_cast<uint32_t>(percentKV->getNumber()) >= amount;
 }
 

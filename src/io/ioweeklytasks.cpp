@@ -887,7 +887,6 @@ uint32_t IOWeeklyTasks::getResetTimestamp() const {
 }
 
 namespace {
-	constexpr uint32_t TASK_BOARD_DOUBLE_KILL_SECONDS = 60 * 60;
 	constexpr const char* TASK_BOARD_BOOST_SCOPE = "task-board-boost";
 
 	const char* taskBoardBoostKey(TaskBoardBoost_t boost) {
@@ -926,7 +925,7 @@ bool IOWeeklyTasks::grantBoost(const std::shared_ptr<Player> &player, TaskBoardB
 	}
 
 	const auto now = static_cast<uint32_t>(std::time(nullptr));
-	const uint32_t until = boost == TASK_BOARD_BOOST_WEEKLY_REDUCED_ITEMS ? getNextResetTimestamp() : now + TASK_BOARD_DOUBLE_KILL_SECONDS;
+	const uint32_t until = boost == TASK_BOARD_BOOST_WEEKLY_REDUCED_ITEMS ? getNextResetTimestamp() : now + static_cast<uint32_t>(std::max(0, g_configManager().getNumber(TASK_BOARD_DOUBLE_KILL_SECONDS)));
 	player->kv()->scoped(TASK_BOARD_BOOST_SCOPE)->set(key, static_cast<double>(until));
 
 	if (boost == TASK_BOARD_BOOST_BOUNTY_DOUBLE_KILL) {
