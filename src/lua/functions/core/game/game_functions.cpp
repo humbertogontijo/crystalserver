@@ -228,6 +228,7 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "getSpectators", GameFunctions::luaGameGetSpectators);
 	Lua::registerMethod(L, "Game", "scanMonsters", GameFunctions::luaGameScanMonsters);
 	Lua::registerMethod(L, "Game", "tileMask", GameFunctions::luaGameTileMask);
+	Lua::registerMethod(L, "Game", "areaHits", GameFunctions::luaGameAreaHits);
 
 	Lua::registerMethod(L, "Game", "getBoostedCreature", GameFunctions::luaGameGetBoostedCreature);
 	Lua::registerMethod(L, "Game", "getBestiaryList", GameFunctions::luaGameGetBestiaryList);
@@ -689,6 +690,84 @@ int GameFunctions::luaGameTileMask(lua_State* L) {
 			lua_pushnumber(L, value | (freeNeighbours << 3));
 			lua_rawset(L, -3);
 		}
+	}
+	return 1;
+}
+
+int GameFunctions::luaGameAreaHits(lua_State* L) {
+	// Game.areaHits(shape, origins, creatures) -> { hits from origins[1], hits from origins[2], ... }
+	// shape: {tiles = {{dx, dy}, ...}} offsets from the origin, or {radius = r, circle = bool}
+	// (square: Chebyshev distance). Only creatures on the origin's floor count.
+	if (!Lua::isTable(L, 1) || !Lua::isTable(L, 2) || !Lua::isTable(L, 3)) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	const auto offsetKey = [](int32_t dx, int32_t dy) {
+		return (static_cast<int64_t>(dx) << 32) | static_cast<uint32_t>(dy);
+	};
+	phmap::flat_hash_set<int64_t> offsets;
+	lua_getfield(L, 1, "tiles");
+	const bool useTiles = lua_istable(L, -1);
+	if (useTiles) {
+		const int32_t list = lua_gettop(L);
+		const auto count = lua_objlen(L, list);
+		offsets.reserve(count);
+		for (size_t i = 1; i <= count; ++i) {
+			lua_rawgeti(L, list, static_cast<int>(i));
+			if (lua_istable(L, -1)) {
+				lua_rawgeti(L, -1, 1);
+				lua_rawgeti(L, -2, 2);
+				offsets.insert(offsetKey(static_cast<int32_t>(lua_tonumber(L, -2)), static_cast<int32_t>(lua_tonumber(L, -1))));
+				lua_pop(L, 2);
+			}
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+	const int32_t radius = std::max(0, optIntField(L, 1, "radius", 0));
+	const bool circle = optBoolField(L, 1, "circle");
+
+	std::vector<Position> targets;
+	const auto creatureCount = lua_objlen(L, 3);
+	targets.reserve(creatureCount);
+	for (size_t i = 1; i <= creatureCount; ++i) {
+		lua_rawgeti(L, 3, static_cast<int>(i));
+		if (lua_isuserdata(L, -1)) {
+			if (const auto &creature = Lua::getCreature(L, lua_gettop(L))) {
+				targets.push_back(creature->getPosition());
+			}
+		}
+		lua_pop(L, 1);
+	}
+
+	const auto originCount = lua_objlen(L, 2);
+	lua_createtable(L, static_cast<int>(originCount), 0);
+	for (size_t i = 1; i <= originCount; ++i) {
+		lua_rawgeti(L, 2, static_cast<int>(i));
+		const Position origin = Lua::getPosition(L, lua_gettop(L));
+		lua_pop(L, 1);
+		int32_t hits = 0;
+		for (const auto &pos : targets) {
+			if (pos.z != origin.z) {
+				continue;
+			}
+			const int32_t dx = pos.x - origin.x;
+			const int32_t dy = pos.y - origin.y;
+			bool inside;
+			if (useTiles) {
+				inside = offsets.contains(offsetKey(dx, dy));
+			} else if (circle) {
+				inside = dx * dx + dy * dy <= radius * radius;
+			} else {
+				inside = std::max(std::abs(dx), std::abs(dy)) <= radius;
+			}
+			if (inside) {
+				++hits;
+			}
+		}
+		lua_pushnumber(L, hits);
+		lua_rawseti(L, -2, static_cast<int>(i));
 	}
 	return 1;
 }

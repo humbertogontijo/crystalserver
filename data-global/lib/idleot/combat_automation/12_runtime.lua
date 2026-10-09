@@ -1555,6 +1555,76 @@ local function isInsideSpellArea(player, target, monster, area, origin, face)
 	return tileDistance(origin, monsterPos) <= radius
 end
 
+--- isInsideSpellArea as a Game.areaHits shape: `{tiles}` offsets or `{radius, circle}`,
+--- around the cast origin, or around the target when `onTarget`. Nil: single target;
+--- false: hits nothing.
+local function areaShapeFor(player, area, face)
+	if type(area) ~= "table" then
+		return nil
+	end
+	local dirTiles = directionTilesForArea(player, area, face)
+	if dirTiles ~= nil then
+		return { tiles = dirTiles }
+	end
+	if area.kind == "target" and type(area.tiles) == "table" then
+		return { tiles = area.tiles, onTarget = true }
+	end
+	if area.kind == "self" then
+		local tiles = selfTilesForArea(player, area)
+		if type(tiles) == "table" then
+			return { tiles = tiles }
+		end
+	elseif type(area.tiles) == "table" and not area.byDir then
+		return { tiles = area.tiles }
+	end
+	if area.kind == "direction" then
+		return false
+	end
+	local radius = math.max(0, tonumber(area.radius) or 0)
+	if area.kind == "self" and type(area.wod) == "table" and playerHasWodArea(player, area.wod) then
+		radius = math.max(radius, tonumber(area.wodRadius) or radius)
+	end
+	return { radius = radius, circle = area.shape == "circle", onTarget = area.kind == "target" }
+end
+
+--- Monsters of `pool` (default: visible) `area` hits when cast from each of `origins`
+--- facing `face`, aimed at `target` (default: the current target). Returns counts in
+--- `origins` order.
+local function areaHitsFrom(player, area, origins, face, target, pool)
+	pool = pool or visibleMonsters(player)
+	target = target or player:getTarget()
+	local counts = {}
+	local shape = areaShapeFor(player, area, face)
+	if shape == nil then
+		local n = 0
+		local targetId = target and target:getId()
+		for i = 1, #pool do
+			if pool[i]:getId() == targetId then
+				n = 1
+				break
+			end
+		end
+		for i = 1, #origins do
+			counts[i] = n
+		end
+		return counts
+	end
+	if shape == false or (shape.onTarget and not target) then
+		for i = 1, #origins do
+			counts[i] = 0
+		end
+		return counts
+	end
+	if shape.onTarget then
+		local n = Game.areaHits(shape, { target:getPosition() }, pool)[1]
+		for i = 1, #origins do
+			counts[i] = n
+		end
+		return counts
+	end
+	return Game.areaHits(shape, origins, pool)
+end
+
 --- True if caster or any party member inside the AoE is at/under the HP threshold.
 local function areaHealShouldFire(player, slot, casterHpPercent, casterManaPercent)
 	if not slot or slot.enabled == false then
@@ -1731,15 +1801,7 @@ function CombatAutomation.hasDirectionalAttackSlot(config)
 end
 
 local function countAreaHits(player, area, origin, face)
-	local target = player:getTarget()
-	local count = 0
-	local monsters = visibleMonsters(player)
-	for i = 1, #monsters do
-		if isInsideSpellArea(player, target, monsters[i], area, origin, face) then
-			count = count + 1
-		end
-	end
-	return count
+	return areaHitsFrom(player, area, { origin or player:getPosition() }, face)[1]
 end
 
 --- Monsters the slot hits from here (single-target slots: just the target).
@@ -1881,24 +1943,36 @@ local function combatSlotWillCast(player, state, slot, t)
 	return false
 end
 
---- Hits from `origin`; directional areas try all 4 facings. Ties keep
---- the current facing. Returns hits, facing.
-local function bestAreaHits(player, area, origin)
+--- Hits from each of `origins`; directional areas try all 4 facings. Ties keep the
+--- current facing. Returns best hits and their facings (in `origins` order), and the
+--- hits with the current facing.
+local function bestAreaHitsAt(player, area, origins)
 	local face = player:getDirection()
-	local best = countAreaHits(player, area, origin, face)
-	if not isDirectionalArea(area) then
-		return best, face
+	local facing = areaHitsFrom(player, area, origins, face)
+	local best, bestDir = {}, {}
+	for i = 1, #origins do
+		best[i], bestDir[i] = facing[i], face
 	end
-	local bestDir = face
-	for _, dir in ipairs(CARDINAL_DIRS) do
-		if dir ~= face then
-			local n = countAreaHits(player, area, origin, dir)
-			if n > best then
-				best, bestDir = n, dir
+	if isDirectionalArea(area) then
+		for _, dir in ipairs(CARDINAL_DIRS) do
+			if dir ~= face then
+				local counts = areaHitsFrom(player, area, origins, dir)
+				for i = 1, #origins do
+					if counts[i] > best[i] then
+						best[i], bestDir[i] = counts[i], dir
+					end
+				end
 			end
 		end
 	end
-	return best, bestDir
+	return best, bestDir, facing
+end
+
+--- Hits from `origin`; directional areas try all 4 facings. Ties keep
+--- the current facing. Returns hits, facing.
+local function bestAreaHits(player, area, origin)
+	local best, bestDir = bestAreaHitsAt(player, area, { origin })
+	return best[1], bestDir[1]
 end
 
 --- Combat slot could go out this tick: condition, gates, cooldown/mana, and its monster
@@ -2083,13 +2157,7 @@ local function targetAreaAttacks(config)
 end
 
 local function countHitsAimedAt(ctx, candidate, area, face)
-	local n = 0
-	for _, monster in ipairs(ctx.pool) do
-		if isInsideSpellArea(ctx.player, candidate, monster, area, ctx.ppos, face) then
-			n = n + 1
-		end
-	end
-	return n
+	return areaHitsFrom(ctx.player, area, { ctx.ppos }, face, candidate, ctx.pool)[1]
 end
 
 --- Most monsters any of the member's aimable area attacks hits with `candidate` as
@@ -2372,9 +2440,6 @@ local function considerAreaStep(player, state, config, hpPercent, manaPercent, t
 		return
 	end
 	local face = player:getDirection()
-	local hereFacing = countAreaHits(player, area, ppos, face)
-	local hereBest, hereDir = bestAreaHits(player, area, ppos)
-	local bestPos, bestCount, bestDir = nil, hereBest, hereDir
 	local walking = walkTaskActive(player)
 	-- Low HP: retreat positioning owns movement; never step into the pack for a hit.
 	local critical = CombatAutomationConfig.isPositionCritical(player)
@@ -2383,19 +2448,27 @@ local function considerAreaStep(player, state, config, hpPercent, manaPercent, t
 	local luring = state.directive and state.directive.kind == "hold" and state.directive.luring
 	-- The player walks themselves (manual control): cast from where they stand.
 	local manual = CombatAutomationMovement.isManual(player)
+	-- Origin 1 is here; the rest are the free adjacent tiles a step may go to.
+	local origins = { ppos }
 	if not walking and not critical and not luring and not manual then
-		local apos = isDirectionalArea(area) and anchorPosOf(state) or nil
-		local seekLane = apos ~= nil and not CombatGeo.onAnchorLane(ppos, apos)
-		local bestOnLane = false
 		for _, off in ipairs(CombatGeo.NEIGHBOUR_OFFSETS) do
 			local dest = Position(ppos.x + off[1], ppos.y + off[2], ppos.z)
 			if CombatGeo.tileFree(dest, player) and not CombatGeo.fartherFromLeash(player, ppos, dest) then
-				local n, dir = bestAreaHits(player, area, dest)
-				local onLane = seekLane and CombatGeo.onAnchorLane(dest, apos)
-				if n > bestCount or (n > 0 and n == bestCount and onLane and not bestOnLane) then
-					bestPos, bestCount, bestDir, bestOnLane = dest, n, dir, onLane
-				end
+				origins[#origins + 1] = dest
 			end
+		end
+	end
+	local best, bestDirs, facing = bestAreaHitsAt(player, area, origins)
+	local hereFacing, hereBest, hereDir = facing[1], best[1], bestDirs[1]
+	local bestPos, bestCount, bestDir = nil, hereBest, hereDir
+	local apos = #origins > 1 and isDirectionalArea(area) and anchorPosOf(state) or nil
+	local seekLane = apos ~= nil and not CombatGeo.onAnchorLane(ppos, apos)
+	local bestOnLane = false
+	for i = 2, #origins do
+		local dest, n = origins[i], best[i]
+		local onLane = seekLane and CombatGeo.onAnchorLane(dest, apos)
+		if n > bestCount or (n > 0 and n == bestCount and onLane and not bestOnLane) then
+			bestPos, bestCount, bestDir, bestOnLane = dest, n, bestDirs[i], onLane
 		end
 	end
 	if bestPos then

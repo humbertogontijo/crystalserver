@@ -28,6 +28,7 @@ private:
 	static int luaGameGetSpectators(lua_State* L);
 	static int luaGameScanMonsters(lua_State* L);
 	static int luaGameTileMask(lua_State* L);
+	static int luaGameAreaHits(lua_State* L);
 
 	static int luaGameGetBoostedCreature(lua_State* L);
 	static int luaGameGetBestiaryList(lua_State* L);
