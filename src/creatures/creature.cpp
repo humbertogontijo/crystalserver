@@ -1749,6 +1749,17 @@ void Creature::setNormalCreatureLight() {
 	internalLight = {};
 }
 
+namespace {
+	void notifyEventRegistration(Creature &creature, const std::string &name, bool registered) {
+		// Monster/Npc constructors register their type's scripts before a shared_ptr owns them.
+		const auto self = creature.weak_from_this().lock();
+		if (!self) {
+			return;
+		}
+		g_callbacks().executeCallback(EventCallback_t::creatureOnEventRegistration, &EventCallback::creatureOnEventRegistration, std::static_pointer_cast<Creature>(self), name, registered);
+	}
+}
+
 bool Creature::registerCreatureEvent(const std::string &name) {
 	const auto &event = g_creatureEvents().getEventByName(name);
 	if (!event) {
@@ -1767,6 +1778,7 @@ bool Creature::registerCreatureEvent(const std::string &name) {
 	}
 
 	eventsList.emplace_back(event);
+	notifyEventRegistration(*this, name, true);
 	return true;
 }
 
@@ -1800,6 +1812,7 @@ bool Creature::unregisterCreatureEvent(const std::string &name) {
 	if (resetTypeBit) {
 		scriptEventsBitField &= ~(static_cast<uint32_t>(1) << type);
 	}
+	notifyEventRegistration(*this, name, false);
 	return true;
 }
 

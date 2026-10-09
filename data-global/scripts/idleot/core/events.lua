@@ -36,3 +36,14 @@ function monsterRemove.monsterOnRemove(monster)
 end
 
 monsterRemove:register()
+
+local eventRegistration = EventCallback("IdleCreatureOnEventRegistration")
+
+function eventRegistration.creatureOnEventRegistration(creature, name, registered)
+	local event = registered and "creature.eventRegistered" or "creature.eventUnregistered"
+	if IdleEvents.has(event) then
+		IdleEvents.emit(event, creature, name)
+	end
+end
+
+eventRegistration:register()

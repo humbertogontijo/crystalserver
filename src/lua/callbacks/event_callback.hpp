@@ -135,6 +135,8 @@ public:
 	void creatureOnCombat(std::shared_ptr<Creature> attacker, std::shared_ptr<Creature> target, CombatDamage &damage) const;
 	/** A teleport / travel is about to move `creature` to `destination`; false blocks it. */
 	bool creatureOnInstanceTravel(const std::shared_ptr<Creature> &creature, const Position &destination) const;
+	/** A creature event `name` was registered on (`registered`) or unregistered from `creature`. */
+	void creatureOnEventRegistration(const std::shared_ptr<Creature> &creature, const std::string &name, bool registered) const;
 
 	// Party
 	bool partyOnJoin(const std::shared_ptr<Party> &party, const std::shared_ptr<Player> &player) const;

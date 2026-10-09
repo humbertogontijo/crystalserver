@@ -34,6 +34,7 @@ enum class EventCallback_t : uint16_t {
 	creatureOnDrainHealth,
 	creatureOnCombat,
 	creatureOnInstanceTravel,
+	creatureOnEventRegistration,
 	// Party
 	partyOnJoin,
 	partyOnLeave,

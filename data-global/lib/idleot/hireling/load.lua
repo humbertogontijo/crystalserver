@@ -1,7 +1,6 @@
 dofile(DATA_DIRECTORY .. "/lib/idleot/hireling/shop_items.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/hireling/buy_loot.generated.lua")
 dofile(DATA_DIRECTORY .. "/lib/idleot/hireling/sync.lua")
-dofile(DATA_DIRECTORY .. "/lib/idleot/hireling/lamp_overlay.lua")
 
 -- Attach loot-sell catalog (Sell all is a client trade-UI button, not a row).
 if HirelingShopItems and HirelingBuyLootItems then

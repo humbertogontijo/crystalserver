@@ -329,6 +329,16 @@ bool EventCallback::creatureOnInstanceTravel(const std::shared_ptr<Creature> &cr
 	});
 }
 
+void EventCallback::creatureOnEventRegistration(const std::shared_ptr<Creature> &creature, const std::string &name, bool registered) const {
+	call(__FUNCTION__, false, [&](lua_State* L) {
+		LuaScriptInterface::pushUserdata<Creature>(L, creature);
+		LuaScriptInterface::setCreatureMetatable(L, -1, creature);
+		LuaScriptInterface::pushString(L, name);
+		LuaScriptInterface::pushBoolean(L, registered);
+		return 3;
+	});
+}
+
 // Party
 bool EventCallback::partyOnJoin(const std::shared_ptr<Party> &party, const std::shared_ptr<Player> &player) const {
 	if (!LuaScriptInterface::reserveScriptEnv()) {

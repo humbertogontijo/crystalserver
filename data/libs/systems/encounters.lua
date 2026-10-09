@@ -72,6 +72,7 @@ end
 ---@field protected global boolean
 ---@field protected timeToSpawnMonsters number|string
 ---@field onReset function
+---@field onEnterStage fun(encounter: Encounter, stageNumber: number)? Global listener for every encounter
 Encounter = {
 	registry = {},
 	unstarted = 0,
@@ -157,6 +158,7 @@ function Encounter:enterStage(stageNumber, abort)
 
 	if stageNumber == Encounter.unstarted then
 		self.currentStage = Encounter.unstarted
+		self:notifyEnterStage(stageNumber)
 		return true
 	end
 
@@ -171,7 +173,16 @@ function Encounter:enterStage(stageNumber, abort)
 		stage:start()
 	end
 
+	self:notifyEnterStage(stageNumber)
 	return true
+end
+
+---Calls the global Encounter.onEnterStage listener, if one is assigned, after a stage is entered
+---@param stageNumber number The stage that was entered
+function Encounter:notifyEnterStage(stageNumber)
+	if Encounter.onEnterStage then
+		Encounter.onEnterStage(self, stageNumber)
+	end
 end
 
 ---@alias SpawnMonsterConfig { name: string|string[], amount: number, event: string?, timeLimit: number?, position: Position|table?, positions: Position|table[]?, spawn: function? }
