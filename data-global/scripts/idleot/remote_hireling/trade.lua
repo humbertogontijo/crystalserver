@@ -25,45 +25,7 @@ local HIRELING_BUTTONS = {
 --- @type number|nil
 local remoteNpcId = nil
 
-local function encodeJson(payload)
-	if payload.type == "bank" then
-		return string.format(
-			'{"type":"bank","balance":%d,"inventory":%d,"message":%s}',
-			tonumber(payload.balance) or 0,
-			tonumber(payload.inventory) or 0,
-			IdleUtil.jsonString(payload.message or "")
-		)
-	end
-	if payload.type == "sold" then
-		return string.format(
-			'{"type":"sold","gold":%d,"items":%d,"taxPercent":%d,"message":%s}',
-			tonumber(payload.gold) or 0,
-			tonumber(payload.items) or 0,
-			tonumber(payload.taxPercent) or 0,
-			IdleUtil.jsonString(payload.message or "")
-		)
-	end
-	if payload.type == "status" then
-		return string.format(
-			'{"type":"status","cooldownUntil":%d,"taxPercent":%d,"autoSell":%s,"sellOnNoGold":%s,"sellOnNoCap":%s,"acceptTaxOnCooldown":%s,"cooldownSeconds":%d}',
-			tonumber(payload.cooldownUntil) or 0,
-			tonumber(payload.taxPercent) or 0,
-			payload.autoSell and "true" or "false",
-			payload.sellOnNoGold and "true" or "false",
-			payload.sellOnNoCap and "true" or "false",
-			payload.acceptTaxOnCooldown and "true" or "false",
-			tonumber(payload.cooldownSeconds) or 3600
-		)
-	end
-	if payload.type == "ok" then
-		return '{"type":"ok","message":' .. IdleUtil.jsonString(payload.message or "") .. "}"
-	end
-	return '{"type":"error","message":' .. IdleUtil.jsonString(payload.message or "error") .. "}"
-end
-
-local function reply(player, payload)
-	player:sendExtendedOpcode(REMOTE_HIRELING_OPCODE, encodeJson(payload))
-end
+local reply = IdleUtil.jsonSender(REMOTE_HIRELING_OPCODE)
 
 local function pushStatus(player)
 	if not player then

@@ -8,12 +8,6 @@ local function decodePayload(buffer)
 	return nil
 end
 
-local function reply(player, payloadJson)
-	if player then
-		player:sendExtendedOpcode(RewardChestConfig.OPCODE, payloadJson)
-	end
-end
-
 function RewardChest.open(player)
 	if not player then
 		return false
@@ -49,15 +43,11 @@ function RewardChest.hasLoot(player)
 	return false
 end
 
-local function encodeStatus(hasLoot)
-	return string.format('{"type":"status","hasLoot":%s}', hasLoot and "true" or "false")
-end
-
 function RewardChest.sendStatus(player)
 	if not player then
 		return
 	end
-	reply(player, encodeStatus(RewardChest.hasLoot(player)))
+	IdleUtil.sendJson(player, RewardChestConfig.OPCODE, { type = "status", hasLoot = RewardChest.hasLoot(player) })
 end
 
 function RewardChest.handleOpcode(player, buffer)

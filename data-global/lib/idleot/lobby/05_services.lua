@@ -14,12 +14,7 @@ local SKILL_MAP = {
 }
 
 local function sendTrainingState(player, active)
-	if player then
-		player:sendExtendedOpcode(
-			LobbyConfig.TRAVEL_OPCODE,
-			string.format('{"type":"trainingState","active":%s}', active and "true" or "false")
-		)
-	end
+	IdleUtil.sendJson(player, LobbyConfig.TRAVEL_OPCODE, { type = "trainingState", active = active == true })
 end
 
 local function isDummy(id)

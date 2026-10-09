@@ -27,17 +27,6 @@ function IdleUtil.decodeTable(raw)
 	return type(decoded) == "table" and decoded or nil
 end
 
---- `s` as a quoted, escaped JSON string literal.
-function IdleUtil.jsonString(s)
-	s = tostring(s or "")
-	s = s:gsub("\\", "\\\\")
-	s = s:gsub('"', '\\"')
-	s = s:gsub("\n", "\\n")
-	s = s:gsub("\r", "\\r")
-	s = s:gsub("\t", "\\t")
-	return '"' .. s .. '"'
-end
-
 --- Positive integer item ids from a client list (at most 512).
 function IdleUtil.toItemIds(raw)
 	local out = {}

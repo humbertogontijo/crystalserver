@@ -18,63 +18,35 @@ RemoteDialog = RemoteDialog or {}
 --- @type table<number, table> playerId → session
 local sessions = {}
 
-local function encodeOutfit(outfit)
+--- Outfit in the client's keys (accepts Outfit-style lookType/lookHead/... too).
+local function clientOutfit(outfit)
 	if type(outfit) ~= "table" then
-		return "null"
+		return nil
 	end
-	return string.format(
-		'{"type":%d,"head":%d,"body":%d,"legs":%d,"feet":%d,"addons":%d}',
-		tonumber(outfit.type or outfit.lookType) or 0,
-		tonumber(outfit.head or outfit.lookHead) or 0,
-		tonumber(outfit.body or outfit.lookBody) or 0,
-		tonumber(outfit.legs or outfit.lookLegs) or 0,
-		tonumber(outfit.feet or outfit.lookFeet) or 0,
-		tonumber(outfit.addons or outfit.lookAddons) or 0
-	)
+	return {
+		type = tonumber(outfit.type or outfit.lookType) or 0,
+		head = tonumber(outfit.head or outfit.lookHead) or 0,
+		body = tonumber(outfit.body or outfit.lookBody) or 0,
+		legs = tonumber(outfit.legs or outfit.lookLegs) or 0,
+		feet = tonumber(outfit.feet or outfit.lookFeet) or 0,
+		addons = tonumber(outfit.addons or outfit.lookAddons) or 0,
+	}
 end
 
-local function encodeButtons(buttons)
-	if type(buttons) ~= "table" or #buttons == 0 then
-		return "[]"
+local function clientButtons(buttons)
+	local out = {}
+	for i, b in ipairs(type(buttons) == "table" and buttons or {}) do
+		out[i] = { id = tonumber(b.id) or i, text = b.text or "" }
 	end
-	local parts = {}
-	for i = 1, #buttons do
-		local b = buttons[i]
-		parts[#parts + 1] = string.format(
-			'{"id":%d,"text":%s}',
-			tonumber(b.id) or i,
-			IdleUtil.jsonString(b.text or "")
-		)
-	end
-	return "[" .. table.concat(parts, ",") .. "]"
-end
-
-local function encode(payload)
-	if payload.type == "opened" then
-		return string.format(
-			'{"type":"opened","dialogId":%s,"name":%s,"greet":%s,"outfit":%s,"buttons":%s,"npcId":%d}',
-			IdleUtil.jsonString(payload.dialogId or ""),
-			IdleUtil.jsonString(payload.name or "NPC"),
-			IdleUtil.jsonString(payload.greet or ""),
-			encodeOutfit(payload.outfit),
-			encodeButtons(payload.buttons),
-			tonumber(payload.npcId) or 0
-		)
-	end
-	if payload.type == "say" then
-		return '{"type":"say","message":' .. IdleUtil.jsonString(payload.message or "") .. "}"
-	end
-	if payload.type == "closed" then
-		return '{"type":"closed"}'
-	end
-	return '{"type":"error","message":' .. IdleUtil.jsonString(payload.message or "error") .. "}"
+	return out
 end
 
 local function reply(player, payload)
-	if not player then
-		return
+	if payload.type == "opened" then
+		payload.outfit = clientOutfit(payload.outfit)
+		payload.buttons = clientButtons(payload.buttons)
 	end
-	player:sendExtendedOpcode(RemoteDialogConfig.OPCODE, encode(payload))
+	IdleUtil.sendJson(player, RemoteDialogConfig.OPCODE, payload)
 end
 
 local function getSession(player)
