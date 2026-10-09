@@ -1660,6 +1660,14 @@ function ExpeditionManager.leave(player, opts)
 		end
 	end
 
+	-- Headless human bodies (hunt persist / battle detach) only stay for the hunt. The
+	-- lobby room is a private instance, so the engine never releases them there.
+	local releaseHeadless = player:isHeadless()
+		and not EM_PRIV.hasUiClient(player)
+		and not EM_PRIV.isSessionCompanion(session, player)
+		and not opts.keepTeamDeployed
+		and not opts.skipTeleport
+
 	local returnPos = EM_PRIV.loadReturn(player)
 	local memberCount = #EM_PRIV.sessionMemberIds(session)
 	local isLast = memberCount <= 1
@@ -1711,6 +1719,16 @@ function ExpeditionManager.leave(player, opts)
 	ExpeditionProtocol.sendEnded(player)
 	if not opts.skipTeamUndeploy and Alts.getDeployment(player) then
 		Alts.undeploy(player)
+	end
+	if releaseHeadless then
+		local playerId = player:getId()
+		addEvent(function()
+			local p = Player(playerId)
+			if p and p:isHeadless() and not Alts.isCompanion(p) and not ExpeditionManager.getSessionByPlayer(p) then
+				logger.info("[Expedition] {} left the hunt headless; logging out", p:getName())
+				Game.headlessLogout(p)
+			end
+		end, 0)
 	end
 	if not opts.silent then
 		if wasVictory then
