@@ -1,4 +1,6 @@
 local function ServerSave()
+	IdleotServerSave.run()
+
 	if configManager.getBoolean(configKeys.GLOBAL_SERVER_SAVE_CLEAN_MAP) then
 		cleanMap()
 	end
