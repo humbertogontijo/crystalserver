@@ -53,7 +53,8 @@ LobbyConfig.ROLE_BOSS = "boss"
 -- overlays its current variant with a private engine instance id. Nothing in the room is ever saved.
 LobbyConfig.ROOM_BASE_X = 62040
 LobbyConfig.ROOM_BASE_Y = 60000
-LobbyConfig.ROOM_Z = 7
+-- Underground: no day cycle or sun, the room is lit only by its own lights.
+LobbyConfig.ROOM_Z = 8
 -- Center window (floor-local offset): plain floor in the default variant, a cloned lever room
 -- in lever-boss variants.
 LobbyConfig.CENTER_OFFSET = 2
