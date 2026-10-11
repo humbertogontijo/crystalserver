@@ -16,7 +16,8 @@
         "BUILD_STATIC_LIBRARY": "ON",
         "SPEED_UP_BUILD_UNITY": "ON",
         "OPTIONS_ENABLE_SCCACHE": "ON",
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "BUILD_TESTS": "OFF"
       }
     },
     {
@@ -138,6 +139,15 @@
         "DEBUG_LOG": "ON",
         "SPEED_UP_BUILD_UNITY": "OFF"
       }
+    },
+    {
+      "name": "macos-test",
+      "inherits": "macos-release",
+      "displayName": "macOS - Test Build",
+      "description": "Build Tests",
+      "cacheVariables": {
+        "BUILD_TESTS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -172,6 +182,10 @@
     {
       "name": "macos-debug",
       "configurePreset": "macos-debug"
+    },
+    {
+      "name": "macos-test",
+      "configurePreset": "macos-test"
     }
   ]
 }

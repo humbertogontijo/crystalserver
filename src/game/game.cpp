@@ -899,6 +899,27 @@ void Game::start(ServiceManager* manager) {
 	int minutes = tms->tm_min;
 	lightHour = (minutes * LIGHT_DAY_LENGTH) / 60;
 
+	// checkLight only moves the level inside the sunrise/sunset ramps, so boot at the level the hour implies.
+	const int32_t lightStep = (LIGHT_LEVEL_DAY - LIGHT_LEVEL_NIGHT) / 30;
+	const int32_t lightRamp = 30 * lightHourDelta;
+	const auto minutesSince = [this](int32_t hour) {
+		return (lightHour - hour + LIGHT_DAY_LENGTH) % LIGHT_DAY_LENGTH;
+	};
+	if (minutesSince(SUNRISE) < lightRamp) {
+		lightState = LIGHT_STATE_SUNRISE;
+		lightLevel = LIGHT_LEVEL_NIGHT + lightStep * (minutesSince(SUNRISE) / lightHourDelta);
+	} else if (minutesSince(SUNSET) < lightRamp) {
+		lightState = LIGHT_STATE_SUNSET;
+		lightLevel = LIGHT_LEVEL_DAY - lightStep * (minutesSince(SUNSET) / lightHourDelta);
+	} else if (lightHour > SUNRISE && lightHour < SUNSET) {
+		lightState = LIGHT_STATE_DAY;
+		lightLevel = LIGHT_LEVEL_DAY;
+	} else {
+		lightState = LIGHT_STATE_NIGHT;
+		lightLevel = LIGHT_LEVEL_NIGHT;
+	}
+	currentLightState = lightState;
+
 	g_dispatcher().scheduleEvent(
 		EVENT_MS + 1000, [this] { createFiendishMonsters(); }, "Game::createFiendishMonsters"
 	);

@@ -584,12 +584,6 @@
      "name": "Fibula",
      "wikiIndex": 252,
      "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Fibula Dungeon",
-     "wikiIndex": 253,
-     "z": 7
     }
    ]
   },
@@ -1332,14 +1326,14 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 32613,
-      "maxY": 32139,
+      "maxX": 32558,
+      "maxY": 32122,
       "minX": 32383,
       "minY": 31863
      },
-     "components": 26,
+     "components": 23,
      "offset": 0,
-     "tiles": 4150,
+     "tiles": 3987,
      "z": 8
     },
     {
@@ -1664,24 +1658,6 @@
      "floorIndex": 0,
      "name": "Mount Sternum <br>Undead Cave",
      "wikiIndex": 471,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Poacher Caves",
-     "wikiIndex": 539,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Sunken Mines",
-     "wikiIndex": 608,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Triangle Tower",
-     "wikiIndex": 663,
      "z": 7
     },
     {
@@ -2217,12 +2193,6 @@
      "name": "Edron Goblin Cave",
      "wikiIndex": 213,
      "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Edron Troll-Goblin Peninsula",
-     "wikiIndex": 225,
-     "z": 7
     }
    ]
   },
@@ -2260,12 +2230,6 @@
      "floorIndex": 0,
      "name": "Edron Orc Lands",
      "wikiIndex": 220,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Lycanthrope Grounds (Edron)",
-     "wikiIndex": 434,
      "z": 7
     }
    ]
@@ -2355,10 +2319,10 @@
    ],
    "wikiRefs": [
     {
-     "floorIndex": 0,
+     "floorIndex": 1,
      "name": "Edron Dragon Lair",
      "wikiIndex": 210,
-     "z": 7
+     "z": 8
     }
    ]
   },
@@ -2493,18 +2457,6 @@
      "floorIndex": 0,
      "name": "Ghoul Hill",
      "wikiIndex": 293,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Hero Cave",
-     "wikiIndex": 347,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Lost Mines",
-     "wikiIndex": 424,
      "z": 7
     },
     {
@@ -2902,12 +2854,6 @@
      "floorIndex": 0,
      "name": "Nightmare Isles",
      "wikiIndex": 489,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Terramite Breeding Tunnels",
-     "wikiIndex": 620,
      "z": 7
     }
    ]
@@ -3372,12 +3318,6 @@
      "floorIndex": 0,
      "name": "Dragon Lair (Plains of Havoc)",
      "wikiIndex": 183,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Haunted Nexus (Cellar)",
-     "wikiIndex": 338,
      "z": 7
     },
     {
@@ -4466,10 +4406,10 @@
      "z": 4
     },
     {
-     "floorIndex": -1,
+     "floorIndex": 0,
      "name": "Kha'zeel Hydra Lair",
      "wikiIndex": 399,
-     "z": 6
+     "z": 7
     },
     {
      "floorIndex": 0,
@@ -5974,12 +5914,6 @@
    "wikiRefs": [
     {
      "floorIndex": 0,
-     "name": "Formorgar Glacier Quara Caves",
-     "wikiIndex": 272,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
      "name": "Hrodmir Stone Golem Caves",
      "wikiIndex": 359,
      "z": 7
@@ -6397,50 +6331,50 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 32827,
+      "maxX": 32655,
       "maxY": 31341,
       "minX": 32358,
-      "minY": 31006
+      "minY": 31208
      },
-     "components": 47,
+     "components": 6,
      "offset": -3,
-     "tiles": 10137,
+     "tiles": 2876,
      "z": 8
     },
     {
      "bounds": {
-      "maxX": 32830,
+      "maxX": 32568,
       "maxY": 31355,
       "minX": 32354,
-      "minY": 30982
+      "minY": 31184
      },
-     "components": 34,
+     "components": 7,
      "offset": -2,
-     "tiles": 12024,
+     "tiles": 5751,
      "z": 9
     },
     {
      "bounds": {
-      "maxX": 32865,
+      "maxX": 32687,
       "maxY": 31512,
       "minX": 32450,
-      "minY": 31028
+      "minY": 31138
      },
-     "components": 38,
+     "components": 17,
      "offset": -1,
-     "tiles": 6202,
+     "tiles": 3361,
      "z": 10
     },
     {
      "bounds": {
-      "maxX": 32824,
+      "maxX": 32775,
       "maxY": 31524,
       "minX": 32472,
-      "minY": 31063
+      "minY": 31179
      },
-     "components": 38,
+     "components": 28,
      "offset": 0,
-     "tiles": 8977,
+     "tiles": 5095,
      "z": 11
     },
     {
@@ -6821,12 +6755,6 @@
     },
     {
      "floorIndex": 0,
-     "name": "Magician Quarter Research Centre",
-     "wikiIndex": 441,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
      "name": "Magician Quarter Residential Area",
      "wikiIndex": 442,
      "z": 7
@@ -7187,12 +7115,6 @@
     }
    ],
    "wikiRefs": [
-    {
-     "floorIndex": 0,
-     "name": "Elves Foreign Quarter",
-     "wikiIndex": 232,
-     "z": 7
-    },
     {
      "floorIndex": 0,
      "name": "Foreigner Quarter",
@@ -7638,12 +7560,6 @@
    "wikiRefs": [
     {
      "floorIndex": 0,
-     "name": "Gnarlhound Caves",
-     "wikiIndex": 299,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
      "name": "Yielothax Dimension",
      "wikiIndex": 725,
      "z": 7
@@ -7994,12 +7910,6 @@
      "floorIndex": 0,
      "name": "Corruption Hole",
      "wikiIndex": 99,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Fire Dragon Dojo",
-     "wikiIndex": 256,
      "z": 7
     },
     {
@@ -9548,10 +9458,10 @@
    ],
    "wikiRefs": [
     {
-     "floorIndex": 0,
+     "floorIndex": 1,
      "name": "Chyllfroest Chakoya Caves",
      "wikiIndex": 88,
-     "z": 7
+     "z": 8
     },
     {
      "floorIndex": 1,
@@ -9586,13 +9496,13 @@
     {
      "bounds": {
       "maxX": 32119,
-      "maxY": 31128,
+      "maxY": 31105,
       "minX": 32011,
       "minY": 31016
      },
-     "components": 15,
+     "components": 8,
      "offset": 1,
-     "tiles": 2677,
+     "tiles": 1657,
      "z": 8
     },
     {
@@ -9610,10 +9520,10 @@
    ],
    "wikiRefs": [
     {
-     "floorIndex": 0,
+     "floorIndex": 1,
      "name": "Chyllfroest",
      "wikiIndex": 87,
-     "z": 7
+     "z": 8
     },
     {
      "floorIndex": 1,
@@ -10329,14 +10239,14 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 32391,
-      "maxY": 32855,
-      "minX": 32165,
-      "minY": 32683
+      "maxX": 32365,
+      "maxY": 32801,
+      "minX": 32322,
+      "minY": 32754
      },
-     "components": 16,
+     "components": 6,
      "offset": -2,
-     "tiles": 5123,
+     "tiles": 149,
      "z": 8
     },
     {
@@ -11570,12 +11480,6 @@
    "wikiRefs": [
     {
      "floorIndex": 0,
-     "name": "Edron Bog Raider Cave",
-     "wikiIndex": 209,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
      "name": "Stonehome",
      "wikiIndex": 607,
      "z": 7
@@ -11670,12 +11574,6 @@
      "floorIndex": 0,
      "name": "Book World",
      "wikiIndex": 61,
-     "z": 7
-    },
-    {
-     "floorIndex": 0,
-     "name": "Edron Rotworm Cave",
-     "wikiIndex": 221,
      "z": 7
     }
    ]
@@ -12282,33 +12180,33 @@
       "minX": 33049,
       "minY": 31803
      },
-     "components": 29,
+     "components": 27,
      "offset": 2,
-     "tiles": 8699,
+     "tiles": 8656,
      "z": 9
     },
     {
      "bounds": {
       "maxX": 33358,
       "maxY": 32097,
-      "minX": 33152,
+      "minX": 33179,
       "minY": 31819
      },
-     "components": 56,
+     "components": 13,
      "offset": 3,
-     "tiles": 3853,
+     "tiles": 1493,
      "z": 10
     },
     {
      "bounds": {
       "maxX": 33336,
-      "maxY": 32068,
-      "minX": 33186,
+      "maxY": 32039,
+      "minX": 33260,
       "minY": 31829
      },
-     "components": 6,
+     "components": 4,
      "offset": 4,
-     "tiles": 3168,
+     "tiles": 422,
      "z": 11
     },
     {
@@ -12380,10 +12278,10 @@
      "z": 8
     },
     {
-     "floorIndex": 0,
-     "name": "Dryad Gardens",
-     "wikiIndex": 199,
-     "z": 7
+     "floorIndex": 1,
+     "name": "Edron Rotworm Cave",
+     "wikiIndex": 221,
+     "z": 8
     },
     {
      "floorIndex": 1,
@@ -12392,10 +12290,10 @@
      "z": 8
     },
     {
-     "floorIndex": 0,
+     "floorIndex": 1,
      "name": "Lair of the Treeling Witch",
      "wikiIndex": 414,
-     "z": 7
+     "z": 8
     },
     {
      "floorIndex": 1,
@@ -12440,14 +12338,7 @@
      "z": 7
     }
    ],
-   "wikiRefs": [
-    {
-     "floorIndex": 0,
-     "name": "Inukaya",
-     "wikiIndex": 373,
-     "z": 7
-    }
-   ]
+   "wikiRefs": []
   },
   {
    "id": 288,
@@ -13524,14 +13415,7 @@
      "z": 7
     }
    ],
-   "wikiRefs": [
-    {
-     "floorIndex": 0,
-     "name": "Corym Black Market",
-     "wikiIndex": 100,
-     "z": 7
-    }
-   ]
+   "wikiRefs": []
   },
   {
    "id": 313,
@@ -13802,10 +13686,10 @@
      "z": 7
     },
     {
-     "floorIndex": -1,
+     "floorIndex": 0,
      "name": "Dawnport Mountain Troll Cave",
      "wikiIndex": 135,
-     "z": 6
+     "z": 7
     }
    ]
   },
@@ -14002,10 +13886,10 @@
      "z": 7
     },
     {
-     "floorIndex": 1,
+     "floorIndex": 0,
      "name": "Troll Cave (Rookgaard)",
      "wikiIndex": 664,
-     "z": 8
+     "z": 7
     },
     {
      "floorIndex": 0,
@@ -14313,6 +14197,12 @@
      "floorIndex": 0,
      "name": "Haunted Cellar",
      "wikiIndex": 337,
+     "z": 8
+    },
+    {
+     "floorIndex": 0,
+     "name": "Haunted Nexus (Cellar)",
+     "wikiIndex": 338,
      "z": 8
     }
    ]
@@ -14670,12 +14560,6 @@
     }
    ],
    "wikiRefs": [
-    {
-     "floorIndex": 0,
-     "name": "Exotic Cave",
-     "wikiIndex": 236,
-     "z": 7
-    },
     {
      "floorIndex": 1,
      "name": "Issavi Sewers",
@@ -18356,12 +18240,12 @@
      "bounds": {
       "maxX": 33587,
       "maxY": 31329,
-      "minX": 33219,
+      "minX": 33348,
       "minY": 30990
      },
-     "components": 44,
+     "components": 39,
      "offset": -5,
-     "tiles": 7427,
+     "tiles": 6754,
      "z": 10
     },
     {
@@ -18598,10 +18482,10 @@
      "z": 10
     },
     {
-     "floorIndex": 6,
+     "floorIndex": 7,
      "name": "Mad Mage Room",
      "wikiIndex": 435,
-     "z": 14
+     "z": 15
     },
     {
      "floorIndex": 3,
@@ -19051,11 +18935,11 @@
       "maxX": 32820,
       "maxY": 31661,
       "minX": 32646,
-      "minY": 31271
+      "minY": 31309
      },
-     "components": 43,
+     "components": 33,
      "offset": -1,
-     "tiles": 7360,
+     "tiles": 4530,
      "z": 8
     },
     {
@@ -19187,12 +19071,12 @@
      "bounds": {
       "maxX": 33585,
       "maxY": 31326,
-      "minX": 33050,
+      "minX": 33201,
       "minY": 30991
      },
-     "components": 91,
+     "components": 75,
      "offset": 0,
-     "tiles": 15490,
+     "tiles": 10508,
      "z": 9
     }
    ],
@@ -19210,14 +19094,14 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 32986,
-      "maxY": 31806,
+      "maxX": 32855,
+      "maxY": 31707,
       "minX": 32805,
       "minY": 31652
      },
-     "components": 2,
+     "components": 1,
      "offset": 0,
-     "tiles": 3043,
+     "tiles": 1231,
      "z": 8
     },
     {
@@ -19374,7 +19258,14 @@
      "z": 14
     }
    ],
-   "wikiRefs": []
+   "wikiRefs": [
+    {
+     "floorIndex": 0,
+     "name": "Edron Bog Raider Cave",
+     "wikiIndex": 209,
+     "z": 8
+    }
+   ]
   },
   {
    "id": 100063,
@@ -19832,6 +19723,31 @@
    "wikiRefs": []
   },
   {
+   "id": 100100,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Corym Black Market",
+   "city": "Liberty Bay",
+   "owners": [],
+   "seedZ": 8,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 32391,
+      "maxY": 32855,
+      "minX": 32165,
+      "minY": 32683
+     },
+     "components": 11,
+     "offset": 0,
+     "tiles": 4974,
+     "z": 8
+    }
+   ],
+   "wikiRefs": []
+  },
+  {
    "id": 100101,
    "source": "wiki",
    "kind": "hunt",
@@ -19867,26 +19783,26 @@
     },
     {
      "bounds": {
-      "maxX": 33219,
+      "maxX": 33148,
       "maxY": 32215,
       "minX": 32961,
-      "minY": 31970
+      "minY": 32004
      },
-     "components": 82,
+     "components": 9,
      "offset": -1,
-     "tiles": 9346,
+     "tiles": 7962,
      "z": 10
     },
     {
      "bounds": {
-      "maxX": 33214,
+      "maxX": 33150,
       "maxY": 32253,
       "minX": 32906,
-      "minY": 31975
+      "minY": 32001
      },
-     "components": 24,
+     "components": 22,
      "offset": 0,
-     "tiles": 23081,
+     "tiles": 21413,
      "z": 11
     }
    ],
@@ -20389,9 +20305,9 @@
       "minX": 33175,
       "minY": 31602
      },
-     "components": 3,
+     "components": 4,
      "offset": 1,
-     "tiles": 2418,
+     "tiles": 2746,
      "z": 9
     },
     {
@@ -20410,12 +20326,12 @@
      "bounds": {
       "maxX": 33415,
       "maxY": 31709,
-      "minX": 33249,
-      "minY": 31624
+      "minX": 33219,
+      "minY": 31611
      },
-     "components": 4,
+     "components": 5,
      "offset": 3,
-     "tiles": 3590,
+     "tiles": 4356,
      "z": 11
     },
     {
@@ -21412,9 +21328,9 @@
       "minX": 33102,
       "minY": 31586
      },
-     "components": 1,
+     "components": 2,
      "offset": -4,
-     "tiles": 1321,
+     "tiles": 1710,
      "z": 10
     },
     {
@@ -21424,9 +21340,9 @@
       "minX": 33065,
       "minY": 31587
      },
-     "components": 8,
+     "components": 9,
      "offset": -3,
-     "tiles": 796,
+     "tiles": 1236,
      "z": 11
     },
     {
@@ -21481,6 +21397,12 @@
    "wikiRefs": [
     {
      "floorIndex": -1,
+     "name": "Demon Forge (The Hive)",
+     "wikiIndex": 159,
+     "z": 13
+    },
+    {
+     "floorIndex": -1,
      "name": "Demon Hell",
      "wikiIndex": 166,
      "z": 13
@@ -21501,6 +21423,12 @@
      "floorIndex": -6,
      "name": "Edron Northern Ruins",
      "wikiIndex": 218,
+     "z": 8
+    },
+    {
+     "floorIndex": -6,
+     "name": "Hero Cave",
+     "wikiIndex": 347,
      "z": 8
     }
    ]
@@ -21677,10 +21605,10 @@
      "z": 11
     },
     {
-     "floorIndex": 2,
+     "floorIndex": 3,
      "name": "Demon Forge Hub",
      "wikiIndex": 165,
-     "z": 14
+     "z": 15
     }
    ]
   },
@@ -21710,73 +21638,12 @@
      "bounds": {
       "maxX": 33295,
       "maxY": 31701,
-      "minX": 33224,
+      "minX": 33186,
       "minY": 31588
      },
-     "components": 4,
+     "components": 5,
      "offset": 0,
-     "tiles": 988,
-     "z": 12
-    }
-   ],
-   "wikiRefs": []
-  },
-  {
-   "id": 100159,
-   "source": "wiki",
-   "kind": "hunt",
-   "cipId": 0,
-   "name": "Demon Forge (The Hive)",
-   "city": "Edron",
-   "owners": [],
-   "seedZ": 12,
-   "floors": [
-    {
-     "bounds": {
-      "maxX": 33228,
-      "maxY": 31628,
-      "minX": 33209,
-      "minY": 31607
-     },
-     "components": 1,
-     "offset": -3,
-     "tiles": 328,
-     "z": 9
-    },
-    {
-     "bounds": {
-      "maxX": 33231,
-      "maxY": 31642,
-      "minX": 33192,
-      "minY": 31626
-     },
-     "components": 1,
-     "offset": -2,
-     "tiles": 389,
-     "z": 10
-    },
-    {
-     "bounds": {
-      "maxX": 33267,
-      "maxY": 31735,
-      "minX": 33095,
-      "minY": 31611
-     },
-     "components": 3,
-     "offset": -1,
-     "tiles": 1507,
-     "z": 11
-    },
-    {
-     "bounds": {
-      "maxX": 33208,
-      "maxY": 31687,
-      "minX": 33186,
-      "minY": 31659
-     },
-     "components": 1,
-     "offset": 0,
-     "tiles": 500,
+     "tiles": 1488,
      "z": 12
     }
    ],
@@ -21797,11 +21664,11 @@
       "maxX": 33115,
       "maxY": 31793,
       "minX": 33072,
-      "minY": 31738
+      "minY": 31717
      },
-     "components": 3,
+     "components": 4,
      "offset": -1,
-     "tiles": 952,
+     "tiles": 1253,
      "z": 11
     },
     {
@@ -22106,7 +21973,14 @@
      "z": 10
     }
    ],
-   "wikiRefs": []
+   "wikiRefs": [
+    {
+     "floorIndex": -2,
+     "name": "Fibula Dungeon",
+     "wikiIndex": 253,
+     "z": 8
+    }
+   ]
   },
   {
    "id": 100177,
@@ -22313,6 +22187,55 @@
      "offset": 1,
      "tiles": 4,
      "z": 15
+    }
+   ],
+   "wikiRefs": []
+  },
+  {
+   "id": 100199,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Dryad Gardens",
+   "city": "Edron",
+   "owners": [],
+   "seedZ": 11,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 33258,
+      "maxY": 32052,
+      "minX": 33219,
+      "minY": 31975
+     },
+     "components": 7,
+     "offset": -2,
+     "tiles": 262,
+     "z": 9
+    },
+    {
+     "bounds": {
+      "maxX": 33289,
+      "maxY": 32072,
+      "minX": 33139,
+      "minY": 31909
+     },
+     "components": 154,
+     "offset": -1,
+     "tiles": 4723,
+     "z": 10
+    },
+    {
+     "bounds": {
+      "maxX": 33281,
+      "maxY": 32068,
+      "minX": 33149,
+      "minY": 31911
+     },
+     "components": 5,
+     "offset": 0,
+     "tiles": 4898,
+     "z": 11
     }
    ],
    "wikiRefs": []
@@ -22603,12 +22526,12 @@
      "bounds": {
       "maxX": 33163,
       "maxY": 31880,
-      "minX": 32978,
-      "minY": 31757
+      "minX": 33044,
+      "minY": 31805
      },
-     "components": 6,
+     "components": 3,
      "offset": 0,
-     "tiles": 1716,
+     "tiles": 1142,
      "z": 8
     },
     {
@@ -22636,7 +22559,14 @@
      "z": 10
     }
    ],
-   "wikiRefs": []
+   "wikiRefs": [
+    {
+     "floorIndex": 0,
+     "name": "Edron Troll-Goblin Peninsula",
+     "wikiIndex": 225,
+     "z": 8
+    }
+   ]
   },
   {
    "id": 100217,
@@ -22714,12 +22644,12 @@
      "bounds": {
       "maxX": 33175,
       "maxY": 31828,
-      "minX": 33024,
+      "minX": 33055,
       "minY": 31721
      },
-     "components": 5,
+     "components": 3,
      "offset": 0,
-     "tiles": 1346,
+     "tiles": 1339,
      "z": 8
     },
     {
@@ -22940,6 +22870,67 @@
    "wikiRefs": []
   },
   {
+   "id": 100232,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Elves Foreign Quarter",
+   "city": "Yalahar",
+   "owners": [],
+   "seedZ": 8,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 32857,
+      "maxY": 31359,
+      "minX": 32619,
+      "minY": 31110
+     },
+     "components": 33,
+     "offset": 0,
+     "tiles": 9751,
+     "z": 8
+    },
+    {
+     "bounds": {
+      "maxX": 32853,
+      "maxY": 31313,
+      "minX": 32657,
+      "minY": 31173
+     },
+     "components": 15,
+     "offset": 1,
+     "tiles": 1232,
+     "z": 9
+    },
+    {
+     "bounds": {
+      "maxX": 32890,
+      "maxY": 31310,
+      "minX": 32673,
+      "minY": 31217
+     },
+     "components": 3,
+     "offset": 2,
+     "tiles": 1745,
+     "z": 10
+    },
+    {
+     "bounds": {
+      "maxX": 32886,
+      "maxY": 31328,
+      "minX": 32655,
+      "minY": 31121
+     },
+     "components": 14,
+     "offset": 3,
+     "tiles": 4693,
+     "z": 11
+    }
+   ],
+   "wikiRefs": []
+  },
+  {
    "id": 100235,
    "source": "wiki",
    "kind": "hunt",
@@ -22960,6 +22951,31 @@
      "offset": 0,
      "tiles": 2693,
      "z": 13
+    }
+   ],
+   "wikiRefs": []
+  },
+  {
+   "id": 100236,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Exotic Cave",
+   "city": "Issavi",
+   "owners": [],
+   "seedZ": 8,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 33918,
+      "maxY": 31472,
+      "minX": 33868,
+      "minY": 31413
+     },
+     "components": 2,
+     "offset": 0,
+     "tiles": 468,
+     "z": 8
     }
    ],
    "wikiRefs": []
@@ -23096,6 +23112,55 @@
      "offset": 1,
      "tiles": 1895,
      "z": 9
+    }
+   ],
+   "wikiRefs": []
+  },
+  {
+   "id": 100256,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Fire Dragon Dojo",
+   "city": "Farmine",
+   "owners": [],
+   "seedZ": 8,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 33185,
+      "maxY": 31206,
+      "minX": 33178,
+      "minY": 31198
+     },
+     "components": 1,
+     "offset": 0,
+     "tiles": 48,
+     "z": 8
+    },
+    {
+     "bounds": {
+      "maxX": 33246,
+      "maxY": 31243,
+      "minX": 33050,
+      "minY": 31075
+     },
+     "components": 32,
+     "offset": 1,
+     "tiles": 6405,
+     "z": 9
+    },
+    {
+     "bounds": {
+      "maxX": 33285,
+      "maxY": 31243,
+      "minX": 33050,
+      "minY": 31031
+     },
+     "components": 28,
+     "offset": 2,
+     "tiles": 6631,
+     "z": 10
     }
    ],
    "wikiRefs": []
@@ -23286,6 +23351,31 @@
    "wikiRefs": []
   },
   {
+   "id": 100272,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Formorgar Glacier Quara Caves",
+   "city": "Hrodmir",
+   "owners": [],
+   "seedZ": 8,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 32113,
+      "maxY": 31128,
+      "minX": 32071,
+      "minY": 31066
+     },
+     "components": 9,
+     "offset": 0,
+     "tiles": 1022,
+     "z": 8
+    }
+   ],
+   "wikiRefs": []
+  },
+  {
    "id": 100275,
    "source": "wiki",
    "kind": "hunt",
@@ -23299,12 +23389,12 @@
      "bounds": {
       "maxX": 32205,
       "maxY": 31185,
-      "minX": 32110,
-      "minY": 31104
+      "minX": 32140,
+      "minY": 31118
      },
-     "components": 6,
+     "components": 4,
      "offset": -1,
-     "tiles": 151,
+     "tiles": 149,
      "z": 8
     },
     {
@@ -23625,13 +23715,13 @@
     {
      "bounds": {
       "maxX": 33206,
-      "maxY": 31184,
-      "minX": 32819,
+      "maxY": 31075,
+      "minX": 33077,
       "minY": 30990
      },
-     "components": 10,
+     "components": 4,
      "offset": 0,
-     "tiles": 4143,
+     "tiles": 962,
      "z": 8
     }
    ],
@@ -23761,6 +23851,43 @@
    "wikiRefs": []
   },
   {
+   "id": 100299,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Gnarlhound Caves",
+   "city": "Farmine",
+   "owners": [],
+   "seedZ": 8,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 33222,
+      "maxY": 31545,
+      "minX": 32997,
+      "minY": 31242
+     },
+     "components": 22,
+     "offset": 0,
+     "tiles": 7252,
+     "z": 8
+    },
+    {
+     "bounds": {
+      "maxX": 33183,
+      "maxY": 31478,
+      "minX": 33063,
+      "minY": 31393
+     },
+     "components": 9,
+     "offset": 1,
+     "tiles": 1092,
+     "z": 9
+    }
+   ],
+   "wikiRefs": []
+  },
+  {
    "id": 100301,
    "source": "wiki",
    "kind": "hunt",
@@ -23868,14 +23995,14 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 33199,
+      "maxX": 33128,
       "maxY": 31984,
       "minX": 33007,
       "minY": 31910
      },
-     "components": 5,
+     "components": 4,
      "offset": 0,
-     "tiles": 4012,
+     "tiles": 3528,
      "z": 11
     }
    ],
@@ -24995,6 +25122,31 @@
    "wikiRefs": []
   },
   {
+   "id": 100373,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Inukaya",
+   "city": "Svargrond",
+   "owners": [],
+   "seedZ": 8,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 32644,
+      "maxY": 31228,
+      "minX": 32432,
+      "minY": 31060
+     },
+     "components": 18,
+     "offset": 0,
+     "tiles": 2033,
+     "z": 8
+    }
+   ],
+   "wikiRefs": []
+  },
+  {
    "id": 100376,
    "source": "wiki",
    "kind": "wild",
@@ -25221,7 +25373,14 @@
      "z": 8
     }
    ],
-   "wikiRefs": []
+   "wikiRefs": [
+    {
+     "floorIndex": 0,
+     "name": "Sunken Mines",
+     "wikiIndex": 608,
+     "z": 8
+    }
+   ]
   },
   {
    "id": 100403,
@@ -25235,26 +25394,26 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 33222,
+      "maxX": 33166,
       "maxY": 31547,
-      "minX": 33031,
-      "minY": 31367
+      "minX": 33104,
+      "minY": 31424
      },
-     "components": 14,
+     "components": 2,
      "offset": 0,
-     "tiles": 4787,
+     "tiles": 1016,
      "z": 8
     },
     {
      "bounds": {
-      "maxX": 33183,
-      "maxY": 31478,
-      "minX": 33063,
-      "minY": 31393
+      "maxX": 33150,
+      "maxY": 31451,
+      "minX": 33110,
+      "minY": 31410
      },
-     "components": 9,
+     "components": 1,
      "offset": 1,
-     "tiles": 1508,
+     "tiles": 417,
      "z": 9
     }
    ],
@@ -25334,14 +25493,14 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 33749,
+      "maxX": 33773,
       "maxY": 31839,
       "minX": 33631,
       "minY": 31657
      },
      "components": 18,
      "offset": 0,
-     "tiles": 3429,
+     "tiles": 3527,
      "z": 8
     },
     {
@@ -25465,6 +25624,31 @@
      "offset": 2,
      "tiles": 5051,
      "z": 15
+    }
+   ],
+   "wikiRefs": []
+  },
+  {
+   "id": 100424,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Lost Mines",
+   "city": "Edron",
+   "owners": [],
+   "seedZ": 8,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 33105,
+      "maxY": 31813,
+      "minX": 32886,
+      "minY": 31737
+     },
+     "components": 6,
+     "offset": 0,
+     "tiles": 2393,
+     "z": 8
     }
    ],
    "wikiRefs": []
@@ -25664,6 +25848,74 @@
      "offset": 0,
      "tiles": 3255,
      "z": 8
+    }
+   ],
+   "wikiRefs": [
+    {
+     "floorIndex": 0,
+     "name": "Lycanthrope Grounds (Edron)",
+     "wikiIndex": 434,
+     "z": 8
+    }
+   ]
+  },
+  {
+   "id": 100441,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Magician Quarter Research Centre",
+   "city": "Yalahar",
+   "owners": [],
+   "seedZ": 8,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 32955,
+      "maxY": 31193,
+      "minX": 32643,
+      "minY": 31006
+     },
+     "components": 51,
+     "offset": 0,
+     "tiles": 9591,
+     "z": 8
+    },
+    {
+     "bounds": {
+      "maxX": 32953,
+      "maxY": 31197,
+      "minX": 32643,
+      "minY": 30982
+     },
+     "components": 31,
+     "offset": 1,
+     "tiles": 6192,
+     "z": 9
+    },
+    {
+     "bounds": {
+      "maxX": 32959,
+      "maxY": 31193,
+      "minX": 32640,
+      "minY": 31028
+     },
+     "components": 24,
+     "offset": 2,
+     "tiles": 3607,
+     "z": 10
+    },
+    {
+     "bounds": {
+      "maxX": 32979,
+      "maxY": 31233,
+      "minX": 32788,
+      "minY": 31063
+     },
+     "components": 20,
+     "offset": 3,
+     "tiles": 1695,
+     "z": 11
     }
    ],
    "wikiRefs": []
@@ -25896,7 +26148,7 @@
    "name": "Mirrored Nightmare",
    "city": "Kilmaresh",
    "owners": [],
-   "seedZ": 10,
+   "seedZ": 11,
    "floors": [
     {
      "bounds": {
@@ -25906,7 +26158,7 @@
       "minY": 31195
      },
      "components": 2,
-     "offset": -1,
+     "offset": -2,
      "tiles": 160,
      "z": 9
     },
@@ -25918,7 +26170,7 @@
       "minY": 31013
      },
      "components": 56,
-     "offset": 0,
+     "offset": -1,
      "tiles": 4866,
      "z": 10
     },
@@ -25930,7 +26182,7 @@
       "minY": 31108
      },
      "components": 25,
-     "offset": 1,
+     "offset": 0,
      "tiles": 5133,
      "z": 11
     },
@@ -25942,7 +26194,7 @@
       "minY": 30981
      },
      "components": 57,
-     "offset": 2,
+     "offset": 1,
      "tiles": 8757,
      "z": 12
     },
@@ -25954,7 +26206,7 @@
       "minY": 30983
      },
      "components": 17,
-     "offset": 3,
+     "offset": 2,
      "tiles": 8183,
      "z": 13
     }
@@ -26177,14 +26429,14 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 32509,
-      "maxY": 31228,
+      "maxX": 32438,
+      "maxY": 31175,
       "minX": 32336,
       "minY": 31041
      },
-     "components": 31,
+     "components": 16,
      "offset": 0,
-     "tiles": 4748,
+     "tiles": 2732,
      "z": 8
     },
     {
@@ -26251,50 +26503,50 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 33047,
+      "maxX": 32970,
       "maxY": 31525,
-      "minX": 32738,
-      "minY": 31124
+      "minX": 32800,
+      "minY": 31246
      },
-     "components": 65,
+     "components": 35,
      "offset": 0,
-     "tiles": 13213,
+     "tiles": 6818,
      "z": 8
     },
     {
      "bounds": {
       "maxX": 32970,
       "maxY": 31496,
-      "minX": 32738,
-      "minY": 31154
+      "minX": 32825,
+      "minY": 31246
      },
-     "components": 37,
+     "components": 22,
      "offset": 1,
-     "tiles": 7224,
+     "tiles": 6196,
      "z": 9
     },
     {
      "bounds": {
       "maxX": 32971,
       "maxY": 31481,
-      "minX": 32737,
-      "minY": 31171
+      "minX": 32820,
+      "minY": 31246
      },
-     "components": 15,
+     "components": 10,
      "offset": 2,
-     "tiles": 6740,
+     "tiles": 5184,
      "z": 10
     },
     {
      "bounds": {
-      "maxX": 32942,
+      "maxX": 32926,
       "maxY": 31449,
-      "minX": 32734,
-      "minY": 31159
+      "minX": 32818,
+      "minY": 31276
      },
-     "components": 25,
+     "components": 11,
      "offset": 3,
-     "tiles": 6158,
+     "tiles": 4283,
      "z": 11
     }
    ],
@@ -26335,7 +26587,14 @@
      "z": 9
     }
    ],
-   "wikiRefs": []
+   "wikiRefs": [
+    {
+     "floorIndex": 0,
+     "name": "Terramite Breeding Tunnels",
+     "wikiIndex": 620,
+     "z": 8
+    }
+   ]
   },
   {
    "id": 100495,
@@ -26523,14 +26782,14 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 32665,
-      "maxY": 32148,
+      "maxX": 32599,
+      "maxY": 32071,
       "minX": 32514,
       "minY": 32016
      },
-     "components": 11,
+     "components": 2,
      "offset": 0,
-     "tiles": 1260,
+     "tiles": 579,
      "z": 8
     }
    ],
@@ -26569,12 +26828,12 @@
    "wikiRefs": []
   },
   {
-   "id": 100540,
+   "id": 100539,
    "source": "wiki",
    "kind": "hunt",
    "cipId": 0,
-   "name": "Poacher Lair",
-   "city": "Ulderek",
+   "name": "Poacher Caves",
+   "city": "Venore",
    "owners": [],
    "seedZ": 8,
    "floors": [
@@ -26627,7 +26886,14 @@
      "z": 11
     }
    ],
-   "wikiRefs": []
+   "wikiRefs": [
+    {
+     "floorIndex": 0,
+     "name": "Poacher Lair",
+     "wikiIndex": 540,
+     "z": 8
+    }
+   ]
   },
   {
    "id": 100541,
@@ -27097,6 +27363,18 @@
    "floors": [
     {
      "bounds": {
+      "maxX": 33867,
+      "maxY": 31712,
+      "minX": 33763,
+      "minY": 31594
+     },
+     "components": 6,
+     "offset": -2,
+     "tiles": 3597,
+     "z": 8
+    },
+    {
+     "bounds": {
       "maxX": 33862,
       "maxY": 31713,
       "minX": 33794,
@@ -27120,32 +27398,14 @@
      "z": 10
     }
    ],
-   "wikiRefs": []
-  },
-  {
-   "id": 100573,
-   "source": "wiki",
-   "kind": "hunt",
-   "cipId": 0,
-   "name": "Runs of Nuur",
-   "city": "Issavi",
-   "owners": [],
-   "seedZ": 8,
-   "floors": [
+   "wikiRefs": [
     {
-     "bounds": {
-      "maxX": 33867,
-      "maxY": 31715,
-      "minX": 33748,
-      "minY": 31594
-     },
-     "components": 6,
-     "offset": 0,
-     "tiles": 3695,
-     "z": 8
+     "floorIndex": -1,
+     "name": "Runs of Nuur",
+     "wikiIndex": 573,
+     "z": 9
     }
-   ],
-   "wikiRefs": []
+   ]
   },
   {
    "id": 100574,
@@ -27467,14 +27727,14 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 33185,
+      "maxX": 33175,
       "maxY": 31220,
       "minX": 33050,
       "minY": 31075
      },
-     "components": 13,
+     "components": 12,
      "offset": 0,
-     "tiles": 4237,
+     "tiles": 4189,
      "z": 8
     }
    ],
@@ -27831,23 +28091,23 @@
       "maxX": 33324,
       "maxY": 32109,
       "minX": 33178,
-      "minY": 32005
+      "minY": 32050
      },
-     "components": 11,
+     "components": 6,
      "offset": 1,
-     "tiles": 1445,
+     "tiles": 1226,
      "z": 9
     },
     {
      "bounds": {
       "maxX": 33367,
       "maxY": 32151,
-      "minX": 33184,
-      "minY": 32029
+      "minX": 33218,
+      "minY": 32086
      },
-     "components": 41,
+     "components": 3,
      "offset": 2,
-     "tiles": 2355,
+     "tiles": 1376,
      "z": 10
     }
    ],
@@ -28198,14 +28458,14 @@
    "floors": [
     {
      "bounds": {
-      "maxX": 33918,
+      "maxX": 33913,
       "maxY": 31513,
       "minX": 33731,
       "minY": 31374
      },
-     "components": 4,
+     "components": 3,
      "offset": 0,
-     "tiles": 1900,
+     "tiles": 1432,
      "z": 8
     },
     {
@@ -28219,6 +28479,31 @@
      "offset": 1,
      "tiles": 310,
      "z": 9
+    }
+   ],
+   "wikiRefs": []
+  },
+  {
+   "id": 100663,
+   "source": "wiki",
+   "kind": "hunt",
+   "cipId": 0,
+   "name": "Triangle Tower",
+   "city": "Thais",
+   "owners": [],
+   "seedZ": 8,
+   "floors": [
+    {
+     "bounds": {
+      "maxX": 32665,
+      "maxY": 32148,
+      "minX": 32559,
+      "minY": 32073
+     },
+     "components": 12,
+     "offset": 0,
+     "tiles": 844,
+     "z": 8
     }
    ],
    "wikiRefs": []
@@ -28660,49 +28945,49 @@
     {
      "bounds": {
       "maxX": 33176,
-      "maxY": 31364,
-      "minX": 32998,
-      "minY": 31242
+      "maxY": 31303,
+      "minX": 33152,
+      "minY": 31278
      },
-     "components": 6,
+     "components": 3,
      "offset": -2,
-     "tiles": 3004,
+     "tiles": 164,
      "z": 8
     },
     {
      "bounds": {
-      "maxX": 33232,
+      "maxX": 33188,
       "maxY": 31302,
-      "minX": 32892,
-      "minY": 31044
+      "minX": 33148,
+      "minY": 31267
      },
-     "components": 19,
+     "components": 2,
      "offset": -1,
-     "tiles": 1943,
+     "tiles": 483,
      "z": 9
     },
     {
      "bounds": {
-      "maxX": 33272,
+      "maxX": 33189,
       "maxY": 31303,
-      "minX": 32874,
-      "minY": 31029
+      "minX": 33142,
+      "minY": 31245
      },
-     "components": 25,
+     "components": 1,
      "offset": 0,
-     "tiles": 8091,
+     "tiles": 1178,
      "z": 10
     },
     {
      "bounds": {
       "maxX": 33204,
       "maxY": 31268,
-      "minX": 32908,
+      "minX": 32981,
       "minY": 31058
      },
-     "components": 36,
+     "components": 26,
      "offset": 1,
-     "tiles": 5261,
+     "tiles": 4630,
      "z": 11
     },
     {
@@ -28777,12 +29062,12 @@
      "bounds": {
       "maxX": 33213,
       "maxY": 31568,
-      "minX": 33112,
-      "minY": 31483
+      "minX": 33153,
+      "minY": 31505
      },
-     "components": 7,
+     "components": 5,
      "offset": 0,
-     "tiles": 466,
+     "tiles": 456,
      "z": 8
     },
     {
@@ -28817,21 +29102,21 @@
       "minX": 33147,
       "minY": 31320
      },
-     "components": 7,
+     "components": 6,
      "offset": 0,
-     "tiles": 2506,
+     "tiles": 2503,
      "z": 8
     },
     {
      "bounds": {
       "maxX": 33368,
-      "maxY": 31471,
+      "maxY": 31448,
       "minX": 33116,
       "minY": 31269
      },
-     "components": 26,
+     "components": 25,
      "offset": 1,
-     "tiles": 4516,
+     "tiles": 4515,
      "z": 9
     },
     {
@@ -30127,10 +30412,10 @@
      "z": 1
     },
     {
-     "floorIndex": 0,
+     "floorIndex": 1,
      "name": "Frost Dragon Tunnel",
      "wikiIndex": 282,
-     "z": 5
+     "z": 6
     }
    ]
   },

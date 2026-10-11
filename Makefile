@@ -4,12 +4,13 @@ SHELL := /bin/bash
 
 HERE := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-.PHONY: help server-build server-start build start
+.PHONY: help server-build server-test server-start build test start
 
 help:
 	@echo "CrystalServer (IdleOT)"
 	@echo "  make server-build       cmake + build (vcpkg)"
 	@echo "                          METRICS=1 compiles OpenTelemetry metrics (sticky; METRICS=0 drops it)"
+	@echo "  make server-test        build tests in build/<os>-test and run unit tests"
 	@echo "  make server-start       run ./crystalserver (cwd = this repo)"
 
 server-build:
@@ -68,6 +69,18 @@ server-build:
 		fi; \
 	fi
 
+server-test:
+	@VCPKG_ROOT="$${VCPKG_ROOT:-$(HOME)/vcpkg}"; \
+	test -f "$$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" || (echo "[server] install vcpkg first" && exit 1); \
+	export VCPKG_ROOT; \
+	case "$$(uname -s)" in Darwin) PRESET=macos-test; case "$$(uname -m)" in arm64|aarch64) export VCPKG_FORCE_SYSTEM_BINARIES=1 ;; esac ;; \
+		*) PRESET=linux-test ;; esac; \
+	JOBS="$$(sysctl -n hw.ncpu 2>/dev/null || nproc)"; \
+	cd "$(HERE)" && \
+		cmake --preset "$$PRESET" && \
+		cmake --build --preset "$$PRESET" -j"$$JOBS" && \
+		cd "$(HERE)/build/$$PRESET/tests/unit" && ctest --output-on-failure
+
 server-start:
 	@test -f "$(HERE)/config.lua" || cat "$(HERE)/config.lua.dist" "$(HERE)/deploy/config.idleot.lua" > "$(HERE)/config.lua"
 	@test -x "$(HERE)/crystalserver" || (echo "[server] missing ./crystalserver — make server-build" && exit 1)
@@ -75,4 +88,5 @@ server-start:
 
 # Short aliases (same as umbrella naming preferred)
 build: server-build
+test: server-test
 start: server-start
