@@ -13069,7 +13069,7 @@
   {
    "id": 302,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "wild",
    "cipId": 302,
    "name": "Gray Beach",
    "city": "Quirefang",
@@ -13696,7 +13696,7 @@
   {
    "id": 317,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "hunt",
    "cipId": 317,
    "name": "Rookgaard",
    "city": "Thais",
@@ -14278,7 +14278,7 @@
   {
    "id": 354,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "hunt",
    "cipId": 354,
    "name": "Cobra Bastion",
    "city": "Southern Darama",
@@ -14431,7 +14431,7 @@
   {
    "id": 357,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "hunt",
    "cipId": 357,
    "name": "Issavi",
    "city": "Kilmaresh",
@@ -14785,7 +14785,7 @@
   {
    "id": 391,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "hunt",
    "cipId": 391,
    "name": "Bounac",
    "city": "Vandura",
@@ -15659,7 +15659,7 @@
   {
    "id": 443,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "wild",
    "cipId": 443,
    "name": "Moonfall",
    "city": "Marapur",
@@ -15684,7 +15684,7 @@
   {
    "id": 444,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "hunt",
    "cipId": 444,
    "name": "Silvertides",
    "city": "Marapur",
@@ -15955,7 +15955,7 @@
   {
    "id": 450,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "wild",
    "cipId": 450,
    "name": "Roshamuul",
    "city": "Roshamuul",
@@ -16080,7 +16080,7 @@
   {
    "id": 455,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "wild",
    "cipId": 455,
    "name": "Edron",
    "city": "Edron",
@@ -16265,7 +16265,7 @@
   {
    "id": 461,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "wild",
    "cipId": 461,
    "name": "Yalahar",
    "city": "Yalahar",
@@ -16315,7 +16315,7 @@
   {
    "id": 463,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "hunt",
    "cipId": 463,
    "name": "Krailos",
    "city": "Krailos",
@@ -16758,7 +16758,7 @@
   {
    "id": 498,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "hunt",
    "cipId": 498,
    "name": "Candia",
    "city": "Feyrist",
@@ -17115,7 +17115,7 @@
   {
    "id": 507,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "wild",
    "cipId": 507,
    "name": "Blue Valley",
    "city": "Quirefang",
@@ -17489,7 +17489,7 @@
   {
    "id": 514,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "hunt",
    "cipId": 514,
    "name": "Newhaven",
    "city": "Thais",
@@ -17823,7 +17823,7 @@
   {
    "id": 526,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "wild",
    "cipId": 526,
    "name": "Targuna",
    "city": "Thais",
@@ -18017,7 +18017,7 @@
   {
    "id": 537,
    "source": "cip",
-   "kind": "settlement",
+   "kind": "wild",
    "cipId": 537,
    "name": "Salgadora",
    "city": "Marapur",

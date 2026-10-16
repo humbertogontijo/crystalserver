@@ -28,7 +28,7 @@ exist here or do not apply. This file records what is worth taking.
   they used to fire on the healing HP threshold. They now fire only while the caster
   has the condition they dispel (`CombatAutomationConfig.CureConditionByWords`, gate in
   `slotShouldFire`). The client shows a `CURE` badge and hides the HP trigger
-  (`isCureSlot` in `mods/custom/game_combat_automation`).
+  (`isCureSlot` in `src/tibia/idleot/combat`).
 - **Equipment rules (koliseu `equipment.md`).** New slot kind `equip`
   (`equipTypeId`, `triggerStat` hp/mana, `triggerPercent`, `releasePercent`), set on
   the equipment side slot of the bar (group 2: step 1 ammo for paladins, step 2
@@ -79,7 +79,7 @@ exist here or do not apply. This file records what is worth taking.
 1. **Away alerts (koliseu `classes/alarms/*`).** These are client-only and fit idle
    play well. Alert on HP below N% while automation runs, a private message, a
    death or soft death, and the expedition stopping (gold shortage or kicked). They can
-   reuse `mods/custom/game_attention` and the notify banner. Server signals already
+   reuse `src/tibia/idleot/attention` and the notify banner. Server signals already
    exist for the stop reasons.
 2. **Enable guards (koliseu `auto_haste.md`).** A slot that is enabled but has no
    valid spell, rune or item should refuse to enable and say why, instead of sitting

@@ -1,5 +1,5 @@
--- The account-wide loot pouch replaces the stock Gold Pouch, so its store offer is hidden.
 -- Product offers (lib/idleot/store) are appended to their stock categories.
+-- Stock Gold Pouch (store inbox, once) stays buyable — Crystal upstream behavior.
 local startup = GlobalEvent("IdleotStoreOffers")
 
 local function findCategory(name)
@@ -12,15 +12,6 @@ local function findCategory(name)
 end
 
 function startup.onStartup()
-	for _, category in ipairs(GameStore.Categories or {}) do
-		local offers = category.offers or {}
-		for i = #offers, 1, -1 do
-			if offers[i].itemtype == ITEM_GOLD_POUCH then
-				table.remove(offers, i)
-			end
-		end
-	end
-
 	for categoryName, offers in pairs(IdleotStore.buildOffers()) do
 		local category = findCategory(categoryName)
 		if category then

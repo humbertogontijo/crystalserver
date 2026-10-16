@@ -28,4 +28,5 @@ spell:mana(75)
 spell:isSelfTarget(true)
 spell:isAggressive(false)
 
+spell:isPremium(true)
 spell:register()

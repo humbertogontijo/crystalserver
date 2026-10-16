@@ -289,3 +289,11 @@ function PlayerErrand.useWith(player, itemId, position, opts)
 		return target and item or nil, target
 	end, opts)
 end
+
+--- Walk within `opts.reach` (default 3) of NPC/`opts.position`, then let `onDone` speak.
+--- Prefer PlayerController:talkTo — it re-validates range/NPC before each phrase.
+function PlayerErrand.talkTo(player, dest, opts)
+	opts = opts or {}
+	opts.reach = math.max(1, opts.reach or 3)
+	return PlayerErrand.walkTo(player, dest, opts)
+end

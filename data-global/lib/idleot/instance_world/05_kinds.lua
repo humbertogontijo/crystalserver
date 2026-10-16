@@ -12,10 +12,10 @@ InstanceKinds = InstanceKinds or {}
 InstanceKinds.KINDS = {
 	world = {},
 	city = { maxPlayers = 150 },
-	settlement = { maxPlayers = 80 },
 	hub = { maxPlayers = 150 },
 	wild = { maxPlayers = 60 },
 	hunt = { sessionWorldType = WORLDTYPE_OPTIONAL, maxPlayers = 30 },
+	house = { maxPlayers = 20 },
 	connector = {},
 	lobby = { worldType = WORLDTYPE_OPTIONAL },
 	raid = { worldType = WORLDTYPE_OPTIONAL },

@@ -25,7 +25,7 @@ function spell.onCastSpell(creature, var)
 end
 
 spell:group("attack", "burstsofnature")
-spell:id(263)
+spell:id(262)
 spell:name("Terra Burst")
 spell:words("exevo ulus tera")
 spell:castSound(SOUND_EFFECT_TYPE_SPELL_WRATH_OF_NATURE)

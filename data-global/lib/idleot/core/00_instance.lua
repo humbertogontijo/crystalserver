@@ -13,7 +13,7 @@ Instance.HUB = INSTANCE_HUB
 -- Kinds the subarea partition assigns to open-world regions.
 Instance.OPEN_WORLD_KINDS = {
 	city = true,
-	settlement = true,
+	house = true,
 	wild = true,
 	hunt = true,
 	connector = true,

@@ -272,7 +272,7 @@ local function isEquippedNonContainer(player, item)
 	return false
 end
 
---- Account-scoped loot pouch container.
+--- Character Gold Pouch (store inbox) via getLootPouch.
 local function findLootPouch(player)
 	if not player then
 		return nil

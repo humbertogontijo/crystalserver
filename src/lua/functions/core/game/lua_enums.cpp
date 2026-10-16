@@ -838,7 +838,6 @@ void LuaEnums::initConstSlotEnums(lua_State* L) {
 	registerEnum(L, CONST_SLOT_RING);
 	registerEnum(L, CONST_SLOT_AMMO);
 	registerEnum(L, CONST_SLOT_STORE_INBOX);
-	registerEnum(L, CONST_SLOT_LOOT_POUCH);
 	registerEnum(L, CONST_SLOT_LAST);
 }
 

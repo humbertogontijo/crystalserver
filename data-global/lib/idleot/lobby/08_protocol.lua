@@ -326,6 +326,7 @@ handlers.preyAction = function(player, msg)
 	reply(player, ok, err, false)
 end
 
+-- Legacy JSON path (opcode 117). Preferred: client C 0x0D → Game.playerRequestCharacterSwitch.
 handlers.switchAlt = function(player, msg)
 	local ok, err = Alts.switchAlt(player, msg.name)
 	reply(player, ok, err, false)

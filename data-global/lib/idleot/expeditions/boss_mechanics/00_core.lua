@@ -290,23 +290,54 @@ function Context:errandOpts(opts)
 	return wrapped
 end
 
+function Context:playerController(player)
+	if not player or not PlayerController then
+		return nil
+	end
+	local ctrl = PlayerController.get(player)
+	ctrl:bindManualMap(self.session and self.session.manualIds)
+	return ctrl
+end
+
 function Context:walkTo(player, dest, opts)
+	local ctrl = self:playerController(player)
+	if ctrl then
+		local wrapped = self:errandOpts(opts)
+		wrapped.noTeleport = true -- stay in the arena; never warp mid-mechanic
+		return ctrl:goTo(dest, wrapped)
+	end
 	return PlayerErrand.walkTo(player, dest, self:errandOpts(opts))
 end
 
 function Context:stepOnto(player, dest, opts)
+	local ctrl = self:playerController(player)
+	if ctrl then
+		return ctrl:stepOnto(dest, self:errandOpts(opts))
+	end
 	return PlayerErrand.stepOnto(player, dest, self:errandOpts(opts))
 end
 
 function Context:use(player, position, itemId, opts)
+	local ctrl = self:playerController(player)
+	if ctrl then
+		return ctrl:useAt(position, itemId, self:errandOpts(opts))
+	end
 	return PlayerErrand.use(player, position, itemId, self:errandOpts(opts))
 end
 
 function Context:useWith(player, itemId, position, opts)
+	local ctrl = self:playerController(player)
+	if ctrl then
+		return ctrl:useWith(itemId, position, self:errandOpts(opts))
+	end
 	return PlayerErrand.useWith(player, itemId, position, self:errandOpts(opts))
 end
 
 function Context:pickUp(player, position, itemId, opts)
+	local ctrl = self:playerController(player)
+	if ctrl then
+		return ctrl:pickUp(position, itemId, self:errandOpts(opts))
+	end
 	return PlayerErrand.pickUp(player, position, itemId, self:errandOpts(opts))
 end
 

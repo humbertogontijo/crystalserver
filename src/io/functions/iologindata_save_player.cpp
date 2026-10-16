@@ -305,8 +305,7 @@ bool IOLoginDataSave::savePlayerFirst(const std::shared_ptr<Player> &player) {
 	}
 
 	query << "`lastlogout` = " << player->getLastLogout() << ",";
-	// Character balance is non-authoritative; account balance is the shared bank.
-	query << "`balance` = 0,";
+	query << "`balance` = " << player->bankBalance << ",";
 	query << "`offlinetraining_time` = " << player->getOfflineTrainingTime() / 1000 << ",";
 	query << "`offlinetraining_skill` = " << std::to_string(player->getOfflineTrainingSkill()) << ",";
 	query << "`stamina` = " << player->getStaminaMinutes() << ",";
@@ -399,18 +398,6 @@ bool IOLoginDataSave::savePlayerFirst(const std::shared_ptr<Player> &player) {
 
 	if (!db.executeQuery(query.str())) {
 		return false;
-	}
-
-	const auto accountId = player->getAccountId();
-	if (accountId != 0) {
-		if (!db.executeQuery(fmt::format(
-				"UPDATE `accounts` SET `balance` = {} WHERE `id` = {}",
-				player->bankBalance,
-				accountId
-			))) {
-			g_logger().error("[IOLoginData::savePlayer] - Failed to save account bank balance for player {}", player->getName());
-			return false;
-		}
 	}
 
 	if (advanceLastLoginSaved) {
@@ -575,10 +562,6 @@ bool IOLoginDataSave::savePlayerItem(const std::shared_ptr<Player> &player) {
 
 	ItemBlockList itemList;
 	for (int32_t slotId = CONST_SLOT_FIRST; slotId <= CONST_SLOT_LAST; ++slotId) {
-		if (slotId == CONST_SLOT_LOOT_POUCH) {
-			// Account loot pouch contents persist in account_loot_pouch_items; slot is a handle only.
-			continue;
-		}
 		const auto &item = player->inventory[slotId];
 		if (item) {
 			itemList.emplace_back(slotId, item);
@@ -625,38 +608,6 @@ bool IOLoginDataSave::savePlayerDepotItems(const std::shared_ptr<Player> &player
 		return true;
 	}
 	return true;
-}
-
-bool IOLoginDataSave::saveAccountLootPouch(const std::shared_ptr<Player> &player) {
-	if (!player) {
-		g_logger().warn("[IOLoginData::savePlayer] - Player nullptr: {}", __FUNCTION__);
-		return false;
-	}
-
-	const auto accountId = player->getAccountId();
-	if (accountId == 0) {
-		return true;
-	}
-
-	const auto &pouch = player->getAccountLootPouch();
-	if (!pouch) {
-		return true;
-	}
-
-	Database &db = Database::getInstance();
-	if (!db.executeQuery(fmt::format("DELETE FROM `account_loot_pouch_items` WHERE `account_id` = {}", accountId))) {
-		return false;
-	}
-
-	// pid 0 marks direct pouch children (the pouch itself is not stored).
-	ItemBlockList itemList;
-	for (const auto &item : pouch->getItemList()) {
-		itemList.emplace_back(0, item);
-	}
-
-	PropWriteStream propWriteStream;
-	DBInsert pouchQuery("INSERT INTO `account_loot_pouch_items` (`account_id`, `pid`, `sid`, `itemtype`, `count`, `attributes`) VALUES ");
-	return saveItems(player, itemList, pouchQuery, propWriteStream, accountId);
 }
 
 bool IOLoginDataSave::saveRewardItems(const std::shared_ptr<Player> &player) {

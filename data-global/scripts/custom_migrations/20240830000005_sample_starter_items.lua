@@ -1,6 +1,6 @@
 -- IdleOT custom migration (was numbered core *.product).
 -- Seed vocation starter kit + store inbox on "* Sample" characters.
--- Loot pouch is account-scoped (see account_loot_pouch migration); not seeded here.
+-- Gold Pouch is store-bought (store inbox); not seeded here.
 -- Dev-only seed; real characters get their kit from scripts/idleot/starter_kit.
 
 local STORE_INBOX_ID = 23396

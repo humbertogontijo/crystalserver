@@ -51,4 +51,5 @@ rune:needTarget(true)
 rune:isBlocking(true) -- True = Solid / False = Creature
 rune:castSound(SOUND_EFFECT_TYPE_SPELL_OR_RUNE)
 rune:impactSound(SOUND_EFFECT_TYPE_SPELL_CONVINCE_CREATURE_RUNE)
+rune:isAggressive(false)
 rune:register()

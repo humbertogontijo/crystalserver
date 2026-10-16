@@ -617,6 +617,13 @@ public:
 	bool hasManualWalk() const {
 		return manualWalking;
 	}
+	/** Client option "always turn towards the direction of movement" (SetClientOptions 0x2E, option 1). */
+	void setTurnTowardsMoveDirection(bool enabled) {
+		turnTowardsMoveDirection = enabled;
+	}
+	/** A step towards `dir` was refused: with the option on, the player turns that way (a diagonal
+	 *  to east / west, as the client does). True when it turned. */
+	bool turnTowardsRefusedStep(Direction dir, ReturnValue result);
 	/** Following the creature the client asked to follow. */
 	bool isManualFollow() const;
 	/** Client input owns movement: a manual walk or follow is running, or the last
@@ -1187,6 +1194,11 @@ public:
 	void removeBakragoreIcons();
 	void removeBakragoreIcon(const IconBakragore icon);
 	void sendClientCheck() const;
+	void sendPartyLeft() const;
+	/// CIP FriendSystemData (S 0x74); dataType = FRIENDSYSTEM_DATATYPE_* (0 ERROR + msg).
+	void sendFriendSystemData(uint8_t dataType, const std::string &message = {}) const;
+	/// CIP HirelingNameChange (S 0xDB); see ProtocolGame::sendHirelingNameChange.
+	void sendHirelingNameChange(uint32_t creatureId = 0, uint32_t objectId = 0) const;
 	void sendGameNews() const;
 	void sendMagicEffect(const Position &pos, uint16_t type, SourceEffect_t source = SourceEffect_t::GLOBAL) const;
 	void removeMagicEffect(const Position &pos, uint16_t type) const;
@@ -1281,6 +1293,7 @@ public:
 
 	void sendChannel(uint16_t channelId, const std::string &channelName, const UsersMap* channelUsers, const InvitedMap* invitedUsers) const;
 	void sendTutorial(uint8_t tutorialId) const;
+	void sendExivaSuppressed() const;
 	void sendAddMarker(const Position &pos, uint8_t markType, const std::string &desc) const;
 	void sendItemInspection(uint16_t itemId, uint8_t itemCount, const std::shared_ptr<Item> &item, uint8_t inspectionType) const;
 	void sendCyclopediaCharacterNoData(CyclopediaCharacterInfoType_t characterInfoType, uint8_t errorCode) const;
@@ -1482,7 +1495,8 @@ public:
 
 	bool canAutoWalk(const Position &toPosition, const std::function<void()> &function, uint32_t delay = 500);
 
-	void sendMessageDialog(const std::string &message) const;
+	// Type 0x14 is the prey info box, 0x1E the supply stash dialog.
+	void sendMessageDialog(const std::string &message, uint8_t type = 0x14) const;
 
 	// Account
 	bool setAccount(uint32_t accountId);
@@ -1773,17 +1787,7 @@ public:
 
 	void sendLootMessage(const std::string &message) const;
 
-	/** Account loot pouch (created on demand), re-parented to this player unless another alt has it open. */
 	std::shared_ptr<Container> getLootPouch();
-	/** Account loot pouch (peek; no create / parent link). */
-	std::shared_ptr<Container> getAccountLootPouch() const;
-	/** Share one pouch container across online characters of the same account. */
-	void setAccountLootPouch(const std::shared_ptr<Container> &pouch);
-	/** Toggle-open the account loot pouch (slot-12 handle use).
-	 *  preferredContainerId is the OTC container window cid from useItem (0xFF = first free). */
-	ReturnValue openAccountLootPouch(uint8_t preferredContainerId = 0xFF);
-	/** True when this container is the account loot pouch. */
-	bool isAccountLootPouchContainer(const std::shared_ptr<Container> &container) const;
 
 	bool hasPermittedConditionInPZ() const;
 
@@ -2079,13 +2083,6 @@ private:
 	std::shared_ptr<Town> town;
 	std::shared_ptr<Vocation> vocation = nullptr;
 	std::shared_ptr<RewardChest> rewardChest = nullptr;
-	/** Shared across online characters on the same account (one pouch per account/world). */
-	std::shared_ptr<Container> accountLootPouch;
-
-	void ensureAccountLootPouch();
-	/** Install empty pouch handle into CONST_SLOT_LOOT_POUCH (appearance / use target). */
-	void installAccountLootPouchSlot();
-	void handOffAccountLootPouch();
 
 	uint32_t inventoryWeight = 0;
 	uint32_t capacity = 60000;
@@ -2204,6 +2201,7 @@ private:
 	int64_t manualControlAt = 0;
 	uint32_t manualFollowId = 0;
 	bool manualWalking = false;
+	bool turnTowardsMoveDirection = false;
 	bool m_headless = false;
 	bool moved = false;
 	bool m_isDead = false;

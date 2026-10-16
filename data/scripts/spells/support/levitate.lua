@@ -43,6 +43,6 @@ spell:level(12)
 spell:mana(50)
 spell:hasParams(true)
 spell:isAggressive(false)
-spell:isPremium(true)
+spell:isPremium(false)
 
 spell:register()

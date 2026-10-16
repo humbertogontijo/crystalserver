@@ -1589,7 +1589,7 @@ std::tuple<int, int> PlayerWheel::getGreaterGradeCost(uint8_t grade) const {
 		case 1:
 			return std::make_tuple(5000000, 5);
 		case 2:
-			return std::make_tuple(12000000, 15);
+			return std::make_tuple(12500000, 15);
 		case 3:
 			return std::make_tuple(75000000, 30);
 		default:

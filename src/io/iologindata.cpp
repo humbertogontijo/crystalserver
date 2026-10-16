@@ -152,9 +152,6 @@ bool IOLoginData::loadPlayer(const std::shared_ptr<Player> &player, const DBResu
 		// load depot items
 		IOLoginDataLoad::loadPlayerDepotItems(player, result);
 
-		// account-scoped loot pouch (shared across alts)
-		IOLoginDataLoad::loadAccountLootPouch(player);
-
 		// load reward items
 		IOLoginDataLoad::loadRewardItems(player);
 
@@ -254,10 +251,6 @@ bool IOLoginData::savePlayerGuard(const std::shared_ptr<Player> &player) {
 
 	if (!IOLoginDataSave::savePlayerDepotItems(player)) {
 		throw DatabaseException("[IOLoginDataSave::savePlayerDepotItems] - Failed to save player depot items: " + player->getName());
-	}
-
-	if (!IOLoginDataSave::saveAccountLootPouch(player)) {
-		throw DatabaseException("[IOLoginDataSave::saveAccountLootPouch] - Failed to save account loot pouch: " + player->getName());
 	}
 
 	if (!IOLoginDataSave::saveRewardItems(player)) {
@@ -375,40 +368,8 @@ bool IOLoginData::formatPlayerName(std::string &name) {
 }
 
 void IOLoginData::increaseBankBalance(uint32_t guid, uint64_t bankBalance) {
-	Database &db = Database::getInstance();
-	DBResult_ptr result = db.storeQuery(fmt::format("SELECT `account_id` FROM `players` WHERE `id` = {}", guid));
-	if (!result) {
-		g_logger().error("[{}] - Player id {} not found", __FUNCTION__, guid);
-		return;
-	}
-
-	const auto accountId = result->getNumber<uint32_t>("account_id");
-	if (accountId == 0) {
-		g_logger().error("[{}] - Player id {} has no account", __FUNCTION__, guid);
-		return;
-	}
-
-	if (!db.executeQuery(fmt::format(
-			"UPDATE `accounts` SET `balance` = `balance` + {} WHERE `id` = {}",
-			bankBalance,
-			accountId
-		))) {
-		g_logger().error("[{}] - Failed to credit account {} bank balance", __FUNCTION__, accountId);
-		return;
-	}
-
-	result = db.storeQuery(fmt::format("SELECT `balance` FROM `accounts` WHERE `id` = {}", accountId));
-	if (!result) {
-		return;
-	}
-
-	const auto newBalance = result->getNumber<uint64_t>("balance");
-	const auto accountPlayers = g_game().getOnlineAccountPlayers(accountId);
-	if (!accountPlayers.empty()) {
-		// setBankBalance syncs the rest of the account.
-		accountPlayers.front()->setBankBalance(newBalance);
-		accountPlayers.front()->sendResourceBalance(RESOURCE_BANK, newBalance);
-	}
+	std::string query = fmt::format("UPDATE `players` SET `balance` = `balance` + {} WHERE `id` = {} AND `world_id` = {}", bankBalance, guid, g_game().worlds().getCurrentWorld()->id);
+	Database::getInstance().executeQuery(query);
 }
 
 std::vector<VIPEntry> IOLoginData::getVIPEntries(uint32_t accountId) {

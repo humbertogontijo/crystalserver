@@ -16,7 +16,7 @@ function rune.onCastSpell(creature, var, isHotkey)
 	return combat:execute(creature, var)
 end
 
-rune:id(7)
+rune:id(168)
 rune:group("attack")
 rune:name("lightest magic missile rune")
 rune:castSound(SOUND_EFFECT_TYPE_SPELL_OR_RUNE)
@@ -31,5 +31,5 @@ rune:cooldown(2 * 1000)
 rune:groupCooldown(2 * 1000)
 rune:needTarget(true)
 rune:isBlocking(true) -- True = Solid / False = Creature
-rune:vocation("sorcerer;true", "master sorcerer;true", "druid;true", "elder druid;true", "paladin;true", "royal paladin;true", "knight;true", "elite knight;true")
+rune:vocation("knight;true", "elite knight;true", "paladin;true", "royal paladin;true", "sorcerer;true", "master sorcerer;true", "druid;true", "elder druid;true", "monk;true", "exalted monk;true")
 rune:register()

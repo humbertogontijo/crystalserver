@@ -198,6 +198,7 @@ bool Party::leaveParty(const std::shared_ptr<Player> &player, bool forceRemove /
 
 	player->setParty(nullptr);
 	player->sendClosePrivate(CHANNEL_PARTY);
+	player->sendPartyLeft();
 	g_game().updatePlayerShield(player);
 	g_game().updatePlayerHelpers(player);
 

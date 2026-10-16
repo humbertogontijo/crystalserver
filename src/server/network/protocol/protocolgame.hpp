@@ -193,6 +193,15 @@ private:
 	void sendPlayerInspection(const std::shared_ptr<Player> &target);
 
 	void parseFriendSystemAction(NetworkMessage &msg);
+	/// CIP FriendSystemData (S 0x74). dataType matches FRIENDSYSTEM_DATATYPE_*
+	/// (0 ERROR + message, 1 invite notice, 7 friendship notice, …).
+	void sendFriendSystemData(uint8_t dataType, const std::string &message = {});
+	/// CIP SpellDataModification (S 0x60): u16 count + count×(u16 spellId, u8 mod, u8 value).
+	void sendSpellDataModification(const std::vector<std::tuple<uint16_t, uint8_t, uint8_t>> &entries);
+	/// CIP GemAtelierGemRevealed (S 0xC5): u32 gem id.
+	void sendGemAtelierGemRevealed(uint32_t gemId);
+	/// CIP HirelingNameChange (S 0xDB). creatureId/objectId may be 0 for a store name prompt.
+	void sendHirelingNameChange(uint32_t creatureId = 0, uint32_t objectId = 0);
 
 	void parseCyclopediaCharacterInfo(NetworkMessage &msg);
 
@@ -210,6 +219,9 @@ private:
 	void parseSendResourceBalance(const Player *dataPlayer = nullptr);
 	void parseSendResourceBalance(NetworkMessage &msg);
 	void parseRuleViolationReport(NetworkMessage &msg);
+	void parseGetGuildMessage();
+	void parseEditGuildMessage(NetworkMessage &msg);
+	void parseGetTextForReport(NetworkMessage &msg);
 
 	void parseBestiarySendRaces();
 	void parseBestiarySendCreatures(NetworkMessage &msg);
@@ -222,6 +234,7 @@ private:
 	void parsePartyAnalyzerAction(NetworkMessage &msg) const;
 	void parseLeaderFinderWindow(NetworkMessage &msg);
 	void parseMemberFinderWindow(NetworkMessage &msg);
+	void parseSetClientOptions(NetworkMessage &msg);
 	void parseSendBuyCharmRune(NetworkMessage &msg);
 	void parseBestiarysendMonsterData(NetworkMessage &msg);
 	void parseCyclopediaMonsterTracker(NetworkMessage &msg);
@@ -379,6 +392,8 @@ private:
 	void sendCyclopediaMapDonations(uint64_t donationGoal, const std::vector<std::tuple<uint16_t, bool, uint64_t>> &areas);
 	void sendCyclopediaMapDiscoveryData(const std::vector<std::tuple<uint16_t, uint8_t, uint8_t>> &mainAreas, const std::vector<uint16_t> &discoveredSubAreas, const std::vector<uint16_t> &discoverableSubAreas);
 	void sendCyclopediaMapSetDiscoveryArea(uint16_t areaId, bool active, uint8_t poiTarget, const std::vector<std::pair<Position, uint8_t>> &points);
+	/// 0xDD subtype 6 — traveler NPC positions (CIP CyclopediaMapDataPassage).
+	void sendCyclopediaMapPassages();
 	void parseCyclopediaMapAction(NetworkMessage &msg, uint8_t recvbyte); // C2S 0x92 + 0xDB (Map tab: requests / donations)
 	void handleDiscoveryDonation(uint16_t areaId, uint64_t amount);
 
@@ -413,6 +428,8 @@ private:
 	void sendCloseShop();
 	void sendNpcDialogOptions(const NpcDialogOptions &dialogOptions);
 	void sendClientCheck();
+	/// CIP PartyLeft (S 0x06) — empty notification that the player left a party.
+	void sendPartyLeft();
 	void sendGameNews();
 	void sendResourcesBalance(uint64_t money = 0, uint64_t bank = 0, uint64_t preyCards = 0, uint64_t taskHunting = 0, uint64_t soulsealsPoints = 0, uint64_t forgeDust = 0, uint64_t forgeSliver = 0, uint64_t forgeCores = 0);
 	void sendResourceBalance(Resource_t resourceType);
@@ -440,6 +457,9 @@ private:
 	void updatePartyTrackerAnalyzer(const std::shared_ptr<Party> &party);
 
 	void sendTextWindow(uint32_t windowTextId, uint32_t itemId, const std::string &text);
+	void sendEditGuildMessage(const std::string &message);
+	void sendTextForReport(uint32_t textId, const std::string &text, const std::string &author);
+	void sendExivaSuppressed();
 	void sendTextWindow(uint32_t windowTextId, const std::shared_ptr<Item> &item, uint16_t maxlen, bool canWrite);
 	void sendHouseWindow(uint32_t windowTextId, const std::string &text);
 	void sendOutfitWindow();
@@ -451,6 +471,16 @@ private:
 
 	void sendPendingStateEntered();
 	void sendEnterWorld();
+	/// CIP S 0x0B ReadyForSecondaryConnection (token for SecondaryLogin on the stability socket).
+	void sendReadyForSecondaryConnection(const std::string &token);
+	/// True when this ProtocolGame is the CIP dual-connection stability socket (no player).
+	bool isStabilitySecondary() const {
+		return stabilitySecondaryOnly;
+	}
+	/// Primary session this secondary is bound to (empty on primary / unbound).
+	ProtocolGame_ptr getBoundPrimary() const {
+		return boundPrimary.lock();
+	}
 
 	void sendFightModes();
 
@@ -539,7 +569,7 @@ private:
 	void sendBlessStatus();
 	// End Blessing
 	void sendPremiumTrigger();
-	void sendMessageDialog(const std::string &message);
+	void sendMessageDialog(const std::string &message, uint8_t type = 0x14);
 	void AddWorldLight(NetworkMessage &msg, LightInfo lightInfo);
 	void AddCreatureLight(NetworkMessage &msg, const std::shared_ptr<Creature> &creature);
 
@@ -559,6 +589,8 @@ private:
 
 	// otclient
 	void parseExtendedOpcode(NetworkMessage &msg);
+	/// IdleOT C 0x0D: request same-socket switch to another account character.
+	void parseCharacterSwitchRequest(NetworkMessage &msg);
 
 	// OTCv8
 	void sendFeatures();
@@ -625,8 +657,19 @@ private:
 
 	bool loggedIn = false;
 	bool shouldAddExivaRestrictions = false;
+	bool readyForSecondaryConnectionSent = false;
+	/// Dual-connection second TCP: SecondaryLogin binds to primary (shared XTEA, no second player).
+	bool stabilitySecondaryOnly = false;
+	std::string secondaryConnectionToken;
+	/// Primary ProtocolGame when this instance is the stability secondary.
+	std::weak_ptr<ProtocolGame> boundPrimary;
+	/// Stability secondary socket bound to this primary (fan-out encrypted game frames).
+	std::weak_ptr<ProtocolGame> boundSecondary;
 
 	bool oldProtocol = false;
+
+	/// After Connection skipped paddingAmount+opcode (0x0B), remaining is the CIP string token.
+	bool tryAcceptSecondaryLogin(NetworkMessage &msg);
 
 	uint16_t otclientV8 = 0;
 	bool isOTC = false;
@@ -654,6 +697,7 @@ private:
 	void sendScreenshotAndBannerProgressQuest(const std::string &questName, bool isCompleted);
 	void sendScreenshotAndBannerProficiencyProgress(uint16_t itemId, const std::string &message);
 	void sendScreenshotAndBannerUnlockedSpell(uint16_t spellId);
+	void sendUnlockedSpells(const std::vector<uint16_t> &spellIds);
 	void sendScreenshotAndBannerBountyTaskFinished(uint16_t raceId);
 	void sendScreenshotAndBannerWeeklyTaskSpecificFinished(uint16_t raceId);
 	void sendScreenshotAndBannerLeaderMonsterKilled(uint16_t raceId, uint32_t charmPoints);

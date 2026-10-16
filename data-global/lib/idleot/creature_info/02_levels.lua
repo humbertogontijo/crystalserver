@@ -10,8 +10,8 @@ local MONSTER_LEVEL_COEF = 1.5
 local MONSTER_LEVEL_EXP = 0.6
 local PARTY_LEVEL_RATIO = 0.6
 local HUNT_LEVEL_REF_POWER = 0
-local HUNT_LEVEL_SCALE = 0.428
-local HUNT_LEVEL_EXP = 0.695
+local HUNT_LEVEL_SCALE = 0.445
+local HUNT_LEVEL_EXP = 0.727
 --- Pack: (Σ share_i × CP_i) × density^HUNT_DENSITY_EXP
 local HUNT_DENSITY_EXP = 0
 

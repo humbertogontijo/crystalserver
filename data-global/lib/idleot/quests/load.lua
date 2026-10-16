@@ -23,6 +23,7 @@ local files = {
 	"06_kitno_boss.lua",
 	"08_chest_grant.lua",
 	"07_arena.lua",
+	"09_cip_quest_links.lua",
 }
 
 for _, file in ipairs(files) do

@@ -5,7 +5,7 @@
 -- Public open-world kinds; private sessions (hunt expeditions, lobbies, raids) never switch.
 InstanceWorld.SWITCHABLE_CHANNEL_KINDS = {
 	city = true,
-	settlement = true,
+	house = true,
 	hub = true,
 	wild = true,
 	hunt = true,

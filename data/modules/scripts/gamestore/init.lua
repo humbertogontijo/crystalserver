@@ -134,6 +134,12 @@ GameStore.ClientOfferTypes = {
 	CLIENT_STORE_OFFER_HIRELING = 3,
 }
 
+-- The client tells a purchase from a coin transfer by this byte of the success message.
+GameStore.SuccessTypes = {
+	PURCHASE = 0,
+	TRANSFER = 1,
+}
+
 GameStore.HistoryTypes = {
 	HISTORY_TYPE_NONE = 0,
 	HISTORY_TYPE_GIFT = 1,
@@ -271,6 +277,11 @@ function onRecvbyte(player, msg, byte)
 	end
 
 	if byte == GameStore.RecivedPackets.C_StoreEvent then
+		-- CIP StoreEvent (C 0xE9): OTC sends a single event-type byte; unused here.
+		msg:getByte()
+	elseif byte == GameStore.RecivedPackets.C_ParseHirelingName then
+		-- CIP SetHirelingName (C 0xEC): name for a pending HirelingNameChange (S 0xDB).
+		parseSetHirelingName(player:getId(), msg)
 	elseif byte == GameStore.RecivedPackets.C_TransferCoins then
 		parseTransferableCoins(player:getId(), msg)
 	elseif byte == GameStore.RecivedPackets.C_OpenStore then
@@ -319,7 +330,7 @@ function parseTransferableCoins(playerId, msg)
 
 	db.query("UPDATE `accounts` SET `coins_transferable` = `coins_transferable` + " .. amount .. " WHERE `id` = " .. accountId)
 	player:removeTransferableCoinsBalance(amount)
-	addPlayerEvent(sendStorePurchaseSuccessful, 550, playerId, "You have transfered " .. amount .. " coins to " .. reciver .. " successfully")
+	addPlayerEvent(sendStorePurchaseSuccessful, 550, playerId, "You have transfered " .. amount .. " coins to " .. reciver .. " successfully", GameStore.SuccessTypes.TRANSFER)
 
 	-- Adding history for both receiver/sender
 	GameStore.insertHistory(accountId, GameStore.HistoryTypes.HISTORY_TYPE_NONE, player:getName() .. " transferred you this amount.", amount, GameStore.CoinType.Transferable)
@@ -389,7 +400,8 @@ function parseRequestStoreOffers(playerId, msg)
 			offerId = GameStore.SubActions.WEEKLY_TASK_EXPANSION
 		end
 
-		if offerId >= GameStore.SubActions.BLESSING_TWIST and offerId <= GameStore.SubActions.BLESSING_ALL_PVP then
+		-- The client's blessing dialog opens useful things 4..12 (one per blessing) and 14.
+		if (offerId >= GameStore.SubActions.BLESSING_SOLITUDE and offerId <= GameStore.SubActions.BLESSING_TWIST) or offerId == GameStore.SubActions.BLESSING_ALL_PVP then
 			category = GameStore.getCategoryByName("Blessings")
 		else
 			category = GameStore.getCategoryByName("Useful Things")
@@ -1205,7 +1217,7 @@ function sendStoreTransactionHistory(playerId, page, entriesPerPage)
 	msg:sendToPlayer(player)
 end
 
-function sendStorePurchaseSuccessful(playerId, message)
+function sendStorePurchaseSuccessful(playerId, message, successType)
 	local player = Player(playerId)
 	if not player then
 		return false
@@ -1217,7 +1229,7 @@ function sendStorePurchaseSuccessful(playerId, message)
 	local totalCoins = GameStore.getStorePurchasableCoins(player)
 	local msg = NetworkMessage()
 	msg:addByte(GameStore.SendingPackets.S_CompletePurchase)
-	msg:addByte(0x00)
+	msg:addByte(successType or GameStore.SuccessTypes.PURCHASE)
 	msg:addString(message, "sendStorePurchaseSuccessful - message")
 	if oldProtocol then
 		-- Send all coins can be used for buy store offers
@@ -1300,6 +1312,48 @@ function sendRequestPurchaseData(playerId, offerId, type)
 	msg:addU32(offerId)
 	msg:addByte(type)
 	msg:sendToPlayer(player)
+end
+
+-- CIP HirelingNameChange (S 0xDB). Zeros open a store-style name prompt; the client
+-- answers with SetHirelingName (C 0xEC).
+function sendHirelingNameChange(playerId, creatureId, objectId)
+	local player = Player(playerId)
+	if not player then
+		return false
+	end
+
+	local msg = NetworkMessage()
+	msg:addByte(0xDB)
+	msg:addU32(creatureId or 0)
+	msg:addU32(objectId or 0)
+	msg:sendToPlayer(player)
+	return true
+end
+
+GameStore.pendingHirelingNameOffers = GameStore.pendingHirelingNameOffers or {}
+
+function parseSetHirelingName(playerId, msg)
+	local player = Player(playerId)
+	if not player then
+		return false
+	end
+
+	local hirelingName = msg:getString()
+	local offerId = GameStore.pendingHirelingNameOffers[playerId]
+	if not offerId then
+		return false
+	end
+
+	GameStore.pendingHirelingNameOffers[playerId] = nil
+	local offer = GameStore.getOfferById(offerId)
+	if not offer then
+		return false
+	end
+
+	if offer.type == GameStore.OfferTypes.OFFER_TYPE_HIRELING_NAMECHANGE then
+		return GameStore.processHirelingChangeNamePurchase(player, offer, GameStore.ClientOfferTypes.CLIENT_STORE_OFFER_NAMECHANGE, hirelingName)
+	end
+	return false
 end
 
 --==GameStoreFunctions==--
@@ -1902,8 +1956,7 @@ function GameStore.processHirelingPurchase(player, offer, productType, hirelingN
 		if player:getHirelingsCount() >= GameStore.ItemLimit.HIRELING then
 			return error({ code = 1, message = "You cannot have more than " .. GameStore.ItemLimit.HIRELING .. " hirelings." })
 		end
-		-- TODO: Use the correct dialog (byte 0xDB) on client 1205+
-		-- for compatibility, request name using the change name dialog
+		-- New hireling needs name + sex: RequestPurchaseData type 3 opens HirelingConfigurationDialog.
 		return addPlayerEvent(sendRequestPurchaseData, 250, player:getId(), offer.id, GameStore.ClientOfferTypes.CLIENT_STORE_OFFER_HIRELING)
 	end
 end
@@ -1970,7 +2023,9 @@ function GameStore.processHirelingChangeNamePurchase(player, offer, productType,
 		addPlayerEvent(sendStorePurchaseSuccessful, 200, playerId, message)
 		addPlayerEvent(HandleHirelingNameChange, 550, playerId, offer, newHirelingName)
 	else
-		return addPlayerEvent(sendRequestPurchaseData, 250, player:getId(), offer.id, GameStore.ClientOfferTypes.CLIENT_STORE_OFFER_NAMECHANGE)
+		-- CIP HirelingNameChange (S 0xDB); do not reuse character-name RequestPurchaseData (type 1).
+		GameStore.pendingHirelingNameOffers[player:getId()] = offer.id
+		return addPlayerEvent(sendHirelingNameChange, 250, player:getId(), 0, 0)
 	end
 end
 
@@ -2345,6 +2400,8 @@ function sendHomePage(playerId)
 				local daySub = offer.validUntil - os.date("*t").day
 				if daySub >= 0 then
 					msg:addByte(offer.state)
+					msg:addU32(os.time() + daySub * 86400)
+					msg:addU32(offer.basePrice)
 				else
 					msg:addByte(GameStore.States.STATE_NONE)
 				end

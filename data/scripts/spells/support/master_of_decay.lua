@@ -27,7 +27,7 @@ end
 spell:name("Master of Decay")
 spell:words("uteta mort")
 spell:group("support", "stance")
-spell:vocation("sorcerer;true", "master sorcerer;true")
+spell:vocation("master sorcerer;true")
 spell:id(306)
 spell:cooldown(30 * 1000)
 spell:groupCooldown(2 * 1000, 30 * 1000)

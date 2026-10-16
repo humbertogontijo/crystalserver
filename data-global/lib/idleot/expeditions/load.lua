@@ -8,6 +8,7 @@ local files = {
 	"04b_boss.lua",
 	"04c_boss_detail.lua",
 	"boss_mechanics/load.lua",
+	"quest_mechanics/load.lua",
 	"04d_metrics.lua",
 	"05_ai.lua",
 	"06_protocol.lua",

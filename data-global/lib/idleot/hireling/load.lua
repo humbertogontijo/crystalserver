@@ -32,7 +32,7 @@ local function collectOwnedItemIds(player)
 		scan(player:getSlotItem(slot))
 	end
 
-	-- Account-scoped loot pouch (slot 12 is only an empty handle).
+	-- Gold Pouch in store inbox (Crystal upstream getLootPouch).
 	scan(player:getLootPouch())
 
 	return owned

@@ -60,6 +60,17 @@ public:
 
 	void send(OutputMessage_ptr msg) const;
 
+	/// Copy session XTEA material onto another Protocol (CIP dual-connection secondary).
+	void copyXTEAKeyTo(Protocol &other) const {
+		other.setXTEAKey(key.data());
+		if (encryptionEnabled) {
+			other.enableXTEAEncryption();
+		}
+	}
+	bool isXTEAEnabled() const {
+		return encryptionEnabled;
+	}
+
 protected:
 	void disconnect() const;
 

@@ -65,7 +65,6 @@ npcType.onCloseChannel = function(npc, creature)
 end
 
 local TARGUNA_DESTINATION = Position(31938, 31928, 7)
-local MIN_LEVEL_TO_TRAVEL = 8
 
 local function creatureSayCallback(npc, creature, type, message)
 	local player = Player(creature)
@@ -80,16 +79,17 @@ local function creatureSayCallback(npc, creature, type, message)
 	local playerId = player:getId()
 
 	if MsgContains(message, "passage") then
-		if player:getLevel() < MIN_LEVEL_TO_TRAVEL then
-			npcHandler:say("You need to be at least level " .. MIN_LEVEL_TO_TRAVEL .. " to travel to Targuna. Keep training!", npc, creature)
+		-- Global Newhaven: pick a vocation in town first; no level grind gate.
+		if player:getVocation():getId() == VOCATION_NONE then
+			npcHandler:say("Choose your vocation in the village before I take you to Targuna.", npc, creature)
 			return true
 		end
 
 		npcHandler:say("I'm offering a ferry service to the island {Targuna}, are you interested?", npc, creature)
 		npcHandler:setTopic(playerId, 1)
 	elseif MsgContains(message, "yes") then
-		if player:getLevel() < MIN_LEVEL_TO_TRAVEL then
-			npcHandler:say("You need to be at least level " .. MIN_LEVEL_TO_TRAVEL .. " to travel.", npc, creature)
+		if player:getVocation():getId() == VOCATION_NONE then
+			npcHandler:say("Choose your vocation in the village before I take you to Targuna.", npc, creature)
 			npcHandler:setTopic(playerId, 0)
 			return true
 		end
@@ -105,6 +105,8 @@ local function creatureSayCallback(npc, creature, type, message)
 			player:setStorageValue(Storage.Quest.U15_12.newhavenNewLootTheCorruptor, -1)
 
 			player:setTown(Town(TOWNS_LIST.TARGUNA))
+			-- Refresh PlayerDataBasic prey/mainland byte so the client unlocks IdleOT chrome.
+			player:sendBasicData()
 		end
 	elseif MsgContains(message, "no") then
 		if npcHandler:getTopic(playerId) >= 1 then

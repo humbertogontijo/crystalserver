@@ -1558,14 +1558,6 @@ std::shared_ptr<Thing> Game::internalGetThing(const std::shared_ptr<Player> &pla
 			return nullptr;
 		}
 
-		// Hotkey gold pouch: prefer the slot-12 account handle (store-inbox style).
-		// Leftover character gold pouches fall through to findItemOfType below.
-		if (it.id == ITEM_GOLD_POUCH) {
-			if (const auto &handle = player->getInventoryItem(CONST_SLOT_LOOT_POUCH)) {
-				return handle;
-			}
-		}
-
 		int32_t subType;
 		if (it.isFluidContainer()) {
 			subType = index;
@@ -2702,14 +2694,6 @@ bool Game::isTryingToStow(const Position &toPos, const std::shared_ptr<Cylinder>
 ReturnValue Game::checkMoveItemToCylinder(const std::shared_ptr<Player> &player, const std::shared_ptr<Cylinder> &fromCylinder, const std::shared_ptr<Cylinder> &toCylinder, const std::shared_ptr<Item> &item, Position toPos) {
 	if (!player || !toCylinder || !item) {
 		return RETURNVALUE_NOTPOSSIBLE;
-	}
-
-	if (toCylinder == player && toPos.x == 0xFFFF && toPos.y == CONST_SLOT_LOOT_POUCH) {
-		const auto &pouch = player->getLootPouch();
-		if (!pouch) {
-			return RETURNVALUE_NOTPOSSIBLE;
-		}
-		return checkMoveItemToCylinder(player, fromCylinder, pouch, item, toPos);
 	}
 
 	if (std::shared_ptr<Container> toCylinderContainer = toCylinder->getContainer()) {
@@ -4064,33 +4048,9 @@ void Game::playerQuickLootCorpse(const std::shared_ptr<Player> &player, const st
 	player->lastQuickLootNotification = OTSYS_TIME();
 }
 
-namespace {
-bool bindUnassignedLootToPouch(const std::shared_ptr<Player> &player) {
-	const auto &pouch = player->getLootPouch();
-	if (!pouch) {
-		return false;
-	}
-
-	const auto previousContainer = player->refreshManagedContainer(OBJECTCATEGORY_DEFAULT, pouch, true);
-	player->sendLootContainers();
-
-	if (const auto &parent = pouch->getParent()) {
-		parent->updateThing(pouch, pouch->getID(), pouch->getItemCount());
-	}
-	if (previousContainer && previousContainer != pouch) {
-		if (const auto &parent = previousContainer->getParent()) {
-			parent->updateThing(previousContainer, previousContainer->getID(), previousContainer->getItemCount());
-		}
-	}
-	return true;
-}
-} // namespace
-
 std::shared_ptr<Container> Game::findManagedContainer(const std::shared_ptr<Player> &player, bool &fallbackConsumed, ObjectCategory_t category, bool isLootContainer) {
 	auto lootContainer = player->getManagedContainer(category, isLootContainer);
-	// Do not promote the main backpack to Unassigned when a loot pouch exists (Unassigned is hard-locked).
-	const bool hasLootPouch = isLootContainer && static_cast<bool>(player->getAccountLootPouch());
-	if (!lootContainer && !fallbackConsumed && !hasLootPouch) {
+	if (!lootContainer && player->quickLootFallbackToMainContainer && !fallbackConsumed) {
 		auto fallbackItem = player->getInventoryItem(CONST_SLOT_BACKPACK);
 		auto mainBackpack = fallbackItem ? fallbackItem->getContainer() : nullptr;
 
@@ -4960,17 +4920,6 @@ void Game::playerUseItem(uint32_t playerId, const Position &pos, uint8_t stackPo
 	const auto &item = thing->getItem();
 	if (!item || item->getID() != itemId) {
 		player->sendCancelMessage(RETURNVALUE_CANNOTUSETHISOBJECT);
-		return;
-	}
-
-	// Account loot pouch slot handle → open the shared account pouch (not the empty handle container).
-	if (player->getInventoryItem(CONST_SLOT_LOOT_POUCH) == item) {
-		player->resetIdleTime();
-		player->setNextActionTask(nullptr);
-		const ReturnValue openRet = player->openAccountLootPouch(index);
-		if (openRet != RETURNVALUE_NOERROR) {
-			player->sendCancelMessage(openRet);
-		}
 		return;
 	}
 
@@ -6988,19 +6937,7 @@ void Game::playerLootAllCorpses(const std::shared_ptr<Player> &player, const Pos
 
 void Game::playerSetManagedContainer(uint32_t playerId, ObjectCategory_t category, const Position &pos, uint16_t itemId, uint8_t stackPos, bool isLootContainer) {
 	const auto &player = getPlayerByID(playerId);
-	if (!player) {
-		return;
-	}
-
-	// Unassigned (DEFAULT) loot container is hard-locked to the gold/loot pouch.
-	if (isLootContainer && category == OBJECTCATEGORY_DEFAULT) {
-		if (!bindUnassignedLootToPouch(player)) {
-			player->sendTextMessage(MESSAGE_FAILURE, "You need a loot pouch.");
-		}
-		return;
-	}
-
-	if (pos.x != 0xffff) {
+	if (!player || pos.x != 0xffff) {
 		return;
 	}
 
@@ -7046,15 +6983,6 @@ void Game::playerSetManagedContainer(uint32_t playerId, ObjectCategory_t categor
 void Game::playerClearManagedContainer(uint32_t playerId, ObjectCategory_t category, bool isLootContainer) {
 	const auto &player = getPlayerByID(playerId);
 	if (!player) {
-		return;
-	}
-
-	// Unassigned loot container cannot be cleared — always rebind the loot pouch.
-	if (isLootContainer && category == OBJECTCATEGORY_DEFAULT) {
-		if (!bindUnassignedLootToPouch(player)) {
-			player->sendLootContainers();
-		}
-		player->sendTextMessage(MESSAGE_FAILURE, "Unassigned loot is fixed to your loot pouch.");
 		return;
 	}
 
@@ -10657,12 +10585,21 @@ void Game::kickPlayer(uint32_t playerId, bool displayEffect) {
 }
 
 void Game::playerFriendSystemAction(const std::shared_ptr<Player> &player, uint8_t type, uint8_t titleId) {
+	if (!player) {
+		return;
+	}
+
 	if (type == 0x0E) {
 		player->title()->setCurrentTitle(titleId);
 		player->sendCyclopediaCharacterBaseInformation();
 		player->sendCyclopediaCharacterTitles();
 		return;
 	}
+
+	// Full CIP friend-list / invite payloads are not implemented. ERROR (0) +
+	// string matches FRIENDSYSTEM_DATATYPE_ERROR; IdleOT friends use the JSON
+	// social opcode instead of 0x74 list bodies.
+	player->sendFriendSystemData(0x00, "The friend system is not available on this world.");
 }
 
 void Game::setImprovedRespawnZones(std::vector<ImprovedRespawnZone> zones) {
@@ -12063,6 +12000,62 @@ void Game::parsePlayerExtendedOpcode(uint32_t playerId, uint8_t opcode, const st
 	}
 }
 
+void Game::playerRequestCharacterSwitch(uint32_t playerId, const std::string &targetName) {
+	const auto &player = getPlayerByID(playerId);
+	if (!player || targetName.empty()) {
+		return;
+	}
+
+	lua_State* L = g_luaEnvironment().getLuaState();
+	if (!L) {
+		player->sendTextMessage(MESSAGE_FAILURE, "Character switch is unavailable.");
+		return;
+	}
+	if (!LuaScriptInterface::reserveScriptEnv()) {
+		player->sendTextMessage(MESSAGE_FAILURE, "Character switch is busy, try again.");
+		return;
+	}
+
+	lua_getglobal(L, "Alts");
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 1);
+		LuaScriptInterface::resetScriptEnv();
+		player->sendTextMessage(MESSAGE_FAILURE, "Character switch is unavailable.");
+		return;
+	}
+	lua_getfield(L, -1, "switchAlt");
+	lua_remove(L, -2);
+	if (!lua_isfunction(L, -1)) {
+		lua_pop(L, 1);
+		LuaScriptInterface::resetScriptEnv();
+		player->sendTextMessage(MESSAGE_FAILURE, "Character switch is unavailable.");
+		return;
+	}
+
+	LuaScriptInterface::pushUserdata<Player>(L, player);
+	LuaScriptInterface::setMetatable(L, -1, "Player");
+	lua_pushlstring(L, targetName.data(), targetName.size());
+
+	if (lua_pcall(L, 2, 2, 0) != 0) {
+		g_logger().error("[playerRequestCharacterSwitch] Alts.switchAlt: {}", lua_tostring(L, -1));
+		lua_pop(L, 1);
+		LuaScriptInterface::resetScriptEnv();
+		return;
+	}
+
+	const bool ok = lua_toboolean(L, -2) != 0;
+	std::string err;
+	if (lua_isstring(L, -1)) {
+		err = lua_tostring(L, -1);
+	}
+	lua_pop(L, 2);
+	LuaScriptInterface::resetScriptEnv();
+
+	if (!ok && !err.empty()) {
+		player->sendTextMessage(MESSAGE_FAILURE, err);
+	}
+}
+
 void Game::forceRemoveCondition(uint32_t creatureId, ConditionType_t conditionType, ConditionId_t conditionId) {
 	const auto &creature = getCreatureByID(creatureId);
 	if (!creature) {
@@ -12671,26 +12664,26 @@ void Game::playerWheelGemAction(uint32_t playerId, NetworkMessage &msg) {
 	}
 
 	const auto action = msg.getByte();
-	const auto param = msg.getByte();
-	uint8_t pos = 0;
 
 	switch (static_cast<WheelGemAction_t>(action)) {
 		case WheelGemAction_t::Destroy:
-			owner->wheel()->destroyGem(param);
+			owner->wheel()->destroyGem(msg.get<uint16_t>());
 			break;
 		case WheelGemAction_t::Reveal:
-			owner->wheel()->revealGem(static_cast<WheelGemQuality_t>(param));
+			owner->wheel()->revealGem(static_cast<WheelGemQuality_t>(msg.getByte()));
 			break;
 		case WheelGemAction_t::SwitchDomain:
-			owner->wheel()->switchGemDomain(param);
+			owner->wheel()->switchGemDomain(msg.get<uint16_t>());
 			break;
 		case WheelGemAction_t::ToggleLock:
-			owner->wheel()->toggleGemLock(param);
+			owner->wheel()->toggleGemLock(msg.get<uint16_t>());
 			break;
-		case WheelGemAction_t::ImproveGrade:
-			pos = msg.getByte();
-			owner->wheel()->improveGemGrade(static_cast<WheelFragmentType_t>(param), pos);
+		case WheelGemAction_t::ImproveGrade: {
+			const auto fragmentType = static_cast<WheelFragmentType_t>(msg.getByte());
+			const uint8_t pos = msg.getByte();
+			owner->wheel()->improveGemGrade(fragmentType, pos);
 			break;
+		}
 		default:
 			g_logger().error("[{}] player {} is trying to do invalid action {} on wheel", __FUNCTION__, player->getName(), action);
 			break;

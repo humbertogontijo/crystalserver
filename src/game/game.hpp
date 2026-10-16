@@ -561,6 +561,8 @@ public:
 	void playerCloseImbuementWindow(uint32_t playerid);
 	void playerTurn(uint32_t playerId, Direction dir);
 	void playerRequestOutfit(uint32_t playerId);
+	/// IdleOT: C 0x0D character switch — runs Alts.switchAlt (same-socket quick switch).
+	void playerRequestCharacterSwitch(uint32_t playerId, const std::string &targetName);
 	void playerShowQuestLog(uint32_t playerId);
 	void playerShowQuestLine(uint32_t playerId, uint16_t questId);
 	void playerSay(uint32_t playerId, uint16_t channelId, SpeakClasses type, const std::string &receiver, const std::string &text);

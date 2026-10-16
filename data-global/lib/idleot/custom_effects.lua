@@ -1,5 +1,5 @@
--- Product virtual effect ids. OTClient draws them as a CIP base effect plus a shader
--- (mods/custom/game_custom_effects); keep ids in sync with that registry.
+-- Product virtual effect ids. The tibia client draws them as a CIP base effect
+-- plus a shader (src/tibia/idleot/data/custom_effects.json); keep ids in sync.
 CustomEffects = CustomEffects or {}
 
 -- Magic effects (position:sendMagicEffect) — client EFFECT_VARIANTS.

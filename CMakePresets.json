@@ -120,6 +120,8 @@
           "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
           "type": "FILEPATH"
         },
+        "OPTIONS_ENABLE_CCACHE": "ON",
+        "OPTIONS_ENABLE_SCCACHE": "OFF",
         "RUN_TESTS_AFTER_BUILD": "OFF"
       },
       "condition": {

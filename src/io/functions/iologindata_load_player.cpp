@@ -173,30 +173,7 @@ bool IOLoginDataLoad::loadPlayerBasicInfo(const std::shared_ptr<Player> &player,
 		return false;
 	}
 
-	// Bank gold is account-scoped (per world/DB). Prefer an online alt's
-	// in-memory balance so unsaved deposits are not overwritten on login.
-	uint64_t accountBankBalance = 0;
-	bool foundOnlineAccountBank = false;
-	const auto accountId = player->getAccountId();
-	if (accountId != 0) {
-		for (const auto &other : g_game().getOnlineAccountPlayers(accountId)) {
-			if (other == player) {
-				continue;
-			}
-			accountBankBalance = other->getBankBalance();
-			foundOnlineAccountBank = true;
-			break;
-		}
-		if (!foundOnlineAccountBank) {
-			const auto bankResult = Database::getInstance().storeQuery(
-				fmt::format("SELECT `balance` FROM `accounts` WHERE `id` = {}", accountId)
-			);
-			if (bankResult) {
-				accountBankBalance = bankResult->getNumber<uint64_t>("balance");
-			}
-		}
-	}
-	player->bankBalance = accountBankBalance;
+	player->setBankBalance(result->getNumber<uint64_t>("balance"));
 	player->quickLootFallbackToMainContainer = result->getNumber<bool>("quickloot_fallback");
 	player->setSex(static_cast<PlayerSex_t>(result->getNumber<uint16_t>("sex")));
 	player->setPronoun(static_cast<PlayerPronoun_t>(result->getNumber<uint16_t>("pronoun")));
@@ -629,10 +606,6 @@ void IOLoginDataLoad::loadPlayerInventoryItems(const std::shared_ptr<Player> &pl
 				}
 
 				int32_t pid = pair.second;
-				if (pid == CONST_SLOT_LOOT_POUCH) {
-					// Slot is engine-managed; contents live in account_loot_pouch_items.
-					continue;
-				}
 				if (pid >= CONST_SLOT_FIRST && pid <= CONST_SLOT_LAST) {
 					player->internalAddThing(pid, item);
 					item->startDecaying();
@@ -748,71 +721,6 @@ void IOLoginDataLoad::loadPlayerDepotItems(const std::shared_ptr<Player> &player
 	}
 
 	// Now that all items and containers have been added and parent chain is established, start decay
-	for (const auto &item : itemsToStartDecaying) {
-		item->startDecaying();
-	}
-}
-
-void IOLoginDataLoad::loadAccountLootPouch(const std::shared_ptr<Player> &player) {
-	if (!player) {
-		g_logger().warn("[{}] - Player nullptr", __FUNCTION__);
-		return;
-	}
-
-	const auto accountId = player->getAccountId();
-	if (accountId == 0) {
-		return;
-	}
-
-	// Prefer an online alt's shared pouch so unsaved loot is not overwritten on login.
-	for (const auto &other : g_game().getOnlineAccountPlayers(accountId)) {
-		if (other == player) {
-			continue;
-		}
-		if (const auto &shared = other->getAccountLootPouch()) {
-			player->setAccountLootPouch(shared);
-			return;
-		}
-	}
-
-	const auto &pouch = player->getLootPouch();
-	if (!pouch) {
-		g_logger().error("[{}] - Failed to create account loot pouch for account {}", __FUNCTION__, accountId);
-		return;
-	}
-
-	// pid 0 = direct pouch child; otherwise the sid of the parent container (same layout as player_items).
-	auto query = fmt::format("SELECT pid, sid, itemtype, count, attributes FROM account_loot_pouch_items WHERE account_id = {} ORDER BY sid DESC", accountId);
-	DBResult_ptr result = g_database().storeQuery(query);
-	if (!result) {
-		return;
-	}
-
-	ItemsMap pouchItems;
-	std::vector<std::shared_ptr<Item>> itemsToStartDecaying;
-	loadItems(pouchItems, result, player);
-	for (auto it = pouchItems.rbegin(), end = pouchItems.rend(); it != end; ++it) {
-		const auto &[item, pid] = it->second;
-		if (!item) {
-			continue;
-		}
-
-		if (pid == 0) {
-			pouch->internalAddThing(item);
-		} else {
-			const auto parentIt = pouchItems.find(pid);
-			if (parentIt == pouchItems.end()) {
-				continue;
-			}
-			const auto &container = parentIt->second.first->getContainer();
-			if (!container) {
-				continue;
-			}
-			container->internalAddThing(item);
-		}
-		itemsToStartDecaying.emplace_back(item);
-	}
-
 	for (const auto &item : itemsToStartDecaying) {
 		item->startDecaying();
 	}

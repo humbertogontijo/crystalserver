@@ -357,6 +357,9 @@ function ExpeditionProtocol.handle(player, buffer)
 	if CombatAutomationProtocol.handleAction(player, msg) then
 		return
 	end
+	if IdleMission and IdleMission.handleAction and IdleMission.handleAction(player, msg) then
+		return
+	end
 	-- Discovery POI FAB: exclusive walk into discovery radius (validated server-side).
 	-- Handled here so it works in and out of expeditions.
 	if msg.action == "discoverWalk" then
@@ -378,6 +381,9 @@ function ExpeditionProtocol.handle(player, buffer)
 		else
 			-- Clear sticky client status after restart / failed leave / stale HUD.
 			ExpeditionProtocol.sendEnded(player)
+		end
+		if IdleMission and IdleMission.handleAction then
+			IdleMission.handleAction(player, { action = "missionStatus" })
 		end
 		InstanceWorld.sendBounds(player, true)
 	elseif action == "join" then
@@ -402,6 +408,12 @@ function ExpeditionProtocol.handle(player, buffer)
 				bossDifficulty = msg.bossDifficulty,
 				scope = "solo",
 			})
+		elseif role == "quest" or (IdleMission and IdleMission.byCatalogId(msg.id)) then
+			local def = IdleMission.byCatalogId(msg.id)
+			local ok, err = IdleMission.start(player, def and def.key or msg.missionKey)
+			if not ok then
+				ExpeditionProtocol.sendError(player, err or "Could not start mission.")
+			end
 		else
 			ExpeditionManager.join(player, msg.id, role, msg.loadout, msg.lure, {
 				stopOnInsufficientGold = msg.stopOnInsufficientGold,

@@ -108,9 +108,13 @@ function ExpeditionProtocol.catalogRows(player)
 			include = player and select(1, QuestArena.canJoin(player, entry))
 		end
 		if include then
+			local kind = entry.kind
+			if kind ~= "hunt" and kind ~= "boss" and kind ~= "quest" then
+				kind = entry.role == "boss" and "boss" or "hunt"
+			end
 			local role = entry.role
 			if role ~= "boss" and role ~= "monster" and role ~= "arena" then
-				role = entry.kind == "boss" and "boss" or "monster"
+				role = kind == "boss" and "boss" or "monster"
 			end
 			-- Client hunt UI only knows boss/monster; arena uses monster chrome + wave.
 			if role == "arena" then
@@ -118,7 +122,7 @@ function ExpeditionProtocol.catalogRows(player)
 			end
 			local row = {
 				id = entry.id,
-				kind = "hunt",
+				kind = kind,
 				role = role,
 				name = entry.name,
 				levelMin = entry.levelMin,
@@ -126,6 +130,21 @@ function ExpeditionProtocol.catalogRows(player)
 				creatureId = entry.creatureId,
 				floorOffset = tonumber(entry.floorOffset) or 0,
 			}
+			if kind == "quest" then
+				row.role = "quest"
+				if entry.missionKey then
+					row.missionKey = entry.missionKey
+				end
+				if entry.cipQuestId then
+					row.cipQuestId = entry.cipQuestId
+				end
+				if entry.city then
+					row.city = entry.city
+				end
+			end
+			if type(entry.aliases) == "table" and #entry.aliases > 0 then
+				row.aliases = entry.aliases
+			end
 			local combatPower = tonumber(entry.combatPower)
 			if combatPower then
 				row.combatPower = combatPower

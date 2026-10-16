@@ -62,6 +62,8 @@ local function normalizeRecord(raw)
 		levelMax = math.max(1, math.floor(tonumber(raw.levelMax) or 9999)),
 		bossDifficulty = raw.bossDifficulty,
 		bonuses = type(raw.bonuses) == "table" and raw.bonuses or nil,
+		-- guid -> weight for party loot split (0 = skip; omit = equal default in LootSplit).
+		lootWeights = type(raw.lootWeights) == "table" and raw.lootWeights or nil,
 		created = math.floor(tonumber(raw.created) or os.time()),
 	}
 	-- Picked expedition dropped from the catalog since the lobby was saved.
@@ -228,6 +230,37 @@ function LobbyStore.getForPlayer(player)
 		return nil
 	end
 	return LobbyStore.getByGuid(player:getGuid())
+end
+
+--- Per-member loot weights (guid -> number). Missing entries mean default equal weight in LootSplit.
+function LobbyStore.lootWeights(record)
+	if not record or type(record.lootWeights) ~= "table" then
+		return nil
+	end
+	return record.lootWeights
+end
+
+--- Set one member's loot weight (nil removes the override). Persist with LobbyStore.save.
+function LobbyStore.setLootWeight(record, guid, weight)
+	if not record then
+		return
+	end
+	guid = math.floor(tonumber(guid) or 0)
+	if guid <= 0 then
+		return
+	end
+	record.lootWeights = record.lootWeights or {}
+	if weight == nil then
+		record.lootWeights[tostring(guid)] = nil
+		record.lootWeights[guid] = nil
+		return
+	end
+	local w = tonumber(weight) or 0
+	if w < 0 then
+		w = 0
+	end
+	-- JSON keys are strings; keep string keys for stable persistence.
+	record.lootWeights[tostring(guid)] = w
 end
 
 function LobbyStore.all()

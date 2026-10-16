@@ -1,6 +1,6 @@
 -- Static "can a player ever stand here" lookup for content checks (e.g. discovery
 -- viewpoints): true when some instance a player can enter contains pos - a city or
--- settlement (XY mask, every floor), the adventurers' hub, or a catalog hunt (mask + its
+-- city/house (XY mask, every floor), the adventurers' hub, or a catalog hunt (mask + its
 -- declared floors). Mirrors InstanceFenceRegistry::canWalk; lobby rooms and raid arenas
 -- are not counted. The open world (instance 0) is never walkable.
 
@@ -45,9 +45,9 @@ local function buildIndex()
 	for _, city in ipairs(InstanceWorld.cities or {}) do
 		addMaskFence(InstanceWorld.occupancyByCityId[city.cityId], city.boundary, nil)
 	end
-	for _, settlement in ipairs(InstanceWorld.settlements or {}) do
-		local sid = settlement.id or settlement.subareaId
-		addMaskFence(sid and InstanceWorld.occupancyBySettlementId[sid], settlement.boundary, nil)
+	for _, house in ipairs(InstanceWorld.houses or {}) do
+		local hid = house.id
+		addMaskFence(hid and InstanceWorld.occupancyByHouseId[hid], house.boundary, nil)
 	end
 
 	local hub = InstanceWorld.hubs[1]

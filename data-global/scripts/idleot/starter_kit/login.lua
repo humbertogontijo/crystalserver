@@ -3,13 +3,9 @@
 
 local BACKPACK_ID = 2854
 
+-- Mainland vocation kits only. VOCATION_NONE / Newhaven use Newhaven.giveStarterItems
+-- after the in-town vocation pick (see quests/newhaven/on_login_newhaven.lua).
 local KITS = {
-	[VOCATION.BASE_ID.NONE] = {
-		container = {
-			{ 3003, 1 }, -- rope
-			{ 3457, 1 }, -- shovel
-		},
-	},
 	[VOCATION.BASE_ID.SORCERER] = {
 		equipped = {
 			{ CONST_SLOT_HEAD, 7992 }, -- mage hat
@@ -121,6 +117,14 @@ local starterKit = CreatureEvent("SendFirstItems")
 
 function starterKit.onLogin(player)
 	if player:getLastLoginSaved() ~= 0 then
+		return true
+	end
+	-- No mainland kit on Newhaven / no-voc first login.
+	if player:getVocation():getId() == VOCATION_NONE then
+		return true
+	end
+	local town = player:getTown()
+	if town and town:getId() == TOWNS_LIST.NEWHAVEN then
 		return true
 	end
 	local kit = KITS[player:getVocation():getBaseId()]

@@ -42,7 +42,6 @@ public:
 	static void loadPlayerInventoryItems(const std::shared_ptr<Player> &player, DBResult_ptr result);
 	static void loadPlayerStoreInbox(const std::shared_ptr<Player> &player);
 	static void loadPlayerDepotItems(const std::shared_ptr<Player> &player, DBResult_ptr result);
-	static void loadAccountLootPouch(const std::shared_ptr<Player> &player);
 	static void loadRewardItems(const std::shared_ptr<Player> &player);
 	static void loadPlayerInboxItems(const std::shared_ptr<Player> &player, DBResult_ptr result);
 	static void loadPlayerStorageMap(const std::shared_ptr<Player> &player, DBResult_ptr result);

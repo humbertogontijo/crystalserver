@@ -122,21 +122,24 @@ void PlayerAchievement::loadUnlockedAchievements() {
 
 void PlayerAchievement::sendUnlockedSecretAchievements() const {
 	std::vector<std::pair<Achievement, uint32_t>> achievementsUnlocked;
-	uint16_t unlockedSecret = 0;
 	for (const auto &[achievId, achievCreatedTime] : getUnlockedAchievements()) {
 		const auto &achievement = g_game().getAchievementById(achievId);
 		if (achievement.id == 0) {
 			continue;
 		}
 
-		if (achievement.secret) {
-			unlockedSecret++;
-		}
-
 		achievementsUnlocked.emplace_back(achievement, achievCreatedTime);
 	}
 
-	m_player.sendCyclopediaCharacterAchievements(unlockedSecret, achievementsUnlocked);
+	// The client shows this as the secret total (CIP TAchievementInfoController::totalSecretAchievements).
+	uint16_t totalSecret = 0;
+	for (const auto &[achievId, achievement] : g_game().getAchievements()) {
+		if (achievement.secret) {
+			totalSecret++;
+		}
+	}
+
+	m_player.sendCyclopediaCharacterAchievements(totalSecret, achievementsUnlocked);
 }
 
 const std::shared_ptr<KV> &PlayerAchievement::getUnlockedKV() {

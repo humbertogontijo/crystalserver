@@ -8,8 +8,9 @@ HERE := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
 help:
 	@echo "CrystalServer (IdleOT)"
-	@echo "  make server-build       cmake + build (vcpkg)"
+	@echo "  make server-build       cmake + build (vcpkg; skips configure when unchanged)"
 	@echo "                          METRICS=1 compiles OpenTelemetry metrics (sticky; METRICS=0 drops it)"
+	@echo "                          FORCE_CMAKE=1 forces cmake --preset"
 	@echo "  make server-test        build tests in build/<os>-test and run unit tests"
 	@echo "  make server-start       run ./crystalserver (cwd = this repo)"
 
@@ -25,8 +26,26 @@ server-build:
 	METRICS_FLAG=""; \
 	case "$(METRICS)" in 1|on|ON|yes|true) METRICS_FLAG="-DFEATURE_METRICS=ON" ;; \
 		0|off|OFF|no|false) METRICS_FLAG="-DFEATURE_METRICS=OFF" ;; esac; \
+	BUILD_DIR="$(HERE)/build/$$PRESET"; \
+	HELPER="$(HERE)/../../scripts/cmake-configure-if-needed.sh"; \
+	FP="$$( { \
+		echo "crystalserver-v1"; \
+		echo "preset=$$PRESET"; \
+		echo "vcpkg=$$VCPKG_ROOT"; \
+		echo "map_tools=$$MAP_TOOLS"; \
+		echo "metrics=$$METRICS_FLAG"; \
+		shasum -a 256 "$(HERE)/CMakePresets.json" 2>/dev/null || shasum "$(HERE)/CMakePresets.json"; \
+	} | shasum -a 256 2>/dev/null | awk '{print $$1}' )"; \
 	cd "$(HERE)" && \
-		if [ -n "$$MAP_TOOLS" ]; then \
+		if [ -f "$$HELPER" ]; then \
+			if [ -n "$$MAP_TOOLS" ]; then \
+				bash "$$HELPER" "$$BUILD_DIR" "$$FP" -- \
+					cmake --preset "$$PRESET" -DIDLEOT_MAP_TOOLS_DIR="$$MAP_TOOLS" $$METRICS_FLAG; \
+			else \
+				bash "$$HELPER" "$$BUILD_DIR" "$$FP" -- \
+					cmake --preset "$$PRESET" $$METRICS_FLAG; \
+			fi; \
+		elif [ -n "$$MAP_TOOLS" ]; then \
 			cmake --preset "$$PRESET" -DIDLEOT_MAP_TOOLS_DIR="$$MAP_TOOLS" $$METRICS_FLAG; \
 		else \
 			cmake --preset "$$PRESET" $$METRICS_FLAG; \

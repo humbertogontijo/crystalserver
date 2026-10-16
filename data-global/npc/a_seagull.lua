@@ -100,6 +100,7 @@ local function creatureSayCallback(npc, creature, type, message)
 			player:setStorageValue(Storage.Quest.U15_12.newhavenCitizen, -1)
 			player:setStorageValue(Storage.Quest.U15_12.newhavenTutorialHunting, -1)
 			player:setStorageValue(Storage.Quest.U15_12.newhavenNewLootTheCorruptor, -1)
+			player:sendBasicData()
 		end
 	end
 	return true

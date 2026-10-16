@@ -1,13 +1,86 @@
 LootSplit = LootSplit or {}
 
--- leaderGuid → next round-robin index (persists across kills so first item rotates).
+-- leaderGuid → next weighted-wheel cursor (persists across kills).
 local rrCursorByLeader = {}
+
+LootSplit.providers = LootSplit.providers or {}
 
 function LootSplit.findLootPouch(player)
 	if not player then
 		return nil
 	end
 	return player:getLootPouch()
+end
+
+--- Lobby weight table (guid → number). Missing/nil → equal weight 1 for every seat.
+function LootSplit.providers.lobby(seats, ctx)
+	local weights = {}
+	local overrides = nil
+	local owner = ctx and ctx.owner
+	if owner and LobbyStore and LobbyStore.getForPlayer then
+		local record = LobbyStore.getForPlayer(owner)
+		overrides = record and LobbyStore.lootWeights(record) or nil
+	end
+	for _, seat in ipairs(seats or {}) do
+		local guid = seat and seat:getGuid() or 0
+		local w = 1
+		if overrides then
+			local raw = overrides[tostring(guid)]
+			if raw == nil then
+				raw = overrides[guid]
+			end
+			if raw ~= nil then
+				w = tonumber(raw) or 0
+			end
+		end
+		if w < 0 then
+			w = 0
+		end
+		weights[guid] = w
+	end
+	return weights
+end
+
+function LootSplit.seatWeights(seats, ctx)
+	local name = (LootSplitConfig and LootSplitConfig.weightProvider) or "lobby"
+	local provider = LootSplit.providers[name] or LootSplit.providers.lobby
+	return provider(seats, ctx or {})
+end
+
+local function weightOf(weights, seat)
+	if not seat then
+		return 0
+	end
+	return tonumber(weights[seat:getGuid()]) or 0
+end
+
+local function totalWeight(seats, weights)
+	local total = 0
+	for _, seat in ipairs(seats or {}) do
+		total = total + weightOf(weights, seat)
+	end
+	return total
+end
+
+--- Weighted round-robin: walk a virtual wheel (seat i appears weight_i times).
+--- Returns seat, nextCursor. Skips zero-weight seats.
+function LootSplit.pickSeat(seats, weights, cursor)
+	local total = totalWeight(seats, weights)
+	if total <= 0 or not seats or #seats == 0 then
+		return nil, cursor or 0
+	end
+	cursor = (tonumber(cursor) or 0) % total
+	local acc = 0
+	for _, seat in ipairs(seats) do
+		local w = weightOf(weights, seat)
+		if w > 0 then
+			if cursor < acc + w then
+				return seat, (cursor + 1) % total
+			end
+			acc = acc + w
+		end
+	end
+	return seats[1], (cursor + 1) % total
 end
 
 local function isCoinItem(item)
@@ -124,7 +197,6 @@ local function partyOnExpedition(party)
 	return false
 end
 
---- True when at least one party body is near the corpse (hunt present on this kill).
 local function partyClaimingCorpse(party, corpsePos)
 	if not party or not corpsePos then
 		return false
@@ -137,7 +209,7 @@ local function partyClaimingCorpse(party, corpsePos)
 	return false
 end
 
---- Party-member seats only (account-blind). Each seat delivers to that member's pouch.
+--- Party-member seats only. Each seat delivers to that member's pouch.
 function LootSplit.seats(party, corpsePos, corpseCreature)
 	if not party then
 		return {}
@@ -181,7 +253,6 @@ local function collectCorpseItems(corpse)
 	return items
 end
 
---- Auto-sell + sell-on-no-cap: free pouch weight before stock/C++ auto-loot.
 local function trySellForInsufficientCap(player, corpse, isBoss)
 	if not player or not corpse then
 		return false
@@ -214,7 +285,7 @@ local function creditLootStats(player, itemId, count)
 	end
 end
 
---- Deliver to seat member's account pouch; credit analyser to the same seat.
+--- Deliver to seat member's pouch; credit analyser to the same seat.
 local function deliverItem(destPlayer, item, statsPlayer)
 	if not destPlayer or not item then
 		return false, 0
@@ -275,21 +346,7 @@ local function deliverItem(destPlayer, item, statsPlayer)
 	return true, 0
 end
 
-local function peekRrIndex(leaderGuid, n)
-	leaderGuid = tonumber(leaderGuid) or 0
-	n = math.max(1, tonumber(n) or 1)
-	local idx = rrCursorByLeader[leaderGuid] or 0
-	return idx % n
-end
-
-local function advanceRr(leaderGuid, n)
-	leaderGuid = tonumber(leaderGuid) or 0
-	n = math.max(1, tonumber(n) or 1)
-	local idx = rrCursorByLeader[leaderGuid] or 0
-	rrCursorByLeader[leaderGuid] = (idx + 1) % n
-end
-
---- Split corpse among party seats. Each seat → that member's account pouch + analyser credit.
+--- Split corpse among party seats using weighted RR / proportional gold.
 function LootSplit.splitCorpse(monster, corpse, owner)
 	if LootSplitConfig.ENABLED == false then
 		return false
@@ -327,7 +384,11 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 
 	local leader = party:getLeader() or owner
 	local leaderGuid = leader and leader:getGuid() or 0
-	local seatCount = #seats
+	local weights = LootSplit.seatWeights(seats, { owner = owner, leader = leader, party = party, monster = monster })
+	local wheelTotal = totalWeight(seats, weights)
+	if wheelTotal <= 0 then
+		return false
+	end
 
 	local items = collectCorpseItems(corpse)
 	if #items == 0 then
@@ -341,7 +402,7 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 		if isCoinItem(it) then
 			local anyAccept = false
 			for _, p in ipairs(seats) do
-				if playerAcceptsItem(p, it) then
+				if weightOf(weights, p) > 0 and playerAcceptsItem(p, it) then
 					anyAccept = true
 					break
 				end
@@ -356,48 +417,46 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 	end
 
 	local goldSeatMembers = {}
+	local goldWeights = {}
+	local goldWeightTotal = 0
 	if goldPool > 0 and #coinItems > 0 then
 		local probe = coinItems[1]
 		for _, seatMember in ipairs(seats) do
-			if playerAcceptsItem(seatMember, probe) then
+			local w = weightOf(weights, seatMember)
+			if w > 0 and playerAcceptsItem(seatMember, probe) then
 				goldSeatMembers[#goldSeatMembers + 1] = seatMember
+				goldWeights[seatMember:getGuid()] = w
+				goldWeightTotal = goldWeightTotal + w
 			end
 		end
 	end
 
-	if #goldSeatMembers > 0 and goldPool > 0 then
+	if #goldSeatMembers > 0 and goldPool > 0 and goldWeightTotal > 0 then
 		for _, it in ipairs(coinItems) do
 			it:remove()
 		end
 
-		local nGold = #goldSeatMembers
-		local share = math.floor(goldPool / nGold)
-		local remainder = goldPool - (share * nGold)
-		local remainderSeatIdx = nil
+		local distributed = 0
+		local shares = {}
+		for _, seatMember in ipairs(goldSeatMembers) do
+			local w = goldWeights[seatMember:getGuid()] or 0
+			local amount = math.floor(goldPool * w / goldWeightTotal)
+			shares[seatMember:getGuid()] = amount
+			distributed = distributed + amount
+		end
+		local remainder = goldPool - distributed
 		if remainder > 0 then
-			local start = peekRrIndex(leaderGuid, seatCount)
-			for offset = 0, seatCount - 1 do
-				local idx = ((start + offset) % seatCount) + 1
-				local seatMember = seats[idx]
-				for gi, gm in ipairs(goldSeatMembers) do
-					if gm == seatMember then
-						remainderSeatIdx = gi
-						advanceRr(leaderGuid, seatCount)
-						break
-					end
-				end
-				if remainderSeatIdx then
-					break
-				end
+			local cursor = rrCursorByLeader[leaderGuid] or 0
+			local seat, nextCursor = LootSplit.pickSeat(goldSeatMembers, goldWeights, cursor)
+			rrCursorByLeader[leaderGuid] = nextCursor
+			if seat then
+				shares[seat:getGuid()] = (shares[seat:getGuid()] or 0) + remainder
 			end
 		end
 
 		local goldId = (LootSplitConfig.GOLD_COIN_ID) or 3031
-		for gi, seatMember in ipairs(goldSeatMembers) do
-			local amount = share
-			if remainderSeatIdx and gi == remainderSeatIdx then
-				amount = amount + remainder
-			end
+		for _, seatMember in ipairs(goldSeatMembers) do
+			local amount = shares[seatMember:getGuid()] or 0
 			if amount > 0 then
 				seatMember:addMoney(amount)
 				local left = amount
@@ -411,11 +470,15 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 	end
 
 	for _, it in ipairs(otherItems) do
-		local start = peekRrIndex(leaderGuid, seatCount)
+		local cursor = rrCursorByLeader[leaderGuid] or 0
 		local delivered = false
-		for offset = 0, seatCount - 1 do
-			local idx = ((start + offset) % seatCount) + 1
-			local seatMember = seats[idx]
+		-- Try up to wheelTotal picks so zero-weight / full seats can be skipped fairly.
+		for _ = 1, wheelTotal do
+			local seatMember, nextCursor = LootSplit.pickSeat(seats, weights, cursor)
+			cursor = nextCursor
+			if not seatMember then
+				break
+			end
 			if playerAcceptsItem(seatMember, it) then
 				local function tryDeliver()
 					if not seatCanCarry(seatMember, it) then
@@ -424,7 +487,7 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 					return select(1, deliverItem(seatMember, it, seatMember))
 				end
 				if tryDeliver() then
-					rrCursorByLeader[leaderGuid] = (start + offset + 1) % seatCount
+					rrCursorByLeader[leaderGuid] = cursor
 					delivered = true
 					break
 				end
@@ -435,7 +498,7 @@ function LootSplit.splitCorpse(monster, corpse, owner)
 					string.format("%s has insufficient capacity for loot. Expedition stopped.", seatMember:getName())
 				)
 				if recovered then
-					rrCursorByLeader[leaderGuid] = (start + offset + 1) % seatCount
+					rrCursorByLeader[leaderGuid] = cursor
 					delivered = true
 					break
 				end

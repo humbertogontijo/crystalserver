@@ -17,6 +17,9 @@
 
 #include "server/network/protocol/protocolgame.hpp"
 
+#include <mutex>
+#include <set>
+
 #include "account/account.hpp"
 #include "config/configmanager.hpp"
 #include "core.hpp"
@@ -87,6 +90,46 @@
 // This "getIteration" function will allow us to get the total number of iterations that run within a specific map
 // Very useful to send the total amount in certain bytes in the ProtocolGame class
 namespace {
+	// Dual-connection stability tokens issued by ReadyForSecondaryConnection (primary → secondary).
+	// Secondary TCP claims the token via SecondaryLogin (C 0x0B) and shares the primary XTEA
+	// session (no second player entity). Gap: CIP sequence-flow merge / failover across sockets
+	// is not implemented — secondary only receives fan-out copies of primary outbound frames.
+	std::mutex g_secondaryTokensMutex;
+	std::unordered_map<std::string, std::weak_ptr<ProtocolGame>> g_secondaryTokens;
+
+	void registerSecondaryToken(const std::string &token, const ProtocolGame_ptr &primary) {
+		if (token.empty() || !primary) {
+			return;
+		}
+		std::scoped_lock lock(g_secondaryTokensMutex);
+		g_secondaryTokens[token] = primary;
+	}
+
+	ProtocolGame_ptr resolveSecondaryPrimary(const std::string &token) {
+		std::scoped_lock lock(g_secondaryTokensMutex);
+		const auto it = g_secondaryTokens.find(token);
+		if (it == g_secondaryTokens.end()) {
+			return nullptr;
+		}
+		auto primary = it->second.lock();
+		if (!primary) {
+			g_secondaryTokens.erase(it);
+		}
+		return primary;
+	}
+
+	void unregisterSecondaryToken(const std::string &token) {
+		if (token.empty()) {
+			return;
+		}
+		std::scoped_lock lock(g_secondaryTokensMutex);
+		g_secondaryTokens.erase(token);
+	}
+
+	std::string makeSecondaryConnectionToken() {
+		return fmt::format("idleot-{}", uniform_random(100000000, 999999999));
+	}
+
 	// Datapack-kept bestiary mastery marker: a monster-name key in the configured player KV scope.
 	bool hasBestiaryMasteryMarker(const std::shared_ptr<Player> &player, const std::string &monsterName) {
 		const auto &scope = g_configManager().getString(BESTIARY_MASTERY_MARKER_SCOPE);
@@ -642,6 +685,21 @@ void ProtocolGame::release() {
 	// dispatcher thread
 	detachClient();
 
+	if (!secondaryConnectionToken.empty()) {
+		unregisterSecondaryToken(secondaryConnectionToken);
+		secondaryConnectionToken.clear();
+	}
+	if (const auto primary = boundPrimary.lock()) {
+		if (primary->boundSecondary.lock() == getThis()) {
+			primary->boundSecondary.reset();
+		}
+	}
+	boundPrimary.reset();
+	if (const auto secondary = boundSecondary.lock()) {
+		secondary->boundPrimary.reset();
+	}
+	boundSecondary.reset();
+
 	OutputMessagePool::getInstance().removeProtocolFromAutosend(shared_from_this());
 	Protocol::release();
 }
@@ -985,9 +1043,49 @@ void ProtocolGame::requestLogout() {
 	sendSessionEndInformation(SESSION_END_LOGOUT);
 }
 
+bool ProtocolGame::tryAcceptSecondaryLogin(NetworkMessage &msg) {
+	// Connection::parsePacket already skipped checksum + 2 bytes (1405 paddingAmount +
+	// opcode). For SecondaryLogin that opcode was C 0x0B; remaining is a CIP string token.
+	// Primary login continues with OS/version/RSA (~200+ bytes) — reject by size first.
+	const auto savedPos = msg.getBufferPosition();
+	const auto remaining = static_cast<int32_t>(msg.getLength()) - static_cast<int32_t>(savedPos);
+	if (remaining < 3 || remaining > 200) {
+		return false;
+	}
+
+	const std::string token = msg.getString();
+	const auto primary = resolveSecondaryPrimary(token);
+	if (token.empty() || token.size() > 128 || !primary) {
+		msg.setBufferPosition(savedPos);
+		return false;
+	}
+
+	// Bind to primary session: share XTEA keys / game framing, no second player entity.
+	stabilitySecondaryOnly = true;
+	secondaryConnectionToken = token;
+	boundPrimary = primary;
+	primary->boundSecondary = getThis();
+	acceptPackets = true;
+	setChecksumMethod(CHECKSUM_METHOD_SEQUENCE);
+	if (primary->isXTEAEnabled()) {
+		primary->copyXTEAKeyTo(*this);
+	} else {
+		// Primary login should already have enabled XTEA before ReadyForSecondaryConnection.
+		g_logger().warn("ProtocolGame: secondary accepted but primary has no XTEA yet");
+	}
+	// Autosend so fan-out appends from the primary actually flush on this socket.
+	OutputMessagePool::getInstance().addProtocolToAutosend(shared_from_this());
+	g_logger().info("ProtocolGame: secondary stability connection accepted (bound to primary, XTEA shared)");
+	return true;
+}
+
 void ProtocolGame::onRecvFirstMessage(NetworkMessage &msg) {
 	if (g_game().getGameState() == GAME_STATE_SHUTDOWN) {
 		disconnect();
+		return;
+	}
+
+	if (tryAcceptSecondaryLogin(msg)) {
 		return;
 	}
 
@@ -1184,9 +1282,25 @@ void ProtocolGame::disconnectClient(const std::string &message, DisconnectClient
 }
 
 void ProtocolGame::writeToOutputBuffer(NetworkMessage &msg) {
+	// Fan-out a copy to the bound stability secondary (same XTEA session / no second player).
+	// Gap vs CIP: no sequence-number coordination across sockets; secondary gets a full
+	// duplicate stream rather than CIP's load-balanced packet split.
+	NetworkMessage secondaryCopy;
+	const bool fanOut = !stabilitySecondaryOnly && !boundSecondary.expired();
+	if (fanOut) {
+		secondaryCopy = msg;
+	}
+
 	g_dispatcher().safeCall([self = getThis(), msg = std::move(msg)] {
 		self->getOutputBuffer(msg.getLength())->append(msg);
 	});
+	if (fanOut) {
+		g_dispatcher().safeCall([weakSec = boundSecondary, copy = std::move(secondaryCopy)]() mutable {
+			if (const auto sec = weakSec.lock()) {
+				sec->getOutputBuffer(copy.getLength())->append(copy);
+			}
+		});
+	}
 	if (!pendingEchoGlows.empty()) {
 		const auto glows = std::exchange(pendingEchoGlows, {});
 		for (const auto &weak : glows) {
@@ -1199,6 +1313,14 @@ void ProtocolGame::writeToOutputBuffer(NetworkMessage &msg) {
 
 void ProtocolGame::parsePacket(NetworkMessage &msg) {
 	if (!acceptPackets || g_game().getGameState() == GAME_STATE_SHUTDOWN || msg.getLength() <= 0) {
+		return;
+	}
+
+	// Stability secondary: ConnectionPingBack arrives as checksum==0 and is dropped in
+	// Protocol::onRecvMessage before we get here. Any sequenced body is discarded so a
+	// misframed client cannot create a second player / game state on this socket.
+	// (Outbound game frames are fanned out from the bound primary with shared XTEA.)
+	if (stabilitySecondaryOnly) {
 		return;
 	}
 
@@ -1297,6 +1419,9 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 	InstanceActorScope instanceActorScope(player);
 
 	switch (recvbyte) {
+		case 0x0D: // ClientCharacterSwitch — IdleOT quick alt switch (pairs with S 0x0D)
+			parseCharacterSwitchRequest(msg);
+			break;
 		case 0x14:
 			requestLogout();
 			break;
@@ -1323,6 +1448,9 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 			break;
 		case 0x2D:
 			parseMemberFinderWindow(msg);
+			break;
+		case 0x2E:
+			parseSetClientOptions(msg);
 			break;
 		case 0x32:
 			parseExtendedOpcode(msg);
@@ -1462,7 +1590,8 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 		case 0x8D:
 			parseLookInBattleList(msg);
 			break;
-		case 0x8E: /* join aggression */
+		case 0x8E: /* CIP JoinAggression — u32 creatureId */
+			msg.get<uint32_t>();
 			break;
 		case 0x8F:
 			parseQuickLoot(msg);
@@ -1474,7 +1603,8 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 			parseQuickLootBlackWhitelist(msg);
 			break;
 		case 0x92:
-			parseCyclopediaMapAction(msg, recvbyte);
+			// CIP C 0x92 OpenDepotSearch (CyclopediaMapAction is 0xDB).
+			parseOpenDepotSearch();
 			break;
 		case 0x93:
 			parseCloseDepotSearch();
@@ -1499,6 +1629,15 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 			break;
 		case 0x9A:
 			parseOpenPrivateChannel(msg);
+			break;
+		case 0x9B:
+			parseGetGuildMessage();
+			break;
+		case 0x9C:
+			parseEditGuildMessage(msg);
+			break;
+		case 0x9D:
+			parseGetTextForReport(msg);
 			break;
 		case 0x9E:
 			g_game().playerCloseNpcChannel(player->getID());
@@ -1697,7 +1836,9 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 		case 0xF1:
 			parseQuestLine(msg);
 			break;
-		// case 0xF2: parseRuleViolationReport(msg); break;
+		case 0xF2:
+			parseRuleViolationReport(msg);
+			break;
 		case 0xF3: /* get object info */
 			break;
 		case 0xF4:
@@ -2723,11 +2864,71 @@ void ProtocolGame::sendItemInspection(uint16_t itemId, uint8_t itemCount, const 
 }
 
 void ProtocolGame::parseFriendSystemAction(NetworkMessage &msg) {
-	uint8_t state = msg.getByte();
+	const uint8_t state = msg.getByte();
+	uint8_t titleId = 0;
 	if (state == 0x0E) {
-		uint8_t titleId = msg.getByte();
-		g_game().playerFriendSystemAction(player, state, titleId);
+		titleId = msg.getByte();
 	}
+	g_game().playerFriendSystemAction(player, state, titleId);
+}
+
+void ProtocolGame::sendFriendSystemData(uint8_t dataType, const std::string &message) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	// FriendSystemData (S 0x74) — CIP FRIENDSYSTEM_DATATYPE_* (MacOS enum table):
+	//   0 ERROR (+ string; empty string ⇒ client cannot-use)
+	//   1 FRIENDINVITE_NOTICE / 7 FRIENDSHIP_NOTICE (no payload)
+	//   2–6, 8 list/settings bodies not sent yet (IdleOT friends use JSON social opcode).
+	NetworkMessage out;
+	out.addByte(0x74);
+	out.addByte(dataType);
+	if (dataType == 0x00) {
+		out.addString(message);
+	}
+	writeToOutputBuffer(out);
+}
+
+void ProtocolGame::sendSpellDataModification(const std::vector<std::tuple<uint16_t, uint8_t, uint8_t>> &entries) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage out;
+	out.addByte(0x60);
+	out.add<uint16_t>(static_cast<uint16_t>(entries.size()));
+	for (const auto &[spellId, mod, value] : entries) {
+		out.add<uint16_t>(spellId);
+		out.addByte(mod);
+		out.addByte(value);
+	}
+	writeToOutputBuffer(out);
+}
+
+void ProtocolGame::sendGemAtelierGemRevealed(uint32_t gemId) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage out;
+	out.addByte(0xC5);
+	out.add<uint32_t>(gemId);
+	writeToOutputBuffer(out);
+}
+
+void ProtocolGame::sendHirelingNameChange(uint32_t creatureId, uint32_t objectId) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	// CIP HirelingNameChange (S 0xDB): creature + appearance instance ids for the
+	// configuration dialog; zeros open a store-style name prompt only.
+	NetworkMessage out;
+	out.addByte(0xDB);
+	out.add<uint32_t>(creatureId);
+	out.add<uint32_t>(objectId);
+	writeToOutputBuffer(out);
 }
 
 void ProtocolGame::parseCyclopediaCharacterInfo(NetworkMessage &msg) {
@@ -2744,7 +2945,8 @@ void ProtocolGame::parseCyclopediaCharacterInfo(NetworkMessage &msg) {
 		entriesPerPage = std::min<uint16_t>(30, std::max<uint16_t>(5, msg.get<uint16_t>()));
 		page = std::max<uint16_t>(1, msg.get<uint16_t>());
 	}
-	if (characterID == 0) {
+	// The social dialog's account search asks by the character's database id.
+	if (characterID == 0 || characterID == player->getGUID()) {
 		characterID = player->getID();
 	}
 	g_game().playerCyclopediaCharacterInfo(player, characterID, characterInfoType, entriesPerPage, page);
@@ -2887,14 +3089,58 @@ void ProtocolGame::parseRuleViolationReport(NetworkMessage &msg) {
 	const std::string &targetName = msg.getString();
 	const std::string &comment = msg.getString();
 	std::string translation;
-	if (reportType == REPORT_TYPE_NAME) {
+	// Every type but bot carries a translation; statement (1), hireling name (3) and text (4) also carry an id we don't log.
+	if (reportType != REPORT_TYPE_BOT) {
 		translation = msg.getString();
-	} else if (reportType == REPORT_TYPE_STATEMENT) {
-		translation = msg.getString();
-		msg.get<uint32_t>(); // statement id, used to get whatever player have said, we don't log that.
+	}
+	if (reportType == REPORT_TYPE_STATEMENT || reportType == 3 || reportType == 4) {
+		msg.get<uint32_t>();
 	}
 
 	g_game().playerReportRuleViolationReport(player->getID(), targetName, reportType, reportReason, comment, translation);
+}
+
+void ProtocolGame::parseGetGuildMessage() {
+	const auto &guild = player->getGuild();
+	const auto &rank = player->getGuildRank();
+	if (!guild || !rank || rank->level != GUILDLEVEL_LEADER) {
+		return;
+	}
+
+	sendEditGuildMessage(IOGuild::getMotd(guild->getId()));
+}
+
+void ProtocolGame::parseEditGuildMessage(NetworkMessage &msg) {
+	const std::string message = msg.getString();
+	const auto &guild = player->getGuild();
+	const auto &rank = player->getGuildRank();
+	if (!guild || !rank || rank->level != GUILDLEVEL_LEADER || message.size() > 255) {
+		return;
+	}
+
+	g_game().setGuildMotd(guild->getId(), message);
+	for (const auto &member : guild->getMembersOnline()) {
+		g_game().sendGuildMotd(member->getID(), guild->getId());
+	}
+}
+
+void ProtocolGame::parseGetTextForReport(NetworkMessage &msg) {
+	const Position pos = msg.getPosition();
+	const auto itemId = msg.get<uint16_t>();
+	const uint8_t stackpos = msg.getByte();
+
+	const auto &thing = g_game().internalGetThing(player, pos, stackpos, itemId, STACKPOS_LOOK);
+	const auto &item = thing ? thing->getItem() : nullptr;
+	if (!item || !player->canSee(item->getPosition())) {
+		return;
+	}
+
+	const std::string &text = item->getAttribute<std::string>(ItemAttribute_t::TEXT);
+	if (text.empty()) {
+		return;
+	}
+
+	sendTextForReport(0, text, item->getAttribute<std::string>(ItemAttribute_t::WRITER));
 }
 
 void ProtocolGame::parseBestiarySendRaces() {
@@ -3409,6 +3655,21 @@ void ProtocolGame::parseLeaderFinderWindow(NetworkMessage &msg) {
 		default:
 			break;
 	}
+}
+
+// Client 15.x GameclientMessageSetClientOptions: u8 option, u8 value. Option 1 is "always turn
+// towards the direction of movement" (sent at login and when it changes).
+void ProtocolGame::parseSetClientOptions(NetworkMessage &msg) {
+	const uint8_t option = msg.getByte();
+	const bool enabled = msg.getByte() != 0;
+	if (option != 1) {
+		return;
+	}
+	g_dispatcher().addEvent([self = getThis(), playerID = player->getID(), enabled] {
+		if (const auto &target = g_game().getPlayerByID(playerID)) {
+			target->setTurnTowardsMoveDirection(enabled);
+		}
+	}, __FUNCTION__);
 }
 
 void ProtocolGame::parseMemberFinderWindow(NetworkMessage &msg) {
@@ -3940,6 +4201,12 @@ void ProtocolGame::sendResourceBalance(Resource_t resourceType) {
 		case RESOURCE_INVENTORY_MONEY:
 			value = player->getMoney();
 			break;
+		case RESOURCE_GUILD_BANK: {
+			if (const auto &guild = player->getGuild()) {
+				value = guild->getBankBalance();
+			}
+			break;
+		}
 		case RESOURCE_PREY_CARDS:
 			value = player->getPreyCards();
 			break;
@@ -3959,11 +4226,10 @@ void ProtocolGame::sendResourceBalance(Resource_t resourceType) {
 			value = coreCount;
 			break;
 		}
-		case RESOURCE_FORGE_DUST_LIMIT:
-			// 15.25 (sommerrelease26): the client polls 0x49 for the forge dust cap (shown as the
-			// "/limit" next to current dust, and used by the Increase Dust Limit preview). The 0xEE
-			// parser reads this in the default branch as u64, which is what sendResourceBalance emits.
-			value = player->getForgeDustLevel();
+		case RESOURCE_LUNAR_ASCENSION_ORBS:
+			// The client keeps 0x49 as its lunar ascension orb balance (perk shaping "Maximise");
+			// the forge dust cap comes from the forge data, not from a resource balance.
+			value = player->getItemTypeCount(ITEM_LUNAR_ASCENSION_ORB);
 			break;
 		case RESOURCE_LESSER_GEMS:
 			value = player->getItemTypeCount(player->getVocation()->getWheelGemId(WheelGemQuality_t::Lesser));
@@ -4464,6 +4730,45 @@ void ProtocolGame::sendCyclopediaMapDonations(uint64_t donationGoal, const std::
 		msg.add<uint16_t>(areaId);
 		msg.addByte(improvedRespawn ? 0x01 : 0x00);
 		msg.add<uint64_t>(donated);
+	}
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaMapPassages() {
+	if (!player || oldProtocol) {
+		return;
+	}
+	// sub 6 Passage: u16 n; { Position, u8 raceCount, u16 raceId×N }×n.
+	// IdleOT feed: traveler speech-bubble NPCs plus boat "Captain …" names (most
+	// stock travel scripts never set SPEECHBUBBLE_TRAVELER). Race list empty —
+	// CIP fills reachable race ids for the info panel.
+	std::vector<Position> passages;
+	std::set<uint64_t> seen;
+	for (const auto &[npcId, npc] : g_game().getNpcs()) {
+		if (!npc) {
+			continue;
+		}
+		const std::string &name = npc->getName();
+		const bool traveler = npc->getSpeechBubble() == SPEECHBUBBLE_TRAVELER
+			|| name.rfind("Captain ", 0) == 0
+			|| name.rfind("captain ", 0) == 0;
+		if (!traveler) {
+			continue;
+		}
+		const Position &pos = npc->getPosition();
+		const uint64_t key = (static_cast<uint64_t>(pos.x) << 32) | (static_cast<uint64_t>(pos.y) << 8) | pos.z;
+		if (!seen.insert(key).second) {
+			continue;
+		}
+		passages.push_back(pos);
+	}
+	NetworkMessage msg;
+	msg.addByte(0xDD);
+	msg.addByte(enumToValue(CyclopediaMapData_t::Passage));
+	msg.add<uint16_t>(static_cast<uint16_t>(std::min<size_t>(passages.size(), 0xFFFF)));
+	for (const Position &pos : passages) {
+		msg.addPosition(pos);
+		msg.addByte(0); // raceCount
 	}
 	writeToOutputBuffer(msg);
 }
@@ -5111,7 +5416,8 @@ void ProtocolGame::sendCyclopediaCharacterStoreSummary() {
 	}
 	msg.addByte(m_hSkills.size());
 	for (const auto &id : m_hSkills) {
-		msg.addByte(id - 1000);
+		msg.addByte(id - 1001); // Job 0 banker, 1 cook, 2 steward, 3 trader
+
 	}
 
 	/*std::vector<uint16_t> m_hOutfits;
@@ -5680,8 +5986,11 @@ void ProtocolGame::sendBasicData() {
 	}
 	msg.addByte(player->getVocation()->getClientId());
 
-	// Prey window
-	if (player->getVocation()->getId() == 0 && player->getGroup()->id < GROUP_TYPE_GAMEMASTER) {
+	// Prey / mainland unlock byte (CIP PlayerDataBasic). VOCATION_NONE and Newhaven
+	// citizens (storage 48031 == 1) stay "tutorial town" until the ferry clears it.
+	constexpr int32_t NewhavenCitizenStorage = 48031;
+	const bool newhavenCitizen = player->getStorageValue(NewhavenCitizenStorage) == 1;
+	if ((player->getVocation()->getId() == 0 && player->getGroup()->id < GROUP_TYPE_GAMEMASTER) || newhavenCitizen) {
 		msg.addByte(0);
 	} else {
 		msg.addByte(1); // has reached Main (allow player to open Prey window)
@@ -6372,6 +6681,16 @@ void ProtocolGame::sendClientCheck() {
 	writeToOutputBuffer(msg);
 }
 
+void ProtocolGame::sendPartyLeft() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x06);
+	writeToOutputBuffer(msg);
+}
+
 void ProtocolGame::sendGameNews() {
 	if (!player || oldProtocol) {
 		return;
@@ -6387,6 +6706,12 @@ void ProtocolGame::sendGameNews() {
 void ProtocolGame::sendResourcesBalance(uint64_t money /*= 0*/, uint64_t bank /*= 0*/, uint64_t preyCards /*= 0*/, uint64_t taskHunting /*= 0*/, uint64_t soulsealsPoints /*= 0*/, uint64_t forgeDust /*= 0*/, uint64_t forgeSliver /*= 0*/, uint64_t forgeCores /*= 0*/) {
 	sendResourceBalance(RESOURCE_BANK, bank);
 	sendResourceBalance(RESOURCE_INVENTORY_MONEY, money);
+	// CIP only applies hasGuildBank when type 0x02 is received — omit when not in a guild.
+	if (player) {
+		if (const auto &guild = player->getGuild()) {
+			sendResourceBalance(RESOURCE_GUILD_BANK, guild->getBankBalance());
+		}
+	}
 	sendResourceBalance(RESOURCE_PREY_CARDS, preyCards);
 	sendResourceBalance(RESOURCE_TASK_HUNTING, taskHunting);
 	sendResourceBalance(RESOURCE_SOULSEALS_POINTS, soulsealsPoints);
@@ -6682,7 +7007,8 @@ void ProtocolGame::sendSaleItemList(const std::vector<ShopBlock> &shopVector, co
 		if (search != inventoryMap.end()) {
 			customCurrencyValue += static_cast<uint64_t>(search->second);
 		}
-		sendResourceBalance(oldProtocol ? RESOURCE_INVENTORY_MONEY : RESOURCE_INVENTORY_CURRENCY_CUSTOM, customCurrencyValue);
+		// CIP: non-gold NPC currency is 0x3C (not 0x02 — that is guild bank gold).
+		sendResourceBalance(oldProtocol ? RESOURCE_INVENTORY_MONEY : RESOURCE_NPC_TRADE_QUEST_FLAG_CURRENCY, customCurrencyValue);
 	}
 
 	NetworkMessage msg;
@@ -7481,8 +7807,10 @@ void ProtocolGame::sendForgeHistory(uint8_t page) {
 }
 
 void ProtocolGame::sendForgeError(const ReturnValue returnValue) {
-	sendMessageDialog(getReturnMessage(returnValue));
+	// The client's exaltation forge only shows message dialogs of type 0x32, and closing the
+	// forge also closes that dialog, so the close goes first.
 	closeForgeWindow();
+	sendMessageDialog(getReturnMessage(returnValue), 0x32);
 }
 
 void ProtocolGame::closeForgeWindow() {
@@ -8522,6 +8850,22 @@ void ProtocolGame::sendEnterWorld() {
 	writeToOutputBuffer(msg);
 }
 
+void ProtocolGame::sendReadyForSecondaryConnection(const std::string &token) {
+	// CIP S 0x0B: modern clients parse this as ReadyForSecondaryConnection (string token).
+	// Old protocol still uses 0x0B for GMActions; never send the token path there.
+	if (oldProtocol || readyForSecondaryConnectionSent || token.empty()) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x0B);
+	msg.addString(token);
+	writeToOutputBuffer(msg);
+	secondaryConnectionToken = token;
+	registerSecondaryToken(token, getThis());
+	readyForSecondaryConnectionSent = true;
+}
+
 void ProtocolGame::sendFightModes() {
 	NetworkMessage msg;
 	msg.addByte(0xA7);
@@ -8622,6 +8966,8 @@ void ProtocolGame::sendAddCreature(const std::shared_ptr<Creature> &creature, co
 	sendTibiaTime(g_game().getLightHour());
 	sendPendingStateEntered();
 	sendEnterWorld();
+	// Per-session token for tibia TGameserverDualConnection / SecondaryLogin (stability socket).
+	sendReadyForSecondaryConnection(makeSecondaryConnectionToken());
 	sendMapDescription(pos);
 	loggedIn = true;
 
@@ -8694,6 +9040,7 @@ void ProtocolGame::sendAddCreature(const std::shared_ptr<Creature> &creature, co
 	sendLootContainers();
 	sendBasicData();
 	sendHousesInfo();
+	sendCyclopediaMapPassages();
 	// Wheel of destiny cooldown
 	if (!oldProtocol && g_configManager().getBoolean(TOGGLE_WHEELSYSTEM)) {
 		player->wheel()->sendGiftOfLifeCooldown();
@@ -8923,6 +9270,32 @@ void ProtocolGame::sendTextWindow(uint32_t windowTextId, uint32_t itemId, const 
 	}
 
 	msg.add<uint16_t>(0x00);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendEditGuildMessage(const std::string &message) {
+	NetworkMessage msg;
+	msg.addByte(0xAE);
+	msg.addString(message);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendTextForReport(uint32_t textId, const std::string &text, const std::string &author) {
+	NetworkMessage msg;
+	msg.addByte(0x81);
+	msg.add<uint32_t>(textId);
+	msg.addString(text);
+	msg.addString(author);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendExivaSuppressed() {
+	if (oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xC9);
 	writeToOutputBuffer(msg);
 }
 
@@ -9513,7 +9886,7 @@ void ProtocolGame::sendPreyData(const std::unique_ptr<PreySlot> &slot, const Pla
 		auto timeDiffMinutes = timeDiffMs / 60000;
 		msg.add<uint16_t>(timeDiffMinutes ? timeDiffMinutes : 0);
 	} else {
-		msg.add<uint32_t>(std::max<uint32_t>(static_cast<uint32_t>(((slot->freeRerollTimeStamp - OTSYS_TIME()) / 1000)), 0));
+		msg.add<uint32_t>(static_cast<uint32_t>(std::max<int64_t>((slot->freeRerollTimeStamp - OTSYS_TIME()) / 1000, 0)));
 		msg.addByte(static_cast<uint8_t>(slot->option));
 	}
 
@@ -10130,10 +10503,10 @@ void ProtocolGame::openImbuementWindow(const Imbuement_Window_t type, const std:
 	writeToOutputBuffer(msg);
 }
 
-void ProtocolGame::sendMessageDialog(const std::string &message) {
+void ProtocolGame::sendMessageDialog(const std::string &message, uint8_t type) {
 	NetworkMessage msg;
 	msg.addByte(0xED);
-	msg.addByte(0x14); // Unknown type
+	msg.addByte(type);
 	msg.addString(message);
 	writeToOutputBuffer(msg);
 }
@@ -10460,6 +10833,14 @@ void ProtocolGame::parseExtendedOpcode(NetworkMessage &msg) {
 
 	// process additional opcodes via lua script event
 	g_game().parsePlayerExtendedOpcode(player->getID(), opcode, buffer);
+}
+
+void ProtocolGame::parseCharacterSwitchRequest(NetworkMessage &msg) {
+	const std::string targetName = msg.getString();
+	if (targetName.empty() || !player) {
+		return;
+	}
+	g_game().playerRequestCharacterSwitch(player->getID(), targetName);
 }
 
 // OTCv8
@@ -11589,6 +11970,22 @@ void ProtocolGame::sendScreenshotAndBannerUnlockedSpell(uint16_t spellId) {
 	writeToOutputBuffer(msg);
 }
 
+void ProtocolGame::sendUnlockedSpells(const std::vector<uint16_t> &spellIds) {
+	if (oldProtocol || spellIds.empty()) {
+		return;
+	}
+
+	// Client GameserverMessageUnlockedSpells: u16 count, then u16 spell ids; the
+	// client auto-inserts each spell into an empty action button.
+	NetworkMessage msg;
+	msg.addByte(0x2E);
+	msg.add<uint16_t>(static_cast<uint16_t>(spellIds.size()));
+	for (const uint16_t spellId : spellIds) {
+		msg.add<uint16_t>(spellId);
+	}
+	writeToOutputBuffer(msg);
+}
+
 void ProtocolGame::sendScreenshotAndBannerBountyTaskFinished(uint16_t raceId) {
 	if (oldProtocol) {
 		return;
@@ -12116,6 +12513,7 @@ void ProtocolGame::parseWeaponProficiency(NetworkMessage &msg) {
 		}
 
 		target->applyEquippedWeaponProficiency(itemId);
+		sendWeaponProficiencyInfo(itemId, target.get());
 
 	} else if (type == WEAPON_PROFICIENCY_MODIFY_SLOT) {
 		const uint16_t itemId = msg.get<uint16_t>();
