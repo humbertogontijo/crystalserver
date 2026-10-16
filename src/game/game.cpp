@@ -12016,6 +12016,8 @@ void Game::playerRequestCharacterSwitch(uint32_t playerId, const std::string &ta
 		return;
 	}
 
+	g_logger().info("[playerRequestCharacterSwitch] {} -> {}", player->getName(), targetName);
+
 	lua_getglobal(L, "Alts");
 	if (!lua_istable(L, -1)) {
 		lua_pop(L, 1);

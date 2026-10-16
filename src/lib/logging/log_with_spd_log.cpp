@@ -21,6 +21,10 @@
 LogWithSpdLog::LogWithSpdLog() {
 	setLevel("info");
 	spdlog::set_pattern("[%Y-%d-%m %H:%M:%S.%e] [%^%l%$] %v ");
+	// A fatal signal kills the process before the sink's periodic flush. Info is
+	// the level character-switch and combat logs use, so it has to be on the pipe
+	// already when the crash handler prints the backtrace.
+	spdlog::flush_on(spdlog::level::info);
 
 #ifdef DEBUG_LOG
 	spdlog::set_pattern("[%Y-%d-%m %H:%M:%S.%e] [thread %t] [%^%l%$] %v ");

@@ -17,6 +17,24 @@
 
 #include "server/signals.hpp"
 
+#include <atomic>
+#include <csignal>
+#include <cstdio>
+#include <cstring>
+#include <exception>
+
+#if defined(_WIN32)
+#include <io.h>
+#define STDERR_FILENO _fileno(stderr)
+#else
+#include <unistd.h>
+#endif
+
+#if defined(__APPLE__) || defined(__linux__)
+#include <execinfo.h>
+#define CRYSTAL_HAVE_BACKTRACE 1
+#endif
+
 #include "config/configmanager.hpp"
 #include "creatures/appearance/mounts/mounts.hpp"
 #include "creatures/interactions/chat.hpp"
@@ -28,6 +46,79 @@
 #include "lua/global/globalevent.hpp"
 #include "lua/scripts/lua_environment.hpp"
 #include "lib/di/container.hpp"
+
+namespace {
+
+std::atomic_flag g_crashHandling = ATOMIC_FLAG_INIT;
+
+void writeLiteral(const char* text) {
+	if (!text) {
+		return;
+	}
+	const auto len = std::strlen(text);
+	if (len > 0) {
+		::write(STDERR_FILENO, text, len);
+	}
+}
+
+void dumpBacktrace() {
+#if CRYSTAL_HAVE_BACKTRACE
+	void* frames[64];
+	const int count = ::backtrace(frames, 64);
+	writeLiteral("crystalserver.crash: backtrace\n");
+	::backtrace_symbols_fd(frames, count, STDERR_FILENO);
+#else
+	writeLiteral("crystalserver.crash: no backtrace on this platform\n");
+#endif
+}
+
+void crashHandler(int sig) {
+	if (g_crashHandling.test_and_set()) {
+		::_exit(128 + sig);
+	}
+
+	char header[96];
+#if defined(_WIN32)
+	std::snprintf(header, sizeof(header), "\ncrystalserver.crash: signal %d\n", sig);
+#else
+	std::snprintf(header, sizeof(header), "\ncrystalserver.crash: signal %d (%s)\n", sig, strsignal(sig));
+#endif
+	writeLiteral(header);
+	dumpBacktrace();
+
+	::signal(sig, SIG_DFL);
+	::raise(sig);
+}
+
+void terminateHandler() {
+	writeLiteral("\ncrystalserver.crash: std::terminate\n");
+	dumpBacktrace();
+	std::abort();
+}
+
+}
+
+void Signals::installCrashHandlers() {
+	std::set_terminate(terminateHandler);
+
+#if defined(_WIN32)
+	::signal(SIGSEGV, crashHandler);
+	::signal(SIGABRT, crashHandler);
+	::signal(SIGFPE, crashHandler);
+	::signal(SIGILL, crashHandler);
+#else
+	struct sigaction action {};
+	action.sa_handler = crashHandler;
+	sigemptyset(&action.sa_mask);
+	action.sa_flags = SA_RESETHAND;
+
+	::sigaction(SIGSEGV, &action, nullptr);
+	::sigaction(SIGABRT, &action, nullptr);
+	::sigaction(SIGBUS, &action, nullptr);
+	::sigaction(SIGFPE, &action, nullptr);
+	::sigaction(SIGILL, &action, nullptr);
+#endif
+}
 
 Signals::Signals(asio::io_service &service) :
 	set(service) {

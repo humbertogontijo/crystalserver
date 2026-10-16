@@ -1063,7 +1063,7 @@ void WeaponWand::configureWeapon(const ItemType &it) {
 	Weapon::configureWeapon(it);
 }
 
-int32_t WeaponWand::getWeaponDamage(const std::shared_ptr<Player> &player, const std::shared_ptr<Creature> &, const std::shared_ptr<Item> &, bool maxDamage /* = false*/) const {
+int32_t WeaponWand::getWeaponDamage(const std::shared_ptr<Player> &, const std::shared_ptr<Creature> &, const std::shared_ptr<Item> &, bool maxDamage /* = false*/) const {
 	return maxDamage ? -maxChange : -normal_random(minChange, maxChange);
 }
 

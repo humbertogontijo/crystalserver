@@ -851,23 +851,28 @@ void Combat::CombatHealthFunc(const std::shared_ptr<Creature> &caster, const std
 		auto &proficiencyPerk = attackerPlayer->getEquippedWeaponProficiency();
 
 		// Proficiency Perk: skillPercentageAsExtraDamageForAutoAttack
-		if (const std::shared_ptr<Creature> &attackedCreature = attackerPlayer->getAttackedCreature()) {
-			if (attackedCreature && (attackedCreature == targetMonster || attackedCreature == targetPlayer)) {
-				for (const auto &[skillType, bonusPercent] : proficiencyPerk.skillPercentageAsExtraDamageForAutoAttack) {
-					const uint16_t skillLevel = attackerPlayer->getSkillLevel(skillType);
-					const int32_t bonus = static_cast<int32_t>(std::ceil(skillLevel * bonusPercent));
+		// Auto-attack only. Spells and runes have their own perk; applying this one to them
+		// added the bonus on top of Forked Thorns / Forked Glacier whenever the creature
+		// was the player's current target.
+		if (damage.instantSpellName.empty() && damage.runeSpellName.empty()) {
+			if (const std::shared_ptr<Creature> &attackedCreature = attackerPlayer->getAttackedCreature()) {
+				if (attackedCreature && (attackedCreature == targetMonster || attackedCreature == targetPlayer)) {
+					for (const auto &[skillType, bonusPercent] : proficiencyPerk.skillPercentageAsExtraDamageForAutoAttack) {
+						const uint16_t skillLevel = attackerPlayer->getSkillLevel(skillType);
+						const int32_t bonus = static_cast<int32_t>(std::ceil(skillLevel * bonusPercent));
 
-					g_logger().debug("[{}] skillPercentageAsExtraDamageForAutoAttack before {} / {} bonus {} skill id {}", __FUNCTION__, damage.primary.value, damage.secondary.value, bonus, static_cast<uint8_t>(skillType));
+						g_logger().debug("[{}] skillPercentageAsExtraDamageForAutoAttack before {} / {} bonus {} skill id {}", __FUNCTION__, damage.primary.value, damage.secondary.value, bonus, static_cast<uint8_t>(skillType));
 
-					if (damage.primary.value < 0) {
-						damage.primary.value -= bonus;
+						if (damage.primary.value < 0) {
+							damage.primary.value -= bonus;
+						}
+
+						if (damage.secondary.value < 0) {
+							damage.secondary.value -= bonus;
+						}
+
+						g_logger().debug("[{}] skillPercentageAsExtraDamageForAutoAttack after {} / {} bonus {} skill id {}", __FUNCTION__, damage.primary.value, damage.secondary.value, bonus, static_cast<uint8_t>(skillType));
 					}
-
-					if (damage.secondary.value < 0) {
-						damage.secondary.value -= bonus;
-					}
-
-					g_logger().debug("[{}] skillPercentageAsExtraDamageForAutoAttack after {} / {} bonus {} skill id {}", __FUNCTION__, damage.primary.value, damage.secondary.value, bonus, static_cast<uint8_t>(skillType));
 				}
 			}
 		}

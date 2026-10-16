@@ -23,6 +23,10 @@ class Signals {
 public:
 	explicit Signals(asio::io_service &service);
 
+	/// SIGSEGV / SIGABRT / SIGBUS / SIGFPE / SIGILL write a backtrace to stderr, then re-raise.
+	/// Call before Lua and worker threads so a later handler cannot replace it unnoticed.
+	static void installCrashHandlers();
+
 private:
 	void asyncWait();
 	static void dispatchSignalHandler(int signal);

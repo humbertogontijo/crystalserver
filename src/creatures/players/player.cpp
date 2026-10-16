@@ -7843,6 +7843,16 @@ int32_t Player::getSkill(skills_t skilltype, SkillsId_t skillinfo) const {
 }
 
 uint16_t Player::getSkillLevel(skills_t skill) const {
+	// skills[] ends at SKILL_MANA_LEECH_AMOUNT. Magic level and character level live
+	// elsewhere; indexing them reads past the array (the next Player members) and a
+	// "percent of magic level" proficiency then adds thousands of damage.
+	if (skill == SKILL_MAGLEVEL) {
+		return static_cast<uint16_t>(std::min<uint32_t>(getMagicLevel(), std::numeric_limits<uint16_t>::max()));
+	}
+	if (skill == SKILL_LEVEL) {
+		return static_cast<uint16_t>(std::min<uint32_t>(getLevel(), std::numeric_limits<uint16_t>::max()));
+	}
+
 	auto skillLevel = getLoyaltySkill(skill);
 	skillLevel = std::max<int32_t>(0, skillLevel + varSkills[skill]);
 

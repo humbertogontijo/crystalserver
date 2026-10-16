@@ -15,10 +15,12 @@ help:
 	@echo "  make server-start       run ./crystalserver (cwd = this repo)"
 
 server-build:
-	@VCPKG_ROOT="$${VCPKG_ROOT:-$(HOME)/vcpkg}"; \
+	@CACHE_ENV="$(HERE)/../../scripts/build-cache-env.sh"; \
+	if [ -f "$$CACHE_ENV" ]; then source "$$CACHE_ENV"; fi; \
+	VCPKG_ROOT="$${VCPKG_ROOT:-$(HOME)/vcpkg}"; \
 	test -f "$$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" || (echo "[server] install vcpkg first" && exit 1); \
 	export VCPKG_ROOT; \
-	case "$$(uname -s)" in Darwin) PRESET=macos-release; case "$$(uname -m)" in arm64|aarch64) export VCPKG_FORCE_SYSTEM_BINARIES=1 ;; esac ;; \
+	case "$$(uname -s)" in Darwin) PRESET=macos-release ;; \
 		Linux) PRESET=linux-release ;; *) PRESET=linux-release ;; esac; \
 	JOBS="$$(sysctl -n hw.ncpu 2>/dev/null || nproc)"; \
 	MAP_TOOLS=""; \
@@ -89,10 +91,12 @@ server-build:
 	fi
 
 server-test:
-	@VCPKG_ROOT="$${VCPKG_ROOT:-$(HOME)/vcpkg}"; \
+	@CACHE_ENV="$(HERE)/../../scripts/build-cache-env.sh"; \
+	if [ -f "$$CACHE_ENV" ]; then source "$$CACHE_ENV"; fi; \
+	VCPKG_ROOT="$${VCPKG_ROOT:-$(HOME)/vcpkg}"; \
 	test -f "$$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" || (echo "[server] install vcpkg first" && exit 1); \
 	export VCPKG_ROOT; \
-	case "$$(uname -s)" in Darwin) PRESET=macos-test; case "$$(uname -m)" in arm64|aarch64) export VCPKG_FORCE_SYSTEM_BINARIES=1 ;; esac ;; \
+	case "$$(uname -s)" in Darwin) PRESET=macos-test ;; \
 		*) PRESET=linux-test ;; esac; \
 	JOBS="$$(sysctl -n hw.ncpu 2>/dev/null || nproc)"; \
 	cd "$(HERE)" && \

@@ -636,6 +636,10 @@ public:
 	bool keepsDisconnectedCombat() const {
 		return idleCombat || exerciseTraining;
 	}
+	/** Monsters keep this player as a target with no client: idle combat, exercise, or a private session (expedition). */
+	bool keepsMonsterFocusWhileDisconnected() const {
+		return keepsDisconnectedCombat() || !isInSafeInstance();
+	}
 	/** Body stays (as headless) when its client lets go: idle combat, exercise or VIP stay-online. */
 	bool staysOnlineWithoutClient() const;
 	/** Headless body stays while it keeps fighting without a client (idle combat, exercise) or sits in an unsafe instance. */

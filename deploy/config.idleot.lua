@@ -62,7 +62,8 @@ staminaGreenDelay = 3
 
 -- VIP
 vipSystemEnabled = true
-vipBonusExp = 10
+-- Flat VIP experience is off. Shared parties add 10% per distinct VIP account, up to 40%.
+vipBonusExp = 0
 vipStayOnline = true
 
 -- Engine

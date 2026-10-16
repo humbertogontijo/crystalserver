@@ -994,9 +994,10 @@ bool Monster::isTarget(const std::shared_ptr<Creature> &creature) {
 	}
 
 	if (!isSummon()) {
-		// Disconnected players are invalid targets unless idle combat / exercise keeps them in fight.
+		// Disconnected players are invalid targets unless idle combat, exercise, or a private
+		// expedition session keeps them in the fight.
 		const auto &targetPlayer = creature->getPlayer();
-		if (targetPlayer && targetPlayer->isDisconnected() && !targetPlayer->keepsDisconnectedCombat()) {
+		if (targetPlayer && targetPlayer->isDisconnected() && !targetPlayer->keepsMonsterFocusWhileDisconnected()) {
 			return false;
 		}
 
@@ -1210,7 +1211,7 @@ void Monster::onThink(uint32_t interval) {
 		}
 	} else if (!targetList.empty()) {
 		const auto &attackedPlayer = attackedCreature ? attackedCreature->getPlayer() : nullptr;
-		const bool attackedCreatureIsDisconnected = attackedPlayer && attackedPlayer->isDisconnected() && !attackedPlayer->keepsDisconnectedCombat();
+		const bool attackedCreatureIsDisconnected = attackedPlayer && attackedPlayer->isDisconnected() && !attackedPlayer->keepsMonsterFocusWhileDisconnected();
 		// Soft-death / CannotBeAttacked / PZ / etc. — drop invalid focus and pick another.
 		const bool attackedCreatureIsInvalid = attackedCreature && !isTarget(attackedCreature);
 		if (attackedCreatureIsInvalid) {

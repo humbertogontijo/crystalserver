@@ -43,6 +43,7 @@
 #include "lua/scripts/scripts.hpp"
 #include "map/spectators.hpp"
 #include "server/network/protocol/protocollogin.hpp"
+#include "server/signals.hpp"
 #include "server/network/protocol/protocolstatus.hpp"
 #include "server/network/webhook/webhook.hpp"
 #include "creatures/players/vocations/vocation.hpp"
@@ -55,6 +56,7 @@ CrystalServer::CrystalServer(
 	logger(logger),
 	rsa(rsa),
 	serviceManager(serviceManager) {
+	Signals::installCrashHandlers();
 	logInfos();
 	toggleForceCloseButton();
 	g_game().setGameState(GAME_STATE_STARTUP);
@@ -91,6 +93,8 @@ int CrystalServer::run() {
 				rsa.start();
 				initializeDatabase();
 				loadModules();
+				// LuaJIT may replace SIGSEGV while opening the state. Put ours back.
+				Signals::installCrashHandlers();
 				g_game().worlds().load();
 				loadThisWorld();
 				loadMaps();

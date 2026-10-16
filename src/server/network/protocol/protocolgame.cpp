@@ -726,6 +726,7 @@ bool ProtocolGame::switchToPlayer(const std::shared_ptr<Player> &target) {
 	const auto oldPlayer = player;
 	const auto operatingSystem = oldPlayer->getOperatingSystem();
 
+	g_logger().info("[ProtocolGame::switchToPlayer] {} -> {}", oldPlayer->getName(), target->getName());
 	sendCharacterSwitch(target->getName());
 
 	if (oldPlayer->tradePartner) {
@@ -5979,7 +5980,8 @@ void ProtocolGame::sendBasicData() {
 	msg.addByte(0x9F);
 	if (player->isPremium() || player->isVip()) {
 		msg.addByte(1);
-		msg.add<uint32_t>(getTimeNow() + ((player->getPremiumDays() + 1) * 86400));
+		const time_t lastDay = player->getPremiumLastDay();
+		msg.add<uint32_t>(lastDay > 0 ? static_cast<uint32_t>(lastDay) : 0);
 	} else {
 		msg.addByte(0);
 		msg.add<uint32_t>(0);

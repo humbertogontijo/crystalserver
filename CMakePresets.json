@@ -11,13 +11,22 @@
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
+      "environment": {
+        "VCPKG_DEFAULT_BINARY_CACHE": "${sourceDir}/../../.cache/vcpkg/archives",
+        "VCPKG_BINARY_SOURCES": "clear;files,${sourceDir}/../../.cache/vcpkg/archives,readwrite",
+        "VCPKG_DOWNLOADS": "$penv{HOME}/vcpkg/downloads",
+        "CCACHE_DIR": "${sourceDir}/../../.cache/ccache",
+        "CCACHE_BASEDIR": "${sourceDir}/../..",
+        "CCACHE_NOHASHDIR": "1"
+      },
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "BUILD_STATIC_LIBRARY": "ON",
         "SPEED_UP_BUILD_UNITY": "ON",
         "OPTIONS_ENABLE_SCCACHE": "ON",
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "BUILD_TESTS": "OFF"
+        "BUILD_TESTS": "OFF",
+        "VCPKG_INSTALL_OPTIONS": "--clean-packages-after-build;--clean-buildtrees-after-build;--x-buildtrees-root=${sourceDir}/build/${presetName}/vcpkg-buildtrees;--x-packages-root=${sourceDir}/build/${presetName}/vcpkg-packages"
       }
     },
     {
@@ -25,6 +34,14 @@
       "inherits": "base",
       "displayName": "Windows - Release",
       "description": "Windows Release Build",
+      "environment": {
+        "VCPKG_DEFAULT_BINARY_CACHE": "$penv{VCPKG_DEFAULT_BINARY_CACHE}",
+        "VCPKG_BINARY_SOURCES": "$penv{VCPKG_BINARY_SOURCES}",
+        "VCPKG_DOWNLOADS": "$penv{VCPKG_DOWNLOADS}",
+        "CCACHE_DIR": "$penv{CCACHE_DIR}",
+        "CCACHE_BASEDIR": "$penv{CCACHE_BASEDIR}",
+        "CCACHE_NOHASHDIR": "$penv{CCACHE_NOHASHDIR}"
+      },
       "cacheVariables": {
         "VCPKG_TARGET_TRIPLET": "x64-windows-static"
       },
@@ -64,6 +81,14 @@
       "inherits": "base",
       "displayName": "Linux - Release",
       "description": "Sets Ninja generator, compilers, build and install directory and set build type as release",
+      "environment": {
+        "VCPKG_DEFAULT_BINARY_CACHE": "$penv{VCPKG_DEFAULT_BINARY_CACHE}",
+        "VCPKG_BINARY_SOURCES": "$penv{VCPKG_BINARY_SOURCES}",
+        "VCPKG_DOWNLOADS": "$penv{VCPKG_DOWNLOADS}",
+        "CCACHE_DIR": "$penv{CCACHE_DIR}",
+        "CCACHE_BASEDIR": "$penv{CCACHE_BASEDIR}",
+        "CCACHE_NOHASHDIR": "$penv{CCACHE_NOHASHDIR}"
+      },
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": {
           "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
@@ -115,11 +140,22 @@
       "inherits": "base",
       "displayName": "macOS - Release",
       "description": "macOS Release Build (Apple Silicon or Intel)",
+      "environment": {
+        "VCPKG_DEFAULT_BINARY_CACHE": "$penv{VCPKG_DEFAULT_BINARY_CACHE}",
+        "VCPKG_BINARY_SOURCES": "$penv{VCPKG_BINARY_SOURCES}",
+        "VCPKG_DOWNLOADS": "$penv{VCPKG_DOWNLOADS}",
+        "CCACHE_DIR": "$penv{CCACHE_DIR}",
+        "CCACHE_BASEDIR": "$penv{CCACHE_BASEDIR}",
+        "CCACHE_NOHASHDIR": "$penv{CCACHE_NOHASHDIR}"
+      },
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": {
           "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
           "type": "FILEPATH"
         },
+        "CMAKE_C_COMPILER": "/usr/bin/cc",
+        "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/../../.cache/vcpkg_installed/crystal-arm64-osx",
         "OPTIONS_ENABLE_CCACHE": "ON",
         "OPTIONS_ENABLE_SCCACHE": "OFF",
         "RUN_TESTS_AFTER_BUILD": "OFF"
@@ -139,7 +175,8 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "DEBUG_LOG": "ON",
-        "SPEED_UP_BUILD_UNITY": "OFF"
+        "SPEED_UP_BUILD_UNITY": "OFF",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/${presetName}/vcpkg_installed"
       }
     },
     {

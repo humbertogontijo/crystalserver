@@ -1,5 +1,20 @@
 cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
 
+# Drop empty preset passthroughs so a monorepo checkout can fill repo-local
+# defaults. Standalone CI leaves a real CCACHE_DIR / NuGet source untouched.
+foreach(_idleot_env_var
+        VCPKG_DEFAULT_BINARY_CACHE
+        VCPKG_BINARY_SOURCES
+        VCPKG_DOWNLOADS
+        CCACHE_DIR
+        CCACHE_BASEDIR
+        CCACHE_NOHASHDIR)
+    if("$ENV{${_idleot_env_var}}" STREQUAL "")
+        unset(ENV{${_idleot_env_var}})
+    endif()
+endforeach()
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/idleot-build-cache.cmake" OPTIONAL)
+
 # VCPKG
 # cmake -DCMAKE_TOOLCHAIN_FILE=/opt/workspace/vcpkg/scripts/buildsystems/vcpkg.cmake ..
 # Needed libs are in file vcpkg.json
@@ -89,6 +104,9 @@ if(NOT _IDLEOT_COMPILER_LAUNCHER AND OPTIONS_ENABLE_SCCACHE)
         message(STATUS "sccache not found; falling back to ccache (${CCACHE})")
         set(_IDLEOT_COMPILER_LAUNCHER "${CCACHE}")
     endif()
+endif()
+if(_IDLEOT_COMPILER_LAUNCHER AND COMMAND idleot_pin_compiler_launcher)
+    idleot_pin_compiler_launcher(_IDLEOT_COMPILER_LAUNCHER)
 endif()
 if(_IDLEOT_COMPILER_LAUNCHER)
     set(CMAKE_C_COMPILER_LAUNCHER "${_IDLEOT_COMPILER_LAUNCHER}")
