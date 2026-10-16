@@ -6,7 +6,6 @@
     "argon2",
     "asio",
     "bext-di",
-    "bext-ut",
     "curl",
     "eventpp",
     "libmariadb",
@@ -40,5 +39,13 @@
       "platform": "windows"
     }
   ],
+  "features": {
+    "tests": {
+      "description": "Dependencies required to build unit tests (BUILD_TESTS).",
+      "dependencies": [
+        "bext-ut"
+      ]
+    }
+  },
   "builtin-baseline": "56bb2411609227288b70117ead2c47585ba07713"
 }
