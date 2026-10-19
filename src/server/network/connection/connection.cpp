@@ -388,7 +388,20 @@ uint32_t Connection::getIP() {
 			g_logger().error("[Connection::getIP] - Failed to get remote endpoint: {}", error.message());
 			ip = 0;
 		} else {
-			ip = htonl(endpoint.address().to_v4().to_uint());
+			const auto address = endpoint.address();
+			if (address.is_v4()) {
+				ip = htonl(address.to_v4().to_uint());
+			} else if (address.is_v6()) {
+				const auto v6 = address.to_v6();
+				// Browser "localhost" is ::1. The ban list is IPv4, so loopback
+				// and v4-mapped peers use the IPv4 address they correspond to.
+				if (v6.is_v4_mapped() || v6.is_loopback()) {
+					ip = htonl(v6.is_loopback() ? asio::ip::address_v4::loopback().to_uint() : v6.to_v4().to_uint());
+				} else {
+					g_logger().warn("[Connection::getIP] - dropping unmapped IPv6 peer {}", address.to_string());
+					ip = 0;
+				}
+			}
 		}
 	}
 	return ip;

@@ -766,7 +766,12 @@ function InstanceWorld.sendBounds(player, force)
 		return true
 	end
 	InstanceWorld._boundsSent[pid] = cacheKey
-	return ExpeditionProtocol.sendInstanceBounds(player, desc)
+	local sent = ExpeditionProtocol.sendInstanceBounds(player, desc)
+	-- Same moment the client learns the instance: area ambience and music.
+	if PlaceSound then
+		PlaceSound.send(player, desc)
+	end
+	return sent
 end
 
 local function isLobbyPosition(pos)

@@ -92,21 +92,40 @@ void WebSocketServicePort::open(uint16_t port) {
 			endpoint = asio::ip::tcp::endpoint(asio::ip::address_v4::any(), port);
 		}
 
-		acceptor = std::make_unique<asio::ip::tcp::acceptor>(io_service, endpoint);
+		acceptor = std::make_shared<asio::ip::tcp::acceptor>(io_service, endpoint);
 		acceptor->set_option(asio::ip::tcp::no_delay(true));
 		acceptor->set_option(asio::socket_base::reuse_address(true));
 
 		g_logger().info("[WebSocketServicePort] - Listening on {}:{}", ipString, port);
-		accept();
+		accept(acceptor);
 	} catch (const std::exception &e) {
 		g_logger().error("[WebSocketServicePort::open] - Failed to bind port {}: {}", port, e.what());
+	}
+
+	// v6_only so this does not collide with the v4 socket already bound above.
+	try {
+		acceptor6 = std::make_shared<asio::ip::tcp::acceptor>(io_service);
+		acceptor6->open(asio::ip::tcp::v6());
+		acceptor6->set_option(asio::ip::v6_only(true));
+		acceptor6->set_option(asio::ip::tcp::no_delay(true));
+		acceptor6->set_option(asio::socket_base::reuse_address(true));
+		acceptor6->bind(asio::ip::tcp::endpoint(asio::ip::address_v6::any(), port));
+		acceptor6->listen();
+		g_logger().info("[WebSocketServicePort] - Listening on [::]:{}", port);
+		accept(acceptor6);
+	} catch (const std::exception &e) {
+		acceptor6.reset();
+		g_logger().warn("[WebSocketServicePort::open] - IPv6 port {} not bound: {}", port, e.what());
 	}
 }
 
 void WebSocketServicePort::close() const {
-	if (acceptor && acceptor->is_open()) {
+	for (const auto &which : { acceptor.get(), acceptor6.get() }) {
+		if (!which || !which->is_open()) {
+			continue;
+		}
 		std::error_code error;
-		acceptor->close(error);
+		which->close(error);
 		if (error) {
 			g_logger().error("[WebSocketServicePort::close] - {}", error.message());
 		}
@@ -117,8 +136,8 @@ void WebSocketServicePort::onStopServer() const {
 	close();
 }
 
-void WebSocketServicePort::accept() {
-	if (!acceptor) {
+void WebSocketServicePort::accept(const Acceptor &which) {
+	if (!which || !which->is_open()) {
 		return;
 	}
 
@@ -127,12 +146,12 @@ void WebSocketServicePort::accept() {
 	servicePort->add_service(gameService);
 
 	const auto connection = ConnectionManager::getInstance().createConnection(io_service, servicePort);
-	acceptor->async_accept(connection->getSocket(), [self = shared_from_this(), connection](const std::error_code &error) {
-		self->onAccept(connection, error);
+	which->async_accept(connection->getSocket(), [self = shared_from_this(), which, connection](const std::error_code &error) {
+		self->onAccept(which, connection, error);
 	});
 }
 
-void WebSocketServicePort::onAccept(const Connection_ptr &connection, const std::error_code &error) {
+void WebSocketServicePort::onAccept(const Acceptor &which, const Connection_ptr &connection, const std::error_code &error) {
 	if (!error) {
 		const auto remoteIp = connection->getIP();
 		if (remoteIp != 0 && inject<Ban>().acceptConnection(remoteIp)) {
@@ -140,7 +159,7 @@ void WebSocketServicePort::onAccept(const Connection_ptr &connection, const std:
 		} else {
 			connection->close(FORCE_CLOSE);
 		}
-		accept();
+		accept(which);
 	} else if (error != asio::error::operation_aborted) {
 		if (!pendingStart) {
 			close();
