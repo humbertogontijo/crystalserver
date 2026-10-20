@@ -30,30 +30,9 @@ IdleMission.register({
 		local ctrl = run.ctrl
 		return {
 			{
-				id = "go_raymond",
-				title = "Go to Raymond Striker",
-				detail = "Travel to Meriana and find Raymond Striker.",
-				cta = "Go to Raymond Striker",
-				satisfied = function()
-					local p = Player(run.playerId)
-					local _, _, status = progress(p)
-					return status == QuestsConfig.STATUS_ACTIVE
-						or status == QuestsConfig.STATUS_READY
-						or status == QuestsConfig.STATUS_DONE
-				end,
-				onAdvance = function(_, done)
-					ctrl:goTo(NPC_POS, {
-						reach = 2,
-						onDone = function(_, ok, reason)
-							done(ok, reason)
-						end,
-					})
-				end,
-			},
-			{
 				id = "talk_accept",
 				title = "Accept the pirate task",
-				detail = "Speak with Raymond Striker about hunting pirates.",
+				detail = "Go to Raymond Striker on Meriana and take the pirate task.",
 				cta = "Talk to Raymond Striker",
 				satisfied = function()
 					local p = Player(run.playerId)
@@ -63,7 +42,7 @@ IdleMission.register({
 						or status == QuestsConfig.STATUS_DONE
 				end,
 				onAdvance = function(_, done)
-					ctrl:talkTo(NPC, { "hi", "task", "pirates", "yes" }, {
+					ctrl:talkTo(NPC, { "hi", "task", "pirates", "yes", "bye" }, {
 						position = NPC_POS,
 						onDone = function(player, ok, reason)
 							if not ok then
@@ -86,7 +65,7 @@ IdleMission.register({
 				kind = "waitKills",
 				title = "Hunt Pirates",
 				detail = "Slay pirates until the quota is met.",
-				cta = "Start hunting",
+				cta = "Select for lobby",
 				recallMsg = "Pirate quota met. Return to Raymond Striker.",
 				satisfied = function()
 					local p = Player(run.playerId)
@@ -107,33 +86,14 @@ IdleMission.register({
 					if not huntId then
 						return done(false, "No pirate hunt in the catalog.")
 					end
-					local ok = ctrl:beginHunt(huntId)
-					done(ok, ok and nil or "Could not join hunt.")
-				end,
-			},
-			{
-				id = "return_raymond",
-				title = "Return to Raymond Striker",
-				detail = "Report your kills.",
-				cta = "Go to Raymond Striker",
-				satisfied = function()
-					local p = Player(run.playerId)
-					local _, _, status = progress(p)
-					return status == QuestsConfig.STATUS_DONE
-				end,
-				onAdvance = function(_, done)
-					ctrl:goTo(NPC_POS, {
-						reach = 2,
-						onDone = function(_, ok, reason)
-							done(ok, reason)
-						end,
-					})
+					local ok, err = PlayerController.Hunt.selectForLobby(Player(run.playerId), huntId)
+					done(ok == true, ok and nil or (err or "Could not select the expedition."))
 				end,
 			},
 			{
 				id = "talk_report",
 				title = "Report the task",
-				detail = "Talk to Raymond Striker to claim your reward.",
+				detail = "Return to Raymond Striker and claim your reward.",
 				cta = "Report to Raymond Striker",
 				satisfied = function()
 					local p = Player(run.playerId)
@@ -141,7 +101,7 @@ IdleMission.register({
 					return status == QuestsConfig.STATUS_DONE
 				end,
 				onAdvance = function(_, done)
-					ctrl:talkTo(NPC, { "hi", "report", "yes" }, {
+					ctrl:talkTo(NPC, { "hi", "report", "yes", "bye" }, {
 						position = NPC_POS,
 						onDone = function(player, ok, reason)
 							if not ok then

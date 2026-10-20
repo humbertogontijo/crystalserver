@@ -30,30 +30,9 @@ IdleMission.register({
 		local ctrl = run.ctrl
 		return {
 			{
-				id = "go_guild",
-				title = "Go to the Adventurers Guild contact",
-				detail = "Find Theodore Loveless in Liberty Bay.",
-				cta = "Go to Theodore Loveless",
-				satisfied = function()
-					local p = Player(run.playerId)
-					local _, _, status = progress(p)
-					return status == QuestsConfig.STATUS_ACTIVE
-						or status == QuestsConfig.STATUS_READY
-						or status == QuestsConfig.STATUS_DONE
-				end,
-				onAdvance = function(_, done)
-					ctrl:goTo(NPC_POS, {
-						reach = 2,
-						onDone = function(_, ok, reason)
-							done(ok, reason)
-						end,
-					})
-				end,
-			},
-			{
 				id = "talk_accept",
 				title = "Begin the Great Dragon Hunt",
-				detail = "Accept the dragon hunt assignment.",
+				detail = "Talk to Theodore Loveless in Liberty Bay and take the hunt.",
 				cta = "Talk to Theodore Loveless",
 				satisfied = function()
 					local p = Player(run.playerId)
@@ -63,14 +42,14 @@ IdleMission.register({
 						or status == QuestsConfig.STATUS_DONE
 				end,
 				onAdvance = function(_, done)
-					ctrl:talkTo(NPC, { "hi", "dragon", "hunt", "yes" }, {
+					ctrl:talkTo(NPC, { "hi", "dragon", "hunt", "yes", "bye" }, {
 						position = NPC_POS,
 						onDone = function(player, ok, reason)
 							if not ok then
 								return done(false, reason)
 							end
 							local _, _, status = progress(player)
-							if status ~= QuestsConfig.STATUS_ACTIVE and status ~= QuestsConfig.STATUS_READY then
+							if status ~= QuestsConfig.STATUS_ACTIVE and status ~= QuestsConfig.STATUS_READY and status ~= QuestsConfig.STATUS_DONE then
 								local accepted, msg = QuestsManager.accept(player, QUEST_ENTRY)
 								if not accepted then
 									return done(false, msg)
@@ -86,7 +65,7 @@ IdleMission.register({
 				kind = "waitKills",
 				title = "Hunt Dragons",
 				detail = "Slay dragons and dragon lords (50).",
-				cta = "Start hunting",
+				cta = "Select for lobby",
 				recallMsg = "Dragon quota met. Return to report.",
 				satisfied = function()
 					local p = Player(run.playerId)
@@ -107,41 +86,30 @@ IdleMission.register({
 					if not huntId then
 						return done(false, "No dragon hunt in the catalog.")
 					end
-					local ok = ctrl:beginHunt(huntId)
-					done(ok, ok and nil or "Could not join hunt.")
-				end,
-			},
-			{
-				id = "return_npc",
-				title = "Return to Theodore Loveless",
-				detail = "Report the Great Dragon Hunt.",
-				cta = "Go to Theodore Loveless",
-				satisfied = function()
-					local p = Player(run.playerId)
-					local _, _, status = progress(p)
-					return status == QuestsConfig.STATUS_DONE
-				end,
-				onAdvance = function(_, done)
-					ctrl:goTo(NPC_POS, {
-						reach = 2,
-						onDone = function(_, ok, reason)
-							done(ok, reason)
-						end,
-					})
+					local ok, err = PlayerController.Hunt.selectForLobby(Player(run.playerId), huntId)
+					done(ok == true, ok and nil or (err or "Could not select the expedition."))
 				end,
 			},
 			{
 				id = "talk_report",
 				title = "Claim the dragon hoard",
-				detail = "Report and claim your reward.",
+				detail = "Return to Theodore Loveless and claim the reward.",
 				cta = "Report to Theodore Loveless",
 				satisfied = function()
 					local p = Player(run.playerId)
 					local _, _, status = progress(p)
-					return status == QuestsConfig.STATUS_DONE
+					if status == QuestsConfig.STATUS_DONE then
+						return true
+					end
+					-- Repeatable: a claim increments the achievement and resets
+					-- the counter to an active hunt. Still on the quota means
+					-- this step is the current one.
+					local e = entry()
+					local claimed = e and math.max(0, p:getStorageValue(e.storageAchievement)) or 0
+					return claimed > 0 and status ~= QuestsConfig.STATUS_READY and status ~= QuestsConfig.STATUS_AVAILABLE
 				end,
 				onAdvance = function(_, done)
-					ctrl:talkTo(NPC, { "hi", "report", "yes" }, {
+					ctrl:talkTo(NPC, { "hi", "report", "yes", "bye" }, {
 						position = NPC_POS,
 						onDone = function(player, ok, reason)
 							if not ok then

@@ -7,6 +7,25 @@ PlayerController.__index = PlayerController
 local geo = CombatGeo
 local byPlayerId = {}
 
+--- True when the player can walk the last tiles. A lobby room or expedition always channels.
+local function nearDestination(player, dest, reach)
+	if not player or not dest then
+		return false
+	end
+	if ExpeditionManager and ExpeditionManager.getSessionByPlayer and ExpeditionManager.getSessionByPlayer(player) then
+		return false
+	end
+	if LobbyInstance and LobbyInstance.roomForPlayer and LobbyInstance.roomForPlayer(player) then
+		return false
+	end
+	local pos = player:getPosition()
+	if not pos or pos.z ~= dest.z then
+		return false
+	end
+	local dist = geo.chebyshev(pos, dest)
+	return dist ~= math.huge and dist <= reach
+end
+
 local function resolveNpc(nameOrNpc)
 	if type(nameOrNpc) == "userdata" then
 		return nameOrNpc
@@ -87,7 +106,7 @@ function PlayerController:talkTo(npcOrName, phrases, opts)
 	end
 	phrases = type(phrases) == "table" and phrases or { phrases }
 	local reach = math.max(1, opts.reach or 3)
-	local gapMs = tonumber(opts.phraseGapMs) or 600
+	local gapMs = tonumber(opts.phraseGapMs) or 1200
 
 	local function fail(reason)
 		if opts.onDone then
@@ -178,10 +197,53 @@ function PlayerController:talkTo(npcOrName, phrases, opts)
 				end
 				return
 			end
-			live:say(tostring(text), TALKTYPE_SAY)
+			-- Private NPC speech: the NPC keyword handler only continues a
+			-- conversation on TALKTYPE_PRIVATE_PN, and that opens the client
+			-- NPC dialog. The second say echoes the line to this player only
+			-- (mode 12) so it lands on the NPCs tab; nearby players do not see it.
+			local line = tostring(text)
+			live:say(line, TALKTYPE_PRIVATE_PN, false, still)
+			live:say(line, TALKTYPE_PRIVATE_PN, false, live)
 			addEvent(sayNext, gapMs)
 		end
 		sayNext()
+	end
+
+	if not opts._afterChannel and not nearDestination(player, dest, reach) and InstanceTeleport and InstanceTeleport.requestOpenWorld then
+		local landing = Position(dest.x + 1, dest.y, dest.z)
+		local creatureId = self.creatureId
+		local ok, err = InstanceTeleport.requestOpenWorld(player, landing, {
+			onComplete = function(p, hopped, reason)
+				if not hopped then
+					if opts.onDone then
+						opts.onDone(p, false, reason or "failed")
+					end
+					return
+				end
+				local ctrl = PlayerController.get(p or Player(creatureId))
+				if not ctrl then
+					if opts.onDone then
+						opts.onDone(p, false, "gone")
+					end
+					return
+				end
+				local again = {}
+				for k, v in pairs(opts) do
+					again[k] = v
+				end
+				again._afterChannel = true
+				ctrl:talkTo(npcOrName, phrases, again)
+			end,
+			onCancel = function(p)
+				if opts.onDone then
+					opts.onDone(p, false, "cancelled")
+				end
+			end,
+		})
+		if not ok then
+			return fail(err or "Could not travel.")
+		end
+		return true
 	end
 
 	return PlayerErrand.walkTo(player, dest, wrapped)

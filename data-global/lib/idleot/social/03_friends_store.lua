@@ -34,6 +34,9 @@ local function emptyData()
 		incoming = {},
 		outgoing = {},
 		pendingAccept = {}, -- offline reverse-accepts applied on login
+		blacklist = {},
+		badgeHidden = {},
+		settings = {},
 	}
 end
 
@@ -111,6 +114,42 @@ local function sanitizeData(raw)
 						group = normalizeGroup(p.group),
 					}
 				end
+			end
+		end
+	end
+	if type(raw.blacklist) == "table" then
+		local bSeen = {}
+		for _, r in ipairs(raw.blacklist) do
+			if type(r) == "table" then
+				local guid = tonumber(r.guid) or 0
+				local name = tostring(r.name or ""):match("^%s*(.-)%s*$") or ""
+				if guid > 0 and name ~= "" and not bSeen[guid] then
+					bSeen[guid] = true
+					data.blacklist[#data.blacklist + 1] = {
+						guid = guid,
+						name = name,
+						created = tonumber(r.created) or os.time(),
+					}
+				end
+			end
+		end
+	end
+	if type(raw.badgeHidden) == "table" then
+		for key, value in pairs(raw.badgeHidden) do
+			if value then
+				data.badgeHidden[tostring(key)] = true
+			end
+		end
+	end
+	if type(raw.settings) == "table" then
+		for _, row in ipairs(raw.settings) do
+			if type(row) == "table" then
+				data.settings[#data.settings + 1] = {
+					settingType = tonumber(row.settingType) or 0,
+					showCharacterInfo = row.showCharacterInfo ~= false,
+					showAccountInfo = row.showAccountInfo ~= false,
+					allowInspect = row.allowInspect ~= false,
+				}
 			end
 		end
 	end

@@ -197,6 +197,50 @@ function InstanceTeleport.requestGuild(player)
 	})
 end
 
+--- Solo open-world hop to `dest`. Duration, combat lock and initiator cancel match hometown travel.
+--- From an expedition the channel leaves in place, then hops; it does not raw-teleport.
+function InstanceTeleport.requestOpenWorld(player, dest, opts)
+	opts = opts or {}
+	if not player or not dest then
+		return false, "Invalid player."
+	end
+	if InstanceTeleport.isPending(player) then
+		return false, "Already channeling a teleport."
+	end
+	local playerId = player:getId()
+	local landing = Position(dest.x, dest.y, dest.z)
+	return InstanceTeleport.begin(player, {
+		kind = InstanceTeleport.KIND_HOMETOWN,
+		destination = InstanceTeleport.DEST_OPEN_WORLD,
+		opcode = InstanceTeleport.OPCODE,
+		cancelPolicy = InstanceTeleport.CANCEL_INITIATOR,
+		send = InstanceTeleport.notifyTravel,
+		onComplete = function(memberIds)
+			local p = Player(memberIds and memberIds[1] or playerId)
+			if not p then
+				if opts.onComplete then
+					opts.onComplete(nil, false, "gone")
+				end
+				return
+			end
+			if ExpeditionManager.getSessionByPlayer(p) then
+				ExpeditionManager.leave(p, { silent = true, skipTeleport = true })
+			end
+			local ok = executeOpenWorld(p, landing)
+			if opts.onComplete then
+				opts.onComplete(p, ok == true, ok and nil or "Failed to travel.")
+			elseif not ok then
+				p:sendTextMessage(MESSAGE_FAILURE, "Failed to travel.")
+			end
+		end,
+		onCancel = function(memberIds)
+			if opts.onCancel then
+				opts.onCancel(Player(memberIds and memberIds[1] or playerId))
+			end
+		end,
+	})
+end
+
 --- Arm the lobby room enter/leave channel (always solo). `record` is the player's lobby
 --- (may be nil when leaving a room whose lobby is gone).
 --- opts.leave: leave the room (to the saved return tile); otherwise enter it.

@@ -17,6 +17,7 @@
 
 #include "server/network/protocol/protocolgame.hpp"
 
+#include <memory>
 #include <mutex>
 #include <set>
 
@@ -1286,19 +1287,21 @@ void ProtocolGame::writeToOutputBuffer(NetworkMessage &msg) {
 	// Fan-out a copy to the bound stability secondary (same XTEA session / no second player).
 	// Gap vs CIP: no sequence-number coordination across sockets; secondary gets a full
 	// duplicate stream rather than CIP's load-balanced packet split.
-	NetworkMessage secondaryCopy;
+	// Heap-allocate the secondary copy — NetworkMessage is ~65KB; a stack local here
+	// overflows the dispatcher thread during deep call chains (e.g. logout de-equip →
+	// sendIcons → sendRestingStatus) and crashes as SIGBUS on macOS.
+	// shared_ptr (not unique_ptr): Dispatcher::safeCall takes std::function, which
+	// requires a copyable callable.
 	const bool fanOut = !stabilitySecondaryOnly && !boundSecondary.expired();
-	if (fanOut) {
-		secondaryCopy = msg;
-	}
+	auto secondaryCopy = fanOut ? std::make_shared<NetworkMessage>(msg) : nullptr;
 
 	g_dispatcher().safeCall([self = getThis(), msg = std::move(msg)] {
 		self->getOutputBuffer(msg.getLength())->append(msg);
 	});
-	if (fanOut) {
+	if (secondaryCopy) {
 		g_dispatcher().safeCall([weakSec = boundSecondary, copy = std::move(secondaryCopy)]() mutable {
 			if (const auto sec = weakSec.lock()) {
-				sec->getOutputBuffer(copy.getLength())->append(copy);
+				sec->getOutputBuffer(copy->getLength())->append(*copy);
 			}
 		});
 	}
@@ -1831,6 +1834,133 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 			break;
 		// Premium coins transfer
 		// case 0xEF: parseCoinTransfer(msg); break;
+		case 0x75: {
+			const uint8_t action = msg.getByte();
+			const uint8_t containerId = msg.getByte();
+			(void)action;
+			if (const auto &container = player->getContainerByID(containerId)) {
+				sendContainer(containerId, container, container->hasParent(), player->getContainerIndex(containerId));
+			}
+			break;
+		}
+		case 0x76: {
+			const uint8_t action = msg.getByte();
+			if (action == 2 || action == 3) {
+				msg.get<uint32_t>();
+				msg.get<uint32_t>();
+				const auto skipItems = [&]() {
+					const uint8_t count = msg.getByte();
+					for (uint8_t i = 0; i < count; ++i) {
+						msg.get<uint16_t>();
+					}
+				};
+				skipItems();
+				skipItems();
+				const uint8_t highlights = msg.getByte();
+				for (uint8_t i = 0; i < highlights; ++i) {
+					msg.get<uint16_t>();
+				}
+				if (msg.getLength() > msg.getBufferPosition()) {
+					msg.getByte();
+				}
+			}
+			NetworkMessage reply;
+			reply.addByte(0x80);
+			reply.addByte(0);
+			reply.addString(player->getName());
+			reply.add<uint16_t>(player->getLevel());
+			reply.addByte(player->getVocationId());
+			reply.add<uint16_t>(0);
+			reply.addByte(0);
+			reply.add<uint32_t>(0);
+			reply.add<uint32_t>(0);
+			reply.add<uint16_t>(0);
+			reply.addByte(0);
+			writeToOutputBuffer(reply);
+			break;
+		}
+		case 0xA9:
+			g_game().playerDisbandParty(player->getID());
+			break;
+		case 0xD0:
+			// Handled by data/modules/scripts/questtrack (onRecvbyte). A C++ stub
+			// reply here used to overwrite that module's tracked list with an
+			// empty 0xD0 and instantly uncheck "Show in quest tracker".
+			break;
+		case 0xD1: {
+			msg.get<uint16_t>();
+			msg.getByte();
+			NetworkMessage reply;
+			reply.addByte(0xCD);
+			reply.add<uint16_t>(0);
+			writeToOutputBuffer(reply);
+			break;
+		}
+		case 0xD8: {
+			NetworkMessage state;
+			state.addByte(0xDE);
+			state.addByte(0);
+			writeToOutputBuffer(state);
+			NetworkMessage wall;
+			wall.addByte(0xE2);
+			wall.addByte(0);
+			wall.add<uint32_t>(0);
+			wall.addByte(0);
+			wall.addByte(0);
+			wall.addByte(0);
+			wall.add<uint32_t>(0);
+			wall.add<uint16_t>(0);
+			wall.add<uint16_t>(0);
+			writeToOutputBuffer(wall);
+			NetworkMessage basic;
+			basic.addByte(0xE4);
+			basic.addByte(0);
+			basic.addByte(0);
+			basic.addByte(0);
+			writeToOutputBuffer(basic);
+			break;
+		}
+		case 0xD9: {
+			NetworkMessage reply;
+			reply.addByte(0xE5);
+			reply.addByte(0);
+			writeToOutputBuffer(reply);
+			break;
+		}
+		case 0xDA: {
+			msg.getByte();
+			const uint8_t items = msg.getByte();
+			for (uint8_t i = 0; i < items; ++i) {
+				msg.get<uint16_t>();
+				msg.getByte();
+			}
+			NetworkMessage reply;
+			reply.addByte(0xE3);
+			writeToOutputBuffer(reply);
+			break;
+		}
+		case 0xE9:
+			msg.getByte();
+			break;
+		case 0xEC: {
+			msg.getString();
+			NetworkMessage reply;
+			reply.addByte(0xDB);
+			reply.add<uint32_t>(0);
+			reply.add<uint32_t>(0);
+			writeToOutputBuffer(reply);
+			break;
+		}
+		case 0xEF: {
+			msg.getString();
+			msg.get<uint32_t>();
+			NetworkMessage reply;
+			reply.addByte(0xE0);
+			reply.addByte(0);
+			reply.addString("Coin transfers are not available.");
+			writeToOutputBuffer(reply);
+			break;
+		}
 		case 0xF0:
 			g_game().playerShowQuestLog(player->getID());
 			break;
@@ -1839,8 +1969,6 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 			break;
 		case 0xF2:
 			parseRuleViolationReport(msg);
-			break;
-		case 0xF3: /* get object info */
 			break;
 		case 0xF4:
 			parseMarketLeave();
@@ -1860,16 +1988,113 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 		case 0xF9:
 			parseModalWindowAnswer(msg);
 			break;
+		case 0xF3: {
+			msg.getByte();
+			const uint16_t itemId = msg.get<uint16_t>();
+			msg.getByte();
+			NetworkMessage reply;
+			reply.addByte(0xF4);
+			reply.addByte(1);
+			reply.add<uint16_t>(itemId);
+			reply.add<uint16_t>(1);
+			reply.addString("You see an item.");
+			writeToOutputBuffer(reply);
+			break;
+		}
+		case 0xFA: {
+			if (msg.getLength() > msg.getBufferPosition()) {
+				msg.getByte();
+				if (msg.getLength() >= msg.getBufferPosition() + 2) {
+					msg.getString();
+				}
+			}
+			NetworkMessage reply;
+			reply.addByte(0xFB);
+			reply.add<uint16_t>(0);
+			reply.addByte(0);
+			reply.addByte(0);
+			writeToOutputBuffer(reply);
+			break;
+		}
+		case 0xFB: {
+			const uint8_t openAction = msg.getByte();
+			std::string category = "Home";
+			if (openAction == 2) {
+				category = msg.getString();
+				msg.getString();
+				msg.getByte();
+				msg.getByte();
+			} else if (openAction == 1 || openAction == 3) {
+				msg.getByte();
+			} else if (openAction == 4) {
+				msg.get<uint32_t>();
+				msg.getByte();
+				msg.getByte();
+			} else if (openAction == 5) {
+				category = "Search";
+				msg.getString();
+				msg.getByte();
+				msg.getByte();
+			}
+			NetworkMessage reply;
+			reply.addByte(0xFC);
+			reply.addString(category);
+			reply.add<uint32_t>(0);
+			reply.addByte(0);
+			reply.addByte(0);
+			reply.add<uint16_t>(0);
+			reply.add<uint16_t>(0);
+			reply.add<uint16_t>(0);
+			if (category == "Search") {
+				reply.addByte(0);
+			}
+			writeToOutputBuffer(reply);
+			break;
+		}
+		case 0xFC: {
+			msg.get<uint32_t>();
+			const uint8_t action = msg.getByte();
+			if (action > 0 && action < 6) {
+				msg.getString();
+				if (action == 3 || action == 5) {
+					msg.getByte();
+				}
+				if (action == 5) {
+					msg.getString();
+				}
+			}
+			NetworkMessage reply;
+			reply.addByte(0xE0);
+			reply.addByte(0);
+			reply.addString("The store has no offers.");
+			writeToOutputBuffer(reply);
+			break;
+		}
+		case 0xFD:
+			msg.getByte();
+			{
+				NetworkMessage reply;
+				reply.addByte(0xFD);
+				reply.add<uint32_t>(0);
+				reply.add<uint32_t>(0);
+				reply.addByte(0);
+				writeToOutputBuffer(reply);
+			}
+			break;
+		case 0xFE: {
+			msg.get<uint32_t>();
+			msg.getByte();
+			NetworkMessage reply;
+			reply.addByte(0xFD);
+			reply.add<uint32_t>(0);
+			reply.add<uint32_t>(1);
+			reply.addByte(0);
+			writeToOutputBuffer(reply);
+			break;
+		}
 		case 0xFF:
 			parseRewardChestCollect(msg);
 			break;
-			// case 0xFA: parseStoreOpen(msg); break;
-			// case 0xFB: parseStoreRequestOffers(msg); break;
-			// case 0xFC: parseStoreBuyOffer(msg) break;
-			// case 0xFD: parseStoreOpenTransactionHistory(msg); break;
-			// case 0xFE: parseStoreRequestTransactionHistory(msg); break;
-
-			// case 0xDF, 0xE0, 0xE1, 0xFB, 0xFC, 0xFD, 0xFE Premium Shop.
 
 		default:
 			std::string hexString = fmt::format("0x{:02x}", recvbyte);
@@ -2703,6 +2928,12 @@ void ProtocolGame::parseInspectPlayer(NetworkMessage &msg) {
 		return;
 	}
 
+	NetworkMessage inspection;
+	inspection.addByte(0x77);
+	inspection.add<uint32_t>(id);
+	inspection.addByte(1);
+	writeToOutputBuffer(inspection);
+
 	std::shared_ptr<Player> targetPlayer = nullptr;
 	const auto &creature = g_game().getCreatureByID(id);
 	if (creature) {
@@ -2866,11 +3097,17 @@ void ProtocolGame::sendItemInspection(uint16_t itemId, uint8_t itemCount, const 
 
 void ProtocolGame::parseFriendSystemAction(NetworkMessage &msg) {
 	const uint8_t state = msg.getByte();
-	uint8_t titleId = 0;
 	if (state == 0x0E) {
-		titleId = msg.getByte();
+		g_game().playerFriendSystemAction(player, state, msg.getByte());
+		return;
 	}
-	g_game().playerFriendSystemAction(player, state, titleId);
+	// Non-title actions carry a JSON body the social handler already understands.
+	if (msg.getLength() >= msg.getBufferPosition() + 2) {
+		const std::string body = msg.getString();
+		g_game().parsePlayerExtendedOpcode(player->getID(), 121, body);
+		return;
+	}
+	g_game().playerFriendSystemAction(player, state, 0);
 }
 
 void ProtocolGame::sendFriendSystemData(uint8_t dataType, const std::string &message) {
@@ -3365,16 +3602,23 @@ void ProtocolGame::sendTeamFinderList() {
 	msg.addByte(0x2D);
 	msg.addByte(0x00); // Bool value, with 'true' the player exceed packets for second.
 	const auto &teamFinder = g_game().getTeamFinderList();
-	msg.add<uint16_t>(teamFinder.size());
+	// Count first so an offline leader is skipped instead of aborting the packet.
+	uint16_t listed = 0;
+	for (const auto &it : teamFinder) {
+		if (g_game().getPlayerByGUID(it.first) && it.second) {
+			++listed;
+		}
+	}
+	msg.add<uint16_t>(listed);
 	for (const auto &it : teamFinder) {
 		const auto &leader = g_game().getPlayerByGUID(it.first);
 		if (!leader) {
-			return;
+			continue;
 		}
 
 		const auto &teamAssemble = it.second;
 		if (!teamAssemble) {
-			return;
+			continue;
 		}
 
 		uint8_t status = 0;
@@ -3385,8 +3629,8 @@ void ProtocolGame::sendTeamFinderList() {
 		msg.add<uint16_t>(teamAssemble->maxLevel);
 		msg.addByte(teamAssemble->vocationIDs);
 		msg.add<uint16_t>(teamAssemble->teamSlots);
-		for (auto itt : teamAssemble->membersMap) {
-			std::shared_ptr<Player> member = g_game().getPlayerByGUID(it.first);
+		for (const auto &itt : teamAssemble->membersMap) {
+			const auto member = g_game().getPlayerByGUID(itt.first);
 			if (member) {
 				if (itt.first == player->getGUID()) {
 					status = itt.second;
@@ -3431,6 +3675,15 @@ void ProtocolGame::sendLeaderTeamFinder(bool reset) {
 		return;
 	}
 
+	if (reset) {
+		NetworkMessage msg;
+		msg.addByte(0x2C);
+		msg.addByte(1);
+		writeToOutputBuffer(msg);
+		g_game().removeTeamFinderListed(player->getGUID());
+		return;
+	}
+
 	const auto &teamAssemble = g_game().getTeamFinder(player);
 	if (!teamAssemble) {
 		return;
@@ -3438,11 +3691,7 @@ void ProtocolGame::sendLeaderTeamFinder(bool reset) {
 
 	NetworkMessage msg;
 	msg.addByte(0x2C);
-	msg.addByte(reset ? 1 : 0);
-	if (reset) {
-		g_game().removeTeamFinderListed(player->getGUID());
-		return;
-	}
+	msg.addByte(0);
 
 	msg.add<uint16_t>(teamAssemble->minLevel);
 	msg.add<uint16_t>(teamAssemble->maxLevel);
@@ -6379,6 +6628,11 @@ void ProtocolGame::sendUnjustifiedPoints(const uint8_t &dayProgress, const uint8
 	msg.addByte(monthLeft);
 	msg.addByte(skullDuration);
 	writeToOutputBuffer(msg);
+
+	NetworkMessage situations;
+	situations.addByte(0xB8);
+	situations.addByte(0);
+	writeToOutputBuffer(situations);
 }
 
 void ProtocolGame::sendContainer(uint8_t cid, const std::shared_ptr<Container> &container, bool hasParent, uint16_t firstIndex) {
@@ -9288,6 +9542,19 @@ void ProtocolGame::sendTextForReport(uint32_t textId, const std::string &text, c
 	msg.add<uint32_t>(textId);
 	msg.addString(text);
 	msg.addString(author);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendWalkWait(uint16_t millis) {
+	NetworkMessage msg;
+	msg.addByte(0xB6);
+	msg.add<uint16_t>(millis);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendServerStop() {
+	NetworkMessage msg;
+	msg.addByte(0xBC);
 	writeToOutputBuffer(msg);
 }
 

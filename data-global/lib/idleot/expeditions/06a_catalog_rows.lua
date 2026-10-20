@@ -79,6 +79,26 @@ local function samplePoints(list, cap)
 	return out
 end
 
+--- Kind-1 cyclopedia area of a catalog city name (ExpeditionConfig.Cities cityId).
+local function areaIdForCity(cityName)
+	if type(cityName) ~= "string" or cityName == "" then
+		return nil
+	end
+	local cities = ExpeditionConfig.Cities
+	if type(cities) ~= "table" then
+		return nil
+	end
+	for _, city in ipairs(cities) do
+		if type(city) == "table" and (city.name == cityName or city.city == cityName) then
+			local id = tonumber(city.cityId) or tonumber(city.id)
+			if id and id > 0 then
+				return id
+			end
+		end
+	end
+	return nil
+end
+
 --- Client minimap preview of a cave route: hold pins and the (closed) walk.
 local function cavePreview(route)
 	if not route then
@@ -252,6 +272,12 @@ function ExpeditionProtocol.catalogRows(player)
 				end
 			else
 				row.city = entry.city
+				if kind == "hunt" then
+					local areaId = areaIdForCity(entry.city)
+					if areaId then
+						row.areaId = areaId
+					end
+				end
 				local density = tonumber(entry.creatureDensity)
 				if density and density > 0 then
 					row.creatureDensity = density
@@ -267,6 +293,20 @@ function ExpeditionProtocol.catalogRows(player)
 					x = tonumber(center.x) or 0,
 					y = tonumber(center.y) or 0,
 					z = tonumber(center.z) or 7,
+				}
+			end
+			-- Zone mask for the client cyclopedia minimap (surface + underground floors).
+			if type(entry.overviewFile) == "string" and entry.overviewFile ~= "" then
+				row.overviewFile = entry.overviewFile
+			end
+			local boundary = entry.boundary
+			if type(boundary) == "table" and boundary.x and boundary.y and boundary.w and boundary.h then
+				row.boundary = {
+					x = tonumber(boundary.x) or 0,
+					y = tonumber(boundary.y) or 0,
+					z = tonumber(boundary.z) or (row.center and row.center.z) or 7,
+					w = tonumber(boundary.w) or 0,
+					h = tonumber(boundary.h) or 0,
 				}
 			end
 			-- Cave route preview for client minimap markers (detail + HUD track).

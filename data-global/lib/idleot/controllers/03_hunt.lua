@@ -1,5 +1,5 @@
--- Hunt begin / recall helpers shared by catalog hunts and mission waitKills.
--- Always go through ExpeditionManager so leave/loot-grace stay consistent.
+-- Hunt begin / recall helpers shared by catalog hunts.
+-- Mission hunt steps select the expedition on the lobby instead of joining.
 
 PlayerController.Hunt = PlayerController.Hunt or {}
 
@@ -38,6 +38,41 @@ function PlayerController.Hunt.recall(player, opts)
 		return true
 	end
 	ExpeditionManager.leave(player, { silent = true, victory = victory })
+	return true
+end
+
+--- Host picks `expeditionId` for their lobby. Creates a personal lobby when they have none.
+function PlayerController.Hunt.selectForLobby(player, expeditionId, opts)
+	opts = opts or {}
+	if not player or expeditionId == nil or tostring(expeditionId) == "" then
+		return false, "Unknown expedition."
+	end
+	if not LobbyStore or not LobbyManager then
+		return false, "Lobby unavailable."
+	end
+	local record = LobbyStore.getForPlayer(player)
+	if record and not LobbyStore.isHost(record, player) then
+		return false, "Only the lobby host can choose the expedition."
+	end
+	if not record then
+		record = LobbyManager.ensureForPlayer(player)
+	end
+	if not record or not LobbyStore.isHost(record, player) then
+		return false, "Could not open a lobby."
+	end
+	local ok, err = LobbyManager.update(player, {
+		expeditionId = tostring(expeditionId),
+		role = opts.role or "monster",
+	})
+	if not ok then
+		return false, err or "Could not select the expedition."
+	end
+	local name = tostring(record.expeditionName or "")
+	if name ~= "" then
+		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, name .. " selected for your lobby.")
+	else
+		player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Selected for your lobby.")
+	end
 	return true
 end
 

@@ -828,10 +828,12 @@ std::unordered_set<PlayerIcon> Player::getClientIcons() {
 		if (icons.size() < 9) {
 			icons.insert(PlayerIcon::Pigeon);
 		}
-		client->sendRestingStatus(1);
+		if (client) {
+			client->sendRestingStatus(1);
+		}
 
 		icons.erase(PlayerIcon::Swords);
-	} else {
+	} else if (client) {
 		client->sendRestingStatus(0);
 	}
 
@@ -8758,6 +8760,18 @@ void Player::sendChannel(uint16_t channelId, const std::string &channelName, con
 void Player::sendExivaSuppressed() const {
 	if (client) {
 		client->sendExivaSuppressed();
+	}
+}
+
+void Player::sendWalkWait(uint16_t millis) const {
+	if (client) {
+		client->sendWalkWait(millis);
+	}
+}
+
+void Player::sendServerStop() const {
+	if (client) {
+		client->sendServerStop();
 	}
 }
 

@@ -274,8 +274,9 @@ function EM_PRIV.releaseHumanFromExpeditionDeath(player)
 	EM_PRIV.ejectPlayerFromExpedition(player, { skipTeleport = true, skipTeamUndeploy = true })
 end
 
---- Clear expedition HUD/membership, then move out of the private instance.
---- Client scene freeze keeps the death frame until the player confirms.
+--- Survivors of a hunt death: clear expedition HUD/membership, then return to
+--- the lobby. Their client freezes the death frame until they ack; map traffic
+--- after freeze is ignored until then.
 function EM_PRIV.releaseAndReturnHumanFromHuntDeath(player)
 	EM_PRIV.releaseHumanFromExpeditionDeath(player)
 	EM_PRIV.teleportHumanToReturn(player)
@@ -364,9 +365,11 @@ function EM_PRIV.endHuntByDeath(session, deadMember, reason)
 			EM_PRIV.releaseAndReturnHumanFromHuntDeath(p)
 		end
 
-		-- Deceased human: stock death dialog only (no hunt-death modal), but still leave the instance.
+		-- Deceased human: stock death dialog + frozen death frame. Do not teleport them to the
+		-- lobby (that moves the camera to an empty room with no creature); survivors above
+		-- already returned. Release membership/HUD only — logout/respawn owns the next place.
 		if deadMember and not EM_PRIV.isSessionCompanion(session, deadMember) then
-			EM_PRIV.releaseAndReturnHumanFromHuntDeath(deadMember)
+			EM_PRIV.releaseHumanFromExpeditionDeath(deadMember)
 		end
 
 		EM_PRIV.logoutExpeditionCompanions(session)

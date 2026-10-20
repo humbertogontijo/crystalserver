@@ -261,17 +261,27 @@ local function outfitProgress(player, entry)
 	return 0, totalNeed, QuestsConfig.STATUS_AVAILABLE
 end
 
+local function dragonStarted(player, entry)
+	local raw = player:getStorageValue(entry.storageCounter)
+	if raw >= 0 then
+		return true
+	end
+	local skel = Storage.Quest.U10_80.TheGreatDragonHunt.WarriorSkeleton
+	return skel and player:getStorageValue(skel) >= 1
+end
+
 local function dragonProgress(player, entry)
-	local counter = entry.storageCounter
-	local kills = math.max(0, player:getStorageValue(counter))
 	local required = entry.killsRequired or 50
+	if not dragonStarted(player, entry) then
+		return 0, required, QuestsConfig.STATUS_AVAILABLE
+	end
+	local kills = math.max(0, player:getStorageValue(entry.storageCounter))
 	if kills >= required then
 		return kills, required, QuestsConfig.STATUS_READY
 	end
-	if kills > 0 then
-		return kills, required, QuestsConfig.STATUS_ACTIVE
-	end
-	return 0, required, QuestsConfig.STATUS_AVAILABLE
+	-- Accepted with zero kills is still the hunt step (counter 0, or the
+	-- skeleton storage set before the counter existed).
+	return kills, required, QuestsConfig.STATUS_ACTIVE
 end
 
 local function arenaSpecForEntry(entry)
@@ -614,6 +624,13 @@ function QuestsManager.accept(player, entryId)
 			end
 			player:setStorageValue(QUESTSTORAGE_BASE + entry.taskId, 1)
 			player:setStorageValue(killCounterBase() + entry.taskId, 0)
+			-- Quest-log missions use 65000+taskId (0 = hunting). Without this,
+			-- "show in quest tracker" is rejected by missionIsStarted.
+			player:setStorageValue(65000 + entry.taskId, 0)
+			local questId = Game.getQuestIdByName and Game.getQuestIdByName("Killing in the Name of...")
+			if questId and player.sendQuestLine then
+				player:sendQuestLine(questId)
+			end
 			return true, "Task accepted."
 		end
 		local getter = KITNO_BOARD_STORAGE[entry.board]
@@ -667,10 +684,13 @@ function QuestsManager.accept(player, entryId)
 	end
 
 	if entry.handler == "dragon_hunt" then
-		-- Counter starts at first kill; accept is a no-op join.
+		-- Same storages as the warrior skeleton: joined, counter at 0.
 		local skel = Storage.Quest.U10_80.TheGreatDragonHunt.WarriorSkeleton
 		if skel and player:getStorageValue(skel) < 1 then
 			player:setStorageValue(skel, 1)
+		end
+		if player:getStorageValue(entry.storageCounter) < 0 then
+			player:setStorageValue(entry.storageCounter, 0)
 		end
 		return true, "Hunt dragons and dragon lords."
 	end
@@ -882,11 +902,13 @@ function QuestsManager.onMonsterKill(player, monsterName)
 					end
 				end
 			end
-		elseif entry.handler == "dragon_hunt" and entry.creatures then
+		elseif entry.handler == "dragon_hunt" and entry.creatures and dragonStarted(player, entry) then
 			for _, c in ipairs(entry.creatures) do
 				if name == c:lower() then
 					local cur = math.max(0, player:getStorageValue(entry.storageCounter))
-					player:setStorageValue(entry.storageCounter, cur + 1)
+					if cur < (entry.killsRequired or 50) then
+						player:setStorageValue(entry.storageCounter, cur + 1)
+					end
 					break
 				end
 			end

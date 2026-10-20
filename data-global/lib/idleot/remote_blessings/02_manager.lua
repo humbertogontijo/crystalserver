@@ -40,6 +40,24 @@ local function missingInquisition(player)
 	return Blessings.getInquisitionPrice(player)
 end
 
+--- Inquisition bundle (regular blessings) plus Twist of Fate and the two enhanced blessings.
+local function buyAllQuote(target)
+	local missingInq, inqPrice = missingInquisition(target)
+	missingInq = tonumber(missingInq) or 0
+	inqPrice = math.floor(tonumber(inqPrice) or 0)
+	local total = missingInq > 0 and inqPrice or 0
+	local count = missingInq
+	local extras = {}
+	for _, id in ipairs({ 1, 7, 8 }) do
+		if not target:hasBlessing(id) then
+			total = total + unitPrice(target, id)
+			count = count + 1
+			extras[#extras + 1] = id
+		end
+	end
+	return count, total, extras, missingInq
+end
+
 --- Resolve same-account bless target (defaults to controller).
 local function resolveTarget(controller, nameOrGuid)
 	if not controller then
@@ -164,6 +182,7 @@ function RemoteBlessings.status(controller, nameOrGuid)
 		return
 	end
 	local missing, price = missingInquisition(target)
+	local buyAllCount, buyAllPrice = buyAllQuote(target)
 	local targetName = target:getName()
 	local forSelf = targetName:lower() == controller:getName():lower()
 	local message
@@ -184,6 +203,8 @@ function RemoteBlessings.status(controller, nameOrGuid)
 		autoRebuy = RemoteBlessings.getAutoRebuy(target),
 		message = message,
 		prices = priceTable(target),
+		buyAllCount = buyAllCount,
+		buyAllPrice = buyAllPrice,
 	})
 	reply(controller, dialogSnapshot(target))
 end
@@ -246,21 +267,30 @@ function RemoteBlessings.buyAll(controller, nameOrGuid)
 	if not target then
 		return false, err or "Invalid target."
 	end
-	-- BuyAllBlesses charges the target - for remote we charge the controller and grant missing.
-	local ok, msg = RemoteBlessings.buy(controller, target:getName())
-	if ok then
-		-- Also try enhanced + ToF if missing (best-effort).
-		for id = 1, 8 do
-			if not target:hasBlessing(id) then
-				local price = unitPrice(target, id)
-				if charge(controller, price) then
-					target:addBlessing(id, 1)
-				end
-			end
-		end
-		saveIfNeeded(target)
+	local count, total, extras, missingInq = buyAllQuote(target)
+	if count <= 0 then
+		return false, "Already has all blessings."
 	end
-	return ok, msg
+	local okCharge, chargeErr = charge(controller, total)
+	if not okCharge then
+		return false, chargeErr
+	end
+	if missingInq > 0 then
+		target:addMissingBless(false, false)
+	end
+	for _, id in ipairs(extras) do
+		if not target:hasBlessing(id) then
+			target:addBlessing(id, 1)
+		end
+	end
+	target:sendBlessStatus()
+	target:getPosition():sendMagicEffect(CONST_ME_HOLYAREA)
+	saveIfNeeded(target)
+	local targetName = target:getName()
+	if targetName:lower() == controller:getName():lower() then
+		return true, string.format("Received %d blessings for %d gold.", count, total)
+	end
+	return true, string.format("Bought %d blessings for %s (%d gold).", count, targetName, total)
 end
 
 function RemoteBlessings.tryAutoRebuy(player)

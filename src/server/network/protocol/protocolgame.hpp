@@ -460,6 +460,8 @@ private:
 	void sendEditGuildMessage(const std::string &message);
 	void sendTextForReport(uint32_t textId, const std::string &text, const std::string &author);
 	void sendExivaSuppressed();
+	void sendWalkWait(uint16_t millis);
+	void sendServerStop();
 	void sendTextWindow(uint32_t windowTextId, const std::shared_ptr<Item> &item, uint16_t maxlen, bool canWrite);
 	void sendHouseWindow(uint32_t windowTextId, const std::string &text);
 	void sendOutfitWindow();

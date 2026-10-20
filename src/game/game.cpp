@@ -4701,7 +4701,12 @@ void Game::playerAutoWalk(uint32_t playerId, const std::vector<Direction> &listD
 
 	player->resetIdleTime();
 	player->setNextWalkTask(nullptr);
+	if (player->walkExhausted()) {
+		player->sendWalkWait(50);
+		return;
+	}
 	if (!player->startAutoWalk(listDir, false)) {
+		player->sendServerStop();
 		// Rooted / feared: a walk-then-act approach cannot start, so its action is dropped.
 		player->setNextWalkActionTask(nullptr);
 		return;
@@ -10446,6 +10451,18 @@ void Game::playerLeaveParty(uint32_t playerId) {
 	}
 
 	party->leaveParty(player);
+}
+
+void Game::playerDisbandParty(uint32_t playerId) {
+	const auto &player = getPlayerByID(playerId);
+	if (!player) {
+		return;
+	}
+	const auto &party = player->getParty();
+	if (!party || party->getLeader() != player) {
+		return;
+	}
+	party->disband();
 }
 
 void Game::playerEnableSharedPartyExperience(uint32_t playerId, bool sharedExpActive) {

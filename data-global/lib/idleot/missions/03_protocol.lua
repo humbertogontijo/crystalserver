@@ -18,38 +18,40 @@ function IdleMission.handleAction(player, msg)
 		return true
 	end
 	if action == "missionAdvance" then
-		local ok, err = IdleMission.advance(player)
+		local ok, err = IdleMission.advance(player, msg.missionKey or msg.key, {
+			taskEntryId = msg.taskEntryId or msg.entryId,
+			questFlagId = tonumber(msg.questFlagId),
+		})
 		if not ok then
 			ExpeditionProtocol.sendError(player, err or "Could not advance mission.")
 		end
 		return true
 	end
 	if action == "missionStop" then
-		IdleMission.stop(player, { recallHunt = true })
+		IdleMission.stop(player, { missionKey = msg.missionKey or msg.key, recallHunt = false })
+		return true
+	end
+	if action == "missionLookup" then
+		local questLineId = tonumber(msg.questLineId)
+		-- Start the line's mission and push per-flag CTAs (Paw and Fur tasks, etc.)
+		-- even when nothing is on the quest tracker yet.
+		if IdleMission.ensureLine then
+			IdleMission.ensureLine(player, questLineId)
+		elseif IdleMission.syncTracked then
+			IdleMission.syncTracked(player)
+		end
+		local offer = IdleMission.describeLine and IdleMission.describeLine(player, questLineId)
+		if offer and tostring(offer.cta or "") ~= "" then
+			ExpeditionProtocol.send(player, offer)
+		else
+			-- Flag CTAs from pushTrackers are enough; do not wipe with an empty offer.
+			ExpeditionProtocol.send(player, { type = "missionOffer", questLineId = questLineId, cleared = true })
+		end
 		return true
 	end
 	if action == "missionStatus" then
-		local run = IdleMission.runFor(player)
-		if run then
-			-- Re-push tracker.
-			local step = run.steps[run.stepIndex]
-			ExpeditionProtocol.send(player, {
-				type = "missionTracker",
-				missionKey = run.key,
-				catalogId = run.catalogId,
-				cipQuestId = run.cipQuestId,
-				name = run.name,
-				stepId = step and step.id or "done",
-				title = step and step.title or "Complete",
-				detail = step and (step.detail or "") or "",
-				cta = step and (step.cta or "Continue") or "",
-				state = run.state or "idle",
-				progress = run.progress,
-				required = run.required,
-				done = not step,
-			})
-		else
-			ExpeditionProtocol.send(player, { type = "missionTracker", cleared = true, done = true })
+		if IdleMission.refreshTracked then
+			IdleMission.refreshTracked(player)
 		end
 		return true
 	end

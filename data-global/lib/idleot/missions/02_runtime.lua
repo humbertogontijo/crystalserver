@@ -6,7 +6,8 @@ IdleMission.__index = IdleMission
 setmetatable(IdleMission, { __index = IdleOrchestrator })
 
 IdleMission.registry = IdleMission.registry or {} -- key → def
-IdleMission.byPlayerId = IdleMission.byPlayerId or {} -- playerId → run
+IdleMission.order = IdleMission.order or {} -- registration order
+IdleMission.byPlayerId = IdleMission.byPlayerId or {} -- playerId → { key → run }
 IdleMission.catalogIndex = IdleMission.catalogIndex or 0
 
 local function findHuntIdForHint(hint)
@@ -33,6 +34,47 @@ local function findHuntIdForHint(hint)
 	return nil
 end
 
+--- Crystal quest-log line id for a mission (the id the quest tracker sends), not the CIP staticdata id.
+function IdleMission.questLineIdFor(def)
+	if not def or not Game.getQuestIdByName then
+		return nil
+	end
+	if def.questLineId then
+		return def.questLineId
+	end
+	local names = {}
+	if IdleMissionCipLinks then
+		for _, link in ipairs(IdleMissionCipLinks) do
+			if tonumber(link.cipQuestId) == tonumber(def.cipQuestId) and link.name then
+				names[#names + 1] = link.name
+			end
+		end
+	end
+	if def.name then
+		names[#names + 1] = def.name
+	end
+	for _, name in ipairs(names) do
+		local id = Game.getQuestIdByName(name)
+		if id then
+			def.questLineId = id
+			return id
+		end
+	end
+	local needle = tostring(def.name or ""):lower()
+	if #needle >= 8 and Quests then
+		for questId = 1, #Quests do
+			local quest = Game.getQuest(questId)
+			local qn = quest and quest.name and quest.name:lower() or ""
+			-- "Spike Tasks" against the quest log's "Spike Task".
+			if #qn >= 8 and (needle:sub(1, #qn) == qn or qn:sub(1, #needle) == needle) then
+				def.questLineId = questId
+				return questId
+			end
+		end
+	end
+	return nil
+end
+
 --- Register a mission definition.
 --- def: key, cipQuestId, name, catalogId?, build(run) → steps[], describe(run) → step payload extras
 function IdleMission.register(def)
@@ -45,6 +87,17 @@ function IdleMission.register(def)
 		def.catalogId = IdleMissionConfig.CATALOG_ID_BASE + IdleMission.catalogIndex
 	end
 	IdleMission.registry[key] = def
+	local listed = false
+	for _, existing in ipairs(IdleMission.order) do
+		if existing == key then
+			listed = true
+			break
+		end
+	end
+	if not listed then
+		IdleMission.order[#IdleMission.order + 1] = key
+	end
+	IdleMission.questLineIdFor(def)
 	ExpeditionQuestMechanics.register(tostring(def.cipQuestId or key), function() end)
 	ExpeditionQuestMechanics.register(key, function() end)
 end
@@ -63,13 +116,52 @@ function IdleMission.byCatalogId(catalogId)
 	return nil
 end
 
-function IdleMission.runFor(player)
-	return player and IdleMission.byPlayerId[player:getId()] or nil
+local function runsOf(playerId)
+	local bucket = IdleMission.byPlayerId[playerId]
+	if not bucket then
+		bucket = {}
+		IdleMission.byPlayerId[playerId] = bucket
+	end
+	return bucket
+end
+
+local function runAlive(run)
+	if not run then
+		return false
+	end
+	local bucket = IdleMission.byPlayerId[run.playerId]
+	return bucket ~= nil and bucket[run.key] == run
+end
+
+function IdleMission.runFor(player, key)
+	local bucket = player and IdleMission.byPlayerId[player:getId()] or nil
+	if not bucket then
+		return nil
+	end
+	if key then
+		return bucket[tostring(key)]
+	end
+	local only = nil
+	for _, run in pairs(bucket) do
+		if only then
+			return nil
+		end
+		only = run
+	end
+	return only
 end
 
 local function pushTracker(run)
 	local player = Player(run.playerId)
 	if not player or not ExpeditionProtocol then
+		return
+	end
+	local def = IdleMission.get(run.key)
+	if def and def.pushTrackers then
+		local ok, err = pcall(def.pushTrackers, run)
+		if not ok then
+			logger.warn("[IdleMission] pushTrackers {}: {}", tostring(run.key), tostring(err))
+		end
 		return
 	end
 	local step = run.steps[run.stepIndex]
@@ -78,6 +170,7 @@ local function pushTracker(run)
 		missionKey = run.key,
 		catalogId = run.catalogId,
 		cipQuestId = run.cipQuestId,
+		questLineId = run.questLineId,
 		name = run.name,
 		stepId = step and step.id or "done",
 		title = step and step.title or "Complete",
@@ -118,12 +211,20 @@ local function stopRun(run, opts)
 			PlayerController.Hunt.recall(player, { endMsg = opts.endMsg })
 		end
 	end
-	IdleMission.byPlayerId[run.playerId] = nil
+	local bucket = IdleMission.byPlayerId[run.playerId]
+	if bucket then
+		bucket[run.key] = nil
+		if not next(bucket) then
+			IdleMission.byPlayerId[run.playerId] = nil
+		end
+	end
 	local player = Player(run.playerId)
 	if player and ExpeditionProtocol then
 		ExpeditionProtocol.send(player, {
 			type = "missionTracker",
 			missionKey = run.key,
+			cipQuestId = run.cipQuestId,
+			questLineId = run.questLineId,
 			done = true,
 			cleared = true,
 		})
@@ -160,7 +261,22 @@ local function refreshProgress(run)
 	end
 end
 
+local function stepSatisfied(run, step)
+	if not step or not step.satisfied then
+		return true
+	end
+	local ok, result = pcall(step.satisfied, run)
+	return ok and result == true
+end
+
 local function advanceToNext(run)
+	local current = run.steps[run.stepIndex]
+	if not stepSatisfied(run, current) then
+		refreshProgress(run)
+		run.state = "idle"
+		pushTracker(run)
+		return
+	end
 	run.stepIndex = run.stepIndex + 1
 	while run.steps[run.stepIndex] and run.steps[run.stepIndex].satisfied and run.steps[run.stepIndex].satisfied(run) do
 		run.stepIndex = run.stepIndex + 1
@@ -189,7 +305,7 @@ local function armKillWatch(run, step)
 	pushTracker(run)
 
 	local function onQuota()
-		if IdleMission.byPlayerId[run.playerId] ~= run then
+		if not runAlive(run) then
 			return
 		end
 		refreshProgress(run)
@@ -209,7 +325,7 @@ local function armKillWatch(run, step)
 		end
 		-- Move to next step (usually return/report) after recall starts.
 		addEvent(function()
-			if IdleMission.byPlayerId[run.playerId] ~= run then
+			if not runAlive(run) then
 				return
 			end
 			run._recalling = false
@@ -231,20 +347,18 @@ function IdleMission.start(player, key)
 	if not def then
 		return false, "Unknown mission."
 	end
-	local existing = IdleMission.runFor(player)
+	local existing = IdleMission.runFor(player, key)
 	if existing then
-		if existing.key == key then
-			pushTracker(existing)
-			return true
-		end
-		stopRun(existing, { recallHunt = true })
+		pushTracker(existing)
+		return true
 	end
 
-	local orch = IdleOrchestrator.new({ name = "mission:" .. key })
+	local orch = IdleOrchestrator.new({ name = "mission:" .. tostring(key) })
 	local run = setmetatable({
-		key = key,
+		key = tostring(key),
 		name = def.name,
 		cipQuestId = def.cipQuestId,
+		questLineId = IdleMission.questLineIdFor(def),
 		catalogId = def.catalogId,
 		playerId = player:getId(),
 		orch = orch,
@@ -260,7 +374,7 @@ function IdleMission.start(player, key)
 	end
 	run.steps = steps
 	run.stepIndex = resolveStepIndex(run)
-	IdleMission.byPlayerId[run.playerId] = run
+	runsOf(run.playerId)[run.key] = run
 
 	if not run.steps[run.stepIndex] then
 		pushTracker(run)
@@ -279,17 +393,49 @@ function IdleMission.start(player, key)
 end
 
 function IdleMission.stop(player, opts)
-	local run = IdleMission.runFor(player)
-	if run then
-		stopRun(run, opts or { recallHunt = true })
+	opts = opts or {}
+	if not player then
+		return
+	end
+	local bucket = IdleMission.byPlayerId[player:getId()]
+	if not bucket then
+		return
+	end
+	if opts.missionKey then
+		local run = bucket[tostring(opts.missionKey)]
+		if run then
+			stopRun(run, opts)
+		end
+		return
+	end
+	local keys = {}
+	for key in pairs(bucket) do
+		keys[#keys + 1] = key
+	end
+	for _, key in ipairs(keys) do
+		local run = bucket[key]
+		if run then
+			stopRun(run, opts)
+		end
 	end
 end
 
---- CTA click: run only the current step's action.
-function IdleMission.advance(player)
-	local run = IdleMission.runFor(player)
+--- CTA click: run only the current step's action. Starts the run when the quest log
+--- asks before the line is tracked. `opts.taskEntryId` selects one Paw and Fur task.
+function IdleMission.advance(player, key, opts)
+	opts = opts or {}
+	if key and player and not IdleMission.runFor(player, key) then
+		local started, err = IdleMission.start(player, key)
+		if not started then
+			return false, err
+		end
+	end
+	local run = key and IdleMission.runFor(player, key) or IdleMission.runFor(player)
 	if not run then
 		return false, "No active mission."
+	end
+	if opts.taskEntryId then
+		run.taskEntryId = opts.taskEntryId
 	end
 	local step = run.steps[run.stepIndex]
 	if not step then
@@ -308,7 +454,7 @@ function IdleMission.advance(player)
 					player:sendTextMessage(MESSAGE_FAILURE, reason or "Could not hunt.")
 				end
 				armKillWatch(run, step)
-			end)
+			end, opts)
 			if ok == false then
 				run.busy = false
 				return false, err
@@ -332,14 +478,24 @@ function IdleMission.advance(player)
 		if not ok then
 			run.state = "idle"
 			pushTracker(run)
-			if reason and reason ~= "manual" then
+			if reason and reason ~= "manual" and reason ~= "cancelled" then
 				player:sendTextMessage(MESSAGE_FAILURE, tostring(reason))
+			end
+			return
+		end
+		-- Walking or speaking is not enough: the player's quest storages have
+		-- to show this step is done before the tracker moves on.
+		if step.persist or not stepSatisfied(run, step) then
+			run.state = "idle"
+			pushTracker(run)
+			if not step.persist and not stepSatisfied(run, step) then
+				player:sendTextMessage(MESSAGE_FAILURE, reason or "The quest did not advance.")
 			end
 			return
 		end
 		advanceToNext(run)
 	end
-	local started, err = step.onAdvance(run, finish)
+	local started, err = step.onAdvance(run, finish, opts)
 	if started == false then
 		finish(false, err or "Failed.")
 		return false, err
@@ -351,38 +507,339 @@ function IdleMission.findHuntId(hint)
 	return findHuntIdForHint(hint)
 end
 
---- Append mission rows into ExpeditionConfig.Catalog (runtime, like arena/kitno).
+--- Drop leftover mission rows. Quests are tracked in the quest log, not browsed as expeditions.
 function IdleMission.registerCatalogRows()
 	if not ExpeditionConfig or not ExpeditionConfig.Catalog then
 		return
 	end
-	-- Drop previous mission rows.
 	local kept = {}
 	for _, entry in ipairs(ExpeditionConfig.Catalog) do
-		if not entry.idleMission then
+		if not entry.idleMission and entry.kind ~= "quest" then
 			kept[#kept + 1] = entry
 		end
 	end
 	ExpeditionConfig.Catalog = kept
-	for _, def in pairs(IdleMission.registry) do
-		ExpeditionConfig.Catalog[#ExpeditionConfig.Catalog + 1] = {
-			id = def.catalogId,
-			kind = "quest",
-			role = "monster",
-			name = def.name,
-			cipQuestId = def.cipQuestId,
-			idleMission = def.key,
-			missionKey = def.key,
-			levelMin = def.levelMin or 1,
-			recommendedLevel = def.recommendedLevel or def.levelMin or 1,
-			creatures = def.creatures or {},
-			center = def.center,
-			city = def.city,
-		}
-	end
 	if ExpeditionConfig.sortCatalogForDisplay then
 		ExpeditionConfig.sortCatalogForDisplay(ExpeditionConfig.Catalog)
 	end
+end
+
+local function defsForQuestLine(questLineId)
+	local defs = {}
+	for _, key in ipairs(IdleMission.order) do
+		local def = IdleMission.registry[key]
+		if def and IdleMission.questLineIdFor(def) == questLineId then
+			defs[#defs + 1] = def
+		end
+	end
+	return defs
+end
+
+local function currentStepOf(player, def)
+	local run = { playerId = player:getId(), key = def.key, cipQuestId = def.cipQuestId }
+	local ok, steps = pcall(def.build, run)
+	if not ok or type(steps) ~= "table" then
+		return nil
+	end
+	run.steps = steps
+	local idx = resolveStepIndex(run)
+	return steps[idx]
+end
+
+local function pickDef(player, defs)
+	local bucket = IdleMission.byPlayerId[player:getId()] or {}
+	for _, def in ipairs(defs) do
+		if bucket[def.key] then
+			return def
+		end
+	end
+	-- Prefer Paw and Fur when the player already has a Grizzly Adams task running.
+	for _, def in ipairs(defs) do
+		if def.key == "kitno_paw_and_fur" and def.pushTrackers then
+			return def
+		end
+	end
+	local first = nil
+	for _, def in ipairs(defs) do
+		local step = currentStepOf(player, def)
+		if step then
+			if step.id ~= "talk_accept" and step.id ~= "manage" then
+				return def
+			end
+			first = first or def
+		end
+	end
+	return first
+end
+
+--- Start the IdleOT mission for a quest line (quest-log open), even before the line is tracked.
+function IdleMission.ensureLine(player, questLineId)
+	questLineId = tonumber(questLineId)
+	if not player or not questLineId then
+		return nil
+	end
+	local defs = defsForQuestLine(questLineId)
+	if #defs == 0 then
+		return nil
+	end
+	local chosen = pickDef(player, defs)
+	if not chosen then
+		return nil
+	end
+	IdleMission.start(player, chosen.key)
+	return chosen
+end
+
+--- Quest-log preview for a Crystal quest line that has a mission, before it is tracked.
+function IdleMission.describeLine(player, questLineId)
+	questLineId = tonumber(questLineId)
+	if not player or not questLineId then
+		return nil
+	end
+	local defs = defsForQuestLine(questLineId)
+	if #defs == 0 then
+		return nil
+	end
+	local chosen = pickDef(player, defs)
+	if not chosen then
+		return nil
+	end
+	local run = {
+		playerId = player:getId(),
+		key = chosen.key,
+		name = chosen.name,
+		cipQuestId = chosen.cipQuestId,
+		catalogId = chosen.catalogId,
+		questLineId = questLineId,
+		state = "idle",
+	}
+	local ok, steps = pcall(chosen.build, run)
+	if not ok or type(steps) ~= "table" then
+		return nil
+	end
+	run.steps = steps
+	run.stepIndex = resolveStepIndex(run)
+	local step = run.steps[run.stepIndex]
+	if not step then
+		return nil
+	end
+	refreshProgress(run)
+	local payload = {
+		type = "missionOffer",
+		missionKey = run.key,
+		questLineId = questLineId,
+		title = step.title or "",
+		detail = step.detail or "",
+		cta = step.cta or "Continue",
+		progress = run.progress,
+		required = run.required,
+	}
+	if step.describe then
+		local described, extra = pcall(step.describe, run)
+		if not described then
+			return nil
+		end
+		-- nil / empty cta: per-flag pushTrackers own the buttons (Paw and Fur).
+		if extra == nil or (type(extra) == "table" and tostring(extra.cta or "") == "") then
+			return nil
+		end
+		if type(extra) == "table" then
+			for k, v in pairs(extra) do
+				payload[k] = v
+			end
+		end
+	end
+	if tostring(payload.cta or "") == "" then
+		return nil
+	end
+	return payload
+end
+
+--- Ensure a run for each tracked quest line that has a mission.
+function IdleMission.syncTracked(player)
+	if not player or not player.getSavedMissions then
+		return
+	end
+	local lines = {}
+	for _, mission in ipairs(player:getSavedMissions() or {}) do
+		local questId = tonumber(mission.questId)
+		if questId then
+			lines[questId] = true
+		end
+	end
+	for questId in pairs(lines) do
+		local defs = defsForQuestLine(questId)
+		if #defs > 0 then
+			local chosen = pickDef(player, defs)
+			bucket = IdleMission.byPlayerId[player:getId()] or {}
+			for _, def in ipairs(defs) do
+				if (not chosen or def.key ~= chosen.key) and bucket[def.key] then
+					stopRun(bucket[def.key], { recallHunt = false })
+				end
+			end
+			if chosen then
+				IdleMission.start(player, chosen.key)
+			end
+		end
+	end
+end
+
+function IdleMission.refreshTracked(player)
+	if not player then
+		return
+	end
+	local bucket = IdleMission.byPlayerId[player:getId()]
+	if not bucket then
+		return
+	end
+	local keys = {}
+	for key in pairs(bucket) do
+		keys[#keys + 1] = key
+	end
+	local completed = false
+	for _, key in ipairs(keys) do
+		local run = bucket[key]
+		if run then
+			local idx = resolveStepIndex(run)
+			if not run.steps[idx] then
+				stopRun(run, { recallHunt = false })
+				completed = true
+			else
+				if idx ~= run.stepIndex then
+					run.stepIndex = idx
+					clearKillWatch(run)
+					if run.steps[idx].kind == "waitKills" then
+						armKillWatch(run, run.steps[idx])
+					else
+						refreshProgress(run)
+						pushTracker(run)
+					end
+				else
+					refreshProgress(run)
+					pushTracker(run)
+				end
+			end
+		end
+	end
+	if completed then
+		IdleMission.syncTracked(player)
+	end
+end
+
+--- Quest lines the log can start, including ones CipSoft would hide until the quest storage is set.
+local function offerQuestIds(player)
+	local ids = {}
+	local seen = {}
+	for _, key in ipairs(IdleMission.order) do
+		local def = IdleMission.registry[key]
+		local questId = def and IdleMission.questLineIdFor(def)
+		if questId and not seen[questId] and IdleMission.describeLine(player, questId) then
+			seen[questId] = true
+			ids[questId] = true
+		end
+	end
+	return ids
+end
+
+if Player.sendQuestLog and not Player._idleMissionQuestLogWrapped then
+	local stockSendQuestLine = Player.sendQuestLine
+
+	function Player.sendQuestLog(self)
+		local offers = offerQuestIds(self)
+		local ids = {}
+		for questId = 1, #Quests do
+			if self:questIsStarted(questId) or offers[questId] then
+				ids[#ids + 1] = questId
+			end
+		end
+		local msg = NetworkMessage()
+		msg:addByte(0xF0)
+		msg:addU16(#ids)
+		for _, questId in ipairs(ids) do
+			msg:addU16(questId)
+			msg:addString(Quests[questId].name, "Player.sendQuestLog")
+			msg:addByte(self:questIsCompleted(questId) and 0x01 or 0x00)
+		end
+		msg:sendToPlayer(self)
+		msg:delete()
+	end
+
+	function Player.sendQuestLine(self, questId)
+		if Game.getMissionsCount(self, questId) > 0 then
+			return stockSendQuestLine(self, questId)
+		end
+		local offer = IdleMission.describeLine(self, questId)
+		local quest = Game.getQuest(questId)
+		local mission = quest and quest.missions and quest.missions[1]
+		if not offer or not quest then
+			return stockSendQuestLine(self, questId)
+		end
+		local msg = NetworkMessage()
+		msg:addByte(0xF1)
+		msg:addU16(questId)
+		msg:addByte(1)
+		if self:getClient().version >= 1200 then
+			msg:addU16(mission and mission.missionId or 0)
+		end
+		msg:addString(offer.title ~= "" and offer.title or (mission and mission.name) or quest.name, "Player.sendQuestLine - mission.missionName")
+		msg:addString(offer.detail or "", "Player.sendQuestLine - mission.missionDesc")
+		msg:sendToPlayer(self)
+		msg:delete()
+	end
+
+	Player._idleMissionQuestLogWrapped = true
+end
+
+--- Paw and Fur quest-log rows use storage 65000+taskId; the engine board uses
+--- QUESTSTORAGE_BASE+taskId. Treat either as "started" so tracking sticks.
+if Player.missionIsStarted and not Player._idleMissionStartedWrapped then
+	local stockMissionIsStarted = Player.missionIsStarted
+	function Player.missionIsStarted(self, questId, missionIndex)
+		if stockMissionIsStarted(self, questId, missionIndex) then
+			return true
+		end
+		local mission = Game.getMission(questId, missionIndex)
+		local name = mission and mission.name and tostring(mission.name) or ""
+		if not name:find("Paw and Fur:", 1, true) or not tasks or not tasks.GrizzlyAdams then
+			return false
+		end
+		local race = name:match("Paw and Fur:%s*(.+)")
+		if not race then
+			return false
+		end
+		for taskId, task in pairs(tasks.GrizzlyAdams) do
+			if type(taskId) == "number" and task.raceName and task.raceName:lower() == race:lower() then
+				local state = self:getStorageValue(QUESTSTORAGE_BASE + taskId)
+				if state > 0 and state < 2 then
+					-- Keep the quest-log storage in sync for future stock checks.
+					if self:getStorageValue(65000 + taskId) < 0 then
+						self:setStorageValue(65000 + taskId, 0)
+					end
+					return true
+				end
+			end
+		end
+		return false
+	end
+	Player._idleMissionStartedWrapped = true
+end
+
+if Player.resetTrackedMissions and not Player._idleMissionResetWrapped then
+	local originalReset = Player.resetTrackedMissions
+	function Player.resetTrackedMissions(self, received)
+		originalReset(self, received)
+		IdleMission.syncTracked(self)
+	end
+	Player._idleMissionResetWrapped = true
+end
+
+if Player.sendUpdateTrackedQuest and not Player._idleMissionUpdateWrapped then
+	local originalUpdate = Player.sendUpdateTrackedQuest
+	function Player.sendUpdateTrackedQuest(self, mission)
+		originalUpdate(self, mission)
+		IdleMission.refreshTracked(self)
+	end
+	Player._idleMissionUpdateWrapped = true
 end
 
 IdleEvents.on("player.logout", function(player)

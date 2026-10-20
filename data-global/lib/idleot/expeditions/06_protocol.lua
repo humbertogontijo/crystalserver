@@ -408,12 +408,6 @@ function ExpeditionProtocol.handle(player, buffer)
 				bossDifficulty = msg.bossDifficulty,
 				scope = "solo",
 			})
-		elseif role == "quest" or (IdleMission and IdleMission.byCatalogId(msg.id)) then
-			local def = IdleMission.byCatalogId(msg.id)
-			local ok, err = IdleMission.start(player, def and def.key or msg.missionKey)
-			if not ok then
-				ExpeditionProtocol.sendError(player, err or "Could not start mission.")
-			end
 		else
 			ExpeditionManager.join(player, msg.id, role, msg.loadout, msg.lure, {
 				stopOnInsufficientGold = msg.stopOnInsufficientGold,

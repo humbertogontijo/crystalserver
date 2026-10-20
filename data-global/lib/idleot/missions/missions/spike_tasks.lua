@@ -30,30 +30,9 @@ IdleMission.register({
 		local ctrl = run.ctrl
 		return {
 			{
-				id = "go_gnomilly",
-				title = "Go to Gnomilly",
-				detail = "Find Gnomilly in the Spike.",
-				cta = "Go to Gnomilly",
-				satisfied = function()
-					local p = Player(run.playerId)
-					local _, _, status = progress(p)
-					return status == QuestsConfig.STATUS_ACTIVE
-						or status == QuestsConfig.STATUS_READY
-						or status == QuestsConfig.STATUS_DONE
-				end,
-				onAdvance = function(_, done)
-					ctrl:goTo(NPC_POS, {
-						reach = 2,
-						onDone = function(_, ok, reason)
-							done(ok, reason)
-						end,
-					})
-				end,
-			},
-			{
 				id = "talk_accept",
 				title = "Accept the Upper Spike task",
-				detail = "Speak with Gnomilly about the demon skeleton task.",
+				detail = "Go to Gnomilly in the Spike and take the demon skeleton task.",
 				cta = "Talk to Gnomilly",
 				satisfied = function()
 					local p = Player(run.playerId)
@@ -63,7 +42,7 @@ IdleMission.register({
 						or status == QuestsConfig.STATUS_DONE
 				end,
 				onAdvance = function(_, done)
-					ctrl:talkTo(NPC, { "hi", "task", "yes" }, {
+					ctrl:talkTo(NPC, { "hi", "task", "yes", "bye" }, {
 						position = NPC_POS,
 						onDone = function(player, ok, reason)
 							if not ok then
@@ -86,7 +65,7 @@ IdleMission.register({
 				kind = "waitKills",
 				title = "Slay Demon Skeletons",
 				detail = "Kill 7 demon skeletons (expedition kills count).",
-				cta = "Start hunting",
+				cta = "Select for lobby",
 				recallMsg = "Spike quota met. Return to Gnomilly.",
 				satisfied = function()
 					local p = Player(run.playerId)
@@ -107,33 +86,14 @@ IdleMission.register({
 					if not huntId then
 						return done(false, "No demon skeleton hunt in the catalog.")
 					end
-					local ok = ctrl:beginHunt(huntId)
-					done(ok, ok and nil or "Could not join hunt.")
-				end,
-			},
-			{
-				id = "return_npc",
-				title = "Return to Gnomilly",
-				detail = "Report the Spike task.",
-				cta = "Go to Gnomilly",
-				satisfied = function()
-					local p = Player(run.playerId)
-					local _, _, status = progress(p)
-					return status == QuestsConfig.STATUS_DONE
-				end,
-				onAdvance = function(_, done)
-					ctrl:goTo(NPC_POS, {
-						reach = 2,
-						onDone = function(_, ok, reason)
-							done(ok, reason)
-						end,
-					})
+					local ok, err = PlayerController.Hunt.selectForLobby(Player(run.playerId), huntId)
+					done(ok == true, ok and nil or (err or "Could not select the expedition."))
 				end,
 			},
 			{
 				id = "talk_report",
 				title = "Report the Spike task",
-				detail = "Talk to Gnomilly for fame and experience.",
+				detail = "Return to Gnomilly for fame and experience.",
 				cta = "Report to Gnomilly",
 				satisfied = function()
 					local p = Player(run.playerId)
@@ -141,7 +101,7 @@ IdleMission.register({
 					return status == QuestsConfig.STATUS_DONE
 				end,
 				onAdvance = function(_, done)
-					ctrl:talkTo(NPC, { "hi", "report", "yes" }, {
+					ctrl:talkTo(NPC, { "hi", "report", "yes", "bye" }, {
 						position = NPC_POS,
 						onDone = function(player, ok, reason)
 							if not ok then

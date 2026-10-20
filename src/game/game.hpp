@@ -572,6 +572,7 @@ public:
 	void playerRevokePartyInvitation(uint32_t playerId, uint32_t invitedId);
 	void playerPassPartyLeadership(uint32_t playerId, uint32_t newLeaderId);
 	void playerLeaveParty(uint32_t playerId);
+	void playerDisbandParty(uint32_t playerId);
 	void playerEnableSharedPartyExperience(uint32_t playerId, bool sharedExpActive);
 	void playerToggleMount(uint32_t playerId, bool mount);
 	void playerLeaveMarket(uint32_t playerId);
