@@ -8,6 +8,9 @@ name: Build - Image
 run-name: Build image ${{ inputs.ref || github.sha }} ${{ inputs.release_id }}
 
 on:
+  # Warm GHCR on every main push so releases can fail-fast without compiling.
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       ref:
