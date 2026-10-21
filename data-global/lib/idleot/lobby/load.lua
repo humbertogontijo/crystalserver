@@ -12,6 +12,7 @@ local files = {
 	"07_travel.lua",
 	"08_protocol.lua",
 	"09_start.lua",
+	"10_teamfinder.lua",
 }
 
 for _, file in ipairs(files) do

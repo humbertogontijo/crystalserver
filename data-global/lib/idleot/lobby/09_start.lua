@@ -169,6 +169,10 @@ end
 function LobbyStart.gather(record)
 	local rt = LobbyStore.runtime(record)
 	rt.call = nil
+	-- Starting removes the public Team Finder listing (lobby room stays).
+	if LobbyTeamFinder and LobbyTeamFinder.unlist then
+		LobbyTeamFinder.unlist(record, false)
+	end
 	local host = online(record.hostGuid)
 	if not host then
 		broadcast(record)

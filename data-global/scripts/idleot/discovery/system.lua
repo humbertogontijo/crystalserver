@@ -1,10 +1,11 @@
 -- Discovery System ("Measuring Tibia") - AUTOMATIC exploration (no "Start Discovering" button).
 -- Entering a registered subarea auto-activates discovery: the server picks viewpoints from the
--- tibiamaps flag catalog for that subarea (lib/idleot/discovery/pois.generated.lua), keeping only
--- points inside the subarea's floors and inside some walkable instance fence; walking within 4 sqm
--- of one marks it found; finishing the set unlocks the subarea permanently (KV).
--- Wire: S2C 0xDD sub 1 (DiscoveryData), sub 5 (SetDiscoveryArea — viewport-visible unfound only),
--- sub 10/11 (current/exploring). Clients must not foreshadow distant POIs on the cyclopedia map.
+-- tibiamaps minimap flag catalog (lib/idleot/discovery/pois.generated.lua) that lie in the
+-- subarea footprint and inside a walkable instance fence (surface CIP boundaries include
+-- upstairs 0..7 via ExpeditionInstance.floorsFromSpec); walking within 4 sqm marks one found.
+-- Wire (CIP-shaped): S2C 0xDD sub 1 (DiscoveryData), sub 5 (SetDiscoveryArea — full session POI
+-- list with real positions + state; poiTarget = min(7, #usable)), sub 10/11 (current/exploring).
+-- In-world pink vortex effects stay viewport-filtered; the cyclopedia map draws the full set.
 -- Rewards: achievements 470 "Widely Travelled" / 539 "Measuring the World", Discoverer outfit
 -- (1094/1095) + addons, cyclopedia MAP titles 74/75 via kv "discovery/map-percent" + checkMap().
 
@@ -33,6 +34,7 @@ if VIEW_Y < 15 then
 end
 local DISCOVER_RADIUS = 4 -- Chebyshev: viewpoint counts as found only within this range
 local DISCOVERY_WALK_TTL_MS = 20000
+-- CIP Measuring Tibia target per subarea; actual session size is min(POI_TARGET, #usable).
 local POI_TARGET = 7
 -- bump only when subarea ids/footprints change incompatibly: rolled viewpoints are wiped on
 -- login (completed subareas are kept). Catalog changes need no bump - saved sets are
@@ -232,9 +234,9 @@ for _, def in ipairs(SUBAREA_LIST) do
 	def.discoverable = DISCOVERABLE[def.id] == true
 end
 
--- Viewpoints a player can actually stand on: inside the subarea's own session footprint
--- (right floor) and inside some walkable instance fence. Fences are static after startup,
--- so the result is cached per subarea.
+-- Tibiamaps minimap flags for this subarea: in footprint and inside a walkable instance
+-- fence. Hunt/subarea fences that include surface z expand to upstairs 0..7 (same as cities'
+-- every-floor XY mask) via ExpeditionInstance.floorsFromSpec. Cached per subarea.
 local usableBySub = {}
 local usableReported = false
 
@@ -488,20 +490,17 @@ local function countFound(pois)
 	return n
 end
 
-local function poisToWireVisible(pois, playerPos)
-	-- Only unfound viewpoints currently inside the game viewport. Discovered points are never
-	-- re-sent (no map foreshadowing / no post-discovery markers). Distant unfound points stay
-	-- server-side until the player walks near them.
-	local points = {}
-	if not pois or not playerPos then
-		return points
+-- CIP SetDiscoveryArea payload: every session viewpoint with real coords + state
+-- (0 = unfound / pink pin, ≠0 = found / green pin). Progress bar is count(state≠0) / #points.
+local function poisToWire(pois)
+	local wire = {}
+	if not pois then
+		return wire
 	end
 	for _, p in ipairs(pois) do
-		if not p.found and p.z == playerPos.z and math.abs(p.x - playerPos.x) <= VIEW_X and math.abs(p.y - playerPos.y) <= VIEW_Y then
-			points[#points + 1] = { p.x, p.y, p.z, 0 }
-		end
+		wire[#wire + 1] = { p.x, p.y, p.z, p.found and 1 or 0 }
 	end
-	return points
+	return wire
 end
 
 local function poiKey(x, y, z)
@@ -550,12 +549,13 @@ local function syncIdlePoiEffects(player, session)
 end
 
 local function wireSignature(points)
+	-- Prefix bumps when the wire shape changes so active sessions resend after a reload.
 	local parts = {}
 	for _, p in ipairs(points) do
-		parts[#parts + 1] = string.format("%d,%d,%d", p[1], p[2], p[3])
+		parts[#parts + 1] = string.format("%d,%d,%d:%d", p[1], p[2], p[3], p[4] or 0)
 	end
 	table.sort(parts)
-	return table.concat(parts, "|")
+	return "v6|" .. table.concat(parts, "|")
 end
 
 function DiscoverySystem.findSubarea(position)
@@ -567,8 +567,7 @@ local function poiTargetFor(def)
 end
 
 -- All usable viewpoints of this subarea in pick order: a deterministic shuffle per
--- (player, subarea), with points already in view pushed to the back. Never invents
--- random map coordinates.
+-- (player, subarea), with points already in view pushed to the back.
 local function orderedPool(player, def)
 	local catalog = usablePois(def)
 	local pool = {}
@@ -732,7 +731,7 @@ end
 local function sendAreaState(player, subId, session, active, force)
 	local wire = {}
 	if active and session and session.pois then
-		wire = poisToWireVisible(session.pois, player:getPosition())
+		wire = poisToWire(session.pois)
 		syncIdlePoiEffects(player, session)
 	elseif session then
 		clearIdlePoiEffects(player, session)
@@ -792,7 +791,7 @@ local function enterSubarea(player, subId, def)
 		subId = subId,
 		def = def,
 		pois = pois,
-		poiTarget = #pois,
+		poiTarget = poiTargetFor(def),
 		foundCount = countFound(pois),
 	}
 	sessions[player:getGuid()] = session
@@ -897,7 +896,7 @@ function DiscoverySystem.walkTowardViewpoint(player, x, y, z)
 	if not pos or pos.z ~= z then
 		return false
 	end
-	-- Only allow points the client could already see (same viewport filter as the wire).
+	-- FAB / walk is in-world only: refuse distant pins (cyclopedia map may show the full set).
 	if math.abs(pos.x - x) > VIEW_X or math.abs(pos.y - y) > VIEW_Y then
 		return false
 	end
@@ -981,6 +980,22 @@ function DiscoverySystem.tick(player)
 		session = sessions[guid]
 	end
 	if session and not session.completed then
+		-- Top up short legacy sets when more usable minimap flags become available (e.g. upstairs).
+		local target = poiTargetFor(session.def)
+		if #session.pois < target then
+			local pois, changed = reconcilePois(player, session.def, session.pois)
+			if changed then
+				session.pois = pois
+				session.poiTarget = poiTargetFor(session.def)
+				session.foundCount = countFound(pois)
+				kv(player):set("pois-" .. session.subId, serializePois(pois))
+				sendAreaState(player, session.subId, session, true, true)
+				if session.foundCount >= session.poiTarget then
+					completeSubarea(player, session)
+					return
+				end
+			end
+		end
 		-- Show idle markers first, then discover — so the player can see the POI before it pops.
 		sendAreaState(player, session.subId, session, true, false)
 		if sessions[guid] and not sessions[guid].completed then

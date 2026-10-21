@@ -1951,8 +1951,10 @@ bool Game::removeCreature(const std::shared_ptr<Creature> &creature, bool isLogo
 	}
 
 	if (creature->getPlayer() && isLogout) {
-		auto it = teamFinderMap.find(creature->getPlayer()->getGUID());
+		const auto &leader = creature->getPlayer();
+		auto it = teamFinderMap.find(leader->getGUID());
 		if (it != teamFinderMap.end()) {
+			g_chat().closeTeamChannel(leader, Chat::TEAM_CHANNEL_CLOSED_MESSAGE);
 			teamFinderMap.erase(it);
 		}
 	}
@@ -12032,6 +12034,9 @@ void Game::playerRequestCharacterSwitch(uint32_t playerId, const std::string &ta
 		player->sendTextMessage(MESSAGE_FAILURE, "Character switch is busy, try again.");
 		return;
 	}
+
+	// Alts.switchAlt uses addEvent; luaAddEvent reads getScriptInterface()->getLoadingScriptName().
+	LuaScriptInterface::getScriptEnv()->setScriptId(0, &g_luaEnvironment());
 
 	g_logger().info("[playerRequestCharacterSwitch] {} -> {}", player->getName(), targetName);
 

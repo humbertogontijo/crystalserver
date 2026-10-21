@@ -1,8 +1,8 @@
 -- Position -> catalog hunt lookup. A hunt's footprint is its XY occupancy mask (or its
--- boundary box when no mask loaded) on its declared floors only, so a city surface tile
--- above an underground hunt (Thais over Thais Underground) is not a hunt tile.
--- Hunts without a boundary have no footprint. Built on first use: the catalog and
--- ExpeditionInstance load after instance_world.
+-- boundary box when no mask loaded) on floorsFromSpec (surface CIP boundaries include
+-- upstairs 0..7). A city surface tile above an underground-only hunt (Thais over Thais
+-- Underground) is still not a hunt tile. Hunts without a boundary have no footprint.
+-- Built on first use: the catalog and ExpeditionInstance load after instance_world.
 
 local CELL = 64
 

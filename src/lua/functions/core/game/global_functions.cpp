@@ -712,7 +712,10 @@ int GlobalFunctions::luaAddEvent(lua_State* L) {
 
 	eventDesc.function = luaL_ref(globalState, LUA_REGISTRYINDEX);
 	eventDesc.scriptId = Lua::getScriptEnv()->getScriptId();
-	eventDesc.scriptName = Lua::getScriptEnv()->getScriptInterface()->getLoadingScriptName();
+	// C++→Lua entry points can reserveScriptEnv without setScriptId; do not deref a null interface.
+	if (const auto* scriptInterface = Lua::getScriptEnv()->getScriptInterface()) {
+		eventDesc.scriptName = scriptInterface->getLoadingScriptName();
+	}
 
 	auto &lastTimerEventId = g_luaEnvironment().lastEventTimerId;
 	// The callback runs in the instance scope active now: creates / effects inside it land in the

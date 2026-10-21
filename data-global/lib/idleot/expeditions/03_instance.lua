@@ -26,7 +26,12 @@ function ExpeditionInstance.free(instanceId)
 	Game.releaseInstance(instanceId)
 end
 
---- Declared floors only (spawn/center/boundary z). Missing z is outside the instance.
+-- Tibia ground is z=7; 0..6 are upstairs of the same CIP XY mask (cities already allow
+-- every floor via a nil floorSet). Any surface-stack floor expands to the full 0..7 stack.
+local SURFACE_TOP = 7
+
+--- Declared floors (spawn/center/boundary z), plus upstairs when the CIP boundary is on
+--- the surface stack. Missing z is outside the instance.
 function ExpeditionInstance.floorsFromSpec(spec, fallbackZ)
 	spec = spec or {}
 	local set = {}
@@ -57,6 +62,21 @@ function ExpeditionInstance.floorsFromSpec(spec, fallbackZ)
 		end
 		if type(spec.boundary) == "table" then
 			add(spec.boundary.z)
+		end
+	end
+	-- Expand 0..7 only from declared CIP floors/spawns/boundary — never from
+	-- fallbackZ alone (underground hunts whose center/fallback is ≤7 must not
+	-- leak the surface stack into the instance fence).
+	local hasSurfaceStack = false
+	for z in pairs(set) do
+		if z <= SURFACE_TOP then
+			hasSurfaceStack = true
+			break
+		end
+	end
+	if hasSurfaceStack then
+		for z = 0, SURFACE_TOP do
+			add(z)
 		end
 	end
 	add(fallbackZ)

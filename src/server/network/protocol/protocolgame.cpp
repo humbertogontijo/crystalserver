@@ -74,6 +74,8 @@
 #include "utils/tools.hpp"
 #include "creatures/players/vocations/vocation.hpp"
 
+#include <cstring>
+
 #include "enums/account_coins.hpp"
 #include "enums/account_group_type.hpp"
 #include "enums/account_type.hpp"
@@ -3593,6 +3595,115 @@ void ProtocolGame::parsePlayerTyping(NetworkMessage &msg) {
 	g_dispatcher().addEvent([self = getThis(), playerID = player->getID(), typing] { g_game().playerSetTyping(playerID, typing); }, __FUNCTION__);
 }
 
+namespace {
+	// CIP Team Finder: open/close the private team channel and bridge into LobbyTeamFinder Lua.
+	void openTeamFinderChannel(const std::shared_ptr<Player> &leader) {
+		if (!leader) {
+			return;
+		}
+		const auto &channel = g_chat().createTeamChannel(leader, "");
+		if (!channel || !channel->addUser(leader)) {
+			return;
+		}
+		leader->sendCreatePrivateChannel(channel->getId(), channel->getName());
+	}
+
+	void inviteToTeamFinderChannel(const std::shared_ptr<Player> &leader, const std::shared_ptr<Player> &member) {
+		if (!leader || !member || leader == member) {
+			return;
+		}
+		const auto &channel = g_chat().getPrivateChannel(leader);
+		if (!channel) {
+			return;
+		}
+		channel->invitePlayer(leader, member, false);
+		if (!channel->hasUser(member) && !g_chat().addUserToChannel(member, channel->getId())) {
+			return;
+		}
+		const UsersMap* users = &channel->getUsers();
+		const InvitedMap* invitedUsers = channel->getInvitedUsers();
+		member->sendChannel(channel->getId(), channel->getName(), users, invitedUsers);
+	}
+
+	void excludeFromTeamFinderChannel(const std::shared_ptr<Player> &leader, const std::shared_ptr<Player> &member) {
+		if (!leader || !member || leader == member) {
+			return;
+		}
+		const auto &channel = g_chat().getPrivateChannel(leader);
+		if (!channel) {
+			return;
+		}
+		if (channel->hasUser(member)) {
+			member->sendChannelMessage("", Chat::TEAM_CHANNEL_CLOSED_MESSAGE, TALKTYPE_CHANNEL_R1, channel->getId());
+		}
+		channel->excludePlayer(leader, member);
+	}
+
+	void closeTeamFinderChannel(const std::shared_ptr<Player> &leader) {
+		if (leader) {
+			g_chat().closeTeamChannel(leader, Chat::TEAM_CHANNEL_CLOSED_MESSAGE);
+		}
+	}
+
+	bool callLobbyTeamFinder(const char* method, const std::shared_ptr<Player> &a, const std::shared_ptr<Player> &b = nullptr,
+		uint8_t teamType = 0, uint16_t bossID = 0, uint16_t huntType = 0, uint16_t huntArea = 0, uint16_t questID = 0,
+		uint16_t minLevel = 0, uint16_t maxLevel = 0, uint16_t teamSlots = 0) {
+		lua_State* L = g_luaEnvironment().getLuaState();
+		if (!L || !method || !a) {
+			return false;
+		}
+		if (!LuaScriptInterface::reserveScriptEnv()) {
+			return false;
+		}
+		lua_getglobal(L, "LobbyTeamFinder");
+		if (!lua_istable(L, -1)) {
+			lua_pop(L, 1);
+			LuaScriptInterface::resetScriptEnv();
+			return false;
+		}
+		lua_getfield(L, -1, method);
+		lua_remove(L, -2);
+		if (!lua_isfunction(L, -1)) {
+			lua_pop(L, 1);
+			LuaScriptInterface::resetScriptEnv();
+			return false;
+		}
+
+		LuaScriptInterface::pushUserdata<Player>(L, a);
+		LuaScriptInterface::setMetatable(L, -1, "Player");
+		int args = 1;
+		if (b) {
+			LuaScriptInterface::pushUserdata<Player>(L, b);
+			LuaScriptInterface::setMetatable(L, -1, "Player");
+			++args;
+		}
+		if (std::strcmp(method, "onAssemble") == 0) {
+			lua_createtable(L, 0, 8);
+			Lua::setField(L, "teamType", teamType);
+			Lua::setField(L, "bossID", bossID);
+			Lua::setField(L, "huntType", huntType);
+			Lua::setField(L, "huntArea", huntArea);
+			Lua::setField(L, "questID", questID);
+			Lua::setField(L, "minLevel", minLevel);
+			Lua::setField(L, "maxLevel", maxLevel);
+			Lua::setField(L, "teamSlots", teamSlots);
+			++args;
+		}
+
+		if (lua_pcall(L, args, 1, 0) != 0) {
+			g_logger().error("[TeamFinder] LobbyTeamFinder.{}: {}", method, lua_tostring(L, -1));
+			lua_pop(L, 1);
+			LuaScriptInterface::resetScriptEnv();
+			return false;
+		}
+		// onAccept returns false when lobby join fails; other hooks are nil/true.
+		const bool ok = !lua_isboolean(L, -1) || lua_toboolean(L, -1);
+		lua_pop(L, 1);
+		LuaScriptInterface::resetScriptEnv();
+		return ok;
+	}
+} // namespace
+
 void ProtocolGame::sendTeamFinderList() {
 	if (!player || oldProtocol) {
 		return;
@@ -3621,7 +3732,9 @@ void ProtocolGame::sendTeamFinderList() {
 			continue;
 		}
 
-		uint8_t status = 0;
+		// 0 NotInTeam, 1 Request, 2 Invited, 3 Accepted, 4 Rejected.
+		// Leader is not in membersMap; CIP still shows Accepted for your own listing.
+		uint8_t status = (leader->getGUID() == player->getGUID()) ? 3 : 0;
 		uint16_t membersSize = 0;
 		msg.add<uint32_t>(leader->getGUID());
 		msg.addString(leader->getName());
@@ -3680,12 +3793,20 @@ void ProtocolGame::sendLeaderTeamFinder(bool reset) {
 		msg.addByte(0x2C);
 		msg.addByte(1);
 		writeToOutputBuffer(msg);
+		closeTeamFinderChannel(player);
 		g_game().removeTeamFinderListed(player->getGUID());
+		callLobbyTeamFinder("onUnlist", player);
 		return;
 	}
 
 	const auto &teamAssemble = g_game().getTeamFinder(player);
 	if (!teamAssemble) {
+		// CIP: action 0 with no listing still answers with reset so the client
+		// clears Assemble Team (activity list). Do not close a channel or unlist.
+		NetworkMessage msg;
+		msg.addByte(0x2C);
+		msg.addByte(1);
+		writeToOutputBuffer(msg);
 		return;
 	}
 
@@ -3720,19 +3841,18 @@ void ProtocolGame::sendLeaderTeamFinder(bool reset) {
 			break;
 	}
 
+	std::shared_ptr<Player> leader = g_game().getPlayerByGUID(teamAssemble->leaderGuid);
+	if (!leader) {
+		leader = player;
+	}
+
 	uint16_t membersSize = 1;
 	for (auto memberPair : teamAssemble->membersMap) {
-		std::shared_ptr<Player> member = g_game().getPlayerByGUID(memberPair.first);
-		if (member) {
+		if (g_game().getPlayerByGUID(memberPair.first)) {
 			membersSize += 1;
 		}
 	}
-
 	msg.add<uint16_t>(membersSize);
-	std::shared_ptr<Player> leader = g_game().getPlayerByGUID(teamAssemble->leaderGuid);
-	if (!leader) {
-		return;
-	}
 
 	msg.add<uint32_t>(leader->getGUID());
 	msg.addString(leader->getName());
@@ -3800,6 +3920,7 @@ void ProtocolGame::createLeaderTeamFinder(NetworkMessage &msg) {
 	teamAssemble->hunt_area = huntType2;
 	teamAssemble->questID = questID;
 	teamAssemble->leaderGuid = player->getGUID();
+	teamAssemble->membersMap.clear();
 
 	auto party = player->getParty();
 	if (teamAssemble->partyBool && party) {
@@ -3813,6 +3934,15 @@ void ProtocolGame::createLeaderTeamFinder(NetworkMessage &msg) {
 			teamAssemble->membersMap.insert({ partyLeader->getGUID(), 3 });
 		}
 	}
+
+	openTeamFinderChannel(player);
+	for (const auto &[memberGuid, status] : teamAssemble->membersMap) {
+		if (status == 3) {
+			inviteToTeamFinderChannel(player, g_game().getPlayerByGUID(memberGuid));
+		}
+	}
+	callLobbyTeamFinder("onAssemble", player, nullptr, teamAssemble->teamType, teamAssemble->bossID, teamAssemble->hunt_type,
+		teamAssemble->hunt_area, teamAssemble->questID, teamAssemble->minLevel, teamAssemble->maxLevel, teamAssemble->teamSlots);
 }
 
 void ProtocolGame::parsePartyAnalyzerAction(NetworkMessage &msg) const {
@@ -3870,23 +4000,42 @@ void ProtocolGame::parseLeaderFinderWindow(NetworkMessage &msg) {
 			}
 
 			uint8_t memberStatus = msg.getByte();
-			for (auto &memberPair : teamAssemble->membersMap) {
-				if (memberPair.first == memberID) {
-					memberPair.second = memberStatus;
-				}
+			auto memberIt = teamAssemble->membersMap.find(memberID);
+			// Only act on players already on this listing (request/invite). A crafted
+			// accept must not force-join an arbitrary online GUID into the lobby.
+			if (memberIt == teamAssemble->membersMap.end()) {
+				player->sendLeaderTeamFinder(false);
+				return;
 			}
+			const uint8_t previousStatus = memberIt->second;
 
 			switch (memberStatus) {
 				case 2: {
+					memberIt->second = memberStatus;
 					member->sendTextMessage(MESSAGE_STATUS, "You are invited to a new team.");
 					break;
 				}
 				case 3: {
+					// Accept only pending requests (1) or prior invites (2).
+					if (previousStatus != 1 && previousStatus != 2) {
+						player->sendLeaderTeamFinder(false);
+						return;
+					}
+					if (!callLobbyTeamFinder("onAccept", player, member)) {
+						memberIt->second = previousStatus;
+						excludeFromTeamFinderChannel(player, member);
+						player->sendLeaderTeamFinder(false);
+						return;
+					}
+					memberIt->second = memberStatus;
 					member->sendTextMessage(MESSAGE_STATUS, "Your team finder request was accepted.");
+					inviteToTeamFinderChannel(player, member);
 					break;
 				}
 				case 4: {
+					memberIt->second = memberStatus;
 					member->sendTextMessage(MESSAGE_STATUS, "Your team finder request was denied.");
+					excludeFromTeamFinderChannel(player, member);
 					break;
 				}
 
@@ -3937,7 +4086,7 @@ void ProtocolGame::parseMemberFinderWindow(NetworkMessage &msg) {
 			return;
 		}
 
-		const auto &teamAssemble = g_game().getTeamFinder(player);
+		const auto &teamAssemble = g_game().getTeamFinder(leader);
 		if (!teamAssemble) {
 			return;
 		}
@@ -3945,6 +4094,7 @@ void ProtocolGame::parseMemberFinderWindow(NetworkMessage &msg) {
 		if (action == 1) {
 			leader->sendTextMessage(MESSAGE_STATUS, "There is a new request to join your team.");
 			teamAssemble->membersMap.insert({ player->getGUID(), 1 });
+			leader->sendLeaderTeamFinder(false);
 		} else {
 			for (auto itt = teamAssemble->membersMap.begin(), end = teamAssemble->membersMap.end(); itt != end; ++itt) {
 				if (itt->first == player->getGUID()) {
@@ -3952,6 +4102,8 @@ void ProtocolGame::parseMemberFinderWindow(NetworkMessage &msg) {
 					break;
 				}
 			}
+			excludeFromTeamFinderChannel(leader, player);
+			leader->sendLeaderTeamFinder(false);
 		}
 		player->sendTeamFinderList();
 	}

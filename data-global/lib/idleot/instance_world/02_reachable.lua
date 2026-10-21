@@ -1,8 +1,9 @@
 -- Static "can a player ever stand here" lookup for content checks (e.g. discovery
 -- viewpoints): true when some instance a player can enter contains pos - a city or
--- city/house (XY mask, every floor), the adventurers' hub, or a catalog hunt (mask + its
--- declared floors). Mirrors InstanceFenceRegistry::canWalk; lobby rooms and raid arenas
--- are not counted. The open world (instance 0) is never walkable.
+-- city/house (XY mask, every floor), the adventurers' hub, or a catalog hunt (mask +
+-- floorsFromSpec: surface CIP boundaries expand to upstairs 0..7). Mirrors
+-- InstanceFenceRegistry::canWalk; lobby rooms and raid arenas are not counted. The open
+-- world (instance 0) is never walkable.
 
 local CELL = 64
 

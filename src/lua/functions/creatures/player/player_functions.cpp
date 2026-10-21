@@ -3667,11 +3667,6 @@ int PlayerFunctions::luaPlayerCloseChannel(lua_State* L) {
 	return 1;
 }
 
-namespace {
-const std::string kTeamChannelClosedMessage =
-	"The channel has been closed. Either the corresponding team has been unlisted or you have been rejected by the team leader.";
-}
-
 int PlayerFunctions::luaPlayerCreateTeamChannel(lua_State* L) {
 	// player:createTeamChannel([name])
 	const auto &player = Lua::getUserdataShared<Player>(L, 1);
@@ -3739,7 +3734,7 @@ int PlayerFunctions::luaPlayerExcludeFromTeamChannel(lua_State* L) {
 	}
 
 	if (channel->hasUser(target)) {
-		target->sendChannelMessage("", kTeamChannelClosedMessage, TALKTYPE_CHANNEL_R1, channel->getId());
+		target->sendChannelMessage("", Chat::TEAM_CHANNEL_CLOSED_MESSAGE, TALKTYPE_CHANNEL_R1, channel->getId());
 	}
 	channel->excludePlayer(player, target);
 	Lua::pushBoolean(L, true);
@@ -3754,7 +3749,7 @@ int PlayerFunctions::luaPlayerCloseTeamChannel(lua_State* L) {
 		return 1;
 	}
 
-	std::string closeMessage = kTeamChannelClosedMessage;
+	std::string closeMessage = Chat::TEAM_CHANNEL_CLOSED_MESSAGE;
 	if (lua_gettop(L) >= 2 && !Lua::isNil(L, 2)) {
 		const std::string &custom = Lua::getString(L, 2);
 		if (!custom.empty()) {

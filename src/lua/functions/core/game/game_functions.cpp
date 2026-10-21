@@ -25,6 +25,8 @@
 #include "creatures/monsters/monsters.hpp"
 #include "creatures/npcs/npc.hpp"
 #include "creatures/players/achievement/player_achievement.hpp"
+#include "creatures/interactions/chat.hpp"
+#include "creatures/players/grouping/team_finder.hpp"
 #include "creatures/players/player.hpp"
 #include "game/functions/game_reload.hpp"
 #include "game/game.hpp"
@@ -252,6 +254,8 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "instanceKey", GameFunctions::luaGameInstanceKey);
 	Lua::registerMethod(L, "Game", "getSubareaAt", GameFunctions::luaGameGetSubareaAt);
 	Lua::registerMethod(L, "Game", "getSubareaInfo", GameFunctions::luaGameGetSubareaInfo);
+	Lua::registerMethod(L, "Game", "upsertTeamFinder", GameFunctions::luaGameUpsertTeamFinder);
+	Lua::registerMethod(L, "Game", "removeTeamFinder", GameFunctions::luaGameRemoveTeamFinder);
 	Lua::registerMethod(L, "Game", "isSubareaInstancesEnabled", GameFunctions::luaGameIsSubareaInstancesEnabled);
 	Lua::registerMethod(L, "Game", "pickInstanceChannel", GameFunctions::luaGamePickInstanceChannel);
 	Lua::registerMethod(L, "Game", "getInstanceChannels", GameFunctions::luaGameGetInstanceChannels);
@@ -1234,6 +1238,81 @@ int GameFunctions::luaGameGetSubareaAt(lua_State* L) {
 int GameFunctions::luaGameGetSubareaInfo(lua_State* L) {
 	// Game.getSubareaInfo(regionId) -> {id, kind, name, cipId, owners, instance} | nil
 	pushSubarea(L, Lua::getNumber<uint32_t>(L, 1, 0));
+	return 1;
+}
+
+int GameFunctions::luaGameUpsertTeamFinder(lua_State* L) {
+	// Game.upsertTeamFinder(player, opts) — public lobby / Assemble Team listing row.
+	const auto &player = Lua::getPlayer(L, 1);
+	if (!player || !Lua::isTable(L, 2)) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const auto readU16 = [L](const char* key, uint16_t fallback) -> uint16_t {
+		lua_getfield(L, 2, key);
+		const uint16_t value = Lua::isNil(L, -1) ? fallback : Lua::getNumber<uint16_t>(L, -1);
+		lua_pop(L, 1);
+		return value;
+	};
+	const auto readU8 = [L](const char* key, uint8_t fallback) -> uint8_t {
+		lua_getfield(L, 2, key);
+		const uint8_t value = Lua::isNil(L, -1) ? fallback : Lua::getNumber<uint8_t>(L, -1);
+		lua_pop(L, 1);
+		return value;
+	};
+	const auto readU32 = [L](const char* key, uint32_t fallback) -> uint32_t {
+		lua_getfield(L, 2, key);
+		const uint32_t value = Lua::isNil(L, -1) ? fallback : Lua::getNumber<uint32_t>(L, -1);
+		lua_pop(L, 1);
+		return value;
+	};
+
+	const auto &team = g_game().getOrCreateTeamFinder(player);
+	team->leaderGuid = player->getGUID();
+	team->minLevel = readU16("minLevel", team->minLevel);
+	team->maxLevel = readU16("maxLevel", team->maxLevel);
+	team->vocationIDs = readU8("vocationIDs", team->vocationIDs != 0 ? team->vocationIDs : 31);
+	team->teamSlots = readU16("teamSlots", team->teamSlots != 0 ? team->teamSlots : 5);
+	team->freeSlots = readU16("freeSlots", team->freeSlots != 0 ? team->freeSlots : team->teamSlots);
+	team->timestamp = readU32("timestamp", static_cast<uint32_t>(time(nullptr)));
+	team->teamType = readU8("teamType", team->teamType);
+	team->bossID = readU16("bossID", 0);
+	team->hunt_type = readU16("huntType", 0);
+	team->hunt_area = readU16("huntArea", 0);
+	team->questID = readU16("questID", 0);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameRemoveTeamFinder(lua_State* L) {
+	// Game.removeTeamFinder(player|guid[, closeChannel = true])
+	uint32_t guid = 0;
+	std::shared_ptr<Player> player;
+	if (Lua::isNumber(L, 1)) {
+		guid = Lua::getNumber<uint32_t>(L, 1);
+		player = g_game().getPlayerByGUID(guid);
+	} else {
+		player = Lua::getPlayer(L, 1);
+		if (player) {
+			guid = player->getGUID();
+		}
+	}
+	if (guid == 0) {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+
+	const bool closeChannel = Lua::getBoolean(L, 2, true);
+	if (closeChannel && player) {
+		g_chat().closeTeamChannel(player, Chat::TEAM_CHANNEL_CLOSED_MESSAGE);
+	}
+	g_game().removeTeamFinderListed(guid);
+	// Soft-reset Assemble UI without closeTeamChannel / onUnlist (already handled above).
+	if (player) {
+		player->sendLeaderTeamFinder(false);
+	}
+	Lua::pushBoolean(L, true);
 	return 1;
 }
 

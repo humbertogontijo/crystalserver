@@ -52,6 +52,8 @@ private:
 	static int luaGameInstanceKey(lua_State* L);
 	static int luaGameGetSubareaAt(lua_State* L);
 	static int luaGameGetSubareaInfo(lua_State* L);
+	static int luaGameUpsertTeamFinder(lua_State* L);
+	static int luaGameRemoveTeamFinder(lua_State* L);
 	static int luaGameIsSubareaInstancesEnabled(lua_State* L);
 	static int luaGamePickInstanceChannel(lua_State* L);
 	static int luaGameGetInstanceChannels(lua_State* L);

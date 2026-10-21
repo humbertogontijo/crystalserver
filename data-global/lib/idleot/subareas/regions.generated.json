@@ -2329,7 +2329,7 @@
   {
    "id": 61,
    "source": "cip",
-   "kind": "wild",
+   "kind": "hunt",
    "cipId": 61,
    "name": "Cyclopolis",
    "city": "Edron",
@@ -2347,9 +2347,112 @@
      "offset": 0,
      "tiles": 83,
      "z": 7
+    },
+    {
+     "bounds": {
+      "maxX": 33363,
+      "maxY": 31730,
+      "minX": 33176,
+      "minY": 31631
+     },
+     "components": 6,
+     "offset": 1,
+     "tiles": 3098,
+     "z": 8
+    },
+    {
+     "bounds": {
+      "maxX": 33402,
+      "maxY": 31709,
+      "minX": 33175,
+      "minY": 31602
+     },
+     "components": 4,
+     "offset": 2,
+     "tiles": 2746,
+     "z": 9
+    },
+    {
+     "bounds": {
+      "maxX": 33289,
+      "maxY": 31687,
+      "minX": 33232,
+      "minY": 31630
+     },
+     "components": 1,
+     "offset": 3,
+     "tiles": 626,
+     "z": 10
+    },
+    {
+     "bounds": {
+      "maxX": 33415,
+      "maxY": 31709,
+      "minX": 33219,
+      "minY": 31611
+     },
+     "components": 5,
+     "offset": 4,
+     "tiles": 4356,
+     "z": 11
+    },
+    {
+     "bounds": {
+      "maxX": 33308,
+      "maxY": 31718,
+      "minX": 33283,
+      "minY": 31691
+     },
+     "components": 2,
+     "offset": 5,
+     "tiles": 248,
+     "z": 12
+    },
+    {
+     "bounds": {
+      "maxX": 33310,
+      "maxY": 31717,
+      "minX": 33273,
+      "minY": 31687
+     },
+     "components": 2,
+     "offset": 6,
+     "tiles": 511,
+     "z": 13
+    },
+    {
+     "bounds": {
+      "maxX": 33416,
+      "maxY": 31757,
+      "minX": 33225,
+      "minY": 31636
+     },
+     "components": 15,
+     "offset": 7,
+     "tiles": 1099,
+     "z": 14
+    },
+    {
+     "bounds": {
+      "maxX": 33344,
+      "maxY": 31827,
+      "minX": 33254,
+      "minY": 31570
+     },
+     "components": 7,
+     "offset": 8,
+     "tiles": 2787,
+     "z": 15
     }
    ],
-   "wikiRefs": []
+   "wikiRefs": [
+    {
+     "floorIndex": 1,
+     "name": "Cyclopolis",
+     "wikiIndex": 115,
+     "z": 8
+    }
+   ]
   },
   {
    "id": 63,
@@ -20271,115 +20374,6 @@
      "components": 5,
      "offset": 7,
      "tiles": 637,
-     "z": 15
-    }
-   ],
-   "wikiRefs": []
-  },
-  {
-   "id": 100115,
-   "source": "wiki",
-   "kind": "hunt",
-   "cipId": 0,
-   "name": "Cyclopolis",
-   "city": "Edron",
-   "owners": [],
-   "seedZ": 8,
-   "floors": [
-    {
-     "bounds": {
-      "maxX": 33363,
-      "maxY": 31730,
-      "minX": 33176,
-      "minY": 31631
-     },
-     "components": 6,
-     "offset": 0,
-     "tiles": 3098,
-     "z": 8
-    },
-    {
-     "bounds": {
-      "maxX": 33402,
-      "maxY": 31709,
-      "minX": 33175,
-      "minY": 31602
-     },
-     "components": 4,
-     "offset": 1,
-     "tiles": 2746,
-     "z": 9
-    },
-    {
-     "bounds": {
-      "maxX": 33289,
-      "maxY": 31687,
-      "minX": 33232,
-      "minY": 31630
-     },
-     "components": 1,
-     "offset": 2,
-     "tiles": 626,
-     "z": 10
-    },
-    {
-     "bounds": {
-      "maxX": 33415,
-      "maxY": 31709,
-      "minX": 33219,
-      "minY": 31611
-     },
-     "components": 5,
-     "offset": 3,
-     "tiles": 4356,
-     "z": 11
-    },
-    {
-     "bounds": {
-      "maxX": 33308,
-      "maxY": 31718,
-      "minX": 33283,
-      "minY": 31691
-     },
-     "components": 2,
-     "offset": 4,
-     "tiles": 248,
-     "z": 12
-    },
-    {
-     "bounds": {
-      "maxX": 33310,
-      "maxY": 31717,
-      "minX": 33273,
-      "minY": 31687
-     },
-     "components": 2,
-     "offset": 5,
-     "tiles": 511,
-     "z": 13
-    },
-    {
-     "bounds": {
-      "maxX": 33416,
-      "maxY": 31757,
-      "minX": 33225,
-      "minY": 31636
-     },
-     "components": 15,
-     "offset": 6,
-     "tiles": 1099,
-     "z": 14
-    },
-    {
-     "bounds": {
-      "maxX": 33344,
-      "maxY": 31827,
-      "minX": 33254,
-      "minY": 31570
-     },
-     "components": 7,
-     "offset": 7,
-     "tiles": 2787,
      "z": 15
     }
    ],

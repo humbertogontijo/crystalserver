@@ -61,6 +61,8 @@ local function normalizeRecord(raw)
 		levelMin = math.max(1, math.floor(tonumber(raw.levelMin) or 1)),
 		levelMax = math.max(1, math.floor(tonumber(raw.levelMax) or 9999)),
 		bossDifficulty = raw.bossDifficulty,
+		-- Runtime only: derived on login via LobbyTeamFinder.sync (never load from KV).
+		teamFinder = false,
 		bonuses = type(raw.bonuses) == "table" and raw.bonuses or nil,
 		-- guid -> weight for party loot split (0 = skip; omit = equal default in LootSplit).
 		lootWeights = type(raw.lootWeights) == "table" and raw.lootWeights or nil,
@@ -117,7 +119,11 @@ local function persist(record)
 	if not store then
 		return
 	end
+	-- Drop runtime Team Finder flag so restarts do not resurrect a stale listing.
+	local teamFinder = record.teamFinder
+	record.teamFinder = nil
 	store:set(tostring(record.id), JsonParser.encode(record))
+	record.teamFinder = teamFinder
 end
 
 local function ensureLoaded()

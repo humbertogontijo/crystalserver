@@ -22,15 +22,39 @@ local function sendLobby(player)
 	LobbyProtocol.sendLobby(player)
 end
 
+local function syncTeamFinder(record)
+	if LobbyTeamFinder and LobbyTeamFinder.sync then
+		LobbyTeamFinder.sync(record)
+	end
+end
+
+local function unlistTeamFinder(record, closeChannel)
+	if LobbyTeamFinder and LobbyTeamFinder.unlist then
+		LobbyTeamFinder.unlist(record, closeChannel)
+	end
+end
+
 -- Team channel ---------------------------------------------------------------
 
-local function closeChannel(host)
-	if host then
+local function closeChannel(host, record)
+	if not host then
+		return
+	end
+	-- Team Finder–backed listings use the CIP closed banner (Lua default).
+	if record and record.teamFinder then
+		host:closeTeamChannel()
+	else
 		host:closeTeamChannel(TEAM_CHANNEL_CLOSED)
 	end
 end
 
 function LobbyManager.channelName(record)
+	-- CIP Assemble Team opens "{Name}'s Team Channel"; share that when TF-backed.
+	if record and record.teamFinder then
+		local host = online(record.hostGuid)
+		local name = host and host:getName() or tostring(record.hostName or "")
+		return name .. "'s Team Channel"
+	end
 	local title = tostring(record and record.title or "")
 	if title == "" then
 		return tostring(record and record.hostName or "") .. "'s lobby"
@@ -68,7 +92,12 @@ function LobbyManager.openChannel(record)
 		return
 	end
 	sendChannelHint(record, host)
-	host:createTeamChannel(LobbyManager.channelName(record))
+	-- Empty name → CIP "{Name}'s Team Channel" when the listing is Team Finder–backed.
+	if record.teamFinder then
+		host:createTeamChannel()
+	else
+		host:createTeamChannel(LobbyManager.channelName(record))
+	end
 	for _, m in ipairs(record.members) do
 		inviteToChannel(host, online(m.guid))
 	end
@@ -138,7 +167,10 @@ function LobbyManager.transferHost(record, entry, reason)
 	local oldHostGuid = record.hostGuid
 	local oldAccount = record.hostAccountId
 	local oldHost = online(oldHostGuid)
-	closeChannel(oldHost)
+	if record.teamFinder then
+		unlistTeamFinder(record, false)
+	end
+	closeChannel(oldHost, record)
 	LobbyStore.setHost(record, entry)
 	local newHost = online(entry.guid)
 
@@ -171,6 +203,7 @@ function LobbyManager.transferHost(record, entry, reason)
 	end
 	LobbyManager.openChannel(record)
 	logger.info("[Lobby] #{} host {} -> {} ({})", record.id, oldHostGuid, entry.guid, tostring(reason or "transfer"))
+	syncTeamFinder(record)
 	notify(record)
 	return true
 end
@@ -205,7 +238,8 @@ local function detachMember(record, guid, opts)
 		if p then
 			LobbyBonus.park(p, record)
 		end
-		closeChannel(p)
+		unlistTeamFinder(record, false)
+		closeChannel(p, record)
 		LobbyStore.delete(record)
 		return true
 	end
@@ -229,7 +263,8 @@ local function detachMember(record, guid, opts)
 			if p then
 				LobbyBonus.park(p, record)
 			end
-			closeChannel(p)
+			unlistTeamFinder(record, false)
+			closeChannel(p, record)
 			LobbyStore.delete(record)
 			return true
 		end
@@ -241,6 +276,7 @@ local function detachMember(record, guid, opts)
 		LobbyBonus.clearCombatCache(p)
 	end
 	LobbyStart.onMemberRemoved(record, guid)
+	syncTeamFinder(record)
 	notify(record)
 	return true
 end
@@ -337,6 +373,7 @@ function LobbyManager.join(player, lobbyId, viaInvite)
 	end
 	LobbyBonus.syncCombatCache(record)
 	moveIntoRoomIfInside(player, wasInRoom, record)
+	syncTeamFinder(record)
 	notify(record)
 	return true
 end
@@ -495,8 +532,12 @@ function LobbyManager.update(host, opts)
 	if opts.expeditionId ~= nil then
 		LobbyInstance.applyVariant(record)
 	end
-	if LobbyManager.channelName(record) ~= previousChannelName then
-		-- Channels cannot be renamed in place: reopen under the new title.
+	local wasTeamFinder = record.teamFinder == true
+	syncTeamFinder(record)
+	if LobbyManager.channelName(record) ~= previousChannelName
+		or (record.teamFinder and not wasTeamFinder)
+	then
+		-- Channels cannot be renamed in place: reopen under the new title / CIP TF name.
 		LobbyManager.openChannel(record)
 	end
 	notify(record)
@@ -634,6 +675,7 @@ function LobbyManager.onLogin(player)
 		inviteToChannel(online(record.hostGuid), player)
 	end
 	LobbyBonus.onMemberLogin(player)
+	syncTeamFinder(record)
 	notify(record)
 end
 
@@ -647,10 +689,12 @@ function LobbyManager.onLogout(player)
 	end
 	if record.hostGuid == player:getGuid() then
 		if LobbyStore.isPristine(record) then
+			unlistTeamFinder(record, false)
 			LobbyStore.delete(record)
 			return
 		end
-		closeChannel(player)
+		unlistTeamFinder(record, false)
+		closeChannel(player, record)
 		local successor = pickSuccessor(record, true)
 		if successor then
 			LobbyManager.transferHost(record, successor, "logout")

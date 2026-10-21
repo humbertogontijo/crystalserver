@@ -112,6 +112,10 @@ public:
 	std::shared_ptr<ChatChannel> createChannel(const std::shared_ptr<Player> &player, uint16_t channelId);
 	bool deleteChannel(const std::shared_ptr<Player> &player, uint16_t channelId);
 
+	// CIP Team Finder closed banner (TALKTYPE_CHANNEL_R1 before sendClosePrivate).
+	static constexpr const char* TEAM_CHANNEL_CLOSED_MESSAGE =
+		"The channel has been closed. Either the corresponding team has been unlisted or you have been rejected by the team leader.";
+
 	// Team channel named `name` (default "<leader>'s Team Channel"). Uses the private-channel
 	// slot; closes any existing owned private channel first. No premium required.
 	std::shared_ptr<PrivateChatChannel> createTeamChannel(const std::shared_ptr<Player> &player, const std::string &name = "");
