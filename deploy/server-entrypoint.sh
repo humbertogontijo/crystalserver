@@ -22,6 +22,8 @@ SERVER_MOTD="${SERVER_MOTD:-Welcome to IdleOT!}"
 OWNER_NAME="${OWNER_NAME:-IdleOT}"
 OWNER_EMAIL="${OWNER_EMAIL:-admin@idleot.com}"
 SERVER_URL="${SERVER_URL:-https://www.idleot.com}"
+# Soft multi-world: this process owns one worlds-row (config worldId).
+WORLD_ID="${WORLD_ID:-1}"
 # Host/IP advertised in ProtocolStatus XML (worlds.ip). Defaults to bind IP.
 STATUS_ADVERTISE_IP="${STATUS_ADVERTISE_IP:-}"
 COIN_IMAGES_URL="${COIN_IMAGES_URL:-}"
@@ -118,16 +120,17 @@ if [ -n "${METRICS_PROMETHEUS_ADDRESS:-}" ]; then
   patch_config metricsPrometheusAddress "$METRICS_PROMETHEUS_ADDRESS"
 fi
 
-# ProtocolStatus reads worlds.{name,ip,port_status} from MariaDB (createFirstWorld only
-# inserts once). Sync every boot so otservlist sees the public host + Idlebra name.
+# Soft multi-world: portal advertises every worlds row; Soft clients connect with
+# that row's name. Sync only THIS process's world (WORLD_ID) — never rewrite sibling
+# worlds' names. createFirstWorld seeds an empty table from serverName once.
 ADVERTISE_IP="${STATUS_ADVERTISE_IP:-$SERVER_IP}"
 ESC_NAME="$(printf '%s' "$SERVER_NAME" | sed "s/'/\\\\'/g")"
 ESC_MOTD="$(printf '%s' "$SERVER_MOTD" | sed "s/'/\\\\'/g")"
 ESC_IP="$(printf '%s' "$ADVERTISE_IP" | sed "s/'/\\\\'/g")"
-echo "[server] syncing worlds row name=${SERVER_NAME} ip=${ADVERTISE_IP} port=${GAME_PORT} port_status=${WORLD_STATUS_PORT}"
+echo "[server] syncing Soft world id=${WORLD_ID} name=${SERVER_NAME} ip=${ADVERTISE_IP} port=${GAME_PORT} port_status=${WORLD_STATUS_PORT}"
 mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" \
   -D "$MYSQL_DATABASE" -e \
-  "UPDATE worlds SET name='${ESC_NAME}', motd='${ESC_MOTD}', ip='${ESC_IP}', port=${GAME_PORT}, port_status=${WORLD_STATUS_PORT} WHERE id=1;" \
+  "UPDATE worlds SET name='${ESC_NAME}', motd='${ESC_MOTD}', ip='${ESC_IP}', port=${GAME_PORT}, port_status=${WORLD_STATUS_PORT} WHERE id=${WORLD_ID};" \
   || echo "[server] warning: worlds sync failed (table missing?)" >&2
 
 echo "[server] starting crystalserver (cwd /crystalserver)"

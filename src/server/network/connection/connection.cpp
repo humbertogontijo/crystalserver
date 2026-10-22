@@ -151,22 +151,33 @@ void Connection::parseProxyIdentification(const std::error_code &error) {
 
 	uint8_t* msgBuffer = m_msg.getBuffer();
 	auto charData = static_cast<char*>(static_cast<void*>(msgBuffer));
-	std::string serverName = g_configManager().getString(SERVER_NAME) + "\n";
+	// CIP Soft: client sends playdata.worlds[].name + '\n' (the world it is
+	// entering). Match this process's current worlds-row name — not a divergent
+	// config.lua serverName that can drift from the Soft login list.
+	std::string expectedWorldName;
+	if (const auto &world = g_game().worlds().getCurrentWorld()) {
+		expectedWorldName = world->name;
+	}
+	if (expectedWorldName.empty()) {
+		expectedWorldName = g_configManager().getString(SERVER_NAME);
+	}
+	expectedWorldName.push_back('\n');
 	if (connectionState == CONNECTION_STATE_IDENTIFYING) {
-		if (msgBuffer[1] == 0x00 || strncasecmp(charData, &serverName[0], 2) != 0) {
-			// Probably not proxy identification so let's try standard parsing method
+		if (expectedWorldName.size() < 2 || msgBuffer[1] == 0x00
+			|| strncasecmp(charData, expectedWorldName.data(), 2) != 0) {
+			// Probably not Soft world-name identification — standard OTC packet.
 			connectionState = CONNECTION_STATE_OPEN;
 			parseHeader(error);
 			return;
 		} else {
-			size_t remainder = serverName.length() - 2;
+			size_t remainder = expectedWorldName.length() - 2;
 			if (remainder > 0) {
 				connectionState = CONNECTION_STATE_READINGS;
 				try {
 					readTimer.expires_from_now(std::chrono::seconds(CONNECTION_READ_TIMEOUT));
 					readTimer.async_wait([self = std::weak_ptr<Connection>(shared_from_this())](const std::error_code &error) { Connection::handleTimeout(self, error); });
 
-					// Read the remainder of proxy identification
+					// Read the remainder of Soft world-name identification
 					scheduleRead(remainder, m_msg.getBuffer(), [self = shared_from_this()](const std::error_code &error) { self->parseProxyIdentification(error); });
 				} catch (const std::system_error &e) {
 					g_logger().error("Connection::parseProxyIdentification] - error: {}", e.what());
@@ -178,11 +189,11 @@ void Connection::parseProxyIdentification(const std::error_code &error) {
 			}
 		}
 	} else if (connectionState == CONNECTION_STATE_READINGS) {
-		size_t remainder = serverName.length() - 2;
-		if (strncasecmp(charData, &serverName[2], remainder) == 0) {
+		size_t remainder = expectedWorldName.length() - 2;
+		if (strncasecmp(charData, expectedWorldName.data() + 2, remainder) == 0) {
 			connectionState = CONNECTION_STATE_OPEN;
 		} else {
-			g_logger().error("Connection::parseProxyIdentification] Invalid Client Login! Server Name mismatch!");
+			g_logger().error("Connection::parseProxyIdentification] Invalid Soft world name (expected '{}')!", expectedWorldName.substr(0, expectedWorldName.size() - 1));
 			close(FORCE_CLOSE);
 			return;
 		}
