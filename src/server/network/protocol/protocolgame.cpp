@@ -1287,8 +1287,8 @@ void ProtocolGame::disconnectClient(const std::string &message, DisconnectClient
 
 void ProtocolGame::writeToOutputBuffer(NetworkMessage &msg) {
 	// Fan-out a copy to the bound stability secondary (same XTEA session / no second player).
-	// Gap vs CIP: no sequence-number coordination across sockets; secondary gets a full
-	// duplicate stream rather than CIP's load-balanced packet split.
+	// Client decrypts then discards duplicates (stability socket). CIP protobuf
+	// load-split is out of scope for Crystal OT classic.
 	// Heap-allocate the secondary copy — NetworkMessage is ~65KB; a stack local here
 	// overflows the dispatcher thread during deep call chains (e.g. logout de-equip →
 	// sendIcons → sendRestingStatus) and crashes as SIGBUS on macOS.
