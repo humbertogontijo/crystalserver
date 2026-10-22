@@ -41,6 +41,7 @@ private:
 	static int luaGetWaypointPositionByName(lua_State* L);
 	static int luaGetWorldLight(lua_State* L);
 	static int luaGetWorldTime(lua_State* L);
+	static int luaSetWorldTime(lua_State* L);
 	static int luaGetWorldUpTime(lua_State* L);
 	static int luaIsDepot(lua_State* L);
 	static int luaIsInWar(lua_State* L);

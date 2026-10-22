@@ -645,6 +645,8 @@ public:
 	void checkCreatureAttack(uint32_t creatureId);
 	void checkCreatures();
 	void checkLight();
+	/// Recompute lightLevel / lightState from lightHour (boot + setWorldTime).
+	void syncLightFromHour();
 	void checkImbuementsAndSereneStatus();
 
 	bool combatBlockHit(CombatDamage &damage, const std::shared_ptr<Creature> &attacker, const std::shared_ptr<Creature> &target, bool checkDefense, bool checkArmor, bool field);
@@ -701,6 +703,8 @@ public:
 	int32_t getLightHour() const {
 		return lightHour;
 	}
+	/// Sets tibia time (minutes since midnight, 0–1439), syncs world light, broadcasts to players.
+	void setWorldTime(uint32_t minutes);
 
 	void loadItemsPrice();
 

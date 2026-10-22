@@ -9,6 +9,10 @@ removeBeginningWeaponAmmunition = false
 -- Connection
 -- Browser OTC: native WebSocket game port (0 = disabled).
 websocketGamePort = 7174
+
+-- Metrics (compose Prometheus scrapes crystalserver:9464 on idleot-internal).
+metricsEnablePrometheus = true
+metricsPrometheusAddress = "0.0.0.0:9464"
 maxPacketsPerSecond = 50
 maxPlayersOnlinePerAccount = 4
 maxPlayersOutsidePZPerAccount = 4

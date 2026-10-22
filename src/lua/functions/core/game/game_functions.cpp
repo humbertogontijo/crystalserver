@@ -286,6 +286,7 @@ void GameFunctions::init(lua_State* L) {
 
 	Lua::registerMethod(L, "Game", "getGameState", GameFunctions::luaGameGetGameState);
 	Lua::registerMethod(L, "Game", "setGameState", GameFunctions::luaGameSetGameState);
+	Lua::registerMethod(L, "Game", "setWorldTime", GameFunctions::luaGameSetWorldTime);
 
 	Lua::registerMethod(L, "Game", "getWorldType", GameFunctions::luaGameGetWorldType);
 	Lua::registerMethod(L, "Game", "setInstanceWorldType", GameFunctions::luaGameSetInstanceWorldType);
@@ -1830,6 +1831,14 @@ int GameFunctions::luaGameSetGameState(lua_State* L) {
 	// Game.setGameState(state)
 	const GameState_t state = Lua::getNumber<GameState_t>(L, 1);
 	g_game().setGameState(state);
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int GameFunctions::luaGameSetWorldTime(lua_State* L) {
+	// Game.setWorldTime(minutes) — minutes since midnight (0–1439), or hour*60+minute
+	const auto minutes = Lua::getNumber<uint32_t>(L, 1);
+	g_game().setWorldTime(minutes);
 	Lua::pushBoolean(L, true);
 	return 1;
 }

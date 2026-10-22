@@ -55,6 +55,7 @@ void GlobalFunctions::init(lua_State* L) {
 	lua_register(L, "getWaypointPositionByName", GlobalFunctions::luaGetWaypointPositionByName);
 	lua_register(L, "getWorldLight", GlobalFunctions::luaGetWorldLight);
 	lua_register(L, "getWorldTime", GlobalFunctions::luaGetWorldTime);
+	lua_register(L, "setWorldTime", GlobalFunctions::luaSetWorldTime);
 	lua_register(L, "getWorldUpTime", GlobalFunctions::luaGetWorldUpTime);
 	lua_register(L, "isDepot", GlobalFunctions::luaIsDepot);
 	lua_register(L, "isInWar", GlobalFunctions::luaIsInWar);
@@ -257,6 +258,13 @@ int GlobalFunctions::luaGetWorldTime(lua_State* L) {
 	// getWorldTime()
 	const uint32_t time = g_game().getLightHour();
 	lua_pushnumber(L, time);
+	return 1;
+}
+
+int GlobalFunctions::luaSetWorldTime(lua_State* L) {
+	// setWorldTime(minutes)
+	g_game().setWorldTime(Lua::getNumber<uint32_t>(L, 1));
+	Lua::pushBoolean(L, true);
 	return 1;
 }
 
