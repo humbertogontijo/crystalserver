@@ -458,6 +458,15 @@ local function isGodPlayer(player)
 	return PzTeleport.isGod(player)
 end
 
+--- Same bar as stock /t and /pos (TalkAction groupType "gamemaster").
+local function isStaffPlayer(player)
+	if not player then
+		return false
+	end
+	local group = player:getGroup()
+	return group and group:getId() >= GROUP_TYPE_GAMEMASTER
+end
+
 local function liveHuntSession(player)
 	if not player then
 		return nil
@@ -537,13 +546,33 @@ local function planTravelBind(creature, destPos)
 	local session = player and huntSessionFor(player, current) or nil
 
 	-- Live private hunt: stay on the private id inside the fence. Never city-rebind
-	-- on shared XY (classify prefers city). Leaving the fence is blocked;
-	-- intentional leave uses exitToOpenWorld / bindOpenWorld with _skipEngineTravel.
+	-- on shared XY (classify prefers city). Leaving the fence is blocked for players;
+	-- GM+ (/t, /pos, …) rebind to the open-world channel of the destination.
+	-- Intentional product leave still uses exitToOpenWorld / bindOpenWorld.
 	if session and ExpeditionInstance.isLive(session.instance) then
 		if ExpeditionInstance.contains(session.instance, destPos) then
 			return true, session.instance.instanceId, false, current, "session"
 		end
-		return false, nil, false, current, "blocked"
+		if not isStaffPlayer(player) then
+			return false, nil, false, current, "blocked"
+		end
+		local target = InstanceWorld.classify(destPos)
+		if target.kind == "blocked" then
+			return false, nil, false, current, "blocked"
+		end
+		-- Open-world channel for the destination (temple/city/hub/region), or a safe
+		-- city when the tile has no public layer (stay / unscheduled hunt footprint).
+		local bindId = instanceIdForTarget(target, player)
+		local kind = target.kind
+		if not bindId then
+			local _, safeId = InstanceWorld.openWorldTarget(player, destPos)
+			bindId = safeId
+			kind = "open"
+		end
+		if not bindId then
+			return false, nil, false, current, "blocked"
+		end
+		return true, bindId, false, current, kind
 	end
 
 	local target = InstanceWorld.classify(destPos)
@@ -767,12 +796,12 @@ function InstanceWorld.sendBounds(player, force)
 	end
 	InstanceWorld._boundsSent[pid] = cacheKey
 	local sent = ExpeditionProtocol.sendInstanceBounds(player, desc)
-	-- Same moment the client learns the instance: area ambience, music, and climate.
+	-- Same moment the client learns the instance: area ambience, music, and weather.
 	if PlaceSound then
 		PlaceSound.send(player, desc)
 	end
-	if PlaceClimate then
-		PlaceClimate.send(player, desc)
+	if PlaceWeather then
+		PlaceWeather.send(player, desc)
 	end
 	return sent
 end
@@ -1169,6 +1198,9 @@ function InstanceWorld.onStartup()
 	end
 	if Game.isSubareaInstancesEnabled() then
 		logger.info("[InstanceWorld] open-world spawns start per subarea layer on first player")
+	end
+	if PlaceWeather and PlaceWeather.seedAreas then
+		PlaceWeather.seedAreas()
 	end
 	InstanceWorld.logNpcInstances()
 end

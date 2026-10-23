@@ -3,7 +3,7 @@
 -- (Makefile server-start, Dockerfile). Later assignments win.
 
 -- World
--- Soft multi-world: worlds.name (DB) is what the client sends on connect.
+-- CipSoft multi-world: worlds.name (DB) is what the client sends on connect.
 -- serverName only seeds createFirstWorld when the table is empty; keep it
 -- equal to the primary world display name (Idlebra).
 serverName = "Idlebra"

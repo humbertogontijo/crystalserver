@@ -275,6 +275,7 @@ private:
 	void parseRewardChestCollect(NetworkMessage &msg);
 
 	void parseBrowseField(NetworkMessage &msg);
+	void parseGetTransactionDetails(NetworkMessage &msg);
 	void parseSeekInContainer(NetworkMessage &msg);
 
 	// trade methods

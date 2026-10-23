@@ -1726,7 +1726,8 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 		case 0xC8:
 			parseSelectSpellAimProtocol(msg);
 			break;
-		case 0xC9: /* update tile */
+		case 0xC9: /* GetTransactionDetails (C 0xC9): Soft store history detail */
+			parseGetTransactionDetails(msg);
 			break;
 		case 0xCA:
 			parseExivaRestrictions(msg);
@@ -4782,6 +4783,16 @@ void ProtocolGame::parseRewardChestCollect(NetworkMessage &msg) {
 void ProtocolGame::parseBrowseField(NetworkMessage &msg) {
 	const Position &pos = msg.getPosition();
 	g_game().playerBrowseField(player->getID(), pos);
+}
+
+void ProtocolGame::parseGetTransactionDetails(NetworkMessage &msg) {
+	// Soft C 0xC9 GetTransactionDetails → Soft S TransactionDetails (0xCB): id + detail string.
+	const auto transactionId = msg.get<uint32_t>();
+	NetworkMessage out;
+	out.addByte(0xCB);
+	out.add<uint32_t>(transactionId);
+	out.addString("Transaction details are not available.");
+	writeToOutputBuffer(out);
 }
 
 void ProtocolGame::parseSeekInContainer(NetworkMessage &msg) {

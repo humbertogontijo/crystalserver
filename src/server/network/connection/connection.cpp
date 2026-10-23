@@ -151,9 +151,9 @@ void Connection::parseProxyIdentification(const std::error_code &error) {
 
 	uint8_t* msgBuffer = m_msg.getBuffer();
 	auto charData = static_cast<char*>(static_cast<void*>(msgBuffer));
-	// CIP Soft: client sends playdata.worlds[].name + '\n' (the world it is
+	// CipSoft: client sends playdata.worlds[].name + '\n' (the world it is
 	// entering). Match this process's current worlds-row name — not a divergent
-	// config.lua serverName that can drift from the Soft login list.
+	// config.lua serverName that can drift from the CipSoft login list.
 	std::string expectedWorldName;
 	if (const auto &world = g_game().worlds().getCurrentWorld()) {
 		expectedWorldName = world->name;
@@ -165,7 +165,7 @@ void Connection::parseProxyIdentification(const std::error_code &error) {
 	if (connectionState == CONNECTION_STATE_IDENTIFYING) {
 		if (expectedWorldName.size() < 2 || msgBuffer[1] == 0x00
 			|| strncasecmp(charData, expectedWorldName.data(), 2) != 0) {
-			// Probably not Soft world-name identification — standard OTC packet.
+			// Probably not CipSoft world-name identification — standard OTC packet.
 			connectionState = CONNECTION_STATE_OPEN;
 			parseHeader(error);
 			return;
@@ -177,7 +177,7 @@ void Connection::parseProxyIdentification(const std::error_code &error) {
 					readTimer.expires_from_now(std::chrono::seconds(CONNECTION_READ_TIMEOUT));
 					readTimer.async_wait([self = std::weak_ptr<Connection>(shared_from_this())](const std::error_code &error) { Connection::handleTimeout(self, error); });
 
-					// Read the remainder of Soft world-name identification
+					// Read the remainder of CipSoft world-name identification
 					scheduleRead(remainder, m_msg.getBuffer(), [self = shared_from_this()](const std::error_code &error) { self->parseProxyIdentification(error); });
 				} catch (const std::system_error &e) {
 					g_logger().error("Connection::parseProxyIdentification] - error: {}", e.what());
@@ -193,7 +193,7 @@ void Connection::parseProxyIdentification(const std::error_code &error) {
 		if (strncasecmp(charData, expectedWorldName.data() + 2, remainder) == 0) {
 			connectionState = CONNECTION_STATE_OPEN;
 		} else {
-			g_logger().error("Connection::parseProxyIdentification] Invalid Soft world name (expected '{}')!", expectedWorldName.substr(0, expectedWorldName.size() - 1));
+			g_logger().error("Connection::parseProxyIdentification] Invalid CipSoft world name (expected '{}')!", expectedWorldName.substr(0, expectedWorldName.size() - 1));
 			close(FORCE_CLOSE);
 			return;
 		}
