@@ -767,9 +767,12 @@ function InstanceWorld.sendBounds(player, force)
 	end
 	InstanceWorld._boundsSent[pid] = cacheKey
 	local sent = ExpeditionProtocol.sendInstanceBounds(player, desc)
-	-- Same moment the client learns the instance: area ambience and music.
+	-- Same moment the client learns the instance: area ambience, music, and climate.
 	if PlaceSound then
 		PlaceSound.send(player, desc)
+	end
+	if PlaceClimate then
+		PlaceClimate.send(player, desc)
 	end
 	return sent
 end
