@@ -3465,6 +3465,11 @@ void ProtocolGame::parseRuleViolationReport(NetworkMessage &msg) {
 }
 
 void ProtocolGame::parseGetGuildMessage() {
+	// CIP GetGuildMessage (C 0x9B): leader-only; opens MOTD editor (S 0xAE)
+	// even when the current MOTD is empty.
+	if (oldProtocol) {
+		return;
+	}
 	const auto &guild = player->getGuild();
 	const auto &rank = player->getGuildRank();
 	if (!guild || !rank || rank->level != GUILDLEVEL_LEADER) {
@@ -3475,7 +3480,11 @@ void ProtocolGame::parseGetGuildMessage() {
 }
 
 void ProtocolGame::parseEditGuildMessage(NetworkMessage &msg) {
+	// CIP EditGuildMessage (C 0x9C): leader-only; empty string clears MOTD.
 	const std::string message = msg.getString();
+	if (oldProtocol) {
+		return;
+	}
 	const auto &guild = player->getGuild();
 	const auto &rank = player->getGuildRank();
 	if (!guild || !rank || rank->level != GUILDLEVEL_LEADER || message.size() > 255) {
@@ -3492,16 +3501,23 @@ void ProtocolGame::parseGetTextForReport(NetworkMessage &msg) {
 	const Position pos = msg.getPosition();
 	const auto itemId = msg.get<uint16_t>();
 	const uint8_t stackpos = msg.getByte();
-
-	const auto &thing = g_game().internalGetThing(player, pos, stackpos, itemId, STACKPOS_LOOK);
-	const auto &item = thing ? thing->getItem() : nullptr;
-	// Unseen / missing tile: drain complete — do not emit S 0x81.
-	if (!item || !player->canSee(item->getPosition())) {
+	if (oldProtocol) {
 		return;
 	}
 
-	// CIP TextForReport (S 0x81): always fill the report UI when the look
-	// resolves to a writable item, including empty text.
+	const auto &thing = g_game().internalGetThing(player, pos, stackpos, itemId, STACKPOS_LOOK);
+	const auto &item = thing ? thing->getItem() : nullptr;
+	// Unseen / missing / non-text tile: drain complete — do not emit S 0x81.
+	if (!item || !player->canSee(item->getPosition())) {
+		return;
+	}
+	const ItemType &it = Item::items[item->getID()];
+	if (!it.canReadText && !it.canWriteText) {
+		return;
+	}
+
+	// CIP TextForReport (S 0x81): fill the report UI for readable/writable
+	// items, including empty text (UI still opens).
 	const std::string text = item->getAttribute<std::string>(ItemAttribute_t::TEXT);
 	sendTextForReport(0, text, item->getAttribute<std::string>(ItemAttribute_t::WRITER));
 }
@@ -4201,7 +4217,7 @@ void ProtocolGame::parseSetClientOptions(NetworkMessage &msg) {
 	// Unknown options are fully read then ignored so the stream stays aligned.
 	const uint8_t option = msg.getByte();
 	const bool enabled = msg.getByte() != 0;
-	if (option != 1) {
+	if (oldProtocol || option != 1) {
 		return;
 	}
 	g_dispatcher().addEvent([self = getThis(), playerID = player->getID(), enabled] {
@@ -9839,6 +9855,11 @@ void ProtocolGame::sendTextWindow(uint32_t windowTextId, uint32_t itemId, const 
 }
 
 void ProtocolGame::sendEditGuildMessage(const std::string &message) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	// CIP EditGuildMessage (S 0xAE) — MOTD editor body (not C 0xAE Bosstiary).
 	NetworkMessage msg;
 	msg.addByte(0xAE);
 	msg.addString(message);
@@ -9846,6 +9867,11 @@ void ProtocolGame::sendEditGuildMessage(const std::string &message) {
 }
 
 void ProtocolGame::sendTextForReport(uint32_t textId, const std::string &text, const std::string &author) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	// CIP TextForReport (S 0x81) — not C 0x81 FriendSystemAction.
 	NetworkMessage msg;
 	msg.addByte(0x81);
 	msg.add<uint32_t>(textId);

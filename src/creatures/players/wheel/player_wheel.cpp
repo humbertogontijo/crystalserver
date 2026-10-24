@@ -1261,13 +1261,40 @@ void PlayerWheel::revealGem(WheelGemQuality_t quality) {
 	});
 
 	// CIP GemAtelierGemRevealed (S 0xC5): GemId = revealed-gem inventory index
-	// (TGemAtelierPageController selectGem), not item type id.
-	if (m_player.client) {
+	// (TGemAtelierPageController selectGem / GEM_ATELIER_SELECT_GEM), not item type id.
+	if (m_player.client && !m_player.client->oldProtocol) {
 		const uint16_t revealedIndex = getGemIndex(gem.uuid);
-		m_player.client->sendGemAtelierGemRevealed(revealedIndex);
+		if (revealedIndex != 0xFF) {
+			m_player.client->sendGemAtelierGemRevealed(revealedIndex);
+		}
 	}
 
 	sendOpenWheelWindow(m_player.getID());
+}
+
+void PlayerWheel::sendSpellDataModifications() const {
+	if (!m_player.client || m_player.client->oldProtocol || m_spellsSelected.empty()) {
+		return;
+	}
+
+	std::vector<std::tuple<uint16_t, uint8_t, uint8_t>> entries;
+	entries.reserve(m_spellsSelected.size());
+	for (const auto &[spellName, grade] : m_spellsSelected) {
+		if (grade == WheelSpellGrade_t::NONE) {
+			continue;
+		}
+		const auto &spell = g_spells().getInstantSpellByName(spellName);
+		if (!spell) {
+			continue;
+		}
+		entries.emplace_back(
+			spell->getSpellId(),
+			static_cast<uint8_t>(SpellDataModificationMod_t::WHEEL_GRADE),
+			static_cast<uint8_t>(grade));
+	}
+	if (!entries.empty()) {
+		m_player.client->sendSpellDataModification(entries);
+	}
 }
 
 PlayerWheelGem &PlayerWheel::getGem(uint16_t index) {
@@ -2544,23 +2571,9 @@ void PlayerWheel::loadPlayerBonusData() {
 
 	printPlayerWheelMethodsBonusData(m_playerBonusData);
 
-	// CIP SpellDataModification (S 0x60): refresh client spell UI after wheel
-	// grades that alter area/targets/duration change.
-	if (m_player.client && !m_player.client->oldProtocol && !m_spellsSelected.empty()) {
-		std::vector<std::tuple<uint16_t, uint8_t, uint8_t>> entries;
-		entries.reserve(m_spellsSelected.size());
-		for (const auto &[spellName, grade] : m_spellsSelected) {
-			const auto &spell = g_spells().getInstantSpellByName(spellName);
-			if (!spell) {
-				continue;
-			}
-			// mod 0 = wheel spell grade; value = WheelSpellGrade_t.
-			entries.emplace_back(spell->getSpellId(), static_cast<uint8_t>(0), static_cast<uint8_t>(grade));
-		}
-		if (!entries.empty()) {
-			m_player.client->sendSpellDataModification(entries);
-		}
-	}
+	// After wheel bonus reload, refresh CIP spell UI for grades that alter
+	// area / targets / duration (S 0x60 SpellDataModification).
+	sendSpellDataModifications();
 }
 
 void PlayerWheel::printPlayerWheelMethodsBonusData(const PlayerWheelMethodsBonusData &bonusData) const {
