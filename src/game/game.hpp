@@ -573,6 +573,8 @@ public:
 	void playerPassPartyLeadership(uint32_t playerId, uint32_t newLeaderId);
 	void playerLeaveParty(uint32_t playerId);
 	void playerDisbandParty(uint32_t playerId);
+	/// CIP JoinAggression (C 0x8E): share a party/guild mate's current PvP opponents.
+	void playerJoinAggression(uint32_t playerId, uint32_t creatureId);
 	void playerEnableSharedPartyExperience(uint32_t playerId, bool sharedExpActive);
 	void playerToggleMount(uint32_t playerId, bool mount);
 	void playerLeaveMarket(uint32_t playerId);

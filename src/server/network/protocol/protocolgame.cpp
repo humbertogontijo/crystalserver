@@ -1597,7 +1597,7 @@ void ProtocolGame::parsePacketFromDispatcher(NetworkMessage &msg, uint8_t recvby
 			parseLookInBattleList(msg);
 			break;
 		case 0x8E: /* CIP JoinAggression — u32 creatureId */
-			msg.get<uint32_t>();
+			parseJoinAggression(msg);
 			break;
 		case 0x8F:
 			parseQuickLoot(msg);
@@ -3495,15 +3495,14 @@ void ProtocolGame::parseGetTextForReport(NetworkMessage &msg) {
 
 	const auto &thing = g_game().internalGetThing(player, pos, stackpos, itemId, STACKPOS_LOOK);
 	const auto &item = thing ? thing->getItem() : nullptr;
+	// Unseen / missing tile: drain complete — do not emit S 0x81.
 	if (!item || !player->canSee(item->getPosition())) {
 		return;
 	}
 
-	const std::string &text = item->getAttribute<std::string>(ItemAttribute_t::TEXT);
-	if (text.empty()) {
-		return;
-	}
-
+	// CIP TextForReport (S 0x81): always fill the report UI when the look
+	// resolves to a writable item, including empty text.
+	const std::string text = item->getAttribute<std::string>(ItemAttribute_t::TEXT);
 	sendTextForReport(0, text, item->getAttribute<std::string>(ItemAttribute_t::WRITER));
 }
 
@@ -4197,6 +4196,9 @@ void ProtocolGame::parseLeaderFinderWindow(NetworkMessage &msg) {
 // Client 15.x GameclientMessageSetClientOptions: u8 option, u8 value. Option 1 is "always turn
 // towards the direction of movement" (sent at login and when it changes).
 void ProtocolGame::parseSetClientOptions(NetworkMessage &msg) {
+	// CIP SetClientOptions (C 0x2E): u8 option, u8 enabled. Option 1 =
+	// turnTowardsMoveDirection (session; CIP does not persist across relog).
+	// Unknown options are fully read then ignored so the stream stays aligned.
 	const uint8_t option = msg.getByte();
 	const bool enabled = msg.getByte() != 0;
 	if (option != 1) {
@@ -7276,6 +7278,11 @@ void ProtocolGame::sendResourcesBalance(uint64_t money /*= 0*/, uint64_t bank /*
 	sendResourceBalance(RESOURCE_FORGE_DUST, forgeDust);
 	sendResourceBalance(RESOURCE_FORGE_SLIVER, forgeSliver);
 	sendResourceBalance(RESOURCE_FORGE_CORES, forgeCores);
+	// CIP 15.30+: 0x49 = lunar ascension orbs (Maximise). Forge dust cap is
+	// forge-data only — do not reuse 0x49 for dust limit.
+	if (player && !oldProtocol) {
+		sendResourceBalance(RESOURCE_LUNAR_ASCENSION_ORBS);
+	}
 }
 
 void ProtocolGame::sendResourceBalance(Resource_t resourceType, uint64_t value) {
@@ -11737,7 +11744,18 @@ void ProtocolGame::sendDepotSearchResultDetail(uint16_t itemId, uint8_t tier, ui
 	writeToOutputBuffer(msg);
 }
 
+void ProtocolGame::parseJoinAggression(NetworkMessage &msg) {
+	const auto creatureId = msg.get<uint32_t>();
+	if (oldProtocol || !player) {
+		return;
+	}
+
+	g_game().playerJoinAggression(player->getID(), creatureId);
+}
+
 void ProtocolGame::parseOpenDepotSearch() {
+	// CIP OpenDepotSearch (C 0x92). Cyclopedia map stays on 0xDB.
+	// Version-gate: old OT clients never send this; skip to avoid desync.
 	if (oldProtocol) {
 		return;
 	}

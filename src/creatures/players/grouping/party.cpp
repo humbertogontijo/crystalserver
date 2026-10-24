@@ -110,6 +110,7 @@ void Party::disband() {
 
 	currentLeader->setParty(nullptr);
 	currentLeader->sendClosePrivate(CHANNEL_PARTY);
+	currentLeader->sendPartyLeft();
 	g_game().updatePlayerShield(currentLeader);
 	g_game().updatePlayerHelpers(currentLeader);
 	currentLeader->sendCreatureSkull(currentLeader);
@@ -125,6 +126,7 @@ void Party::disband() {
 	for (const auto &member : members) {
 		member->setParty(nullptr);
 		member->sendClosePrivate(CHANNEL_PARTY);
+		member->sendPartyLeft();
 		member->sendTextMessage(MESSAGE_PARTY_MANAGEMENT, "Your party has been disbanded.");
 	}
 

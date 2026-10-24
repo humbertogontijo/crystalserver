@@ -1327,19 +1327,14 @@ function sendRequestPurchaseData(playerId, offerId, type)
 	msg:sendToPlayer(player)
 end
 
--- CIP HirelingNameChange (S 0xDB). Zeros open a store-style name prompt; the client
--- answers with SetHirelingName (C 0xEC).
+-- CIP HirelingNameChange (S 0xDB) via C++ ProtocolGame::sendHirelingNameChange.
+-- Zeros open a store-style name prompt; the client answers with SetHirelingName (C 0xEC).
 function sendHirelingNameChange(playerId, creatureId, objectId)
 	local player = Player(playerId)
 	if not player then
 		return false
 	end
-
-	local msg = NetworkMessage()
-	msg:addByte(0xDB)
-	msg:addU32(creatureId or 0)
-	msg:addU32(objectId or 0)
-	msg:sendToPlayer(player)
+	player:sendHirelingNameChange(creatureId or 0, objectId or 0)
 	return true
 end
 

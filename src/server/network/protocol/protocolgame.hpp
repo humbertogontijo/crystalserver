@@ -177,6 +177,7 @@ private:
 	void sendCloseDepotSearch();
 	void sendDepotSearchResultDetail(uint16_t itemId, uint8_t tier, uint32_t depotCount, const ItemVector &depotItems, uint32_t inboxCount, const ItemVector &inboxItems, uint32_t stashCount);
 	void parseOpenDepotSearch();
+	void parseJoinAggression(NetworkMessage &msg);
 	void parseCloseDepotSearch();
 	void parseDepotSearchItemRequest(NetworkMessage &msg);
 	void parseOpenParentContainer(NetworkMessage &msg);

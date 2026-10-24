@@ -10484,6 +10484,58 @@ void Game::playerLeaveParty(uint32_t playerId) {
 	party->leaveParty(player);
 }
 
+void Game::playerJoinAggression(uint32_t playerId, uint32_t creatureId) {
+	// CIP JoinAggression (C 0x8E): share a party/guild mate's current PvP
+	// opponents (attackedSet + reciprocal aggressors) so area runes, fields,
+	// skull, and PZ follow as if the joiner attacked those opponents.
+	// See tibia.com combat manual + docs/reverse-engineering/cip-opcode-maturity-re.md.
+	const auto &joiner = getPlayerByID(playerId);
+	if (!joiner) {
+		return;
+	}
+
+	if (joiner->hasSecureMode()) {
+		joiner->sendTextMessage(MESSAGE_FAILURE, "Turn off secure mode to join aggression.");
+		return;
+	}
+
+	if (getWorldType(joiner->getInstanceId()) == WORLDTYPE_OPTIONAL) {
+		return;
+	}
+
+	const auto &creature = getCreatureByID(creatureId);
+	const auto &target = creature ? creature->getPlayer() : nullptr;
+	if (!target || target == joiner) {
+		return;
+	}
+
+	if (!joiner->isPartner(target) && !joiner->isGuildMate(target)) {
+		joiner->sendTextMessage(MESSAGE_FAILURE, "You can only join the aggression of a party or guild member.");
+		return;
+	}
+
+	// Copy the mate's current opponent set onto the joiner.
+	for (const auto &[_, online] : getPlayers()) {
+		if (!online || online == joiner) {
+			continue;
+		}
+		if (target->hasAttacked(online) || online->hasAttacked(target)) {
+			joiner->addAttacked(online);
+			if (!online->hasAttacked(joiner)) {
+				online->addAttacked(joiner);
+			}
+		}
+	}
+
+	if (target->isPzLocked()) {
+		joiner->addInFightTicks(true);
+	} else if (target->hasCondition(CONDITION_INFIGHT)) {
+		joiner->addInFightTicks(false);
+	}
+
+	joiner->sendTextMessage(MESSAGE_EVENT_ADVANCE, "You joined " + target->getName() + "'s aggression.");
+}
+
 void Game::playerDisbandParty(uint32_t playerId) {
 	const auto &player = getPlayerByID(playerId);
 	if (!player) {
