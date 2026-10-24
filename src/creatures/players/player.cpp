@@ -2406,6 +2406,42 @@ void Player::sendFriendSystemData(uint8_t dataType, const std::string &message) 
 	}
 }
 
+void Player::sendFriendSystemFriendList(const std::vector<FriendSystemFriendRow> &rows) const {
+	if (client) {
+		client->sendFriendSystemFriendList(rows);
+	}
+}
+
+void Player::sendFriendSystemInviteList(const std::vector<FriendSystemInviteRow> &received, const std::vector<FriendSystemInviteRow> &sent) const {
+	if (client) {
+		client->sendFriendSystemInviteList(received, sent);
+	}
+}
+
+void Player::sendFriendSystemBlacklist(const std::vector<FriendSystemInviteRow> &rows) const {
+	if (client) {
+		client->sendFriendSystemBlacklist(rows);
+	}
+}
+
+void Player::sendFriendSystemAccountSearch(const FriendSystemSearchResult &result) const {
+	if (client) {
+		client->sendFriendSystemAccountSearch(result);
+	}
+}
+
+void Player::sendFriendSystemBadges() const {
+	if (client) {
+		client->sendFriendSystemBadges();
+	}
+}
+
+void Player::sendFriendSystemSettings(const std::vector<FriendSystemSettingRow> &rows) const {
+	if (client) {
+		client->sendFriendSystemSettings(rows);
+	}
+}
+
 void Player::sendHirelingNameChange(uint32_t creatureId, uint32_t objectId) const {
 	if (client) {
 		client->sendHirelingNameChange(creatureId, objectId);

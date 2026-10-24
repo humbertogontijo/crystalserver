@@ -21,6 +21,7 @@
 
 #include "server/network/protocol/protocol.hpp"
 #include "creatures/creatures_definitions.hpp"
+#include "io/io_friend.hpp"
 #include "enums/disconnect_client.hpp"
 #include "game/movement/position.hpp"
 #include "utils/utils_definitions.hpp"
@@ -194,8 +195,14 @@ private:
 
 	void parseFriendSystemAction(NetworkMessage &msg);
 	/// CIP FriendSystemData (S 0x74). dataType matches FRIENDSYSTEM_DATATYPE_*
-	/// (0 ERROR + message, 1 invite notice, 7 friendship notice, …).
+	/// (0 ERROR + message, 1/7 empty notices, 2–6 and 8 typed bodies).
 	void sendFriendSystemData(uint8_t dataType, const std::string &message = {});
+	void sendFriendSystemFriendList(const std::vector<FriendSystemFriendRow> &rows);
+	void sendFriendSystemInviteList(const std::vector<FriendSystemInviteRow> &received, const std::vector<FriendSystemInviteRow> &sent);
+	void sendFriendSystemBlacklist(const std::vector<FriendSystemInviteRow> &rows);
+	void sendFriendSystemAccountSearch(const FriendSystemSearchResult &result);
+	void sendFriendSystemBadges();
+	void sendFriendSystemSettings(const std::vector<FriendSystemSettingRow> &rows);
 	/// CIP SpellDataModification (S 0x60): u16 count + count×(u16 spellId, u8 mod, u8 value).
 	void sendSpellDataModification(const std::vector<std::tuple<uint16_t, uint8_t, uint8_t>> &entries);
 	/// CIP GemAtelierGemRevealed (S 0xC5): u32 gem id.

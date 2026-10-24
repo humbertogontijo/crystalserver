@@ -32,6 +32,7 @@
 
 #include "io/iobountytasks.hpp"
 #include "io/ioweeklytasks.hpp"
+#include "io/io_friend.hpp"
 
 class AnimusMastery;
 class House;
@@ -1201,6 +1202,12 @@ public:
 	void sendPartyLeft() const;
 	/// CIP FriendSystemData (S 0x74); dataType = FRIENDSYSTEM_DATATYPE_* (0 ERROR + msg).
 	void sendFriendSystemData(uint8_t dataType, const std::string &message = {}) const;
+	void sendFriendSystemFriendList(const std::vector<FriendSystemFriendRow> &rows) const;
+	void sendFriendSystemInviteList(const std::vector<FriendSystemInviteRow> &received, const std::vector<FriendSystemInviteRow> &sent) const;
+	void sendFriendSystemBlacklist(const std::vector<FriendSystemInviteRow> &rows) const;
+	void sendFriendSystemAccountSearch(const FriendSystemSearchResult &result) const;
+	void sendFriendSystemBadges() const;
+	void sendFriendSystemSettings(const std::vector<FriendSystemSettingRow> &rows) const;
 	/// CIP HirelingNameChange (S 0xDB); see ProtocolGame::sendHirelingNameChange.
 	void sendHirelingNameChange(uint32_t creatureId = 0, uint32_t objectId = 0) const;
 	void sendGameNews() const;

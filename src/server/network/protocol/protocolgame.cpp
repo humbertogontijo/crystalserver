@@ -3099,34 +3099,157 @@ void ProtocolGame::sendItemInspection(uint16_t itemId, uint8_t itemCount, const 
 }
 
 void ProtocolGame::parseFriendSystemAction(NetworkMessage &msg) {
-	const uint8_t state = msg.getByte();
-	if (state == 0x0E) {
-		g_game().playerFriendSystemAction(player, state, msg.getByte());
+	const uint8_t action = msg.getByte();
+	if (action == 0x0E) {
+		g_game().playerFriendSystemAction(player, action, msg.getByte(), {});
 		return;
 	}
-	// Non-title actions carry a JSON body the social handler already understands.
+	std::string payload;
 	if (msg.getLength() >= msg.getBufferPosition() + 2) {
-		const std::string body = msg.getString();
-		g_game().parsePlayerExtendedOpcode(player->getID(), 121, body);
-		return;
+		payload = msg.getString();
 	}
-	g_game().playerFriendSystemAction(player, state, 0);
+	g_game().playerFriendSystemAction(player, action, 0, payload);
 }
+
+namespace {
+void addFriendSystemOutfit(NetworkMessage &msg, const Outfit_t &outfit) {
+	msg.add<uint16_t>(outfit.lookType);
+	if (outfit.lookType != 0) {
+		msg.addByte(outfit.lookHead);
+		msg.addByte(outfit.lookBody);
+		msg.addByte(outfit.lookLegs);
+		msg.addByte(outfit.lookFeet);
+		msg.addByte(outfit.lookAddons);
+	} else {
+		msg.add<uint16_t>(outfit.lookTypeEx);
+	}
+}
+} // namespace
 
 void ProtocolGame::sendFriendSystemData(uint8_t dataType, const std::string &message) {
 	if (!player || oldProtocol) {
 		return;
 	}
 
-	// FriendSystemData (S 0x74) — CIP FRIENDSYSTEM_DATATYPE_* (MacOS enum table):
-	//   0 ERROR (+ string; empty string ⇒ client cannot-use)
-	//   1 FRIENDINVITE_NOTICE / 7 FRIENDSHIP_NOTICE (no payload)
-	//   2–6, 8 list/settings bodies not sent yet (IdleOT friends use JSON social opcode).
 	NetworkMessage out;
 	out.addByte(0x74);
 	out.addByte(dataType);
 	if (dataType == 0x00) {
 		out.addString(message);
+	}
+	writeToOutputBuffer(out);
+}
+
+void ProtocolGame::sendFriendSystemFriendList(const std::vector<FriendSystemFriendRow> &rows) {
+	if (!player || oldProtocol) {
+		return;
+	}
+	NetworkMessage out;
+	out.addByte(0x74);
+	out.addByte(0x02);
+	out.add<uint16_t>(static_cast<uint16_t>(rows.size()));
+	for (const auto &row : rows) {
+		out.add<uint32_t>(row.guid);
+		out.addString(row.name);
+		out.addByte(row.group);
+		out.add<uint16_t>(row.level);
+		out.addString(row.vocation);
+		out.addByte(row.online ? 1 : 0);
+		addFriendSystemOutfit(out, row.outfit);
+	}
+	writeToOutputBuffer(out);
+}
+
+void ProtocolGame::sendFriendSystemInviteList(const std::vector<FriendSystemInviteRow> &received, const std::vector<FriendSystemInviteRow> &sent) {
+	if (!player || oldProtocol) {
+		return;
+	}
+	NetworkMessage out;
+	out.addByte(0x74);
+	out.addByte(0x03);
+	out.add<uint16_t>(static_cast<uint16_t>(received.size()));
+	for (const auto &row : received) {
+		out.add<uint32_t>(row.guid);
+		out.addString(row.name);
+		out.add<uint32_t>(row.created);
+	}
+	out.add<uint16_t>(static_cast<uint16_t>(sent.size()));
+	for (const auto &row : sent) {
+		out.add<uint32_t>(row.guid);
+		out.addString(row.name);
+		out.add<uint32_t>(row.created);
+	}
+	writeToOutputBuffer(out);
+}
+
+void ProtocolGame::sendFriendSystemBlacklist(const std::vector<FriendSystemInviteRow> &rows) {
+	if (!player || oldProtocol) {
+		return;
+	}
+	NetworkMessage out;
+	out.addByte(0x74);
+	out.addByte(0x04);
+	out.add<uint16_t>(static_cast<uint16_t>(rows.size()));
+	for (const auto &row : rows) {
+		out.add<uint32_t>(row.guid);
+		out.addString(row.name);
+		out.add<uint32_t>(row.created);
+	}
+	writeToOutputBuffer(out);
+}
+
+void ProtocolGame::sendFriendSystemAccountSearch(const FriendSystemSearchResult &result) {
+	if (!player || oldProtocol) {
+		return;
+	}
+	NetworkMessage out;
+	out.addByte(0x74);
+	out.addByte(0x05);
+	out.add<uint32_t>(result.accountId);
+	out.addByte(result.online ? 1 : 0);
+	out.addByte(result.premium ? 1 : 0);
+	out.add<uint32_t>(result.lastLogin);
+	out.add<uint16_t>(static_cast<uint16_t>(result.characters.size()));
+	for (const auto &character : result.characters) {
+		out.add<uint32_t>(character.guid);
+		out.add<uint32_t>(character.creatureId);
+		out.addString(character.name);
+		out.add<uint16_t>(character.level);
+		out.addString(character.vocation);
+		out.addString(character.world);
+		out.addByte(character.online ? 1 : 0);
+		addFriendSystemOutfit(out, character.outfit);
+	}
+	writeToOutputBuffer(out);
+}
+
+void ProtocolGame::sendFriendSystemBadges() {
+	if (!player || oldProtocol) {
+		return;
+	}
+	NetworkMessage out;
+	out.addByte(0x74);
+	out.addByte(0x06);
+	out.add<uint16_t>(0);
+	writeToOutputBuffer(out);
+}
+
+void ProtocolGame::sendFriendSystemSettings(const std::vector<FriendSystemSettingRow> &rows) {
+	if (!player || oldProtocol) {
+		return;
+	}
+	NetworkMessage out;
+	out.addByte(0x74);
+	out.addByte(0x08);
+	out.addByte(static_cast<uint8_t>(rows.size()));
+	for (const auto &row : rows) {
+		out.addByte(row.settingType);
+		out.addByte(row.showCharacter ? 1 : 0);
+		out.addByte(row.showAccount ? 1 : 0);
+		out.addByte(row.allowInspect ? 1 : 0);
+		out.addByte(row.enableCharacter ? 1 : 0);
+		out.addByte(row.enableAccount ? 1 : 0);
+		out.addByte(row.enableInspect ? 1 : 0);
 	}
 	writeToOutputBuffer(out);
 }

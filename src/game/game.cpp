@@ -44,6 +44,7 @@
 #include "creatures/players/vip/player_vip.hpp"
 #include "creatures/players/wheel/player_wheel.hpp"
 #include "enums/player_wheel.hpp"
+#include "database/database.hpp"
 #include "database/databasetasks.hpp"
 #include "game/scheduling/dispatcher.hpp"
 #include "game/scheduling/events_scheduler.hpp"
@@ -60,6 +61,7 @@
 #include "io/ioprey.hpp"
 #include "io/iobountytasks.hpp"
 #include "io/ioweeklytasks.hpp"
+#include "io/io_friend.hpp"
 #include "items/bed.hpp"
 #include "items/containers/inbox/inbox.hpp"
 #include "items/containers/rewards/reward.hpp"
@@ -10630,22 +10632,260 @@ void Game::kickPlayer(uint32_t playerId, bool displayEffect) {
 	player->removePlayer(displayEffect);
 }
 
-void Game::playerFriendSystemAction(const std::shared_ptr<Player> &player, uint8_t type, uint8_t titleId) {
+namespace {
+uint32_t resolveFriendTargetAccount(const FriendActionTarget &target) {
+	if (target.accountId != 0) {
+		return target.accountId;
+	}
+	if (target.guid != 0) {
+		const uint32_t fromGuid = IOFriend::getAccountIdByPlayerGuid(target.guid);
+		if (fromGuid != 0) {
+			return fromGuid;
+		}
+		return target.guid;
+	}
+	if (!target.name.empty()) {
+		return IOFriend::getAccountIdByPlayerName(target.name);
+	}
+	return 0;
+}
+
+void notifyFriendAccounts(const std::shared_ptr<Player> &player, uint32_t otherAccountId, bool friendshipNotice) {
+	if (!player) {
+		return;
+	}
+	for (const auto &[_, online] : g_game().getPlayers()) {
+		if (!online || online->getAccountId() != otherAccountId) {
+			continue;
+		}
+		if (friendshipNotice) {
+			online->sendFriendSystemData(0x07);
+		} else {
+			online->sendFriendSystemData(0x01);
+		}
+		std::vector<FriendSystemInviteRow> received;
+		std::vector<FriendSystemInviteRow> sent;
+		IOFriend::loadInviteLists(online->getAccountId(), received, sent);
+		online->sendFriendSystemInviteList(received, sent);
+	}
+}
+} // namespace
+
+void Game::playerFriendSystemAction(const std::shared_ptr<Player> &player, uint8_t action, uint8_t titleId, const std::string &payload) {
 	if (!player) {
 		return;
 	}
 
-	if (type == 0x0E) {
+	if (action == 0x0E) {
 		player->title()->setCurrentTitle(titleId);
 		player->sendCyclopediaCharacterBaseInformation();
 		player->sendCyclopediaCharacterTitles();
 		return;
 	}
 
-	// Full CIP friend-list / invite payloads are not implemented. ERROR (0) +
-	// string matches FRIENDSYSTEM_DATATYPE_ERROR; IdleOT friends use the JSON
-	// social opcode instead of 0x74 list bodies.
-	player->sendFriendSystemData(0x00, "The friend system is not available on this world.");
+	const uint32_t accountId = player->getAccountId();
+	if (accountId == 0) {
+		player->sendFriendSystemData(0x00, "The friend system is not available.");
+		return;
+	}
+
+	const FriendActionTarget target = IOFriend::parseActionPayload(payload);
+
+	switch (action) {
+		case 0: { // LOADFRIENDLIST
+			player->sendFriendSystemFriendList(IOFriend::loadFriendList(accountId));
+			break;
+		}
+		case 1: { // LOADINVITELIST
+			std::vector<FriendSystemInviteRow> received;
+			std::vector<FriendSystemInviteRow> sent;
+			IOFriend::loadInviteLists(accountId, received, sent);
+			player->sendFriendSystemInviteList(received, sent);
+			break;
+		}
+		case 2: { // LOADBLACKLIST
+			player->sendFriendSystemBlacklist(IOFriend::loadBlacklist(accountId));
+			break;
+		}
+		case 3: { // LOADBADGES
+			player->sendFriendSystemBadges();
+			break;
+		}
+		case 4: { // LOADSETTINGS
+			player->sendFriendSystemSettings(IOFriend::loadSettings(accountId));
+			break;
+		}
+		case 5: { // ACCEPTINVITE
+			const uint32_t fromAccountId = resolveFriendTargetAccount(target);
+			if (fromAccountId == 0) {
+				player->sendFriendSystemData(0x00, "Friend request not found.");
+				break;
+			}
+			if (IOFriend::loadFriendList(accountId).size() >= IOFriend::MAX_FRIENDS) {
+				player->sendFriendSystemData(0x00, "Friend list is full.");
+				break;
+			}
+			if (!IOFriend::acceptInvite(accountId, fromAccountId)) {
+				player->sendFriendSystemData(0x00, "Failed to accept invite.");
+				break;
+			}
+			player->sendFriendSystemFriendList(IOFriend::loadFriendList(accountId));
+			std::vector<FriendSystemInviteRow> received;
+			std::vector<FriendSystemInviteRow> sent;
+			IOFriend::loadInviteLists(accountId, received, sent);
+			player->sendFriendSystemInviteList(received, sent);
+			notifyFriendAccounts(player, fromAccountId, true);
+			break;
+		}
+		case 6: { // DECLINEINVITE
+			const uint32_t fromAccountId = resolveFriendTargetAccount(target);
+			if (fromAccountId == 0 || !IOFriend::declineInvite(accountId, fromAccountId)) {
+				player->sendFriendSystemData(0x00, "Friend request not found.");
+				break;
+			}
+			std::vector<FriendSystemInviteRow> received;
+			std::vector<FriendSystemInviteRow> sent;
+			IOFriend::loadInviteLists(accountId, received, sent);
+			player->sendFriendSystemInviteList(received, sent);
+			notifyFriendAccounts(player, fromAccountId, false);
+			break;
+		}
+		case 7: { // CANCELINVITE
+			const uint32_t toAccountId = resolveFriendTargetAccount(target);
+			if (toAccountId == 0 || !IOFriend::cancelInvite(accountId, toAccountId)) {
+				player->sendFriendSystemData(0x00, "Invite not found.");
+				break;
+			}
+			std::vector<FriendSystemInviteRow> received;
+			std::vector<FriendSystemInviteRow> sent;
+			IOFriend::loadInviteLists(accountId, received, sent);
+			player->sendFriendSystemInviteList(received, sent);
+			notifyFriendAccounts(player, toAccountId, false);
+			break;
+		}
+		case 8: { // SENDINVITE
+			if (!player->isPremium()) {
+				player->sendFriendSystemData(0x00, "Premium account required to send friend invites.");
+				break;
+			}
+			const uint32_t toAccountId = resolveFriendTargetAccount(target);
+			if (toAccountId == 0) {
+				player->sendFriendSystemData(0x00, "Character not found.");
+				break;
+			}
+			if (IOFriend::isSameAccount(accountId, toAccountId)) {
+				player->sendFriendSystemData(0x00, "You cannot add characters on your own account.");
+				break;
+			}
+			if (IOFriend::isBlacklisted(accountId, toAccountId) || IOFriend::isBlacklisted(toAccountId, accountId)) {
+				player->sendFriendSystemData(0x00, "Cannot send invite.");
+				break;
+			}
+			if (IOFriend::isFriend(accountId, toAccountId)) {
+				player->sendFriendSystemData(0x00, "Already friends.");
+				break;
+			}
+			// Reverse pending invite: accept automatically.
+			const std::string pendingQuery = fmt::format(
+				"SELECT 1 FROM `account_friend_invites` WHERE `from_account_id` = {} AND `to_account_id` = {} LIMIT 1",
+				toAccountId, accountId
+			);
+			if (Database::getInstance().storeQuery(pendingQuery)) {
+				playerFriendSystemAction(player, 5, 0, payload);
+				break;
+			}
+			if (!IOFriend::sendInvite(accountId, toAccountId)) {
+				player->sendFriendSystemData(0x00, "Failed to send invite.");
+				break;
+			}
+			std::vector<FriendSystemInviteRow> received;
+			std::vector<FriendSystemInviteRow> sent;
+			IOFriend::loadInviteLists(accountId, received, sent);
+			player->sendFriendSystemInviteList(received, sent);
+			notifyFriendAccounts(player, toAccountId, false);
+			break;
+		}
+		case 9: { // REMOVEFRIEND
+			const uint32_t friendAccountId = resolveFriendTargetAccount(target);
+			if (friendAccountId == 0 || !IOFriend::isFriend(accountId, friendAccountId)) {
+				player->sendFriendSystemData(0x00, "Friend not found.");
+				break;
+			}
+			IOFriend::removeFriend(accountId, friendAccountId);
+			player->sendFriendSystemFriendList(IOFriend::loadFriendList(accountId));
+			for (const auto &[_, online] : getPlayers()) {
+				if (online && online->getAccountId() == friendAccountId) {
+					online->sendFriendSystemFriendList(IOFriend::loadFriendList(friendAccountId));
+				}
+			}
+			break;
+		}
+		case 10: { // REMOVEFROMBLACKLIST
+			const uint32_t blockedAccountId = resolveFriendTargetAccount(target);
+			if (blockedAccountId == 0) {
+				player->sendFriendSystemData(0x00, "Entry not found.");
+				break;
+			}
+			IOFriend::removeBlacklist(accountId, blockedAccountId);
+			player->sendFriendSystemBlacklist(IOFriend::loadBlacklist(accountId));
+			break;
+		}
+		case 11: { // ADDTOBLACKLIST
+			const uint32_t blockedAccountId = resolveFriendTargetAccount(target);
+			if (blockedAccountId == 0) {
+				player->sendFriendSystemData(0x00, "Character not found.");
+				break;
+			}
+			if (IOFriend::isSameAccount(accountId, blockedAccountId)) {
+				player->sendFriendSystemData(0x00, "Invalid target.");
+				break;
+			}
+			IOFriend::addBlacklist(accountId, blockedAccountId);
+			if (IOFriend::isFriend(accountId, blockedAccountId)) {
+				IOFriend::removeFriend(accountId, blockedAccountId);
+			}
+			IOFriend::cancelInvite(accountId, blockedAccountId);
+			IOFriend::declineInvite(accountId, blockedAccountId);
+			player->sendFriendSystemBlacklist(IOFriend::loadBlacklist(accountId));
+			player->sendFriendSystemFriendList(IOFriend::loadFriendList(accountId));
+			break;
+		}
+		case 12: { // CHANGEFRIENDGROUP
+			const uint32_t friendAccountId = resolveFriendTargetAccount(target);
+			if (friendAccountId == 0 || !IOFriend::isFriend(accountId, friendAccountId)) {
+				player->sendFriendSystemData(0x00, "Friend not found.");
+				break;
+			}
+			IOFriend::changeFriendGroup(accountId, friendAccountId, target.group);
+			player->sendFriendSystemFriendList(IOFriend::loadFriendList(accountId));
+			break;
+		}
+		case 13: { // CHANGEBADGEVISIBILITY (stub)
+			player->sendFriendSystemBadges();
+			break;
+		}
+		case 15: { // SEARCHACCOUNT
+			const std::string queryName = !target.name.empty() ? target.name : payload;
+			FriendSystemSearchResult result;
+			if (!IOFriend::searchAccountByCharacterName(queryName, result)) {
+				player->sendFriendSystemData(0x00, "Character not found.");
+				break;
+			}
+			player->sendFriendSystemAccountSearch(result);
+			break;
+		}
+		case 16: { // CHANGESETTING
+			if (!IOFriend::saveSetting(accountId, target)) {
+				player->sendFriendSystemData(0x00, "Failed to save setting.");
+				break;
+			}
+			player->sendFriendSystemSettings(IOFriend::loadSettings(accountId));
+			break;
+		}
+		default:
+			player->sendFriendSystemData(0x00, "Unknown friend system action.");
+			break;
+	}
 }
 
 void Game::setImprovedRespawnZones(std::vector<ImprovedRespawnZone> zones) {

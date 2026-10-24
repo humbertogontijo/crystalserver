@@ -430,7 +430,7 @@ public:
 
 	void playerReportRuleViolationReport(uint32_t playerId, const std::string &targetName, uint8_t reportType, uint8_t reportReason, const std::string &comment, const std::string &translation);
 
-	void playerFriendSystemAction(const std::shared_ptr<Player> &player, uint8_t type, uint8_t titleId);
+	void playerFriendSystemAction(const std::shared_ptr<Player> &player, uint8_t action, uint8_t titleId, const std::string &payload);
 
 	void playerCyclopediaCharacterInfo(const std::shared_ptr<Player> &player, uint32_t characterID, CyclopediaCharacterInfoType_t characterInfoType, uint16_t entriesPerPage, uint16_t page);
 
