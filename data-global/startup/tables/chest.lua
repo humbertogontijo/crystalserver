@@ -3112,15 +3112,9 @@ ChestUnique = {
 		questName = "dark-essence",
 	},
 	-- Shadows of Yalahar Quest Mision 10
-	[6335] = {
-		useKV = true,
-		itemId = 2469,
-		itemPos = { x = 32629, y = 32446, z = 10 },
-		reward = { { 9237, 1 } }, -- shadow orb
-		weight = 4.00,
-		questName = "shadow-orb",
-	},
-	-- Shadows of Yalahar Quest Mision 10
+	-- NOTE: shadow-orb at (32629,32446,10) is already ChestUnique [5027].
+	-- A second [6335] for that tile is an upstream copy-paste bug: it drops
+	-- dark-essence (Lua key collision) and overwrites uid 5027 at boot.
 	[6336] = {
 		useKV = true,
 		itemId = 3634,

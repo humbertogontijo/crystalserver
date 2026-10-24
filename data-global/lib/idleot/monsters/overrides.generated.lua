@@ -458,7 +458,6 @@ return {
 				{ match = { id = 32622 }, patch = { chance = 2703 } },
 				{ match = { id = 30060 }, patch = { chance = 5405 } },
 				{ match = { id = 30059 }, patch = { chance = 2703 } },
-				{ match = { id = 50061 }, patch = { chance = 2703 } },
 				{ insert = 52, value = { name = "great mana potion", chance = 37838, maxCount = 15 } },
 			},
 		},
