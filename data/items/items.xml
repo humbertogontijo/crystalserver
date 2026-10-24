@@ -68951,18 +68951,21 @@
 		<attribute key="wrapableto" value="23473" />
 	</item>
 	<item id="36952" article="a" name="folded artefact carpet II">
+		<attribute key="primarytype" value="floor decorations" />
 		<attribute key="type" value="carpet" />
 		<attribute key="description" value="This carpet resembles a prime artefact. It feels soft to the touch and seems to have almost no weight" />
 		<attribute key="weight" value="10" />
 		<attribute key="wrapableto" value="23473" />
 	</item>
 	<item id="36953" article="a" name="folded artefact carpet III">
+		<attribute key="primarytype" value="floor decorations" />
 		<attribute key="type" value="carpet" />
 		<attribute key="description" value="This carpet resembles a prime artefact. It feels soft to the touch and seems to have almost no weight" />
 		<attribute key="weight" value="10" />
 		<attribute key="wrapableto" value="23473" />
 	</item>
 	<item id="36954" article="a" name="folded artefact carpet IV">
+		<attribute key="primarytype" value="floor decorations" />
 		<attribute key="type" value="carpet" />
 		<attribute key="description" value="This carpet resembles a prime artefact. It feels soft to the touch and seems to have almost no weight" />
 		<attribute key="weight" value="10" />
@@ -68976,6 +68979,7 @@
 		<attribute key="wrapableto" value="23473" />
 	</item>
 	<item id="36956" article="a" name="folded artefact carpet VI">
+		<attribute key="primarytype" value="floor decorations" />
 		<attribute key="type" value="carpet" />
 		<attribute key="description" value="This carpet resembles a prime artefact. It feels soft to the touch and seems to have almost no weight" />
 		<attribute key="weight" value="10" />
@@ -86044,6 +86048,9 @@
 	<item id="50555" name="stairs">
 		<attribute key="floorchange" value="south" />
 	</item>
+	<item id="50564" article="a" name="ladder">
+		<attribute key="type" value="ladder" />
+	</item>
 	<item id="51119" article="a" name="simple jo staff">
 		<attribute key="primarytype" value="fist weapons" />
 		<attribute key="weaponType" value="fist" />
@@ -87327,6 +87334,14 @@
 			<attribute key="weaponType" value="distance" />
 		</attribute>
 	</item>
+	<item id="51874" article="a" name="stairs" />
+	<item id="51875" article="a" name="stairs">
+		<attribute key="floorchange" value="north" />
+	</item>
+	<item id="51876" article="a" name="stairs" />
+	<item id="51877" article="a" name="stairs">
+		<attribute key="floorchange" value="west" />
+	</item>
 	<item fromid="51777" toid="51778" article="a" name="sealed door" />
 	<item fromid="51782" toid="51785" article="a" name="glowing sign" />
 	<item id="51895" article="a" name="brooch">
@@ -88003,6 +88018,7 @@
 		<attribute key="weight" value="50" />
 	</item>
 	<item id="52589" article="a" name="folded artefact carpet VIII">
+		<attribute key="primarytype" value="floor decorations" />
 		<attribute key="description" value="This carpet resembles a prime artefact. It feels soft to the touch and seems to have almost no weight." />
 		<attribute key="weight" value="10" />
 	</item>
@@ -89667,6 +89683,7 @@
 	</item>
 	<item id="54133" article="an" name="echo warden portal">
 		<attribute key="description" value="An unstable echo of a slain creature. Use it from an adjacent square (or step onto it) to release what it remembers." />
+		<attribute key="allowdistread" value="1" />
 		<attribute key="movable" value="0" />
 		<attribute key="pickupable" value="0" />
 	</item>
@@ -89688,6 +89705,16 @@
 	<item id="54262" article="a" name="key">
 		<attribute key="primarytype" value="others" />
 		<attribute key="weight" value="100" />
+	</item>
+	<item id="53440" article="a" name="stairs" />
+	<item id="53441" article="a" name="stairs">
+		<attribute key="floorchange" value="south" />
+	</item>
+	<item id="54578" article="a" name="stairs">
+		<attribute key="floorchange" value="west" />
+	</item>
+	<item id="54581" article="a" name="stairs">
+		<attribute key="floorchange" value="west" />
 	</item>
 	<item id="54266" article="a" name="lesser proficiency catalyst">
 		<attribute key="primarytype" value="valuables" />

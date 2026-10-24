@@ -444,6 +444,19 @@ local function insertPlayerTransactionSummary(player, offer)
 	player:createTransactionSummary(offer.type, math.max(1, offer.count or 1), id)
 end
 
+-- XP Boost price in a single place. Before, the store window used ExpBoostValues[count] without
+-- normalizing the counter (-1 or 0 = nil -> fell back to offer.price), while the purchase normalized it
+-- and WROTE the price into the catalog offer (offer.price, shared by everyone). After someone bought
+-- their 5th boost, a player who never bought one saw 360 in the window, the balance check asked for 360
+-- and the message said "for 360 coins", but only 30 were charged.
+function GameStore.getExpBoostPrice(player)
+	local count = player:getStorageValue(GameStore.Storages.expBoostCount)
+	if count == -1 or count == 0 or count > 5 then
+		count = 1
+	end
+	return GameStore.ExpBoostValues[count], count
+end
+
 function parseBuyStoreOffer(playerId, msg)
 	local player = Player(playerId)
 	local id = msg:getU32()
@@ -1415,7 +1428,11 @@ GameStore.getOfferById = function(id)
 
 					-- case multi offer
 				elseif type(offer.id) == "table" then
-					local newoffer = offer
+					-- copy: "newoffer = offer" changed the catalog itself (id/price of the first purchase stayed forever)
+					local newoffer = {}
+					for k, v in pairs(offer) do
+						newoffer[k] = v
+					end
 					for i = 1, #offer.id do
 						local offerId = offer.id[i]
 						if offerId == id then
@@ -1857,7 +1874,10 @@ function GameStore.processNameChangePurchase(player, offer, productType, newName
 
 		local message, namelockReason = "", player:kv():get("namelock")
 		if not namelockReason then
-			player:makeCoinTransaction(offer)
+			-- the result was ignored: the name changed even when the payment failed
+			if not player:makeCoinTransaction(offer) then
+				return error({ code = 1, message = "You don't have enough coins. Your purchase has been cancelled." })
+			end
 			message = string.format("You have purchased %s for %d coins.", offer.name, offer.price)
 		else
 			message = "Your character has been renamed successfully."
@@ -2236,16 +2256,17 @@ function Player.makeCoinTransaction(self, offer, desc, price)
 		return paid
 	end
 
+	local expBoostNextCount
 	if offer.type == GameStore.OfferTypes.OFFER_TYPE_EXPBOOST then
-		local expBoostCount = self:getStorageValue(GameStore.Storages.expBoostCount)
-
-		if expBoostCount == -1 or expBoostCount == 0 or expBoostCount > 5 then
-			expBoostCount = 1
+		-- never write offer.price (it is the catalog offer, the same for everyone): charge a copy
+		local boostPrice, expBoostCount = GameStore.getExpBoostPrice(self)
+		local copy = {}
+		for k, v in pairs(offer) do
+			copy[k] = v
 		end
-		if GameStore.ExpBoostValues[expBoostCount] then
-			offer.price = GameStore.ExpBoostValues[expBoostCount]
-		end
-		self:setStorageValue(GameStore.Storages.expBoostCount, expBoostCount + 1)
+		copy.price = boostPrice or offer.price
+		offer = copy
+		expBoostNextCount = expBoostCount + 1
 	end
 
 	if offer.price <= 0 then
@@ -2257,6 +2278,10 @@ function Player.makeCoinTransaction(self, offer, desc, price)
 	end
 
 	local op = removeStoreCoinsBalance(self, offer.price, offer.coinType)
+	-- the boost counter only moves forward when the coins were really taken
+	if op and expBoostNextCount then
+		self:setStorageValue(GameStore.Storages.expBoostCount, expBoostNextCount)
+	end
 
 	-- When the transaction is successful add to the history
 	if op then

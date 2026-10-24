@@ -8817,8 +8817,9 @@ bool Game::combatChangeHealth(const std::shared_ptr<Creature> &attacker, const s
 			if (damage.critical) {
 				addMagicEffect(targetPos, CONST_ME_CRITICAL_DAMAGE, attacker);
 			}
-			if (targetPlayer) {
-				targetPlayer->updateImpactTracker(COMBAT_HEALING, realHealthChange);
+			// Impact Analyser: the healing a player does, on themselves or on others
+			if (attackerPlayer) {
+				attackerPlayer->updateImpactTracker(COMBAT_HEALING, realHealthChange);
 			}
 
 			// Party hunt analyzer
@@ -9203,23 +9204,30 @@ bool Game::combatChangeHealth(const std::shared_ptr<Creature> &attacker, const s
 					tmpPlayer->sendTextMessage(message);
 				}
 
+				const int32_t primaryBeforeShield = damage.primary.value;
+				const int32_t secondaryBeforeShield = damage.secondary.value;
 				damage.primary.value -= absorbedDamage;
 				if (damage.primary.value < 0) {
 					damage.secondary.value = std::max<int32_t>(0, damage.secondary.value + damage.primary.value);
 					damage.primary.value = 0;
 				}
 
-				if (attackerPlayer) {
-					attackerPlayer->updateImpactTracker(damage.primary.type, damage.primary.value);
-					if (damage.secondary.type != COMBAT_NONE) {
-						attackerPlayer->updateImpactTracker(damage.secondary.type, damage.secondary.value);
+				// Analysers: what the shield absorbed is damage the attacker dealt (Impact Analyser) and the target
+				// received (Damage Input Analyser), each element its own share; the part that still reaches health
+				// is counted in sendMessages like any other hit
+				const std::array<std::pair<CombatType_t, int32_t>, 2> absorbedByElement = { {
+					{ damage.primary.type, primaryBeforeShield - damage.primary.value },
+					{ damage.secondary.type, secondaryBeforeShield - damage.secondary.value },
+				} };
+				for (const auto &[type, absorbed] : absorbedByElement) {
+					if (type == COMBAT_NONE || absorbed <= 0) {
+						continue;
 					}
-				}
-
-				if (targetPlayer) {
-					targetPlayer->updateImpactTracker(damage.primary.type, manaDamage);
-					if (damage.secondary.type != COMBAT_NONE) {
-						targetPlayer->updateImpactTracker(damage.secondary.type, damage.secondary.value);
+					if (attackerPlayer) {
+						attackerPlayer->updateImpactTracker(type, absorbed);
+					}
+					if (targetPlayer) {
+						targetPlayer->updateInputAnalyzer(type, absorbed, attacker ? attacker->getName() : "(other)");
 					}
 				}
 			}
@@ -9353,10 +9361,8 @@ void Game::sendMessages(
 		}
 
 		targetPlayer->updateInputAnalyzer(damage.primary.type, damage.primary.value, cause);
-		if (attackerPlayer) {
-			if (damage.secondary.type != COMBAT_NONE) {
-				attackerPlayer->updateInputAnalyzer(damage.secondary.type, damage.secondary.value, cause);
-			}
+		if (damage.secondary.type != COMBAT_NONE) {
+			targetPlayer->updateInputAnalyzer(damage.secondary.type, damage.secondary.value, cause);
 		}
 	}
 	std::stringstream ss;
@@ -9864,10 +9870,8 @@ bool Game::combatChangeMana(const std::shared_ptr<Creature> &attacker, const std
 			}
 
 			targetPlayer->updateInputAnalyzer(damage.primary.type, -damage.primary.value, cause);
-			if (attackerPlayer) {
-				if (damage.secondary.type != COMBAT_NONE) {
-					attackerPlayer->updateInputAnalyzer(damage.secondary.type, -damage.secondary.value, cause);
-				}
+			if (damage.secondary.type != COMBAT_NONE) {
+				targetPlayer->updateInputAnalyzer(damage.secondary.type, -damage.secondary.value, cause);
 			}
 		}
 	}
@@ -10642,6 +10646,36 @@ void Game::playerFriendSystemAction(const std::shared_ptr<Player> &player, uint8
 	// string matches FRIENDSYSTEM_DATATYPE_ERROR; IdleOT friends use the JSON
 	// social opcode instead of 0x74 list bodies.
 	player->sendFriendSystemData(0x00, "The friend system is not available on this world.");
+}
+
+void Game::setImprovedRespawnZones(std::vector<ImprovedRespawnZone> zones) {
+	improvedRespawnZones = std::move(zones);
+	hasImprovedRespawnZones = !improvedRespawnZones.empty();
+	if (hasImprovedRespawnZones) {
+		improvedRespawnBounds = improvedRespawnZones.front();
+		for (const auto &z : improvedRespawnZones) {
+			improvedRespawnBounds.x1 = std::min(improvedRespawnBounds.x1, z.x1);
+			improvedRespawnBounds.y1 = std::min(improvedRespawnBounds.y1, z.y1);
+			improvedRespawnBounds.x2 = std::max(improvedRespawnBounds.x2, z.x2);
+			improvedRespawnBounds.y2 = std::max(improvedRespawnBounds.y2, z.y2);
+		}
+	}
+	g_logger().info("Improved Respawn {} zone rect(s) active", improvedRespawnZones.size());
+}
+
+bool Game::isImprovedRespawnPosition(const Position &pos) const {
+	if (!hasImprovedRespawnZones) {
+		return false;
+	}
+	if (pos.x < improvedRespawnBounds.x1 || pos.x > improvedRespawnBounds.x2 || pos.y < improvedRespawnBounds.y1 || pos.y > improvedRespawnBounds.y2) {
+		return false;
+	}
+	for (const auto &z : improvedRespawnZones) {
+		if (pos.x >= z.x1 && pos.x <= z.x2 && pos.y >= z.y1 && pos.y <= z.y2) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void Game::setImprovedRespawnZones(std::vector<ImprovedRespawnZone> zones) {

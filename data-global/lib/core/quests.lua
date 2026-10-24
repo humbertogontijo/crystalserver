@@ -6496,7 +6496,7 @@ if not Quests then
 					storageId = Storage.Quest.U12_20.GraveDanger.QuestLine,
 					missionId = 10437,
 					startValue = 1,
-					endValue = 2,
+					endValue = 5,
 					states = {
 						[1] = function(player)
 							return string.format(
@@ -6516,6 +6516,11 @@ if not Quests then
 									- 12
 							)
 						end,
+						-- NOT CONFIRMED: texts written for this server (the global quest log text is not published), so no step shows "nil"
+						[2] = "All twelve graves have been secured. Report back to Jack Springer.",
+						[3] = "Jack Springer sent you to the Isle of the Kings. The cultists are trying to raise King Zelos in his hidden grave beneath the isle. Defeat him before the ritual is completed - the longer it takes, the stronger he becomes.",
+						[4] = "You defeated King Zelos and stopped the ritual of the Shiron'Fal. Report back to Jack Springer.",
+						[5] = "You averted the crisis and became one of the hands of the Inquisition.",
 					},
 				},
 				[2] = {
@@ -6869,7 +6874,10 @@ if not Quests then
 					startValue = 1,
 					endValue = 3,
 					states = {
-						[1] = "Defeat the Arbaziloth 10 times to access The Doomforge reward room.",
+						[1] = function(player)
+							local kills = NoRestForTheWicked and NoRestForTheWicked.getHardKills(player) or 0
+							return string.format("Defeat Arbaziloth in his full power, sparing The Forgemaster, 10 times to access the Doomforge reward room. (%d/10)", math.min(kills, 10))
+						end,
 						[2] = "Speak with The Forgemaster and ask about the 'key'.",
 						[3] = "You have defeated Arbaziloth 10 times and got your reward at The Doomforge.",
 					},
@@ -7362,7 +7370,7 @@ if not Quests then
 			},
 		},
 		[57] = {
-			name = "Shadows of Yalahar Quest",
+			name = "Shadows of Yalahar",
 			startStorageId = Storage.Quest.U8_5.ShadowsOfYalahar.Questline,
 			startStorageValue = 1,
 			missions = {
@@ -7415,24 +7423,12 @@ if not Quests then
 					storageId = Storage.Quest.U8_5.ShadowsOfYalahar.Mission05,
 					missionId = 11027,
 					startValue = 1,
-					endValue = 2,
+					endValue = 4,
 					states = {
-						[1] = function(player)
-							local ok, count = pcall(function()
-								local kv = player:kv():scoped("shadows-of-yalahar")
-								local total = 0
-								for _, letter in ipairs({ "a", "b", "c" }) do
-									local delivered = kv:get("delivered-" .. letter)
-									if delivered == true then
-										total = total + 1
-									end
-								end
-								return total
-							end)
-							count = ok and count or 0
-							return ("Find the charging machine in the alchemist quarter. Get the required charges (A, B and C) for Telas. You have delivered %d different charge%s to Telas by now."):format(count, count == 1 and "" or "s")
-						end,
-						[2] = "You have delivered all three different charges to Telas.",
+						[1] = "Find the charging machine in the alchemist quarter. Get the required charges (A, B and C) for Telas. You have delivered 0 different charges to Telas by now.",
+						[2] = "Find the charging machine in the alchemist quarter. Get the required charges (A, B and C) for Telas. You have delivered 1 different charge to Telas by now.",
+						[3] = "Find the charging machine in the alchemist quarter. Get the required charges (A, B and C) for Telas. You have delivered 2 different charges to Telas by now.",
+						[4] = "You have delivered all three different charges to Telas.",
 					},
 				},
 				[6] = {
@@ -7485,33 +7481,12 @@ if not Quests then
 					storageId = Storage.Quest.U8_5.ShadowsOfYalahar.Mission10,
 					missionId = 11032,
 					startValue = 1,
-					endValue = 2,
+					endValue = 4,
 					states = {
-						[1] = function(player)
-							local ok, count = pcall(function()
-								local kv = player:kv():scoped("shadows-of-yalahar")
-								local index = kv:get("mission10-index")
-								local state = kv:get("mission10-state")
-
-								if not index or not state then
-									return 0
-								end
-
-								if state == "done" then
-									return 3
-								end
-
-								return math.max(index - 1, 0)
-							end)
-							count = ok and count or 0
-
-							if count == 0 then
-								return "To make the ritual work, Telas needs certain ingredients. You have brought him none of the ingredients by now."
-							end
-
-							return ("To make the ritual work, Telas needs certain ingredients. You have brought him %d of the 3 ingredients by now."):format(count)
-						end,
-						[2] = "You have brought all the ingredients Telas needs.",
+						[1] = "To make the ritual work, Telas needs certain ingredients. You have brought him none of the ingredients by now.",
+						[2] = "To make the ritual work, Telas needs certain ingredients. You have brought him 1 of the 3 ingredients by now.",
+						[3] = "To make the ritual work, Telas needs certain ingredients. You have brought him 2 of the 3 ingredients by now.",
+						[4] = "You have brought all the ingredients Telas needs.",
 					},
 				},
 				[11] = {
