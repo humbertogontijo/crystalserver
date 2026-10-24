@@ -2194,8 +2194,8 @@ void ProtocolGame::GetTileDescription(const std::shared_ptr<Tile> &tile, Network
 
 	if (items) {
 		for (auto it = items->getBeginDownItem(), end = items->getEndDownItem(); it != end; ++it) {
-			if (Item::items[(*it)->getID()].id == 0) {
-				continue; // skip zero client-id appearance (15.25+ map parser rejects it)
+			if (skipMapTileItem(*it, player)) {
+				continue;
 			}
 			AddItem(msg, *it);
 
@@ -3483,15 +3483,6 @@ void ProtocolGame::parseBestiarysendMonsterData(NetworkMessage &msg) {
 	// TQmlMonsterRace: ...details1Kills, details2Kills, details3Kills, isLeaderKilled,
 	// monsterDifficulty, monsterRarity...
 	//
-	// It used to be missing from this packet entirely, with a filler byte sent after the occurrence
-	// instead. The byte COUNT came out right, so loot still parsed and nothing looked broken, but
-	// all three fields in between were read one slot early:
-	//   isLeaderKilled    <- bestiaryStars       >= 1 for every creature, so the Echo Warden badge
-	//                                            drew on every entry and the tooltip's charm-point
-	//                                            count showed the star rating
-	//   monsterDifficulty <- bestiaryOccurrence  0 for common creatures -> no stars, "Harmless"
-	//   monsterRarity     <- the filler 0
-	//
 	// The value is the Charm Points this player earned from that creature's first Echo Warden (the
 	// client renders it as the count in the badge tooltip), and 0 when they have killed none --
 	// which is what hides the badge.
@@ -4340,10 +4331,12 @@ void ProtocolGame::parseBestiarySendCreatures(NetworkMessage &msg) {
 		}
 
 		// 15.25 (sommerrelease26): the e2a4a1 client reads a new per-creature byte right after the
-		// race id (before progress). It appears to be a "known/unlocked" flag, so derive it from the
-		// kill progress (0 keeps the silhouette, 1 reveals the entry). The progress block also gained
-		// an extra trailing byte (sent as 0 until its meaning is confirmed).
-		newmsg.addByte(progress > 0 ? 1 : 0);
+		// race id (before progress). In 15.30 it is isLeaderKilled on the client's TQmlMonsterRace
+		// model -- "leader monster" is CipSoft's internal name for the Echo Warden -- and it draws the
+		// Echo Warden charm-reward badge on the list entry. It is per-race Echo Warden state and has
+		// nothing to do with kill progress.
+		// The progress block also gained an extra trailing byte (sent as 0 until its meaning is confirmed).
+		newmsg.addByte(g_iobestiary().hasKilledLeaderMonster(player, it_.second) ? 1 : 0);
 		newmsg.addByte(progress);
 		if (progress > 0) {
 			newmsg.addByte(occurrence);
@@ -5209,6 +5202,2672 @@ void ProtocolGame::sendCyclopediaMapPassages() {
 	writeToOutputBuffer(msg);
 }
 
+void ProtocolGame::sendCyclopediaMapSetDiscoveryArea(uint16_t areaId, bool active, uint8_t poiTarget, const std::vector<std::pair<Position, uint8_t>> &points) {
+	if (!player || oldProtocol) {
+		return;
+	}
+	// sub 5 ("Start Discovering" response): u16 areaId; bool active (reader+0x88!); u8 poiTarget(=7); u8 poiCount; {position(5B), u8 state}xN.
+	NetworkMessage msg;
+	msg.addByte(0xDD);
+	msg.addByte(enumToValue(CyclopediaMapData_t::SetDiscoveryArea));
+	msg.add<uint16_t>(areaId);
+	msg.addByte(active ? 0x01 : 0x00);
+	msg.addByte(poiTarget);
+	msg.addByte(static_cast<uint8_t>(points.size()));
+	for (const auto &[pos, state] : points) {
+		msg.addPosition(pos);
+		msg.addByte(state);
+	}
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::parseCyclopediaMapAction(NetworkMessage &msg, uint8_t recvbyte) {
+	if (oldProtocol || !player) {
+		return;
+	}
+
+	if (recvbyte == 0xDB) {
+		const uint8_t mapAction = msg.canRead(1) ? msg.getByte() : 0xFF;
+		if (mapAction == 1 && msg.canRead(6)) {
+			// confirmed wire: u16 areaId, u32 amount, u8 trailing (ignored)
+			const uint16_t areaId = msg.get<uint16_t>();
+			const uint32_t amount = msg.get<uint32_t>();
+			g_logger().debug("[CyclopediaMapAction] 0xDB donate: areaId {} amount {}", areaId, amount);
+			if (areaId > 0 && areaId < 1000 && amount > 0) {
+				handleDiscoveryDonation(areaId, amount);
+			}
+		} else if (mapAction != 2) {
+			std::string hex;
+			while (msg.canRead(1)) {
+				hex += fmt::format("{:02x} ", msg.getByte());
+			}
+			g_logger().debug("[CyclopediaMapAction] 0xDB unknown action {}: [{}]", mapAction, hex);
+		}
+		// intentionally never replied to
+		return;
+	}
+
+	std::vector<uint8_t> body;
+	body.reserve(msg.getLength());
+	while (msg.canRead(1)) {
+		body.push_back(msg.getByte());
+	}
+	size_t p = 0;
+	auto readVarint = [&](uint64_t &value) -> bool {
+		value = 0;
+		int shift = 0;
+		while (p < body.size()) {
+			const uint8_t b = body[p++];
+			value |= static_cast<uint64_t>(b & 0x7F) << shift;
+			if (!(b & 0x80)) {
+				return true;
+			}
+			shift += 7;
+		}
+		return false;
+	};
+
+	std::map<uint32_t, uint64_t> top;
+	std::map<uint32_t, std::map<uint32_t, uint64_t>> nested;
+	std::string dump;
+	while (p < body.size()) {
+		uint64_t tag;
+		if (!readVarint(tag)) {
+			break;
+		}
+		const auto fn = static_cast<uint32_t>(tag >> 3);
+		const auto wt = static_cast<uint32_t>(tag & 7);
+		if (wt == 0) {
+			uint64_t v;
+			if (!readVarint(v)) {
+				break;
+			}
+			top[fn] = v;
+			dump += fmt::format("f{}={} ", fn, v);
+		} else if (wt == 2) {
+			uint64_t ln;
+			if (!readVarint(ln)) {
+				break;
+			}
+			const size_t end = std::min(body.size(), p + static_cast<size_t>(ln));
+			while (p < end) {
+				uint64_t tag2;
+				if (!readVarint(tag2)) {
+					break;
+				}
+				if ((tag2 & 7) != 0) {
+					break;
+				}
+				uint64_t v2;
+				if (!readVarint(v2)) {
+					break;
+				}
+				nested[fn][static_cast<uint32_t>(tag2 >> 3)] = v2;
+				dump += fmt::format("f{}.{}={} ", fn, tag2 >> 3, v2);
+			}
+			p = end;
+		} else {
+			break;
+		}
+	}
+	g_logger().debug("[CyclopediaMapAction] C2S 0x92: {}", dump.empty() ? "(empty)" : dump);
+
+	// legacy 0x92 donation encodings (top f5+f6 / {f1, f2} submessage)
+	uint64_t donArea = 0;
+	uint64_t donAmount = 0;
+	if (top.contains(5) && top.contains(6)) {
+		donArea = top[5];
+		donAmount = top[6];
+	} else {
+		for (const auto &[fn, inner] : nested) {
+			if (inner.contains(1) && inner.contains(2)) {
+				donArea = inner.at(1);
+				donAmount = inner.at(2);
+				break;
+			}
+		}
+	}
+	if (donArea > 0 && donArea < 1000 && donAmount > 0) {
+		handleDiscoveryDonation(static_cast<uint16_t>(donArea), donAmount);
+		return;
+	}
+
+	player->resendCyclopediaMapDiscoveryData();
+}
+
+void ProtocolGame::handleDiscoveryDonation(uint16_t areaId, uint64_t amount) {
+	static constexpr uint64_t MAX_SINGLE_DONATION = 1000000000000ULL;
+	if (!player || amount == 0 || amount > MAX_SINGLE_DONATION) {
+		return;
+	}
+	const auto store = g_kv().scoped("discovery-donations");
+	const auto goalVal = store->get("goal");
+	const auto goal = goalVal ? static_cast<uint64_t>(goalVal->getNumber()) : 10000000ULL;
+
+	if (!g_game().removeMoney(player, amount, 0, true)) {
+		player->sendTextMessage(MESSAGE_EVENT_ADVANCE, "You do not have that much money (including your bank balance).");
+		return;
+	}
+	// refresh the gold shown in the map UI right away (it reads the resource balance)
+	sendResourcesBalance(player->getMoney(), player->getBankBalance(), player->getPreyCards(), player->getTaskHuntingPoints(), player->getSoulsealsPoints());
+
+	const auto poolKey = fmt::format("area-{}", areaId);
+	const auto poolVal = store->get(poolKey);
+	const uint64_t oldPool = poolVal ? static_cast<uint64_t>(poolVal->getNumber()) : 0;
+	const uint64_t newPool = oldPool + amount;
+	store->set(poolKey, ValueWrapper(static_cast<double>(newPool)));
+	g_logger().debug("[Discovery] {} donated {} gold to area {} (pool {}/{})", player->getName(), amount, areaId, newPool, goal);
+
+	// rebuild sub 9 entries from every known pool/boost key and push to everyone online
+	const auto now = static_cast<uint64_t>(time(nullptr));
+	std::map<uint16_t, std::tuple<uint16_t, bool, uint64_t>> entryMap;
+	for (const auto &fullKey : store->keys()) {
+		const auto pos = fullKey.rfind("area-");
+		if (pos == std::string::npos) {
+			continue;
+		}
+		const int id = std::atoi(fullKey.c_str() + pos + 5);
+		if (id <= 0 || id >= 1000 || entryMap.contains(static_cast<uint16_t>(id))) {
+			continue;
+		}
+		const auto donatedVal = store->get(fmt::format("area-{}", id));
+		const auto untilVal = store->get(fmt::format("boost-until-{}", id));
+		const uint64_t donated = donatedVal ? static_cast<uint64_t>(donatedVal->getNumber()) : 0;
+		const bool active = untilVal && static_cast<uint64_t>(untilVal->getNumber()) > now;
+		entryMap.emplace(static_cast<uint16_t>(id), std::make_tuple(static_cast<uint16_t>(id), active, donated));
+	}
+	std::vector<std::tuple<uint16_t, bool, uint64_t>> entries;
+	entries.reserve(entryMap.size());
+	for (const auto &[id, entry] : entryMap) {
+		entries.push_back(entry);
+	}
+
+	const bool crossed = oldPool < goal && newPool >= goal;
+	for (const auto &[pid, onlinePlayer] : g_game().getPlayers()) {
+		if (!onlinePlayer) {
+			continue;
+		}
+		onlinePlayer->sendCyclopediaMapDonations(goal, entries);
+		if (crossed) {
+			onlinePlayer->sendTextMessage(MESSAGE_EVENT_ADVANCE, fmt::format("Donations for the area reached their goal - improved respawn rate will activate at the next server save and last one day!"));
+		}
+	}
+	player->sendTextMessage(MESSAGE_EVENT_ADVANCE, fmt::format("You donated {} gold (area pool: {}/{}).", amount, newPool, goal));
+}
+
+void ProtocolGame::sendCyclopediaCharacterNoData(CyclopediaCharacterInfoType_t characterInfoType, uint8_t errorCode) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(static_cast<uint8_t>(characterInfoType));
+	msg.addByte(errorCode);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterBaseInformation() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_BASEINFORMATION);
+	msg.addByte(0x00);
+	msg.addString(player->getName());
+	msg.addString(player->getVocation()->getVocName());
+	msg.add<uint16_t>(player->getLevel());
+	// Cyclopedia base: look only (no mount, no OTCR extras).
+	AddOutfit(msg, player->getDefaultOutfit(), false, false);
+
+	msg.addByte(0x01); // Store summary & Character titles
+	msg.addString(player->title()->getCurrentTitleName()); // character title
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterGeneralStats() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_GENERALSTATS);
+	// Send no error
+	// 1: No data available at the moment.
+	// 2: You are not allowed to see this character's data.
+	// 3: You are not allowed to inspect this character.
+	msg.addByte(0x00); // 0x00 Here means 'no error'
+
+	msg.add<uint64_t>(player->getExperience());
+	msg.add<uint16_t>(player->getLevel());
+	msg.add<uint16_t>(static_cast<uint16_t>(player->getLevelPercent() * 100));
+
+	msg.add<uint16_t>(player->getBaseXpGain()); // BaseXPGainRate
+	msg.add<uint16_t>(player->getDisplayGrindingXpBoost()); // LowLevelBonus
+	msg.add<uint16_t>(player->getDisplayXpBoostPercent()); // XPBoost
+	msg.add<uint16_t>(player->getStaminaXpBoost()); // StaminaMultiplier(100=x1.0)
+	msg.add<uint16_t>(player->getXpBoostTime()); // xpBoostRemainingTime
+	msg.addByte(player->getXpBoostTime() > 0 ? 0x00 : 0x01); // canBuyXpBoost
+	msg.add<uint32_t>(std::min<int32_t>(player->getHealth(), std::numeric_limits<uint16_t>::max()));
+	msg.add<uint32_t>(std::min<int32_t>(player->getMaxHealth(), std::numeric_limits<uint16_t>::max()));
+	msg.add<uint32_t>(std::min<int32_t>(player->getMana(), std::numeric_limits<uint16_t>::max()));
+	msg.add<uint32_t>(std::min<int32_t>(player->getMaxMana(), std::numeric_limits<uint16_t>::max()));
+	msg.addByte(player->getSoul());
+	if (g_configManager().getBoolean(STAMINA_SYSTEM)) {
+		msg.add<uint16_t>(player->getStaminaMinutes());
+	} else {
+		msg.add<uint16_t>(0x9D8);
+	}
+
+	std::shared_ptr<Condition> condition = player->getCondition(CONDITION_REGENERATION, CONDITIONID_DEFAULT);
+	msg.add<uint16_t>(condition ? condition->getTicks() / 1000 : 0x00);
+	msg.add<uint16_t>(player->getOfflineTrainingTime() / 60 / 1000);
+	msg.add<uint16_t>(player->getSpeed());
+	msg.add<uint16_t>(player->getBaseSpeed());
+	msg.add<uint32_t>(player->getCapacity());
+	msg.add<uint32_t>(player->getBaseCapacity());
+	msg.add<uint32_t>(player->hasFlag(PlayerFlags_t::HasInfiniteCapacity) ? 1000000 : player->getFreeCapacity());
+	msg.addByte(8);
+	msg.addByte(1);
+	msg.add<uint16_t>(player->getMagicLevel());
+	msg.add<uint16_t>(player->getBaseMagicLevel());
+	msg.add<uint16_t>(player->getLoyaltyMagicLevel());
+	msg.add<uint16_t>(player->getMagicLevelPercent() * 100);
+
+	for (uint8_t i = SKILL_FIRST; i < SKILL_CRITICAL_HIT_CHANCE; ++i) {
+		static const uint8_t HardcodedSkillIds[] = { 11, 9, 8, 10, 7, 6, 13 };
+		const auto skill = static_cast<skills_t>(i);
+		msg.addByte(HardcodedSkillIds[i]);
+		msg.add<uint16_t>(std::min<int32_t>(player->getSkillLevel(skill), std::numeric_limits<uint16_t>::max()));
+		msg.add<uint16_t>(player->getBaseSkill(skill));
+		msg.add<uint16_t>(player->getLoyaltySkill(skill));
+		msg.add<uint16_t>(player->getSkillPercent(skill) * 100);
+	}
+
+	auto bufferPosition = msg.getBufferPosition();
+	msg.skipBytes(1);
+	uint8_t total = 0;
+	for (size_t i = 0; i < COMBAT_COUNT; i++) {
+		auto specializedMagicLevel = player->getSpecializedMagicLevel(indexToCombatType(i));
+		if (specializedMagicLevel > 0) {
+			++total;
+			msg.addByte(getCipbiaElement(indexToCombatType(i)));
+			msg.add<uint16_t>(specializedMagicLevel);
+		}
+	}
+	msg.setBufferPosition(bufferPosition);
+	msg.addByte(total);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterRecentDeaths(uint16_t page, uint16_t pages, const std::vector<RecentDeathEntry> &entries) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_RECENTDEATHS);
+	msg.addByte(0x00); // 0x00 Here means 'no error'
+	msg.add<uint16_t>(page);
+	msg.add<uint16_t>(pages);
+	msg.add<uint16_t>(entries.size());
+	for (const RecentDeathEntry &entry : entries) {
+		msg.add<uint32_t>(entry.timestamp);
+		msg.addString(entry.cause);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterRecentPvPKills(uint16_t page, uint16_t pages, const std::vector<RecentPvPKillEntry> &entries) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_RECENTPVPKILLS);
+	msg.addByte(0x00); // 0x00 Here means 'no error'
+	msg.add<uint16_t>(page);
+	msg.add<uint16_t>(pages);
+	msg.add<uint16_t>(entries.size());
+	for (const RecentPvPKillEntry &entry : entries) {
+		msg.add<uint32_t>(entry.timestamp);
+		msg.addString(entry.description);
+		msg.addByte(entry.status);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterAchievements(uint16_t secretsUnlocked, const std::vector<std::pair<Achievement, uint32_t>> &achievementsUnlocked) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_ACHIEVEMENTS);
+	msg.addByte(0x00); // 0x00 Here means 'no error'
+	msg.add<uint16_t>(player->achiev()->getPoints());
+	msg.add<uint16_t>(secretsUnlocked);
+	msg.add<uint16_t>(static_cast<uint16_t>(achievementsUnlocked.size()));
+	for (const auto &[achievement, addedTimestamp] : achievementsUnlocked) {
+		msg.add<uint16_t>(achievement.id);
+		msg.add<uint32_t>(addedTimestamp);
+		if (achievement.secret) {
+			msg.addByte(0x01);
+			msg.addString(achievement.name);
+			msg.addString(achievement.description);
+			msg.addByte(achievement.grade);
+		} else {
+			msg.addByte(0x00);
+		}
+	}
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterItemSummary(const ItemsTierCountList &inventoryItems, const ItemsTierCountList &storeInboxItems, const StashItemList &stashItems, const ItemsTierCountList &depotBoxItems, const ItemsTierCountList &inboxItems) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_ITEMSUMMARY);
+	msg.addByte(0x00); // 0x00 Here means 'no error'
+
+	uint16_t inventoryItemsCount = 0;
+	const auto startInventory = msg.getBufferPosition();
+	msg.skipBytes(2);
+
+	for (const auto &inventoryItems_it : inventoryItems) {
+		for (const auto &[itemTier, itemCount] : inventoryItems_it.second) {
+			const ItemType &it = Item::items[inventoryItems_it.first];
+			msg.add<uint16_t>(inventoryItems_it.first); // Item ID
+			if (it.upgradeClassification > 0) {
+				msg.addByte(itemTier);
+			}
+			msg.add<uint32_t>(itemCount);
+
+			++inventoryItemsCount;
+		}
+	}
+
+	const auto endInventory = msg.getBufferPosition();
+
+	msg.setBufferPosition(startInventory);
+	msg.add<uint16_t>(inventoryItemsCount);
+
+	msg.setBufferPosition(endInventory);
+
+	uint16_t storeInboxItemsCount = 0;
+	const auto startStoreInbox = msg.getBufferPosition();
+	msg.skipBytes(2);
+
+	for (const auto &storeInboxItems_it : storeInboxItems) {
+		for (const auto &[itemTier, itemCount] : storeInboxItems_it.second) {
+			const ItemType &it = Item::items[storeInboxItems_it.first];
+			msg.add<uint16_t>(storeInboxItems_it.first); // Item ID
+			if (it.upgradeClassification > 0) {
+				msg.addByte(itemTier);
+			}
+			msg.add<uint32_t>(itemCount);
+
+			++storeInboxItemsCount;
+		}
+	}
+
+	const auto endStoreInbox = msg.getBufferPosition();
+
+	msg.setBufferPosition(startStoreInbox);
+	msg.add<uint16_t>(storeInboxItemsCount);
+
+	msg.setBufferPosition(endStoreInbox);
+
+	msg.add<uint16_t>(stashItems.size());
+
+	for (const auto &[itemId, itemCount] : stashItems) {
+		const ItemType &it = Item::items[itemId];
+		msg.add<uint16_t>(itemId);
+		if (it.upgradeClassification > 0) {
+			msg.addByte(0x00);
+		}
+		msg.add<uint32_t>(itemCount);
+	}
+
+	uint16_t depotBoxItemsCount = 0;
+	const auto startDepotBox = msg.getBufferPosition();
+	msg.skipBytes(2);
+
+	for (const auto &depotBoxItems_it : depotBoxItems) {
+		for (const auto &[itemTier, itemCount] : depotBoxItems_it.second) {
+			const ItemType &it = Item::items[depotBoxItems_it.first];
+			msg.add<uint16_t>(depotBoxItems_it.first); // Item ID
+			if (it.upgradeClassification > 0) {
+				msg.addByte(itemTier);
+			}
+			msg.add<uint32_t>(itemCount);
+
+			++depotBoxItemsCount;
+		}
+	}
+
+	const auto endDepotBox = msg.getBufferPosition();
+
+	msg.setBufferPosition(startDepotBox);
+	msg.add<uint16_t>(depotBoxItemsCount);
+
+	msg.setBufferPosition(endDepotBox);
+
+	uint16_t inboxItemsCount = 0;
+	const auto startInbox = msg.getBufferPosition();
+	msg.skipBytes(2);
+
+	for (const auto &inboxItems_it : inboxItems) {
+		for (const auto &[itemTier, itemCount] : inboxItems_it.second) {
+			const ItemType &it = Item::items[inboxItems_it.first];
+			msg.add<uint16_t>(inboxItems_it.first); // Item ID
+			if (it.upgradeClassification > 0) {
+				msg.addByte(itemTier);
+			}
+			msg.add<uint32_t>(itemCount);
+
+			++inboxItemsCount;
+		}
+	}
+
+	msg.setBufferPosition(startInbox);
+	msg.add<uint16_t>(inboxItemsCount);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterOutfitsMounts() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_OUTFITSMOUNTS);
+	msg.addByte(0x00);
+	Outfit_t currentOutfit = player->getDefaultOutfit();
+
+	uint16_t outfitSize = 0;
+	auto startOutfits = msg.getBufferPosition();
+	msg.skipBytes(2);
+
+	const auto outfits = Outfits::getInstance().getOutfits(player->getSex());
+	for (const auto &outfit : outfits) {
+		uint8_t addons;
+		if (!player->getOutfitAddons(outfit, addons)) {
+			continue;
+		}
+		const std::string from = outfit->from;
+		++outfitSize;
+
+		msg.add<uint16_t>(outfit->lookType);
+		msg.addString(outfit->name);
+		msg.addByte(addons);
+		if (from == "store") {
+			msg.addByte(CYCLOPEDIA_CHARACTERINFO_OUTFITTYPE_STORE);
+		} else if (from == "quest") {
+			msg.addByte(CYCLOPEDIA_CHARACTERINFO_OUTFITTYPE_QUEST);
+		} else {
+			msg.addByte(CYCLOPEDIA_CHARACTERINFO_OUTFITTYPE_NONE);
+		}
+		if (outfit->lookType == currentOutfit.lookType) {
+			msg.add<uint32_t>(1000);
+		} else {
+			msg.add<uint32_t>(0);
+		}
+	}
+	if (outfitSize > 0) {
+		msg.addByte(currentOutfit.lookHead);
+		msg.addByte(currentOutfit.lookBody);
+		msg.addByte(currentOutfit.lookLegs);
+		msg.addByte(currentOutfit.lookFeet);
+	}
+
+	uint16_t mountSize = 0;
+	auto startMounts = msg.getBufferPosition();
+	msg.skipBytes(2);
+	for (const auto &mount : g_game().mounts->getMounts()) {
+		const std::string type = mount->type;
+		if (player->hasMount(mount)) {
+			++mountSize;
+
+			msg.add<uint16_t>(mount->clientId);
+			msg.addString(mount->name);
+			if (type == "store") {
+				msg.addByte(CYCLOPEDIA_CHARACTERINFO_OUTFITTYPE_STORE);
+			} else if (type == "quest") {
+				msg.addByte(CYCLOPEDIA_CHARACTERINFO_OUTFITTYPE_QUEST);
+			} else {
+				msg.addByte(CYCLOPEDIA_CHARACTERINFO_OUTFITTYPE_NONE);
+			}
+			msg.add<uint32_t>(1000);
+		}
+	}
+	if (mountSize > 0) {
+		msg.addByte(currentOutfit.lookMountHead);
+		msg.addByte(currentOutfit.lookMountBody);
+		msg.addByte(currentOutfit.lookMountLegs);
+		msg.addByte(currentOutfit.lookMountFeet);
+	}
+
+	uint16_t familiarsSize = 0;
+	auto startFamiliars = msg.getBufferPosition();
+	msg.skipBytes(2);
+	const auto familiars = Familiars::getInstance().getFamiliars(player->getVocationId());
+	for (const auto &familiar : familiars) {
+		const std::string type = familiar->type;
+		if (!player->getFamiliar(familiar)) {
+			continue;
+		}
+		++familiarsSize;
+		msg.add<uint16_t>(familiar->lookType);
+		msg.addString(familiar->name);
+		if (type == "quest") {
+			msg.addByte(CYCLOPEDIA_CHARACTERINFO_OUTFITTYPE_QUEST);
+		} else {
+			msg.addByte(CYCLOPEDIA_CHARACTERINFO_OUTFITTYPE_NONE);
+		}
+		msg.add<uint32_t>(0);
+	}
+
+	msg.setBufferPosition(startOutfits);
+	msg.add<uint16_t>(outfitSize);
+	msg.setBufferPosition(startMounts);
+	msg.add<uint16_t>(mountSize);
+	msg.setBufferPosition(startFamiliars);
+	msg.add<uint16_t>(familiarsSize);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterStoreSummary() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_STORESUMMARY);
+	msg.addByte(0x00); // 0x00 Here means 'no error'
+	msg.add<uint32_t>(player->getXpBoostTime()); // Remaining Store Xp Boost Time
+	auto remaining = player->kv()->get("daily-reward-xp-boost");
+	msg.add<uint32_t>(remaining ? static_cast<uint32_t>(remaining->getNumber()) : 0); // Remaining Daily Reward Xp Boost Time
+
+	auto cyclopediaSummary = player->cyclopedia()->getSummary();
+
+	msg.addByte(static_cast<uint8_t>(magic_enum::enum_count<Blessings>()));
+	for (auto bless : magic_enum::enum_values<Blessings>()) {
+		std::string name = toStartCaseWithSpace(magic_enum::enum_name(bless).data());
+		msg.addString(name);
+		auto blessValue = enumToValue(bless);
+		if (player->hasBlessing(blessValue)) {
+			msg.addByte(static_cast<uint16_t>(player->blessings[blessValue - 1]));
+		} else {
+			msg.addByte(0x00);
+		}
+	}
+
+	uint8_t preySlotsUnlocked = 0;
+	// Prey third slot unlocked
+	if (const auto &slotP = player->getPreySlotById(PreySlot_Three);
+	    slotP && slotP->state != PreyDataState_Locked) {
+		preySlotsUnlocked++;
+	}
+	// Task hunting third slot unlocked
+	if (const auto &slotH = player->getTaskHuntingSlotById(PreySlot_Three);
+	    slotH && slotH->state != PreyTaskDataState_Locked) {
+		preySlotsUnlocked++;
+	}
+	msg.addByte(preySlotsUnlocked); // getPreySlotById + getTaskHuntingSlotById
+
+	msg.addByte(cyclopediaSummary.m_preyWildcards); // getPreyCardsObtained
+	msg.addByte(0x00); // hasPermanentWeeklyTaskExpansion
+	msg.addByte(cyclopediaSummary.m_instantRewards); // getRewardCollectionObtained
+	msg.addByte(player->hasCharmExpansion() ? 0x01 : 0x00);
+	msg.addByte(cyclopediaSummary.m_hirelings); // getHirelingsObtained
+
+	std::vector<uint16_t> m_hSkills;
+	for (const auto &it : g_game().getHirelingSkills()) {
+		if (player->kv()->scoped("hireling-skills")->get(it.second)) {
+			m_hSkills.emplace_back(it.first);
+			g_logger().debug("skill id: {}, name: {}", it.first, it.second);
+		}
+	}
+	msg.addByte(m_hSkills.size());
+	for (const auto &id : m_hSkills) {
+		msg.addByte(id - 1001); // Job 0 banker, 1 cook, 2 steward, 3 trader
+
+	}
+
+	/*std::vector<uint16_t> m_hOutfits;
+	for (const auto &it : g_game().getHirelingOutfits()) {
+	    if (player->kv()->scoped("hireling-outfits")->get(it.second)) {
+	        m_hOutfits.emplace_back(it.first);
+	        g_logger().debug("outfit id: {}, name: {}", it.first, it.second);
+	    }
+	}
+	msg.addByte(m_hOutfits.size());
+	for (const auto &id : m_hOutfits) {
+	    msg.addByte(0x01); // TODO need to get the correct id from hireling outfit
+	}*/
+	msg.addByte(0x00); // hireling outfit size
+
+	auto houseItems = player->cyclopedia()->getResult(static_cast<uint8_t>(Summary_t::HOUSE_ITEMS));
+	msg.add<uint16_t>(houseItems.size());
+	for (const auto &hItem_it : houseItems) {
+		const ItemType &it = Item::items[hItem_it.first];
+		msg.add<uint16_t>(it.id); // Item ID
+		msg.addString(it.name);
+		msg.addByte(hItem_it.second);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterInspection() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_INSPECTION);
+	msg.addByte(0x00);
+	uint8_t inventoryItems = 0;
+	auto startInventory = msg.getBufferPosition();
+	msg.skipBytes(1);
+	for (std::underlying_type<Slots_t>::type slot = CONST_SLOT_FIRST; slot <= CONST_SLOT_LAST; slot++) {
+		std::shared_ptr<Item> inventoryItem = player->getInventoryItem(static_cast<Slots_t>(slot));
+		if (inventoryItem) {
+			++inventoryItems;
+
+			msg.addByte(slot);
+			msg.addString(inventoryItem->getName());
+			AddItem(msg, inventoryItem);
+
+			uint8_t itemImbuements = 0;
+			auto startImbuements = msg.getBufferPosition();
+			msg.skipBytes(1);
+			for (uint8_t slotid = 0; slotid < inventoryItem->getImbuementSlot(); slotid++) {
+				ImbuementInfo imbuementInfo;
+				if (!inventoryItem->getImbuementInfo(slotid, &imbuementInfo)) {
+					continue;
+				}
+
+				msg.add<uint16_t>(imbuementInfo.imbuement->getIconID());
+				itemImbuements++;
+			}
+
+			auto endImbuements = msg.getBufferPosition();
+			msg.setBufferPosition(startImbuements);
+			msg.addByte(itemImbuements);
+			msg.setBufferPosition(endImbuements);
+
+			auto descriptions = Item::getDescriptions(Item::items[inventoryItem->getID()], inventoryItem);
+			msg.addByte(descriptions.size());
+			for (const auto &description : descriptions) {
+				msg.addString(description.first);
+				msg.addString(description.second);
+			}
+		}
+	}
+	msg.addString(player->getName());
+	// No mount bytes; still send OTCR attached effects (client reads them after getOutfit(parseMount=false)).
+	AddOutfit(msg, player->getDefaultOutfit(), false, true);
+
+	// Player overall summary
+	uint8_t playerDescriptionSize = 0;
+	auto playerDescriptionPosition = msg.getBufferPosition();
+	msg.skipBytes(1);
+
+	// Player title
+	if (player->title()->getCurrentTitle() != 0) {
+		playerDescriptionSize++;
+		msg.addString("Character Title");
+		msg.addString(player->title()->getCurrentTitleName());
+	}
+
+	// Level description
+	playerDescriptionSize++;
+	msg.addString("Level");
+	msg.addString(std::to_string(player->getLevel()));
+
+	// Vocation description
+	playerDescriptionSize++;
+	msg.addString("Vocation");
+	msg.addString(player->getVocation()->getVocName());
+
+	// Loyalty title
+	if (!player->getLoyaltyTitle().empty()) {
+		playerDescriptionSize++;
+		msg.addString("Loyalty Title");
+		msg.addString(player->getLoyaltyTitle());
+	}
+
+	// Marriage description
+	if (const auto spouseId = player->getMarriageSpouse(); spouseId > 0) {
+		if (const auto &spouse = g_game().getPlayerByID(spouseId, true); spouse) {
+			playerDescriptionSize++;
+			msg.addString("Married to");
+			msg.addString(spouse->getName());
+		}
+	}
+
+	// Prey description
+	for (uint8_t slotId = PreySlot_First; slotId <= PreySlot_Last; slotId++) {
+		if (const auto &slot = player->getPreySlotById(static_cast<PreySlot_t>(slotId));
+		    slot && slot->isOccupied()) {
+			playerDescriptionSize++;
+			std::string activePrey = fmt::format("Active Prey {}", slotId + 1);
+			msg.addString(activePrey);
+
+			std::string desc;
+			if (auto mtype = g_monsters().getMonsterTypeByRaceId(slot->selectedRaceId)) {
+				desc.append(mtype->name);
+			} else {
+				desc.append("Unknown creature");
+			}
+
+			if (slot->bonus == PreyBonus_Damage) {
+				desc.append(" (Improved Damage +");
+			} else if (slot->bonus == PreyBonus_Defense) {
+				desc.append(" (Improved Defense +");
+			} else if (slot->bonus == PreyBonus_Experience) {
+				desc.append(" (Improved Experience +");
+			} else if (slot->bonus == PreyBonus_Loot) {
+				desc.append(" (Improved Loot +");
+			}
+			desc.append(fmt::format("{}%, remaining", slot->bonusPercentage));
+			uint8_t hours = slot->bonusTimeLeft / 3600;
+			uint8_t minutes = (slot->bonusTimeLeft - (hours * 3600)) / 60;
+			desc.append(fmt::format("{}:{}{}h", hours, (minutes < 10 ? "0" : ""), minutes));
+			msg.addString(desc);
+		}
+	}
+
+	// Outfit description
+	playerDescriptionSize++;
+	msg.addString("Outfit");
+	if (const auto outfit = Outfits::getInstance().getOutfitByLookType(player, player->getDefaultOutfit().lookType)) {
+		msg.addString(outfit->name);
+	} else {
+		msg.addString("unknown");
+	}
+
+	msg.setBufferPosition(startInventory);
+	msg.addByte(inventoryItems);
+
+	msg.setBufferPosition(playerDescriptionPosition);
+	msg.addByte(playerDescriptionSize);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterBadges() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_BADGES);
+	msg.addByte(0x00);
+	msg.addByte(0x01); // ShowAccountInformation, if 0x01 will show IsOnline, IsPremium, character title, badges
+
+	const auto loggedPlayer = g_game().getPlayerByName(player->getName());
+	msg.addByte(loggedPlayer ? 0x01 : 0x00); // IsOnline
+	msg.addByte(player->isPremium() ? 0x01 : 0x00); // IsPremium (GOD has always 'Premium')
+	// Character loyalty title
+	msg.addString(player->getLoyaltyTitle());
+
+	uint8_t badgesSize = 0;
+	auto badgesSizePosition = msg.getBufferPosition();
+	msg.skipBytes(1);
+	for (const auto &badge : g_game().getBadges()) {
+		if (player->badge()->hasBadge(badge.m_id)) {
+			msg.add<uint32_t>(badge.m_id);
+			msg.addString(badge.m_name);
+			badgesSize++;
+		}
+	}
+
+	msg.setBufferPosition(badgesSizePosition);
+	msg.addByte(badgesSize);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterTitles() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	auto titles = g_game().getTitles();
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_TITLES);
+	msg.addByte(0x00); // 0x00 Here means 'no error'
+	msg.addByte(player->title()->getCurrentTitle());
+	msg.addByte(static_cast<uint8_t>(titles.size()));
+	for (const auto &title : titles) {
+		msg.addByte(title.m_id);
+		auto titleName = player->title()->getNameBySex(player->getSex(), title.m_maleName, title.m_femaleName);
+		msg.addString(titleName);
+		msg.addString(title.m_description);
+		msg.addByte(title.m_permanent ? 0x01 : 0x00);
+		auto isUnlocked = player->title()->isTitleUnlocked(title.m_id);
+		msg.addByte(isUnlocked ? 0x01 : 0x00);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterOffenceStats() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_OFFENCESTATS);
+	msg.addByte(0x00); // 0x00 Here means 'no error'
+
+	addCyclopediaSkills(player, msg, SKILL_CRITICAL_HIT_CHANCE);
+	addCyclopediaSkills(player, msg, SKILL_CRITICAL_HIT_DAMAGE);
+	addCyclopediaSkills(player, msg, SKILL_LIFE_LEECH_AMOUNT);
+	addCyclopediaSkills(player, msg, SKILL_MANA_LEECH_AMOUNT);
+
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_LEFT)); // Onslaught Total
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_LEFT, false));
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_LEFT) - getForgeSkillStat(CONST_SLOT_LEFT, false));
+	msg.addDouble(0.00);
+
+	msg.addDouble(player->getCleavePercent() / 100.);
+
+	// Perfect shot range (12.70)
+	for (uint8_t range = 1; range <= 7; range++) {
+		msg.add<uint16_t>(static_cast<uint16_t>(player->getPerfectShotDamage(range)));
+	}
+
+	const auto flatBonus = player->calculateFlatDamageHealing();
+	msg.add<uint16_t>(flatBonus); // Flat Damage and Healing Total
+	msg.add<uint16_t>(flatBonus);
+	msg.add<uint16_t>(0x00);
+
+	const auto &weapon = player->getWeapon();
+	if (weapon) {
+		const ItemType &it = Item::items[weapon->getID()];
+		if (it.weaponType == WEAPON_WAND) {
+			msg.add<uint16_t>(it.maxHitChance);
+			msg.add<uint16_t>(0);
+			msg.add<uint16_t>(0);
+			msg.addByte(0x00);
+			msg.add<uint16_t>(0);
+			msg.add<uint16_t>(0);
+			msg.addByte(getCipbiaElement(it.combatType));
+			msg.addDouble(0.0);
+			msg.addByte(0x00);
+			msg.addByte(0x00);
+		} else if (it.weaponType == WEAPON_DISTANCE || it.weaponType == WEAPON_AMMO || it.weaponType == WEAPON_MISSILE) {
+			int32_t physicalAttack = std::max<int32_t>(0, weapon->getAttack());
+			int32_t elementalAttack = 0;
+			if (it.abilities && it.abilities->elementType != COMBAT_NONE) {
+				elementalAttack = std::max<int32_t>(0, it.abilities->elementDamage);
+			}
+			int32_t attackValue = physicalAttack + elementalAttack;
+			if (it.weaponType == WEAPON_AMMO) {
+				std::shared_ptr<Item> weaponItem = player->getWeapon(true);
+				if (weaponItem) {
+					attackValue += weaponItem->getAttack();
+				}
+			}
+
+			int32_t distanceValue = player->getSkillLevel(SKILL_DISTANCE);
+			int32_t attackSkill = player->getDistanceAttackSkill(distanceValue, attackValue);
+			const auto attackRawTotal = player->attackRawTotal(flatBonus, attackValue, distanceValue);
+			const auto attackTotal = player->attackTotal(flatBonus, attackValue, distanceValue);
+
+			msg.add<uint16_t>(attackTotal);
+			msg.add<uint16_t>(flatBonus);
+			msg.add<uint16_t>(static_cast<uint16_t>(attackValue));
+			msg.addByte(0x07);
+			msg.add<uint16_t>(attackSkill);
+			msg.add<uint16_t>(attackTotal - attackRawTotal);
+			msg.addByte(CIPBIA_ELEMENTAL_PHYSICAL);
+
+			// Converted Damage
+			if (it.abilities && it.abilities->elementType != COMBAT_NONE) {
+				if (physicalAttack) {
+					msg.addDouble(elementalAttack / static_cast<double>(attackValue));
+				} else {
+					msg.addDouble(0.0);
+				}
+				msg.addByte(getCipbiaElement(it.abilities->elementType));
+			} else {
+				handleImbuementDamage(msg, player);
+			}
+
+			const auto distanceAccuracy = player->getDamageAccuracy(it);
+			const size_t distanceAccuracySize = std::min<size_t>(distanceAccuracy.size(), std::numeric_limits<uint8_t>::max());
+			msg.addByte(static_cast<uint8_t>(distanceAccuracySize));
+			for (size_t i = 0; i < distanceAccuracySize; ++i) {
+				msg.addByte(static_cast<uint8_t>(i + 1));
+				msg.addDouble(distanceAccuracy[i] / 100.);
+			}
+		} else {
+			int32_t physicalAttack = std::max<int32_t>(0, weapon->getAttack());
+			int32_t elementalAttack = 0;
+			if (it.abilities && it.abilities->elementType != COMBAT_NONE) {
+				elementalAttack = std::max<int32_t>(0, it.abilities->elementDamage);
+			}
+			int32_t weaponAttack = physicalAttack + elementalAttack;
+			int32_t weaponSkill = player->getWeaponSkill(weapon);
+			int32_t attackSkill = player->getAttackSkill(weapon);
+			uint8_t skillId = player->getWeaponSkillId(weapon);
+			const auto attackRawTotal = player->attackRawTotal(flatBonus, weaponAttack, weaponSkill);
+			const auto attackTotal = player->attackTotal(flatBonus, weaponAttack, weaponSkill);
+
+			msg.add<uint16_t>(attackTotal);
+			msg.add<uint16_t>(flatBonus);
+			msg.add<uint16_t>(static_cast<uint16_t>(weaponAttack));
+			msg.addByte(skillId);
+			msg.add<uint16_t>(attackSkill);
+			msg.add<uint16_t>(attackTotal - attackRawTotal);
+			msg.addByte(CIPBIA_ELEMENTAL_PHYSICAL);
+
+			// Converted Damage
+			if (it.abilities && it.abilities->elementType != COMBAT_NONE) {
+				if (physicalAttack) {
+					msg.addDouble(elementalAttack / static_cast<double>(weaponAttack));
+				} else {
+					msg.addDouble(0);
+				}
+				msg.addByte(getCipbiaElement(it.abilities->elementType));
+			} else {
+				handleImbuementDamage(msg, player);
+			}
+			msg.addByte(0x00);
+		}
+	} else {
+		uint16_t attackValue = 7;
+		int32_t fistValue = player->getSkillLevel(SKILL_FIST);
+		int32_t attackSkill = player->getDistanceAttackSkill(fistValue, attackValue);
+		const auto attackRawTotal = player->attackRawTotal(flatBonus, attackValue, fistValue);
+		const auto attackTotal = player->attackTotal(flatBonus, attackValue, fistValue);
+
+		msg.add<uint16_t>(attackTotal);
+		msg.add<uint16_t>(flatBonus);
+		msg.add<uint16_t>(attackValue);
+		msg.addByte(11);
+		msg.add<uint16_t>(attackSkill);
+		msg.add<uint16_t>(attackTotal - attackRawTotal);
+		msg.addByte(CIPBIA_ELEMENTAL_PHYSICAL);
+
+		msg.addDouble(0.0);
+		msg.addByte(0x00);
+
+		msg.addByte(0x00); // distanceAccuracySize
+	}
+
+	msg.addDouble(0x00);
+
+	msg.add<uint16_t>(0x00);
+
+	msg.addByte(0x00);
+
+	msg.addDouble(0x00);
+	msg.addDouble(0x00);
+
+	msg.addByte(0x00);
+
+	msg.addDouble(0x00);
+	msg.addDouble(0x00);
+
+	msg.add<uint16_t>(0x00);
+	msg.add<uint16_t>(0x00);
+	msg.add<uint16_t>(0x00);
+	msg.add<uint16_t>(0x00);
+
+	msg.addByte(0x00);
+
+	msg.addByte(0x00);
+
+	msg.addByte(0x00);
+
+	// Winter Update 2025
+	msg.addDouble(0x00);
+	msg.addDouble(0x00);
+	msg.addDouble(0x00);
+	msg.addByte(0x00);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterDefenceStats() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_DEFENCESTATS);
+	msg.addByte(0x00); // 0x00 Here means 'no error'
+
+	const double dodgeWheel = player->wheel()->getStat(WheelStat_t::DODGE) / 10000.0;
+	const double dodgeTotal = getForgeSkillStat(CONST_SLOT_ARMOR) + dodgeWheel;
+
+	msg.addDouble(dodgeTotal);
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_ARMOR, false));
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_ARMOR) - getForgeSkillStat(CONST_SLOT_ARMOR, false));
+	msg.addDouble(0.00);
+	msg.addDouble(dodgeWheel);
+
+	msg.add<uint32_t>(player->getMagicShieldCapacityFlat() * (1 + player->getMagicShieldCapacityPercent()));
+	msg.add<uint16_t>(static_cast<uint16_t>(player->getMagicShieldCapacityFlat())); // Direct bonus
+	msg.addDouble(player->getMagicShieldCapacityPercent()); // Percentage bonus
+
+	msg.add<uint16_t>(static_cast<uint16_t>(player->getReflectFlat(COMBAT_PHYSICALDAMAGE)));
+
+	msg.add<uint16_t>(player->getArmor());
+	msg.add<uint16_t>(player->getMantraTotal());
+
+	const auto shieldingSkill = player->getSkillLevel(SKILL_SHIELD);
+	const uint16_t defenseWheel = player->wheel()->getMajorStatConditional("Combat Mastery", WheelMajor_t::DEFENSE);
+	// DefenceValueStats: client (15.25) reads exactly 5 fields here (u16,u16,u8,i16,u16).
+	// shieldingSkill is read SIGNED but is always >= 0 so the wire bytes are identical to u16.
+	msg.add<uint16_t>(player->getDefense(true));
+	msg.add<uint16_t>(player->getDefenseEquipment());
+	msg.addByte(0x06);
+	msg.add<uint16_t>(shieldingSkill);
+	msg.add<uint16_t>(defenseWheel);
+
+	// MitigationStats: client reads exactly 5 doubles (NOT 6 — the type-14 parser is shorter
+	// than type-13 OffenceStats; sending a 6th double desyncs the absorb-count byte -> crash).
+	const auto wheelMultiplier = player->wheel()->getMitigationMultiplier();
+	msg.addDouble(player->getMitigation() / 100.);
+	msg.addDouble(0.0);
+	msg.addDouble(player->getDefenseEquipment() / 10000.);
+	msg.addDouble(player->getSkillLevel(SKILL_SHIELD) * player->getVocation()->mitigationFactor / 10000.);
+	msg.addDouble(wheelMultiplier / 100.);
+
+	// Store the "combats" to increase in absorb values function and send to client later
+	uint8_t combats = 0;
+	auto startCombats = msg.getBufferPosition();
+	msg.skipBytes(1);
+
+	// Calculate and parse the combat absorbs values
+	calculateAbsorbValues(player, msg, combats);
+
+	// Now set the buffer position skiped and send the total combats count
+	auto endCombats = msg.getBufferPosition();
+	msg.setBufferPosition(startCombats);
+	msg.addByte(combats);
+	msg.setBufferPosition(endCombats);
+
+	// NOTE: DefenceStats (type 14) ends right after the absorb list. The 15.25 client's
+	// type-14 parser has NO reads past this point — unlike OffenceStats (type 13), it does
+	// NOT consume a trailing "Winter Update" block, so appending one here desyncs/crashes.
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCyclopediaCharacterMiscStats() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xDA);
+	msg.addByte(CYCLOPEDIA_CHARACTERINFO_MISCSTATS);
+	msg.addByte(0x00); // 0x00 Here means 'no error'
+
+	const double momentumTotal = getForgeSkillStat(CONST_SLOT_HEAD) + player->wheel()->getBonusData().momentum;
+	msg.addDouble(momentumTotal);
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_HEAD, false));
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_HEAD) - getForgeSkillStat(CONST_SLOT_HEAD, false));
+	msg.addDouble(player->wheel()->getBonusData().momentum);
+	msg.addDouble(0.00);
+
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_LEGS));
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_LEGS), false);
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_LEGS) - getForgeSkillStat(CONST_SLOT_LEGS, false));
+	msg.addDouble(0.09);
+
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_FEET, false));
+	msg.addDouble(getForgeSkillStat(CONST_SLOT_FEET, false));
+	msg.addDouble(0.00);
+
+	uint8_t haveBlesses = 0;
+	for (auto bless : magic_enum::enum_values<Blessings>()) {
+		if (bless == Blessings::TwistOfFate) {
+			continue;
+		}
+
+		if (player->hasBlessing(enumToValue(bless))) {
+			++haveBlesses;
+		}
+	}
+
+	msg.addByte(haveBlesses);
+	msg.addByte(magic_enum::enum_count<Blessings>() - 1); // Skip Twist of Fate
+
+	auto activeConcoctions = player->getActiveConcoctions();
+	msg.addByte(activeConcoctions.size());
+	for (const auto &concoction : activeConcoctions) {
+		if (concoction.second == 0) {
+			continue;
+		}
+		msg.add<uint16_t>(concoction.first);
+		msg.addByte(0x00);
+		msg.addByte(0x00);
+		msg.add<uint32_t>(concoction.second);
+	}
+
+	msg.addByte(0x00);
+	msg.addByte(0x00);
+	msg.addByte(0x00);
+	msg.addByte(0x00);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendReLoginWindow(uint8_t unfairFightReduction) {
+	NetworkMessage msg;
+	msg.addByte(0x28);
+	msg.addByte(0x00);
+	msg.addByte(unfairFightReduction);
+	if (!oldProtocol) {
+		msg.addByte(0x00); // use death redemption (boolean)
+	}
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendStats() {
+	NetworkMessage msg;
+	AddPlayerStats(msg);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendBasicData() {
+	if (!player) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x9F);
+	if (player->isPremium() || player->isVip()) {
+		msg.addByte(1);
+		const time_t lastDay = player->getPremiumLastDay();
+		msg.add<uint32_t>(lastDay > 0 ? static_cast<uint32_t>(lastDay) : 0);
+	} else {
+		msg.addByte(0);
+		msg.add<uint32_t>(0);
+	}
+	msg.addByte(player->getVocation()->getClientId());
+
+	// Prey / mainland unlock byte (CIP PlayerDataBasic). VOCATION_NONE and Newhaven
+	// citizens (storage 48031 == 1) stay "tutorial town" until the ferry clears it.
+	constexpr int32_t NewhavenCitizenStorage = 48031;
+	const bool newhavenCitizen = player->getStorageValue(NewhavenCitizenStorage) == 1;
+	if ((player->getVocation()->getId() == 0 && player->getGroup()->id < GROUP_TYPE_GAMEMASTER) || newhavenCitizen) {
+		msg.addByte(0);
+	} else {
+		msg.addByte(1); // has reached Main (allow player to open Prey window)
+	}
+
+	// Filter only valid ids
+	std::list<uint16_t> spellsList = g_spells().getSpellsByVocation(player->getVocationId());
+	std::vector<std::shared_ptr<InstantSpell>> validSpells;
+	for (uint16_t sid : spellsList) {
+		auto spell = g_spells().getInstantSpellById(sid);
+		if (spell && spell->getSpellId() > 0) {
+			validSpells.emplace_back(spell);
+		}
+	}
+
+	// Send total size of spells
+	msg.add<uint16_t>(validSpells.size());
+	// Send each spell valid ids
+	for (const auto &spell : validSpells) {
+		if (!spell) {
+			continue;
+		}
+
+		// Only send valid spells to old client
+		if (oldProtocol) {
+			msg.addByte(spell->getSpellId());
+			continue;
+		}
+
+		if (spell->isLearnable() && !player->hasLearnedInstantSpell(spell->getName())) {
+			msg.add<uint16_t>(0);
+		} else if (spell && spell->isLearnable() && player->hasLearnedInstantSpell(spell->getName())) {
+			// Ignore spell if not have wheel grade (or send if you have)
+			auto grade = player->wheel()->getSpellUpgrade(spell->getName());
+			if (static_cast<uint8_t>(grade) == 0) {
+				msg.add<uint16_t>(0);
+			} else {
+				msg.add<uint16_t>(spell->getSpellId());
+			}
+		} else {
+			msg.add<uint16_t>(spell->getSpellId());
+		}
+	}
+
+	if (!oldProtocol) {
+		msg.addByte(player->getVocation()->getMagicShield()); // bool - determine whether magic shield is active or not
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendBlessingWindow() {
+	if (!player) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x9B);
+
+	bool isRetro = g_game().isRetroPVP();
+
+	msg.addByte(isRetro ? 0x07 : 0x08);
+	for (auto blessing : magic_enum::enum_values<Blessings>()) {
+		if (isRetro && blessing == Blessings::TwistOfFate) {
+			continue;
+		}
+
+		const auto blessingValue = enumToValue(blessing);
+		const auto blessingId = 1 << blessingValue;
+		msg.add<uint16_t>(blessingId);
+		msg.addByte(player->getBlessingCount(blessingValue));
+		msg.addByte(player->getBlessingCount(blessingValue, true));
+	}
+
+	// Start at "The Wisdom Of Solitude"
+	uint8_t blessCount = 0;
+	for (auto bless : magic_enum::enum_values<Blessings>()) {
+		if (bless == Blessings::TwistOfFate) {
+			continue;
+		}
+
+		if (player->hasBlessing(enumToValue(bless))) {
+			blessCount++;
+		}
+	}
+
+	const auto isPromoted = player->isPromoted();
+	const auto factor = (isRetro ? 6.31 : 8);
+	const auto skillReduction = factor * blessCount;
+	const auto promotionReduction = (isPromoted ? 30 : 0);
+	const auto minReduction = skillReduction + promotionReduction;
+	const auto maxLossPvpDeath = calculateMaxPvpReduction(blessCount, isPromoted);
+
+	msg.addByte(isPromoted);
+	msg.addByte(30); // Reduction bonus with promotion
+	msg.addByte(minReduction);
+	msg.addByte(isRetro ? minReduction : maxLossPvpDeath);
+	msg.addByte(minReduction);
+
+	const auto playerSkull = player->getSkull();
+	const auto &playerAmulet = player->getThing(CONST_SLOT_NECKLACE);
+	bool hasSkull = (playerSkull == Skulls_t::SKULL_RED || playerSkull == Skulls_t::SKULL_BLACK);
+	bool usingAol = (playerAmulet && playerAmulet->getItem()->getID() == ITEM_AMULETOFLOSS);
+	if (hasSkull) {
+		msg.addByte(100);
+		msg.addByte(100);
+	} else if (usingAol) {
+		msg.addByte(0);
+		msg.addByte(0);
+	} else {
+		msg.addByte(calculateEquipmentLoss(blessCount, true));
+		msg.addByte(calculateEquipmentLoss(blessCount, true));
+	}
+
+	msg.addByte(hasSkull);
+	msg.addByte(usingAol);
+
+	msg.addByte(0x00);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendBlessStatus() {
+	if (!player) {
+		return;
+	}
+
+	// Ignore Twist of Fate (Id 1)
+	uint8_t blessCount = 0;
+	for (auto bless : magic_enum::enum_values<Blessings>()) {
+		if (bless == Blessings::TwistOfFate) {
+			continue;
+		}
+		if (player->hasBlessing(enumToValue(bless))) {
+			blessCount++;
+		}
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x9C);
+
+	if (oldProtocol) {
+		msg.add<uint16_t>(blessCount >= 5 ? 0x01 : 0x00);
+	} else {
+		bool glow = player->getVocationId() > VOCATION_NONE && ((g_configManager().getBoolean(INVENTORY_GLOW) && blessCount >= 5) || player->getLevel() < g_configManager().getNumber(ADVENTURERSBLESSING_LEVEL));
+		msg.add<uint16_t>(glow ? 1 : 0); // Show up the glowing effect in items if you have all blesses or adventurer's blessing
+		msg.addByte((blessCount >= 7) ? 3 : ((blessCount >= 5) ? 2 : 1)); // 1 = Disabled | 2 = normal | 3 = green
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendPremiumTrigger() {
+	if (g_configManager().getBoolean(FREE_PREMIUM) || g_configManager().getBoolean(VIP_SYSTEM_ENABLED)) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x9E);
+
+	msg.addByte(16);
+	for (uint16_t i = 0; i <= 15; i++) {
+		// PREMIUM_TRIGGER_TRAIN_OFFLINE = false, PREMIUM_TRIGGER_XP_BOOST = false, PREMIUM_TRIGGER_MARKET = false, PREMIUM_TRIGGER_VIP_LIST = false, PREMIUM_TRIGGER_DEPOT_SPACE = false, PREMIUM_TRIGGER_INVITE_PRIVCHAT = false
+		msg.addByte(0x01);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendTextMessage(const TextMessage &message) {
+	if (message.type == MESSAGE_NONE) {
+		g_logger().error("[ProtocolGame::sendTextMessage] - Message type is wrong, missing or invalid for player with name {}, on position {}", player->getName(), player->getPosition().toString());
+		player->sendTextMessage(MESSAGE_ADMINISTRATOR, "There was a problem requesting your message, please contact the administrator");
+		return;
+	}
+
+	MessageClasses internalType = message.type;
+	if (oldProtocol && message.type > MESSAGE_LAST_OLDPROTOCOL) {
+		switch (internalType) {
+			case MESSAGE_REPORT: {
+				internalType = MESSAGE_LOOT;
+				break;
+			}
+			case MESSAGE_HOTKEY_PRESSED: {
+				internalType = MESSAGE_LOOK;
+				break;
+			}
+			case MESSAGE_TUTORIAL_HINT: {
+				internalType = MESSAGE_LOGIN;
+				break;
+			}
+			case MESSAGE_THANK_YOU: {
+				internalType = MESSAGE_LOGIN;
+				break;
+			}
+			case MESSAGE_MARKET: {
+				internalType = MESSAGE_EVENT_ADVANCE;
+				break;
+			}
+			case MESSAGE_MANA: {
+				internalType = MESSAGE_HEALED;
+				break;
+			}
+			case MESSAGE_BEYOND_LAST: {
+				internalType = MESSAGE_LOOT;
+				break;
+			}
+			case MESSAGE_ATTENTION: {
+				internalType = MESSAGE_EVENT_ADVANCE;
+				break;
+			}
+			case MESSAGE_BOOSTED_CREATURE: {
+				internalType = MESSAGE_LOOT;
+				break;
+			}
+			case MESSAGE_OFFLINE_TRAINING: {
+				internalType = MESSAGE_LOOT;
+				break;
+			}
+			case MESSAGE_TRANSACTION: {
+				internalType = MESSAGE_LOOT;
+				break;
+			}
+			case MESSAGE_POTION: {
+				internalType = MESSAGE_FAILURE;
+				break;
+			}
+
+			default: {
+				internalType = MESSAGE_EVENT_ADVANCE;
+				break;
+			}
+		}
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xB4);
+	msg.addByte(internalType);
+	switch (internalType) {
+		case MESSAGE_DAMAGE_DEALT:
+		case MESSAGE_DAMAGE_RECEIVED:
+		case MESSAGE_DAMAGE_OTHERS: {
+			msg.addPosition(message.position);
+			msg.add<uint32_t>(message.primary.value);
+			msg.addByte(message.primary.color);
+			msg.add<uint32_t>(message.secondary.value);
+			msg.addByte(message.secondary.color);
+			break;
+		}
+		case MESSAGE_HEALED:
+		case MESSAGE_HEALED_OTHERS: {
+			if (!oldProtocol) {
+				msg.addPosition(message.position);
+				msg.add<uint32_t>(message.primary.value);
+				msg.addByte(message.primary.color);
+			}
+			break;
+		}
+		case MESSAGE_EXPERIENCE:
+		case MESSAGE_EXPERIENCE_OTHERS: {
+			msg.addPosition(message.position);
+			if (!oldProtocol) {
+				msg.add<uint64_t>(message.primary.value);
+			} else {
+				msg.add<uint32_t>(message.primary.value);
+			}
+			msg.addByte(message.primary.color);
+			break;
+		}
+		case MESSAGE_GUILD:
+		case MESSAGE_PARTY_MANAGEMENT:
+		case MESSAGE_PARTY:
+			msg.add<uint16_t>(message.channelId);
+			break;
+		default:
+			break;
+	}
+	msg.addString(message.text);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendClosePrivate(uint16_t channelId) {
+	NetworkMessage msg;
+	msg.addByte(0xB3);
+	msg.add<uint16_t>(channelId);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCreatePrivateChannel(uint16_t channelId, const std::string &channelName) {
+	NetworkMessage msg;
+	msg.addByte(0xB2);
+	msg.add<uint16_t>(channelId);
+	msg.addString(channelName);
+	msg.add<uint16_t>(0x01);
+	msg.addString(player->getName());
+	msg.add<uint16_t>(0x00);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendChannelsDialog() {
+	NetworkMessage msg;
+	msg.addByte(0xAB);
+
+	const ChannelList &list = g_chat().getChannelList(player);
+	msg.addByte(list.size());
+	for (const auto &channel : list) {
+		msg.add<uint16_t>(channel->getId());
+		msg.addString(channel->getName());
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendChannel(uint16_t channelId, const std::string &channelName, const UsersMap* channelUsers, const InvitedMap* invitedUsers) {
+	NetworkMessage msg;
+	msg.addByte(0xAC);
+
+	msg.add<uint16_t>(channelId);
+	msg.addString(channelName);
+
+	if (channelUsers) {
+		msg.add<uint16_t>(channelUsers->size());
+		for (const auto &it : *channelUsers) {
+			msg.addString(it.second->getName());
+		}
+	} else {
+		msg.add<uint16_t>(0x00);
+	}
+
+	if (invitedUsers) {
+		msg.add<uint16_t>(invitedUsers->size());
+		for (const auto &it : *invitedUsers) {
+			msg.addString(it.second->getName());
+		}
+	} else {
+		msg.add<uint16_t>(0x00);
+	}
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendChannelMessage(const std::string &author, const std::string &text, SpeakClasses type, uint16_t channel) {
+	NetworkMessage msg;
+	msg.addByte(0xAA);
+	msg.add<uint32_t>(0x00);
+	msg.addString(author);
+	msg.add<uint16_t>(0x00);
+	msg.addByte(type);
+	msg.add<uint16_t>(channel);
+	msg.addString(text);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendIcons(const std::unordered_set<PlayerIcon> &iconSet, const IconBakragore iconBakragore) {
+	NetworkMessage msg;
+	msg.addByte(0xA2);
+
+	std::bitset<static_cast<size_t>(PlayerIcon::Count)> iconsBitSet;
+	for (const auto &icon : iconSet) {
+		iconsBitSet.set(enumToValue(icon));
+	}
+
+	uint32_t icons = iconsBitSet.to_ulong();
+
+	if (oldProtocol) {
+		// Send as uint16_t in old protocol
+		msg.add<uint16_t>(static_cast<uint16_t>(icons));
+	} else {
+		// Send as uint64_t in new protocol
+		msg.add<uint64_t>(icons);
+		msg.addByte(enumToValue(iconBakragore)); // Icons Bakragore
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendUnjustifiedPoints(const uint8_t &dayProgress, const uint8_t &dayLeft, const uint8_t &weekProgress, const uint8_t &weekLeft, const uint8_t &monthProgress, const uint8_t &monthLeft, const uint8_t &skullDuration) {
+	NetworkMessage msg;
+	msg.addByte(0xB7);
+	msg.addByte(dayProgress);
+	msg.addByte(dayLeft);
+	msg.addByte(weekProgress);
+	msg.addByte(weekLeft);
+	msg.addByte(monthProgress);
+	msg.addByte(monthLeft);
+	msg.addByte(skullDuration);
+	writeToOutputBuffer(msg);
+
+	NetworkMessage situations;
+	situations.addByte(0xB8);
+	situations.addByte(0);
+	writeToOutputBuffer(situations);
+}
+
+void ProtocolGame::sendContainer(uint8_t cid, const std::shared_ptr<Container> &container, bool hasParent, uint16_t firstIndex) {
+	if (!player || !container) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x6E);
+
+	msg.addByte(cid);
+
+	if (container->getID() == ITEM_BROWSEFIELD) {
+		AddItem(msg, ITEM_BAG, 1, container->getTier());
+		msg.addString("Browse Field");
+	} else {
+		AddItem(msg, container);
+		msg.addString(container->getName());
+	}
+
+	const auto itemsStoreInboxToSend = container->getStoreInboxFilteredItems();
+
+	msg.addByte(container->capacity());
+
+	msg.addByte(hasParent ? 0x01 : 0x00);
+
+	// Depot search
+	if (!oldProtocol) {
+		msg.addByte((player->isDepotSearchAvailable() && container->isInsideDepot(true)) ? 0x01 : 0x00);
+	}
+
+	msg.addByte(container->isUnlocked() ? 0x01 : 0x00); // Drag and drop
+	msg.addByte(container->hasPagination() ? 0x01 : 0x00); // Pagination
+
+	uint32_t containerSize = container->size();
+	if (!itemsStoreInboxToSend.empty()) {
+		containerSize = itemsStoreInboxToSend.size();
+	}
+	msg.add<uint16_t>(containerSize);
+	msg.add<uint16_t>(firstIndex);
+
+	uint32_t maxItemsToSend;
+
+	if (container->hasPagination() && firstIndex > 0) {
+		maxItemsToSend = std::min<uint32_t>(container->capacity(), containerSize - firstIndex);
+	} else {
+		maxItemsToSend = container->capacity();
+	}
+
+	const ItemDeque &itemList = container->getItemList();
+	if (firstIndex >= containerSize) {
+		msg.addByte(0x00);
+	} else if (container->getID() == ITEM_STORE_INBOX && !itemsStoreInboxToSend.empty()) {
+		msg.addByte(std::min<uint32_t>(maxItemsToSend, containerSize));
+		for (const auto &item : itemsStoreInboxToSend) {
+			AddItem(msg, item);
+		}
+	} else {
+		msg.addByte(std::min<uint32_t>(maxItemsToSend, containerSize));
+
+		uint32_t i = 0;
+		for (auto it = itemList.begin() + firstIndex, end = itemList.end(); i < maxItemsToSend && it != end; ++it, ++i) {
+			AddItem(msg, *it);
+		}
+	}
+
+	// From here on down is for version 13.21+
+	if (oldProtocol) {
+		writeToOutputBuffer(msg);
+		return;
+	}
+
+	if (container->isStoreInbox()) {
+		const auto &categories = container->getStoreInboxValidCategories();
+		const auto enumName = container->getAttribute<std::string>(ItemAttribute_t::STORE_INBOX_CATEGORY);
+		auto category = magic_enum::enum_cast<ContainerCategory_t>(enumName);
+		if (category.has_value()) {
+			bool toSendCategory = false;
+			// Check if category exist in the deque
+			for (const auto &tempCategory : categories) {
+				if (tempCategory == category.value()) {
+					toSendCategory = true;
+					g_logger().debug("found category {}", toSendCategory);
+				}
+			}
+
+			if (!toSendCategory) {
+				std::shared_ptr<Container> container = player->getContainerByID(cid);
+				if (container) {
+					container->removeAttribute(ItemAttribute_t::STORE_INBOX_CATEGORY);
+				}
+			}
+			sendContainerCategory<ContainerCategory_t>(msg, categories, static_cast<uint8_t>(category.value()));
+		} else {
+			sendContainerCategory<ContainerCategory_t>(msg, categories);
+		}
+	} else {
+		msg.addByte(0x00);
+		msg.addByte(0x00);
+	}
+
+	// New container menu options
+	if (container->isMovable()) { // Pickupable/Moveable (?)
+		msg.addByte(1);
+	} else {
+		msg.addByte(0);
+	}
+
+	if (container->getHoldingPlayer()) { // Player holding the item (?)
+		msg.addByte(1);
+	} else {
+		msg.addByte(0);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendEmptyContainer(uint8_t cid) {
+	if (oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x6E);
+	msg.addByte(cid);
+
+	// Item placeholder (a simple bag)
+	AddItem(msg, ITEM_BAG, 1, 0);
+	msg.addString("Placeholder");
+
+	msg.addByte(8); // container capacity (number of slots)
+	msg.addByte(0x00); // hasParent = false
+	msg.addByte(0x00); // depot search disabled
+	msg.addByte(0x01); // unlocked (drag & drop enabled)
+	msg.addByte(0x00); // no pagination
+
+	msg.add<uint16_t>(0); // containerSize = 0
+	msg.add<uint16_t>(0); // firstIndex = 0
+	msg.addByte(0x00); // number of items = 0
+
+	// categories (2 zero bytes)
+	msg.addByte(0x00);
+	msg.addByte(0x00);
+
+	// extra options (movable and holdingPlayer)
+	msg.addByte(0x00);
+	msg.addByte(0x00);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendLootContainers() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xC0);
+	msg.addByte(player->quickLootFallbackToMainContainer ? 1 : 0);
+
+	std::map<ObjectCategory_t, std::pair<std::shared_ptr<Container>, std::shared_ptr<Container>>> managedContainersMap;
+	for (const auto &[category, containersPair] : player->m_managedContainers) {
+		if (containersPair.first && !containersPair.first->isRemoved()) {
+			managedContainersMap[category].first = containersPair.first;
+		}
+		if (containersPair.second && !containersPair.second->isRemoved()) {
+			managedContainersMap[category].second = containersPair.second;
+		}
+	}
+
+	auto msgPosition = msg.getBufferPosition();
+	msg.skipBytes(1);
+	uint8_t containers = 0;
+	for (const auto &[category, containersPair] : managedContainersMap) {
+		if (!isValidObjectCategory(category)) {
+			continue;
+		}
+		containers++;
+		msg.addByte(category);
+		uint16_t lootContainerId = containersPair.first ? containersPair.first->getID() : 0;
+		uint16_t obtainContainerId = containersPair.second ? containersPair.second->getID() : 0;
+		msg.add<uint16_t>(lootContainerId);
+		msg.add<uint16_t>(obtainContainerId);
+	}
+	msg.setBufferPosition(msgPosition);
+	msg.addByte(containers);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendLootStats(const std::shared_ptr<Item> &item, uint8_t count) {
+	if (!item) {
+		return;
+	}
+
+	if (oldProtocol) {
+		item->setIsLootTrackeable(false);
+		return;
+	}
+
+	// Build a detached stack for the analyser packet. Auto-bank removes corpse
+	// coins before this runs; cloning an orphaned/partial stack is unreliable.
+	const uint16_t stackCount = count > 0 ? count : std::max<uint16_t>(1, item->getItemCount());
+	const auto &lootedItem = Item::CreateItem(item->getID(), stackCount, player->getInstanceId());
+	if (!lootedItem) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xCF);
+	AddItem(msg, lootedItem);
+	msg.addString(lootedItem->getName());
+	item->setIsLootTrackeable(false);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendShop(const std::shared_ptr<Npc> &npc) {
+	Benchmark brenchmark;
+	NetworkMessage msg;
+	msg.addByte(0x7A);
+	msg.addString(npc->getName());
+
+	if (!oldProtocol) {
+		msg.add<uint16_t>(npc->getCurrency());
+		msg.addString(std::string()); // Currency name
+	}
+
+	const auto &shoplist = npc->getShopItemVector(player->getGUID());
+	uint16_t itemsToSend = std::min<size_t>(shoplist.size(), std::numeric_limits<uint16_t>::max());
+	msg.add<uint16_t>(itemsToSend);
+
+	// Initialize before the loop to avoid database overload on each iteration
+	auto talkactionHidden = player->kv()->get("npc-shop-hidden-sell-item");
+	// Initialize the inventoryMap outside the loop to avoid creation on each iteration
+	std::map<uint16_t, uint16_t> inventoryMap;
+	player->getAllSaleItemIdAndCount(inventoryMap);
+	uint16_t i = 0;
+	for (const ShopBlock &shopBlock : shoplist) {
+		if (++i > itemsToSend) {
+			break;
+		}
+
+		// Hidden sell items from the shop if they are not in the player's inventory
+		if (talkactionHidden && talkactionHidden->get<bool>()) {
+			const auto &foundItem = inventoryMap.find(shopBlock.itemId);
+			if (foundItem == inventoryMap.end() && shopBlock.itemSellPrice > 0 && shopBlock.itemBuyPrice == 0) {
+				AddHiddenShopItem(msg);
+				continue;
+			}
+		}
+
+		AddShopItem(msg, shopBlock);
+	}
+
+	writeToOutputBuffer(msg);
+	g_logger().debug("ProtocolGame::sendShop - Time: {} ms, shop items: {}", brenchmark.duration(), shoplist.size());
+}
+
+void ProtocolGame::sendCloseShop() {
+	NetworkMessage msg;
+	msg.addByte(0x7C);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendNpcDialogOptions(const NpcDialogOptions &dialogOptions) {
+	if (!player) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x1C);
+
+	msg.addByte(0); // unknown
+	msg.addByte(dialogOptions.conversationId);
+
+	if (dialogOptions.conversationId == 0) {
+		msg.addByte(0); // unknown
+		writeToOutputBuffer(msg);
+		return;
+	}
+
+	msg.add<uint32_t>(dialogOptions.npcId);
+	msg.addByte(static_cast<uint8_t>(dialogOptions.options.size()));
+
+	for (const auto &option : dialogOptions.options) {
+		msg.addByte(option.optionId);
+		msg.addString(option.optionText);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendClientCheck() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x63);
+	msg.add<uint32_t>(1);
+	msg.addByte(1);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendPartyLeft() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x06);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendGameNews() {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x98);
+	msg.add<uint32_t>(1); // unknown
+	msg.addByte(1); //(0 = open | 1 = highlight)
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendResourcesBalance(uint64_t money /*= 0*/, uint64_t bank /*= 0*/, uint64_t preyCards /*= 0*/, uint64_t taskHunting /*= 0*/, uint64_t soulsealsPoints /*= 0*/, uint64_t forgeDust /*= 0*/, uint64_t forgeSliver /*= 0*/, uint64_t forgeCores /*= 0*/) {
+	sendResourceBalance(RESOURCE_BANK, bank);
+	sendResourceBalance(RESOURCE_INVENTORY_MONEY, money);
+	// CIP only applies hasGuildBank when type 0x02 is received — omit when not in a guild.
+	if (player) {
+		if (const auto &guild = player->getGuild()) {
+			sendResourceBalance(RESOURCE_GUILD_BANK, guild->getBankBalance());
+		}
+	}
+	sendResourceBalance(RESOURCE_PREY_CARDS, preyCards);
+	sendResourceBalance(RESOURCE_TASK_HUNTING, taskHunting);
+	sendResourceBalance(RESOURCE_SOULSEALS_POINTS, soulsealsPoints);
+	sendResourceBalance(RESOURCE_FORGE_DUST, forgeDust);
+	sendResourceBalance(RESOURCE_FORGE_SLIVER, forgeSliver);
+	sendResourceBalance(RESOURCE_FORGE_CORES, forgeCores);
+}
+
+void ProtocolGame::sendResourceBalance(Resource_t resourceType, uint64_t value) {
+	if (oldProtocol && resourceType > RESOURCE_PREY_CARDS) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xEE);
+	msg.addByte(resourceType);
+	if (resourceType == RESOURCE_BOUNTY_POINTS || resourceType == RESOURCE_SOULSEALS_POINTS) {
+		msg.add<uint32_t>(static_cast<uint32_t>(value));
+	} else {
+		msg.add<uint64_t>(value);
+	}
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendSoulSealsWindow() {
+	NetworkMessage msg;
+	msg.addByte(0xBA);
+
+	const auto &masteries = player->animusMastery().getAnimusMasteries();
+
+	std::vector<uint16_t> masteredRaceIds;
+	for (const auto &monsterName : masteries) {
+		const auto monsterType = g_monsters().getMonsterType(monsterName, true);
+		if (monsterType && monsterType->info.raceid != 0) {
+			masteredRaceIds.push_back(monsterType->info.raceid);
+		}
+	}
+
+	msg.add<uint16_t>(static_cast<uint16_t>(masteredRaceIds.size()));
+	for (const auto raceId : masteredRaceIds) {
+		msg.add<uint16_t>(raceId);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendBountyTaskData(const BountyTaskData &bountyData, const Player *dataPlayer) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	const Player *src = dataPlayer ? dataPlayer : player.get();
+	sendResourceBalance(RESOURCE_BOUNTY_POINTS, src->getBountyPoints());
+	sendResourceBalance(RESOURCE_TASK_HUNTING, src->getTaskHuntingPoints());
+	sendResourceBalance(RESOURCE_SOULSEALS_POINTS, src->getSoulsealsPoints());
+
+	NetworkMessage msg;
+	msg.addByte(0x5B);
+	msg.addByte(TASK_BOARD_BOUNTY);
+
+	if (bountyData.state == BOUNTY_STATE_ACTIVE) {
+		msg.addByte(1);
+		msg.addByte(bountyData.activeTask.taskIndex);
+		msg.add<uint16_t>(bountyData.activeTask.raceId);
+		msg.add<uint16_t>(bountyData.activeTask.requiredKills);
+		msg.add<uint32_t>(bountyData.activeTask.rewardExp);
+		msg.addByte(bountyData.activeTask.rewardBountyPoints);
+		msg.add<uint16_t>(bountyData.activeTask.currentKills);
+		msg.addByte(static_cast<uint8_t>(BOUNTY_CLAIM_REWARD_NO_CLICK));
+		msg.addByte(static_cast<uint8_t>(bountyData.activeTask.taskGrade));
+	} else if (bountyData.state == BOUNTY_STATE_COMPLETED) {
+		msg.addByte(1);
+		msg.addByte(bountyData.activeTask.taskIndex);
+		msg.add<uint16_t>(bountyData.activeTask.raceId);
+		msg.add<uint16_t>(bountyData.activeTask.requiredKills);
+		msg.add<uint32_t>(bountyData.activeTask.rewardExp);
+		msg.addByte(bountyData.activeTask.rewardBountyPoints);
+		msg.add<uint16_t>(bountyData.activeTask.currentKills);
+		msg.addByte(static_cast<uint8_t>(BOUNTY_CLAIM_REWARD_CLICKED));
+		msg.addByte(static_cast<uint8_t>(bountyData.activeTask.taskGrade));
+	} else if (bountyData.state == BOUNTY_STATE_SELECTION && !bountyData.currentCreaturesList.empty()) {
+		msg.addByte(static_cast<uint8_t>(bountyData.currentCreaturesList.size()));
+		uint8_t index = 0;
+		for (const auto &creature : bountyData.currentCreaturesList) {
+			msg.addByte(index++);
+			msg.add<uint16_t>(creature.raceId);
+			msg.add<uint16_t>(creature.requiredKills);
+			msg.add<uint32_t>(creature.rewardExp);
+			msg.addByte(creature.rewardBountyPoints);
+			msg.add<uint16_t>(creature.currentKills);
+			msg.addByte(static_cast<uint8_t>(creature.claimRewardType));
+			msg.addByte(static_cast<uint8_t>(creature.taskGrade));
+		}
+	} else {
+		msg.addByte(0);
+	}
+
+	msg.addByte(bountyData.rerollTasks);
+	uint8_t rerollMode = static_cast<uint8_t>(BOUNTY_REROLL_TIMER_RUNNING);
+	if (bountyData.rerollTasks >= BOUNTY_MAX_REROLL_TASKS) {
+		rerollMode = static_cast<uint8_t>(BOUNTY_REROLL_LIMIT_REACHED);
+	} else if (bountyData.freeRerollTimeStamp <= OTSYS_TIME()) {
+		rerollMode = static_cast<uint8_t>(BOUNTY_REROLL_DAILY_CLAIMABLE);
+	}
+	msg.addByte(rerollMode);
+	msg.addByte(static_cast<uint8_t>(bountyData.selectedDifficulty));
+
+	for (uint8_t i = 0; i < TALISMAN_PATH_COUNT; ++i) {
+		const auto &tier = bountyData.talismanTiers[i];
+		msg.addByte(tier.multiplier1);
+		msg.addByte(tier.multiplier2);
+		msg.addByte(tier.isActivedUpgrade);
+		msg.add<uint16_t>(tier.bountyPointsToUpgrade);
+	}
+
+	msg.addByte(static_cast<uint8_t>(bountyData.preferredLists.size()));
+	for (const auto &slot : bountyData.preferredLists) {
+		msg.addByte(slot.activedList);
+		msg.add<uint16_t>(slot.preferredRaceId);
+		msg.add<uint16_t>(slot.unwantedRaceId);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendWeeklyTaskData(const WeeklyTaskData &weeklyData, const Player *dataPlayer) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	const Player *src = dataPlayer ? dataPlayer : player.get();
+	std::shared_ptr<Player> ownerPlayer = player;
+	if (dataPlayer) {
+		ownerPlayer = std::const_pointer_cast<Player>(dataPlayer->getPlayer());
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x5B);
+	msg.addByte(TASK_BOARD_WEEKLY);
+
+	msg.add<uint16_t>(weeklyData.anyCreatureTotalKills);
+	msg.add<uint16_t>(weeklyData.anyCreatureCurrentKills);
+
+	msg.addByte(static_cast<uint8_t>(weeklyData.killTasks.size()));
+	for (const auto &task : weeklyData.killTasks) {
+		msg.add<uint16_t>(task.raceId);
+		msg.add<uint16_t>(task.totalKills);
+		msg.add<uint16_t>(task.currentKills);
+	}
+
+	msg.addByte(static_cast<uint8_t>(weeklyData.deliveryTasks.size()));
+	for (std::size_t i = 0; i < weeklyData.deliveryTasks.size(); ++i) {
+		const auto &task = weeklyData.deliveryTasks[i];
+		msg.addByte(task.index);
+		msg.add<uint16_t>(task.itemId);
+		msg.addByte(task.unknown1);
+		msg.addByte(task.unknown2);
+		const uint32_t requiredItems = task.delivered != 0 ? task.totalItems : IOWeeklyTasks::getRequiredDeliveryItems(ownerPlayer, task);
+		msg.add<uint32_t>(requiredItems);
+		if (task.delivered != 0) {
+			msg.add<uint32_t>(task.totalItems);
+		} else {
+			uint32_t available = src->getItemTypeCount(task.itemId, -1)
+				+ src->getStashItemCount(task.itemId)
+				+ IOWeeklyTasks::getDepotItemCount(ownerPlayer, task.itemId);
+			msg.add<uint32_t>(available);
+		}
+		msg.addByte(task.delivered);
+	}
+
+	msg.addByte(weeklyData.difficultyMultiplier);
+	msg.add<uint32_t>(weeklyData.killTaskRewardExp);
+	msg.add<uint32_t>(weeklyData.deliveryTaskRewardExp);
+	msg.addByte(weeklyData.completedKillTasks);
+	msg.addByte(weeklyData.completedDeliveryTasks);
+	msg.addByte(weeklyData.weeklyProgressFinished);
+	msg.addByte(IOWeeklyTasks::getUnlockedDifficulty(src->getLevel()));
+	msg.add<uint32_t>(g_ioweeklytasks().getResetTimestamp());
+	msg.addByte(src->hasWeeklyTaskExpansion() ? 1 : 0);
+	msg.add<uint32_t>(weeklyData.rewardHuntingTasksPoints);
+	msg.add<uint32_t>(weeklyData.rewardSoulseals);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendHuntingTaskShopData(const Player *dataPlayer) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	const Player *src = dataPlayer ? dataPlayer : player.get();
+	std::shared_ptr<Player> ownerPlayer = player;
+	if (dataPlayer) {
+		ownerPlayer = std::const_pointer_cast<Player>(dataPlayer->getPlayer());
+	}
+	sendResourceBalance(RESOURCE_TASK_HUNTING, src->getTaskHuntingPoints());
+
+	const auto &shopOffers = g_ioweeklytasks().getShopOffers();
+
+	NetworkMessage msg;
+	msg.addByte(0x5B);
+	msg.addByte(TASK_BOARD_HUNT_SHOP);
+
+	msg.addByte(static_cast<uint8_t>(shopOffers.size()));
+	for (const auto &offer : shopOffers) {
+		if (offer.offerType == HUNTING_SHOP_OFFER_BONUS_PROMOTION) {
+			msg.addByte(HUNTING_SHOP_OFFER_BONUS_PROMOTION);
+			uint16_t alreadyPurchased = src->wheel()->getExtraPointsFromHuntingTaskShop();
+			msg.add<uint16_t>(alreadyPurchased + 1);
+			uint32_t n = alreadyPurchased + 1;
+			uint32_t nextPrice = (n <= 50) ? (100 + 50 * n * (n - 1)) : 0;
+			msg.add<uint32_t>(nextPrice);
+			uint8_t promoStatus;
+			if (alreadyPurchased >= 50) {
+				promoStatus = HUNTING_SHOP_STATUS_BOUGHT;
+			} else if (src->getTaskHuntingPoints() < nextPrice) {
+				promoStatus = HUNTING_SHOP_STATUS_NOT_ENOUGH_HTP;
+			} else {
+				promoStatus = HUNTING_SHOP_STATUS_AVAILABLE;
+			}
+			msg.addByte(promoStatus);
+		} else {
+			uint8_t clientOfferType = (offer.offerType == HUNTING_SHOP_OFFER_WEEKLY_EXPANSION)
+				? static_cast<uint8_t>(HUNTING_SHOP_OFFER_ITEM)
+				: static_cast<uint8_t>(offer.offerType);
+			msg.addByte(clientOfferType);
+
+			msg.addString(offer.name);
+			msg.addString(offer.description);
+			msg.add<uint32_t>(offer.looktypeOrItemId);
+
+			if (offer.offerType == HUNTING_SHOP_OFFER_OUTFIT) {
+				msg.addByte(offer.addon);
+			}
+
+			if (offer.offerType == HUNTING_SHOP_OFFER_ITEM_DOUBLE) {
+				msg.add<uint32_t>(offer.itemId2);
+			}
+
+			msg.add<uint32_t>(offer.price);
+
+			msg.addByte(g_ioweeklytasks().getPlayerOfferStatus(ownerPlayer, offer));
+		}
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCharmResourcesBalance(uint32_t charm /*= 0*/, uint32_t minorCharm /*= 0*/, uint32_t maxCharm /*= 0*/, uint32_t maxMinorCharm /*= 0*/) {
+	sendCharmResourceBalance(RESOURCE_CHARM, charm);
+	sendCharmResourceBalance(RESOURCE_MINOR_CHARM, minorCharm);
+	sendCharmResourceBalance(RESOURCE_MAX_CHARM, maxCharm);
+	sendCharmResourceBalance(RESOURCE_MAX_MINOR_CHARM, maxMinorCharm);
+};
+
+void ProtocolGame::sendCharmResourceBalance(CharmResource_t resourceType, uint32_t value) {
+	if (oldProtocol) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0xEE);
+
+	msg.addByte(resourceType);
+	msg.add<uint32_t>(value);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendSaleItemList(const std::vector<ShopBlock> &shopVector, const std::map<uint16_t, uint16_t> &inventoryMap) {
+	sendResourceBalance(RESOURCE_BANK, player->getBankBalance());
+
+	uint16_t currency = player->getShopOwner() ? player->getShopOwner()->getCurrency() : static_cast<uint16_t>(ITEM_GOLD_COIN);
+	if (currency == ITEM_GOLD_COIN) {
+		// Since we already have full inventory map we shouldn't call getMoney here - it is simply wasting cpu power
+		uint64_t playerMoney = 0;
+		auto it = inventoryMap.find(ITEM_CRYSTAL_COIN);
+		if (it != inventoryMap.end()) {
+			playerMoney += static_cast<uint64_t>(it->second) * 10000;
+		}
+		it = inventoryMap.find(ITEM_PLATINUM_COIN);
+		if (it != inventoryMap.end()) {
+			playerMoney += static_cast<uint64_t>(it->second) * 100;
+		}
+		it = inventoryMap.find(ITEM_GOLD_COIN);
+		if (it != inventoryMap.end()) {
+			playerMoney += static_cast<uint64_t>(it->second);
+		}
+		sendResourceBalance(RESOURCE_INVENTORY_MONEY, playerMoney);
+	} else {
+		uint64_t customCurrencyValue = 0;
+		auto search = inventoryMap.find(currency);
+		if (search != inventoryMap.end()) {
+			customCurrencyValue += static_cast<uint64_t>(search->second);
+		}
+		// CIP: non-gold NPC currency is 0x3C (not 0x02 — that is guild bank gold).
+		sendResourceBalance(oldProtocol ? RESOURCE_INVENTORY_MONEY : RESOURCE_NPC_TRADE_QUEST_FLAG_CURRENCY, customCurrencyValue);
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x7B);
+
+	if (oldProtocol) {
+		msg.add<uint64_t>(player->getMoney() + player->getBankBalance());
+	}
+
+	uint16_t itemsToSend = 0;
+	const uint16_t ItemsToSendLimit = oldProtocol ? 0xFF : 0xFFFF;
+	auto msgPosition = msg.getBufferPosition();
+	msg.skipBytes(oldProtocol ? 1 : 2);
+
+	for (const ShopBlock &shopBlock : shopVector) {
+		if (shopBlock.itemSellPrice == 0) {
+			continue;
+		}
+
+		auto it = inventoryMap.find(shopBlock.itemId);
+		if (it != inventoryMap.end()) {
+			msg.add<uint16_t>(shopBlock.itemId);
+			if (oldProtocol) {
+				msg.addByte(static_cast<uint8_t>(std::min<uint16_t>(it->second, std::numeric_limits<uint8_t>::max())));
+			} else {
+				msg.add<uint16_t>(std::min<uint16_t>(it->second, std::numeric_limits<uint16_t>::max()));
+			}
+			if (++itemsToSend >= ItemsToSendLimit) {
+				break;
+			}
+		}
+	}
+
+	msg.setBufferPosition(msgPosition);
+	if (oldProtocol) {
+		msg.addByte(static_cast<uint8_t>(itemsToSend));
+	} else {
+		msg.add<uint16_t>(itemsToSend);
+	}
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendMarketEnter(uint32_t depotId) {
+	NetworkMessage msg;
+	msg.addByte(0xF6);
+
+	if (oldProtocol) {
+		msg.add<uint64_t>(player->getBankBalance());
+	}
+
+	msg.addByte(static_cast<uint8_t>(std::min<uint32_t>(IOMarket::getPlayerOfferCount(player->getGUID()), std::numeric_limits<uint8_t>::max())));
+
+	std::shared_ptr<DepotLocker> depotLocker = player->getDepotLocker(depotId);
+	if (!depotLocker) {
+		msg.add<uint16_t>(0x00);
+		writeToOutputBuffer(msg);
+		return;
+	}
+
+	player->setInMarket(true);
+
+	// Only use here locker items, itemVector is for use of Game::createMarketOffer
+	auto [itemVector, lockerItems] = player->requestLockerItems(depotLocker, true);
+
+	uint16_t totalItems = 0;
+	for (const auto &entry : lockerItems) {
+		totalItems += entry.second.size();
+	}
+	msg.add<uint16_t>(totalItems);
+
+	for (const auto &[itemId, tierAndCountMap] : lockerItems) {
+		for (const auto &[tier, count] : tierAndCountMap) {
+			msg.add<uint16_t>(itemId);
+			if (!oldProtocol && Item::items[itemId].upgradeClassification > 0) {
+				msg.addByte(tier);
+			}
+			msg.add<uint16_t>(static_cast<uint16_t>(count));
+		}
+	}
+
+	writeToOutputBuffer(msg);
+
+	updateCoinBalance();
+	sendResourcesBalance(player->getMoney(), player->getBankBalance(), player->getPreyCards(), player->getTaskHuntingPoints(), player->getSoulsealsPoints());
+}
+
+void ProtocolGame::sendCoinBalance() {
+	if (!player) {
+		return;
+	}
+
+	// send is updating
+	// TODO: export this to it own function
+	NetworkMessage msg;
+	msg.addByte(0xF2);
+	msg.addByte(0x01);
+	writeToOutputBuffer(msg);
+
+	msg.reset();
+
+	// send update
+	msg.addByte(0xDF);
+	msg.addByte(0x01);
+
+	msg.add<uint32_t>(player->coinBalance); // Normal Coins
+	msg.add<uint32_t>(player->coinTransferableBalance); // Transferable Coins
+
+	if (!oldProtocol) {
+		msg.add<uint32_t>(player->coinBalance); // Reserved Auction Coins
+	}
+
+	writeToOutputBuffer(msg);
+
+	if (!oldProtocol) {
+		sendResourceBalance(RESOURCE_COIN_NORMAL, player->coinBalance);
+		sendResourceBalance(RESOURCE_COIN_TRANSFERRABLE, player->coinTransferableBalance);
+	}
+}
+
+void ProtocolGame::updateCoinBalance() {
+	if (!player) {
+		return;
+	}
+
+	g_dispatcher().addEvent(
+		[playerId = player->getID()] {
+			const auto &threadPlayer = g_game().getPlayerByID(playerId);
+			if (threadPlayer && threadPlayer->getAccount()) {
+				const auto [coins, errCoin] = threadPlayer->getAccount()->getCoins(enumToValue(CoinType::Normal));
+				const auto [transferCoins, errTCoin] = threadPlayer->getAccount()->getCoins(enumToValue(CoinType::Transferable));
+
+				threadPlayer->coinBalance = coins + transferCoins;
+				threadPlayer->coinTransferableBalance = transferCoins;
+				threadPlayer->sendCoinBalance();
+			}
+		},
+		__FUNCTION__
+	);
+}
+
+void ProtocolGame::sendMarketLeave() {
+	NetworkMessage msg;
+	msg.addByte(0xF7);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendMarketBrowseItem(uint16_t itemId, const MarketOfferList &buyOffers, const MarketOfferList &sellOffers, uint8_t tier) {
+	NetworkMessage msg;
+
+	msg.addByte(0xF9);
+	if (!oldProtocol) {
+		msg.addByte(MARKETREQUEST_ITEM_BROWSE);
+	}
+
+	msg.add<uint16_t>(itemId);
+	if (!oldProtocol && Item::items[itemId].upgradeClassification > 0) {
+		msg.addByte(tier);
+	}
+
+	msg.add<uint32_t>(buyOffers.size());
+	for (const MarketOffer &offer : buyOffers) {
+		msg.add<uint32_t>(offer.timestamp);
+		msg.add<uint16_t>(offer.counter);
+		msg.add<uint16_t>(offer.amount);
+		if (oldProtocol) {
+			msg.add<uint32_t>(offer.price);
+		} else {
+			msg.add<uint64_t>(static_cast<uint64_t>(offer.price));
+		}
+		msg.addString(offer.playerName);
+	}
+
+	msg.add<uint32_t>(sellOffers.size());
+	for (const MarketOffer &offer : sellOffers) {
+		msg.add<uint32_t>(offer.timestamp);
+		msg.add<uint16_t>(offer.counter);
+		msg.add<uint16_t>(offer.amount);
+		if (oldProtocol) {
+			msg.add<uint32_t>(offer.price);
+		} else {
+			msg.add<uint64_t>(static_cast<uint64_t>(offer.price));
+		}
+		msg.addString(offer.playerName);
+	}
+
+	updateCoinBalance();
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendMarketAcceptOffer(const MarketOfferEx &offer) {
+	NetworkMessage msg;
+	msg.addByte(0xF9);
+	if (!oldProtocol) {
+		msg.addByte(MARKETREQUEST_ITEM_BROWSE);
+	}
+
+	msg.add<uint16_t>(offer.itemId);
+	if (!oldProtocol && Item::items[offer.itemId].upgradeClassification > 0) {
+		msg.addByte(offer.tier);
+	}
+
+	if (offer.type == MARKETACTION_BUY) {
+		msg.add<uint32_t>(0x01);
+		msg.add<uint32_t>(offer.timestamp);
+		msg.add<uint16_t>(offer.counter);
+		msg.add<uint16_t>(offer.amount);
+		if (oldProtocol) {
+			msg.add<uint32_t>(offer.price);
+		} else {
+			msg.add<uint64_t>(static_cast<uint64_t>(offer.price));
+		}
+		msg.addString(offer.playerName);
+		msg.add<uint32_t>(0x00);
+	} else {
+		msg.add<uint32_t>(0x00);
+		msg.add<uint32_t>(0x01);
+		msg.add<uint32_t>(offer.timestamp);
+		msg.add<uint16_t>(offer.counter);
+		msg.add<uint16_t>(offer.amount);
+		if (oldProtocol) {
+			msg.add<uint32_t>(offer.price);
+		} else {
+			msg.add<uint64_t>(static_cast<uint64_t>(offer.price));
+		}
+		msg.addString(offer.playerName);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendMarketBrowseOwnOffers(const MarketOfferList &buyOffers, const MarketOfferList &sellOffers) {
+	NetworkMessage msg;
+	msg.addByte(0xF9);
+	if (oldProtocol) {
+		msg.add<uint16_t>(MARKETREQUEST_OWN_OFFERS_OLD);
+	} else {
+		msg.addByte(MARKETREQUEST_OWN_OFFERS);
+	}
+
+	msg.add<uint32_t>(buyOffers.size());
+	for (const MarketOffer &offer : buyOffers) {
+		msg.add<uint32_t>(offer.timestamp);
+		msg.add<uint16_t>(offer.counter);
+		msg.add<uint16_t>(offer.itemId);
+		if (!oldProtocol && Item::items[offer.itemId].upgradeClassification > 0) {
+			msg.addByte(offer.tier);
+		}
+		msg.add<uint16_t>(offer.amount);
+		if (oldProtocol) {
+			msg.add<uint32_t>(offer.price);
+		} else {
+			msg.add<uint64_t>(static_cast<uint64_t>(offer.price));
+		}
+	}
+
+	msg.add<uint32_t>(sellOffers.size());
+	for (const MarketOffer &offer : sellOffers) {
+		msg.add<uint32_t>(offer.timestamp);
+		msg.add<uint16_t>(offer.counter);
+		msg.add<uint16_t>(offer.itemId);
+		if (!oldProtocol && Item::items[offer.itemId].upgradeClassification > 0) {
+			msg.addByte(offer.tier);
+		}
+		msg.add<uint16_t>(offer.amount);
+		if (oldProtocol) {
+			msg.add<uint32_t>(offer.price);
+		} else {
+			msg.add<uint64_t>(static_cast<uint64_t>(offer.price));
+		}
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendMarketCancelOffer(const MarketOfferEx &offer) {
+	NetworkMessage msg;
+	msg.addByte(0xF9);
+	if (oldProtocol) {
+		msg.add<uint16_t>(MARKETREQUEST_OWN_OFFERS_OLD);
+	} else {
+		msg.addByte(MARKETREQUEST_OWN_OFFERS);
+	}
+
+	if (offer.type == MARKETACTION_BUY) {
+		msg.add<uint32_t>(0x01);
+		msg.add<uint32_t>(offer.timestamp);
+		msg.add<uint16_t>(offer.counter);
+		msg.add<uint16_t>(offer.itemId);
+		if (!oldProtocol && Item::items[offer.itemId].upgradeClassification > 0) {
+			msg.addByte(offer.tier);
+		}
+		msg.add<uint16_t>(offer.amount);
+		if (oldProtocol) {
+			msg.add<uint32_t>(offer.price);
+		} else {
+			msg.add<uint64_t>(static_cast<uint64_t>(offer.price));
+		}
+		msg.add<uint32_t>(0x00);
+	} else {
+		msg.add<uint32_t>(0x00);
+		msg.add<uint32_t>(0x01);
+		msg.add<uint32_t>(offer.timestamp);
+		msg.add<uint16_t>(offer.counter);
+		msg.add<uint16_t>(offer.itemId);
+		if (!oldProtocol && Item::items[offer.itemId].upgradeClassification > 0) {
+			msg.addByte(offer.tier);
+		}
+		msg.add<uint16_t>(offer.amount);
+		if (oldProtocol) {
+			msg.add<uint32_t>(offer.price);
+		} else {
+			msg.add<uint64_t>(static_cast<uint64_t>(offer.price));
+		}
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendMarketBrowseOwnHistory(const HistoryMarketOfferList &buyOffers, const HistoryMarketOfferList &sellOffers) {
+	uint32_t i = 0;
+	std::map<uint32_t, uint16_t> counterMap;
+	uint32_t buyOffersToSend = std::min<uint32_t>(buyOffers.size(), 810 + std::max<int32_t>(0, 810 - sellOffers.size()));
+	uint32_t sellOffersToSend = std::min<uint32_t>(sellOffers.size(), 810 + std::max<int32_t>(0, 810 - buyOffers.size()));
+
+	NetworkMessage msg;
+	msg.addByte(0xF9);
+	if (oldProtocol) {
+		msg.add<uint16_t>(MARKETREQUEST_OWN_HISTORY_OLD);
+	} else {
+		msg.addByte(MARKETREQUEST_OWN_HISTORY);
+	}
+
+	msg.add<uint32_t>(buyOffersToSend);
+	for (auto it = buyOffers.begin(); i < buyOffersToSend; ++it, ++i) {
+		msg.add<uint32_t>(it->timestamp);
+		msg.add<uint16_t>(counterMap[it->timestamp]++);
+		msg.add<uint16_t>(it->itemId);
+		if (!oldProtocol && Item::items[it->itemId].upgradeClassification > 0) {
+			msg.addByte(it->tier);
+		}
+		msg.add<uint16_t>(it->amount);
+		if (oldProtocol) {
+			msg.add<uint32_t>(it->price);
+		} else {
+			msg.add<uint64_t>(static_cast<uint64_t>(it->price));
+		}
+		msg.addByte(it->state);
+	}
+
+	counterMap.clear();
+	i = 0;
+
+	msg.add<uint32_t>(sellOffersToSend);
+	for (auto it = sellOffers.begin(); i < sellOffersToSend; ++it, ++i) {
+		msg.add<uint32_t>(it->timestamp);
+		msg.add<uint16_t>(counterMap[it->timestamp]++);
+		msg.add<uint16_t>(it->itemId);
+		if (Item::items[it->itemId].upgradeClassification > 0) {
+			msg.addByte(it->tier);
+		}
+		msg.add<uint16_t>(it->amount);
+		msg.add<uint64_t>(it->price);
+		msg.addByte(it->state);
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendForgingData(const Player *dataPlayer) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	const Player *src = dataPlayer ? dataPlayer : player.get();
+	if (!src) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x86);
+
+	std::map<uint8_t, uint16_t> tierCorePrices;
+	std::map<uint8_t, uint64_t> convergenceFusionPrices;
+	std::map<uint8_t, uint64_t> convergenceTransferPrices;
+
+	const auto classifications = g_game().getItemsClassifications();
+	msg.addByte(classifications.size());
+	for (const auto &classification : classifications) {
+		msg.addByte(classification->id);
+		msg.addByte(classification->tiers.size());
+		for (const auto &[tier, tierInfo] : classification->tiers) {
+			msg.addByte(tier - 1);
+			msg.add<uint64_t>(tierInfo.regularPrice);
+			tierCorePrices[tier] = tierInfo.corePrice;
+			convergenceFusionPrices[tier] = tierInfo.convergenceFusionPrice;
+			convergenceTransferPrices[tier] = tierInfo.convergenceTransferPrice;
+		}
+	}
+
+	// Version 13.30
+	// Forge Config Bytes
+
+	// Exalted core table per tier
+	msg.addByte(static_cast<uint8_t>(tierCorePrices.size()));
+	for (const auto &[tier, cores] : tierCorePrices) {
+		msg.addByte(tier);
+		msg.addByte(cores);
+	}
+
+	// Convergence fusion prices per tier
+	msg.addByte(static_cast<uint8_t>(convergenceFusionPrices.size()));
+	for (const auto &[tier, price] : convergenceFusionPrices) {
+		msg.addByte(tier - 1);
+		msg.add<uint64_t>(price);
+	}
+
+	// Convergence transfer prices per tier
+	msg.addByte(static_cast<uint8_t>(convergenceTransferPrices.size()));
+	for (const auto &[tier, price] : convergenceTransferPrices) {
+		msg.addByte(tier);
+		msg.add<uint64_t>(price);
+	}
+
+	const auto dustLevelByte = static_cast<uint8_t>(std::min<uint64_t>(src->getForgeDustLevel() > 100 ? (src->getForgeDustLevel() - 100) / 20 : 0, 225));
 	msg.addByte(dustLevelByte);
 
 	// Update player resources
@@ -9833,6 +12492,454 @@ void ProtocolGame::sendScreenshotAndBannerSubarea(uint16_t areaId) {
 	writeToOutputBuffer(msg);
 }
 
+void ProtocolGame::sendOutfitWindowCustomOTCR(NetworkMessage &msg) {
+	if (!isOTCR) {
+		return;
+	}
+	// wings
+	auto startWings = msg.getBufferPosition();
+	uint16_t limitWings = std::numeric_limits<uint16_t>::max();
+	uint16_t wingSize = 0;
+	msg.skipBytes(1);
+	const auto &wings = g_game().getAttachedEffects()->getWings();
+	for (const auto &wing : wings) {
+		if (player->attachedEffects().hasWing(wing)) {
+			msg.add<uint16_t>(wing->id);
+			msg.addString(wing->name);
+			++wingSize;
+		}
+		if (wingSize == limitWings) {
+			break;
+		}
+	}
+	auto endWings = msg.getBufferPosition();
+	msg.setBufferPosition(startWings);
+	msg.add<uint8_t>(wingSize);
+	msg.setBufferPosition(endWings);
+	// auras
+	auto startAuras = msg.getBufferPosition();
+	uint16_t limitAuras = std::numeric_limits<uint16_t>::max();
+	uint16_t auraSize = 0;
+	msg.skipBytes(1);
+	const auto &auras = g_game().getAttachedEffects()->getAuras();
+	for (const auto &aura : auras) {
+		if (player->attachedEffects().hasAura(aura)) {
+			msg.add<uint16_t>(aura->id);
+			msg.addString(aura->name);
+			++auraSize;
+		}
+		if (auraSize == limitAuras) {
+			break;
+		}
+	}
+	auto endAuras = msg.getBufferPosition();
+	msg.setBufferPosition(startAuras);
+	msg.add<uint8_t>(auraSize);
+	msg.setBufferPosition(endAuras);
+	// effects
+	auto startEffects = msg.getBufferPosition();
+	uint16_t limitEffects = std::numeric_limits<uint16_t>::max();
+	uint16_t effectSize = 0;
+	msg.skipBytes(1);
+	const auto &effects = g_game().getAttachedEffects()->getEffects();
+	for (const auto &effect : effects) {
+		if (player->attachedEffects().hasEffect(effect)) {
+			msg.add<uint16_t>(effect->id);
+			msg.addString(effect->name);
+			++effectSize;
+		}
+		if (effectSize == limitEffects) {
+			break;
+		}
+	}
+	auto endEffects = msg.getBufferPosition();
+	msg.setBufferPosition(startEffects);
+	msg.add<uint8_t>(effectSize);
+	msg.setBufferPosition(endEffects);
+	// shader
+	std::vector<const Shader*> shaders;
+	for (const auto &shader : g_game().getAttachedEffects()->getShaders()) {
+		if (player->attachedEffects().hasShader(shader.get())) {
+			shaders.push_back(shader.get());
+		}
+	}
+	msg.addByte(static_cast<uint8_t>(shaders.size()));
+	for (const Shader* shader : shaders) {
+		msg.add<uint16_t>(shader->id);
+		msg.addString(shader->name);
+	}
+}
+
+void ProtocolGame::sendAttachedEffect(const std::shared_ptr<Creature> &creature, uint16_t effectId) {
+	if (!isOTCR) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x34);
+	msg.add<uint32_t>(creature->getID());
+	msg.add<uint16_t>(effectId);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendDetachEffect(const std::shared_ptr<Creature> &creature, uint16_t effectId) {
+	if (!isOTCR) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x35);
+	msg.add<uint32_t>(creature->getID());
+	msg.add<uint16_t>(effectId);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendShader(const std::shared_ptr<Creature> &creature, const std::string &shaderName) {
+	if (!isOTCR) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x36);
+	msg.add<uint32_t>(creature->getID());
+	msg.addString(shaderName);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendMapShader(const std::string &shaderName) {
+	if (!isOTCR) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x37);
+	msg.addString(shaderName);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendPlayerTyping(const std::shared_ptr<Creature> &creature, uint8_t typing) {
+	if (!isOTCR) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x38);
+	msg.add<uint32_t>(creature->getID());
+	msg.addByte(typing);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::AddOutfitCustomOTCR(NetworkMessage &msg, const Outfit_t &outfit) {
+	if (!isOTCR) {
+		return;
+	}
+
+	msg.add<uint16_t>(outfit.lookWing);
+	msg.add<uint16_t>(outfit.lookAura);
+	msg.add<uint16_t>(outfit.lookEffect);
+	const auto &shader = g_game().getAttachedEffects()->getShaderByID(outfit.lookShader);
+	msg.addString(shader ? shader->name : "");
+}
+
+void ProtocolGame::parseCyclopediaHouseAuction(NetworkMessage &msg) {
+	if (oldProtocol) {
+		return;
+	}
+
+	uint8_t houseActionType = msg.getByte();
+	switch (houseActionType) {
+		case 0: {
+			const auto townName = msg.getString();
+			g_game().playerCyclopediaHousesByTown(player->getID(), townName);
+			break;
+		}
+		case 1: {
+			const uint32_t houseId = msg.get<uint32_t>();
+			const uint64_t bidValue = msg.get<uint64_t>();
+			g_game().playerCyclopediaHouseBid(player->getID(), houseId, bidValue);
+			break;
+		}
+		case 2: {
+			const uint32_t houseId = msg.get<uint32_t>();
+			const uint32_t timestamp = msg.get<uint32_t>();
+			g_game().playerCyclopediaHouseMoveOut(player->getID(), houseId, timestamp);
+			break;
+		}
+		case 3: {
+			const uint32_t houseId = msg.get<uint32_t>();
+			const uint32_t timestamp = msg.get<uint32_t>();
+			const std::string &newOwner = msg.getString();
+			const uint64_t bidValue = msg.get<uint64_t>();
+			g_game().playerCyclopediaHouseTransfer(player->getID(), houseId, timestamp, newOwner, bidValue);
+			break;
+		}
+		case 4: {
+			const uint32_t houseId = msg.get<uint32_t>();
+			g_game().playerCyclopediaHouseCancelMoveOut(player->getID(), houseId);
+			break;
+		}
+		case 5: {
+			const uint32_t houseId = msg.get<uint32_t>();
+			g_game().playerCyclopediaHouseCancelTransfer(player->getID(), houseId);
+			break;
+		}
+		case 6: {
+			const uint32_t houseId = msg.get<uint32_t>();
+			g_game().playerCyclopediaHouseAcceptTransfer(player->getID(), houseId);
+			break;
+		}
+		case 7: {
+			const uint32_t houseId = msg.get<uint32_t>();
+			g_game().playerCyclopediaHouseRejectTransfer(player->getID(), houseId);
+			break;
+		}
+	}
+}
+
+void ProtocolGame::sendCyclopediaHouseList(HouseMap houses) {
+	NetworkMessage msg;
+	msg.addByte(0xC7);
+	msg.add<uint16_t>(houses.size());
+	for (const auto &[clientId, houseData] : houses) {
+		msg.add<uint32_t>(clientId);
+		msg.addByte(0x01); // 0x00 = Renovation; 0x01 = Available
+
+		auto houseState = houseData->getState();
+		auto stateValue = magic_enum::enum_integer(houseState);
+		msg.addByte(stateValue);
+		if (houseState == CyclopediaHouseState::Available) {
+			bool bidder = houseData->getBidderName() == player->getName();
+			msg.addString(houseData->getBidderName());
+			msg.addByte(bidder);
+			uint8_t disableIndex = enumToValue(player->canBidHouse(clientId));
+			msg.addByte(disableIndex);
+
+			if (!houseData->getBidderName().empty()) {
+				msg.add<uint32_t>(houseData->getBidEndDate());
+				msg.add<uint64_t>(houseData->getHighestBid());
+				if (bidder) {
+					msg.add<uint64_t>(houseData->getBidHolderLimit());
+				}
+			}
+		} else if (houseState == CyclopediaHouseState::Rented) {
+			auto ownerName = IOLoginData::getNameByGuid(houseData->getOwner());
+			msg.addString(ownerName);
+			msg.add<uint32_t>(houseData->getPaidUntil());
+
+			bool rented = ownerName.compare(player->getName()) == 0;
+			msg.addByte(rented);
+			if (rented) {
+				msg.addByte(0);
+				msg.addByte(0);
+			}
+		} else if (houseState == CyclopediaHouseState::Transfer) {
+			auto ownerName = IOLoginData::getNameByGuid(houseData->getOwner());
+			msg.addString(ownerName);
+			msg.add<uint32_t>(houseData->getPaidUntil());
+
+			bool isOwner = ownerName.compare(player->getName()) == 0;
+			msg.addByte(isOwner);
+			if (isOwner) {
+				msg.addByte(0); // ?
+				msg.addByte(0); // ?
+			}
+			msg.add<uint32_t>(houseData->getBidEndDate());
+			msg.addString(houseData->getBidderName());
+			msg.addByte(0); // ?
+			msg.add<uint64_t>(houseData->getInternalBid());
+
+			bool isNewOwner = player->getName() == houseData->getBidderName();
+			msg.addByte(isNewOwner);
+			if (isNewOwner) {
+				uint8_t disableIndex = enumToValue(player->canAcceptTransferHouse(clientId));
+				msg.addByte(disableIndex); // Accept Transfer Error
+				msg.addByte(0); // Reject Transfer Error
+			}
+
+			if (isOwner) {
+				msg.addByte(0); // Cancel Transfer Error
+			}
+		} else if (houseState == CyclopediaHouseState::MoveOut) {
+			auto ownerName = IOLoginData::getNameByGuid(houseData->getOwner());
+			msg.addString(ownerName);
+			msg.add<uint32_t>(houseData->getPaidUntil());
+
+			bool isOwner = ownerName.compare(player->getName()) == 0;
+			msg.addByte(isOwner);
+			if (isOwner) {
+				msg.addByte(0); // ?
+				msg.addByte(0); // ?
+				msg.add<uint32_t>(houseData->getBidEndDate());
+				msg.addByte(0);
+			} else {
+				msg.add<uint32_t>(houseData->getBidEndDate());
+			}
+		}
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendHouseAuctionMessage(uint32_t houseId, HouseAuctionType type, uint8_t index, bool bidSuccess /* = false*/) {
+	NetworkMessage msg;
+	const auto typeValue = enumToValue(type);
+
+	msg.addByte(0xC3);
+	msg.add<uint32_t>(houseId);
+	msg.addByte(typeValue);
+	if (bidSuccess && typeValue == 1) {
+		msg.addByte(0x00);
+	}
+	msg.addByte(index);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendHousesInfo() {
+	NetworkMessage msg;
+
+	uint32_t houseClientId = 0;
+	const auto accountHouseCount = g_game().map.houses.getHouseCountByAccount(player->getAccountId());
+	const auto house = g_game().map.houses.getHouseByPlayerId(player->getGUID());
+	if (house) {
+		houseClientId = house->getClientId();
+	}
+
+	msg.addByte(0xC6);
+	msg.add<uint32_t>(houseClientId);
+	msg.addByte(0x00);
+
+	msg.addByte(accountHouseCount); // Houses Account
+
+	msg.addByte(0x00);
+
+	msg.addByte(3);
+	msg.addByte(3);
+
+	msg.addByte(0x01);
+
+	msg.addByte(0x01);
+	msg.add<uint32_t>(houseClientId);
+
+	const auto &housesList = g_game().map.houses.getHouses();
+	msg.add<uint16_t>(housesList.size());
+	for (const auto &it : housesList) {
+		msg.add<uint32_t>(it.second->getClientId());
+	}
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendHarmonyProtocol(const uint8_t harmonyValue) {
+	NetworkMessage msg;
+	msg.addByte(0xC1);
+	msg.addByte(0x00);
+	msg.addByte(harmonyValue);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendSereneProtocol(const bool isSerene) {
+	NetworkMessage msg;
+	msg.addByte(0xC1);
+	msg.addByte(0x01);
+	msg.addByte(isSerene ? 0x01 : 0x00);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendStanceProtocol(const std::vector<uint16_t> &spellIds) {
+	// 0xC1 sub-channel 0x02 = active-stance highlight list. The 15.25 client reads a u8 count
+	// then that many little-endian u16 spell ids and WHOLE-REPLACES its active-spell set, framing
+	// every action-bar slot whose spell id is in the set. So we must send the COMPLETE set of
+	// currently-active stances every time — e.g. a sorcerer with an elemental stance AND a
+	// crippling stance sends both ids (count 2) so BOTH slots get framed. An empty list (count 0)
+	// clears all frames; never send id 0 (id 0 matches every empty slot -> frames them all).
+	NetworkMessage msg;
+	msg.addByte(0xC1);
+	msg.addByte(0x02);
+	msg.addByte(static_cast<uint8_t>(spellIds.size()));
+	for (const uint16_t spellId : spellIds) {
+		msg.add<uint16_t>(spellId);
+	}
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::parseSelectSpellAimProtocol(NetworkMessage &msg) {
+	if (!player->canDoExAction()) {
+		player->sendCancelMessage("You need to wait to do this again.");
+		return;
+	}
+
+	const uint8_t spellListSize = msg.getByte();
+	for (auto i = 1; i <= spellListSize; i++) {
+		const uint16_t spellId = msg.get<uint16_t>();
+		const uint8_t spellAim = msg.getByte();
+		player->spellActivedAimMap[spellId] = spellAim;
+	}
+
+	player->setNextExAction(OTSYS_TIME() + g_configManager().getNumber(UI_ACTIONS_DELAY_INTERVAL) - 10);
+}
+
+void ProtocolGame::parseImbuementWindow(NetworkMessage &msg) {
+	if (!player || oldProtocol) {
+		return;
+	}
+
+	const Imbuement_Window_t type = static_cast<Imbuement_Window_t>(msg.getByte());
+
+	if (type == IMBUEMENT_WINDOW_CHOICE) {
+		player->openImbuementWindow(type);
+	} else if (type == IMBUEMENT_WINDOW_SELECT_ITEM) {
+		const Position &pos = msg.getPosition();
+		const uint16_t itemId = msg.get<uint16_t>();
+		const uint8_t stackPos = msg.getByte();
+
+		const std::shared_ptr<Thing> &thing = g_game().internalGetThing(player, pos, stackPos, itemId, STACKPOS_USETARGET);
+		if (!thing) {
+			return;
+		}
+
+		const std::shared_ptr<Item> &item = thing->getItem();
+		if (!item) {
+			return;
+		}
+
+		player->openImbuementWindow(type, item);
+
+	} else if (type == IMBUEMENT_WINDOW_SCROLL) {
+		const std::shared_ptr<Item> &blankImbuementScroll = Item::CreateItem(ITEM_BLANK_IMBUEMENT_SCROLL, 1, player->getInstanceId());
+		if (!blankImbuementScroll) {
+			return;
+		}
+
+		player->openImbuementWindow(type, blankImbuementScroll);
+	}
+}
+
+void ProtocolGame::parseWeaponProficiency(NetworkMessage &msg) {
+	if (oldProtocol || !player) {
+		return;
+	}
+
+	std::shared_ptr<Player> target = player;
+	const uint32_t editOwnerId = player->getFeatureEditOwnerId();
+	if (editOwnerId != 0 && editOwnerId != player->getID()) {
+		const auto &owner = g_game().getPlayerByID(editOwnerId);
+		if (owner && owner->getAccountId() != 0 && owner->getAccountId() == player->getAccountId()) {
+			target = owner;
+		}
+	}
+
+	const WeaponProficiency_t type = static_cast<WeaponProficiency_t>(msg.getByte());
+
+	if (type == WEAPON_PROFICIENCY_ITEM_INFO) {
+		const uint16_t itemId = msg.get<uint16_t>();
+		target->sanitizeWeaponProficiencyShapes(itemId);
+		target->sendWeaponProficiencyInfo(itemId);
+
+	} else if (type == WEAPON_PROFICIENCY_LIST_INFO) {
+		for (const auto &[itemId, _] : target->weaponProficiencies) {
+			target->sanitizeWeaponProficiencyShapes(itemId);
+			sendWeaponProficiencyInfo(itemId, target.get());
 		}
 
 	} else if (type == WEAPON_PROFICIENCY_RESET_PERKS) {
